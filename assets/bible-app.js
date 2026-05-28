@@ -30,11 +30,7 @@ const translations = [
   { code: "BSB", name: "Berean Standard Bible", status: "bundled" },
   { code: "WEB", name: "World English Bible", status: "bundled" },
   { code: "ASV", name: "American Standard Version", status: "bundled" },
-  { code: "ESV", name: "English Standard Version", status: "licensed" },
-  { code: "NLT", name: "New Living Translation", status: "licensed" },
-  { code: "NKJV", name: "New King James Version", status: "licensed" },
-  { code: "NASB", name: "New American Standard Bible", status: "licensed" },
-  { code: "AMP", name: "Amplified Bible", status: "licensed" },
+  { code: "BBE", name: "Bible in Basic English", status: "bundled" },
 ];
 
 const translationCodes = translations.map((translation) => translation.code);
@@ -342,7 +338,7 @@ function library() {
       </div>
       <div class="library-footer">
         <strong>${state.versions.join(" + ")}</strong>
-        <span>KJV, BSB, WEB, and ASV are bundled as full texts from eBible.org. ESV, NLT, NKJV, NASB, and AMP are wired for a licensed text provider.</span>
+        <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
         <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
       </div>
     </aside>
@@ -374,18 +370,13 @@ function reader() {
 
 function renderStrongText(verse, version) {
   const text = getVerseText(verse, version);
-  if (isLicensedPlaceholder(verse, version)) {
-    return `${text}<span class="license-note">${translationLookup[version].name} requires a licensed Bible text source before full verse text can display.</span>`;
-  }
   return renderTextWithStrongNumbers(text, getStrongEntries(verse, version));
 }
 
 function getVerseText(verse, version) {
   if (verse[version]) return verse[version];
-  const translation = translationLookup[version];
-  if (translation?.status === "licensed") return `${version} text source pending for ${state.reference}:${verse.n}.`;
   if (loadingVersions.has(version)) return `Loading ${version}...`;
-  return verse.KJV || verse.WEB || verse.ASV || verse.BSB || "";
+  return verse.KJV || verse.WEB || verse.ASV || verse.BSB || verse.BBE || "";
 }
 
 function getStrongEntries(verse, version) {
@@ -469,10 +460,6 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#39;",
   }[character]));
-}
-
-function isLicensedPlaceholder(verse, version) {
-  return !verse[version] && translationLookup[version]?.status === "licensed";
 }
 
 function readerView() {
@@ -623,7 +610,7 @@ function presentation() {
           <button class="ghost-btn" id="presentationPrev" ${canGoBack ? "" : "disabled"}>Previous</button>
           <button class="ghost-btn" id="presentationNext" ${canGoForward ? "" : "disabled"}>Next</button>
         </div>
-        <span>${isLicensedPlaceholder(verse, state.versions[0]) ? "Licensed text source needed" : "Use arrow controls to move verse by verse"}</span>
+        <span>Use arrow controls to move verse by verse</span>
       </div>
     </section>
   `;
@@ -694,10 +681,8 @@ function bindEvents() {
       if (event.target.value !== "Add") {
         const version = event.target.value;
         state.versions.push(version);
-        if (translationLookup[version]?.status === "bundled") {
-          await loadBibleVersion(version);
-          rebuildBibleData();
-        }
+        await loadBibleVersion(version);
+        rebuildBibleData();
       }
       localStorage.setItem("lw_versions", JSON.stringify(state.versions));
       render();
@@ -1452,7 +1437,6 @@ function rebuildBibleData() {
       });
     });
   });
-
   Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
   bibleData = merged;
 }

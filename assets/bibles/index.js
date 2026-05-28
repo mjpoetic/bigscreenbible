@@ -357,6 +357,12 @@ window.BIGSCREEN_BIBLE_INDEX={
       "source": "https://ebible.org/eng-asv/",
       "chapters": 1189,
       "verses": 31086
+    },
+    "BBE": {
+      "name": "Bible in Basic English",
+      "source": "https://github.com/seven1m/open-bibles/blob/master/eng-bbe.usfx.xml",
+      "chapters": 1189,
+      "verses": 31102
     }
   }
 };

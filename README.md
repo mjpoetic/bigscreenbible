@@ -22,8 +22,9 @@ The bundled full-text translations live in `assets/bibles/` as JavaScript data b
 - BSB: Berean Standard Bible
 - WEB: World English Bible
 - ASV: American Standard Version (1901)
+- BBE: Bible in Basic English
 
-The data bundles were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). The remaining listed translations still need licensed text-provider integration before their full text can be shown.
+The data bundles were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). BBE was generated from the public-domain [eng-bbe.usfx.xml](https://github.com/seven1m/open-bibles/blob/master/eng-bbe.usfx.xml) file in the seven1m/open-bibles collection.
 
 The bundled data also includes word-level Strong's number tags where the USFX source provides them.
 
