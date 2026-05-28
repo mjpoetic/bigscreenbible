@@ -1,36 +1,20 @@
-const books = [
-  "Genesis",
-  "Exodus",
-  "Leviticus",
-  "Numbers",
-  "Deuteronomy",
-  "Joshua",
-  "Judges",
-  "Ruth",
-  "1 Samuel",
-  "2 Samuel",
-  "1 Kings",
-  "2 Kings",
-  "1 Chronicles",
-  "2 Chronicles",
-  "Ezra",
-  "Nehemiah",
-  "Esther",
-  "Job",
-  "Psalms",
-  "Proverbs",
-  "Ecclesiastes",
-  "Song of Songs",
-  "Isaiah",
-  "Matthew",
-  "Mark",
-  "Luke",
-  "John",
-  "Romans",
-  "1 Corinthians",
-  "1 John",
-  "Revelation",
+const bookDefinitions = [
+  ["Genesis", 50], ["Exodus", 40], ["Leviticus", 27], ["Numbers", 36], ["Deuteronomy", 34],
+  ["Joshua", 24], ["Judges", 21], ["Ruth", 4], ["1 Samuel", 31], ["2 Samuel", 24],
+  ["1 Kings", 22], ["2 Kings", 25], ["1 Chronicles", 29], ["2 Chronicles", 36], ["Ezra", 10],
+  ["Nehemiah", 13], ["Esther", 10], ["Job", 42], ["Psalm", 150], ["Proverbs", 31],
+  ["Ecclesiastes", 12], ["Song of Songs", 8], ["Isaiah", 66], ["Jeremiah", 52], ["Lamentations", 5],
+  ["Ezekiel", 48], ["Daniel", 12], ["Hosea", 14], ["Joel", 3], ["Amos", 9],
+  ["Obadiah", 1], ["Jonah", 4], ["Micah", 7], ["Nahum", 3], ["Habakkuk", 3],
+  ["Zephaniah", 3], ["Haggai", 2], ["Zechariah", 14], ["Malachi", 4], ["Matthew", 28],
+  ["Mark", 16], ["Luke", 24], ["John", 21], ["Acts", 28], ["Romans", 16],
+  ["1 Corinthians", 16], ["2 Corinthians", 13], ["Galatians", 6], ["Ephesians", 6], ["Philippians", 4],
+  ["Colossians", 4], ["1 Thessalonians", 5], ["2 Thessalonians", 3], ["1 Timothy", 6], ["2 Timothy", 4],
+  ["Titus", 3], ["Philemon", 1], ["Hebrews", 13], ["James", 5], ["1 Peter", 5],
+  ["2 Peter", 3], ["1 John", 5], ["2 John", 1], ["3 John", 1], ["Jude", 1], ["Revelation", 22],
 ];
+
+const books = bookDefinitions.map(([book]) => book);
 
 const oldTestamentBooks = books.slice(0, books.indexOf("Matthew"));
 const newTestamentBooks = books.slice(books.indexOf("Matthew"));
@@ -39,98 +23,7 @@ const testamentGroups = [
   ["New Testament", newTestamentBooks],
 ];
 
-const bookAliases = {
-  gen: "Genesis",
-  ge: "Genesis",
-  gn: "Genesis",
-  ex: "Exodus",
-  exo: "Exodus",
-  lev: "Leviticus",
-  le: "Leviticus",
-  num: "Numbers",
-  nu: "Numbers",
-  deut: "Deuteronomy",
-  dt: "Deuteronomy",
-  jos: "Joshua",
-  josh: "Joshua",
-  jdg: "Judges",
-  judg: "Judges",
-  ru: "Ruth",
-  ruth: "Ruth",
-  "1sam": "1 Samuel",
-  "1sa": "1 Samuel",
-  "1 sam": "1 Samuel",
-  "1 sa": "1 Samuel",
-  "2sam": "2 Samuel",
-  "2sa": "2 Samuel",
-  "2 sam": "2 Samuel",
-  "2 sa": "2 Samuel",
-  "1ki": "1 Kings",
-  "1kgs": "1 Kings",
-  "1 kings": "1 Kings",
-  "2ki": "2 Kings",
-  "2kgs": "2 Kings",
-  "2 kings": "2 Kings",
-  "1chr": "1 Chronicles",
-  "1ch": "1 Chronicles",
-  "1 chron": "1 Chronicles",
-  "1 chronicles": "1 Chronicles",
-  "2chr": "2 Chronicles",
-  "2ch": "2 Chronicles",
-  "2 chron": "2 Chronicles",
-  "2 chronicles": "2 Chronicles",
-  ezr: "Ezra",
-  ezra: "Ezra",
-  neh: "Nehemiah",
-  ne: "Nehemiah",
-  est: "Esther",
-  esth: "Esther",
-  job: "Job",
-  ps: "Psalms",
-  psa: "Psalms",
-  psm: "Psalms",
-  psalm: "Psalms",
-  psalms: "Psalms",
-  pro: "Proverbs",
-  prov: "Proverbs",
-  proverb: "Proverbs",
-  proverbs: "Proverbs",
-  ecc: "Ecclesiastes",
-  eccl: "Ecclesiastes",
-  eccles: "Ecclesiastes",
-  ecclesiastes: "Ecclesiastes",
-  song: "Song of Songs",
-  sos: "Song of Songs",
-  songofsongs: "Song of Songs",
-  isa: "Isaiah",
-  is: "Isaiah",
-  matt: "Matthew",
-  mt: "Matthew",
-  mat: "Matthew",
-  mark: "Mark",
-  mrk: "Mark",
-  mk: "Mark",
-  luke: "Luke",
-  luk: "Luke",
-  lk: "Luke",
-  john: "John",
-  jhn: "John",
-  jn: "John",
-  rom: "Romans",
-  ro: "Romans",
-  romans: "Romans",
-  "1cor": "1 Corinthians",
-  "1co": "1 Corinthians",
-  "1 cor": "1 Corinthians",
-  "1 corinthians": "1 Corinthians",
-  "1jn": "1 John",
-  "1 jn": "1 John",
-  "1john": "1 John",
-  "1 john": "1 John",
-  rev: "Revelation",
-  re: "Revelation",
-  revelation: "Revelation",
-};
+const bookAliases = buildBookAliases();
 
 const translations = [
   { code: "KJV", name: "King James Version", status: "bundled" },
@@ -147,169 +40,30 @@ const translations = [
 const translationCodes = translations.map((translation) => translation.code);
 const translationLookup = Object.fromEntries(translations.map((translation) => [translation.code, translation]));
 
-const bibleData = {
-  "John 3": {
-    title: "The New Birth",
-    verses: [
-      {
-        n: 1,
-        KJV: "There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:",
-        BSB: "Now there was a man of the Pharisees named Nicodemus, a leader of the Jews.",
-        WEB: "Now there was a man of the Pharisees named Nicodemus, a ruler of the Jews.",
-        ASV: "Now there was a man of the Pharisees, named Nicodemus, a ruler of the Jews:",
-        strong: [{ word: "Nicodemus", code: "G3530" }],
-      },
-      {
-        n: 2,
-        KJV: "The same came to Jesus by night, and said unto him, Rabbi, we know that thou art a teacher come from God.",
-        BSB: "He came to Jesus at night and said, Rabbi, we know that You are a teacher who has come from God. For no one could perform the signs You are doing if God were not with him.",
-        WEB: "The same came to him by night, and said to him, Rabbi, we know that you are a teacher come from God.",
-        ASV: "The same came unto him by night, and said to him, Rabbi, we know that thou art a teacher come from God.",
-        strong: [{ word: "Rabbi", code: "G4461" }],
-      },
-      {
-        n: 3,
-        KJV: "Jesus answered and said unto him, Verily, verily, I say unto thee, Except a man be born again, he cannot see the kingdom of God.",
-        BSB: "Jesus replied, Truly, truly, I tell you, no one can see the kingdom of God unless he is born again.",
-        WEB: "Jesus answered him, Most certainly, I tell you, unless one is born anew, he cannot see God's Kingdom.",
-        ASV: "Jesus answered and said unto him, Verily, verily, I say unto thee, Except one be born anew, he cannot see the kingdom of God.",
-        strong: [{ word: "again", code: "G509" }],
-      },
-      {
-        n: 4,
-        KJV: "Nicodemus saith unto him, How can a man be born when he is old?",
-        BSB: "How can a man be born when he is old? Nicodemus asked. Can he enter his mother's womb a second time to be born?",
-        WEB: "Nicodemus said to him, How can a man be born when he is old?",
-        ASV: "Nicodemus saith unto him, How can a man be born when he is old?",
-        strong: [],
-      },
-      {
-        n: 5,
-        KJV: "Jesus answered, Verily, verily, I say unto thee, Except a man be born of water and of the Spirit, he cannot enter into the kingdom of God.",
-        BSB: "Jesus answered, Truly, truly, I tell you, no one can enter the kingdom of God unless he is born of water and the Spirit.",
-        WEB: "Jesus answered, Most certainly I tell you, unless one is born of water and spirit, he cannot enter into God's Kingdom.",
-        ASV: "Jesus answered, Verily, verily, I say unto thee, Except one be born of water and the Spirit, he cannot enter into the kingdom of God.",
-        strong: [
-          { word: "water", code: "G5204" },
-          { word: "Spirit", code: "G4151" },
-        ],
-      },
-      {
-        n: 6,
-        KJV: "That which is born of the flesh is flesh; and that which is born of the Spirit is spirit.",
-        BSB: "Flesh is born of flesh, but spirit is born of the Spirit.",
-        WEB: "That which is born of the flesh is flesh. That which is born of the Spirit is spirit.",
-        ASV: "That which is born of the flesh is flesh; and that which is born of the Spirit is spirit.",
-        strong: [{ word: "flesh", code: "G4561" }],
-      },
-      {
-        n: 7,
-        KJV: "Marvel not that I said unto thee, Ye must be born again.",
-        BSB: "Do not be amazed that I said, You must be born again.",
-        WEB: "Do not marvel that I said to you, You must be born anew.",
-        ASV: "Marvel not that I said unto thee, Ye must be born anew.",
-        strong: [],
-      },
-      {
-        n: 16,
-        KJV: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
-        BSB: "For God so loved the world that He gave His one and only Son, that everyone who believes in Him shall not perish but have eternal life.",
-        WEB: "For God so loved the world that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.",
-        ASV: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth on him should not perish, but have eternal life.",
-        strong: [
-          { word: "God", code: "G2316" },
-          { word: "loved", code: "G25" },
-          { word: "world", code: "G2889" },
-          { word: "life", code: "G2222" },
-        ],
-      },
-      {
-        n: 17,
-        KJV: "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
-        BSB: "For God did not send His Son into the world to condemn the world, but to save the world through Him.",
-        WEB: "For God did not send his Son into the world to judge the world, but that the world should be saved through him.",
-        ASV: "For God sent not the Son into the world to judge the world; but that the world should be saved through him.",
-        strong: [{ word: "saved", code: "G4982" }],
-      },
-    ],
-  },
-  "Psalm 23": {
-    title: "The Lord My Shepherd",
-    verses: [
-      {
-        n: 1,
-        KJV: "The LORD is my shepherd; I shall not want.",
-        BSB: "The LORD is my shepherd; I shall not want.",
-        WEB: "Yahweh is my shepherd: I shall lack nothing.",
-        ASV: "Jehovah is my shepherd; I shall not want.",
-        strong: [{ word: "shepherd", code: "H7462" }],
-      },
-      {
-        n: 2,
-        KJV: "He maketh me to lie down in green pastures: he leadeth me beside the still waters.",
-        BSB: "He makes me lie down in green pastures; He leads me beside quiet waters.",
-        WEB: "He makes me lie down in green pastures. He leads me beside still waters.",
-        ASV: "He maketh me to lie down in green pastures; He leadeth me beside still waters.",
-        strong: [{ word: "waters", code: "H4325" }],
-      },
-      {
-        n: 3,
-        KJV: "He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake.",
-        BSB: "He restores my soul; He guides me in the paths of righteousness for the sake of His name.",
-        WEB: "He restores my soul. He guides me in the paths of righteousness for his name's sake.",
-        ASV: "He restoreth my soul: He guideth me in the paths of righteousness for his name's sake.",
-        strong: [{ word: "restoreth", code: "H7725" }],
-      },
-      {
-        n: 4,
-        KJV: "Yea, though I walk through the valley of the shadow of death, I will fear no evil.",
-        BSB: "Even though I walk through the valley of the shadow of death, I will fear no evil, for You are with me; Your rod and Your staff, they comfort me.",
-        WEB: "Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me.",
-        ASV: "Yea, though I walk through the valley of the shadow of death, I will fear no evil; for thou art with me.",
-        strong: [{ word: "fear", code: "H3372" }],
-      },
-      {
-        n: 6,
-        KJV: "Surely goodness and mercy shall follow me all the days of my life.",
-        BSB: "Surely goodness and mercy will follow me all the days of my life, and I will dwell in the house of the LORD forever.",
-        WEB: "Surely goodness and loving kindness shall follow me all the days of my life.",
-        ASV: "Surely goodness and lovingkindness shall follow me all the days of my life.",
-        strong: [{ word: "mercy", code: "H2617" }],
-      },
-    ],
-  },
-  "Romans 8": {
-    title: "Life in the Spirit",
-    verses: [
-      {
-        n: 1,
-        KJV: "There is therefore now no condemnation to them which are in Christ Jesus.",
-        BSB: "Therefore, there is now no condemnation for those who are in Christ Jesus.",
-        WEB: "There is therefore now no condemnation to those who are in Christ Jesus.",
-        ASV: "There is therefore now no condemnation to them that are in Christ Jesus.",
-        strong: [{ word: "condemnation", code: "G2631" }],
-      },
-      {
-        n: 28,
-        KJV: "And we know that all things work together for good to them that love God.",
-        BSB: "And we know that God works all things together for the good of those who love Him, who are called according to His purpose.",
-        WEB: "We know that all things work together for good for those who love God.",
-        ASV: "And we know that to them that love God all things work together for good.",
-        strong: [
-          { word: "work", code: "G4903" },
-          { word: "good", code: "G18" },
-        ],
-      },
-      {
-        n: 39,
-        KJV: "Nor height, nor depth, nor any other creature, shall be able to separate us from the love of God.",
-        BSB: "Neither height nor depth, nor anything else in all creation, will be able to separate us from the love of God that is in Christ Jesus our Lord.",
-        WEB: "Nor height, nor depth, nor any other created thing will be able to separate us from God's love.",
-        ASV: "Nor height, nor depth, nor any other creature, shall be able to separate us from the love of God.",
-        strong: [{ word: "love", code: "G26" }],
-      },
-    ],
-  },
+let bibleData = {};
+let bibleIndex = null;
+let dataLoading = true;
+let dataError = "";
+
+const loadedVersionData = new Map();
+const loadingVersions = new Set();
+
+const sampleStrongRefs = {
+  "John 3:1": [{ word: "Nicodemus", code: "G3530" }],
+  "John 3:2": [{ word: "Rabbi", code: "G4461" }],
+  "John 3:3": [{ word: "again", code: "G509" }],
+  "John 3:5": [{ word: "water", code: "G5204" }, { word: "Spirit", code: "G4151" }],
+  "John 3:6": [{ word: "flesh", code: "G4561" }],
+  "John 3:16": [{ word: "God", code: "G2316" }, { word: "loved", code: "G25" }, { word: "world", code: "G2889" }, { word: "life", code: "G2222" }],
+  "John 3:17": [{ word: "saved", code: "G4982" }],
+  "Psalm 23:1": [{ word: "shepherd", code: "H7462" }],
+  "Psalm 23:2": [{ word: "waters", code: "H4325" }],
+  "Psalm 23:3": [{ word: "restoreth", code: "H7725" }],
+  "Psalm 23:4": [{ word: "fear", code: "H3372" }],
+  "Psalm 23:6": [{ word: "mercy", code: "H2617" }],
+  "Romans 8:1": [{ word: "condemnation", code: "G2631" }],
+  "Romans 8:28": [{ word: "work", code: "G4903" }, { word: "good", code: "G18" }],
+  "Romans 8:39": [{ word: "love", code: "G26" }],
 };
 
 const crossRefs = {
@@ -377,6 +131,7 @@ const state = {
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
 if (state.versions.length === 0) state.versions = ["KJV", "WEB"];
+if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("KJV");
 
 function savedTheme() {
   const theme = localStorage.getItem("lw_theme");
@@ -420,11 +175,11 @@ const icons = {
 state.textScale = clampTextScale(state.textScale);
 
 function currentChapter() {
-  return bibleData[state.reference] || bibleData["John 3"];
+  return bibleData[state.reference] || bibleData["John 3"] || { title: state.reference, verses: [] };
 }
 
 function currentVerse() {
-  return currentChapter().verses.find((verse) => verse.n === state.verse) || currentChapter().verses[0];
+  return currentChapter().verses.find((verse) => verse.n === state.verse) || currentChapter().verses[0] || { n: state.verse };
 }
 
 function referenceLabel() {
@@ -442,6 +197,10 @@ function mainGridClass() {
 
 function render() {
   const app = document.querySelector("#app");
+  if (dataLoading || dataError) {
+    app.innerHTML = loadingScreen();
+    return;
+  }
   app.innerHTML = `
     <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" style="--text-scale: ${state.textScale}">
       ${topbar()}
@@ -468,6 +227,22 @@ function render() {
     state.pendingPanelFocus = null;
     requestAnimationFrame(() => focusWorkspaceTarget(target));
   }
+}
+
+function loadingScreen() {
+  const message = dataError || "Loading full Bible texts...";
+  return `
+    <main class="app-shell focus-shell" data-theme="${state.theme}">
+      <section class="reader loading-reader">
+        <div class="loading-card">
+          <div class="brand-mark">${icons.book}</div>
+          <h1>Big Screen Bible</h1>
+          <p>${message}</p>
+          ${dataError ? '<button class="primary-btn" onclick="location.reload()">Retry</button>' : ""}
+        </div>
+      </section>
+    </main>
+  `;
 }
 
 function topbar() {
@@ -549,7 +324,7 @@ function library() {
       </div>
       <div class="library-footer">
         <strong>${state.versions.join(" + ")}</strong>
-        <span>KJV, BSB, WEB, and ASV are bundled samples. ESV, NLT, NKJV, NASB, and AMP are wired for a licensed text provider.</span>
+        <span>KJV, BSB, WEB, and ASV are bundled as full texts from eBible.org. ESV, NLT, NKJV, NASB, and AMP are wired for a licensed text provider.</span>
       </div>
     </aside>
   `;
@@ -583,7 +358,7 @@ function renderStrongText(verse, version) {
   if (isLicensedPlaceholder(verse, version)) {
     return `${text}<span class="license-note">${translationLookup[version].name} requires a licensed Bible text source before full verse text can display.</span>`;
   }
-  verse.strong.forEach((entry) => {
+  getStrongEntries(verse).forEach((entry) => {
     text = text.replace(entry.word, `<mark>${entry.word}</mark><button class="strong" data-strong="${entry.code}">${entry.code}</button>`);
   });
   return text;
@@ -593,7 +368,12 @@ function getVerseText(verse, version) {
   if (verse[version]) return verse[version];
   const translation = translationLookup[version];
   if (translation?.status === "licensed") return `${version} text source pending for ${state.reference}:${verse.n}.`;
-  return verse.KJV;
+  if (loadingVersions.has(version)) return `Loading ${version}...`;
+  return verse.KJV || verse.WEB || verse.ASV || verse.BSB || "";
+}
+
+function getStrongEntries(verse) {
+  return verse.strong || sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
 }
 
 function isLicensedPlaceholder(verse, version) {
@@ -791,8 +571,15 @@ function bindEvents() {
     });
   });
   ["versionSelect"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("change", (event) => {
-      if (event.target.value !== "Add") state.versions.push(event.target.value);
+    document.getElementById(id)?.addEventListener("change", async (event) => {
+      if (event.target.value !== "Add") {
+        const version = event.target.value;
+        state.versions.push(version);
+        if (translationLookup[version]?.status === "bundled") {
+          await loadBibleVersion(version);
+          rebuildBibleData();
+        }
+      }
       localStorage.setItem("lw_versions", JSON.stringify(state.versions));
       render();
     });
@@ -918,7 +705,7 @@ function gotoReference(value) {
   const book = normalizeBookName(match[1]);
   if (!book) return showToast(`I do not recognize ${match[1].trim()} yet`);
   const key = `${book} ${match[2]}`;
-  if (!bibleData[key]) return showToast(`${key} is ready for the full data layer`);
+  if (!bibleData[key]) return showToast(`${key} is not available in the bundled Bible data`);
   state.reference = key;
   state.verse = Number(match[3] || bibleData[key].verses[0].n);
   state.selectedVerses = [];
@@ -1103,7 +890,7 @@ function availableReferenceForBook(book) {
 
 function openBook(book) {
   const reference = availableReferenceForBook(book);
-  if (!reference) return showToast(`${book} is ready for the full data layer`);
+  if (!reference) return showToast(`${book} is not available in the bundled Bible data`);
   state.reference = reference;
   state.verse = currentChapter().verses[0].n;
   state.selectedVerses = [];
@@ -1252,5 +1039,149 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove("show"), 1600);
 }
 
+function buildBookAliases() {
+  const aliases = {};
+  const add = (book, ...values) => values.forEach((value) => {
+    aliases[normalizeAliasKey(value)] = book;
+  });
+
+  books.forEach((book) => add(book, book, book.replace(/^\d\s+/, "$&"), book.replace(/\s+/g, "")));
+  add("Genesis", "gen", "ge", "gn");
+  add("Exodus", "ex", "exo");
+  add("Leviticus", "lev", "le");
+  add("Numbers", "num", "nu");
+  add("Deuteronomy", "deut", "dt", "deu");
+  add("Joshua", "jos", "josh");
+  add("Judges", "jdg", "judg");
+  add("Ruth", "ru");
+  add("1 Samuel", "1sam", "1sa", "1 sam", "1 sa");
+  add("2 Samuel", "2sam", "2sa", "2 sam", "2 sa");
+  add("1 Kings", "1ki", "1kgs", "1 kings");
+  add("2 Kings", "2ki", "2kgs", "2 kings");
+  add("1 Chronicles", "1chr", "1ch", "1 chron", "1 chronicles");
+  add("2 Chronicles", "2chr", "2ch", "2 chron", "2 chronicles");
+  add("Ezra", "ezr");
+  add("Nehemiah", "neh", "ne");
+  add("Esther", "est", "esth");
+  add("Psalm", "ps", "psa", "psm", "psalm", "psalms");
+  add("Proverbs", "pro", "prov", "proverb");
+  add("Ecclesiastes", "ecc", "eccl", "eccles");
+  add("Song of Songs", "song", "song of solomon", "sos", "songofsongs", "songofsolomon");
+  add("Isaiah", "isa", "is");
+  add("Jeremiah", "jer");
+  add("Lamentations", "lam");
+  add("Ezekiel", "ezek", "ezk");
+  add("Daniel", "dan", "dn");
+  add("Hosea", "hos");
+  add("Joel", "jol");
+  add("Amos", "amo");
+  add("Obadiah", "oba", "obad");
+  add("Jonah", "jon");
+  add("Micah", "mic");
+  add("Nahum", "nah", "nam");
+  add("Habakkuk", "hab");
+  add("Zephaniah", "zep", "zeph");
+  add("Haggai", "hag");
+  add("Zechariah", "zec", "zech");
+  add("Malachi", "mal");
+  add("Matthew", "matt", "mt", "mat");
+  add("Mark", "mrk", "mk");
+  add("Luke", "luk", "lk");
+  add("John", "jhn", "jn");
+  add("Acts", "act");
+  add("Romans", "rom", "ro");
+  add("1 Corinthians", "1cor", "1co", "1 cor", "1 corinthians");
+  add("2 Corinthians", "2cor", "2co", "2 cor", "2 corinthians");
+  add("Galatians", "gal");
+  add("Ephesians", "eph");
+  add("Philippians", "phil", "php");
+  add("Colossians", "col");
+  add("1 Thessalonians", "1th", "1thess", "1 thess", "1 thessalonians");
+  add("2 Thessalonians", "2th", "2thess", "2 thess", "2 thessalonians");
+  add("1 Timothy", "1tim", "1ti", "1 tim", "1 timothy");
+  add("2 Timothy", "2tim", "2ti", "2 tim", "2 timothy");
+  add("Titus", "tit");
+  add("Philemon", "phm", "phile");
+  add("Hebrews", "heb");
+  add("James", "jas", "jm");
+  add("1 Peter", "1pet", "1pe", "1 peter");
+  add("2 Peter", "2pet", "2pe", "2 peter");
+  add("1 John", "1jn", "1 jn", "1john", "1 john");
+  add("2 John", "2jn", "2 jn", "2john", "2 john");
+  add("3 John", "3jn", "3 jn", "3john", "3 john");
+  add("Jude", "jud");
+  add("Revelation", "rev", "re");
+  return aliases;
+}
+
+function normalizeAliasKey(value) {
+  return value.trim().toLowerCase().replace(/\./g, "").replace(/\s+/g, " ");
+}
+
+async function initializeBibleData() {
+  render();
+  try {
+    const response = await fetch("./assets/bibles/index.json");
+    if (!response.ok) throw new Error(`Bible index failed with ${response.status}`);
+    bibleIndex = await response.json();
+    await Promise.all(state.versions.filter((version) => translationLookup[version]?.status === "bundled").map(loadBibleVersion));
+    rebuildBibleData();
+    dataLoading = false;
+    render();
+  } catch (error) {
+    console.error(error);
+    dataError = "The full Bible text files could not be loaded.";
+    dataLoading = false;
+    render();
+  }
+}
+
+async function loadBibleVersion(version) {
+  if (loadedVersionData.has(version) || loadingVersions.has(version)) return;
+  loadingVersions.add(version);
+  try {
+    const response = await fetch(`./assets/bibles/${version}.json`);
+    if (!response.ok) throw new Error(`${version} failed with ${response.status}`);
+    loadedVersionData.set(version, await response.json());
+  } catch (error) {
+    console.error(error);
+    showToast(`${version} could not be loaded`);
+  } finally {
+    loadingVersions.delete(version);
+  }
+}
+
+function rebuildBibleData() {
+  const merged = {};
+  const referenceKeys = chapterKeys();
+  referenceKeys.forEach((key) => {
+    merged[key] = { title: key, verses: [] };
+  });
+
+  loadedVersionData.forEach((versionData, version) => {
+    referenceKeys.forEach((key) => {
+      const sourceChapter = versionData.chapters[key];
+      if (!sourceChapter) return;
+      const targetChapter = merged[key];
+      sourceChapter.verses.forEach(({ n, text }) => {
+        let verse = targetChapter.verses.find((item) => item.n === n);
+        if (!verse) {
+          verse = { n };
+          targetChapter.verses.push(verse);
+        }
+        verse[version] = text;
+      });
+    });
+  });
+
+  Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
+  bibleData = merged;
+}
+
+function chapterKeys() {
+  const sourceBooks = bibleIndex?.books?.length ? bibleIndex.books.map(({ name, chapters }) => [name, chapters]) : bookDefinitions;
+  return sourceBooks.flatMap(([book, chapters]) => Array.from({ length: chapters }, (_, index) => `${book} ${index + 1}`));
+}
+
 watchSystemTheme();
-render();
+initializeBibleData();

@@ -13,3 +13,14 @@ This project is a static site. To publish it with GitHub Pages:
 5. Save the setting.
 
 GitHub Pages will serve `index.html` from the repository root.
+
+## Bible Texts
+
+The bundled full-text translations live in `assets/bibles/`:
+
+- KJV: King James Version
+- BSB: Berean Standard Bible
+- WEB: World English Bible
+- ASV: American Standard Version (1901)
+
+The JSON files were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). The remaining listed translations still need licensed text-provider integration before their full text can be shown.
