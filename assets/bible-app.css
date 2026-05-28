@@ -18,8 +18,8 @@
   --reader-max: clamp(860px, 56vw, 1680px);
   --reader-pad-x: clamp(24px, 3.2vw, 72px);
   --reader-pad-y: clamp(42px, 5vh, 82px);
-  --verse-font: calc(clamp(23px, 1.35vw, 38px) * var(--text-scale, 1));
-  --parallel-font: calc(clamp(16px, 0.9vw, 25px) * var(--text-scale, 1));
+  --verse-font: clamp(23px, 1.35vw, 38px);
+  --parallel-font: clamp(16px, 0.9vw, 25px);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -396,19 +396,19 @@ button {
 
 .main-grid.library-closed {
   --reader-max: min(1860px, calc(100vw - var(--rail-width) - var(--study-width) - 72px));
-  --verse-font: calc(clamp(24px, 1.54vw, 46px) * var(--text-scale, 1));
+  --verse-font: clamp(24px, 1.54vw, 46px);
   grid-template-columns: var(--rail-width) minmax(0, 1fr) var(--study-width);
 }
 
 .main-grid.study-closed {
   --reader-max: min(1940px, calc(100vw - var(--rail-width) - var(--library-width) - 72px));
-  --verse-font: calc(clamp(24px, 1.58vw, 48px) * var(--text-scale, 1));
+  --verse-font: clamp(24px, 1.58vw, 48px);
   grid-template-columns: var(--rail-width) var(--library-width) minmax(0, 1fr);
 }
 
 .main-grid.library-closed.study-closed {
   --reader-max: min(2280px, calc(100vw - var(--rail-width) - 88px));
-  --verse-font: calc(clamp(26px, 1.86vw, 58px) * var(--text-scale, 1));
+  --verse-font: clamp(26px, 1.86vw, 58px);
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
 }
 
@@ -1025,7 +1025,7 @@ select {
 .presentation-copy {
   display: block;
   max-width: 100%;
-  font: 700 var(--presentation-font-size, clamp(calc(34px * var(--text-scale, 1)), 5.2vw, calc(74px * var(--text-scale, 1)))) / 1.12 "Libre Baskerville", Georgia, serif;
+  font: 700 var(--presentation-font-size, clamp(34px, 5.2vw, 74px)) / 1.12 "Libre Baskerville", Georgia, serif;
 }
 
 .presentation.presentation-overflow .presentation-text {
@@ -1245,7 +1245,7 @@ svg {
 
   .app-shell.panel-open .main-grid:not(.library-closed) {
     --reader-max: min(900px, calc(100vw - var(--rail-width) - var(--library-width) - var(--study-width) - 48px));
-    --verse-font: calc(clamp(21px, 1.35vw, 30px) * var(--text-scale, 1));
+    --verse-font: clamp(21px, 1.35vw, 30px);
   }
 
   .brand {
@@ -1293,7 +1293,7 @@ svg {
 
 @media (max-width: 1320px) {
   :root {
-    --verse-font: calc(clamp(22px, 1.85vw, 28px) * var(--text-scale, 1));
+    --verse-font: clamp(22px, 1.85vw, 28px);
   }
 
   .mode-label {
@@ -1330,8 +1330,8 @@ svg {
 
 @media (max-width: 840px) {
   :root {
-    --verse-font: calc(clamp(20px, 5.2vw, 27px) * var(--text-scale, 1));
-    --parallel-font: calc(clamp(16px, 4.2vw, 20px) * var(--text-scale, 1));
+    --verse-font: clamp(20px, 5.2vw, 27px);
+    --parallel-font: clamp(16px, 4.2vw, 20px);
   }
 
   .app-shell {
@@ -1583,7 +1583,7 @@ svg {
   }
 
   .presentation-copy {
-    font-size: var(--presentation-font-size, clamp(calc(30px * var(--text-scale, 1)), 10vw, calc(58px * var(--text-scale, 1))));
+    font-size: var(--presentation-font-size, clamp(30px, 10vw, 58px));
   }
 
   .presentation-top {

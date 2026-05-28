@@ -24,3 +24,5 @@ The bundled full-text translations live in `assets/bibles/`:
 - ASV: American Standard Version (1901)
 
 The JSON files were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). The remaining listed translations still need licensed text-provider integration before their full text can be shown.
+
+The bundled JSON also includes word-level Strong's number tags where the USFX source provides them.

@@ -204,7 +204,7 @@ function render() {
   app.innerHTML = `
     <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" style="--text-scale: ${state.textScale}">
       ${topbar()}
-      <section class="${mainGridClass()}">
+      <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode ? "" : rail()}
         ${state.focusMode || !state.libraryOpen ? "" : library()}
         ${reader()}
@@ -228,6 +228,7 @@ function render() {
     requestAnimationFrame(() => focusWorkspaceTarget(target));
   }
   requestAnimationFrame(fitPresentationText);
+  requestAnimationFrame(applyTextScaleVars);
 }
 
 function loadingScreen() {
@@ -355,14 +356,11 @@ function reader() {
 }
 
 function renderStrongText(verse, version) {
-  let text = getVerseText(verse, version);
+  const text = getVerseText(verse, version);
   if (isLicensedPlaceholder(verse, version)) {
     return `${text}<span class="license-note">${translationLookup[version].name} requires a licensed Bible text source before full verse text can display.</span>`;
   }
-  getStrongEntries(verse).forEach((entry) => {
-    text = text.replace(entry.word, `<mark>${entry.word}</mark><button class="strong" data-strong="${entry.code}">${entry.code}</button>`);
-  });
-  return text;
+  return renderTextWithStrongNumbers(text, getStrongEntries(verse, version));
 }
 
 function getVerseText(verse, version) {
@@ -373,8 +371,37 @@ function getVerseText(verse, version) {
   return verse.KJV || verse.WEB || verse.ASV || verse.BSB || "";
 }
 
-function getStrongEntries(verse) {
-  return verse.strong || sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
+function getStrongEntries(verse, version) {
+  if (Array.isArray(verse.strong?.[version])) return verse.strong[version].map(([word, code]) => ({ word, code }));
+  if (Array.isArray(verse.strong)) return verse.strong.map((entry) => Array.isArray(entry) ? { word: entry[0], code: entry[1] } : entry);
+  return sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
+}
+
+function renderTextWithStrongNumbers(text, entries) {
+  if (!entries.length) return escapeHtml(text);
+
+  let output = "";
+  let cursor = 0;
+  entries.forEach(({ word, code }) => {
+    if (!word || !code) return;
+    const index = text.indexOf(word, cursor);
+    if (index === -1) return;
+    output += escapeHtml(text.slice(cursor, index));
+    output += `<mark>${escapeHtml(word)}</mark><button class="strong" data-strong="${escapeHtml(code)}">${escapeHtml(code)}</button>`;
+    cursor = index + word.length;
+  });
+  output += escapeHtml(text.slice(cursor));
+  return output;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[character]));
 }
 
 function isLicensedPlaceholder(verse, version) {
@@ -412,7 +439,7 @@ function parallelView() {
 
 function studyPanel() {
   const refs = crossRefs[referenceLabel()] || crossRefs["John 3:16"];
-  const [lemma, definition] = strongs[state.selectedStrong] || ["lookup", "Select a Strong's number in the text to inspect the lexical entry."];
+  const [lemma, definition] = strongs[state.selectedStrong] || strongFallback(state.selectedStrong);
   const strongClass = strongs[state.selectedStrong] ? "strong-card active-strong-card" : "strong-card";
   return `
     <aside class="study-panel">
@@ -448,6 +475,12 @@ function studyPanel() {
       </section>
     </aside>
   `;
+}
+
+function strongFallback(code) {
+  if (/^G\d+/.test(code)) return ["Greek lexical entry", "This Strong's number is tagged in the bundled source text. A full Greek lexicon definition can be connected as the next data layer."];
+  if (/^H\d+/.test(code)) return ["Hebrew lexical entry", "This Strong's number is tagged in the bundled source text. A full Hebrew lexicon definition can be connected as the next data layer."];
+  return ["lookup", "Select a Strong's number in the text to inspect the lexical entry."];
 }
 
 function bottombar() {
@@ -864,6 +897,47 @@ function clampTextScale(value) {
   return Math.round(Math.min(1.6, Math.max(0.8, Number(value) || 1)) * 10) / 10;
 }
 
+function textFontVars() {
+  const { verse, parallel } = computedTextFonts();
+  return `--verse-font: ${verse}px; --parallel-font: ${parallel}px`;
+}
+
+function applyTextScaleVars() {
+  const grid = document.querySelector(".main-grid");
+  if (!grid) return;
+  const { verse, parallel } = computedTextFonts();
+  grid.style.setProperty("--verse-font", `${verse}px`);
+  grid.style.setProperty("--parallel-font", `${parallel}px`);
+}
+
+function computedTextFonts() {
+  const width = window.innerWidth || 1280;
+  const scaled = (min, vw, max) => clamp(width * (vw / 100), min, max) * state.textScale;
+  let verse = scaled(23, 1.35, 38);
+  const parallel = width <= 840 ? scaled(16, 4.2, 20) : scaled(16, 0.9, 25);
+
+  if (width <= 840) {
+    verse = scaled(20, 5.2, 27);
+  } else if (width <= 1320) {
+    verse = scaled(22, 1.85, 28);
+  } else if (state.focusMode || (!state.libraryOpen && !state.studyOpen)) {
+    verse = scaled(26, 1.86, 58);
+  } else if (!state.libraryOpen) {
+    verse = scaled(24, 1.54, 46);
+  } else if (!state.studyOpen) {
+    verse = scaled(24, 1.58, 48);
+  }
+
+  return {
+    verse: Math.round(verse * 10) / 10,
+    parallel: Math.round(parallel * 10) / 10,
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function focusWorkspaceTarget(target) {
   const focusMap = {
     Verse: "#chapterSelect",
@@ -1068,7 +1142,10 @@ function fitPresentationText() {
   if (!fits()) presentation.classList.add("presentation-overflow");
 }
 
-window.addEventListener("resize", fitPresentationText);
+window.addEventListener("resize", () => {
+  applyTextScaleVars();
+  fitPresentationText();
+});
 
 function buildBookAliases() {
   const aliases = {};
@@ -1194,13 +1271,18 @@ function rebuildBibleData() {
       const sourceChapter = versionData.chapters[key];
       if (!sourceChapter) return;
       const targetChapter = merged[key];
-      sourceChapter.verses.forEach(({ n, text }) => {
+      sourceChapter.verses.forEach((sourceVerse) => {
+        const { n, text } = sourceVerse;
         let verse = targetChapter.verses.find((item) => item.n === n);
         if (!verse) {
           verse = { n };
           targetChapter.verses.push(verse);
         }
         verse[version] = text;
+        if (Array.isArray(sourceVerse.strong)) {
+          verse.strong = verse.strong || {};
+          verse.strong[version] = sourceVerse.strong;
+        }
       });
     });
   });
