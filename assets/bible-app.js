@@ -243,6 +243,32 @@ function render() {
   requestAnimationFrame(applyTextScaleVars);
 }
 
+function renderPreservingReaderScroll() {
+  const scrollState = captureReaderScroll();
+  render();
+  requestAnimationFrame(() => restoreReaderScroll(scrollState));
+}
+
+function captureReaderScroll() {
+  const scripture = document.querySelector(".scripture");
+  return {
+    windowX: window.scrollX,
+    windowY: window.scrollY,
+    scriptureTop: scripture?.scrollTop ?? null,
+    scriptureLeft: scripture?.scrollLeft ?? null,
+  };
+}
+
+function restoreReaderScroll(scrollState) {
+  if (!scrollState) return;
+  const scripture = document.querySelector(".scripture");
+  if (scripture && scrollState.scriptureTop !== null) {
+    scripture.scrollTop = scrollState.scriptureTop;
+    scripture.scrollLeft = scrollState.scriptureLeft || 0;
+  }
+  window.scrollTo(scrollState.windowX, scrollState.windowY);
+}
+
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
@@ -691,7 +717,7 @@ function bindEvents() {
   document.getElementById("themeToggle")?.addEventListener("click", () => {
     state.theme = state.theme === "dark" ? "light" : "dark";
     localStorage.setItem("lw_theme", state.theme);
-    render();
+    renderPreservingReaderScroll();
   });
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
@@ -750,7 +776,7 @@ function bindEvents() {
       const verseNumber = Number(row.dataset.verse);
       state.verse = verseNumber;
       toggleVerseSelection(verseNumber, event.shiftKey);
-      render();
+      renderPreservingReaderScroll();
     });
   });
   document.querySelectorAll("[data-goto]").forEach((button) => button.addEventListener("click", () => gotoReference(button.dataset.goto)));
