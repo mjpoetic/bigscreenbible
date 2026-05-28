@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Big Screen Bible">
+  <rect width="64" height="64" rx="14" fill="#101413"/>
+  <rect x="10" y="12" width="44" height="31" rx="4" fill="#141a18" stroke="#3da6a9" stroke-width="3"/>
+  <path d="M22 50h20" stroke="#d8a144" stroke-width="4" stroke-linecap="round"/>
+  <path d="M32 43v7" stroke="#d8a144" stroke-width="4" stroke-linecap="round"/>
+  <path d="M19 20h11c2 0 3.5 1.5 3.5 3.5V38c0-2-1.5-3.5-3.5-3.5H19z" fill="none" stroke="#f3efe6" stroke-width="2.7" stroke-linejoin="round"/>
+  <path d="M45 20H34c-2 0-3.5 1.5-3.5 3.5V38c0-2 1.5-3.5 3.5-3.5h11z" fill="none" stroke="#f3efe6" stroke-width="2.7" stroke-linejoin="round"/>
+  <path d="M24 25h5M24 30h5M35 25h5M35 30h5" stroke="#d8a144" stroke-width="2" stroke-linecap="round"/>
+</svg>
