@@ -77,23 +77,6 @@ const sampleStrongRefs = {
   "Romans 8:39": [{ word: "love", code: "G26" }],
 };
 
-const crossRefs = {
-  "John 3:16": [
-    ["Numbers 21:9", "As Moses lifted up the serpent in the wilderness, so the Son of Man is lifted up."],
-    ["John 1:14", "The Word became flesh and dwelt among us."],
-    ["Romans 5:8", "God shows his love toward us while we were still sinners."],
-    ["1 John 4:9", "The love of God was revealed through his Son."],
-  ],
-  "Psalm 23:1": [
-    ["John 10:11", "I am the good shepherd."],
-    ["Ezekiel 34:15", "I myself will be the shepherd of my sheep."],
-  ],
-  "Romans 8:28": [
-    ["Genesis 50:20", "God meant it for good."],
-    ["Ephesians 1:11", "He works all things after the counsel of his will."],
-  ],
-};
-
 const strongs = {
   G2316: ["theos", "God, the Lord; used of the Father, Son, or Holy Spirit."],
   G3530: ["Nikodemos", "Nicodemus; a Pharisee and ruler of the Jews who came to Jesus by night."],
@@ -518,7 +501,7 @@ function parallelView() {
 }
 
 function studyPanel() {
-  const refs = crossRefs[referenceLabel()] || crossRefs["John 3:16"];
+  const refs = crossReferenceItems();
   const strongLookup = strongEntry(state.selectedStrong);
   const strongClass = strongLookup ? "strong-card active-strong-card" : "strong-card";
   const selectedWord = state.selectedStrongWord ? `${state.selectedStrongWord} · ` : "";
@@ -538,7 +521,12 @@ function studyPanel() {
       <section class="study-section" id="crossRefsSection">
         <div class="study-heading">${icons.link} Cross References</div>
         <div class="ref-list">
-          ${refs.map(([ref, copy]) => `<button class="ref-item" data-ref="${ref}"><div class="ref-title">${ref}</div><div class="ref-copy">${copy}</div></button>`).join("")}
+          ${refs.length
+            ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(ref.goto)}"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+            : `<div class="empty-state">No cross references are bundled for ${escapeHtml(referenceLabel())}.</div>`}
+        </div>
+        <div class="source-note">
+          Cross references from <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY.
         </div>
       </section>
       <section class="study-section" id="strongSection">
@@ -567,6 +555,42 @@ function studyPanel() {
       </section>
     </aside>
   `;
+}
+
+function crossReferenceItems() {
+  const sourceRefs = window.BIGSCREEN_CROSS_REFS?.refs?.[referenceLabel()] || [];
+  return sourceRefs.map(normalizeCrossReference).filter(Boolean);
+}
+
+function normalizeCrossReference(ref) {
+  const label = Array.isArray(ref) ? ref[0] : ref;
+  const goto = Array.isArray(ref) ? ref[1] : ref;
+  if (!label || !goto) return null;
+  return {
+    label,
+    goto,
+    preview: crossReferencePreview(label, goto),
+  };
+}
+
+function crossReferencePreview(label, goto) {
+  const text = verseTextAtReference(goto);
+  if (!text) return "Open passage";
+  return truncatePreview(label === goto ? text : `${text} ...`);
+}
+
+function verseTextAtReference(ref) {
+  const match = String(ref).match(/^(.+?)\s+(\d+):(\d+)$/);
+  if (!match) return "";
+  const key = `${match[1]} ${match[2]}`;
+  const verse = bibleData[key]?.verses.find((item) => item.n === Number(match[3]));
+  if (!verse) return "";
+  return getVerseText(verse, state.versions[0] || "KJV");
+}
+
+function truncatePreview(value) {
+  const text = String(value).replace(/\s+/g, " ").trim();
+  return text.length > 160 ? `${text.slice(0, 157).trim()}...` : text;
 }
 
 function strongLookupCard(entry, selectedWord) {
@@ -780,7 +804,6 @@ function bindEvents() {
     });
   });
   document.querySelectorAll("[data-goto]").forEach((button) => button.addEventListener("click", () => gotoReference(button.dataset.goto)));
-  document.querySelectorAll("[data-ref]").forEach((button) => button.addEventListener("click", () => showToast(`${button.dataset.ref} queued for comparison`)));
   document.querySelectorAll("[data-book]").forEach((button) => {
     button.addEventListener("click", () => openBook(button.dataset.book));
   });
