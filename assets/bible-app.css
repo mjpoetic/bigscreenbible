@@ -926,6 +926,38 @@ select {
   overflow-wrap: anywhere;
 }
 
+.strong-meta,
+.source-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.strong-meta {
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.strong-card .ref-copy + .ref-copy {
+  margin-top: 8px;
+}
+
+.source-note {
+  margin-top: 10px;
+}
+
+.source-note a {
+  color: var(--teal);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.source-note a:hover,
+.source-note a:focus-visible {
+  text-decoration: underline;
+}
+
 .text-btn {
   min-height: auto;
   justify-content: flex-start;

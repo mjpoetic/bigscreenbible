@@ -44,9 +44,24 @@ let bibleData = {};
 let bibleIndex = null;
 let dataLoading = true;
 let dataError = "";
+let strongLexicon = {};
+let strongLexiconStatus = "idle";
+let strongLexiconPromise = null;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
+const strongLexiconSources = [
+  {
+    name: "Open Scriptures Hebrew Strong's",
+    globalName: "strongsHebrewDictionary",
+    url: "https://cdn.jsdelivr.net/gh/openscriptures/strongs@master/hebrew/strongs-hebrew-dictionary.js",
+  },
+  {
+    name: "Open Scriptures Greek Strong's",
+    globalName: "strongsGreekDictionary",
+    url: "https://cdn.jsdelivr.net/gh/openscriptures/strongs@master/greek/strongs-greek-dictionary.js",
+  },
+];
 
 const sampleStrongRefs = {
   "John 3:1": [{ word: "Nicodemus", code: "G3530" }],
@@ -328,6 +343,7 @@ function library() {
       <div class="library-footer">
         <strong>${state.versions.join(" + ")}</strong>
         <span>KJV, BSB, WEB, and ASV are bundled as full texts from eBible.org. ESV, NLT, NKJV, NASB, and AMP are wired for a licensed text provider.</span>
+        <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
       </div>
     </aside>
   `;
@@ -385,14 +401,64 @@ function renderTextWithStrongNumbers(text, entries) {
   let cursor = 0;
   entries.forEach(({ word, code }) => {
     if (!word || !code) return;
+    const normalizedCode = normalizeStrongCode(code);
+    if (!hasStrongEntry(normalizedCode)) return;
     const index = text.indexOf(word, cursor);
     if (index === -1) return;
     output += escapeHtml(text.slice(cursor, index));
-    output += `<button class="strong-word" data-strong="${escapeHtml(code)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(code)} for ${escapeHtml(word)}">${escapeHtml(word)}</button>`;
+    output += `<button class="strong-word" data-strong="${escapeHtml(normalizedCode)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(normalizedCode)} for ${escapeHtml(word)}">${escapeHtml(word)}</button>`;
     cursor = index + word.length;
   });
   output += escapeHtml(text.slice(cursor));
   return output;
+}
+
+function normalizeStrongCode(code) {
+  const match = String(code).trim().match(/^([HG])0*([0-9]+)$/i);
+  if (!match) return String(code).trim().toUpperCase();
+  return `${match[1].toUpperCase()}${Number(match[2])}`;
+}
+
+function strongEntry(code) {
+  const normalizedCode = normalizeStrongCode(code);
+  const openScripturesEntry = strongLexicon[normalizedCode];
+  if (openScripturesEntry) return formatOpenScripturesStrongEntry(normalizedCode, openScripturesEntry);
+
+  const starterEntry = strongs[normalizedCode];
+  if (!starterEntry) return null;
+  return {
+    code: normalizedCode,
+    lemma: starterEntry[0],
+    definition: starterEntry[1],
+    source: "Local starter entry",
+  };
+}
+
+function hasStrongEntry(code) {
+  if (strongEntry(code)) return true;
+  return strongLexiconStatus === "loading";
+}
+
+function formatOpenScripturesStrongEntry(code, entry) {
+  return {
+    code,
+    lemma: cleanStrongCopy(entry.lemma || entry.translit || entry.xlit || code),
+    transliteration: cleanStrongCopy(entry.translit || entry.xlit || ""),
+    pronunciation: cleanStrongCopy(entry.pron || ""),
+    derivation: cleanStrongCopy(entry.derivation || ""),
+    definition: cleanStrongCopy(entry.strongs_def || ""),
+    kjv: cleanStrongCopy(entry.kjv_def || ""),
+    source: "Open Scriptures Strong's",
+  };
+}
+
+function cleanStrongCopy(value) {
+  return String(value || "")
+    .replace(/\{([^}]+)\}/g, "$1")
+    .replace(/\[idiom\]/g, "idiom")
+    .replace(/\[phrase\]/g, "phrase")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeHtml(value) {
@@ -440,9 +506,14 @@ function parallelView() {
 
 function studyPanel() {
   const refs = crossRefs[referenceLabel()] || crossRefs["John 3:16"];
-  const [lemma, definition] = strongs[state.selectedStrong] || strongFallback(state.selectedStrong);
-  const strongClass = state.selectedStrong ? "strong-card active-strong-card" : "strong-card";
+  const strongLookup = strongEntry(state.selectedStrong);
+  const strongClass = strongLookup ? "strong-card active-strong-card" : "strong-card";
   const selectedWord = state.selectedStrongWord ? `${state.selectedStrongWord} · ` : "";
+  const strongStatus = strongLexiconStatus === "loading"
+    ? "Open Scriptures lexicon is loading. Highlighted words will appear as definitions become available."
+    : strongLexiconStatus === "unavailable"
+      ? "Open Scriptures lexicon could not be loaded in this browser session. The reader still works, and local starter entries remain available."
+    : "Select a highlighted word in the text to inspect its Strong's entry.";
   return `
     <aside class="study-panel">
       <div class="panel-tabs">
@@ -460,8 +531,14 @@ function studyPanel() {
       <section class="study-section" id="strongSection">
         <div class="study-heading">${icons.search} Strong's Lookup</div>
         <div class="${strongClass}" id="strongLookup">
-          <div class="ref-title">${selectedWord}${state.selectedStrong} · ${lemma}</div>
-          <div class="ref-copy">${definition}</div>
+          ${strongLookup ? strongLookupCard(strongLookup, selectedWord) : `
+            <div class="ref-title">Strong's lexicon</div>
+            <div class="ref-copy">${strongStatus}</div>
+          `}
+        </div>
+        <div class="source-note">
+          Strong's dictionary data by James Strong with Open Scriptures CC-BY-SA editions.
+          <a href="https://github.com/openscriptures/strongs" target="_blank" rel="noopener">Open Scriptures Strong's</a>
         </div>
       </section>
       <section class="study-section" id="notesSection">
@@ -479,10 +556,16 @@ function studyPanel() {
   `;
 }
 
-function strongFallback(code) {
-  if (/^G\d+/.test(code)) return ["Greek lexical entry", "This Strong's number is tagged in the bundled source text. A full Greek lexicon definition can be connected as the next data layer."];
-  if (/^H\d+/.test(code)) return ["Hebrew lexical entry", "This Strong's number is tagged in the bundled source text. A full Hebrew lexicon definition can be connected as the next data layer."];
-  return ["lookup", "Select a Strong's number in the text to inspect the lexical entry."];
+function strongLookupCard(entry, selectedWord) {
+  return `
+    <div class="ref-title">${selectedWord}${entry.code} · ${escapeHtml(entry.lemma)}</div>
+    ${entry.transliteration ? `<div class="strong-meta">Transliteration: ${escapeHtml(entry.transliteration)}</div>` : ""}
+    ${entry.pronunciation ? `<div class="strong-meta">Pronunciation: ${escapeHtml(entry.pronunciation)}</div>` : ""}
+    ${entry.derivation ? `<div class="ref-copy"><strong>Derivation:</strong> ${escapeHtml(entry.derivation)}</div>` : ""}
+    ${entry.definition ? `<div class="ref-copy"><strong>Definition:</strong> ${escapeHtml(entry.definition)}</div>` : ""}
+    ${entry.kjv ? `<div class="ref-copy"><strong>KJV usage:</strong> ${escapeHtml(entry.kjv)}</div>` : ""}
+    <div class="source-note">${escapeHtml(entry.source)}</div>
+  `;
 }
 
 function bottombar() {
@@ -1236,6 +1319,7 @@ function normalizeAliasKey(value) {
 
 async function initializeBibleData() {
   render();
+  loadStrongLexicon();
   try {
     await loadBibleBundleScript("index");
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
@@ -1288,6 +1372,55 @@ function loadBibleBundleScript(name) {
     script.async = true;
     script.addEventListener("load", () => resolve(), { once: true });
     script.addEventListener("error", () => reject(new Error(`${name} Bible data failed to load`)), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+function loadStrongLexicon() {
+  if (strongLexiconPromise) return strongLexiconPromise;
+  strongLexiconStatus = "loading";
+  window.module = window.module || { exports: {} };
+  strongLexiconPromise = Promise.allSettled(strongLexiconSources.map((source) => loadExternalScript(source.url, source.globalName)))
+    .then((results) => {
+      strongLexicon = {};
+      results.forEach((result, index) => {
+        if (result.status !== "fulfilled") {
+          console.warn(`${strongLexiconSources[index].name} could not be loaded`, result.reason);
+          return;
+        }
+        const sourceData = window[strongLexiconSources[index].globalName] || {};
+        Object.entries(sourceData).forEach(([code, entry]) => {
+          strongLexicon[normalizeStrongCode(code)] = entry;
+        });
+      });
+      strongLexiconStatus = Object.keys(strongLexicon).length ? "ready" : "unavailable";
+      render();
+      return strongLexicon;
+    });
+  return strongLexiconPromise;
+}
+
+function loadExternalScript(url, globalName) {
+  if (window[globalName]) return Promise.resolve();
+
+  const scriptId = `external-${globalName}`;
+  const existing = document.getElementById(scriptId);
+  if (existing) {
+    return new Promise((resolve, reject) => {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`${globalName} failed to load`)), { once: true });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = url;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.referrerPolicy = "no-referrer";
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener("error", () => reject(new Error(`${globalName} failed to load`)), { once: true });
     document.head.appendChild(script);
   });
 }

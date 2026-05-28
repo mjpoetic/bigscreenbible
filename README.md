@@ -26,3 +26,5 @@ The bundled full-text translations live in `assets/bibles/` as JavaScript data b
 The data bundles were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). The remaining listed translations still need licensed text-provider integration before their full text can be shown.
 
 The bundled data also includes word-level Strong's number tags where the USFX source provides them.
+
+Strong's dictionary lookup data is loaded from the [Open Scriptures Strong's dictionaries](https://github.com/openscriptures/strongs). Their browser dictionary files identify the JSON editions as Open Scriptures CC-BY-SA data derived from the public-domain Strong's dictionaries.
