@@ -16,13 +16,13 @@ GitHub Pages will serve `index.html` from the repository root.
 
 ## Bible Texts
 
-The bundled full-text translations live in `assets/bibles/`:
+The bundled full-text translations live in `assets/bibles/` as JavaScript data bundles so the app works from GitHub Pages, a local preview server, or a direct `file://` browser open:
 
 - KJV: King James Version
 - BSB: Berean Standard Bible
 - WEB: World English Bible
 - ASV: American Standard Version (1901)
 
-The JSON files were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). The remaining listed translations still need licensed text-provider integration before their full text can be shown.
+The data bundles were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). The remaining listed translations still need licensed text-provider integration before their full text can be shown.
 
-The bundled JSON also includes word-level Strong's number tags where the USFX source provides them.
+The bundled data also includes word-level Strong's number tags where the USFX source provides them.

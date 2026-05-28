@@ -118,6 +118,7 @@ const state = {
   studyOpen: localStorage.getItem("lw_study_open") !== "false",
   activeRail: "Verse",
   selectedStrong: "G2316",
+  selectedStrongWord: "God",
   panelOpen: false,
   mobileControlsOpen: false,
   presentationSearchOpen: false,
@@ -387,7 +388,7 @@ function renderTextWithStrongNumbers(text, entries) {
     const index = text.indexOf(word, cursor);
     if (index === -1) return;
     output += escapeHtml(text.slice(cursor, index));
-    output += `<mark>${escapeHtml(word)}</mark><button class="strong" data-strong="${escapeHtml(code)}">${escapeHtml(code)}</button>`;
+    output += `<button class="strong-word" data-strong="${escapeHtml(code)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(code)} for ${escapeHtml(word)}">${escapeHtml(word)}</button>`;
     cursor = index + word.length;
   });
   output += escapeHtml(text.slice(cursor));
@@ -440,7 +441,8 @@ function parallelView() {
 function studyPanel() {
   const refs = crossRefs[referenceLabel()] || crossRefs["John 3:16"];
   const [lemma, definition] = strongs[state.selectedStrong] || strongFallback(state.selectedStrong);
-  const strongClass = strongs[state.selectedStrong] ? "strong-card active-strong-card" : "strong-card";
+  const strongClass = state.selectedStrong ? "strong-card active-strong-card" : "strong-card";
+  const selectedWord = state.selectedStrongWord ? `${state.selectedStrongWord} · ` : "";
   return `
     <aside class="study-panel">
       <div class="panel-tabs">
@@ -458,7 +460,7 @@ function studyPanel() {
       <section class="study-section" id="strongSection">
         <div class="study-heading">${icons.search} Strong's Lookup</div>
         <div class="${strongClass}" id="strongLookup">
-          <div class="ref-title">${state.selectedStrong} · ${lemma}</div>
+          <div class="ref-title">${selectedWord}${state.selectedStrong} · ${lemma}</div>
           <div class="ref-copy">${definition}</div>
         </div>
       </section>
@@ -653,12 +655,17 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       state.selectedStrong = button.dataset.strong;
+      state.selectedStrongWord = button.dataset.strongWord || "";
       if (state.focusMode) {
         state.focusMode = false;
         localStorage.setItem("lw_focus_mode", "false");
       }
+      state.libraryOpen = false;
       state.studyOpen = true;
       state.panelOpen = true;
+      state.activeRail = "Cross-Refs";
+      state.pendingPanelFocus = "Strong";
+      localStorage.setItem("lw_library_open", "false");
       localStorage.setItem("lw_study_open", "true");
       render();
       requestAnimationFrame(() => document.getElementById("strongLookup")?.scrollIntoView({ block: "center", behavior: "smooth" }));
@@ -945,6 +952,7 @@ function focusWorkspaceTarget(target) {
     Notes: "#notesSection",
     Bookmarks: "#bookmarksSection",
     "Cross-Refs": "#crossRefsSection",
+    Strong: "#strongSection",
   };
   const selector = focusMap[target] || "#crossRefsSection";
   const element = document.querySelector(selector);
@@ -1229,9 +1237,9 @@ function normalizeAliasKey(value) {
 async function initializeBibleData() {
   render();
   try {
-    const response = await fetch("./assets/bibles/index.json");
-    if (!response.ok) throw new Error(`Bible index failed with ${response.status}`);
-    bibleIndex = await response.json();
+    await loadBibleBundleScript("index");
+    bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
+    if (!bibleIndex) throw new Error("Bible index script did not initialize");
     await Promise.all(state.versions.filter((version) => translationLookup[version]?.status === "bundled").map(loadBibleVersion));
     rebuildBibleData();
     dataLoading = false;
@@ -1248,15 +1256,40 @@ async function loadBibleVersion(version) {
   if (loadedVersionData.has(version) || loadingVersions.has(version)) return;
   loadingVersions.add(version);
   try {
-    const response = await fetch(`./assets/bibles/${version}.json`);
-    if (!response.ok) throw new Error(`${version} failed with ${response.status}`);
-    loadedVersionData.set(version, await response.json());
+    await loadBibleBundleScript(version);
+    const data = window[`BIGSCREEN_BIBLE_${version}`];
+    if (!data) throw new Error(`${version} script did not initialize`);
+    loadedVersionData.set(version, data);
   } catch (error) {
     console.error(error);
     showToast(`${version} could not be loaded`);
   } finally {
     loadingVersions.delete(version);
   }
+}
+
+function loadBibleBundleScript(name) {
+  const globalName = name === "index" ? "BIGSCREEN_BIBLE_INDEX" : `BIGSCREEN_BIBLE_${name}`;
+  if (window[globalName]) return Promise.resolve();
+
+  const scriptId = `bible-data-${name}`;
+  const existing = document.getElementById(scriptId);
+  if (existing) {
+    return new Promise((resolve, reject) => {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`${name} Bible data failed to load`)), { once: true });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = `./assets/bibles/${name}.js`;
+    script.async = true;
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener("error", () => reject(new Error(`${name} Bible data failed to load`)), { once: true });
+    document.head.appendChild(script);
+  });
 }
 
 function rebuildBibleData() {
