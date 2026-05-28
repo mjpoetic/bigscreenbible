@@ -1001,14 +1001,43 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 0 38px;
 }
 
 .presentation-ref {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #f1dbad;
+}
+
+.presentation-ref span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presentation-version-select {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 78px;
+  min-height: 42px;
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.presentation-version-select option {
+  color: #17201d;
+  background: #fff;
 }
 
 .presentation-actions {
@@ -1641,6 +1670,17 @@ svg {
 
   .presentation-top {
     padding: 0 16px;
+  }
+
+  .presentation-ref {
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .presentation-version-select {
+    min-width: 68px;
+    min-height: 38px;
+    font-size: 13px;
   }
 
   .presentation-actions.search-open .presentation-search input {

@@ -635,15 +635,24 @@ function selectionBar() {
 
 function presentation() {
   const verse = currentVerse();
-  const text = getVerseText(verse, state.versions[0]);
+  const version = state.versions[0] || "KJV";
+  const text = getVerseText(verse, version);
   const verses = currentChapter().verses.map((item) => item.n);
   const verseIndex = verses.indexOf(state.verse);
   const canGoBack = verseIndex > 0;
   const canGoForward = verseIndex < verses.length - 1;
+  const versionOptions = translationCodes
+    .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${code}</option>`)
+    .join("");
   return `
     <section class="presentation ${state.mode === "big" ? "open" : ""}" id="presentation">
       <div class="presentation-top">
-        <div class="presentation-ref">${referenceLabel()} · ${state.versions[0]}</div>
+        <div class="presentation-ref">
+          <span>${referenceLabel()}</span>
+          <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
+            ${versionOptions}
+          </select>
+        </div>
         <div class="presentation-actions ${state.presentationSearchOpen ? "search-open" : ""}">
           <form class="presentation-search" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
@@ -820,6 +829,9 @@ function bindEvents() {
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
   document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("presentationNext")?.addEventListener("click", () => moveVerse(1));
+  document.getElementById("presentationVersionSelect")?.addEventListener("change", (event) => {
+    setPrimaryVersion(event.target.value);
+  });
   document.getElementById("presentationSearchToggle")?.addEventListener("click", () => {
     state.presentationSearchOpen = !state.presentationSearchOpen;
     render();
@@ -854,6 +866,17 @@ function bindEvents() {
     render();
   });
   window.onkeydown = handleGlobalShortcuts;
+}
+
+async function setPrimaryVersion(version) {
+  if (!translationCodes.includes(version)) return;
+  state.versions = [version, ...state.versions.filter((item) => item !== version)];
+  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  if (translationLookup[version]?.status === "bundled") {
+    await loadBibleVersion(version);
+    rebuildBibleData();
+  }
+  render();
 }
 
 function gotoReference(value) {
