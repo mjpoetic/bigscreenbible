@@ -227,6 +227,7 @@ function render() {
     state.pendingPanelFocus = null;
     requestAnimationFrame(() => focusWorkspaceTarget(target));
   }
+  requestAnimationFrame(fitPresentationText);
 }
 
 function loadingScreen() {
@@ -497,7 +498,7 @@ function presentation() {
           <button class="ghost-btn" id="closePresentation">Exit</button>
         </div>
       </div>
-      <div class="presentation-text">${text}</div>
+      <div class="presentation-text"><span class="presentation-copy">${text}</span></div>
       <div class="presentation-bottom">
         <span>Big Screen Bible</span>
         <div class="presentation-controls">
@@ -1038,6 +1039,36 @@ function showToast(message) {
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 1600);
 }
+
+function fitPresentationText() {
+  const presentation = document.getElementById("presentation");
+  if (!presentation?.classList.contains("open")) return;
+
+  const viewport = presentation.querySelector(".presentation-text");
+  const copy = presentation.querySelector(".presentation-copy");
+  if (!viewport || !copy) return;
+
+  presentation.classList.remove("presentation-overflow");
+  presentation.style.removeProperty("--presentation-font-size");
+  const baseFontSize = Number.parseFloat(getComputedStyle(copy).fontSize) || 64;
+
+  const fits = () => copy.scrollHeight <= viewport.clientHeight && copy.scrollWidth <= viewport.clientWidth;
+  if (fits()) return;
+
+  let low = 0.32;
+  let high = 1;
+  for (let index = 0; index < 12; index += 1) {
+    const mid = (low + high) / 2;
+    presentation.style.setProperty("--presentation-font-size", `${baseFontSize * mid}px`);
+    if (fits()) low = mid;
+    else high = mid;
+  }
+
+  presentation.style.setProperty("--presentation-font-size", `${baseFontSize * low}px`);
+  if (!fits()) presentation.classList.add("presentation-overflow");
+}
+
+window.addEventListener("resize", fitPresentationText);
 
 function buildBookAliases() {
   const aliases = {};

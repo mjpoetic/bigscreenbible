@@ -939,7 +939,8 @@ select {
 
 .presentation.open {
   display: grid;
-  grid-template-rows: 72px 1fr 88px;
+  grid-template-rows: minmax(64px, auto) minmax(0, 1fr) minmax(72px, auto);
+  overflow: hidden;
 }
 
 .presentation-top,
@@ -1009,17 +1010,34 @@ select {
 }
 
 .presentation-text {
-  align-self: center;
+  align-self: stretch;
   justify-self: center;
-  max-width: 1180px;
-  padding: 20px 58px;
+  width: min(100%, 1290px);
+  min-height: 0;
+  padding: clamp(14px, 2vh, 28px) clamp(28px, 4vw, 68px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   text-align: center;
-  font: 700 clamp(calc(34px * var(--text-scale, 1)), 5.2vw, calc(74px * var(--text-scale, 1))) / 1.16 "Libre Baskerville", Georgia, serif;
+}
+
+.presentation-copy {
+  display: block;
+  max-width: 100%;
+  font: 700 var(--presentation-font-size, clamp(calc(34px * var(--text-scale, 1)), 5.2vw, calc(74px * var(--text-scale, 1)))) / 1.12 "Libre Baskerville", Georgia, serif;
+}
+
+.presentation.presentation-overflow .presentation-text {
+  overflow-y: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 .presentation-bottom {
   color: rgba(255, 255, 255, 0.74);
   font-weight: 650;
+  gap: 16px;
+  min-height: 72px;
 }
 
 .presentation-controls {
@@ -1562,7 +1580,10 @@ svg {
 
   .presentation-text {
     padding: 24px;
-    font-size: clamp(calc(30px * var(--text-scale, 1)), 10vw, calc(58px * var(--text-scale, 1)));
+  }
+
+  .presentation-copy {
+    font-size: var(--presentation-font-size, clamp(calc(30px * var(--text-scale, 1)), 10vw, calc(58px * var(--text-scale, 1))));
   }
 
   .presentation-top {
