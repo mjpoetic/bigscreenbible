@@ -483,7 +483,8 @@ button {
 }
 
 .settings-popover .theme-toggle,
-.settings-popover .fullscreen-btn {
+.settings-popover .fullscreen-btn,
+.settings-popover .system-theme-btn {
   min-width: 126px;
 }
 

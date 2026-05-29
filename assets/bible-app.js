@@ -356,6 +356,7 @@ function topbar() {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
   const versionSelectLabel = selectedVersions.length >= maxVersions ? `Max ${maxVersions}` : "Add";
+  const followsSystemTheme = !localStorage.getItem("lw_theme");
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
@@ -418,6 +419,10 @@ function topbar() {
           <div class="setting-row">
             <span class="setting-label">Mode</span>
             <button class="ghost-btn theme-toggle" id="themeToggle" aria-label="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}<span>${themeLabel}</span></button>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">System</span>
+            <button class="ghost-btn system-theme-btn" id="systemThemeButton" ${followsSystemTheme ? "disabled" : ""} aria-label="Follow system theme">${followsSystemTheme ? "Following system" : "Follow system"}</button>
           </div>
           <div class="setting-row">
             <span class="setting-label">Display</span>
@@ -956,6 +961,7 @@ function bindEvents() {
     localStorage.setItem("lw_theme", state.theme);
     renderPreservingReaderScroll();
   });
+  document.getElementById("systemThemeButton")?.addEventListener("click", resetThemeToSystem);
   document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
   });
@@ -1137,6 +1143,14 @@ function setThemePreset(preset) {
   if (themePresetLookup[preset]?.mode !== state.theme) return;
   state.themePreset = preset;
   localStorage.setItem(`lw_theme_preset_${state.theme}`, preset);
+  renderPreservingReaderScroll();
+}
+
+function resetThemeToSystem() {
+  localStorage.removeItem("lw_theme");
+  state.theme = savedTheme();
+  state.themePreset = savedThemePreset(state.theme);
+  showToast("Following system theme");
   renderPreservingReaderScroll();
 }
 
