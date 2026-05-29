@@ -162,13 +162,10 @@ body {
   text-align: center;
 }
 
-.loading-card .brand-mark {
+.loading-logo {
+  display: block;
+  width: min(330px, 80vw);
   margin: 0 auto 16px;
-}
-
-.loading-card h1 {
-  margin: 0 0 10px;
-  font: 700 28px/1.12 "Libre Baskerville", Georgia, serif;
 }
 
 .loading-card p {
@@ -231,8 +228,13 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 176px;
+  min-width: 240px;
+}
+
+.brand-logo {
+  display: block;
+  width: clamp(190px, 18vw, 284px);
+  height: auto;
 }
 
 .brand-mark {
@@ -1732,8 +1734,8 @@ svg {
     min-width: auto;
   }
 
-  .brand-title {
-    display: none;
+  .brand-logo {
+    width: 190px;
   }
 
   .topbar {
@@ -1833,12 +1835,10 @@ svg {
     width: 100%;
     min-width: 0;
     min-height: 30px;
-    gap: 8px;
   }
 
-  .brand-title {
-    display: block;
-    font-size: 18px;
+  .brand-logo {
+    width: min(206px, 100%);
   }
 
   .brand-mark {
@@ -2118,6 +2118,10 @@ svg {
 
   .brand {
     grid-column: 1 / 9;
+  }
+
+  .brand-logo {
+    width: min(188px, 100%);
   }
 
   .mobile-controls-toggle {
