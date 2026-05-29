@@ -151,7 +151,7 @@ const state = {
   mobileControlsOpen: false,
   presentationSearchOpen: false,
   presentationSettingsOpen: false,
-  presentationControlsVisible: true,
+  presentationControlsVisible: !isCompactScreen(),
   presentationTheme: localStorage.getItem("lw_presentation_theme") || "deep",
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
@@ -257,7 +257,11 @@ function mainGridClass() {
 }
 
 function versionLimit() {
-  return window.matchMedia?.("(max-width: 840px)")?.matches ? 2 : 3;
+  return isCompactScreen() ? 2 : 3;
+}
+
+function isCompactScreen() {
+  return window.matchMedia?.("(max-width: 840px)")?.matches || false;
 }
 
 function enforceVersionLimit() {
@@ -356,6 +360,25 @@ function topbar() {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
   const versionSelectLabel = selectedVersions.length >= maxVersions ? `Max ${maxVersions}` : "Add";
+  const primaryVersion = state.versions[0] || "BSB";
+  const primaryVersionOptions = translationCodes
+    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
+    .join("");
+  const versionControls = state.mode === "parallel"
+    ? `
+      <div class="versions version-manager" aria-label="Selected Bible versions">
+        ${selectedVersions.map((version) => `<span class="version-pill">${version}<button data-remove-version="${version}" aria-label="Remove ${version}" data-tooltip="Remove ${version}">x</button></span>`).join("")}
+        <select id="versionSelect" aria-label="Add Bible version" ${selectedVersions.length >= maxVersions ? "disabled" : ""}>
+          <option>${versionSelectLabel}</option>
+          ${translationCodes.filter((version) => !selectedVersions.includes(version)).map((version) => `<option value="${version}">${version}</option>`).join("")}
+        </select>
+      </div>`
+    : `
+      <div class="versions primary-version-control" aria-label="Bible version">
+        <select id="versionSelect" aria-label="Bible version">
+          ${primaryVersionOptions}
+        </select>
+      </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
@@ -388,13 +411,7 @@ function topbar() {
       </div>
       <label class="search">${icons.search}<input id="referenceInput" value="${referenceLabel()}" aria-label="Search Bible reference" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
-      <div class="versions" aria-label="Selected Bible versions">
-        ${selectedVersions.map((version) => `<span class="version-pill">${version}<button data-remove-version="${version}" aria-label="Remove ${version}" data-tooltip="Remove ${version}">x</button></span>`).join("")}
-        <select id="versionSelect" aria-label="Add Bible version" ${selectedVersions.length >= maxVersions ? "disabled" : ""}>
-          <option>${versionSelectLabel}</option>
-          ${translationCodes.filter((version) => !selectedVersions.includes(version)).map((version) => `<option value="${version}">${version}</option>`).join("")}
-        </select>
-      </div>
+      ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
       </nav>
@@ -407,6 +424,12 @@ function topbar() {
             <label class="setting-label" for="themePresetSelect">Color theme</label>
             <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
               ${themePresetOptions}
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="settingsPrimaryVersionSelect">Bible version</label>
+            <select class="primary-version-select" id="settingsPrimaryVersionSelect" aria-label="Bible version">
+              ${primaryVersionOptions}
             </select>
           </div>
           <div class="setting-group">
@@ -785,7 +808,6 @@ function selectionBar() {
 function presentation() {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
-  const versionName = translationLookup[version]?.name || version;
   const text = getVerseText(verse, version);
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
@@ -818,7 +840,7 @@ function presentation() {
         </div>
         <div class="presentation-ref">
           <span class="presentation-reference-label">${referenceLabel()}</span>
-          <span class="presentation-version-label">${version} · ${versionName}</span>
+          <span class="presentation-version-label">${version}</span>
         </div>
         <div class="presentation-actions">
           <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
@@ -935,21 +957,25 @@ function bindEvents() {
       render();
     });
   });
-  ["versionSelect"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("change", async (event) => {
-      if (event.target.value !== "Add") {
-        const version = event.target.value;
-        if (state.versions.length >= versionLimit()) {
-          event.target.value = event.target.options[0]?.value || "Add";
-          return showToast(`Use up to ${versionLimit()} versions on this screen`);
-        }
-        state.versions.push(version);
-        await loadBibleVersion(version);
-        rebuildBibleData();
-      }
-      localStorage.setItem("lw_versions", JSON.stringify(state.versions));
-      render();
-    });
+  document.getElementById("versionSelect")?.addEventListener("change", async (event) => {
+    const version = event.target.value;
+    if (!translationCodes.includes(version)) return;
+    if (state.mode !== "parallel") {
+      await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
+      return;
+    }
+    if (state.versions.length >= versionLimit()) {
+      event.target.value = event.target.options[0]?.value || "Add";
+      return showToast(`Use up to ${versionLimit()} versions on this screen`);
+    }
+    state.versions.push(version);
+    await loadBibleVersion(version);
+    rebuildBibleData();
+    localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("settingsPrimaryVersionSelect")?.addEventListener("change", async (event) => {
+    await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
@@ -1127,7 +1153,7 @@ function bindEvents() {
   window.onkeydown = handleGlobalShortcuts;
 }
 
-async function setPrimaryVersion(version) {
+async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
@@ -1135,8 +1161,9 @@ async function setPrimaryVersion(version) {
     await loadBibleVersion(version);
     rebuildBibleData();
   }
-  state.presentationSettingsOpen = false;
-  render();
+  if (!options.keepPresentationSettings) state.presentationSettingsOpen = false;
+  if (options.preserveScroll) renderPreservingReaderScroll();
+  else render();
 }
 
 function setThemePreset(preset) {
@@ -1252,7 +1279,7 @@ function applyStartupExperience() {
   }
   if (state.startBigScreen) {
     state.mode = "big";
-    state.presentationControlsVisible = true;
+    state.presentationControlsVisible = !isCompactScreen();
   }
 }
 

@@ -406,6 +406,7 @@ button {
 }
 
 .theme-preset-select,
+.primary-version-select,
 .scripture-font-select,
 .custom-font-input {
   width: 100%;
@@ -1279,6 +1280,7 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   justify-self: end;
 }
 
@@ -1827,11 +1829,16 @@ svg {
 
   .brand {
     order: 1;
-    grid-column: 1 / 3;
+    grid-column: 1 / 7;
     width: 100%;
     min-width: 0;
     min-height: 30px;
     gap: 8px;
+  }
+
+  .brand-title {
+    display: block;
+    font-size: 18px;
   }
 
   .brand-mark {
@@ -1854,7 +1861,7 @@ svg {
 
   .versions {
     order: 3;
-    grid-column: 3 / 8;
+    grid-column: 1 / -1;
     width: 100%;
     min-width: 0;
     min-height: 40px;
@@ -2071,12 +2078,23 @@ svg {
   .presentation-top {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 0 16px;
+    gap: 10px;
   }
 
   .presentation-ref {
     gap: 8px;
     min-height: 38px;
     font-size: 18px;
+  }
+
+  .presentation-version-label {
+    max-width: 42vw;
+    font-size: 11px;
+  }
+
+  .presentation:not(.controls-visible):not(:focus-within) .presentation-fullscreen-toggle,
+  .presentation:not(.controls-visible):not(:focus-within) .presentation-settings-menu {
+    display: none;
   }
 
   .presentation :is(button, select, input) {
@@ -2099,7 +2117,7 @@ svg {
   }
 
   .brand {
-    grid-column: 1 / 4;
+    grid-column: 1 / 9;
   }
 
   .mobile-controls-toggle {
