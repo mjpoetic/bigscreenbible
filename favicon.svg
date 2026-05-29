@@ -1,9 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Big Screen Bible">
-  <rect width="64" height="64" rx="14" fill="#101413"/>
-  <rect x="10" y="12" width="44" height="31" rx="4" fill="#141a18" stroke="#3da6a9" stroke-width="3"/>
-  <path d="M22 50h20" stroke="#d8a144" stroke-width="4" stroke-linecap="round"/>
-  <path d="M32 43v7" stroke="#d8a144" stroke-width="4" stroke-linecap="round"/>
-  <path d="M19 20h11c2 0 3.5 1.5 3.5 3.5V38c0-2-1.5-3.5-3.5-3.5H19z" fill="none" stroke="#f3efe6" stroke-width="2.7" stroke-linejoin="round"/>
-  <path d="M45 20H34c-2 0-3.5 1.5-3.5 3.5V38c0-2 1.5-3.5 3.5-3.5h11z" fill="none" stroke="#f3efe6" stroke-width="2.7" stroke-linejoin="round"/>
-  <path d="M24 25h5M24 30h5M35 25h5M35 30h5" stroke="#d8a144" stroke-width="2" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Big Screen Bible">
+  <defs>
+    <linearGradient id="bg" x1="92" y1="64" x2="420" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1d2d3d"/>
+      <stop offset="0.55" stop-color="#101a24"/>
+      <stop offset="1" stop-color="#0b1219"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="148" y1="122" x2="370" y2="274" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3a4651"/>
+      <stop offset="1" stop-color="#182532"/>
+    </linearGradient>
+    <linearGradient id="page" x1="138" y1="311" x2="374" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fffdf7"/>
+      <stop offset="1" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="128%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="92" fill="url(#bg)"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="105" y="105" width="302" height="180" rx="14" fill="#fbf6ea"/>
+    <rect x="118" y="118" width="276" height="141" rx="3" fill="url(#screen)"/>
+    <path d="M118 118h276v141H118z" fill="#fff" opacity="0.03"/>
+    <path d="M118 118h276L118 218z" fill="#fff" opacity="0.08"/>
+    <path d="M234 285h44l10 36h-64z" fill="#fbf6ea"/>
+    <rect x="205" y="318" width="102" height="12" rx="5" fill="#fbf6ea"/>
+
+    <path d="M121 344c48-18 102-16 135 8v76c-41-23-94-25-147-8z" fill="url(#page)"/>
+    <path d="M391 344c-48-18-102-16-135 8v76c41-23 94-25 147-8z" fill="url(#page)"/>
+    <path d="M121 344l-26 95c61-16 116-13 161 16V352c-33-24-87-26-135-8z" fill="#fbf6ea"/>
+    <path d="M391 344l26 95c-61-16-116-13-161 16V352c33-24 87-26 135-8z" fill="#fbf6ea"/>
+    <path d="M256 352v103" stroke="#111c27" stroke-width="8" stroke-linecap="round"/>
+    <path d="M111 420c56-18 105-14 145 35 40-49 89-53 145-35" fill="none" stroke="#111c27" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M121 344c48-18 102-16 135 8 33-24 87-26 135-8" fill="none" stroke="#111c27" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  </g>
 </svg>
