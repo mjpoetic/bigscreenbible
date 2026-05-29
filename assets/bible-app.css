@@ -910,10 +910,10 @@ select {
 
 .selection-bar {
   position: sticky;
-  bottom: 14px;
+  top: 14px;
   z-index: 5;
   width: min(100%, 720px);
-  margin: 34px auto 0;
+  margin: 0 auto 24px;
   display: flex;
   align-items: center;
   justify-content: center;

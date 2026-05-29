@@ -565,6 +565,7 @@ function readerView() {
   const version = state.versions[0] || "KJV";
   return `
     <h1 class="section-title">${currentChapter().title}</h1>
+    ${selectionBar()}
     ${currentChapter().verses.map((verse) => `
       <p class="verse ${verse.n === state.verse ? "selected" : ""} ${state.selectedVerses.includes(verse.n) ? "passage-selected" : ""}" data-verse="${verse.n}">
         <span class="verse-num">${verse.n}</span>
@@ -572,13 +573,13 @@ function readerView() {
         <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
       </p>
     `).join("")}
-    ${selectionBar()}
   `;
 }
 
 function parallelView() {
   const versions = activeVersions();
   return `
+    ${selectionBar()}
     <div class="parallel-table" style="--version-count: ${versions.length}">
       <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${version}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
@@ -713,7 +714,7 @@ function bottombar() {
 function selectionBar() {
   const count = state.selectedVerses.length;
   if (!count) return "";
-  const label = count === 1 ? `${state.reference}:${state.selectedVerses[0]}` : `${state.reference}:${Math.min(...state.selectedVerses)}-${Math.max(...state.selectedVerses)}`;
+  const label = printReferenceLabel(state.selectedVerses);
   return `
     <div class="selection-bar" role="status">
       <span>${count} selected · ${label}</span>
@@ -1447,7 +1448,17 @@ function passageText(verseNumbers = selectedVerseNumbers()) {
 function printReferenceLabel(verseNumbers = selectedVerseNumbers()) {
   const sorted = [...verseNumbers].sort((a, b) => a - b);
   if (sorted.length === 1) return `${state.reference}:${sorted[0]}`;
-  return `${state.reference}:${sorted[0]}-${sorted[sorted.length - 1]}`;
+  const groups = sorted.reduce((ranges, verse) => {
+    const last = ranges[ranges.length - 1];
+    if (last && verse === last.end + 1) {
+      last.end = verse;
+    } else {
+      ranges.push({ start: verse, end: verse });
+    }
+    return ranges;
+  }, []);
+  const suffix = groups.map(({ start, end }) => start === end ? `${start}` : `${start}-${end}`).join(", ");
+  return `${state.reference}:${suffix}`;
 }
 
 function showToast(message) {
