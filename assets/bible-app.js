@@ -54,6 +54,15 @@ const presentationThemes = [
   { code: "contrast", name: "Contrast" },
 ];
 const presentationThemeCodes = presentationThemes.map((theme) => theme.code);
+const scriptureFonts = [
+  { code: "libre", name: "Libre Baskerville" },
+  { code: "lora", name: "Lora" },
+  { code: "merriweather", name: "Merriweather" },
+  { code: "atkinson", name: "Atkinson Hyperlegible" },
+  { code: "source-sans", name: "Source Sans 3" },
+  { code: "system-sans", name: "System Sans" },
+];
+const scriptureFontCodes = scriptureFonts.map((font) => font.code);
 
 let bibleData = {};
 let bibleIndex = null;
@@ -127,6 +136,7 @@ const state = {
   versions: JSON.parse(localStorage.getItem("lw_versions") || '["KJV","WEB"]'),
   theme: savedTheme(),
   themePreset: "",
+  scriptureFont: localStorage.getItem("lw_scripture_font") || "libre",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   focusMode: savedFocusMode(),
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
@@ -154,6 +164,7 @@ if (state.versions.length === 0) state.versions = ["KJV", "WEB"];
 if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("KJV");
 state.themePreset = savedThemePreset(state.theme);
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = "deep";
+if (!scriptureFontCodes.includes(state.scriptureFont)) state.scriptureFont = "libre";
 
 function savedTheme() {
   const theme = localStorage.getItem("lw_theme");
@@ -261,7 +272,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode ? "" : rail()}
@@ -319,7 +330,7 @@ function restoreReaderScroll(scrollState) {
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
-    <main class="app-shell focus-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}">
+    <main class="app-shell focus-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
       <section class="reader loading-reader">
         <div class="loading-card">
           <div class="brand-mark">${icons.book}</div>
@@ -346,6 +357,9 @@ function topbar() {
   const themePresetOptions = themePresets
     .filter((preset) => preset.mode === state.theme)
     .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
+    .join("");
+  const scriptureFontOptions = scriptureFonts
+    .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
   return `
     <header class="topbar">
@@ -379,9 +393,19 @@ function topbar() {
               ${themePresetOptions}
             </select>
           </div>
+          <div class="setting-group">
+            <label class="setting-label" for="scriptureFontSelect">Scripture font</label>
+            <select class="scripture-font-select" id="scriptureFontSelect" aria-label="Scripture font">
+              ${scriptureFontOptions}
+            </select>
+          </div>
           <div class="setting-row">
             <span class="setting-label">Mode</span>
             <button class="ghost-btn theme-toggle" id="themeToggle" aria-label="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}<span>${themeLabel}</span></button>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Display</span>
+            <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="Enter fullscreen">${icons.screen}<span>Fullscreen</span></button>
           </div>
           <div class="setting-group">
             <span class="setting-label">Text size</span>
@@ -739,6 +763,9 @@ function presentation() {
   const themeOptions = presentationThemes
     .map((theme) => `<option value="${theme.code}" ${theme.code === state.presentationTheme ? "selected" : ""}>${theme.name}</option>`)
     .join("");
+  const scriptureFontOptions = scriptureFonts
+    .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
+    .join("");
   return `
     <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen ? "controls-visible" : ""}" id="presentation" data-presentation-theme="${state.presentationTheme}">
       <div class="presentation-top">
@@ -768,6 +795,13 @@ function presentation() {
                   ${versionOptions}
                 </select>
               </label>
+              <label>
+                <span>Scripture font</span>
+                <select id="presentationScriptureFontSelect" class="scripture-font-select" aria-label="Change scripture font">
+                  ${scriptureFontOptions}
+                </select>
+              </label>
+              <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${icons.screen}<span>Enter fullscreen</span></button>
               <div class="presentation-help">
                 <span>Keyboard</span>
                 <div><kbd>←</kbd><kbd>→</kbd> Move verse by verse</div>
@@ -887,6 +921,10 @@ function bindEvents() {
   document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
   });
+  document.getElementById("scriptureFontSelect")?.addEventListener("change", (event) => {
+    setScriptureFont(event.target.value);
+  });
+  document.getElementById("fullscreenButton")?.addEventListener("click", enterFullscreen);
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("resetText")?.addEventListener("click", resetTextScale);
@@ -970,6 +1008,10 @@ function bindEvents() {
   document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
     setPresentationTheme(event.target.value);
   });
+  document.getElementById("presentationScriptureFontSelect")?.addEventListener("change", (event) => {
+    setScriptureFont(event.target.value);
+  });
+  document.getElementById("presentationFullscreenButton")?.addEventListener("click", enterFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     state.presentationSettingsOpen = !state.presentationSettingsOpen;
     render();
@@ -1045,6 +1087,30 @@ function setPresentationTheme(theme) {
   localStorage.setItem("lw_presentation_theme", theme);
   state.presentationSettingsOpen = false;
   render();
+}
+
+function setScriptureFont(font) {
+  if (!scriptureFontCodes.includes(font)) return;
+  state.scriptureFont = font;
+  localStorage.setItem("lw_scripture_font", font);
+  renderPreservingReaderScroll();
+}
+
+async function enterFullscreen() {
+  const target = document.getElementById("presentation")?.classList.contains("open")
+    ? document.getElementById("presentation")
+    : document.documentElement;
+  const requestFullscreen = target.requestFullscreen || target.webkitRequestFullscreen;
+  try {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement && requestFullscreen) {
+      await requestFullscreen.call(target);
+    } else if (!requestFullscreen) {
+      showToast("Fullscreen is not available in this browser");
+    }
+  } catch (error) {
+    console.warn("Fullscreen request failed", error);
+    showToast("Fullscreen is not available in this browser");
+  }
 }
 
 function gotoReference(value) {
