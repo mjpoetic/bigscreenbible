@@ -162,10 +162,15 @@ body {
   text-align: center;
 }
 
-.loading-logo {
+.loading-logo-mark {
   display: block;
-  width: min(330px, 80vw);
+  width: min(180px, 58vw);
   margin: 0 auto 16px;
+}
+
+.loading-card h1 {
+  margin: 0 0 10px;
+  font: 700 28px/1.12 "Libre Baskerville", Georgia, serif;
 }
 
 .loading-card p {
@@ -228,23 +233,25 @@ button {
 .brand {
   display: flex;
   align-items: center;
-  min-width: 240px;
+  gap: 13px;
+  min-width: 276px;
 }
 
-.brand-logo {
+.brand-mark-image {
   display: block;
-  width: clamp(190px, 18vw, 284px);
+  width: clamp(72px, 7vw, 118px);
   height: auto;
 }
 
-.brand-mark {
-  width: 38px;
-  height: 38px;
-  color: var(--gold);
+.brand-divider {
+  width: 1px;
+  height: 44px;
+  background: color-mix(in srgb, var(--muted) 38%, transparent);
 }
 
 .brand-title {
-  font: 700 19px/1 "Libre Baskerville", Georgia, serif;
+  font: 700 clamp(21px, 1.85vw, 32px)/0.95 "Libre Baskerville", Georgia, serif;
+  white-space: nowrap;
 }
 
 .brand-subtitle,
@@ -1734,8 +1741,16 @@ svg {
     min-width: auto;
   }
 
-  .brand-logo {
-    width: 190px;
+  .brand-mark-image {
+    width: 72px;
+  }
+
+  .brand-title {
+    font-size: 22px;
+  }
+
+  .brand-divider {
+    height: 38px;
   }
 
   .topbar {
@@ -1835,19 +1850,23 @@ svg {
     width: 100%;
     min-width: 0;
     min-height: 30px;
+    gap: 9px;
   }
 
-  .brand-logo {
-    width: min(206px, 100%);
+  .brand-mark-image {
+    width: 52px;
   }
 
-  .brand-mark {
-    width: 30px;
+  .brand-divider {
     height: 30px;
   }
 
+  .brand-title {
+    font-size: 19px;
+  }
+
   .brand-subtitle {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .search {
@@ -2120,8 +2139,12 @@ svg {
     grid-column: 1 / 9;
   }
 
-  .brand-logo {
-    width: min(188px, 100%);
+  .brand-mark-image {
+    width: 46px;
+  }
+
+  .brand-title {
+    font-size: 17px;
   }
 
   .mobile-controls-toggle {

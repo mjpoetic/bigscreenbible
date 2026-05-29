@@ -346,7 +346,8 @@ function loadingScreen() {
     <main class="app-shell focus-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
       <section class="reader loading-reader">
         <div class="loading-card">
-          <img class="loading-logo" src="./assets/brand-logo.svg" alt="Big Screen Bible" />
+          <img class="loading-logo-mark" src="./assets/brand-mark.png" alt="" />
+          <h1>Big Screen Bible</h1>
           <p>${message}</p>
           ${dataError ? '<button class="primary-btn" onclick="location.reload()">Retry</button>' : ""}
         </div>
@@ -402,7 +403,12 @@ function topbar() {
   return `
     <header class="topbar">
       <div class="brand">
-        <img class="brand-logo" src="./assets/brand-logo.svg" alt="Big Screen Bible" />
+        <img class="brand-mark-image" src="./assets/brand-mark.png" alt="" />
+        <span class="brand-divider" aria-hidden="true"></span>
+        <div>
+          <div class="brand-title">Big Screen</div>
+          <div class="brand-subtitle">Bible</div>
+        </div>
       </div>
       <label class="search">${icons.search}<input id="referenceInput" value="${referenceLabel()}" aria-label="Search Bible reference" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
