@@ -2126,6 +2126,24 @@ svg {
     width: min(42vw, 170px);
   }
 
+  @media (orientation: portrait) {
+    .presentation.search-active .presentation-top {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .presentation.search-active .presentation-ref {
+      display: none;
+    }
+
+    .presentation.search-active .presentation-actions {
+      grid-column: 2;
+    }
+
+    .presentation.search-active .presentation-search-slot {
+      grid-column: 1;
+    }
+  }
+
   .shortcut-row {
     grid-template-columns: 92px 1fr;
   }
