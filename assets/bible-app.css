@@ -452,6 +452,23 @@ button {
   align-items: center;
 }
 
+.setting-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.setting-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--teal);
+  flex-shrink: 0;
+}
+
 .setting-label {
   color: var(--muted);
   font-size: 12px;

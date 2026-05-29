@@ -76,6 +76,7 @@ let presentationControlsTimer = 0;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
+let verseOfDayPool = null;
 const strongLexiconSources = [
   {
     name: "Open Scriptures Hebrew Strong's",
@@ -152,6 +153,9 @@ const state = {
   presentationSettingsOpen: false,
   presentationControlsVisible: true,
   presentationTheme: localStorage.getItem("lw_presentation_theme") || "deep",
+  startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
+  startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
+  startupApplied: false,
   settingsOpen: false,
   shortcutsOpen: false,
   pendingPanelFocus: null,
@@ -420,6 +424,17 @@ function topbar() {
             <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
           </div>
           <div class="setting-group">
+            <span class="setting-label">Startup</span>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="startBigScreenToggle" ${state.startBigScreen ? "checked" : ""} />
+              <span>Start in Big Screen Mode</span>
+            </label>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="startVerseOfDayToggle" ${state.startVerseOfDay ? "checked" : ""} />
+              <span>Start with Verse of the Day</span>
+            </label>
+          </div>
+          <div class="setting-group">
             <span class="setting-label">Text size</span>
             <div class="text-size-control" aria-label="Text size controls">
               <button class="icon-btn" id="decreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
@@ -474,6 +489,7 @@ function library() {
         <strong>${activeVersions().join(" + ")}</strong>
         <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
         <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
+        <span>Verse of the Day uses a local Big Screen Bible curated schedule with no borrowed daily calendar.</span>
       </div>
     </aside>
   `;
@@ -953,6 +969,14 @@ function bindEvents() {
     if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
   });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
+  document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
+    state.startBigScreen = event.target.checked;
+    localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
+  });
+  document.getElementById("startVerseOfDayToggle")?.addEventListener("change", (event) => {
+    state.startVerseOfDay = event.target.checked;
+    localStorage.setItem("lw_start_verse_of_day", state.startVerseOfDay ? "true" : "false");
+  });
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("resetText")?.addEventListener("click", resetTextScale);
@@ -1199,18 +1223,144 @@ async function exitFullscreen() {
 
 function gotoReference(value) {
   const cleaned = value.trim().replace(/\s+/g, " ");
+  if (setReferenceFromString(cleaned)) {
+    state.pendingVerseFocus = true;
+    render();
+  }
+}
+
+function applyStartupExperience() {
+  if (state.startupApplied) return;
+  state.startupApplied = true;
+  if (state.startVerseOfDay) {
+    const verseOfDay = verseOfDayReference();
+    if (verseOfDay) setReferenceFromString(verseOfDay);
+  }
+  if (state.startBigScreen) {
+    state.mode = "big";
+    state.presentationControlsVisible = true;
+  }
+}
+
+function verseOfDayReference(date = new Date()) {
+  const config = window.BIGSCREEN_VERSE_OF_DAY || {};
+  const key = monthDayKey(date);
+  if (config.seasonal?.[key] && referenceExists(config.seasonal[key])) return config.seasonal[key];
+
+  const pool = buildVerseOfDayPool();
+  if (!pool.length) return "John 3:16";
+
+  const seasonalRefs = new Set(Object.values(config.seasonal || {}));
+  const usablePool = pool.filter((ref) => !seasonalRefs.has(ref));
+  const dayNumber = dayOfYear(date);
+  const seasonalBeforeToday = Object.keys(config.seasonal || {})
+    .map((seasonalKey) => dayOfYearFromMonthDay(seasonalKey, date.getFullYear()))
+    .filter((seasonalDay) => seasonalDay && seasonalDay < dayNumber).length;
+  const index = Math.max(0, dayNumber - seasonalBeforeToday - 1);
+  return usablePool[index % usablePool.length] || pool[index % pool.length] || "John 3:16";
+}
+
+function buildVerseOfDayPool() {
+  if (verseOfDayPool) return verseOfDayPool;
+  const config = window.BIGSCREEN_VERSE_OF_DAY || {};
+  const refs = [];
+  const seen = new Set();
+  const addRef = (ref) => {
+    if (seen.has(ref) || !referenceExists(ref)) return;
+    seen.add(ref);
+    refs.push(ref);
+  };
+
+  (config.anchors || []).forEach(addRef);
+
+  const keywords = config.keywords?.length ? config.keywords : ["hope", "peace", "love", "strength", "wisdom"];
+  const keywordPattern = new RegExp(`\\b(${keywords.map(escapeRegExp).join("|")})\\b`, "i");
+  const preferredBooks = new Set([
+    "Psalm", "Proverbs", "Isaiah", "Jeremiah", "Lamentations", "Matthew", "Mark", "Luke", "John",
+    "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians",
+    "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus",
+    "Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude"
+  ]);
+  Object.entries(bibleData).forEach(([chapterKey, chapter]) => {
+    if (!preferredBooks.has(bookNameFromChapterKey(chapterKey))) return;
+    chapter.verses.forEach((verse) => {
+      const ref = `${chapterKey}:${verse.n}`;
+      if (seen.has(ref)) return;
+      const text = getVerseText(verse, "BSB") || getVerseText(verse, state.versions[0] || "BSB");
+      const normalized = text.replace(/\s+/g, " ").trim();
+      if (normalized.length < 34 || normalized.length > 240) return;
+      if (!keywordPattern.test(normalized)) return;
+      seen.add(ref);
+      refs.push(ref);
+    });
+  });
+
+  verseOfDayPool = refs;
+  return refs;
+}
+
+function referenceExists(ref) {
+  const parsed = parseReference(ref);
+  if (!parsed) return false;
+  return bibleData[parsed.key]?.verses.some((verse) => verse.n === parsed.verse);
+}
+
+function parseReference(value) {
+  const cleaned = String(value || "").trim().replace(/\s+/g, " ");
   const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::(\d+))?$/);
-  if (!match) return showToast("Try a reference like John 3:16");
+  if (!match) return null;
   const book = normalizeBookName(match[1]);
-  if (!book) return showToast(`I do not recognize ${match[1].trim()} yet`);
+  if (!book) return null;
   const key = `${book} ${match[2]}`;
-  if (!bibleData[key]) return showToast(`${key} is not available in the bundled Bible data`);
+  return { key, verse: Number(match[3] || 1) };
+}
+
+function monthDayKey(date) {
+  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function dayOfYear(date) {
+  return Math.floor((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(date.getFullYear(), 0, 0)) / 86400000);
+}
+
+function dayOfYearFromMonthDay(key, year) {
+  const [month, day] = key.split("-").map(Number);
+  if (!month || !day) return 0;
+  const date = new Date(year, month - 1, day);
+  if (date.getMonth() !== month - 1 || date.getDate() !== day) return 0;
+  return dayOfYear(date);
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function bookNameFromChapterKey(key) {
+  return String(key).replace(/\s+\d+$/, "");
+}
+
+function setReferenceFromString(value) {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::(\d+))?$/);
+  if (!match) {
+    showToast("Try a reference like John 3:16");
+    return false;
+  }
+  const book = normalizeBookName(match[1]);
+  if (!book) {
+    showToast(`I do not recognize ${match[1].trim()} yet`);
+    return false;
+  }
+  const key = `${book} ${match[2]}`;
+  if (!bibleData[key]) {
+    showToast(`${key} is not available in the bundled Bible data`);
+    return false;
+  }
   state.reference = key;
   state.verse = Number(match[3] || bibleData[key].verses[0].n);
   state.selectedVerses = [];
   if (!bibleData[key].verses.some((verse) => verse.n === state.verse)) state.verse = bibleData[key].verses[0].n;
-  state.pendingVerseFocus = true;
-  render();
+  return true;
 }
 
 function activateWorkspace(target) {
@@ -1757,6 +1907,7 @@ async function initializeBibleData() {
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
     await Promise.all(state.versions.filter((version) => translationLookup[version]?.status === "bundled").map(loadBibleVersion));
     rebuildBibleData();
+    applyStartupExperience();
     dataLoading = false;
     render();
   } catch (error) {
