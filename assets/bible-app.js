@@ -36,6 +36,25 @@ const translations = [
 const translationCodes = translations.map((translation) => translation.code);
 const translationLookup = Object.fromEntries(translations.map((translation) => [translation.code, translation]));
 
+const themePresets = [
+  { code: "paper", name: "Paper", mode: "light" },
+  { code: "parchment", name: "Parchment", mode: "light" },
+  { code: "clarity", name: "Clarity", mode: "light" },
+  { code: "midnight", name: "Midnight", mode: "dark" },
+  { code: "chapel", name: "Chapel", mode: "dark" },
+  { code: "contrast", name: "Contrast", mode: "dark" },
+];
+const themePresetLookup = Object.fromEntries(themePresets.map((preset) => [preset.code, preset]));
+const defaultThemePresets = { light: "paper", dark: "midnight" };
+const presentationThemes = [
+  { code: "deep", name: "Deep" },
+  { code: "warm", name: "Warm" },
+  { code: "paper", name: "Paper" },
+  { code: "midnight", name: "Midnight" },
+  { code: "contrast", name: "Contrast" },
+];
+const presentationThemeCodes = presentationThemes.map((theme) => theme.code);
+
 let bibleData = {};
 let bibleIndex = null;
 let dataLoading = true;
@@ -43,6 +62,7 @@ let dataError = "";
 let strongLexicon = {};
 let strongLexiconStatus = "idle";
 let strongLexiconPromise = null;
+let presentationControlsTimer = 0;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -106,6 +126,7 @@ const state = {
   verse: 16,
   versions: JSON.parse(localStorage.getItem("lw_versions") || '["KJV","WEB"]'),
   theme: savedTheme(),
+  themePreset: "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   focusMode: savedFocusMode(),
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
@@ -116,6 +137,10 @@ const state = {
   panelOpen: false,
   mobileControlsOpen: false,
   presentationSearchOpen: false,
+  presentationSettingsOpen: false,
+  presentationControlsVisible: true,
+  presentationTheme: localStorage.getItem("lw_presentation_theme") || "deep",
+  settingsOpen: false,
   shortcutsOpen: false,
   pendingPanelFocus: null,
   pendingVerseFocus: false,
@@ -127,11 +152,19 @@ const state = {
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
 if (state.versions.length === 0) state.versions = ["KJV", "WEB"];
 if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("KJV");
+state.themePreset = savedThemePreset(state.theme);
+if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = "deep";
 
 function savedTheme() {
   const theme = localStorage.getItem("lw_theme");
   if (theme === "light" || theme === "dark") return theme;
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function savedThemePreset(theme) {
+  const saved = localStorage.getItem(`lw_theme_preset_${theme}`);
+  if (themePresetLookup[saved]?.mode === theme) return saved;
+  return defaultThemePresets[theme];
 }
 
 function watchSystemTheme() {
@@ -140,6 +173,7 @@ function watchSystemTheme() {
   query.addEventListener("change", (event) => {
     if (localStorage.getItem("lw_theme")) return;
     state.theme = event.matches ? "dark" : "light";
+    state.themePreset = savedThemePreset(state.theme);
     render();
   });
 }
@@ -165,6 +199,7 @@ const icons = {
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
 };
 
 state.textScale = clampTextScale(state.textScale);
@@ -175,6 +210,18 @@ function currentChapter() {
 
 function currentVerse() {
   return currentChapter().verses.find((verse) => verse.n === state.verse) || currentChapter().verses[0] || { n: state.verse };
+}
+
+function currentBookName() {
+  return books
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .find((book) => state.reference.startsWith(`${book} `)) || state.reference.replace(/\s+\d+$/, "");
+}
+
+function currentBookChapterKeys() {
+  const book = currentBookName();
+  return Object.keys(bibleData).filter((key) => key.startsWith(`${book} `));
 }
 
 function referenceLabel() {
@@ -190,14 +237,31 @@ function mainGridClass() {
   ].filter(Boolean).join(" ");
 }
 
+function versionLimit() {
+  return window.matchMedia?.("(max-width: 840px)")?.matches ? 2 : 3;
+}
+
+function enforceVersionLimit() {
+  const limit = versionLimit();
+  if (state.versions.length <= limit) return;
+  state.versions = state.versions.slice(0, limit);
+  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+}
+
+function activeVersions() {
+  return state.versions.slice(0, versionLimit());
+}
+
 function render() {
   const app = document.querySelector("#app");
   if (dataLoading || dataError) {
     app.innerHTML = loadingScreen();
     return;
   }
+  enforceVersionLimit();
+  if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode ? "" : rail()}
@@ -255,7 +319,7 @@ function restoreReaderScroll(scrollState) {
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
-    <main class="app-shell focus-shell" data-theme="${state.theme}">
+    <main class="app-shell focus-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}">
       <section class="reader loading-reader">
         <div class="loading-card">
           <div class="brand-mark">${icons.book}</div>
@@ -269,6 +333,9 @@ function loadingScreen() {
 }
 
 function topbar() {
+  const selectedVersions = activeVersions();
+  const maxVersions = versionLimit();
+  const versionSelectLabel = selectedVersions.length >= maxVersions ? `Max ${maxVersions}` : "Add";
   const modeOptions = [
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
@@ -276,6 +343,10 @@ function topbar() {
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
   const themeLabel = state.theme === "dark" ? "Light mode" : "Dark mode";
+  const themePresetOptions = themePresets
+    .filter((preset) => preset.mode === state.theme)
+    .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
+    .join("");
   return `
     <header class="topbar">
       <div class="brand">
@@ -288,23 +359,40 @@ function topbar() {
       <label class="search">${icons.search}<input id="referenceInput" value="${referenceLabel()}" aria-label="Search Bible reference" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       <div class="versions" aria-label="Selected Bible versions">
-        ${state.versions.map((version) => `<span class="version-pill">${version}<button data-remove-version="${version}" aria-label="Remove ${version}" data-tooltip="Remove ${version}">x</button></span>`).join("")}
-        <select id="versionSelect" aria-label="Add Bible version">
-          <option>Add</option>
-          ${translationCodes.filter((version) => !state.versions.includes(version)).map((version) => `<option value="${version}">${version}</option>`).join("")}
+        ${selectedVersions.map((version) => `<span class="version-pill">${version}<button data-remove-version="${version}" aria-label="Remove ${version}" data-tooltip="Remove ${version}">x</button></span>`).join("")}
+        <select id="versionSelect" aria-label="Add Bible version" ${selectedVersions.length >= maxVersions ? "disabled" : ""}>
+          <option>${versionSelectLabel}</option>
+          ${translationCodes.filter((version) => !selectedVersions.includes(version)).map((version) => `<option value="${version}">${version}</option>`).join("")}
         </select>
       </div>
       <nav class="mode-tabs" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
       </nav>
-      <div class="text-size-control" aria-label="Text size controls">
-        <button class="icon-btn" id="decreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
-        <button class="text-size-reset" id="resetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size">Aa ${Math.round(state.textScale * 100)}%</button>
-        <button class="icon-btn" id="increaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
-      </div>
       <button class="icon-btn" id="shortcutsButton" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
-      <button class="icon-btn theme-toggle" id="themeToggle" aria-label="${themeLabel}" data-tooltip="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}</button>
+      <div class="settings-menu">
+        <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
+        <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
+          <div class="setting-group">
+            <label class="setting-label" for="themePresetSelect">Color theme</label>
+            <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
+              ${themePresetOptions}
+            </select>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Mode</span>
+            <button class="ghost-btn theme-toggle" id="themeToggle" aria-label="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}<span>${themeLabel}</span></button>
+          </div>
+          <div class="setting-group">
+            <span class="setting-label">Text size</span>
+            <div class="text-size-control" aria-label="Text size controls">
+              <button class="icon-btn" id="decreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
+              <button class="text-size-reset" id="resetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size">Aa ${Math.round(state.textScale * 100)}%</button>
+              <button class="icon-btn" id="increaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </header>
   `;
 }
@@ -321,6 +409,7 @@ function rail() {
 }
 
 function library() {
+  const chapterKeys = currentBookChapterKeys();
   return `
     <aside class="library">
       <div class="panel-minihead">
@@ -329,7 +418,7 @@ function library() {
       </div>
       <div class="select-row">
         <select id="chapterSelect">
-          ${Object.keys(bibleData).map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}
+          ${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}
         </select>
         <select id="verseSelect">
           ${currentChapter().verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}
@@ -340,13 +429,13 @@ function library() {
           <details class="testament-group" ${group.some((book) => state.reference.startsWith(book)) ? "open" : ""}>
             <summary><span>${label}</span><span>${icons.chevron}</span></summary>
             <div class="testament-books">
-              ${group.map((book) => `<button class="book-row ${state.reference.startsWith(book) ? "active" : ""}" data-book="${book}"><span>${book}</span><span>${availableReferenceForBook(book) ? "Open" : "Ready"}</span></button>`).join("")}
+              ${group.map((book) => `<button class="book-row ${state.reference.startsWith(book) ? "active" : ""}" data-book="${book}">${book}</button>`).join("")}
             </div>
           </details>
         `).join("")}
       </div>
       <div class="library-footer">
-        <strong>${state.versions.join(" + ")}</strong>
+        <strong>${activeVersions().join(" + ")}</strong>
         <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
         <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
       </div>
@@ -356,14 +445,15 @@ function library() {
 
 function reader() {
   const chapter = currentChapter();
+  const chapterKeys = currentBookChapterKeys();
   return `
     <section class="reader">
       <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
         <button class="icon-btn" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">‹</button>
         <button class="icon-btn" id="nextVerse" aria-label="Next verse" data-tooltip="Next verse">›</button>
         <div class="spacer"></div>
-        <div class="compact-reference">${referenceLabel()} · ${state.versions.join(" / ")}</div>
-        <select class="full-control" id="chapterSelectInline">${Object.keys(bibleData).map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
+        <div class="compact-reference">${referenceLabel()} · ${activeVersions().join(" / ")}</div>
+        <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
         <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
         <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
         <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.note}</button>
@@ -487,13 +577,14 @@ function readerView() {
 }
 
 function parallelView() {
+  const versions = activeVersions();
   return `
-    <div class="parallel-table" style="--version-count: ${state.versions.length}">
-      <div class="parallel-head"><div>V</div>${state.versions.map((version) => `<div>${version}</div>`).join("")}</div>
+    <div class="parallel-table" style="--version-count: ${versions.length}">
+      <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${version}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
         <div class="parallel-row ${verse.n === state.verse ? "selected" : ""} ${state.selectedVerses.includes(verse.n) ? "passage-selected" : ""}" data-verse="${verse.n}">
           <div class="verse-num">${verse.n}</div>
-          ${state.versions.map((version) => `<div class="parallel-copy">${renderStrongText(verse, version)}</div>`).join("")}
+          ${versions.map((version) => `<div class="parallel-copy">${renderStrongText(verse, version)}</div>`).join("")}
         </div>
       `).join("")}
     </div>
@@ -609,7 +700,7 @@ function bottombar() {
   return `
     <footer class="bottombar">
       <button class="nav-button" id="prevChapter">‹ Previous Chapter</button>
-      <div class="fineprint">${state.versions.join(" / ")} · ${referenceLabel()}</div>
+      <div class="fineprint">${activeVersions().join(" / ")} · ${referenceLabel()}</div>
       <div>
         <button class="ghost-btn" id="copyVerse">Copy Verse</button>
         <button class="ghost-btn" id="printPage">Print</button>
@@ -644,32 +735,56 @@ function presentation() {
   const versionOptions = translationCodes
     .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${code}</option>`)
     .join("");
+  const themeOptions = presentationThemes
+    .map((theme) => `<option value="${theme.code}" ${theme.code === state.presentationTheme ? "selected" : ""}>${theme.name}</option>`)
+    .join("");
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""}" id="presentation">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen ? "controls-visible" : ""}" id="presentation" data-presentation-theme="${state.presentationTheme}">
       <div class="presentation-top">
-        <div class="presentation-ref">
-          <span>${referenceLabel()}</span>
-          <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
-            ${versionOptions}
-          </select>
-        </div>
-        <div class="presentation-actions ${state.presentationSearchOpen ? "search-open" : ""}">
-          <form class="presentation-search" id="presentationSearchForm">
+        <div class="presentation-ref-tools">
+          <div class="presentation-ref">
+            <span>${referenceLabel()}</span>
+          </div>
+          <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
             <input id="presentationSearchInput" value="${referenceLabel()}" aria-label="Search passage in presentation" />
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
+        </div>
+        <div class="presentation-actions">
+          <div class="presentation-settings-menu">
+            <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" data-tooltip="Big Screen settings">${icons.settings}</button>
+            <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
+              <label>
+                <span>Theme</span>
+                <select id="presentationThemeSelect" class="presentation-theme-select" aria-label="Change Big Screen theme">
+                  ${themeOptions}
+                </select>
+              </label>
+              <label>
+                <span>Bible version</span>
+                <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
+                  ${versionOptions}
+                </select>
+              </label>
+              <div class="presentation-help">
+                <span>Keyboard</span>
+                <div><kbd>←</kbd><kbd>→</kbd> Move verse by verse</div>
+                <div><kbd>Esc</kbd> Exit Big Screen</div>
+              </div>
+            </div>
+          </div>
           <button class="ghost-btn" id="closePresentation">Exit</button>
         </div>
       </div>
       <div class="presentation-text"><span class="presentation-copy">${text}</span></div>
       <div class="presentation-bottom">
-        <span>Big Screen Bible</span>
+        <span class="presentation-brand">Big Screen Bible</span>
         <div class="presentation-controls">
           <button class="ghost-btn" id="presentationPrev" ${canGoBack ? "" : "disabled"}>Previous</button>
           <button class="ghost-btn" id="presentationNext" ${canGoForward ? "" : "disabled"}>Next</button>
         </div>
-        <span>Use arrow controls to move verse by verse</span>
+        <span class="presentation-hint">Use arrow controls to move verse by verse</span>
       </div>
     </section>
   `;
@@ -724,6 +839,13 @@ function bindEvents() {
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       state.mode = button.dataset.mode;
+      if (state.mode === "big") {
+        state.presentationControlsVisible = false;
+        state.presentationSearchOpen = false;
+        state.presentationSettingsOpen = false;
+      } else {
+        clearTimeout(presentationControlsTimer);
+      }
       render();
     });
   });
@@ -739,6 +861,10 @@ function bindEvents() {
     document.getElementById(id)?.addEventListener("change", async (event) => {
       if (event.target.value !== "Add") {
         const version = event.target.value;
+        if (state.versions.length >= versionLimit()) {
+          event.target.value = event.target.options[0]?.value || "Add";
+          return showToast(`Use up to ${versionLimit()} versions on this screen`);
+        }
         state.versions.push(version);
         await loadBibleVersion(version);
         rebuildBibleData();
@@ -747,10 +873,18 @@ function bindEvents() {
       render();
     });
   });
+  document.getElementById("settingsToggle")?.addEventListener("click", () => {
+    state.settingsOpen = !state.settingsOpen;
+    renderPreservingReaderScroll();
+  });
   document.getElementById("themeToggle")?.addEventListener("click", () => {
     state.theme = state.theme === "dark" ? "light" : "dark";
+    state.themePreset = savedThemePreset(state.theme);
     localStorage.setItem("lw_theme", state.theme);
     renderPreservingReaderScroll();
+  });
+  document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
+    setThemePreset(event.target.value);
   });
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
@@ -832,6 +966,13 @@ function bindEvents() {
   document.getElementById("presentationVersionSelect")?.addEventListener("change", (event) => {
     setPrimaryVersion(event.target.value);
   });
+  document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
+    setPresentationTheme(event.target.value);
+  });
+  document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
+    state.presentationSettingsOpen = !state.presentationSettingsOpen;
+    render();
+  });
   document.getElementById("presentationSearchToggle")?.addEventListener("click", () => {
     state.presentationSearchOpen = !state.presentationSearchOpen;
     render();
@@ -839,9 +980,16 @@ function bindEvents() {
   });
   document.getElementById("presentationSearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    gotoReference(document.getElementById("presentationSearchInput")?.value || "");
     if (state.mode === "big") state.presentationSearchOpen = false;
+    gotoReference(document.getElementById("presentationSearchInput")?.value || "");
   });
+  document.getElementById("presentation")?.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "mouse") revealPresentationControls();
+  });
+  document.getElementById("presentation")?.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" || event.pointerType === "touch") revealPresentationControls();
+  });
+  document.getElementById("presentation")?.addEventListener("touchstart", () => revealPresentationControls(), { passive: true });
   document.getElementById("prevChapter")?.addEventListener("click", () => moveChapter(-1));
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("bookmarkBtn")?.addEventListener("click", toggleBookmark);
@@ -861,8 +1009,11 @@ function bindEvents() {
   document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
   document.getElementById("closePresentation")?.addEventListener("click", () => {
+    clearTimeout(presentationControlsTimer);
     state.mode = "reader";
     state.presentationSearchOpen = false;
+    state.presentationSettingsOpen = false;
+    state.presentationControlsVisible = true;
     render();
   });
   window.onkeydown = handleGlobalShortcuts;
@@ -876,6 +1027,22 @@ async function setPrimaryVersion(version) {
     await loadBibleVersion(version);
     rebuildBibleData();
   }
+  state.presentationSettingsOpen = false;
+  render();
+}
+
+function setThemePreset(preset) {
+  if (themePresetLookup[preset]?.mode !== state.theme) return;
+  state.themePreset = preset;
+  localStorage.setItem(`lw_theme_preset_${state.theme}`, preset);
+  renderPreservingReaderScroll();
+}
+
+function setPresentationTheme(theme) {
+  if (!presentationThemeCodes.includes(theme)) return;
+  state.presentationTheme = theme;
+  localStorage.setItem("lw_presentation_theme", theme);
+  state.presentationSettingsOpen = false;
   render();
 }
 
@@ -955,6 +1122,20 @@ function toggleShortcuts(forceOpen) {
   render();
 }
 
+function revealPresentationControls(duration = 3200) {
+  if (state.mode !== "big") return;
+  clearTimeout(presentationControlsTimer);
+  if (!state.presentationControlsVisible) {
+    state.presentationControlsVisible = true;
+    render();
+  }
+  presentationControlsTimer = setTimeout(() => {
+    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSettingsOpen) return;
+    state.presentationControlsVisible = false;
+    render();
+  }, duration);
+}
+
 function handleGlobalShortcuts(event) {
   const key = event.key.toLowerCase();
   const modifiedSlash = (event.metaKey || event.ctrlKey) && event.key === "/";
@@ -971,14 +1152,27 @@ function handleGlobalShortcuts(event) {
       event.preventDefault();
       return toggleShortcuts(false);
     }
+    if (state.settingsOpen) {
+      event.preventDefault();
+      state.settingsOpen = false;
+      return renderPreservingReaderScroll();
+    }
     if (state.presentationSearchOpen) {
       event.preventDefault();
       state.presentationSearchOpen = false;
       return render();
     }
+    if (state.presentationSettingsOpen) {
+      event.preventDefault();
+      state.presentationSettingsOpen = false;
+      return render();
+    }
     if (state.mode === "big") {
       event.preventDefault();
+      clearTimeout(presentationControlsTimer);
       state.mode = "reader";
+      state.presentationSettingsOpen = false;
+      state.presentationControlsVisible = true;
       return render();
     }
     if (state.panelOpen) {
@@ -1001,6 +1195,8 @@ function handleGlobalShortcuts(event) {
     event.preventDefault();
     state.mode = "big";
     state.presentationSearchOpen = false;
+    state.presentationSettingsOpen = false;
+    state.presentationControlsVisible = false;
     return render();
   }
   if (key === "f") {
@@ -1518,5 +1714,10 @@ function chapterKeys() {
   return sourceBooks.flatMap(([book, chapters]) => Array.from({ length: chapters }, (_, index) => `${book} ${index + 1}`));
 }
 
+const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
+compactWidthQuery?.addEventListener("change", () => {
+  state.settingsOpen = false;
+  renderPreservingReaderScroll();
+});
 watchSystemTheme();
 initializeBibleData();
