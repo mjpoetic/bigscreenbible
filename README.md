@@ -1,6 +1,6 @@
 # Big Screen Bible
 
-A clean Bible web app that focuses on displaying Scripture for screens big and small.
+A clean Bible web app that focuses on displaying Scripture for screens big and small as distraction-free as possible.
 
 ## GitHub Pages
 
