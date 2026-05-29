@@ -58,9 +58,10 @@ const scriptureFonts = [
   { code: "libre", name: "Libre Baskerville" },
   { code: "lora", name: "Lora" },
   { code: "merriweather", name: "Merriweather" },
-  { code: "atkinson", name: "Atkinson Hyperlegible" },
-  { code: "source-sans", name: "Source Sans 3" },
-  { code: "system-sans", name: "System Sans" },
+  { code: "crimson", name: "Crimson Text" },
+  { code: "noto-sans", name: "Noto Sans" },
+  { code: "ibm-plex-sans", name: "IBM Plex Sans" },
+  { code: "custom", name: "Custom device font" },
 ];
 const scriptureFontCodes = scriptureFonts.map((font) => font.code);
 
@@ -133,10 +134,11 @@ const state = {
   mode: "reader",
   reference: "John 3",
   verse: 16,
-  versions: JSON.parse(localStorage.getItem("lw_versions") || '["KJV","WEB"]'),
+  versions: JSON.parse(localStorage.getItem("lw_versions") || '["BSB","KJV"]'),
   theme: savedTheme(),
   themePreset: "",
   scriptureFont: localStorage.getItem("lw_scripture_font") || "libre",
+  customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   focusMode: savedFocusMode(),
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
@@ -160,8 +162,8 @@ const state = {
 };
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
-if (state.versions.length === 0) state.versions = ["KJV", "WEB"];
-if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("KJV");
+if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
+if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("BSB");
 state.themePreset = savedThemePreset(state.theme);
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = "deep";
 if (!scriptureFontCodes.includes(state.scriptureFont)) state.scriptureFont = "libre";
@@ -202,6 +204,8 @@ const icons = {
   note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
+  fullscreenEnter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5H5v3.5"/><path d="M5 5l5.5 5.5"/><path d="M15.5 5H19v3.5"/><path d="M19 5l-5.5 5.5"/><path d="M8.5 19H5v-3.5"/><path d="M5 19l5.5-5.5"/><path d="M15.5 19H19v-3.5"/><path d="M19 19l-5.5-5.5"/></svg>',
+  fullscreenExit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5v5H5"/><path d="M5 5l5 5"/><path d="M14 5v5h5"/><path d="M19 5l-5 5"/><path d="M10 19v-5H5"/><path d="M5 19l5-5"/><path d="M14 19v-5h5"/><path d="M19 19l-5-5"/></svg>',
   parallel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/><path d="M7 9h1M16 9h1M7 13h1M16 13h1"/></svg>',
   focus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H4v4M16 3h4v4M8 21H4v-4M16 21h4v-4"/><path d="M9 12h6"/></svg>',
   panels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M8 4v16M16 4v16"/></svg>',
@@ -288,6 +292,7 @@ function render() {
     </main>
   `;
   bindEvents();
+  applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
     state.pendingVerseFocus = false;
     requestAnimationFrame(scrollSelectedVerseIntoView);
@@ -347,6 +352,9 @@ function topbar() {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
   const versionSelectLabel = selectedVersions.length >= maxVersions ? `Max ${maxVersions}` : "Add";
+  const fullscreenActive = isFullscreenActive();
+  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
+  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const modeOptions = [
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
@@ -361,6 +369,9 @@ function topbar() {
   const scriptureFontOptions = scriptureFonts
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
+  const customFontField = state.scriptureFont === "custom"
+    ? `<input class="custom-font-input" id="customScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
+    : "";
   return `
     <header class="topbar">
       <div class="brand">
@@ -398,6 +409,7 @@ function topbar() {
             <select class="scripture-font-select" id="scriptureFontSelect" aria-label="Scripture font">
               ${scriptureFontOptions}
             </select>
+            ${customFontField}
           </div>
           <div class="setting-row">
             <span class="setting-label">Mode</span>
@@ -405,7 +417,7 @@ function topbar() {
           </div>
           <div class="setting-row">
             <span class="setting-label">Display</span>
-            <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="Enter fullscreen">${icons.screen}<span>Fullscreen</span></button>
+            <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
           </div>
           <div class="setting-group">
             <span class="setting-label">Text size</span>
@@ -586,7 +598,7 @@ function escapeHtml(value) {
 }
 
 function readerView() {
-  const version = state.versions[0] || "KJV";
+  const version = state.versions[0] || "BSB";
   return `
     <h1 class="section-title">${currentChapter().title}</h1>
     ${selectionBar()}
@@ -701,7 +713,7 @@ function verseTextAtReference(ref) {
   const key = `${match[1]} ${match[2]}`;
   const verse = bibleData[key]?.verses.find((item) => item.n === Number(match[3]));
   if (!verse) return "";
-  return getVerseText(verse, state.versions[0] || "KJV");
+  return getVerseText(verse, state.versions[0] || "BSB");
 }
 
 function truncatePreview(value) {
@@ -751,8 +763,12 @@ function selectionBar() {
 
 function presentation() {
   const verse = currentVerse();
-  const version = state.versions[0] || "KJV";
+  const version = state.versions[0] || "BSB";
+  const versionName = translationLookup[version]?.name || version;
   const text = getVerseText(verse, version);
+  const fullscreenActive = isFullscreenActive();
+  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
+  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
   const verses = currentChapter().verses.map((item) => item.n);
   const verseIndex = verses.indexOf(state.verse);
   const canGoBack = verseIndex > 0;
@@ -766,20 +782,25 @@ function presentation() {
   const scriptureFontOptions = scriptureFonts
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
+  const customFontField = state.scriptureFont === "custom"
+    ? `<input class="custom-font-input" id="presentationCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
+    : "";
   return `
     <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen ? "controls-visible" : ""}" id="presentation" data-presentation-theme="${state.presentationTheme}">
       <div class="presentation-top">
-        <div class="presentation-ref-tools">
-          <div class="presentation-ref">
-            <span>${referenceLabel()}</span>
-          </div>
+        <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
-            <input id="presentationSearchInput" value="${referenceLabel()}" aria-label="Search passage in presentation" />
+            <input id="presentationSearchInput" value="" aria-label="Search passage in presentation" placeholder="John 3:16" />
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
+        <div class="presentation-ref">
+          <span class="presentation-reference-label">${referenceLabel()}</span>
+          <span class="presentation-version-label">${version} · ${versionName}</span>
+        </div>
         <div class="presentation-actions">
+          <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
           <div class="presentation-settings-menu">
             <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" data-tooltip="Big Screen settings">${icons.settings}</button>
             <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
@@ -800,8 +821,9 @@ function presentation() {
                 <select id="presentationScriptureFontSelect" class="scripture-font-select" aria-label="Change scripture font">
                   ${scriptureFontOptions}
                 </select>
+                ${customFontField}
               </label>
-              <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${icons.screen}<span>Enter fullscreen</span></button>
+              <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
               <div class="presentation-help">
                 <span>Keyboard</span>
                 <div><kbd>←</kbd><kbd>→</kbd> Move verse by verse</div>
@@ -924,7 +946,13 @@ function bindEvents() {
   document.getElementById("scriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
-  document.getElementById("fullscreenButton")?.addEventListener("click", enterFullscreen);
+  document.getElementById("customScriptureFontInput")?.addEventListener("change", (event) => {
+    setCustomScriptureFont(event.target.value);
+  });
+  document.getElementById("customScriptureFontInput")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
+  });
+  document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("resetText")?.addEventListener("click", resetTextScale);
@@ -1011,7 +1039,14 @@ function bindEvents() {
   document.getElementById("presentationScriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
-  document.getElementById("presentationFullscreenButton")?.addEventListener("click", enterFullscreen);
+  document.getElementById("presentationCustomScriptureFontInput")?.addEventListener("change", (event) => {
+    setCustomScriptureFont(event.target.value);
+  });
+  document.getElementById("presentationCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
+  });
+  document.getElementById("presentationFullscreenButton")?.addEventListener("click", toggleFullscreen);
+  document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     state.presentationSettingsOpen = !state.presentationSettingsOpen;
     render();
@@ -1096,10 +1131,45 @@ function setScriptureFont(font) {
   renderPreservingReaderScroll();
 }
 
+function setCustomScriptureFont(font) {
+  state.customScriptureFont = sanitizeFontName(font);
+  localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
+  applyCustomScriptureFont();
+  renderPreservingReaderScroll();
+}
+
+function sanitizeFontName(font) {
+  return String(font || "")
+    .split(",")
+    .map((name) => name.trim().replace(/[^A-Za-z0-9 -]/g, ""))
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(", ");
+}
+
+function customScriptureFontStack() {
+  const custom = state.customScriptureFont || "Georgia";
+  return `${custom}, Georgia, serif`;
+}
+
+function applyCustomScriptureFont() {
+  document.querySelector(".app-shell")?.style.setProperty("--custom-scripture-font", customScriptureFontStack());
+}
+
+function isFullscreenActive() {
+  return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+async function toggleFullscreen() {
+  if (isFullscreenActive()) {
+    await exitFullscreen();
+    return;
+  }
+  await enterFullscreen();
+}
+
 async function enterFullscreen() {
-  const target = document.getElementById("presentation")?.classList.contains("open")
-    ? document.getElementById("presentation")
-    : document.documentElement;
+  const target = document.documentElement;
   const requestFullscreen = target.requestFullscreen || target.webkitRequestFullscreen;
   try {
     if (!document.fullscreenElement && !document.webkitFullscreenElement && requestFullscreen) {
@@ -1109,6 +1179,20 @@ async function enterFullscreen() {
     }
   } catch (error) {
     console.warn("Fullscreen request failed", error);
+    showToast("Fullscreen is not available in this browser");
+  }
+}
+
+async function exitFullscreen() {
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  try {
+    if (exit) {
+      await exit.call(document);
+    } else {
+      showToast("Fullscreen is not available in this browser");
+    }
+  } catch (error) {
+    console.warn("Fullscreen exit failed", error);
     showToast("Fullscreen is not available in this browser");
   }
 }
@@ -1796,5 +1880,7 @@ compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   renderPreservingReaderScroll();
 });
+document.addEventListener("fullscreenchange", render);
+document.addEventListener("webkitfullscreenchange", render);
 watchSystemTheme();
 initializeBibleData();

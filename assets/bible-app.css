@@ -32,16 +32,20 @@
   --scripture-font: "Merriweather", Georgia, serif;
 }
 
-[data-scripture-font="atkinson"] {
-  --scripture-font: "Atkinson Hyperlegible", Arial, sans-serif;
+[data-scripture-font="crimson"] {
+  --scripture-font: "Crimson Text", Georgia, serif;
 }
 
-[data-scripture-font="source-sans"] {
-  --scripture-font: "Source Sans 3", Arial, sans-serif;
+[data-scripture-font="noto-sans"] {
+  --scripture-font: "Noto Sans", Arial, sans-serif;
 }
 
-[data-scripture-font="system-sans"] {
-  --scripture-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+[data-scripture-font="ibm-plex-sans"] {
+  --scripture-font: "IBM Plex Sans", Arial, sans-serif;
+}
+
+[data-scripture-font="custom"] {
+  --scripture-font: var(--custom-scripture-font, Georgia, serif);
 }
 
 [data-theme="dark"] {
@@ -402,7 +406,8 @@ button {
 }
 
 .theme-preset-select,
-.scripture-font-select {
+.scripture-font-select,
+.custom-font-input {
   width: 100%;
   min-height: 42px;
   flex-shrink: 0;
@@ -1164,11 +1169,19 @@ select {
 
 .presentation-top,
 .presentation-bottom {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   padding: 0 38px;
+}
+
+.presentation-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.presentation-bottom {
+  display: flex;
+  justify-content: space-between;
 }
 
 .presentation-bottom {
@@ -1185,17 +1198,20 @@ select {
   transform: translateY(0);
 }
 
-.presentation-ref-tools {
+.presentation-search-slot {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
+  justify-self: start;
 }
 
 .presentation-ref {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
   min-height: 42px;
   font-weight: 800;
@@ -1206,16 +1222,26 @@ select {
   color: var(--presentation-accent);
 }
 
-.presentation-ref span {
+.presentation-reference-label,
+.presentation-version-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.presentation-version-label {
+  max-width: min(56vw, 560px);
+  color: var(--presentation-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
 .presentation-version-select,
 .presentation-theme-select,
-.presentation-settings-popover .scripture-font-select {
+.presentation-settings-popover .scripture-font-select,
+.presentation-settings-popover .custom-font-input {
   width: 100%;
   border-color: var(--presentation-button-border);
   background: var(--presentation-button-bg);
@@ -1235,6 +1261,7 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-self: end;
 }
 
 .presentation-settings-menu {
@@ -1242,6 +1269,11 @@ select {
 }
 
 .presentation-settings-toggle {
+  width: 42px;
+  padding-inline: 0;
+}
+
+.presentation-fullscreen-toggle {
   width: 42px;
   padding-inline: 0;
 }
@@ -1580,6 +1612,7 @@ kbd {
 .presentation[data-presentation-theme="paper"] .presentation-copy,
 .presentation[data-presentation-theme="paper"] .presentation-version-select,
 .presentation[data-presentation-theme="paper"] .presentation-theme-select,
+.presentation[data-presentation-theme="paper"] .custom-font-input,
 .presentation[data-presentation-theme="paper"] button,
 .presentation[data-presentation-theme="paper"] .presentation-search input {
   color: #201810;
@@ -2018,6 +2051,7 @@ svg {
   }
 
   .presentation-top {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 0 16px;
   }
 
