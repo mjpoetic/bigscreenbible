@@ -1629,13 +1629,30 @@ function fitPresentationText() {
 
   presentation.classList.remove("presentation-overflow");
   presentation.style.removeProperty("--presentation-font-size");
+  presentation.style.removeProperty("--presentation-line-height");
   const baseFontSize = Number.parseFloat(getComputedStyle(copy).fontSize) || 64;
+  const copyLength = copy.textContent.trim().replace(/\s+/g, " ").length;
+  const compactLineHeight = copyLength > 220 ? 1.06 : copyLength > 150 ? 1.09 : 1.12;
+  const readableMinimum = viewport.clientWidth < 720 ? 0.46 : 0.52;
+  const lengthScale = Math.max(0.62, 1 - Math.max(0, copyLength - 150) / 420);
+  const maxScale = Math.min(
+    1,
+    lengthScale,
+    copyLength > 340 ? 0.64 : 1,
+    copyLength > 260 ? 0.74 : 1,
+    copyLength > 200 ? 0.84 : 1,
+  );
 
-  const fits = () => copy.scrollHeight <= viewport.clientHeight && copy.scrollWidth <= viewport.clientWidth;
+  presentation.style.setProperty("--presentation-line-height", compactLineHeight);
+  if (maxScale < 1) {
+    presentation.style.setProperty("--presentation-font-size", `${baseFontSize * maxScale}px`);
+  }
+
+  const fits = () => copy.scrollHeight <= viewport.clientHeight * 0.92 && copy.scrollWidth <= viewport.clientWidth * 0.98;
   if (fits()) return;
 
-  let low = 0.32;
-  let high = 1;
+  let low = readableMinimum;
+  let high = maxScale;
   for (let index = 0; index < 12; index += 1) {
     const mid = (low + high) / 2;
     presentation.style.setProperty("--presentation-font-size", `${baseFontSize * mid}px`);
