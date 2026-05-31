@@ -820,11 +820,14 @@ function studyPanel() {
         <div class="study-heading">${icons.note} Notes</div>
         <textarea class="note-box" id="noteBox" aria-label="Note for ${referenceLabel()}">${state.notes[referenceLabel()] || ""}</textarea>
         <button class="text-btn" id="saveNote">Save note</button>
+        <div class="note-list saved-list">
+          ${noteItemsMarkup()}
+        </div>
       </section>
       <section class="study-section" id="bookmarksSection">
         <div class="study-heading">${icons.bookmark} Bookmarks</div>
         <div class="bookmark-list">
-          ${state.bookmarks.map((ref) => `<button class="bookmark-item" data-goto="${ref}"><div class="bookmark-title">${ref}</div><div class="muted">Open bookmarked passage</div></button>`).join("")}
+          ${bookmarkItemsMarkup()}
         </div>
       </section>
     </aside>
@@ -834,6 +837,39 @@ function studyPanel() {
 function crossReferenceItems(reference = referenceLabel()) {
   const sourceRefs = window.BIGSCREEN_CROSS_REFS?.refs?.[reference] || [];
   return sourceRefs.map(normalizeCrossReference).filter(Boolean);
+}
+
+function bookmarkItemsMarkup() {
+  if (!state.bookmarks.length) return `<div class="empty-state">No bookmarks saved yet.</div>`;
+  return state.bookmarks.map((ref) => `
+    <div class="saved-item">
+      <button class="bookmark-item" data-goto="${escapeHtml(ref)}">
+        <div class="bookmark-title">${escapeHtml(ref)}</div>
+        <div class="muted">Open bookmarked passage</div>
+      </button>
+      <div class="saved-actions">
+        <button class="text-btn" data-edit-bookmark="${escapeHtml(ref)}">Edit</button>
+        <button class="text-btn danger-text" data-delete-bookmark="${escapeHtml(ref)}">Delete</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function noteItemsMarkup() {
+  const entries = Object.entries(state.notes).filter(([, note]) => String(note || "").trim());
+  if (!entries.length) return `<div class="empty-state">No saved notes yet.</div>`;
+  return entries.map(([ref, note]) => `
+    <div class="saved-item">
+      <button class="note-item" data-goto="${escapeHtml(ref)}">
+        <div class="note-title">${escapeHtml(ref)}</div>
+        <div class="note-copy">${escapeHtml(truncatePreview(note))}</div>
+      </button>
+      <div class="saved-actions">
+        <button class="text-btn" data-edit-note="${escapeHtml(ref)}">Edit</button>
+        <button class="text-btn danger-text" data-delete-note="${escapeHtml(ref)}">Delete</button>
+      </div>
+    </div>
+  `).join("");
 }
 
 function openStrongPopup(anchor) {
@@ -1080,11 +1116,11 @@ function presentation() {
               <div class="presentation-help">
                 <span>Keyboard</span>
                 <div><kbd>←</kbd><kbd>→</kbd> Move verse by verse</div>
-                <div><kbd>Esc</kbd> Exit Big Screen</div>
+                <div><kbd>Esc</kbd> Back to Bible</div>
               </div>
             </div>
           </div>
-          <button class="ghost-btn" id="closePresentation">Exit</button>
+          <button class="ghost-btn" id="closePresentation" aria-label="Back to Bible">Bible</button>
         </div>
       </div>
       <div class="presentation-text"><span class="presentation-copy">${text}</span></div>
@@ -1125,7 +1161,7 @@ function shortcutOverlay() {
     ["B", "Open bookmarks"],
     ["C", "Open cross references"],
     ["← / →", "Move verse by verse"],
-    ["Esc", "Close overlay or exit Big Screen"],
+    ["Esc", "Close overlay or go back to Bible"],
   ];
   return `
     <section class="shortcut-overlay ${state.shortcutsOpen ? "open" : ""}" aria-hidden="${state.shortcutsOpen ? "false" : "true"}">
@@ -1310,6 +1346,30 @@ function bindEvents() {
     });
   });
   document.querySelectorAll("[data-goto]").forEach((button) => button.addEventListener("click", () => gotoReference(button.dataset.goto)));
+  document.querySelectorAll("[data-edit-bookmark]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      editBookmark(button.dataset.editBookmark);
+    });
+  });
+  document.querySelectorAll("[data-delete-bookmark]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteBookmark(button.dataset.deleteBookmark);
+    });
+  });
+  document.querySelectorAll("[data-edit-note]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      editNote(button.dataset.editNote);
+    });
+  });
+  document.querySelectorAll("[data-delete-note]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteNote(button.dataset.deleteNote);
+    });
+  });
   document.querySelectorAll("[data-book]").forEach((button) => {
     button.addEventListener("click", () => openBook(button.dataset.book));
   });
@@ -2060,9 +2120,49 @@ function toggleBookmark() {
 }
 
 function saveNote() {
-  state.notes[referenceLabel()] = document.getElementById("noteBox").value;
+  const note = document.getElementById("noteBox").value.trim();
+  if (note) state.notes[referenceLabel()] = note;
+  else delete state.notes[referenceLabel()];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
-  showToast("Note saved");
+  showToast(note ? "Note saved" : "Note deleted");
+  render();
+}
+
+function editBookmark(ref) {
+  const nextRef = window.prompt("Edit bookmark reference", ref);
+  if (nextRef === null) return;
+  const cleaned = nextRef.trim().replace(/\s+/g, " ");
+  if (!referenceExists(cleaned)) return showToast("Try a bundled reference like John 3:16");
+  state.bookmarks = state.bookmarks.map((item) => item === ref ? cleaned : item);
+  state.bookmarks = [...new Set(state.bookmarks)];
+  localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  showToast("Bookmark updated");
+  render();
+}
+
+function deleteBookmark(ref) {
+  state.bookmarks = state.bookmarks.filter((item) => item !== ref);
+  localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  showToast("Bookmark deleted");
+  render();
+}
+
+function editNote(ref) {
+  const nextNote = window.prompt(`Edit note for ${ref}`, state.notes[ref] || "");
+  if (nextNote === null) return;
+  const note = nextNote.trim();
+  if (note) state.notes[ref] = note;
+  else delete state.notes[ref];
+  localStorage.setItem("lw_notes", JSON.stringify(state.notes));
+  showToast(note ? "Note updated" : "Note deleted");
+  render();
+}
+
+function deleteNote(ref) {
+  delete state.notes[ref];
+  localStorage.setItem("lw_notes", JSON.stringify(state.notes));
+  showToast("Note deleted");
+  render();
 }
 
 async function copyVerse() {

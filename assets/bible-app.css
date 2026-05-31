@@ -572,6 +572,12 @@ button {
   transform: translate(0, 0);
 }
 
+@media (hover: none), (pointer: coarse) {
+  [data-tooltip]::after {
+    display: none;
+  }
+}
+
 .main-grid {
   display: grid;
   grid-template-columns: var(--rail-width) var(--library-width) minmax(0, 1fr) var(--study-width);
@@ -1138,6 +1144,26 @@ select {
   display: block;
   width: 100%;
   min-width: 0;
+}
+
+.saved-item {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.danger-text {
+  color: #a13f32;
+}
+
+[data-theme="dark"] .danger-text {
+  color: #ff9f91;
 }
 
 .study-search {
