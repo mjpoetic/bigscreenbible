@@ -2020,7 +2020,7 @@ svg {
   .mobile-floating-settings {
     position: fixed;
     right: 14px;
-    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     z-index: 42;
     display: inline-flex;
     align-items: center;
@@ -2029,15 +2029,21 @@ svg {
     min-height: 48px;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    background: color-mix(in srgb, var(--panel) 74%, transparent);
     color: var(--ink);
     box-shadow: var(--shadow);
     backdrop-filter: blur(14px);
+    opacity: 0.62;
+    transition: opacity 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
   }
 
+  .mobile-floating-settings:hover,
+  .mobile-floating-settings:focus-visible,
   .mobile-floating-settings.active {
-    background: var(--soft);
+    background: color-mix(in srgb, var(--soft) 94%, transparent);
     color: var(--teal);
+    opacity: 1;
+    transform: translateY(-2px);
   }
 
   .mobile-floating-settings svg {
@@ -2049,7 +2055,7 @@ svg {
     position: fixed;
     top: auto;
     right: 12px;
-    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
     width: min(320px, calc(100vw - 24px));
     max-height: min(620px, calc(100dvh - 156px));
     overflow: auto;
@@ -2059,7 +2065,7 @@ svg {
   .mobile-settings-popover {
     position: fixed;
     right: 12px;
-    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
     z-index: 43;
     display: grid;
     gap: 14px;
@@ -2071,6 +2077,27 @@ svg {
     background: var(--panel);
     box-shadow: var(--shadow);
     padding: 14px;
+  }
+
+  .selection-bar {
+    position: fixed;
+    left: 12px;
+    right: 74px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    top: auto;
+    z-index: 41;
+    width: auto;
+    max-height: min(34vh, 220px);
+    overflow: auto;
+    margin: 0;
+    justify-content: flex-start;
+    padding: 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--panel) 90%, transparent);
+  }
+
+  .selection-bar span {
+    flex-basis: 100%;
   }
 
   .mobile-settings-popover .text-size-control {
@@ -2356,6 +2383,17 @@ svg {
 
   .settings-menu {
     grid-column: 10 / -1;
+  }
+
+  .selection-bar {
+    left: 10px;
+    right: 70px;
+    gap: 6px;
+  }
+
+  .selection-bar .text-btn {
+    font-size: 12px;
+    padding-inline: 8px;
   }
 
   .app-shell.focus-shell .mode-tabs {
