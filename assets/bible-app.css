@@ -1908,6 +1908,88 @@ svg {
   }
 }
 
+@media (min-width: 841px) and (max-width: 1180px) {
+  .topbar {
+    flex-wrap: nowrap;
+    min-height: 72px;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .app-shell {
+    grid-template-rows: 72px 1fr 64px;
+  }
+
+  .app-shell.focus-shell {
+    grid-template-rows: 72px 1fr;
+  }
+
+  .main-grid {
+    height: calc(100vh - 136px);
+  }
+
+  .app-shell.focus-shell .main-grid {
+    height: calc(100vh - 72px);
+  }
+
+  .brand {
+    flex: 0 1 190px;
+    min-width: 168px;
+    gap: 6px;
+  }
+
+  .brand-mark-image {
+    width: 50px;
+  }
+
+  .brand-title {
+    font-size: 18px;
+  }
+
+  .brand-subtitle {
+    font-size: 10px;
+  }
+
+  .search {
+    flex: 1 1 210px;
+    width: auto;
+    max-width: 250px;
+    padding-inline: 10px;
+  }
+
+  .versions {
+    flex: 1 1 250px;
+    min-width: 220px;
+    max-width: 285px;
+    padding-inline: 8px;
+  }
+
+  .primary-version-control select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mode-tabs {
+    flex: 0 0 auto;
+    margin-left: 0;
+  }
+
+  #shortcutsButton,
+  #focusToggle,
+  .settings-menu {
+    flex: 0 0 42px;
+  }
+
+  .settings-popover.open {
+    position: fixed;
+    top: 82px;
+    right: 12px;
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100dvh - 106px);
+    overflow: auto;
+  }
+}
+
 @media (max-width: 840px) {
   :root {
     --verse-font: clamp(20px, 5.2vw, 27px);
