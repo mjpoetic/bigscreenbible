@@ -453,6 +453,10 @@ button {
   gap: 14px;
 }
 
+.mobile-floating-settings {
+  display: none;
+}
+
 .setting-group,
 .setting-row {
   display: grid;
@@ -2007,6 +2011,45 @@ svg {
   .settings-toggle {
     width: 100%;
     min-height: 40px;
+  }
+
+  .mobile-floating-settings {
+    position: fixed;
+    right: 14px;
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    z-index: 42;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    min-height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-floating-settings.active {
+    background: var(--soft);
+    color: var(--teal);
+  }
+
+  .mobile-floating-settings svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .settings-popover.open {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(620px, calc(100dvh - 156px));
+    overflow: auto;
+    z-index: 43;
   }
 
   #focusToggle {

@@ -296,6 +296,7 @@ function render() {
         ${state.focusMode || !state.studyOpen ? "" : studyPanel()}
       </section>
       ${bottombar()}
+      ${mobileFloatingSettings()}
       ${presentation()}
       ${shortcutOverlay()}
       ${printSheet()}
@@ -356,6 +357,15 @@ function loadingScreen() {
         </div>
       </section>
     </main>
+  `;
+}
+
+function mobileFloatingSettings() {
+  if (state.mode === "big") return "";
+  return `
+    <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" aria-label="Settings" data-tooltip="Settings">
+      ${icons.settings}
+    </button>
   `;
 }
 
@@ -1100,6 +1110,10 @@ function bindEvents() {
     await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
+    state.settingsOpen = !state.settingsOpen;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
     renderPreservingReaderScroll();
   });
