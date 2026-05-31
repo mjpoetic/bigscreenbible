@@ -158,6 +158,8 @@ const state = {
   startupApplied: false,
   settingsOpen: false,
   shortcutsOpen: false,
+  searchQuery: "",
+  searchResults: [],
   pendingPanelFocus: null,
   pendingVerseFocus: false,
   selectedVerses: [],
@@ -214,6 +216,7 @@ const icons = {
   focus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H4v4M16 3h4v4M8 21H4v-4M16 21h4v-4"/><path d="M9 12h6"/></svg>',
   panels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M8 4v16M16 4v16"/></svg>',
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.2-1.2"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
@@ -410,7 +413,7 @@ function topbar() {
           <div class="brand-subtitle">Bible</div>
         </div>
       </div>
-      <label class="search">${icons.search}<input id="referenceInput" value="${referenceLabel()}" aria-label="Search Bible reference" /></label>
+      <label class="search">${icons.search}<input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
@@ -649,7 +652,7 @@ function readerView() {
     ${selectionBar()}
     ${currentChapter().verses.map((verse) => `
       <p class="verse ${verse.n === state.verse ? "selected" : ""} ${state.selectedVerses.includes(verse.n) ? "passage-selected" : ""}" data-verse="${verse.n}">
-        <span class="verse-num">${verse.n}</span>
+        <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
         <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
       </p>
@@ -665,7 +668,7 @@ function parallelView() {
       <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${version}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
         <div class="parallel-row ${verse.n === state.verse ? "selected" : ""} ${state.selectedVerses.includes(verse.n) ? "passage-selected" : ""}" data-verse="${verse.n}">
-          <div class="verse-num">${verse.n}</div>
+          <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
           ${versions.map((version) => `<div class="parallel-copy">${renderStrongText(verse, version)}</div>`).join("")}
         </div>
       `).join("")}
@@ -715,6 +718,16 @@ function studyPanel() {
           <a href="https://github.com/openscriptures/strongs" target="_blank" rel="noopener">Open Scriptures Strong's</a>
         </div>
       </section>
+      <section class="study-section" id="searchSection">
+        <div class="study-heading">${icons.search} Search</div>
+        <form class="study-search" id="studySearchForm">
+          <input id="studySearchInput" value="${escapeHtml(state.searchQuery)}" placeholder="Search words or phrases" aria-label="Search Bible words or phrases" />
+          <button class="ghost-btn" type="submit">Search</button>
+        </form>
+        <div class="search-results">
+          ${searchResultsMarkup()}
+        </div>
+      </section>
       <section class="study-section" id="notesSection">
         <div class="study-heading">${icons.note} Notes</div>
         <textarea class="note-box" id="noteBox" aria-label="Note for ${referenceLabel()}">${state.notes[referenceLabel()] || ""}</textarea>
@@ -730,9 +743,116 @@ function studyPanel() {
   `;
 }
 
-function crossReferenceItems() {
-  const sourceRefs = window.BIGSCREEN_CROSS_REFS?.refs?.[referenceLabel()] || [];
+function crossReferenceItems(reference = referenceLabel()) {
+  const sourceRefs = window.BIGSCREEN_CROSS_REFS?.refs?.[reference] || [];
   return sourceRefs.map(normalizeCrossReference).filter(Boolean);
+}
+
+function openStrongPopup(anchor) {
+  const code = anchor.dataset.strong;
+  const word = anchor.dataset.strongWord || "";
+  const lookup = strongEntry(code);
+  state.selectedStrong = code;
+  state.selectedStrongWord = word;
+  const status = strongLexiconStatus === "loading"
+    ? "Open Scriptures lexicon is still loading. Try this word again in a moment."
+    : "No dictionary entry was found for this word yet.";
+  const content = lookup
+    ? strongLookupCard(lookup, word ? `${word} · ` : "")
+    : `<div class="ref-title">${escapeHtml(word || code)}</div><div class="ref-copy">${escapeHtml(status)}</div>`;
+  showStudyPopup(anchor, content, "Strong's");
+}
+
+function openCrossReferencePopup(anchor) {
+  const verseNumber = Number(anchor.dataset.crossRefVerse);
+  const reference = `${state.reference}:${verseNumber}`;
+  const refs = crossReferenceItems(reference);
+  state.verse = verseNumber;
+  const content = `
+    <div class="ref-title">${escapeHtml(reference)} cross references</div>
+    <div class="popup-ref-list">
+      ${refs.length
+        ? refs.map((ref) => `<button class="ref-item" data-popup-goto="${escapeHtml(ref.goto)}"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+        : `<div class="empty-state">No cross references are bundled for ${escapeHtml(reference)}.</div>`}
+    </div>
+    <div class="source-note">Cross references from OpenBible.info, CC-BY.</div>
+  `;
+  showStudyPopup(anchor, content, "Cross references");
+}
+
+function showStudyPopup(anchor, content, label) {
+  closeStudyPopup();
+  const popup = document.createElement("div");
+  popup.className = "study-popup";
+  popup.id = "studyPopup";
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-label", label);
+  popup.innerHTML = `
+    <button class="study-popup-close" type="button" aria-label="Close">×</button>
+    ${content}
+  `;
+  (document.querySelector(".app-shell") || document.body).appendChild(popup);
+  positionStudyPopup(anchor, popup);
+  popup.querySelector(".study-popup-close")?.addEventListener("click", closeStudyPopup);
+  popup.querySelectorAll("[data-popup-goto]").forEach((button) => {
+    button.addEventListener("click", () => {
+      closeStudyPopup();
+      gotoReference(button.dataset.popupGoto);
+    });
+  });
+  requestAnimationFrame(() => {
+    document.addEventListener("click", closeStudyPopupOnOutside, true);
+    window.addEventListener("resize", closeStudyPopup, { once: true });
+    window.addEventListener("scroll", closeStudyPopup, { once: true, capture: true });
+  });
+}
+
+function positionStudyPopup(anchor, popup) {
+  const rect = anchor.getBoundingClientRect();
+  const gap = 10;
+  const maxWidth = Math.min(360, window.innerWidth - 24);
+  popup.style.maxWidth = `${maxWidth}px`;
+  const popupRect = popup.getBoundingClientRect();
+  const left = Math.min(Math.max(12, rect.left + rect.width / 2 - popupRect.width / 2), window.innerWidth - popupRect.width - 12);
+  const canFitBelow = rect.bottom + gap + popupRect.height <= window.innerHeight - 12;
+  const top = canFitBelow ? rect.bottom + gap : Math.max(12, rect.top - popupRect.height - gap);
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+}
+
+function closeStudyPopupOnOutside(event) {
+  const popup = document.getElementById("studyPopup");
+  if (!popup) return;
+  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse]")) return;
+  closeStudyPopup();
+}
+
+function closeStudyPopup() {
+  document.getElementById("studyPopup")?.remove();
+  document.removeEventListener("click", closeStudyPopupOnOutside, true);
+}
+
+function searchResultsMarkup() {
+  if (!state.searchQuery) {
+    return `<div class="empty-state">Search by phrase, word, or reference. Try “love one another” or “still small voice.”</div>`;
+  }
+  if (!state.searchResults.length) {
+    return `<div class="empty-state">No matches found for ${escapeHtml(state.searchQuery)} in ${escapeHtml(state.versions[0] || "BSB")}.</div>`;
+  }
+  return state.searchResults.map((result) => `
+    <button class="search-result" data-goto="${escapeHtml(result.ref)}">
+      <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}</div>
+      <div class="ref-copy">${highlightSearchTerms(result.text, state.searchQuery)}</div>
+    </button>
+  `).join("");
+}
+
+function highlightSearchTerms(text, query) {
+  const safeText = escapeHtml(text);
+  const terms = searchTokens(query);
+  if (!terms.length) return safeText;
+  const pattern = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi");
+  return safeText.replace(pattern, "<mark>$1</mark>");
 }
 
 function normalizeCrossReference(ref) {
@@ -800,6 +920,8 @@ function selectionBar() {
     <div class="selection-bar" role="status">
       <span>${count} selected · ${label}</span>
       <button class="text-btn" id="copySelection">Copy passage</button>
+      <button class="text-btn" id="shareSelection">Share</button>
+      <button class="text-btn" id="copySelectionLink">Copy link</button>
       <button class="text-btn" id="printSelection">Print</button>
       <button class="text-btn" id="clearSelection">Clear</button>
     </div>
@@ -1039,21 +1161,13 @@ function bindEvents() {
   document.querySelectorAll("[data-strong]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      state.selectedStrong = button.dataset.strong;
-      state.selectedStrongWord = button.dataset.strongWord || "";
-      if (state.focusMode) {
-        state.focusMode = false;
-        localStorage.setItem("lw_focus_mode", "false");
-      }
-      state.libraryOpen = false;
-      state.studyOpen = true;
-      state.panelOpen = true;
-      state.activeRail = "Cross-Refs";
-      state.pendingPanelFocus = "Strong";
-      localStorage.setItem("lw_library_open", "false");
-      localStorage.setItem("lw_study_open", "true");
-      render();
-      requestAnimationFrame(() => document.getElementById("strongLookup")?.scrollIntoView({ block: "center", behavior: "smooth" }));
+      openStrongPopup(button);
+    });
+  });
+  document.querySelectorAll("[data-cross-ref-verse]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openCrossReferencePopup(button);
     });
   });
   document.querySelectorAll("[data-copy-verse]").forEach((button) => {
@@ -1081,7 +1195,11 @@ function bindEvents() {
     button.addEventListener("click", () => activateWorkspace(button.dataset.rail));
   });
   document.getElementById("referenceInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") gotoReference(event.currentTarget.value);
+    if (event.key === "Enter") runReferenceOrPhraseSearch(event.currentTarget.value);
+  });
+  document.getElementById("studySearchForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    runPhraseSearch(document.getElementById("studySearchInput")?.value || "");
   });
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
@@ -1116,7 +1234,7 @@ function bindEvents() {
   document.getElementById("presentationSearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     if (state.mode === "big") state.presentationSearchOpen = false;
-    gotoReference(document.getElementById("presentationSearchInput")?.value || "");
+    runReferenceOrPhraseSearch(document.getElementById("presentationSearchInput")?.value || "");
   });
   document.getElementById("presentation")?.addEventListener("pointermove", (event) => {
     if (event.pointerType === "mouse") revealPresentationControls();
@@ -1140,6 +1258,8 @@ function bindEvents() {
   document.getElementById("saveNote")?.addEventListener("click", saveNote);
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
+  document.getElementById("shareSelection")?.addEventListener("click", shareSelectedPassage);
+  document.getElementById("copySelectionLink")?.addEventListener("click", copySelectedPassageLink);
   document.getElementById("printSelection")?.addEventListener("click", printSelectedPassage);
   document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
@@ -1266,14 +1386,95 @@ async function exitFullscreen() {
 function gotoReference(value) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (setReferenceFromString(cleaned)) {
+    state.searchQuery = "";
     state.pendingVerseFocus = true;
+    updateShareUrl();
     render();
   }
+}
+
+function runReferenceOrPhraseSearch(value) {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  if (!cleaned) return;
+  if (parseReference(cleaned)) {
+    gotoReference(cleaned);
+    return;
+  }
+  runPhraseSearch(cleaned);
+}
+
+function runPhraseSearch(value) {
+  const query = value.trim().replace(/\s+/g, " ");
+  if (!query) return;
+  state.searchQuery = query;
+  state.searchResults = searchBible(query);
+  state.mode = state.mode === "big" ? "reader" : state.mode;
+  if (state.focusMode) {
+    state.focusMode = false;
+    localStorage.setItem("lw_focus_mode", "false");
+  }
+  state.studyOpen = true;
+  state.panelOpen = true;
+  state.activeRail = "Search";
+  state.pendingPanelFocus = "Search";
+  localStorage.setItem("lw_study_open", "true");
+  render();
+}
+
+function searchBible(query) {
+  const version = state.versions[0] || "BSB";
+  const tokens = searchTokens(query);
+  if (!tokens.length) return [];
+  const phrase = normalizeSearchText(query);
+  const results = [];
+
+  Object.entries(bibleData).some(([chapterKey, chapter]) => {
+    chapter.verses.some((verse) => {
+      const text = getVerseText(verse, version);
+      if (!text) return false;
+      const normalizedText = normalizeSearchText(text);
+      const hasPhrase = phrase.length > 2 && normalizedText.includes(phrase);
+      const hasTokens = tokens.every((token) => normalizedText.includes(token));
+      if (hasPhrase || hasTokens) {
+        results.push({
+          ref: `${chapterKey}:${verse.n}`,
+          version,
+          text,
+          score: (hasPhrase ? 2 : 0) + tokens.filter((token) => normalizedText.includes(token)).length,
+        });
+      }
+      return results.length >= 60;
+    });
+    return results.length >= 60;
+  });
+
+  return results.sort((a, b) => b.score - a.score).slice(0, 40);
+}
+
+function searchTokens(query) {
+  return normalizeSearchText(query)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1);
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function applyStartupExperience() {
   if (state.startupApplied) return;
   state.startupApplied = true;
+  const sharedRef = sharedReferenceFromUrl();
+  if (sharedRef && setReferenceFromString(sharedRef)) {
+    const selected = sharedVersesFromUrl();
+    if (selected.length) state.selectedVerses = selected;
+    return;
+  }
   if (state.startVerseOfDay) {
     const verseOfDay = verseOfDayReference();
     if (verseOfDay) setReferenceFromString(verseOfDay);
@@ -1282,6 +1483,29 @@ function applyStartupExperience() {
     state.mode = "big";
     state.presentationControlsVisible = !isCompactScreen();
   }
+}
+
+function sharedReferenceFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("ref") || params.get("reference") || "";
+}
+
+function sharedVersesFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const verseParam = params.get("verses");
+  if (!verseParam) return [];
+  const available = new Set(currentChapter().verses.map((verse) => verse.n));
+  return verseParam
+    .split(",")
+    .flatMap((part) => {
+      const [start, end] = part.split("-").map(Number);
+      if (!start) return [];
+      if (!end) return [start];
+      const [from, to] = [start, end].sort((a, b) => a - b);
+      return Array.from({ length: to - from + 1 }, (_, index) => from + index);
+    })
+    .filter((verse, index, list) => available.has(verse) && list.indexOf(verse) === index)
+    .sort((a, b) => a - b);
 }
 
 function verseOfDayReference(date = new Date()) {
@@ -1412,7 +1636,9 @@ function activateWorkspace(target) {
     state.panelOpen = false;
     localStorage.setItem("lw_library_open", "true");
   } else if (target === "Search") {
-    state.panelOpen = false;
+    state.studyOpen = true;
+    state.panelOpen = true;
+    localStorage.setItem("lw_study_open", "true");
   } else {
     state.studyOpen = true;
     state.panelOpen = true;
@@ -1491,6 +1717,10 @@ function handleGlobalShortcuts(event) {
   }
 
   if (event.key === "Escape") {
+    if (document.getElementById("studyPopup")) {
+      event.preventDefault();
+      return closeStudyPopup();
+    }
     if (state.shortcutsOpen) {
       event.preventDefault();
       return toggleShortcuts(false);
@@ -1566,7 +1796,7 @@ function handleGlobalShortcuts(event) {
 
 function shortcutWorkspace(target) {
   if (state.mode === "big") state.mode = "reader";
-  if (state.focusMode && target !== "Search") {
+  if (state.focusMode) {
     state.focusMode = false;
     localStorage.setItem("lw_focus_mode", "false");
   }
@@ -1627,7 +1857,7 @@ function clamp(value, min, max) {
 function focusWorkspaceTarget(target) {
   const focusMap = {
     Verse: "#chapterSelect",
-    Search: "#referenceInput",
+    Search: "#studySearchInput",
     Notes: "#notesSection",
     Bookmarks: "#bookmarksSection",
     "Cross-Refs": "#crossRefsSection",
@@ -1728,6 +1958,43 @@ async function copySpecificVerses(verseNumbers) {
   showToast(verseNumbers.length === 1 ? "Verse copied" : "Passage copied");
 }
 
+async function shareSelectedPassage() {
+  const verseNumbers = selectedVerseNumbers();
+  const text = passageText(verseNumbers);
+  const url = passageShareUrl(verseNumbers);
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: printReferenceLabel(verseNumbers),
+        text,
+        url,
+      });
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+    }
+  }
+  await copyText(`${text}\n\n${url}`);
+  showToast("Share text copied");
+}
+
+async function copySelectedPassageLink() {
+  await copyText(passageShareUrl(selectedVerseNumbers()));
+  showToast("Passage link copied");
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      copyTextFallback(text);
+    }
+  } catch (_error) {
+    copyTextFallback(text);
+  }
+}
+
 function copyTextFallback(text) {
   const textarea = document.createElement("textarea");
   textarea.value = text;
@@ -1785,6 +2052,33 @@ function passageText(verseNumbers = selectedVerseNumbers()) {
   const lines = passageLines(verseNumbers);
   const reference = verseNumbers.length === 1 ? `${state.reference}:${verseNumbers[0]}` : printReferenceLabel(verseNumbers);
   return `${reference} ${state.versions[0]}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
+}
+
+function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("ref", `${state.reference}:${verseNumbers[0]}`);
+  if (verseNumbers.length > 1) url.searchParams.set("verses", verseRangeParam(verseNumbers));
+  else url.searchParams.delete("verses");
+  return url.toString();
+}
+
+function updateShareUrl() {
+  if (!window.history?.replaceState) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("ref", referenceLabel());
+  url.searchParams.delete("verses");
+  window.history.replaceState(null, "", url);
+}
+
+function verseRangeParam(verseNumbers = selectedVerseNumbers()) {
+  const sorted = [...verseNumbers].sort((a, b) => a - b);
+  const groups = sorted.reduce((ranges, verse) => {
+    const last = ranges[ranges.length - 1];
+    if (last && verse === last.end + 1) last.end = verse;
+    else ranges.push({ start: verse, end: verse });
+    return ranges;
+  }, []);
+  return groups.map(({ start, end }) => start === end ? `${start}` : `${start}-${end}`).join(",");
 }
 
 function printReferenceLabel(verseNumbers = selectedVerseNumbers()) {

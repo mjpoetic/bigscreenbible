@@ -890,9 +890,22 @@ select {
 }
 
 .verse-num {
+  min-height: 0;
+  border: 0;
+  background: transparent;
   color: var(--muted);
   font: 400 13px/1.8 Inter, sans-serif;
   text-align: right;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cross-ref-trigger:hover,
+.cross-ref-trigger:focus-visible {
+  color: var(--teal);
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
 }
 
 .verse-text {
@@ -1015,6 +1028,11 @@ select {
   border-right: 1px solid var(--line);
 }
 
+.parallel-row > .verse-num {
+  padding: 16px;
+  border-right: 1px solid var(--line);
+}
+
 .parallel-head {
   font-size: 12px;
   font-weight: 800;
@@ -1072,7 +1090,9 @@ select {
 .ref-list,
 .note-list,
 .bookmark-list,
-.strong-list {
+.strong-list,
+.search-results,
+.popup-ref-list {
   display: grid;
   gap: 14px;
 }
@@ -1080,7 +1100,8 @@ select {
 .ref-item,
 .note-item,
 .bookmark-item,
-.strong-card {
+.strong-card,
+.search-result {
   border: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
@@ -1104,10 +1125,35 @@ select {
 }
 
 .ref-item,
-.bookmark-item {
+.bookmark-item,
+.search-result {
   display: block;
   width: 100%;
   min-width: 0;
+}
+
+.study-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.study-search input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0 12px;
+  min-height: 42px;
+}
+
+.search-result mark {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--gold) 26%, transparent);
+  color: inherit;
+  padding: 0 2px;
 }
 
 .muted,
@@ -1149,6 +1195,33 @@ select {
 .source-note a:hover,
 .source-note a:focus-visible {
   text-decoration: underline;
+}
+
+.study-popup {
+  position: fixed;
+  z-index: 50;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(460px, calc(100vh - 24px));
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--teal) 54%, var(--line));
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
+  padding: 16px;
+}
+
+.study-popup-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  min-height: 30px;
+  width: 30px;
+  margin: -6px -6px 6px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .text-btn {
