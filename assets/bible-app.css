@@ -1069,7 +1069,7 @@ select {
 
 .panel-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr) 42px;
+  grid-template-columns: repeat(4, 1fr) 42px;
   border-bottom: 1px solid var(--line);
   height: 54px;
 }
@@ -1104,6 +1104,7 @@ select {
 .ref-list,
 .note-list,
 .bookmark-list,
+.history-list,
 .strong-list,
 .search-results,
 .popup-ref-list {
@@ -1114,6 +1115,7 @@ select {
 .ref-item,
 .note-item,
 .bookmark-item,
+.history-item,
 .strong-card,
 .search-result {
   border: 1px solid var(--line);
@@ -1140,6 +1142,7 @@ select {
 
 .ref-item,
 .bookmark-item,
+.history-item,
 .search-result {
   display: block;
   width: 100%;

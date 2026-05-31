@@ -165,6 +165,7 @@ const state = {
   selectedVerses: [],
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
   notes: JSON.parse(localStorage.getItem("lw_notes") || '{"John 3:16":"This verse is the heart of the Gospel. Mark for Sabbath worship display."}'),
+  history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
 };
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
@@ -574,6 +575,7 @@ function rail() {
     ["Bookmarks", icons.bookmark],
     ["Notes", icons.note],
     ["Cross-Refs", icons.link],
+    ["History", icons.screen],
     ["Search", icons.search],
   ];
   return `<aside class="rail">${items.map(([label, icon]) => `<button class="${state.activeRail === label ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`).join("")}</aside>`;
@@ -780,6 +782,7 @@ function studyPanel() {
         <button class="${["Verse", "Cross-Refs", "Search"].includes(state.activeRail) ? "active" : ""}" data-panel-jump="Cross-Refs">Study</button>
         <button class="${state.activeRail === "Notes" ? "active" : ""}" data-panel-jump="Notes">Notes</button>
         <button class="${state.activeRail === "Bookmarks" ? "active" : ""}" data-panel-jump="Bookmarks">Bookmarks</button>
+        <button class="${state.activeRail === "History" ? "active" : ""}" data-panel-jump="History">History</button>
         <button id="togglePanel" aria-label="Hide study panel" data-tooltip="Hide study panel">×</button>
       </div>
       <section class="study-section" id="crossRefsSection">
@@ -830,6 +833,13 @@ function studyPanel() {
           ${bookmarkItemsMarkup()}
         </div>
       </section>
+      <section class="study-section" id="historySection">
+        <div class="study-heading">${icons.screen} Reading History</div>
+        <div class="history-list">
+          ${historyItemsMarkup()}
+        </div>
+        ${state.history.length ? `<button class="text-btn danger-text" id="clearHistory">Clear history</button>` : ""}
+      </section>
     </aside>
   `;
 }
@@ -870,6 +880,32 @@ function noteItemsMarkup() {
       </div>
     </div>
   `).join("");
+}
+
+function historyItemsMarkup() {
+  if (!state.history.length) return `<div class="empty-state">No reading history yet.</div>`;
+  return state.history.map((item) => {
+    const ref = typeof item === "string" ? item : item.ref;
+    const when = typeof item === "string" ? "" : formatHistoryTime(item.at);
+    return `
+      <div class="saved-item">
+        <button class="history-item" data-goto="${escapeHtml(ref)}">
+          <div class="bookmark-title">${escapeHtml(ref)}</div>
+          <div class="muted">${when || "Open recent passage"}</div>
+        </button>
+        <div class="saved-actions">
+          <button class="text-btn danger-text" data-delete-history="${escapeHtml(ref)}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function formatHistoryTime(timestamp) {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function openStrongPopup(anchor) {
@@ -960,11 +996,11 @@ function searchResultsMarkup() {
     return `<div class="empty-state">Search by phrase, word, or reference. Try “love one another” or “still small voice.”</div>`;
   }
   if (!state.searchResults.length) {
-    return `<div class="empty-state">No matches found for ${escapeHtml(state.searchQuery)} in ${escapeHtml(state.versions[0] || "BSB")}.</div>`;
+    return `<div class="empty-state">No matches found for ${escapeHtml(state.searchQuery)} in the bundled translations.</div>`;
   }
   return state.searchResults.map((result) => `
     <button class="search-result" data-goto="${escapeHtml(result.ref)}">
-      <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}</div>
+      <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}${result.matchType ? ` · ${escapeHtml(result.matchType)}` : ""}</div>
       <div class="ref-copy">${highlightSearchTerms(result.text, state.searchQuery)}</div>
     </button>
   `).join("");
@@ -1370,6 +1406,13 @@ function bindEvents() {
       deleteNote(button.dataset.deleteNote);
     });
   });
+  document.querySelectorAll("[data-delete-history]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteHistoryItem(button.dataset.deleteHistory);
+    });
+  });
+  document.getElementById("clearHistory")?.addEventListener("click", clearHistory);
   document.querySelectorAll("[data-book]").forEach((button) => {
     button.addEventListener("click", () => openBook(button.dataset.book));
   });
@@ -1573,25 +1616,27 @@ function gotoReference(value) {
   if (setReferenceFromString(cleaned)) {
     state.searchQuery = "";
     state.pendingVerseFocus = true;
+    recordHistory();
     updateShareUrl();
     render();
   }
 }
 
-function runReferenceOrPhraseSearch(value) {
+async function runReferenceOrPhraseSearch(value) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   if (parseReference(cleaned)) {
     gotoReference(cleaned);
     return;
   }
-  runPhraseSearch(cleaned);
+  await runPhraseSearch(cleaned);
 }
 
-function runPhraseSearch(value) {
+async function runPhraseSearch(value) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
   state.searchQuery = query;
+  await ensureAllSearchVersionsLoaded();
   state.searchResults = searchBible(query);
   state.mode = state.mode === "big" ? "reader" : state.mode;
   if (state.focusMode) {
@@ -1606,34 +1651,62 @@ function runPhraseSearch(value) {
   render();
 }
 
+async function ensureAllSearchVersionsLoaded() {
+  const bundled = translationCodes.filter((version) => translationLookup[version]?.status === "bundled");
+  await Promise.all(bundled.map(loadBibleVersion));
+}
+
 function searchBible(query) {
-  const version = state.versions[0] || "BSB";
+  const primaryVersion = state.versions[0] || "BSB";
   const tokens = searchTokens(query);
   if (!tokens.length) return [];
   const phrase = normalizeSearchText(query);
-  const results = [];
+  const primaryExact = searchVersion(primaryVersion, phrase, tokens, { exactOnly: true });
+  if (primaryExact.length) return primaryExact.slice(0, 40);
 
-  Object.entries(bibleData).some(([chapterKey, chapter]) => {
+  const versionOrder = [primaryVersion, ...translationCodes.filter((version) => version !== primaryVersion)];
+  const results = versionOrder.flatMap((version) => searchVersion(version, phrase, tokens));
+  const seen = new Set();
+  return results
+    .sort((a, b) => b.score - a.score)
+    .filter((result) => {
+      const key = `${result.ref}-${result.version}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 40);
+}
+
+function searchVersion(version, phrase, tokens, options = {}) {
+  const versionData = loadedVersionData.get(version);
+  if (!versionData?.chapters) return [];
+  const results = [];
+  Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
     chapter.verses.some((verse) => {
-      const text = getVerseText(verse, version);
-      if (!text) return false;
+      const text = verse.text || "";
       const normalizedText = normalizeSearchText(text);
       const hasPhrase = phrase.length > 2 && normalizedText.includes(phrase);
-      const hasTokens = tokens.every((token) => normalizedText.includes(token));
-      if (hasPhrase || hasTokens) {
+      if (options.exactOnly && !hasPhrase) return false;
+      const verseWords = normalizedText.split(" ").filter(Boolean);
+      const exactTokenCount = tokens.filter((token) => verseWords.includes(token) || normalizedText.includes(token)).length;
+      const fuzzyTokenCount = tokens.filter((token) => verseWords.some((word) => wordsCloseEnough(token, word))).length;
+      const hasTokens = exactTokenCount === tokens.length;
+      const hasFuzzyTokens = tokens.length > 1 && fuzzyTokenCount === tokens.length;
+      if (hasPhrase || hasTokens || hasFuzzyTokens) {
         results.push({
           ref: `${chapterKey}:${verse.n}`,
           version,
           text,
-          score: (hasPhrase ? 2 : 0) + tokens.filter((token) => normalizedText.includes(token)).length,
+          score: (hasPhrase ? 100 : 0) + exactTokenCount * 10 + fuzzyTokenCount + (version === (state.versions[0] || "BSB") ? 4 : 0),
+          matchType: hasPhrase ? "Phrase" : hasTokens ? "Words" : "Close match",
         });
       }
-      return results.length >= 60;
+      return results.length >= 80;
     });
-    return results.length >= 60;
+    return results.length >= 80;
   });
-
-  return results.sort((a, b) => b.score - a.score).slice(0, 40);
+  return results;
 }
 
 function searchTokens(query) {
@@ -1649,6 +1722,31 @@ function normalizeSearchText(value) {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function wordsCloseEnough(queryWord, verseWord) {
+  if (queryWord === verseWord) return true;
+  if (queryWord.length < 4 || verseWord.length < 4) return false;
+  if (verseWord.includes(queryWord) || queryWord.includes(verseWord)) return true;
+  const limit = queryWord.length > 7 ? 2 : 1;
+  return levenshteinDistance(queryWord, verseWord, limit) <= limit;
+}
+
+function levenshteinDistance(a, b, limit = 2) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    let rowMin = current[0];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
+      rowMin = Math.min(rowMin, current[j]);
+    }
+    if (rowMin > limit) return limit + 1;
+    previous = current;
+  }
+  return previous[b.length];
 }
 
 function applyStartupExperience() {
@@ -1812,6 +1910,16 @@ function setReferenceFromString(value) {
   state.selectedVerses = [];
   if (!bibleData[key].verses.some((verse) => verse.n === state.verse)) state.verse = bibleData[key].verses[0].n;
   return true;
+}
+
+function recordHistory(ref = referenceLabel()) {
+  if (!referenceExists(ref)) return;
+  const history = state.history
+    .map((item) => typeof item === "string" ? { ref: item, at: "" } : item)
+    .filter((item) => item.ref !== ref);
+  history.unshift({ ref, at: new Date().toISOString() });
+  state.history = history.slice(0, 80);
+  localStorage.setItem("lw_history", JSON.stringify(state.history));
 }
 
 function activateWorkspace(target) {
@@ -2045,6 +2153,7 @@ function focusWorkspaceTarget(target) {
     Search: "#studySearchInput",
     Notes: "#notesSection",
     Bookmarks: "#bookmarksSection",
+    History: "#historySection",
     "Cross-Refs": "#crossRefsSection",
     Strong: "#strongSection",
   };
@@ -2072,6 +2181,7 @@ function openBook(book) {
   state.verse = currentChapter().verses[0].n;
   state.selectedVerses = [];
   state.pendingVerseFocus = true;
+  recordHistory();
   render();
 }
 
@@ -2094,6 +2204,7 @@ function moveVerse(direction) {
   const verses = currentChapter().verses.map((verse) => verse.n);
   const index = verses.indexOf(state.verse);
   state.verse = verses[Math.max(0, Math.min(verses.length - 1, index + direction))];
+  recordHistory();
   render();
 }
 
@@ -2103,6 +2214,7 @@ function moveChapter(direction) {
   state.reference = keys[Math.max(0, Math.min(keys.length - 1, index + direction))];
   state.verse = currentChapter().verses[0].n;
   state.selectedVerses = [];
+  recordHistory();
   render();
 }
 
@@ -2162,6 +2274,20 @@ function deleteNote(ref) {
   delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   showToast("Note deleted");
+  render();
+}
+
+function deleteHistoryItem(ref) {
+  state.history = state.history.filter((item) => (typeof item === "string" ? item : item.ref) !== ref);
+  localStorage.setItem("lw_history", JSON.stringify(state.history));
+  showToast("History item deleted");
+  render();
+}
+
+function clearHistory() {
+  state.history = [];
+  localStorage.setItem("lw_history", JSON.stringify(state.history));
+  showToast("History cleared");
   render();
 }
 
