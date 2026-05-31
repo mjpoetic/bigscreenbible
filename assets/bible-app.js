@@ -143,11 +143,9 @@ const state = {
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   focusMode: savedFocusMode(),
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
-  studyOpen: localStorage.getItem("lw_study_open") !== "false",
   activeRail: "Verse",
   selectedStrong: "G2316",
   selectedStrongWord: "God",
-  panelOpen: false,
   mobileControlsOpen: false,
   presentationSearchOpen: false,
   presentationSettingsOpen: false,
@@ -211,6 +209,7 @@ const icons = {
   note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
+  history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
   fullscreenEnter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5H5v3.5"/><path d="M5 5l5.5 5.5"/><path d="M15.5 5H19v3.5"/><path d="M19 5l-5.5 5.5"/><path d="M8.5 19H5v-3.5"/><path d="M5 19l5.5-5.5"/><path d="M15.5 19H19v-3.5"/><path d="M19 19l-5.5-5.5"/></svg>',
   fullscreenExit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5v5H5"/><path d="M5 5l5 5"/><path d="M14 5v5h5"/><path d="M19 5l-5 5"/><path d="M10 19v-5H5"/><path d="M5 19l5-5"/><path d="M14 19v-5h5"/><path d="M19 19l-5-5"/></svg>',
   parallel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/><path d="M7 9h1M16 9h1M7 13h1M16 13h1"/></svg>',
@@ -256,7 +255,6 @@ function mainGridClass() {
   return [
     "main-grid",
     !state.libraryOpen ? "library-closed" : "",
-    !state.studyOpen ? "study-closed" : "",
   ].filter(Boolean).join(" ");
 }
 
@@ -288,13 +286,12 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.panelOpen ? "panel-open" : ""} ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode ? "" : rail()}
         ${state.focusMode || !state.libraryOpen ? "" : library()}
         ${reader()}
-        ${state.focusMode || !state.studyOpen ? "" : studyPanel()}
       </section>
       ${bottombar()}
       ${mobileFloatingSettings()}
@@ -575,45 +572,135 @@ function rail() {
     ["Bookmarks", icons.bookmark],
     ["Notes", icons.note],
     ["Cross-Refs", icons.link],
-    ["History", icons.screen],
+    ["History", icons.history],
     ["Search", icons.search],
   ];
   return `<aside class="rail">${items.map(([label, icon]) => `<button class="${state.activeRail === label ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`).join("")}</aside>`;
 }
 
 function library() {
-  const chapterKeys = currentBookChapterKeys();
+  const titleMap = {
+    Verse: "Verse",
+    Bookmarks: "Bookmarks",
+    Notes: "Notes",
+    "Cross-Refs": "Cross References",
+    History: "History",
+    Search: "Search",
+  };
+  const title = titleMap[state.activeRail] || "Verse";
+  const closeLabel = `Hide ${title.toLowerCase()}`;
   return `
     <aside class="library">
       <div class="panel-minihead">
-        <span>Verse</span>
-        <button class="icon-btn" id="closeLibrary" aria-label="Hide verse picker" data-tooltip="Hide verse picker">×</button>
+        <span>${title}</span>
+        <button class="icon-btn" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">×</button>
       </div>
-      <div class="select-row">
-        <select id="chapterSelect">
-          ${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}
-        </select>
-        <select id="verseSelect">
-          ${currentChapter().verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}
-        </select>
-      </div>
-      <div class="testament-groups">
-        ${testamentGroups.map(([label, group]) => `
-          <details class="testament-group" ${group.some((book) => state.reference.startsWith(book)) ? "open" : ""}>
-            <summary><span>${label}</span><span>${icons.chevron}</span></summary>
-            <div class="testament-books">
-              ${group.map((book) => `<button class="book-row ${state.reference.startsWith(book) ? "active" : ""}" data-book="${book}">${book}</button>`).join("")}
-            </div>
-          </details>
-        `).join("")}
-      </div>
-      <div class="library-footer">
-        <strong>${activeVersions().join(" + ")}</strong>
-        <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
-        <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
-        <span>Verse of the Day uses a local Big Screen Bible curated schedule with no borrowed daily calendar.</span>
-      </div>
+      ${libraryContent()}
     </aside>
+  `;
+}
+
+function libraryContent() {
+  if (state.activeRail === "Bookmarks") return bookmarksPanel();
+  if (state.activeRail === "Notes") return notesPanel();
+  if (state.activeRail === "Cross-Refs") return crossReferencesPanel();
+  if (state.activeRail === "History") return historyPanel();
+  if (state.activeRail === "Search") return searchPanel();
+  return versePickerPanel();
+}
+
+function versePickerPanel() {
+  const chapterKeys = currentBookChapterKeys();
+  return `
+    <div class="select-row">
+      <select id="chapterSelect">
+        ${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}
+      </select>
+      <select id="verseSelect">
+        ${currentChapter().verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}
+      </select>
+    </div>
+    <div class="testament-groups">
+      ${testamentGroups.map(([label, group]) => `
+        <details class="testament-group" ${group.some((book) => state.reference.startsWith(book)) ? "open" : ""}>
+          <summary><span>${label}</span><span>${icons.chevron}</span></summary>
+          <div class="testament-books">
+            ${group.map((book) => `<button class="book-row ${state.reference.startsWith(book) ? "active" : ""}" data-book="${book}">${book}</button>`).join("")}
+          </div>
+        </details>
+      `).join("")}
+    </div>
+    <div class="library-footer">
+      <strong>${activeVersions().join(" + ")}</strong>
+      <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
+      <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
+      <span>Verse of the Day uses a local Big Screen Bible curated schedule with no borrowed daily calendar.</span>
+    </div>
+  `;
+}
+
+function crossReferencesPanel() {
+  const refs = crossReferenceItems();
+  return `
+    <section class="study-section panel-section" id="crossRefsSection">
+      <div class="study-heading">${icons.link} ${escapeHtml(referenceLabel())}</div>
+      <div class="ref-list">
+        ${refs.length
+          ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(ref.goto)}"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+          : `<div class="empty-state">No cross references are bundled for ${escapeHtml(referenceLabel())}.</div>`}
+      </div>
+      <div class="source-note">
+        Cross references from <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY.
+      </div>
+    </section>
+  `;
+}
+
+function searchPanel() {
+  return `
+    <section class="study-section panel-section" id="searchSection">
+      <form class="study-search" id="studySearchForm">
+        <input id="studySearchInput" value="${escapeHtml(state.searchQuery)}" placeholder="Search words or phrases" aria-label="Search Bible words or phrases" />
+        <button class="ghost-btn" type="submit">Search</button>
+      </form>
+      <div class="search-results">
+        ${searchResultsMarkup()}
+      </div>
+    </section>
+  `;
+}
+
+function notesPanel() {
+  return `
+    <section class="study-section panel-section" id="notesSection">
+      <div class="study-heading">${icons.note} ${escapeHtml(referenceLabel())}</div>
+      <textarea class="note-box" id="noteBox" aria-label="Note for ${referenceLabel()}">${state.notes[referenceLabel()] || ""}</textarea>
+      <button class="text-btn" id="saveNote">Save note</button>
+      <div class="note-list saved-list">
+        ${noteItemsMarkup()}
+      </div>
+    </section>
+  `;
+}
+
+function bookmarksPanel() {
+  return `
+    <section class="study-section panel-section" id="bookmarksSection">
+      <div class="bookmark-list">
+        ${bookmarkItemsMarkup()}
+      </div>
+    </section>
+  `;
+}
+
+function historyPanel() {
+  return `
+    <section class="study-section panel-section" id="historySection">
+      <div class="history-list">
+        ${historyItemsMarkup()}
+      </div>
+      ${state.history.length ? `<button class="text-btn danger-text" id="clearHistory">Clear history</button>` : ""}
+    </section>
   `;
 }
 
@@ -766,84 +853,6 @@ function parallelView() {
   `;
 }
 
-function studyPanel() {
-  const refs = crossReferenceItems();
-  const strongLookup = strongEntry(state.selectedStrong);
-  const strongClass = strongLookup ? "strong-card active-strong-card" : "strong-card";
-  const selectedWord = state.selectedStrongWord ? `${state.selectedStrongWord} · ` : "";
-  const strongStatus = strongLexiconStatus === "loading"
-    ? "Open Scriptures lexicon is loading. Highlighted words will appear as definitions become available."
-    : strongLexiconStatus === "unavailable"
-      ? "Open Scriptures lexicon could not be loaded in this browser session. The reader still works, and local starter entries remain available."
-    : "Select a highlighted word in the text to inspect its Strong's entry.";
-  return `
-    <aside class="study-panel">
-      <div class="panel-tabs">
-        <button class="${["Verse", "Cross-Refs", "Search"].includes(state.activeRail) ? "active" : ""}" data-panel-jump="Cross-Refs">Study</button>
-        <button class="${state.activeRail === "Notes" ? "active" : ""}" data-panel-jump="Notes">Notes</button>
-        <button class="${state.activeRail === "Bookmarks" ? "active" : ""}" data-panel-jump="Bookmarks">Bookmarks</button>
-        <button class="${state.activeRail === "History" ? "active" : ""}" data-panel-jump="History">History</button>
-        <button id="togglePanel" aria-label="Hide study panel" data-tooltip="Hide study panel">×</button>
-      </div>
-      <section class="study-section" id="crossRefsSection">
-        <div class="study-heading">${icons.link} Cross References</div>
-        <div class="ref-list">
-          ${refs.length
-            ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(ref.goto)}"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
-            : `<div class="empty-state">No cross references are bundled for ${escapeHtml(referenceLabel())}.</div>`}
-        </div>
-        <div class="source-note">
-          Cross references from <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY.
-        </div>
-      </section>
-      <section class="study-section" id="strongSection">
-        <div class="study-heading">${icons.search} Strong's Lookup</div>
-        <div class="${strongClass}" id="strongLookup">
-          ${strongLookup ? strongLookupCard(strongLookup, selectedWord) : `
-            <div class="ref-title">Strong's lexicon</div>
-            <div class="ref-copy">${strongStatus}</div>
-          `}
-        </div>
-        <div class="source-note">
-          Strong's dictionary data by James Strong with Open Scriptures CC-BY-SA editions.
-          <a href="https://github.com/openscriptures/strongs" target="_blank" rel="noopener">Open Scriptures Strong's</a>
-        </div>
-      </section>
-      <section class="study-section" id="searchSection">
-        <div class="study-heading">${icons.search} Search</div>
-        <form class="study-search" id="studySearchForm">
-          <input id="studySearchInput" value="${escapeHtml(state.searchQuery)}" placeholder="Search words or phrases" aria-label="Search Bible words or phrases" />
-          <button class="ghost-btn" type="submit">Search</button>
-        </form>
-        <div class="search-results">
-          ${searchResultsMarkup()}
-        </div>
-      </section>
-      <section class="study-section" id="notesSection">
-        <div class="study-heading">${icons.note} Notes</div>
-        <textarea class="note-box" id="noteBox" aria-label="Note for ${referenceLabel()}">${state.notes[referenceLabel()] || ""}</textarea>
-        <button class="text-btn" id="saveNote">Save note</button>
-        <div class="note-list saved-list">
-          ${noteItemsMarkup()}
-        </div>
-      </section>
-      <section class="study-section" id="bookmarksSection">
-        <div class="study-heading">${icons.bookmark} Bookmarks</div>
-        <div class="bookmark-list">
-          ${bookmarkItemsMarkup()}
-        </div>
-      </section>
-      <section class="study-section" id="historySection">
-        <div class="study-heading">${icons.screen} Reading History</div>
-        <div class="history-list">
-          ${historyItemsMarkup()}
-        </div>
-        ${state.history.length ? `<button class="text-btn danger-text" id="clearHistory">Clear history</button>` : ""}
-      </section>
-    </aside>
-  `;
-}
-
 function crossReferenceItems(reference = referenceLabel()) {
   const sourceRefs = window.BIGSCREEN_CROSS_REFS?.refs?.[reference] || [];
   return sourceRefs.map(normalizeCrossReference).filter(Boolean);
@@ -948,7 +957,10 @@ function showStudyPopup(anchor, content, label) {
   popup.setAttribute("role", "dialog");
   popup.setAttribute("aria-label", label);
   popup.innerHTML = `
-    <button class="study-popup-close" type="button" aria-label="Close">×</button>
+    <div class="study-popup-head">
+      <div class="study-popup-title">${escapeHtml(label)}</div>
+      <button class="study-popup-close" type="button" aria-label="Close popup">×</button>
+    </div>
     ${content}
   `;
   (document.querySelector(".app-shell") || document.body).appendChild(popup);
@@ -1192,6 +1204,7 @@ function shortcutOverlay() {
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
     ["/", "Jump to reference search"],
+    ["S", "Open search"],
     ["V", "Open verse picker"],
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
@@ -1416,9 +1429,6 @@ function bindEvents() {
   document.querySelectorAll("[data-book]").forEach((button) => {
     button.addEventListener("click", () => openBook(button.dataset.book));
   });
-  document.querySelectorAll("[data-panel-jump]").forEach((button) => {
-    button.addEventListener("click", () => activateWorkspace(button.dataset.panelJump));
-  });
   document.querySelectorAll("[data-rail]").forEach((button) => {
     button.addEventListener("click", () => activateWorkspace(button.dataset.rail));
   });
@@ -1476,13 +1486,12 @@ function bindEvents() {
   document.getElementById("bookmarkBtn")?.addEventListener("click", toggleBookmark);
   document.getElementById("noteBtn")?.addEventListener("click", () => activateWorkspace("Notes"));
   document.getElementById("openStudy")?.addEventListener("click", () => {
-    state.studyOpen = true;
-    state.panelOpen = true;
-    localStorage.setItem("lw_study_open", "true");
+    state.libraryOpen = true;
+    state.activeRail = "Cross-Refs";
+    localStorage.setItem("lw_library_open", "true");
     state.pendingPanelFocus = "Cross-Refs";
-    render();
+    renderPreservingReaderScroll();
   });
-  document.getElementById("togglePanel")?.addEventListener("click", closeStudyPanel);
   document.getElementById("saveNote")?.addEventListener("click", saveNote);
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
@@ -1643,11 +1652,10 @@ async function runPhraseSearch(value) {
     state.focusMode = false;
     localStorage.setItem("lw_focus_mode", "false");
   }
-  state.studyOpen = true;
-  state.panelOpen = true;
+  state.libraryOpen = true;
   state.activeRail = "Search";
   state.pendingPanelFocus = "Search";
-  localStorage.setItem("lw_study_open", "true");
+  localStorage.setItem("lw_library_open", "true");
   render();
 }
 
@@ -1924,33 +1932,15 @@ function recordHistory(ref = referenceLabel()) {
 
 function activateWorkspace(target) {
   state.activeRail = target;
-  if (target === "Verse") {
-    state.libraryOpen = true;
-    state.panelOpen = false;
-    localStorage.setItem("lw_library_open", "true");
-  } else if (target === "Search") {
-    state.studyOpen = true;
-    state.panelOpen = true;
-    localStorage.setItem("lw_study_open", "true");
-  } else {
-    state.studyOpen = true;
-    state.panelOpen = true;
-    localStorage.setItem("lw_study_open", "true");
-  }
+  state.libraryOpen = true;
+  localStorage.setItem("lw_library_open", "true");
   state.pendingPanelFocus = target;
-  render();
+  renderPreservingReaderScroll();
 }
 
 function closeLibrary() {
   state.libraryOpen = false;
   localStorage.setItem("lw_library_open", "false");
-  render();
-}
-
-function closeStudyPanel() {
-  state.studyOpen = false;
-  state.panelOpen = false;
-  localStorage.setItem("lw_study_open", "false");
   render();
 }
 
@@ -1968,7 +1958,6 @@ function resetTextScale() {
 
 function toggleFocusMode() {
   state.focusMode = !state.focusMode;
-  state.panelOpen = false;
   if (state.focusMode) state.mobileControlsOpen = false;
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   render();
@@ -2041,10 +2030,6 @@ function handleGlobalShortcuts(event) {
       state.presentationControlsVisible = true;
       return render();
     }
-    if (state.panelOpen) {
-      event.preventDefault();
-      return closeStudyPanel();
-    }
   }
 
   if (typing || state.shortcutsOpen) return;
@@ -2077,6 +2062,7 @@ function handleGlobalShortcuts(event) {
   const railShortcuts = {
     l: "Verse",
     v: "Verse",
+    s: "Search",
     n: "Notes",
     b: "Bookmarks",
     c: "Cross-Refs",
@@ -2129,11 +2115,9 @@ function computedTextFonts() {
     verse = scaled(20, 5.2, 27);
   } else if (width <= 1320) {
     verse = scaled(22, 1.85, 28);
-  } else if (state.focusMode || (!state.libraryOpen && !state.studyOpen)) {
+  } else if (state.focusMode || !state.libraryOpen) {
     verse = scaled(26, 1.86, 58);
-  } else if (!state.libraryOpen) {
-    verse = scaled(24, 1.54, 46);
-  } else if (!state.studyOpen) {
+  } else {
     verse = scaled(24, 1.58, 48);
   }
 
