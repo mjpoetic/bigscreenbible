@@ -2170,6 +2170,10 @@ svg {
     z-index: 43;
   }
 
+  .settings-menu .settings-popover.open {
+    display: none;
+  }
+
   .mobile-settings-popover {
     position: fixed;
     right: 12px;
@@ -2590,20 +2594,37 @@ svg {
     margin: 0.6in;
   }
 
+  html,
   body {
-    background: #fff;
-    color: #151515;
+    background: #fff !important;
+    color: #151515 !important;
+  }
+
+  .app-shell {
+    display: block !important;
+    min-height: auto !important;
+    background: #fff !important;
+    color: #151515 !important;
   }
 
   .app-shell > :not(.print-sheet) {
     display: none !important;
+    visibility: hidden !important;
   }
 
   .print-sheet {
-    display: block;
-    color: #151515;
-    background: #fff;
+    display: block !important;
+    visibility: visible !important;
+    color: #151515 !important;
+    background: #fff !important;
     font-family: "Libre Baskerville", Georgia, serif;
+    box-shadow: none !important;
+    min-height: 0 !important;
+  }
+
+  .print-sheet * {
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .print-brand {
