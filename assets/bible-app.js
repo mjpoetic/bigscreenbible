@@ -297,6 +297,7 @@ function render() {
       </section>
       ${bottombar()}
       ${mobileFloatingSettings()}
+      ${mobileSettingsPanel()}
       ${presentation()}
       ${shortcutOverlay()}
       ${printSheet()}
@@ -366,6 +367,83 @@ function mobileFloatingSettings() {
     <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" aria-label="Settings" data-tooltip="Settings">
       ${icons.settings}
     </button>
+  `;
+}
+
+function mobileSettingsPanel() {
+  if (state.mode === "big" || !state.settingsOpen) return "";
+  const primaryVersion = state.versions[0] || "BSB";
+  const primaryVersionOptions = translationCodes
+    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
+    .join("");
+  const followsSystemTheme = !localStorage.getItem("lw_theme");
+  const fullscreenActive = isFullscreenActive();
+  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
+  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
+  const themeLabel = state.theme === "dark" ? "Light mode" : "Dark mode";
+  const themePresetOptions = themePresets
+    .filter((preset) => preset.mode === state.theme)
+    .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
+    .join("");
+  const scriptureFontOptions = scriptureFonts
+    .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
+    .join("");
+  const customFontField = state.scriptureFont === "custom"
+    ? `<input class="custom-font-input" id="mobileCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
+    : "";
+  return `
+    <div class="mobile-settings-popover" id="mobileSettingsPopover" role="dialog" aria-label="Settings">
+      <div class="setting-group">
+        <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
+        <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
+          ${themePresetOptions}
+        </select>
+      </div>
+      <div class="setting-group">
+        <label class="setting-label" for="mobileSettingsPrimaryVersionSelect">Bible version</label>
+        <select class="primary-version-select" id="mobileSettingsPrimaryVersionSelect" aria-label="Bible version">
+          ${primaryVersionOptions}
+        </select>
+      </div>
+      <div class="setting-group">
+        <label class="setting-label" for="mobileScriptureFontSelect">Scripture font</label>
+        <select class="scripture-font-select" id="mobileScriptureFontSelect" aria-label="Scripture font">
+          ${scriptureFontOptions}
+        </select>
+        ${customFontField}
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Mode</span>
+        <button class="ghost-btn theme-toggle" id="mobileThemeToggle" aria-label="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}<span>${themeLabel}</span></button>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">System</span>
+        <button class="ghost-btn system-theme-btn" id="mobileSystemThemeButton" ${followsSystemTheme ? "disabled" : ""} aria-label="Follow system theme">${followsSystemTheme ? "Following system" : "Follow system"}</button>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Display</span>
+        <button class="ghost-btn fullscreen-btn" id="mobileFullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+      </div>
+      <div class="setting-group">
+        <span class="setting-label">Startup</span>
+        <label class="setting-checkbox">
+          <input type="checkbox" id="mobileStartBigScreenToggle" ${state.startBigScreen ? "checked" : ""} />
+          <span>Start in Big Screen Mode</span>
+        </label>
+        <label class="setting-checkbox">
+          <input type="checkbox" id="mobileStartVerseOfDayToggle" ${state.startVerseOfDay ? "checked" : ""} />
+          <span>Start with Verse of the Day</span>
+        </label>
+      </div>
+      <div class="setting-group">
+        <span class="setting-label">Text size</span>
+        <div class="text-size-control" aria-label="Text size controls">
+          <button class="icon-btn" id="mobileDecreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
+          <button class="text-size-reset" id="mobileResetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size">Aa ${Math.round(state.textScale * 100)}%</button>
+          <button class="icon-btn" id="mobileIncreaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -1109,6 +1187,9 @@ function bindEvents() {
   document.getElementById("settingsPrimaryVersionSelect")?.addEventListener("change", async (event) => {
     await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
   });
+  document.getElementById("mobileSettingsPrimaryVersionSelect")?.addEventListener("change", async (event) => {
+    await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
+  });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
     renderPreservingReaderScroll();
@@ -1123,21 +1204,45 @@ function bindEvents() {
     localStorage.setItem("lw_theme", state.theme);
     renderPreservingReaderScroll();
   });
+  document.getElementById("mobileThemeToggle")?.addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    state.themePreset = savedThemePreset(state.theme);
+    localStorage.setItem("lw_theme", state.theme);
+    renderPreservingReaderScroll();
+  });
   document.getElementById("systemThemeButton")?.addEventListener("click", resetThemeToSystem);
+  document.getElementById("mobileSystemThemeButton")?.addEventListener("click", resetThemeToSystem);
   document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
+    setThemePreset(event.target.value);
+  });
+  document.getElementById("mobileThemePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
   });
   document.getElementById("scriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
+  document.getElementById("mobileScriptureFontSelect")?.addEventListener("change", (event) => {
+    setScriptureFont(event.target.value);
+  });
   document.getElementById("customScriptureFontInput")?.addEventListener("change", (event) => {
+    setCustomScriptureFont(event.target.value);
+  });
+  document.getElementById("mobileCustomScriptureFontInput")?.addEventListener("change", (event) => {
     setCustomScriptureFont(event.target.value);
   });
   document.getElementById("customScriptureFontInput")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
   });
+  document.getElementById("mobileCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
+  });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
+  document.getElementById("mobileFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
+    state.startBigScreen = event.target.checked;
+    localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
+  });
+  document.getElementById("mobileStartBigScreenToggle")?.addEventListener("change", (event) => {
     state.startBigScreen = event.target.checked;
     localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
   });
@@ -1145,9 +1250,16 @@ function bindEvents() {
     state.startVerseOfDay = event.target.checked;
     localStorage.setItem("lw_start_verse_of_day", state.startVerseOfDay ? "true" : "false");
   });
+  document.getElementById("mobileStartVerseOfDayToggle")?.addEventListener("change", (event) => {
+    state.startVerseOfDay = event.target.checked;
+    localStorage.setItem("lw_start_verse_of_day", state.startVerseOfDay ? "true" : "false");
+  });
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("resetText")?.addEventListener("click", resetTextScale);
+  document.getElementById("mobileDecreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
+  document.getElementById("mobileIncreaseText")?.addEventListener("click", () => adjustTextScale(0.1));
+  document.getElementById("mobileResetText")?.addEventListener("click", resetTextScale);
   document.getElementById("shortcutsButton")?.addEventListener("click", () => toggleShortcuts(true));
   document.getElementById("closeShortcuts")?.addEventListener("click", () => toggleShortcuts(false));
   document.querySelector(".shortcut-overlay")?.addEventListener("click", (event) => {

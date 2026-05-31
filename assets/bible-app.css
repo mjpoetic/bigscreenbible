@@ -457,6 +457,10 @@ button {
   display: none;
 }
 
+.mobile-settings-popover {
+  display: none;
+}
+
 .setting-group,
 .setting-row {
   display: grid;
@@ -2050,6 +2054,34 @@ svg {
     max-height: min(620px, calc(100dvh - 156px));
     overflow: auto;
     z-index: 43;
+  }
+
+  .mobile-settings-popover {
+    position: fixed;
+    right: 12px;
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    z-index: 43;
+    display: grid;
+    gap: 14px;
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(620px, calc(100dvh - 156px));
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+
+  .mobile-settings-popover .text-size-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mobile-settings-popover .theme-toggle,
+  .mobile-settings-popover .fullscreen-btn,
+  .mobile-settings-popover .system-theme-btn {
+    min-width: 126px;
   }
 
   #focusToggle {
