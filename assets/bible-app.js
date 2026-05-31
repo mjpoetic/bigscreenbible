@@ -803,7 +803,6 @@ function showStudyPopup(anchor, content, label) {
   requestAnimationFrame(() => {
     document.addEventListener("click", closeStudyPopupOnOutside, true);
     window.addEventListener("resize", closeStudyPopup, { once: true });
-    window.addEventListener("scroll", closeStudyPopup, { once: true, capture: true });
   });
 }
 
