@@ -161,10 +161,13 @@ const state = {
   pendingPanelFocus: null,
   pendingVerseFocus: false,
   selectedVerses: [],
+  highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
   notes: JSON.parse(localStorage.getItem("lw_notes") || '{"John 3:16":"This verse is the heart of the Gospel. Mark for Sabbath worship display."}'),
   history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
 };
+
+const highlightColors = ["yellow", "blue", "pink", "green", "orange"];
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
 if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
@@ -834,7 +837,7 @@ function readerView() {
     <h1 class="section-title">${currentChapter().title}</h1>
     ${selectionBar()}
     ${currentChapter().verses.map((verse) => `
-      <p class="verse ${verse.n === state.verse ? "selected" : ""} ${state.selectedVerses.includes(verse.n) ? "passage-selected" : ""}" data-verse="${verse.n}">
+      <p class="verse ${verseStateClasses(verse.n)}" data-verse="${verse.n}">
         <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
         <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
@@ -850,13 +853,26 @@ function parallelView() {
     <div class="parallel-table" style="--version-count: ${versions.length}">
       <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${version}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
-        <div class="parallel-row ${verse.n === state.verse ? "selected" : ""} ${state.selectedVerses.includes(verse.n) ? "passage-selected" : ""}" data-verse="${verse.n}">
+        <div class="parallel-row ${verseStateClasses(verse.n)}" data-verse="${verse.n}">
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
           ${versions.map((version) => `<div class="parallel-copy">${renderStrongText(verse, version)}</div>`).join("")}
         </div>
       `).join("")}
     </div>
   `;
+}
+
+function verseStateClasses(verseNumber) {
+  return [
+    verseNumber === state.verse ? "selected" : "",
+    state.selectedVerses.includes(verseNumber) ? "passage-selected" : "",
+    highlightClassForVerse(verseNumber),
+  ].filter(Boolean).join(" ");
+}
+
+function highlightClassForVerse(verseNumber) {
+  const color = state.highlights[`${state.reference}:${verseNumber}`];
+  return highlightColors.includes(color) ? `highlight-${color}` : "";
 }
 
 function crossReferenceItems(reference = referenceLabel()) {
@@ -1096,6 +1112,10 @@ function selectionBar() {
   return `
     <div class="selection-bar" role="status">
       <span>${count} selected · ${label}</span>
+      <div class="highlight-palette" aria-label="Highlight selected verses">
+        ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}"></button>`).join("")}
+        <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight">${icons.clear}</button>
+      </div>
       <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
       <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
       <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
@@ -1507,6 +1527,9 @@ function bindEvents() {
   document.getElementById("copySelectionLink")?.addEventListener("click", copySelectedPassageLink);
   document.getElementById("printSelection")?.addEventListener("click", printSelectedPassage);
   document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
+  document.querySelectorAll("[data-highlight-color]").forEach((button) => {
+    button.addEventListener("click", () => applyHighlight(button.dataset.highlightColor));
+  });
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
   document.getElementById("closePresentation")?.addEventListener("click", () => {
     clearTimeout(presentationControlsTimer);
@@ -2390,6 +2413,19 @@ function toggleVerseSelection(verseNumber, extendRange) {
 function clearSelection() {
   state.selectedVerses = [];
   render();
+}
+
+function applyHighlight(color) {
+  const verses = selectedVerseNumbers();
+  if (!verses.length) return;
+  verses.forEach((verseNumber) => {
+    const ref = `${state.reference}:${verseNumber}`;
+    if (highlightColors.includes(color)) state.highlights[ref] = color;
+    else delete state.highlights[ref];
+  });
+  localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
+  showToast(highlightColors.includes(color) ? "Highlight added" : "Highlight removed");
+  renderPreservingReaderScroll();
 }
 
 function selectedVerseNumbers() {
