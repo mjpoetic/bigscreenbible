@@ -1750,6 +1750,8 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   padding-top: max(10px, env(safe-area-inset-top, 0px));
+  padding-left: max(38px, calc(18px + env(safe-area-inset-left, 0px)));
+  padding-right: max(38px, calc(18px + env(safe-area-inset-right, 0px)));
 }
 
 .presentation-bottom {
@@ -2723,7 +2725,8 @@ svg {
 
   .mobile-floating-settings {
     position: fixed;
-    right: 14px;
+    right: auto;
+    left: max(4px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 48px) / 2)));
     bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     z-index: 42;
     display: inline-flex;
@@ -2773,11 +2776,12 @@ svg {
   .mobile-settings-popover {
     position: fixed;
     right: 12px;
+    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 10px);
     bottom: calc(78px + env(safe-area-inset-bottom, 0px));
     z-index: 43;
     display: grid;
     gap: 14px;
-    width: min(320px, calc(100vw - 24px));
+    width: auto;
     max-height: min(620px, calc(100dvh - 156px));
     overflow: auto;
     border: 1px solid var(--line);
@@ -2904,7 +2908,8 @@ svg {
     }
 
     .mobile-floating-settings {
-      right: 14px;
+      right: auto;
+      left: max(4px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 48px) / 2)));
       bottom: calc(128px + env(safe-area-inset-bottom, 0px));
       width: 48px;
       min-height: 48px;
@@ -2961,6 +2966,36 @@ svg {
   .mobile-settings-popover .fullscreen-btn,
   .mobile-settings-popover .system-theme-btn {
     min-width: 126px;
+  }
+
+  @media (orientation: landscape) {
+    .topbar {
+      padding-left: max(8px, env(safe-area-inset-left, 0px));
+      padding-right: max(8px, env(safe-area-inset-right, 0px));
+    }
+
+    .main-grid {
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+
+    .main-grid::before {
+      left: env(safe-area-inset-left, 0px);
+    }
+
+    .bottombar {
+      padding-left: max(10px, env(safe-area-inset-left, 0px));
+      padding-right: max(10px, env(safe-area-inset-right, 0px));
+    }
+
+    .mobile-floating-settings {
+      left: max(4px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 48px) / 2)));
+    }
+
+    .mobile-settings-popover {
+      left: calc(env(safe-area-inset-left, 0px) + var(--rail-width) + 10px);
+      right: calc(env(safe-area-inset-right, 0px) + 12px);
+    }
   }
 
   #focusToggle {

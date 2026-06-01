@@ -101,6 +101,7 @@ let strongLexicon = {};
 let strongLexiconStatus = "idle";
 let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
+let presentationTouchStart = null;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -1677,7 +1678,19 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("pointerdown", (event) => {
     if (event.pointerType === "mouse" || event.pointerType === "touch") revealPresentationControls();
   });
-  document.getElementById("presentation")?.addEventListener("touchstart", () => revealPresentationControls(), { passive: true });
+  document.getElementById("presentation")?.addEventListener("touchstart", (event) => {
+    revealPresentationControls();
+    if (state.mode !== "big" || isPresentationSwipeIgnored(event.target) || !event.touches?.[0]) {
+      presentationTouchStart = null;
+      return;
+    }
+    presentationTouchStart = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+      time: Date.now(),
+    };
+  }, { passive: true });
+  document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
   document.getElementById("prevChapter")?.addEventListener("click", () => moveChapter(-1));
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("bookmarkBtn")?.addEventListener("click", toggleBookmark);
@@ -2221,6 +2234,26 @@ function revealPresentationControls(duration = 3200) {
     state.presentationControlsVisible = false;
     render();
   }, duration);
+}
+
+function isPresentationSwipeIgnored(target) {
+  return Boolean(target?.closest?.("button, input, select, textarea, a, .presentation-settings-popover"));
+}
+
+function handlePresentationSwipe(event) {
+  if (state.mode !== "big" || !presentationTouchStart || state.presentationSearchOpen || state.presentationSettingsOpen) return;
+  if (isPresentationSwipeIgnored(event.target)) {
+    presentationTouchStart = null;
+    return;
+  }
+  const touch = event.changedTouches?.[0];
+  if (!touch) return;
+  const deltaX = touch.clientX - presentationTouchStart.x;
+  const deltaY = touch.clientY - presentationTouchStart.y;
+  const elapsed = Date.now() - presentationTouchStart.time;
+  presentationTouchStart = null;
+  if (elapsed > 850 || Math.abs(deltaX) < 56 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+  moveVerse(deltaX < 0 ? 1 : -1);
 }
 
 function handleGlobalShortcuts(event) {
