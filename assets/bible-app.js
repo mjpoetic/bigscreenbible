@@ -40,8 +40,11 @@ const themePresets = [
   { code: "paper", name: "Paper", mode: "light" },
   { code: "parchment", name: "Parchment", mode: "light" },
   { code: "clarity", name: "Clarity", mode: "light" },
+  { code: "dawn", name: "Dawn", mode: "light" },
+  { code: "meadow", name: "Meadow", mode: "light" },
   { code: "midnight", name: "Midnight", mode: "dark" },
   { code: "chapel", name: "Chapel", mode: "dark" },
+  { code: "aurora", name: "Aurora", mode: "dark" },
   { code: "contrast", name: "Contrast", mode: "dark" },
 ];
 const themePresetLookup = Object.fromEntries(themePresets.map((preset) => [preset.code, preset]));
