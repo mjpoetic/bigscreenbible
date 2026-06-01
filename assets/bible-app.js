@@ -256,6 +256,10 @@ function referenceLabel() {
   return `${state.reference}:${state.verse}`;
 }
 
+function activePassageLabel() {
+  return formatReferenceLabel(state.reference, selectedVerseNumbers());
+}
+
 function mainGridClass() {
   if (state.focusMode) return "main-grid focus-mode";
   return [
@@ -677,10 +681,11 @@ function searchPanel() {
 }
 
 function notesPanel() {
+  const activeRef = activePassageLabel();
   return `
     <section class="study-section panel-section" id="notesSection">
-      <div class="study-heading">${icons.note} ${escapeHtml(referenceLabel())}</div>
-      <textarea class="note-box" id="noteBox" aria-label="Note for ${referenceLabel()}">${state.notes[referenceLabel()] || ""}</textarea>
+      <div class="study-heading">${icons.note} ${escapeHtml(activeRef)}</div>
+      <textarea class="note-box" id="noteBox" aria-label="Note for ${activeRef}">${state.notes[activeRef] || ""}</textarea>
       <button class="text-btn" id="saveNote">Save note</button>
       <div class="panel-subheading">Highlighted verses</div>
       <div class="highlight-list saved-list">
@@ -695,7 +700,7 @@ function notesPanel() {
 }
 
 function bookmarksPanel() {
-  const ref = referenceLabel();
+  const ref = activePassageLabel();
   const isBookmarked = state.bookmarks.includes(ref);
   return `
     <section class="study-section panel-section" id="bookmarksSection">
@@ -887,7 +892,7 @@ function crossReferenceItems(reference = referenceLabel()) {
 
 function bookmarkItemsMarkup() {
   if (!state.bookmarks.length) return `<div class="empty-state">No bookmarks saved yet.</div>`;
-  return state.bookmarks.map((ref) => `
+  return state.bookmarks.slice().sort(compareReferenceStrings).map((ref) => `
     <div class="saved-item">
       <button class="bookmark-item" data-goto="${escapeHtml(ref)}">
         <div class="bookmark-title">${escapeHtml(ref)}</div>
@@ -919,12 +924,10 @@ function noteItemsMarkup() {
 }
 
 function highlightItemsMarkup() {
-  const entries = Object.entries(state.highlights)
-    .filter(([, color]) => highlightColors.includes(color))
-    .sort(([a], [b]) => compareReferenceStrings(a, b));
-  if (!entries.length) return `<div class="empty-state">No highlighted verses yet.</div>`;
-  return entries.map(([ref, color]) => {
-    const preview = verseTextForReference(ref);
+  const groups = groupedHighlightItems();
+  if (!groups.length) return `<div class="empty-state">No highlighted verses yet.</div>`;
+  return groups.map(({ ref, color }) => {
+    const preview = passagePreviewForReference(ref);
     const hasNote = Boolean(String(state.notes[ref] || "").trim());
     return `
       <div class="saved-item">
@@ -970,13 +973,35 @@ function formatHistoryTime(timestamp) {
   return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function verseTextForReference(ref) {
-  const match = String(ref || "").match(/^(.+)\s(\d+):(\d+)$/);
-  if (!match) return "";
-  const [, book, chapterNumber, verseNumber] = match;
-  const chapter = bibleData[`${book} ${chapterNumber}`];
-  const verse = chapter?.verses.find((item) => item.n === Number(verseNumber));
-  return verse ? getVerseText(verse, state.versions[0] || "BSB") : "";
+function groupedHighlightItems() {
+  const parsed = Object.entries(state.highlights)
+    .map(([ref, color]) => ({ ...parsePassageReference(ref), color }))
+    .filter((item) => item.key && item.verses.length === 1 && highlightColors.includes(item.color))
+    .sort((a, b) => compareReferenceParts(a, b));
+  const groups = [];
+  parsed.forEach((item) => {
+    const verse = item.verses[0];
+    const last = groups[groups.length - 1];
+    if (last && last.key === item.key && last.color === item.color && verse === last.verses[last.verses.length - 1] + 1) {
+      last.verses.push(verse);
+    } else {
+      groups.push({ key: item.key, color: item.color, verses: [verse] });
+    }
+  });
+  return groups.map((group) => ({
+    ref: formatReferenceLabel(group.key, group.verses),
+    color: group.color,
+  }));
+}
+
+function passagePreviewForReference(ref) {
+  const parsed = parsePassageReference(ref);
+  if (!parsed) return "";
+  const selected = new Set(parsed.verses);
+  const lines = (bibleData[parsed.key]?.verses || [])
+    .filter((verse) => selected.has(verse.n))
+    .map((verse) => getVerseText(verse, state.versions[0] || "BSB"));
+  return lines.join(" ");
 }
 
 function compareReferenceStrings(a, b) {
@@ -990,11 +1015,17 @@ function compareReferenceStrings(a, b) {
 }
 
 function referenceSortKey(ref) {
-  const match = String(ref || "").match(/^(.+)\s(\d+):(\d+)$/);
-  if (!match) return [999, 0, 0, String(ref || "")];
-  const [, book, chapterNumber, verseNumber] = match;
+  const parsed = parsePassageReference(ref);
+  if (!parsed) return [999, 0, 0, String(ref || "")];
+  const match = parsed.key.match(/^(.+)\s(\d+)$/);
+  if (!match) return [999, 0, parsed.verse || 0, String(ref || "")];
+  const [, book, chapterNumber] = match;
   const bookIndex = books.indexOf(book);
-  return [bookIndex === -1 ? 999 : bookIndex, Number(chapterNumber), Number(verseNumber), ref];
+  return [bookIndex === -1 ? 999 : bookIndex, Number(chapterNumber), parsed.verses[0] || parsed.verse || 0, ref];
+}
+
+function compareReferenceParts(a, b) {
+  return compareReferenceStrings(formatReferenceLabel(a.key, a.verses), formatReferenceLabel(b.key, b.verses));
 }
 
 function openStrongPopup(anchor) {
@@ -1982,19 +2013,49 @@ function buildVerseOfDayPool() {
 }
 
 function referenceExists(ref) {
-  const parsed = parseReference(ref);
+  const parsed = parsePassageReference(ref);
   if (!parsed) return false;
-  return bibleData[parsed.key]?.verses.some((verse) => verse.n === parsed.verse);
+  const available = new Set((bibleData[parsed.key]?.verses || []).map((verse) => verse.n));
+  return parsed.verses.every((verse) => available.has(verse));
 }
 
 function parseReference(value) {
+  const parsed = parsePassageReference(value);
+  return parsed ? { key: parsed.key, verse: parsed.verse } : null;
+}
+
+function parsePassageReference(value) {
   const cleaned = String(value || "").trim().replace(/\s+/g, " ");
-  const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::(\d+))?$/);
+  const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::([0-9,\-\s]+))?$/);
   if (!match) return null;
   const book = normalizeBookName(match[1]);
   if (!book) return null;
   const key = `${book} ${match[2]}`;
-  return { key, verse: Number(match[3] || 1) };
+  const available = bibleData[key]?.verses.map((verse) => verse.n) || [];
+  if (!available.length) return { key, verse: Number(match[3] || 1), verses: [Number(match[3] || 1)] };
+  const verses = match[3] ? parseVerseList(match[3], available) : [available[0]];
+  if (!verses.length) return null;
+  return { key, verse: verses[0], verses };
+}
+
+function parseVerseList(value, availableVerses) {
+  const available = new Set(availableVerses);
+  const verses = [];
+  String(value).split(",").forEach((part) => {
+    const token = part.trim();
+    if (!token) return;
+    const range = token.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (range) {
+      const [start, end] = [Number(range[1]), Number(range[2])].sort((a, b) => a - b);
+      for (let verse = start; verse <= end; verse += 1) {
+        if (available.has(verse)) verses.push(verse);
+      }
+      return;
+    }
+    const verse = Number(token);
+    if (available.has(verse)) verses.push(verse);
+  });
+  return [...new Set(verses)].sort((a, b) => a - b);
 }
 
 function monthDayKey(date) {
@@ -2022,26 +2083,19 @@ function bookNameFromChapterKey(key) {
 }
 
 function setReferenceFromString(value) {
-  const cleaned = value.trim().replace(/\s+/g, " ");
-  const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::(\d+))?$/);
-  if (!match) {
+  const parsed = parsePassageReference(value);
+  if (!parsed) {
     showToast("Try a reference like John 3:16");
     return false;
   }
-  const book = normalizeBookName(match[1]);
-  if (!book) {
-    showToast(`I do not recognize ${match[1].trim()} yet`);
+  if (!bibleData[parsed.key]) {
+    showToast(`${parsed.key} is not available in the bundled Bible data`);
     return false;
   }
-  const key = `${book} ${match[2]}`;
-  if (!bibleData[key]) {
-    showToast(`${key} is not available in the bundled Bible data`);
-    return false;
-  }
-  state.reference = key;
-  state.verse = Number(match[3] || bibleData[key].verses[0].n);
-  state.selectedVerses = [];
-  if (!bibleData[key].verses.some((verse) => verse.n === state.verse)) state.verse = bibleData[key].verses[0].n;
+  state.reference = parsed.key;
+  state.verse = parsed.verse;
+  state.selectedVerses = parsed.verses.length > 1 ? parsed.verses : [];
+  if (!bibleData[parsed.key].verses.some((verse) => verse.n === state.verse)) state.verse = bibleData[parsed.key].verses[0].n;
   return true;
 }
 
@@ -2328,7 +2382,7 @@ function moveChapter(direction) {
 }
 
 function toggleBookmark() {
-  const ref = referenceLabel();
+  const ref = activePassageLabel();
   if (state.bookmarks.includes(ref)) {
     state.bookmarks = state.bookmarks.filter((item) => item !== ref);
     showToast("Bookmark removed");
@@ -2342,8 +2396,9 @@ function toggleBookmark() {
 
 function saveNote() {
   const note = document.getElementById("noteBox").value.trim();
-  if (note) state.notes[referenceLabel()] = note;
-  else delete state.notes[referenceLabel()];
+  const ref = activePassageLabel();
+  if (note) state.notes[ref] = note;
+  else delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   showToast(note ? "Note saved" : "Note deleted");
   render();
@@ -2399,7 +2454,9 @@ function openHighlightNote(ref) {
 }
 
 function removeHighlight(ref) {
-  delete state.highlights[ref];
+  const parsed = parsePassageReference(ref);
+  if (parsed) parsed.verses.forEach((verse) => delete state.highlights[`${parsed.key}:${verse}`]);
+  else delete state.highlights[ref];
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
   showToast("Highlight removed");
   renderPreservingReaderScroll();
@@ -2542,7 +2599,7 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
 
 function passageText(verseNumbers = selectedVerseNumbers()) {
   const lines = passageLines(verseNumbers);
-  const reference = verseNumbers.length === 1 ? `${state.reference}:${verseNumbers[0]}` : printReferenceLabel(verseNumbers);
+  const reference = formatReferenceLabel(state.reference, verseNumbers);
   return `${reference} ${state.versions[0]}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
 }
 
@@ -2574,8 +2631,12 @@ function verseRangeParam(verseNumbers = selectedVerseNumbers()) {
 }
 
 function printReferenceLabel(verseNumbers = selectedVerseNumbers()) {
+  return formatReferenceLabel(state.reference, verseNumbers);
+}
+
+function formatReferenceLabel(chapterKey, verseNumbers = selectedVerseNumbers()) {
   const sorted = [...verseNumbers].sort((a, b) => a - b);
-  if (sorted.length === 1) return `${state.reference}:${sorted[0]}`;
+  if (sorted.length === 1) return `${chapterKey}:${sorted[0]}`;
   const groups = sorted.reduce((ranges, verse) => {
     const last = ranges[ranges.length - 1];
     if (last && verse === last.end + 1) {
@@ -2586,7 +2647,7 @@ function printReferenceLabel(verseNumbers = selectedVerseNumbers()) {
     return ranges;
   }, []);
   const suffix = groups.map(({ start, end }) => start === end ? `${start}` : `${start}-${end}`).join(", ");
-  return `${state.reference}:${suffix}`;
+  return `${chapterKey}:${suffix}`;
 }
 
 function showToast(message) {
