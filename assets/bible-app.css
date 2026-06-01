@@ -1619,13 +1619,13 @@ select {
 
 .presentation {
   position: fixed;
-  inset: 0;
+  inset: calc(-1 * env(safe-area-inset-top, 0px)) 0 0 0;
   width: 100vw;
   min-width: 100vw;
   height: 100vh;
-  height: 100dvh;
+  height: calc(100dvh + env(safe-area-inset-top, 0px));
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100dvh + env(safe-area-inset-top, 0px));
   z-index: 100;
   display: none;
   --presentation-accent: #f1dbad;
@@ -1640,7 +1640,7 @@ select {
 
 .presentation.open {
   display: grid;
-  grid-template-rows: minmax(64px, auto) minmax(0, 1fr) minmax(72px, auto);
+  grid-template-rows: minmax(calc(64px + env(safe-area-inset-top, 0px)), auto) minmax(0, 1fr) minmax(72px, auto);
   overflow: hidden;
 }
 
@@ -1658,6 +1658,7 @@ select {
 .presentation-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .presentation-bottom {
