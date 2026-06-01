@@ -3515,6 +3515,42 @@ svg {
   }
 }
 
+@media (orientation: landscape) and (max-height: 560px) {
+  :root {
+    --phone-landscape-left-safe: max(env(safe-area-inset-left, 0px), 88px);
+    --phone-landscape-right-safe: max(env(safe-area-inset-right, 0px), 14px);
+  }
+
+  .main-grid {
+    padding-left: var(--phone-landscape-left-safe);
+    padding-right: var(--phone-landscape-right-safe);
+  }
+
+  .main-grid::before {
+    left: var(--phone-landscape-left-safe);
+  }
+
+  .library {
+    left: calc(var(--phone-landscape-left-safe) + var(--rail-width));
+    width: min(330px, calc(100vw - var(--phone-landscape-left-safe) - var(--rail-width)));
+  }
+
+  .bottombar {
+    padding-left: var(--phone-landscape-left-safe);
+    padding-right: var(--phone-landscape-right-safe);
+  }
+
+  .mobile-floating-settings {
+    display: none;
+  }
+
+  .mobile-settings-popover,
+  .settings-popover.open {
+    left: calc(var(--phone-landscape-left-safe) + var(--rail-width) + 10px);
+    right: calc(var(--phone-landscape-right-safe) + 12px);
+  }
+}
+
 @media print {
   @page {
     margin: 0.6in;
