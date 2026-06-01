@@ -235,6 +235,18 @@ button {
   align-items: center;
   gap: 7px;
   min-width: 256px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brand:hover .brand-title,
+.brand:focus-visible .brand-title {
+  color: var(--teal);
 }
 
 .brand-mark-image {
@@ -1007,6 +1019,10 @@ select {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0 6px;
+}
+
+.selection-action-icon {
+  display: none;
 }
 
 .parallel-table {
@@ -2177,6 +2193,43 @@ svg {
     flex-basis: 100%;
   }
 
+  @media (orientation: portrait) {
+    .selection-bar {
+      right: 72px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(42px, 1fr));
+      align-items: center;
+    }
+
+    .selection-bar span {
+      grid-column: 1 / -1;
+    }
+
+    .selection-action {
+      width: 100%;
+      min-height: 40px;
+      padding-inline: 0;
+    }
+
+    .selection-action-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .selection-action-icon {
+      display: inline-flex;
+    }
+
+    .selection-action-icon svg {
+      width: 21px;
+      height: 21px;
+    }
+  }
+
   .mobile-settings-popover .text-size-control {
     width: 100%;
     justify-content: space-between;
@@ -2228,10 +2281,11 @@ svg {
     flex-direction: column;
     align-self: start;
     width: var(--rail-width);
-    min-height: calc(100dvh - 154px);
+    min-height: 100dvh;
+    height: 100dvh;
     padding: 8px 0;
     border-right: 1px solid var(--line);
-    border-radius: 0 10px 10px 0;
+    border-radius: 0;
     box-shadow: var(--shadow);
   }
 

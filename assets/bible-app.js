@@ -217,6 +217,9 @@ const icons = {
   panels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M8 4v16M16 4v16"/></svg>',
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.2-1.2"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="11" height="13" rx="1.5"/><path d="M5 16H4a1.5 1.5 0 0 1-1.5-1.5v-10A1.5 1.5 0 0 1 4 3h9.5A1.5 1.5 0 0 1 15 4.5V5"/></svg>',
+  print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M17 12h.01"/></svg>',
+  clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
@@ -491,14 +494,14 @@ function topbar() {
     : "";
   return `
     <header class="topbar">
-      <div class="brand">
+      <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day">
         <img class="brand-mark-image" src="./assets/brand-mark.png" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
         <div>
           <div class="brand-title">Big Screen</div>
           <div class="brand-subtitle">Bible</div>
         </div>
-      </div>
+      </button>
       <label class="search">${icons.search}<input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
@@ -1093,11 +1096,11 @@ function selectionBar() {
   return `
     <div class="selection-bar" role="status">
       <span>${count} selected · ${label}</span>
-      <button class="text-btn" id="copySelection">Copy passage</button>
-      <button class="text-btn" id="shareSelection">Share</button>
-      <button class="text-btn" id="copySelectionLink">Copy link</button>
-      <button class="text-btn" id="printSelection">Print</button>
-      <button class="text-btn" id="clearSelection">Clear</button>
+      <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
+      <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
+      <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
+      <button class="text-btn selection-action" id="printSelection" aria-label="Print passage"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
+      <button class="text-btn selection-action" id="clearSelection" aria-label="Clear selected verses"><span class="selection-action-icon">${icons.clear}</span><span class="selection-action-label">Clear</span></button>
     </div>
   `;
 }
@@ -1355,6 +1358,7 @@ function bindEvents() {
   });
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
+  document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   ["chapterSelect", "chapterSelectInline"].forEach((id) => {
@@ -1778,6 +1782,18 @@ function applyStartupExperience() {
     state.mode = "big";
     state.presentationControlsVisible = !isCompactScreen();
   }
+}
+
+function openVerseOfDay() {
+  const ref = verseOfDayReference();
+  if (!ref) return showToast("Verse of the day is not available yet");
+  if (!setReferenceFromString(ref)) return;
+  state.mode = "reader";
+  state.searchQuery = "";
+  state.pendingVerseFocus = true;
+  recordHistory();
+  updateShareUrl();
+  render();
 }
 
 function sharedReferenceFromUrl() {
