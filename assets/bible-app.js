@@ -42,9 +42,13 @@ const themePresets = [
   { code: "clarity", name: "Clarity", mode: "light" },
   { code: "dawn", name: "Dawn", mode: "light" },
   { code: "meadow", name: "Meadow", mode: "light" },
+  { code: "blush", name: "Blush", mode: "light" },
+  { code: "lavender", name: "Lavender", mode: "light" },
   { code: "midnight", name: "Midnight", mode: "dark" },
   { code: "chapel", name: "Chapel", mode: "dark" },
   { code: "aurora", name: "Aurora", mode: "dark" },
+  { code: "rose-night", name: "Rose Night", mode: "dark" },
+  { code: "violet-night", name: "Violet Night", mode: "dark" },
   { code: "contrast", name: "Contrast", mode: "dark" },
 ];
 const themePresetLookup = Object.fromEntries(themePresets.map((preset) => [preset.code, preset]));
@@ -56,6 +60,10 @@ const presentationThemes = [
   { code: "dawn", name: "Dawn" },
   { code: "aurora", name: "Aurora" },
   { code: "meadow", name: "Meadow" },
+  { code: "blush", name: "Blush" },
+  { code: "lavender", name: "Lavender" },
+  { code: "rose-night", name: "Rose Night" },
+  { code: "violet-night", name: "Violet Night" },
   { code: "midnight", name: "Midnight" },
   { code: "contrast", name: "Contrast" },
 ];

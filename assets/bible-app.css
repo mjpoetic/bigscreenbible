@@ -128,6 +128,38 @@
   --shadow: 0 18px 46px rgba(43, 76, 53, 0.09);
 }
 
+[data-theme-preset="blush"] {
+  --bg: linear-gradient(145deg, #fff4f8 0%, #f8e5ee 55%, #efdff6 100%);
+  --paper: #fffafd;
+  --panel: rgba(255, 251, 253, 0.94);
+  --ink: #261722;
+  --muted: #806a78;
+  --soft: #f2dce8;
+  --line: #dfc5d4;
+  --teal: #9f5f8f;
+  --teal-dark: #7f4a72;
+  --gold: #a65d78;
+  --gold-soft: #f5d6e4;
+  --success: #7a7f52;
+  --shadow: 0 18px 48px rgba(119, 55, 92, 0.1);
+}
+
+[data-theme-preset="lavender"] {
+  --bg: linear-gradient(145deg, #f8f3ff 0%, #eae3fb 52%, #f4e4f6 100%);
+  --paper: #fefbff;
+  --panel: rgba(254, 251, 255, 0.94);
+  --ink: #201a2c;
+  --muted: #746984;
+  --soft: #e6dcf5;
+  --line: #d2c4e4;
+  --teal: #7464a8;
+  --teal-dark: #5b4d87;
+  --gold: #9a6aa0;
+  --gold-soft: #ecd9f0;
+  --success: #697d59;
+  --shadow: 0 18px 48px rgba(78, 57, 124, 0.1);
+}
+
 [data-theme-preset="chapel"] {
   --bg: #12100d;
   --paper: #191611;
@@ -158,6 +190,38 @@
   --gold-soft: #173b39;
   --success: #7dd9a2;
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.46);
+}
+
+[data-theme-preset="rose-night"] {
+  --bg: linear-gradient(145deg, #180914 0%, #281323 53%, #341b30 100%);
+  --paper: #1e111b;
+  --panel: rgba(35, 19, 31, 0.94);
+  --ink: #fff3f8;
+  --muted: #d1b4c4;
+  --soft: #3b2535;
+  --line: #543449;
+  --teal: #e19ac1;
+  --teal-dark: #b8749c;
+  --gold: #f0b7cf;
+  --gold-soft: #4a2638;
+  --success: #b2c180;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.48);
+}
+
+[data-theme-preset="violet-night"] {
+  --bg: linear-gradient(145deg, #100b1f 0%, #1d1735 50%, #2d1b45 100%);
+  --paper: #171126;
+  --panel: rgba(24, 18, 40, 0.94);
+  --ink: #f8f2ff;
+  --muted: #beb0d3;
+  --soft: #2f2748;
+  --line: #453960;
+  --teal: #bda8ff;
+  --teal-dark: #9981d6;
+  --gold: #d9c2ff;
+  --gold-soft: #37294e;
+  --success: #9fc493;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme-preset="contrast"] {
@@ -2085,7 +2149,9 @@ kbd {
 
 .presentation[data-presentation-theme="paper"] .presentation-brand-copy,
 .presentation[data-presentation-theme="dawn"] .presentation-brand-copy,
-.presentation[data-presentation-theme="meadow"] .presentation-brand-copy {
+.presentation[data-presentation-theme="meadow"] .presentation-brand-copy,
+.presentation[data-presentation-theme="blush"] .presentation-brand-copy,
+.presentation[data-presentation-theme="lavender"] .presentation-brand-copy {
   color: #201810;
 }
 
@@ -2145,6 +2211,76 @@ kbd {
 
 .presentation[data-presentation-theme="meadow"] .presentation-settings-popover {
   background: rgba(239, 248, 224, 0.94);
+}
+
+.presentation[data-presentation-theme="blush"] {
+  background:
+    radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.62), transparent 30%),
+    radial-gradient(circle at 86% 12%, rgba(198, 127, 190, 0.28), transparent 36%),
+    linear-gradient(145deg, #fff3f8 0%, #f5d7e6 48%, #e8d7f5 100%);
+  color: #261722;
+  --presentation-accent: #9c4f76;
+  --presentation-button-bg: rgba(255, 255, 255, 0.44);
+  --presentation-button-border: rgba(129, 76, 107, 0.32);
+  --presentation-muted: rgba(38, 23, 34, 0.7);
+}
+
+.presentation[data-presentation-theme="blush"] .presentation-copy,
+.presentation[data-presentation-theme="blush"] .presentation-version-select,
+.presentation[data-presentation-theme="blush"] .presentation-theme-select,
+.presentation[data-presentation-theme="blush"] .custom-font-input,
+.presentation[data-presentation-theme="blush"] button,
+.presentation[data-presentation-theme="blush"] .presentation-search input {
+  color: #261722;
+}
+
+.presentation[data-presentation-theme="blush"] .presentation-settings-popover {
+  background: rgba(255, 246, 250, 0.94);
+}
+
+.presentation[data-presentation-theme="lavender"] {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.6), transparent 30%),
+    radial-gradient(circle at 82% 14%, rgba(225, 156, 222, 0.26), transparent 34%),
+    linear-gradient(145deg, #f9f3ff 0%, #e7ddfb 50%, #f1dcf4 100%);
+  color: #201a2c;
+  --presentation-accent: #725ba3;
+  --presentation-button-bg: rgba(255, 255, 255, 0.44);
+  --presentation-button-border: rgba(99, 74, 132, 0.32);
+  --presentation-muted: rgba(32, 26, 44, 0.7);
+}
+
+.presentation[data-presentation-theme="lavender"] .presentation-copy,
+.presentation[data-presentation-theme="lavender"] .presentation-version-select,
+.presentation[data-presentation-theme="lavender"] .presentation-theme-select,
+.presentation[data-presentation-theme="lavender"] .custom-font-input,
+.presentation[data-presentation-theme="lavender"] button,
+.presentation[data-presentation-theme="lavender"] .presentation-search input {
+  color: #201a2c;
+}
+
+.presentation[data-presentation-theme="lavender"] .presentation-settings-popover {
+  background: rgba(250, 245, 255, 0.94);
+}
+
+.presentation[data-presentation-theme="rose-night"] {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(230, 112, 166, 0.26), transparent 30%),
+    radial-gradient(circle at 86% 12%, rgba(170, 100, 200, 0.2), transparent 36%),
+    linear-gradient(145deg, #160812 0%, #281121 54%, #34192e 100%);
+  --presentation-accent: #ffc7dc;
+  --presentation-button-border: rgba(255, 214, 232, 0.34);
+  --presentation-muted: rgba(255, 239, 247, 0.76);
+}
+
+.presentation[data-presentation-theme="violet-night"] {
+  background:
+    radial-gradient(circle at 15% 18%, rgba(188, 151, 255, 0.25), transparent 31%),
+    radial-gradient(circle at 82% 12%, rgba(255, 142, 215, 0.18), transparent 34%),
+    linear-gradient(145deg, #0f0a1d 0%, #1b1534 52%, #2d1a46 100%);
+  --presentation-accent: #dec8ff;
+  --presentation-button-border: rgba(224, 207, 255, 0.34);
+  --presentation-muted: rgba(245, 238, 255, 0.76);
 }
 
 .presentation[data-presentation-theme="midnight"] {
