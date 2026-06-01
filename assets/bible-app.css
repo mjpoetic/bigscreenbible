@@ -270,6 +270,7 @@ html[data-presentation-mode="big"] {
   background:
     linear-gradient(180deg, #004f54, #0d1211),
     radial-gradient(circle at 75% 12%, rgba(173, 116, 20, 0.28), transparent 34%);
+  background-color: #004f54;
 }
 
 html[data-presentation-mode="big"] body,
@@ -281,16 +282,19 @@ html[data-presentation-mode="big"][data-presentation-theme="warm"] {
   background:
     linear-gradient(180deg, #4b3021, #120d0a),
     radial-gradient(circle at 76% 12%, rgba(232, 164, 72, 0.28), transparent 34%);
+  background-color: #4b3021;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="paper"] {
   background: linear-gradient(180deg, #f9f2e4, #ddcfb7);
+  background-color: #f9f2e4;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="dawn"] {
   background:
     radial-gradient(circle at 22% 12%, rgba(255, 255, 255, 0.7), transparent 27%),
     linear-gradient(135deg, #fff3d8 0%, #f7c986 42%, #d99075 100%);
+  background-color: #f7c986;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="aurora"] {
@@ -298,12 +302,14 @@ html[data-presentation-mode="big"][data-presentation-theme="aurora"] {
     radial-gradient(circle at 15% 18%, rgba(68, 215, 187, 0.28), transparent 28%),
     radial-gradient(circle at 82% 10%, rgba(171, 110, 255, 0.3), transparent 34%),
     linear-gradient(140deg, #071724 0%, #102433 48%, #261336 100%);
+  background-color: #102433;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="meadow"] {
   background:
     radial-gradient(circle at 80% 16%, rgba(255, 255, 255, 0.55), transparent 30%),
     linear-gradient(145deg, #edf7dd 0%, #b8d99e 45%, #6f9f88 100%);
+  background-color: #b8d99e;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="blush"] {
@@ -311,6 +317,7 @@ html[data-presentation-mode="big"][data-presentation-theme="blush"] {
     radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.62), transparent 30%),
     radial-gradient(circle at 86% 12%, rgba(198, 127, 190, 0.28), transparent 36%),
     linear-gradient(145deg, #fff3f8 0%, #f5d7e6 48%, #e8d7f5 100%);
+  background-color: #f5d7e6;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="lavender"] {
@@ -318,6 +325,7 @@ html[data-presentation-mode="big"][data-presentation-theme="lavender"] {
     radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.6), transparent 30%),
     radial-gradient(circle at 82% 14%, rgba(225, 156, 222, 0.26), transparent 34%),
     linear-gradient(145deg, #f9f3ff 0%, #e7ddfb 50%, #f1dcf4 100%);
+  background-color: #e7ddfb;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="rose-night"] {
@@ -325,6 +333,7 @@ html[data-presentation-mode="big"][data-presentation-theme="rose-night"] {
     radial-gradient(circle at 18% 18%, rgba(230, 112, 166, 0.26), transparent 30%),
     radial-gradient(circle at 86% 12%, rgba(170, 100, 200, 0.2), transparent 36%),
     linear-gradient(145deg, #160812 0%, #281121 54%, #34192e 100%);
+  background-color: #281121;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="violet-night"] {
@@ -332,16 +341,19 @@ html[data-presentation-mode="big"][data-presentation-theme="violet-night"] {
     radial-gradient(circle at 15% 18%, rgba(188, 151, 255, 0.25), transparent 31%),
     radial-gradient(circle at 82% 12%, rgba(255, 142, 215, 0.18), transparent 34%),
     linear-gradient(145deg, #0f0a1d 0%, #1b1534 52%, #2d1a46 100%);
+  background-color: #1b1534;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="midnight"] {
   background:
     linear-gradient(180deg, #111827, #050607),
     radial-gradient(circle at 72% 9%, rgba(85, 211, 208, 0.18), transparent 32%);
+  background-color: #111827;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="contrast"] {
   background: linear-gradient(180deg, #000000, #060707);
+  background-color: #000000;
 }
 
 .loading-reader {
@@ -1713,6 +1725,7 @@ select {
   background:
     linear-gradient(180deg, #004f54, #0d1211),
     radial-gradient(circle at 75% 12%, rgba(173, 116, 20, 0.28), transparent 34%);
+  background-color: #004f54;
   color: #fff;
 }
 
@@ -2200,12 +2213,14 @@ kbd {
   background:
     linear-gradient(180deg, #4b3021, #120d0a),
     radial-gradient(circle at 76% 12%, rgba(232, 164, 72, 0.28), transparent 34%);
+  background-color: #4b3021;
   --presentation-accent: #f2c67d;
 }
 
 .presentation[data-presentation-theme="paper"] {
   background:
     linear-gradient(180deg, #f9f2e4, #ddcfb7);
+  background-color: #f9f2e4;
   color: #201810;
   --presentation-accent: #875b14;
   --presentation-button-bg: rgba(255, 255, 255, 0.56);
@@ -2238,6 +2253,7 @@ kbd {
   background:
     radial-gradient(circle at 22% 12%, rgba(255, 255, 255, 0.7), transparent 27%),
     linear-gradient(135deg, #fff3d8 0%, #f7c986 42%, #d99075 100%);
+  background-color: #f7c986;
   color: #201810;
   --presentation-accent: #8f4f13;
   --presentation-button-bg: rgba(255, 255, 255, 0.45);
@@ -2263,6 +2279,7 @@ kbd {
     radial-gradient(circle at 15% 18%, rgba(68, 215, 187, 0.28), transparent 28%),
     radial-gradient(circle at 82% 10%, rgba(171, 110, 255, 0.3), transparent 34%),
     linear-gradient(140deg, #071724 0%, #102433 48%, #261336 100%);
+  background-color: #102433;
   --presentation-accent: #b9fff0;
   --presentation-button-border: rgba(220, 255, 247, 0.36);
   --presentation-muted: rgba(236, 250, 255, 0.75);
@@ -2272,6 +2289,7 @@ kbd {
   background:
     radial-gradient(circle at 80% 16%, rgba(255, 255, 255, 0.55), transparent 30%),
     linear-gradient(145deg, #edf7dd 0%, #b8d99e 45%, #6f9f88 100%);
+  background-color: #b8d99e;
   color: #142119;
   --presentation-accent: #4f6f1b;
   --presentation-button-bg: rgba(255, 255, 255, 0.44);
@@ -2297,6 +2315,7 @@ kbd {
     radial-gradient(circle at 18% 15%, rgba(255, 255, 255, 0.62), transparent 30%),
     radial-gradient(circle at 86% 12%, rgba(198, 127, 190, 0.28), transparent 36%),
     linear-gradient(145deg, #fff3f8 0%, #f5d7e6 48%, #e8d7f5 100%);
+  background-color: #f5d7e6;
   color: #261722;
   --presentation-accent: #9c4f76;
   --presentation-button-bg: rgba(255, 255, 255, 0.44);
@@ -2322,6 +2341,7 @@ kbd {
     radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.6), transparent 30%),
     radial-gradient(circle at 82% 14%, rgba(225, 156, 222, 0.26), transparent 34%),
     linear-gradient(145deg, #f9f3ff 0%, #e7ddfb 50%, #f1dcf4 100%);
+  background-color: #e7ddfb;
   color: #201a2c;
   --presentation-accent: #725ba3;
   --presentation-button-bg: rgba(255, 255, 255, 0.44);
@@ -2347,6 +2367,7 @@ kbd {
     radial-gradient(circle at 18% 18%, rgba(230, 112, 166, 0.26), transparent 30%),
     radial-gradient(circle at 86% 12%, rgba(170, 100, 200, 0.2), transparent 36%),
     linear-gradient(145deg, #160812 0%, #281121 54%, #34192e 100%);
+  background-color: #281121;
   --presentation-accent: #ffc7dc;
   --presentation-button-border: rgba(255, 214, 232, 0.34);
   --presentation-muted: rgba(255, 239, 247, 0.76);
@@ -2357,6 +2378,7 @@ kbd {
     radial-gradient(circle at 15% 18%, rgba(188, 151, 255, 0.25), transparent 31%),
     radial-gradient(circle at 82% 12%, rgba(255, 142, 215, 0.18), transparent 34%),
     linear-gradient(145deg, #0f0a1d 0%, #1b1534 52%, #2d1a46 100%);
+  background-color: #1b1534;
   --presentation-accent: #dec8ff;
   --presentation-button-border: rgba(224, 207, 255, 0.34);
   --presentation-muted: rgba(245, 238, 255, 0.76);
@@ -2366,12 +2388,14 @@ kbd {
   background:
     linear-gradient(180deg, #111827, #050607),
     radial-gradient(circle at 72% 9%, rgba(85, 211, 208, 0.18), transparent 32%);
+  background-color: #111827;
   --presentation-accent: #b9d7ff;
 }
 
 .presentation[data-presentation-theme="contrast"] {
   background:
     linear-gradient(180deg, #000000, #060707);
+  background-color: #000000;
   --presentation-accent: #ffe08a;
   --presentation-button-border: rgba(255, 255, 255, 0.55);
   --presentation-muted: rgba(255, 255, 255, 0.86);

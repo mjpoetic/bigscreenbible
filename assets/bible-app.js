@@ -68,6 +68,20 @@ const presentationThemes = [
   { code: "contrast", name: "Contrast" },
 ];
 const presentationThemeCodes = presentationThemes.map((theme) => theme.code);
+const presentationThemeColors = {
+  deep: "#004f54",
+  warm: "#4b3021",
+  paper: "#f9f2e4",
+  dawn: "#f7c986",
+  aurora: "#102433",
+  meadow: "#b8d99e",
+  blush: "#f5d7e6",
+  lavender: "#e7ddfb",
+  "rose-night": "#281121",
+  "violet-night": "#1b1534",
+  midnight: "#111827",
+  contrast: "#000000",
+};
 const scriptureFonts = [
   { code: "libre", name: "Libre Baskerville" },
   { code: "lora", name: "Lora" },
@@ -344,10 +358,12 @@ function render() {
 
 function syncPresentationShell() {
   const isPresentationMode = state.mode === "big";
+  const themeColor = isPresentationMode ? presentationThemeColors[state.presentationTheme] || "#004f54" : (state.theme === "dark" ? "#101413" : "#f8f7f3");
   document.documentElement.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.body.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.documentElement.dataset.presentationTheme = state.presentationTheme;
   document.body.dataset.presentationTheme = state.presentationTheme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
 }
 
 function renderPreservingReaderScroll() {
