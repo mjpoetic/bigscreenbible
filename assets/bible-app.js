@@ -50,6 +50,9 @@ const presentationThemes = [
   { code: "deep", name: "Deep" },
   { code: "warm", name: "Warm" },
   { code: "paper", name: "Paper" },
+  { code: "dawn", name: "Dawn" },
+  { code: "aurora", name: "Aurora" },
+  { code: "meadow", name: "Meadow" },
   { code: "midnight", name: "Midnight" },
   { code: "contrast", name: "Contrast" },
 ];
@@ -401,6 +404,7 @@ function mobileSettingsPanel() {
     : "";
   return `
     <div class="mobile-settings-popover" id="mobileSettingsPopover" role="dialog" aria-label="Settings">
+      <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
       <div class="setting-group">
         <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
         <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
@@ -520,6 +524,7 @@ function topbar() {
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
         <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
+          <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           <div class="setting-group">
             <label class="setting-label" for="themePresetSelect">Color theme</label>
             <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
@@ -1268,6 +1273,7 @@ function presentation() {
           <div class="presentation-settings-menu">
             <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" data-tooltip="Big Screen settings">${icons.settings}</button>
             <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
+              <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
               <label>
                 <span>Theme</span>
                 <select id="presentationThemeSelect" class="presentation-theme-select" aria-label="Change Big Screen theme">
@@ -1295,17 +1301,20 @@ function presentation() {
               </div>
             </div>
           </div>
-          <button class="ghost-btn" id="closePresentation" aria-label="Back to Bible">Bible</button>
+          <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" data-tooltip="Back to Bible">${icons.book}</button>
         </div>
       </div>
       <div class="presentation-text"><span class="presentation-copy">${text}</span></div>
       <div class="presentation-bottom">
-        <span class="presentation-brand">Big Screen Bible</span>
-        <div class="presentation-controls">
-          <button class="ghost-btn" id="presentationPrev" ${canGoBack ? "" : "disabled"}>Previous</button>
-          <button class="ghost-btn" id="presentationNext" ${canGoForward ? "" : "disabled"}>Next</button>
+        <div class="presentation-brand" aria-label="Big Screen Bible">
+          <img class="presentation-brand-mark" src="./assets/brand-mark.png" alt="" />
+          <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
         </div>
-        <span class="presentation-hint">Use arrow controls to move verse by verse</span>
+        <div class="presentation-controls">
+          <button class="ghost-btn" id="presentationPrev" data-tooltip="Previous verse" ${canGoBack ? "" : "disabled"}>Previous</button>
+          <button class="ghost-btn" id="presentationNext" data-tooltip="Next verse" ${canGoForward ? "" : "disabled"}>Next</button>
+        </div>
+        <span class="presentation-bottom-spacer" aria-hidden="true"></span>
       </div>
     </section>
   `;
@@ -1406,8 +1415,16 @@ function bindEvents() {
     state.settingsOpen = !state.settingsOpen;
     renderPreservingReaderScroll();
   });
+  document.getElementById("settingsClose")?.addEventListener("click", () => {
+    state.settingsOpen = false;
+    renderPreservingReaderScroll();
+  });
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("mobileSettingsClose")?.addEventListener("click", () => {
+    state.settingsOpen = false;
     renderPreservingReaderScroll();
   });
   document.getElementById("themeToggle")?.addEventListener("click", () => {
@@ -1577,7 +1594,7 @@ function bindEvents() {
   });
   document.getElementById("studySearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    runPhraseSearch(document.getElementById("studySearchInput")?.value || "");
+    runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "");
   });
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
@@ -1602,6 +1619,10 @@ function bindEvents() {
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     state.presentationSettingsOpen = !state.presentationSettingsOpen;
+    render();
+  });
+  document.getElementById("presentationSettingsClose")?.addEventListener("click", () => {
+    state.presentationSettingsOpen = false;
     render();
   });
   document.getElementById("presentationSearchToggle")?.addEventListener("click", () => {

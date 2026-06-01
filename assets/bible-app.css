@@ -487,6 +487,22 @@ button {
   gap: 14px;
 }
 
+.settings-popover-close {
+  justify-self: end;
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.settings-popover-close svg {
+  width: 15px;
+  height: 15px;
+}
+
 .mobile-floating-settings {
   display: none;
 }
@@ -1617,6 +1633,16 @@ select {
   padding-inline: 0;
 }
 
+.presentation-bible-toggle {
+  width: 42px;
+  padding-inline: 0;
+}
+
+.presentation-bible-toggle svg {
+  width: 21px;
+  height: 21px;
+}
+
 .presentation-settings-toggle.active {
   background: color-mix(in srgb, var(--presentation-button-bg) 72%, #fff);
 }
@@ -1639,6 +1665,19 @@ select {
 .presentation-settings-popover.open {
   display: grid;
   gap: 12px;
+}
+
+.presentation-popover-close {
+  justify-self: end;
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.presentation-popover-close svg {
+  width: 15px;
+  height: 15px;
 }
 
 .presentation-settings-popover label {
@@ -1768,11 +1807,35 @@ select {
 
 .presentation-brand {
   justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.presentation-hint {
+.presentation-brand-mark {
+  width: 46px;
+  height: auto;
+  flex: 0 0 auto;
+}
+
+.presentation-brand-copy {
+  display: grid;
+  gap: 1px;
+  color: #fff;
+  font: 700 18px/1.05 "Libre Baskerville", Georgia, serif;
+  letter-spacing: 0;
+}
+
+.presentation-brand-copy strong {
+  color: var(--presentation-accent);
+  font: 900 11px/1 var(--ui-font);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.presentation-bottom-spacer {
   justify-self: end;
-  text-align: right;
 }
 
 .presentation-controls {
@@ -1800,10 +1863,6 @@ select {
 .presentation [data-tooltip]:hover::after,
 .presentation [data-tooltip]:focus-visible::after {
   transform: translate(-50%, 0);
-}
-
-.presentation #closePresentation {
-  min-width: 58px;
 }
 
 .presentation button:disabled {
@@ -1959,6 +2018,70 @@ kbd {
 
 .presentation[data-presentation-theme="paper"] .presentation-settings-popover {
   background: rgba(249, 242, 228, 0.94);
+}
+
+.presentation[data-presentation-theme="paper"] .presentation-brand-copy,
+.presentation[data-presentation-theme="dawn"] .presentation-brand-copy,
+.presentation[data-presentation-theme="meadow"] .presentation-brand-copy {
+  color: #201810;
+}
+
+.presentation[data-presentation-theme="dawn"] {
+  background:
+    radial-gradient(circle at 22% 12%, rgba(255, 255, 255, 0.7), transparent 27%),
+    linear-gradient(135deg, #fff3d8 0%, #f7c986 42%, #d99075 100%);
+  color: #201810;
+  --presentation-accent: #8f4f13;
+  --presentation-button-bg: rgba(255, 255, 255, 0.45);
+  --presentation-button-border: rgba(112, 70, 28, 0.34);
+  --presentation-muted: rgba(32, 24, 16, 0.7);
+}
+
+.presentation[data-presentation-theme="dawn"] .presentation-copy,
+.presentation[data-presentation-theme="dawn"] .presentation-version-select,
+.presentation[data-presentation-theme="dawn"] .presentation-theme-select,
+.presentation[data-presentation-theme="dawn"] .custom-font-input,
+.presentation[data-presentation-theme="dawn"] button,
+.presentation[data-presentation-theme="dawn"] .presentation-search input {
+  color: #201810;
+}
+
+.presentation[data-presentation-theme="dawn"] .presentation-settings-popover {
+  background: rgba(255, 244, 222, 0.94);
+}
+
+.presentation[data-presentation-theme="aurora"] {
+  background:
+    radial-gradient(circle at 15% 18%, rgba(68, 215, 187, 0.28), transparent 28%),
+    radial-gradient(circle at 82% 10%, rgba(171, 110, 255, 0.3), transparent 34%),
+    linear-gradient(140deg, #071724 0%, #102433 48%, #261336 100%);
+  --presentation-accent: #b9fff0;
+  --presentation-button-border: rgba(220, 255, 247, 0.36);
+  --presentation-muted: rgba(236, 250, 255, 0.75);
+}
+
+.presentation[data-presentation-theme="meadow"] {
+  background:
+    radial-gradient(circle at 80% 16%, rgba(255, 255, 255, 0.55), transparent 30%),
+    linear-gradient(145deg, #edf7dd 0%, #b8d99e 45%, #6f9f88 100%);
+  color: #142119;
+  --presentation-accent: #4f6f1b;
+  --presentation-button-bg: rgba(255, 255, 255, 0.44);
+  --presentation-button-border: rgba(45, 83, 59, 0.32);
+  --presentation-muted: rgba(20, 33, 25, 0.7);
+}
+
+.presentation[data-presentation-theme="meadow"] .presentation-copy,
+.presentation[data-presentation-theme="meadow"] .presentation-version-select,
+.presentation[data-presentation-theme="meadow"] .presentation-theme-select,
+.presentation[data-presentation-theme="meadow"] .custom-font-input,
+.presentation[data-presentation-theme="meadow"] button,
+.presentation[data-presentation-theme="meadow"] .presentation-search input {
+  color: #142119;
+}
+
+.presentation[data-presentation-theme="meadow"] .presentation-settings-popover {
+  background: rgba(239, 248, 224, 0.94);
 }
 
 .presentation[data-presentation-theme="midnight"] {
