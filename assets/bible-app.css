@@ -2696,6 +2696,66 @@ svg {
     overflow-x: auto;
   }
 
+  @media (orientation: portrait) {
+    .scripture.parallel-mode {
+      overflow-x: hidden;
+    }
+
+    .parallel-table {
+      gap: 18px;
+      border: 0;
+      background: transparent;
+    }
+
+    .parallel-head {
+      display: none;
+    }
+
+    .parallel-row {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      scroll-margin-block: 120px;
+    }
+
+    .parallel-row > .verse-num {
+      grid-column: 1;
+      grid-row: 1 / span var(--version-count);
+      align-self: stretch;
+      padding: 14px 8px;
+      border-right: 1px solid var(--line);
+      border-bottom: 0;
+      background: color-mix(in srgb, var(--soft) 70%, transparent);
+    }
+
+    .parallel-row .parallel-copy {
+      grid-column: 2;
+      min-width: 0;
+      padding: 14px;
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+      font-size: var(--parallel-font);
+    }
+
+    .parallel-row .parallel-copy:last-child {
+      border-bottom: 0;
+    }
+
+    .parallel-copy::before {
+      content: attr(data-version);
+      display: block;
+      margin-bottom: 7px;
+      color: var(--gold);
+      font: 800 11px/1.2 var(--ui-font);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+  }
+
   .bottombar {
     padding: 10px;
     flex-wrap: wrap;

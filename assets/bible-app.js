@@ -860,7 +860,7 @@ function parallelView() {
       ${currentChapter().verses.map((verse) => `
         <div class="parallel-row ${verseStateClasses(verse.n)}" data-verse="${verse.n}">
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
-          ${versions.map((version) => `<div class="parallel-copy">${renderStrongText(verse, version)}</div>`).join("")}
+          ${versions.map((version) => `<div class="parallel-copy" data-version="${escapeHtml(version)}">${renderStrongText(verse, version)}</div>`).join("")}
         </div>
       `).join("")}
     </div>
