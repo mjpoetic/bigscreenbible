@@ -26,14 +26,14 @@ const testamentGroups = [
 const bookAliases = buildBookAliases();
 
 const translations = [
-  { code: "KJV", name: "King James Version", status: "bundled" },
-  { code: "BSB", name: "Berean Standard Bible", status: "bundled" },
-  { code: "WEB", name: "World English Bible", status: "bundled" },
   { code: "ASV", name: "American Standard Version", status: "bundled" },
   { code: "BBE", name: "Bible in Basic English", status: "bundled" },
+  { code: "BSB", name: "Berean Standard Bible", status: "bundled" },
+  { code: "KJV", name: "King James Version", status: "bundled" },
+  { code: "WEB", name: "World English Bible", status: "bundled" },
 ];
 
-const translationCodes = translations.map((translation) => translation.code);
+const translationCodes = translations.map((translation) => translation.code).sort((a, b) => a.localeCompare(b));
 const translationLookup = Object.fromEntries(translations.map((translation) => [translation.code, translation]));
 
 const themePresets = [
@@ -682,6 +682,11 @@ function notesPanel() {
       <div class="study-heading">${icons.note} ${escapeHtml(referenceLabel())}</div>
       <textarea class="note-box" id="noteBox" aria-label="Note for ${referenceLabel()}">${state.notes[referenceLabel()] || ""}</textarea>
       <button class="text-btn" id="saveNote">Save note</button>
+      <div class="panel-subheading">Highlighted verses</div>
+      <div class="highlight-list saved-list">
+        ${highlightItemsMarkup()}
+      </div>
+      <div class="panel-subheading">Saved notes</div>
       <div class="note-list saved-list">
         ${noteItemsMarkup()}
       </div>
@@ -899,7 +904,7 @@ function bookmarkItemsMarkup() {
 function noteItemsMarkup() {
   const entries = Object.entries(state.notes).filter(([, note]) => String(note || "").trim());
   if (!entries.length) return `<div class="empty-state">No saved notes yet.</div>`;
-  return entries.map(([ref, note]) => `
+  return entries.sort(([a], [b]) => compareReferenceStrings(a, b)).map(([ref, note]) => `
     <div class="saved-item">
       <button class="note-item" data-goto="${escapeHtml(ref)}">
         <div class="note-title">${escapeHtml(ref)}</div>
@@ -911,6 +916,32 @@ function noteItemsMarkup() {
       </div>
     </div>
   `).join("");
+}
+
+function highlightItemsMarkup() {
+  const entries = Object.entries(state.highlights)
+    .filter(([, color]) => highlightColors.includes(color))
+    .sort(([a], [b]) => compareReferenceStrings(a, b));
+  if (!entries.length) return `<div class="empty-state">No highlighted verses yet.</div>`;
+  return entries.map(([ref, color]) => {
+    const preview = verseTextForReference(ref);
+    const hasNote = Boolean(String(state.notes[ref] || "").trim());
+    return `
+      <div class="saved-item">
+        <button class="highlight-item" data-goto="${escapeHtml(ref)}">
+          <div class="highlight-title">
+            <span class="highlight-dot highlight-${escapeHtml(color)}" aria-hidden="true"></span>
+            <span>${escapeHtml(ref)}</span>
+          </div>
+          <div class="note-copy">${escapeHtml(truncatePreview(preview || "Open highlighted verse"))}</div>
+        </button>
+        <div class="saved-actions">
+          <button class="text-btn" data-note-highlight="${escapeHtml(ref)}">${hasNote ? "Edit note" : "Add note"}</button>
+          <button class="text-btn danger-text" data-delete-highlight="${escapeHtml(ref)}">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 function historyItemsMarkup() {
@@ -937,6 +968,33 @@ function formatHistoryTime(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function verseTextForReference(ref) {
+  const match = String(ref || "").match(/^(.+)\s(\d+):(\d+)$/);
+  if (!match) return "";
+  const [, book, chapterNumber, verseNumber] = match;
+  const chapter = bibleData[`${book} ${chapterNumber}`];
+  const verse = chapter?.verses.find((item) => item.n === Number(verseNumber));
+  return verse ? getVerseText(verse, state.versions[0] || "BSB") : "";
+}
+
+function compareReferenceStrings(a, b) {
+  const left = referenceSortKey(a);
+  const right = referenceSortKey(b);
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] < right[index]) return -1;
+    if (left[index] > right[index]) return 1;
+  }
+  return 0;
+}
+
+function referenceSortKey(ref) {
+  const match = String(ref || "").match(/^(.+)\s(\d+):(\d+)$/);
+  if (!match) return [999, 0, 0, String(ref || "")];
+  const [, book, chapterNumber, verseNumber] = match;
+  const bookIndex = books.indexOf(book);
+  return [bookIndex === -1 ? 999 : bookIndex, Number(chapterNumber), Number(verseNumber), ref];
 }
 
 function openStrongPopup(anchor) {
@@ -1444,6 +1502,18 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       deleteNote(button.dataset.deleteNote);
+    });
+  });
+  document.querySelectorAll("[data-note-highlight]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openHighlightNote(button.dataset.noteHighlight);
+    });
+  });
+  document.querySelectorAll("[data-delete-highlight]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeHighlight(button.dataset.deleteHighlight);
     });
   });
   document.querySelectorAll("[data-delete-history]").forEach((button) => {
@@ -2302,6 +2372,25 @@ function deleteNote(ref) {
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   showToast("Note deleted");
   render();
+}
+
+function openHighlightNote(ref) {
+  if (!setReferenceFromString(ref)) return;
+  state.activeRail = "Notes";
+  state.libraryOpen = true;
+  state.pendingPanelFocus = "Notes";
+  state.pendingVerseFocus = true;
+  localStorage.setItem("lw_library_open", "true");
+  recordHistory();
+  updateShareUrl();
+  render();
+}
+
+function removeHighlight(ref) {
+  delete state.highlights[ref];
+  localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
+  showToast("Highlight removed");
+  renderPreservingReaderScroll();
 }
 
 function deleteHistoryItem(ref) {

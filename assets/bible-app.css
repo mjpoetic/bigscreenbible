@@ -1204,8 +1204,18 @@ select {
   font-weight: 800;
 }
 
+.panel-subheading {
+  margin: 18px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .ref-list,
 .note-list,
+.highlight-list,
 .bookmark-list,
 .history-list,
 .strong-list,
@@ -1217,6 +1227,7 @@ select {
 
 .ref-item,
 .note-item,
+.highlight-item,
 .bookmark-item,
 .history-item,
 .strong-card,
@@ -1236,6 +1247,7 @@ select {
 
 .ref-title,
 .note-title,
+.highlight-title,
 .bookmark-title {
   color: var(--ink);
   font-weight: 800;
@@ -1244,12 +1256,48 @@ select {
 }
 
 .ref-item,
+.highlight-item,
 .bookmark-item,
 .history-item,
 .search-result {
   display: block;
   width: 100%;
   min-width: 0;
+}
+
+.highlight-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.highlight-dot {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+}
+
+.highlight-dot.highlight-yellow {
+  background: #fff740;
+}
+
+.highlight-dot.highlight-blue {
+  background: #3cd2ff;
+}
+
+.highlight-dot.highlight-pink {
+  background: #ff58d6;
+}
+
+.highlight-dot.highlight-green {
+  background: #4eff80;
+}
+
+.highlight-dot.highlight-orange {
+  background: #ffa42d;
 }
 
 .saved-item {
