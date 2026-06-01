@@ -1152,13 +1152,25 @@ function strongLookupCard(entry, selectedWord) {
 function bottombar() {
   return `
     <footer class="bottombar">
-      <button class="nav-button" id="prevChapter">‹ Previous Chapter</button>
+      <button class="nav-button chapter-nav chapter-nav-prev" id="prevChapter" aria-label="Previous chapter">
+        <span class="chapter-nav-icon" aria-hidden="true">‹</span>
+        <span class="chapter-nav-label">Previous Chapter</span>
+      </button>
       <div class="fineprint">${activeVersions().join(" / ")} · ${referenceLabel()}</div>
-      <div>
-        <button class="ghost-btn" id="copyVerse">Copy Verse</button>
-        <button class="ghost-btn" id="printPage">Print</button>
+      <div class="bottom-actions">
+        <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse">
+          <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
+          <span class="bottom-action-label">Copy Verse</span>
+        </button>
+        <button class="ghost-btn bottom-action" id="printPage" aria-label="Print">
+          <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
+          <span class="bottom-action-label">Print</span>
+        </button>
       </div>
-      <button class="nav-button" id="nextChapter">Next Chapter ›</button>
+      <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
+        <span class="chapter-nav-label">Next Chapter</span>
+        <span class="chapter-nav-icon" aria-hidden="true">›</span>
+      </button>
     </footer>
   `;
 }

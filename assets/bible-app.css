@@ -230,6 +230,28 @@ button {
   justify-content: space-between;
 }
 
+.bottom-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chapter-nav-icon,
+.bottom-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-action-icon {
+  display: none;
+}
+
+.bottom-action-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -2362,6 +2384,107 @@ svg {
   }
 
   @media (orientation: portrait) {
+    .bottombar {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto;
+      align-items: center;
+      justify-items: center;
+      gap: 10px;
+      min-height: 104px;
+      padding: 12px 14px calc(18px + env(safe-area-inset-bottom, 0px));
+      justify-content: center;
+    }
+
+    .chapter-nav,
+    .bottom-action {
+      width: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      padding: 0;
+      border-radius: 999px;
+    }
+
+    .chapter-nav {
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .chapter-nav-prev {
+      grid-column: auto;
+      grid-row: auto;
+    }
+
+    .chapter-nav-next {
+      grid-column: auto;
+      grid-row: auto;
+    }
+
+    .chapter-nav-label,
+    .bottom-action-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .fineprint {
+      grid-column: 1;
+      grid-row: 1;
+      width: min(100%, 320px);
+      min-width: 0;
+      overflow: hidden;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+    }
+
+    .bottom-actions {
+      display: contents;
+    }
+
+    .chapter-nav-prev,
+    #copyVerse,
+    #printPage,
+    .chapter-nav-next {
+      grid-row: 2;
+    }
+
+    .chapter-nav-prev {
+      grid-column: 1;
+      transform: translateX(-126px);
+    }
+
+    #copyVerse {
+      grid-column: 1;
+      transform: translateX(-42px);
+    }
+
+    #printPage {
+      grid-column: 1;
+      transform: translateX(42px);
+    }
+
+    .chapter-nav-next {
+      grid-column: 1;
+      transform: translateX(126px);
+    }
+
+    .bottom-action-icon {
+      display: inline-flex;
+    }
+
+    .mobile-floating-settings {
+      right: 14px;
+      bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+      width: 48px;
+      min-height: 48px;
+    }
+
     .selection-bar {
       right: 72px;
       display: grid;
@@ -2438,12 +2561,27 @@ svg {
     position: relative;
   }
 
+  .main-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--rail-width);
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    pointer-events: none;
+    z-index: 0;
+  }
+
   .main-grid.library-closed {
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
   }
 
   .main-grid.focus-mode {
     grid-template-columns: 1fr;
+  }
+
+  .main-grid.focus-mode::before {
+    display: none;
   }
 
   .rail {
@@ -2562,6 +2700,13 @@ svg {
     padding: 10px;
     flex-wrap: wrap;
     justify-content: center;
+  }
+
+  @media (orientation: portrait) {
+    .bottombar {
+      padding: 10px 12px calc(16px + env(safe-area-inset-bottom, 0px));
+      justify-content: center;
+    }
   }
 
   .app-shell.focus-shell .brand,
