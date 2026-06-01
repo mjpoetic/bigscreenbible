@@ -1128,6 +1128,11 @@ select {
   flex-wrap: wrap;
 }
 
+.panel-action {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
 .danger-text {
   color: #a13f32;
 }
@@ -1972,8 +1977,13 @@ svg {
 
 @media (max-width: 840px) {
   :root {
+    --rail-width: 56px;
     --verse-font: clamp(20px, 5.2vw, 27px);
     --parallel-font: clamp(16px, 4.2vw, 20px);
+  }
+
+  [data-tooltip]::after {
+    display: none !important;
   }
 
   .app-shell {
@@ -2021,6 +2031,7 @@ svg {
     min-width: 0;
     height: 40px;
     padding-inline: 12px;
+    display: none;
   }
 
   .versions {
@@ -2195,18 +2206,66 @@ svg {
   }
 
   .main-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
     height: auto;
+    position: relative;
   }
 
-  .main-grid.focus-mode,
   .main-grid.library-closed {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  }
+
+  .main-grid.focus-mode {
     grid-template-columns: 1fr;
   }
 
-  .rail,
+  .rail {
+    position: sticky;
+    top: 0;
+    z-index: 28;
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    align-self: start;
+    width: var(--rail-width);
+    min-height: calc(100dvh - 154px);
+    padding: 8px 0;
+    border-right: 1px solid var(--line);
+    border-radius: 0 10px 10px 0;
+    box-shadow: var(--shadow);
+  }
+
+  .rail button {
+    width: 100%;
+    min-height: 50px;
+    border-left-width: 3px;
+  }
+
+  .rail button svg {
+    width: 22px;
+    height: 22px;
+  }
+
   .library {
-    display: none;
+    position: absolute;
+    top: 0;
+    left: var(--rail-width);
+    z-index: 29;
+    display: block;
+    width: min(330px, calc(100vw - var(--rail-width)));
+    max-height: min(70dvh, 620px);
+    padding: 16px;
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+
+  .reader {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .main-grid.focus-mode .reader {
+    grid-column: 1;
   }
 
   .chapter-tools {
@@ -2229,6 +2288,12 @@ svg {
 
   #openStudy {
     min-width: 96px;
+  }
+
+  .chapter-tools #bookmarkBtn,
+  .chapter-tools #noteBtn,
+  .chapter-tools #openStudy {
+    display: none;
   }
 
   .scripture {
@@ -2407,6 +2472,7 @@ svg {
 
   .search {
     grid-column: 1 / -1;
+    display: none;
   }
 
   .versions {
@@ -2480,17 +2546,10 @@ svg {
     grid-column: 4;
   }
 
-  #bookmarkBtn {
-    grid-column: 1;
-  }
-
-  #noteBtn {
-    grid-column: 2;
-  }
-
+  #bookmarkBtn,
+  #noteBtn,
   #openStudy {
-    grid-column: 3 / -1;
-    min-height: 40px;
+    display: none;
   }
 }
 

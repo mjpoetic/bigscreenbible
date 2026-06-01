@@ -684,8 +684,11 @@ function notesPanel() {
 }
 
 function bookmarksPanel() {
+  const ref = referenceLabel();
+  const isBookmarked = state.bookmarks.includes(ref);
   return `
     <section class="study-section panel-section" id="bookmarksSection">
+      <button class="ghost-btn panel-action" id="panelBookmarkToggle">${isBookmarked ? "Remove" : "Add"} ${escapeHtml(ref)}</button>
       <div class="bookmark-list">
         ${bookmarkItemsMarkup()}
       </div>
@@ -1484,6 +1487,7 @@ function bindEvents() {
   document.getElementById("prevChapter")?.addEventListener("click", () => moveChapter(-1));
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("bookmarkBtn")?.addEventListener("click", toggleBookmark);
+  document.getElementById("panelBookmarkToggle")?.addEventListener("click", toggleBookmark);
   document.getElementById("noteBtn")?.addEventListener("click", () => activateWorkspace("Notes"));
   document.getElementById("openStudy")?.addEventListener("click", () => {
     state.libraryOpen = true;
