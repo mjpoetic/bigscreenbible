@@ -303,6 +303,7 @@ function activeVersions() {
 
 function render() {
   const app = document.querySelector("#app");
+  syncPresentationShell();
   if (dataLoading || dataError) {
     app.innerHTML = loadingScreen();
     return;
@@ -339,6 +340,14 @@ function render() {
   }
   requestAnimationFrame(fitPresentationText);
   requestAnimationFrame(applyTextScaleVars);
+}
+
+function syncPresentationShell() {
+  const isPresentationMode = state.mode === "big";
+  document.documentElement.dataset.presentationMode = isPresentationMode ? "big" : "";
+  document.body.dataset.presentationMode = isPresentationMode ? "big" : "";
+  document.documentElement.dataset.presentationTheme = state.presentationTheme;
+  document.body.dataset.presentationTheme = state.presentationTheme;
 }
 
 function renderPreservingReaderScroll() {
