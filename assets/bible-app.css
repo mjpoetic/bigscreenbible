@@ -1619,13 +1619,13 @@ select {
 
 .presentation {
   position: fixed;
-  inset: calc(-1 * env(safe-area-inset-top, 0px)) 0 0 0;
+  inset: 0;
   width: 100vw;
   min-width: 100vw;
   height: 100vh;
-  height: calc(100dvh + env(safe-area-inset-top, 0px));
+  height: 100dvh;
   min-height: 100vh;
-  min-height: calc(100dvh + env(safe-area-inset-top, 0px));
+  min-height: 100dvh;
   z-index: 100;
   display: none;
   --presentation-accent: #f1dbad;
@@ -1658,7 +1658,7 @@ select {
 .presentation-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
 }
 
 .presentation-bottom {
