@@ -246,7 +246,6 @@ const icons = {
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
-  insights: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.5 14.5A6 6 0 1 1 15.5 14c-.9.7-1.5 1.8-1.5 3h-4c0-1.1-.5-2-1.5-2.5z"/><path d="M12 2v1"/><path d="M4.2 5.2l.7.7"/><path d="M19.8 5.2l-.7.7"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
   fullscreenEnter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5H5v3.5"/><path d="M5 5l5.5 5.5"/><path d="M15.5 5H19v3.5"/><path d="M19 5l-5.5 5.5"/><path d="M8.5 19H5v-3.5"/><path d="M5 19l5.5-5.5"/><path d="M15.5 19H19v-3.5"/><path d="M19 19l-5.5-5.5"/></svg>',
   fullscreenExit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5v5H5"/><path d="M5 5l5 5"/><path d="M14 5v5h5"/><path d="M19 5l-5 5"/><path d="M10 19v-5H5"/><path d="M5 19l5-5"/><path d="M14 19v-5h5"/><path d="M19 19l-5-5"/></svg>',
@@ -632,7 +631,6 @@ function rail() {
     ["Bookmarks", icons.bookmark],
     ["Notes", icons.note],
     ["Cross-Refs", icons.link],
-    ["Insights", icons.insights],
     ["History", icons.history],
     ["Search", icons.search],
   ];
@@ -645,7 +643,6 @@ function library() {
     Bookmarks: "Bookmarks",
     Notes: "Notes",
     "Cross-Refs": "Cross References",
-    Insights: "Chapter Insights",
     History: "History",
     Search: "Search",
   };
@@ -666,7 +663,6 @@ function libraryContent() {
   if (state.activeRail === "Bookmarks") return bookmarksPanel();
   if (state.activeRail === "Notes") return notesPanel();
   if (state.activeRail === "Cross-Refs") return crossReferencesPanel();
-  if (state.activeRail === "Insights") return insightsPanel();
   if (state.activeRail === "History") return historyPanel();
   if (state.activeRail === "Search") return searchPanel();
   return versePickerPanel();
@@ -714,42 +710,6 @@ function crossReferencesPanel() {
       </div>
       <div class="source-note">
         Cross references from <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY.
-      </div>
-    </section>
-  `;
-}
-
-function insightsPanel() {
-  const insight = chapterInsight();
-  return `
-    <section class="study-section panel-section" id="insightsSection">
-      <div class="study-heading">${icons.insights} ${escapeHtml(state.reference)}</div>
-      <div class="insight-stack">
-        <article class="insight-card">
-          <div class="panel-subheading">Big idea</div>
-          <p>${escapeHtml(insight.bigIdea)}</p>
-          <div class="insight-pills">
-            ${insight.themes.map((theme) => `<span>${escapeHtml(theme)}</span>`).join("")}
-          </div>
-        </article>
-        <article class="insight-card">
-          <div class="panel-subheading">TLDR flow</div>
-          <div class="insight-list">
-            ${insight.movements.map((movement) => `
-              <div class="insight-item">
-                <strong>${escapeHtml(movement.label)}</strong>
-                <span>${escapeHtml(movement.preview)}</span>
-              </div>
-            `).join("")}
-          </div>
-        </article>
-        <article class="insight-card">
-          <div class="panel-subheading">Reflect</div>
-          <ul class="insight-prompts">
-            ${insight.prompts.map((prompt) => `<li>${escapeHtml(prompt)}</li>`).join("")}
-          </ul>
-        </article>
-        <div class="source-note">Chapter insights are original Big Screen Bible guide notes generated from the bundled chapter text.</div>
       </div>
     </section>
   `;
@@ -1383,304 +1343,6 @@ function truncatePreview(value) {
   return text.length > 160 ? `${text.slice(0, 157).trim()}...` : text;
 }
 
-function chapterInsight() {
-  const chapter = currentChapter();
-  const version = state.versions[0] || "BSB";
-  const book = currentBookName();
-  const family = bookInsightFamily(book);
-  const chapterText = chapter.verses.map((verse) => getVerseText(verse, version)).join(" ");
-  const themes = chapterThemes(chapterText, family);
-  const focus = chapterFocusVerse(chapter.verses, version);
-  return {
-    bigIdea: chapterBigIdea(family, themes, focus),
-    themes,
-    movements: chapterMovements(chapter.verses, version, family),
-    prompts: chapterReflectionPrompts(themes, family, focus),
-  };
-}
-
-function bookInsightFamily(book) {
-  if (["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"].includes(book)) return "Covenant beginnings";
-  if (["Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther"].includes(book)) return "Covenant history";
-  if (["Job", "Psalm", "Proverbs", "Ecclesiastes", "Song of Songs"].includes(book)) return "Wisdom and worship";
-  if (["Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi"].includes(book)) return "Prophetic hope";
-  if (["Matthew", "Mark", "Luke", "John"].includes(book)) return "Life of Jesus";
-  if (book === "Acts") return "Gospel witness";
-  if (book === "Revelation") return "Apocalyptic hope";
-  return "Apostolic discipleship";
-}
-
-function chapterThemes(chapterText, family) {
-  const rules = [
-    ["Rest and trust", /\b(sabbath|rest|peace|still|sleep|dwelling|abide|quiet)\b/i],
-    ["Creation and worship", /\b(create|created|creator|heaven|earth|maker|made|sun|moon|stars|worship)\b/i],
-    ["Covenant faithfulness", /\b(covenant|promise|mercy|lovingkindness|steadfast|faithful|remember)\b/i],
-    ["Sanctuary and holiness", /\b(temple|sanctuary|altar|priest|sacrifice|holy|clean|cleanse)\b/i],
-    ["Justice and judgment", /\b(judge|judgment|justice|righteous|wicked|evil|oppress|poor)\b/i],
-    ["Restoration and hope", /\b(restore|return|heal|comfort|hope|save|deliver|redeem|gather)\b/i],
-    ["Christ-centered faith", /\b(jesus|christ|son|lord|gospel|kingdom|cross|resurrection|grace)\b/i],
-    ["Whole-life discipleship", /\b(walk|obey|command|love|serve|follow|keep|do|works)\b/i],
-  ];
-  const themes = rules.filter(([, pattern]) => pattern.test(chapterText)).map(([label]) => label);
-  if (!themes.includes(family)) themes.unshift(family);
-  if (themes.length < 3) themes.push("God's character", "Faithful response");
-  return [...new Set(themes)].slice(0, 5);
-}
-
-function chapterBigIdea(family, themes, focus) {
-  const themeText = themes.slice(1, 3).join(" and ").toLowerCase();
-  const focusText = focus?.text ? ` A key thread is verse ${focus.n}: "${truncatePreview(focus.text)}"` : "";
-  const ideas = {
-    "Covenant beginnings": `${state.reference} frames God’s covenant care and the call to live as a people formed by His instruction.`,
-    "Covenant history": `${state.reference} shows how faithfulness, failure, and mercy meet inside the lived story of God’s people.`,
-    "Wisdom and worship": `${state.reference} invites prayerful reflection on God’s character, human need, and the steady trust that shapes faithful living.`,
-    "Prophetic hope": `${state.reference} holds together warning, mercy, and the hope that God restores what sin has broken.`,
-    "Life of Jesus": `${state.reference} keeps Jesus at the center, revealing His kingdom, mercy, and call to trust Him.`,
-    "Gospel witness": `${state.reference} traces how the good news moves outward through Spirit-led witness and courageous obedience.`,
-    "Apostolic discipleship": `${state.reference} turns the gospel into whole-life discipleship, showing how grace reshapes belief and practice.`,
-    "Apocalyptic hope": `${state.reference} points toward worship, perseverance, and the final hope of God setting all things right.`,
-  };
-  const base = ideas[family] || ideas["Apostolic discipleship"];
-  const themeSentence = themeText ? ` Watch especially for ${themeText}.` : "";
-  return `${base}${themeSentence}${focusText}`;
-}
-
-function chapterMovements(verses, version, family) {
-  if (!verses.length) return [{ label: state.reference, preview: "No chapter text is loaded yet." }];
-  return chapterSegments(verses, version, family).map((segment) => chapterMovementFromSegment(segment, version, family));
-}
-
-function chapterSegments(verses, version, family) {
-  let segments = [];
-  verses.forEach((verse) => {
-    const text = getVerseText(verse, version);
-    const topic = movementTopicKey(text, family);
-    const current = segments[segments.length - 1];
-    if (current && current.topic === topic) {
-      current.verses.push(verse);
-      return;
-    }
-    segments.push({ topic, verses: [verse] });
-  });
-  segments = compactAdjacentSegments(segments);
-
-  while (segments.length > 5) {
-    let mergeIndex = 0;
-    let smallestSize = Infinity;
-    for (let index = 0; index < segments.length - 1; index += 1) {
-      const size = segments[index].verses.length + segments[index + 1].verses.length;
-      if (size < smallestSize) {
-        smallestSize = size;
-        mergeIndex = index;
-      }
-    }
-    const mergedVerses = [...segments[mergeIndex].verses, ...segments[mergeIndex + 1].verses];
-    const mergedText = mergedVerses.map((verse) => getVerseText(verse, version)).join(" ");
-    segments.splice(mergeIndex, 2, { topic: movementTopicKey(mergedText, family), verses: mergedVerses });
-    segments = compactAdjacentSegments(segments);
-  }
-
-  if (segments.length === 1 && verses.length > 12) return chapterThirds(verses, version, family);
-  return segments;
-}
-
-function compactAdjacentSegments(segments) {
-  return segments.reduce((groups, segment) => {
-    const current = groups[groups.length - 1];
-    if (current && current.topic === segment.topic) {
-      current.verses.push(...segment.verses);
-      return groups;
-    }
-    groups.push({ topic: segment.topic, verses: [...segment.verses] });
-    return groups;
-  }, []);
-}
-
-function chapterThirds(verses, version, family) {
-  const third = Math.ceil(verses.length / 3);
-  return [verses.slice(0, third), verses.slice(third, third * 2), verses.slice(third * 2)]
-    .filter((group) => group.length)
-    .map((group) => {
-      const text = group.map((verse) => getVerseText(verse, version)).join(" ");
-      return { topic: movementTopicKey(text, family), verses: group };
-    });
-}
-
-function chapterMovementFromSegment(segment, version, family) {
-  const { verses, topic } = segment;
-  const first = verses[0]?.n;
-  const last = verses[verses.length - 1]?.n;
-  const range = first === last ? `Verse ${first}` : `Verses ${first}-${last}`;
-  const label = `${movementTopicLabel(topic)} · ${range}`;
-  const preview = chapterMovementSummary(verses, version, family, topic);
-  return { label, preview };
-}
-
-function chapterMovementSummary(verses, version, family, topic) {
-  const text = verses.map((verse) => getVerseText(verse, version)).join(" ");
-  const lower = text.toLowerCase();
-  const themes = chapterThemes(text, family).filter((theme) => theme !== family);
-  const dominant = themes[0] || "Faithful response";
-  return movementSpecificSummary(topic, lower) || movementFallbackSummary(family, dominant);
-}
-
-function movementTopicKey(text, family) {
-  const lower = text.toLowerCase();
-  const topics = [
-    ["family", /\b(children|parents|fathers|mothers|honou?r your father|bring them up|provoke your children)\b/],
-    ["work_authority", /\b(servants|slaves|bondservants|masters|employees|obey your earthly masters|service|threatening)\b/],
-    ["spiritual_armor", /\b(armor|armour|belt|breastplate|helmet|shield|sword|wrestle|principalities|powers|fiery darts|schemes|devil|be strong|put on|stand against|stand firm|gospel of peace|word of god)\b/],
-    ["prayer_intercession", /\b(pray|prayer|praying|supplication|intercession|request|plead|watch|utterance|boldly)\b/],
-    ["greeting", /\b(greet|greeting|salute|farewell|peace be|grace be|amen|beloved brother|faithful minister|tychi|epaph|send|sent|messenger)\b/],
-    ["genealogy", /\b(begat|fathered|genealogy|generations|sons of|names|numbered|tribe|families)\b/],
-    ["parable", /\b(parable|liken|likened|sower|seed|vineyard|talents|virgins|prodigal)\b/],
-    ["healing_mercy", /\b(heal|healed|healing|leper|blind|lame|demon|unclean spirit|forgive|compassion|mercy)\b/],
-    ["jesus_teaching", /\b(jesus|christ|rabbi|teacher|kingdom|disciples|follow me|sermon|teaching)\b/],
-    ["sanctuary", /\b(sacrifice|offering|altar|priest|sanctuary|temple|tabernacle|cleanse|holy place|ark)\b/],
-    ["law_instruction", /\b(command|commandment|statute|law|ordinance|observe|keep|teach|instruction|do them)\b/],
-    ["worship_prayer", /\b(praise|sing|song|thank|bless the lord|worship|hallelujah|psalm|rejoice)\b/],
-    ["lament", /\b(cry|tears|mourning|lament|sorrow|distress|affliction|why have|how long)\b/],
-    ["justice", /\b(justice|oppress|poor|widow|orphan|righteous|wicked|evil|iniquity|judge|judgment)\b/],
-    ["restoration", /\b(return|restore|heal|comfort|hope|deliver|save|redeem|gather|renew)\b/],
-    ["conflict", /\b(war|battle|king|reign|city|enemy|army|captain|victory|sword|siege)\b/],
-    ["witness", /\b(spirit|apostle|witness|preach|baptized|believers|church|gospel|testimony)\b/],
-    ["creation", /\b(create|created|creator|heaven|earth|maker|made|sun|moon|stars|beginning)\b/],
-    ["covenant_promise", /\b(covenant|promise|mercy|lovingkindness|steadfast|faithful|remember|oath)\b/],
-    ["resurrection", /\b(resurrection|raised|rise again|dead shall|life eternal|grave|death is swallowed)\b/],
-    ["love_unity", /\b(love|beloved|unity|one body|brotherly|kindness|forgive one another)\b/],
-    ["sin_repentance", /\b(sin|repent|repentance|transgression|confess|turn from|forgiven)\b/],
-    ["apocalypse", /\b(vision|beast|dragon|angel|seal|trumpet|bowl|new heaven|new earth|babylon)\b/],
-    ["wisdom", /\b(wisdom|wise|fool|understanding|knowledge|instruction|proverb|vanity)\b/],
-  ];
-  const match = topics.find(([, pattern]) => pattern.test(lower));
-  if (match) return match[0];
-  if (family === "Wisdom and worship") return "wisdom";
-  if (family === "Prophetic hope") return "prophetic_call";
-  if (family === "Life of Jesus") return "jesus_teaching";
-  if (family === "Gospel witness") return "witness";
-  if (family === "Apocalyptic hope") return "apocalypse";
-  if (family === "Apostolic discipleship") return "discipleship";
-  return "story";
-}
-
-function movementTopicLabel(topic) {
-  const labels = {
-    family: "Family life",
-    work_authority: "Work and authority",
-    spiritual_armor: "Spiritual armor",
-    prayer_intercession: "Prayer",
-    greeting: "Final blessing",
-    genealogy: "Names and lineage",
-    parable: "Parable",
-    healing_mercy: "Mercy and healing",
-    jesus_teaching: "Jesus' teaching",
-    sanctuary: "Worship and holiness",
-    law_instruction: "Instruction",
-    worship_prayer: "Worship",
-    lament: "Lament",
-    justice: "Justice",
-    restoration: "Restoration",
-    conflict: "Conflict",
-    witness: "Witness",
-    creation: "Creation",
-    covenant_promise: "Covenant promise",
-    resurrection: "Resurrection hope",
-    love_unity: "Love and unity",
-    sin_repentance: "Repentance",
-    apocalypse: "Vision and hope",
-    wisdom: "Wisdom",
-    prophetic_call: "Prophetic call",
-    discipleship: "Discipleship",
-    story: "Story movement",
-  };
-  return labels[topic] || "Chapter movement";
-}
-
-function movementSpecificSummary(topic, lower) {
-  const summaries = {
-    family: "Faith starts close to home: children are called to honor their parents, while parents are warned to nurture instead of provoking.",
-    work_authority: "Work and authority are brought under Christ; service is to be sincere, and those with power are reminded that God shows no favoritism.",
-    spiritual_armor: "The chapter shifts from household life to spiritual resistance, calling believers to stand in God’s armor instead of relying on raw willpower.",
-    prayer_intercession: "Prayer is the posture behind the armor, keeping believers alert, dependent, and concerned for the courage of others.",
-    greeting: "The closing words turn doctrine into fellowship, sending encouragement and blessing so the community stays strengthened.",
-    genealogy: "The names are not filler; they trace belonging, continuity, and the way God keeps His promises through actual families.",
-    parable: "The story carries the lesson indirectly, asking the reader to recognize themselves before they rush to judge anyone else.",
-    healing_mercy: "Mercy becomes visible in restored bodies and forgiven lives, showing that God’s kingdom meets people in concrete need.",
-    jesus_teaching: "Jesus teaches in a way that exposes motives, corrects assumptions, and redraws what faithful kingdom living looks like.",
-    sanctuary: "Holiness is pictured through worship, sacrifice, and approach to God, where ordinary life is reordered around His presence.",
-    law_instruction: "The commands are practical, showing that covenant faithfulness is meant to become visible in habits, relationships, and worship.",
-    worship_prayer: "The section gives the reader language for worship, gratitude, and dependence rather than treating faith as private theory.",
-    lament: "Grief is given faithful language; the pain is not minimized, but it is brought honestly before God.",
-    justice: "The passage refuses to separate worship from righteousness, naming evil while pressing for mercy, truth, and justice.",
-    restoration: "Hope moves to the foreground: God can gather, heal, and renew what looks scattered or beyond repair.",
-    conflict: "Conflict reveals character, showing whether leaders and people will trust God or protect themselves through fear and force.",
-    witness: "The good news keeps moving outward through testimony, courage, and Spirit-led community.",
-    creation: "Creation language places the chapter under God’s authority as Maker, turning awe into worship and responsibility.",
-    covenant_promise: "Promise sits underneath the action, reminding the reader that God’s faithfulness drives the story more than human strength.",
-    resurrection: "The hope here is not vague optimism; resurrection life means death and defeat do not get the final word.",
-    love_unity: "Love is pressed into practical shape, making doctrine visible through unity, forgiveness, and care for one another.",
-    sin_repentance: "Sin is named without softening it, but the point is renewal: confession and turning back still matter.",
-    apocalypse: "Symbol and vision pull back the curtain, strengthening worship and endurance when history feels chaotic.",
-    wisdom: "The section condenses hard-earned wisdom into practical discernment for choices, speech, character, and trust.",
-  };
-  if (topic === "prayer_intercession" && /\bchains|ambassador|boldly|utterance\b/.test(lower)) {
-    return "Prayer becomes missional here, asking God for courage and clarity even when witness carries a personal cost.";
-  }
-  return summaries[topic] || "";
-}
-
-function movementFallbackSummary(family, dominant) {
-  const familySummaries = {
-    "Covenant beginnings": "The movement ties God’s instruction to identity, showing how covenant life is meant to shape a people from the inside out.",
-    "Covenant history": "The story advances through choices and consequences, revealing how trust, compromise, courage, and mercy shape the people of God.",
-    "Wisdom and worship": "The movement slows the reader down, turning everyday experience into wisdom, worship, and honest self-examination.",
-    "Prophetic hope": "The movement faces reality plainly but keeps mercy in view, calling for repentance without giving up on restoration.",
-    "Life of Jesus": "The movement keeps attention on Jesus, whose words and actions reveal what God’s kingdom is like.",
-    "Gospel witness": "The movement shows faith becoming public through witness, community, and courage under pressure.",
-    "Apostolic discipleship": "The movement applies grace to ordinary life, turning belief into practices that can be seen.",
-    "Apocalyptic hope": "The movement strengthens endurance by placing present struggle inside God’s larger victory.",
-  };
-  const themeLine = {
-    "Rest and trust": "Rest and trust are the pressure points.",
-    "Creation and worship": "Creation and worship are the pressure points.",
-    "Covenant faithfulness": "Covenant faithfulness is the pressure point.",
-    "Sanctuary and holiness": "Holiness and worship are the pressure points.",
-    "Justice and judgment": "Justice and judgment are the pressure points.",
-    "Restoration and hope": "Restoration and hope are the pressure points.",
-    "Christ-centered faith": "Christ-centered faith is the pressure point.",
-    "Whole-life discipleship": "Whole-life discipleship is the pressure point.",
-  }[dominant];
-  return [familySummaries[family] || familySummaries["Apostolic discipleship"], themeLine].filter(Boolean).join(" ");
-}
-
-function chapterFocusVerse(verses, version) {
-  if (!verses.length) return null;
-  const scored = verses.map((verse) => {
-    const text = getVerseText(verse, version);
-    const lower = text.toLowerCase();
-    let score = Math.min(text.length / 80, 4);
-    if (/\b(lord|god|jesus|christ|spirit|father|son)\b/.test(lower)) score += 3;
-    if (/\b(love|mercy|faith|hope|peace|rest|restore|save|deliver|righteous|holy|command|worship)\b/.test(lower)) score += 2;
-    if (/\b(therefore|because|for this reason|behold|blessed|fear not)\b/.test(lower)) score += 1;
-    return { n: verse.n, text, score };
-  });
-  return scored.sort((a, b) => b.score - a.score || a.n - b.n)[0];
-}
-
-function chapterReflectionPrompts(themes, family, focus) {
-  const focusLabel = focus?.n ? `verse ${focus.n}` : "this chapter";
-  const prompts = [
-    `What does ${state.reference} reveal about God’s character, especially around ${focusLabel}?`,
-    `Where does ${state.reference} call for worship, trust, obedience, or mercy in everyday life?`,
-    `How does ${state.reference} point toward Jesus, the gospel, or the hope of God making things right?`,
-  ];
-  if (themes.includes("Rest and trust")) prompts[1] = `Where does ${state.reference} invite rest, trust, and faithful rhythm instead of anxious self-reliance?`;
-  if (themes.includes("Justice and judgment")) prompts[1] = `Where does ${state.reference} call for justice, mercy, and faithfulness without losing sight of God’s grace?`;
-  if (themes.includes("Sanctuary and holiness")) prompts[2] = `How does ${state.reference} deepen the picture of holiness, cleansing, worship, or God drawing near?`;
-  if (family === "Apocalyptic hope") prompts[2] = `How does ${state.reference} encourage perseverance, worship, and hope while waiting for God to make things right?`;
-  return prompts;
-}
-
 function strongLookupCard(entry, selectedWord) {
   return `
     <div class="ref-title">${selectedWord}${entry.code} · ${escapeHtml(entry.lemma)}</div>
@@ -1854,7 +1516,6 @@ function shortcutOverlay() {
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
     ["C", "Open cross references"],
-    ["I", "Open chapter insights"],
     ["← / →", "Move verse by verse"],
     ["Esc", "Close overlay or go back to Bible"],
   ];
@@ -2919,7 +2580,6 @@ function handleGlobalShortcuts(event) {
     n: "Notes",
     b: "Bookmarks",
     c: "Cross-Refs",
-    i: "Insights",
   };
   if (railShortcuts[key]) {
     event.preventDefault();
@@ -2993,7 +2653,6 @@ function focusWorkspaceTarget(target) {
     Bookmarks: "#bookmarksSection",
     History: "#historySection",
     "Cross-Refs": "#crossRefsSection",
-    Insights: "#insightsSection",
     Strong: "#strongSection",
   };
   const selector = focusMap[target] || "#crossRefsSection";
