@@ -1447,89 +1447,210 @@ function chapterBigIdea(family, themes, focus) {
 
 function chapterMovements(verses, version, family) {
   if (!verses.length) return [{ label: state.reference, preview: "No chapter text is loaded yet." }];
-  if (verses.length <= 4) return [chapterMovementFromVerses(verses, version, family)];
-  const third = Math.ceil(verses.length / 3);
-  return [
-    verses.slice(0, third),
-    verses.slice(third, third * 2),
-    verses.slice(third * 2),
-  ].filter((group) => group.length).map((group) => chapterMovementFromVerses(group, version, family));
+  return chapterSegments(verses, version, family).map((segment) => chapterMovementFromSegment(segment, version, family));
 }
 
-function chapterMovementFromVerses(verses, version, family) {
+function chapterSegments(verses, version, family) {
+  let segments = [];
+  verses.forEach((verse) => {
+    const text = getVerseText(verse, version);
+    const topic = movementTopicKey(text, family);
+    const current = segments[segments.length - 1];
+    if (current && current.topic === topic) {
+      current.verses.push(verse);
+      return;
+    }
+    segments.push({ topic, verses: [verse] });
+  });
+  segments = compactAdjacentSegments(segments);
+
+  while (segments.length > 5) {
+    let mergeIndex = 0;
+    let smallestSize = Infinity;
+    for (let index = 0; index < segments.length - 1; index += 1) {
+      const size = segments[index].verses.length + segments[index + 1].verses.length;
+      if (size < smallestSize) {
+        smallestSize = size;
+        mergeIndex = index;
+      }
+    }
+    const mergedVerses = [...segments[mergeIndex].verses, ...segments[mergeIndex + 1].verses];
+    const mergedText = mergedVerses.map((verse) => getVerseText(verse, version)).join(" ");
+    segments.splice(mergeIndex, 2, { topic: movementTopicKey(mergedText, family), verses: mergedVerses });
+    segments = compactAdjacentSegments(segments);
+  }
+
+  if (segments.length === 1 && verses.length > 12) return chapterThirds(verses, version, family);
+  return segments;
+}
+
+function compactAdjacentSegments(segments) {
+  return segments.reduce((groups, segment) => {
+    const current = groups[groups.length - 1];
+    if (current && current.topic === segment.topic) {
+      current.verses.push(...segment.verses);
+      return groups;
+    }
+    groups.push({ topic: segment.topic, verses: [...segment.verses] });
+    return groups;
+  }, []);
+}
+
+function chapterThirds(verses, version, family) {
+  const third = Math.ceil(verses.length / 3);
+  return [verses.slice(0, third), verses.slice(third, third * 2), verses.slice(third * 2)]
+    .filter((group) => group.length)
+    .map((group) => {
+      const text = group.map((verse) => getVerseText(verse, version)).join(" ");
+      return { topic: movementTopicKey(text, family), verses: group };
+    });
+}
+
+function chapterMovementFromSegment(segment, version, family) {
+  const { verses, topic } = segment;
   const first = verses[0]?.n;
   const last = verses[verses.length - 1]?.n;
-  const label = first === last ? `Verse ${first}` : `Verses ${first}-${last}`;
-  const preview = chapterMovementSummary(verses, version, family);
+  const range = first === last ? `Verse ${first}` : `Verses ${first}-${last}`;
+  const label = `${movementTopicLabel(topic)} · ${range}`;
+  const preview = chapterMovementSummary(verses, version, family, topic);
   return { label, preview };
 }
 
-function chapterMovementSummary(verses, version, family) {
+function chapterMovementSummary(verses, version, family, topic) {
   const text = verses.map((verse) => getVerseText(verse, version)).join(" ");
   const lower = text.toLowerCase();
   const themes = chapterThemes(text, family).filter((theme) => theme !== family);
   const dominant = themes[0] || "Faithful response";
-  const subject = movementSubject(lower, family, dominant);
-  const response = movementResponse(dominant, family);
-  return `${subject} ${response}`;
+  return movementSpecificSummary(topic, lower) || movementFallbackSummary(family, dominant);
 }
 
-function movementSubject(lower, family, dominant) {
-  if (/\b(begat|fathered|genealogy|generations|sons of|names|numbered|tribe|families)\b/.test(lower)) {
-    return "This section preserves names, generations, and belonging, showing that God works through real families and remembered histories.";
-  }
-  if (/\b(command|commandment|statute|law|ordinance|observe|keep|do\b|teach|instruction)\b/.test(lower)) {
-    return "This section gives concrete instruction, turning faith into visible practices and daily obedience.";
-  }
-  if (/\b(pray|prayer|praise|sing|thank|bless|worship|hallelujah|psalm)\b/.test(lower)) {
-    return "This section turns the reader toward worship, prayer, and an honest response to God.";
-  }
-  if (/\b(sacrifice|offering|altar|priest|sanctuary|temple|cleanse|holy)\b/.test(lower)) {
-    return "This section focuses on holiness and worship, reminding the reader that drawing near to God reshapes ordinary life.";
-  }
-  if (/\b(jesus|christ|kingdom|parable|disciples|healed|forgive|gospel)\b/.test(lower)) {
-    return "This section centers attention on Jesus, revealing the kingdom through His teaching, mercy, and authority.";
-  }
-  if (/\b(wicked|evil|judgment|judge|justice|oppress|poor|righteous|iniquity)\b/.test(lower)) {
-    return "This section contrasts righteousness and evil, showing that God sees injustice and calls His people to faithfulness.";
-  }
-  if (/\b(return|restore|heal|comfort|deliver|save|redeem|hope|gather)\b/.test(lower)) {
-    return "This section moves toward restoration, holding out hope that God can gather, heal, and renew what has been broken.";
-  }
-  if (/\b(war|battle|king|reign|city|enemy|captain|army|victory)\b/.test(lower)) {
-    return "This section advances the story through conflict, leadership, and the consequences of trust or rebellion.";
-  }
-  if (/\b(spirit|church|apostle|witness|preach|baptized|believers)\b/.test(lower)) {
-    return "This section shows faith becoming witness, community, and Spirit-led courage.";
-  }
-  if (family === "Wisdom and worship") {
-    return "This section distills life into wisdom, prayer, and the kind of trust that can be practiced.";
-  }
-  if (family === "Prophetic hope") {
-    return "This section presses the reader to face reality honestly while still looking for God’s mercy and restoration.";
-  }
-  if (family === "Apostolic discipleship") {
-    return "This section applies the gospel to belief, relationships, and the shape of faithful living.";
-  }
-  return `This section develops ${dominant.toLowerCase()}, helping the chapter move from idea to lived response.`;
+function movementTopicKey(text, family) {
+  const lower = text.toLowerCase();
+  const topics = [
+    ["family", /\b(children|parents|fathers|mothers|honou?r your father|bring them up|provoke your children)\b/],
+    ["work_authority", /\b(servants|slaves|bondservants|masters|employees|obey your earthly masters|service|threatening)\b/],
+    ["spiritual_armor", /\b(armor|armour|belt|breastplate|helmet|shield|sword|wrestle|principalities|powers|fiery darts|schemes|devil|be strong|put on|stand against|stand firm|gospel of peace|word of god)\b/],
+    ["prayer_intercession", /\b(pray|prayer|praying|supplication|intercession|request|plead|watch|utterance|boldly)\b/],
+    ["greeting", /\b(greet|greeting|salute|farewell|peace be|grace be|amen|beloved brother|faithful minister|tychi|epaph|send|sent|messenger)\b/],
+    ["genealogy", /\b(begat|fathered|genealogy|generations|sons of|names|numbered|tribe|families)\b/],
+    ["parable", /\b(parable|liken|likened|sower|seed|vineyard|talents|virgins|prodigal)\b/],
+    ["healing_mercy", /\b(heal|healed|healing|leper|blind|lame|demon|unclean spirit|forgive|compassion|mercy)\b/],
+    ["jesus_teaching", /\b(jesus|christ|rabbi|teacher|kingdom|disciples|follow me|sermon|teaching)\b/],
+    ["sanctuary", /\b(sacrifice|offering|altar|priest|sanctuary|temple|tabernacle|cleanse|holy place|ark)\b/],
+    ["law_instruction", /\b(command|commandment|statute|law|ordinance|observe|keep|teach|instruction|do them)\b/],
+    ["worship_prayer", /\b(praise|sing|song|thank|bless the lord|worship|hallelujah|psalm|rejoice)\b/],
+    ["lament", /\b(cry|tears|mourning|lament|sorrow|distress|affliction|why have|how long)\b/],
+    ["justice", /\b(justice|oppress|poor|widow|orphan|righteous|wicked|evil|iniquity|judge|judgment)\b/],
+    ["restoration", /\b(return|restore|heal|comfort|hope|deliver|save|redeem|gather|renew)\b/],
+    ["conflict", /\b(war|battle|king|reign|city|enemy|army|captain|victory|sword|siege)\b/],
+    ["witness", /\b(spirit|apostle|witness|preach|baptized|believers|church|gospel|testimony)\b/],
+    ["creation", /\b(create|created|creator|heaven|earth|maker|made|sun|moon|stars|beginning)\b/],
+    ["covenant_promise", /\b(covenant|promise|mercy|lovingkindness|steadfast|faithful|remember|oath)\b/],
+    ["resurrection", /\b(resurrection|raised|rise again|dead shall|life eternal|grave|death is swallowed)\b/],
+    ["love_unity", /\b(love|beloved|unity|one body|brotherly|kindness|forgive one another)\b/],
+    ["sin_repentance", /\b(sin|repent|repentance|transgression|confess|turn from|forgiven)\b/],
+    ["apocalypse", /\b(vision|beast|dragon|angel|seal|trumpet|bowl|new heaven|new earth|babylon)\b/],
+    ["wisdom", /\b(wisdom|wise|fool|understanding|knowledge|instruction|proverb|vanity)\b/],
+  ];
+  const match = topics.find(([, pattern]) => pattern.test(lower));
+  if (match) return match[0];
+  if (family === "Wisdom and worship") return "wisdom";
+  if (family === "Prophetic hope") return "prophetic_call";
+  if (family === "Life of Jesus") return "jesus_teaching";
+  if (family === "Gospel witness") return "witness";
+  if (family === "Apocalyptic hope") return "apocalypse";
+  if (family === "Apostolic discipleship") return "discipleship";
+  return "story";
 }
 
-function movementResponse(dominant, family) {
-  const responses = {
-    "Rest and trust": "The main takeaway is to rest in God’s care instead of being ruled by fear or hurry.",
-    "Creation and worship": "The main takeaway is to see worship as a response to the Creator’s authority and generosity.",
-    "Covenant faithfulness": "The main takeaway is that God’s faithfulness invites a faithful response from His people.",
-    "Sanctuary and holiness": "The main takeaway is that holiness is not distance from God, but life reordered by His presence.",
-    "Justice and judgment": "The main takeaway is that grace does not make justice optional; it teaches people to live truthfully.",
-    "Restoration and hope": "The main takeaway is that brokenness is not the end of the story when God is still at work.",
-    "Christ-centered faith": "The main takeaway is to keep Jesus as the center of interpretation, trust, and response.",
-    "Whole-life discipleship": "The main takeaway is that faith becomes visible in love, obedience, and daily choices.",
-    "God's character": "The main takeaway is to notice what this reveals about God before rushing to application.",
-    "Faithful response": "The main takeaway is to respond with trust, humility, and practical faithfulness.",
+function movementTopicLabel(topic) {
+  const labels = {
+    family: "Family life",
+    work_authority: "Work and authority",
+    spiritual_armor: "Spiritual armor",
+    prayer_intercession: "Prayer",
+    greeting: "Final blessing",
+    genealogy: "Names and lineage",
+    parable: "Parable",
+    healing_mercy: "Mercy and healing",
+    jesus_teaching: "Jesus' teaching",
+    sanctuary: "Worship and holiness",
+    law_instruction: "Instruction",
+    worship_prayer: "Worship",
+    lament: "Lament",
+    justice: "Justice",
+    restoration: "Restoration",
+    conflict: "Conflict",
+    witness: "Witness",
+    creation: "Creation",
+    covenant_promise: "Covenant promise",
+    resurrection: "Resurrection hope",
+    love_unity: "Love and unity",
+    sin_repentance: "Repentance",
+    apocalypse: "Vision and hope",
+    wisdom: "Wisdom",
+    prophetic_call: "Prophetic call",
+    discipleship: "Discipleship",
+    story: "Story movement",
   };
-  if (responses[dominant]) return responses[dominant];
-  if (family === "Apocalyptic hope") return "The main takeaway is perseverance: worship faithfully while waiting for God to set things right.";
-  return "The main takeaway is to let the passage shape both understanding and action.";
+  return labels[topic] || "Chapter movement";
+}
+
+function movementSpecificSummary(topic, lower) {
+  const summaries = {
+    family: "Faith starts close to home: children are called to honor their parents, while parents are warned to nurture instead of provoking.",
+    work_authority: "Work and authority are brought under Christ; service is to be sincere, and those with power are reminded that God shows no favoritism.",
+    spiritual_armor: "The chapter shifts from household life to spiritual resistance, calling believers to stand in God’s armor instead of relying on raw willpower.",
+    prayer_intercession: "Prayer is the posture behind the armor, keeping believers alert, dependent, and concerned for the courage of others.",
+    greeting: "The closing words turn doctrine into fellowship, sending encouragement and blessing so the community stays strengthened.",
+    genealogy: "The names are not filler; they trace belonging, continuity, and the way God keeps His promises through actual families.",
+    parable: "The story carries the lesson indirectly, asking the reader to recognize themselves before they rush to judge anyone else.",
+    healing_mercy: "Mercy becomes visible in restored bodies and forgiven lives, showing that God’s kingdom meets people in concrete need.",
+    jesus_teaching: "Jesus teaches in a way that exposes motives, corrects assumptions, and redraws what faithful kingdom living looks like.",
+    sanctuary: "Holiness is pictured through worship, sacrifice, and approach to God, where ordinary life is reordered around His presence.",
+    law_instruction: "The commands are practical, showing that covenant faithfulness is meant to become visible in habits, relationships, and worship.",
+    worship_prayer: "The section gives the reader language for worship, gratitude, and dependence rather than treating faith as private theory.",
+    lament: "Grief is given faithful language; the pain is not minimized, but it is brought honestly before God.",
+    justice: "The passage refuses to separate worship from righteousness, naming evil while pressing for mercy, truth, and justice.",
+    restoration: "Hope moves to the foreground: God can gather, heal, and renew what looks scattered or beyond repair.",
+    conflict: "Conflict reveals character, showing whether leaders and people will trust God or protect themselves through fear and force.",
+    witness: "The good news keeps moving outward through testimony, courage, and Spirit-led community.",
+    creation: "Creation language places the chapter under God’s authority as Maker, turning awe into worship and responsibility.",
+    covenant_promise: "Promise sits underneath the action, reminding the reader that God’s faithfulness drives the story more than human strength.",
+    resurrection: "The hope here is not vague optimism; resurrection life means death and defeat do not get the final word.",
+    love_unity: "Love is pressed into practical shape, making doctrine visible through unity, forgiveness, and care for one another.",
+    sin_repentance: "Sin is named without softening it, but the point is renewal: confession and turning back still matter.",
+    apocalypse: "Symbol and vision pull back the curtain, strengthening worship and endurance when history feels chaotic.",
+    wisdom: "The section condenses hard-earned wisdom into practical discernment for choices, speech, character, and trust.",
+  };
+  if (topic === "prayer_intercession" && /\bchains|ambassador|boldly|utterance\b/.test(lower)) {
+    return "Prayer becomes missional here, asking God for courage and clarity even when witness carries a personal cost.";
+  }
+  return summaries[topic] || "";
+}
+
+function movementFallbackSummary(family, dominant) {
+  const familySummaries = {
+    "Covenant beginnings": "The movement ties God’s instruction to identity, showing how covenant life is meant to shape a people from the inside out.",
+    "Covenant history": "The story advances through choices and consequences, revealing how trust, compromise, courage, and mercy shape the people of God.",
+    "Wisdom and worship": "The movement slows the reader down, turning everyday experience into wisdom, worship, and honest self-examination.",
+    "Prophetic hope": "The movement faces reality plainly but keeps mercy in view, calling for repentance without giving up on restoration.",
+    "Life of Jesus": "The movement keeps attention on Jesus, whose words and actions reveal what God’s kingdom is like.",
+    "Gospel witness": "The movement shows faith becoming public through witness, community, and courage under pressure.",
+    "Apostolic discipleship": "The movement applies grace to ordinary life, turning belief into practices that can be seen.",
+    "Apocalyptic hope": "The movement strengthens endurance by placing present struggle inside God’s larger victory.",
+  };
+  const themeLine = {
+    "Rest and trust": "Rest and trust are the pressure points.",
+    "Creation and worship": "Creation and worship are the pressure points.",
+    "Covenant faithfulness": "Covenant faithfulness is the pressure point.",
+    "Sanctuary and holiness": "Holiness and worship are the pressure points.",
+    "Justice and judgment": "Justice and judgment are the pressure points.",
+    "Restoration and hope": "Restoration and hope are the pressure points.",
+    "Christ-centered faith": "Christ-centered faith is the pressure point.",
+    "Whole-life discipleship": "Whole-life discipleship is the pressure point.",
+  }[dominant];
+  return [familySummaries[family] || familySummaries["Apostolic discipleship"], themeLine].filter(Boolean).join(" ");
 }
 
 function chapterFocusVerse(verses, version) {
