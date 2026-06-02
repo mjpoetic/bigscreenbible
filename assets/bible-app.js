@@ -733,7 +733,7 @@ function insightsPanel() {
           </div>
         </article>
         <article class="insight-card">
-          <div class="panel-subheading">Chapter flow</div>
+          <div class="panel-subheading">TLDR flow</div>
           <div class="insight-list">
             ${insight.movements.map((movement) => `
               <div class="insight-item">
@@ -1394,7 +1394,7 @@ function chapterInsight() {
   return {
     bigIdea: chapterBigIdea(family, themes, focus),
     themes,
-    movements: chapterMovements(chapter.verses, version),
+    movements: chapterMovements(chapter.verses, version, family),
     prompts: chapterReflectionPrompts(themes, family, focus),
   };
 }
@@ -1445,23 +1445,91 @@ function chapterBigIdea(family, themes, focus) {
   return `${base}${themeSentence}${focusText}`;
 }
 
-function chapterMovements(verses, version) {
+function chapterMovements(verses, version, family) {
   if (!verses.length) return [{ label: state.reference, preview: "No chapter text is loaded yet." }];
-  if (verses.length <= 4) return [chapterMovementFromVerses(verses, version)];
+  if (verses.length <= 4) return [chapterMovementFromVerses(verses, version, family)];
   const third = Math.ceil(verses.length / 3);
   return [
     verses.slice(0, third),
     verses.slice(third, third * 2),
     verses.slice(third * 2),
-  ].filter((group) => group.length).map((group) => chapterMovementFromVerses(group, version));
+  ].filter((group) => group.length).map((group) => chapterMovementFromVerses(group, version, family));
 }
 
-function chapterMovementFromVerses(verses, version) {
+function chapterMovementFromVerses(verses, version, family) {
   const first = verses[0]?.n;
   const last = verses[verses.length - 1]?.n;
   const label = first === last ? `Verse ${first}` : `Verses ${first}-${last}`;
-  const preview = truncatePreview(verses.map((verse) => getVerseText(verse, version)).join(" "));
+  const preview = chapterMovementSummary(verses, version, family);
   return { label, preview };
+}
+
+function chapterMovementSummary(verses, version, family) {
+  const text = verses.map((verse) => getVerseText(verse, version)).join(" ");
+  const lower = text.toLowerCase();
+  const themes = chapterThemes(text, family).filter((theme) => theme !== family);
+  const dominant = themes[0] || "Faithful response";
+  const subject = movementSubject(lower, family, dominant);
+  const response = movementResponse(dominant, family);
+  return `${subject} ${response}`;
+}
+
+function movementSubject(lower, family, dominant) {
+  if (/\b(begat|fathered|genealogy|generations|sons of|names|numbered|tribe|families)\b/.test(lower)) {
+    return "This section preserves names, generations, and belonging, showing that God works through real families and remembered histories.";
+  }
+  if (/\b(command|commandment|statute|law|ordinance|observe|keep|do\b|teach|instruction)\b/.test(lower)) {
+    return "This section gives concrete instruction, turning faith into visible practices and daily obedience.";
+  }
+  if (/\b(pray|prayer|praise|sing|thank|bless|worship|hallelujah|psalm)\b/.test(lower)) {
+    return "This section turns the reader toward worship, prayer, and an honest response to God.";
+  }
+  if (/\b(sacrifice|offering|altar|priest|sanctuary|temple|cleanse|holy)\b/.test(lower)) {
+    return "This section focuses on holiness and worship, reminding the reader that drawing near to God reshapes ordinary life.";
+  }
+  if (/\b(jesus|christ|kingdom|parable|disciples|healed|forgive|gospel)\b/.test(lower)) {
+    return "This section centers attention on Jesus, revealing the kingdom through His teaching, mercy, and authority.";
+  }
+  if (/\b(wicked|evil|judgment|judge|justice|oppress|poor|righteous|iniquity)\b/.test(lower)) {
+    return "This section contrasts righteousness and evil, showing that God sees injustice and calls His people to faithfulness.";
+  }
+  if (/\b(return|restore|heal|comfort|deliver|save|redeem|hope|gather)\b/.test(lower)) {
+    return "This section moves toward restoration, holding out hope that God can gather, heal, and renew what has been broken.";
+  }
+  if (/\b(war|battle|king|reign|city|enemy|captain|army|victory)\b/.test(lower)) {
+    return "This section advances the story through conflict, leadership, and the consequences of trust or rebellion.";
+  }
+  if (/\b(spirit|church|apostle|witness|preach|baptized|believers)\b/.test(lower)) {
+    return "This section shows faith becoming witness, community, and Spirit-led courage.";
+  }
+  if (family === "Wisdom and worship") {
+    return "This section distills life into wisdom, prayer, and the kind of trust that can be practiced.";
+  }
+  if (family === "Prophetic hope") {
+    return "This section presses the reader to face reality honestly while still looking for God’s mercy and restoration.";
+  }
+  if (family === "Apostolic discipleship") {
+    return "This section applies the gospel to belief, relationships, and the shape of faithful living.";
+  }
+  return `This section develops ${dominant.toLowerCase()}, helping the chapter move from idea to lived response.`;
+}
+
+function movementResponse(dominant, family) {
+  const responses = {
+    "Rest and trust": "The main takeaway is to rest in God’s care instead of being ruled by fear or hurry.",
+    "Creation and worship": "The main takeaway is to see worship as a response to the Creator’s authority and generosity.",
+    "Covenant faithfulness": "The main takeaway is that God’s faithfulness invites a faithful response from His people.",
+    "Sanctuary and holiness": "The main takeaway is that holiness is not distance from God, but life reordered by His presence.",
+    "Justice and judgment": "The main takeaway is that grace does not make justice optional; it teaches people to live truthfully.",
+    "Restoration and hope": "The main takeaway is that brokenness is not the end of the story when God is still at work.",
+    "Christ-centered faith": "The main takeaway is to keep Jesus as the center of interpretation, trust, and response.",
+    "Whole-life discipleship": "The main takeaway is that faith becomes visible in love, obedience, and daily choices.",
+    "God's character": "The main takeaway is to notice what this reveals about God before rushing to application.",
+    "Faithful response": "The main takeaway is to respond with trust, humility, and practical faithfulness.",
+  };
+  if (responses[dominant]) return responses[dominant];
+  if (family === "Apocalyptic hope") return "The main takeaway is perseverance: worship faithfully while waiting for God to set things right.";
+  return "The main takeaway is to let the passage shape both understanding and action.";
 }
 
 function chapterFocusVerse(verses, version) {
