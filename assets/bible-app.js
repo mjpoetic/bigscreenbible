@@ -194,6 +194,9 @@ const state = {
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
   notes: JSON.parse(localStorage.getItem("lw_notes") || '{"John 3:16":"This verse is the heart of the Gospel. Mark for Sabbath worship display."}'),
   history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
+  triviaCategory: localStorage.getItem("lw_trivia_category") || "Mixed",
+  triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
+  triviaGame: null,
 };
 
 const highlightColors = ["yellow", "blue", "pink", "green", "orange"];
@@ -241,6 +244,7 @@ const icons = {
   note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
+  trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
   fullscreenEnter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5H5v3.5"/><path d="M5 5l5.5 5.5"/><path d="M15.5 5H19v3.5"/><path d="M19 5l-5.5 5.5"/><path d="M8.5 19H5v-3.5"/><path d="M5 19l5.5-5.5"/><path d="M15.5 19H19v-3.5"/><path d="M19 19l-5.5-5.5"/></svg>',
   fullscreenExit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5v5H5"/><path d="M5 5l5 5"/><path d="M14 5v5h5"/><path d="M19 5l-5 5"/><path d="M10 19v-5H5"/><path d="M5 19l5-5"/><path d="M14 19v-5h5"/><path d="M19 19l-5-5"/></svg>',
@@ -290,6 +294,7 @@ function activePassageLabel() {
 }
 
 function mainGridClass() {
+  if (state.mode === "trivia") return "main-grid focus-mode trivia-grid";
   if (state.focusMode) return "main-grid focus-mode";
   return [
     "main-grid",
@@ -326,11 +331,11 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
-        ${state.focusMode ? "" : rail()}
-        ${state.focusMode || !state.libraryOpen ? "" : library()}
+        ${state.focusMode || state.mode === "trivia" ? "" : rail()}
+        ${state.focusMode || state.mode === "trivia" || !state.libraryOpen ? "" : library()}
         ${reader()}
       </section>
       ${bottombar()}
@@ -527,6 +532,7 @@ function topbar() {
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
     ["big", "Big Screen", icons.screen],
+    ["trivia", "Trivia", icons.trivia],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
   const themeLabel = state.theme === "dark" ? "Light mode" : "Dark mode";
@@ -766,6 +772,7 @@ function historyPanel() {
 }
 
 function reader() {
+  if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
   const chapterKeys = currentBookChapterKeys();
   return `
@@ -896,6 +903,119 @@ function readerView() {
       </p>
     `).join("")}
   `;
+}
+
+function triviaView() {
+  const questions = triviaQuestions();
+  const categories = triviaCategories(questions);
+  const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
+  const countOptions = [5, 10, 15, 20].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} questions</option>`).join("");
+  return `
+    <section class="reader trivia-reader">
+      <article class="trivia-panel">
+        <div class="trivia-header">
+          <div>
+            <div class="trivia-eyebrow">Scripture knowledge</div>
+            <h1>Bible Trivia</h1>
+          </div>
+          <div class="trivia-score-chip">${triviaScoreLabel()}</div>
+        </div>
+        ${state.triviaGame ? triviaGameView() : `
+          <div class="trivia-setup">
+            <p>Choose a category, then answer multiple-choice questions with a reference reveal after each answer.</p>
+            <div class="trivia-setup-controls">
+              <label>
+                <span>Category</span>
+                <select id="triviaCategorySelect">${categoryOptions}</select>
+              </label>
+              <label>
+                <span>Round length</span>
+                <select id="triviaCountSelect">${countOptions}</select>
+              </label>
+            </div>
+            <button class="primary-btn trivia-start" id="startTriviaGame">${icons.trivia}<span>Start Trivia</span></button>
+          </div>
+        `}
+      </article>
+    </section>
+  `;
+}
+
+function triviaGameView() {
+  const game = state.triviaGame;
+  if (game.complete) return triviaResultsView(game);
+  const question = game.questions[game.index];
+  const answered = game.selectedAnswer !== null;
+  const correct = game.selectedAnswer === question.answer;
+  return `
+    <div class="trivia-game">
+      <div class="trivia-progress">
+        <span>${escapeHtml(game.category)}</span>
+        <strong>${game.index + 1} / ${game.questions.length}</strong>
+      </div>
+      <h2>${escapeHtml(question.question)}</h2>
+      <div class="trivia-choices">
+        ${question.choices.map((choice) => triviaChoiceButton(question, choice, answered)).join("")}
+      </div>
+      ${answered ? `
+        <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
+          <strong>${correct ? "Correct" : "Not quite"}</strong>
+          <p>${escapeHtml(question.explanation)}</p>
+          <div class="trivia-reference">
+            <span>${escapeHtml(question.reference)}</span>
+            <button class="text-btn" id="openTriviaReference">Open reference</button>
+          </div>
+        </div>
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.questions.length - 1 ? "Finish round" : "Next question"}</button>
+        </div>
+      ` : `
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function triviaChoiceButton(question, choice, answered) {
+  const selected = choice === state.triviaGame.selectedAnswer;
+  const isCorrect = choice === question.answer;
+  const classes = [
+    "trivia-choice",
+    answered && isCorrect ? "correct" : "",
+    answered && selected && !isCorrect ? "incorrect" : "",
+  ].filter(Boolean).join(" ");
+  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+}
+
+function triviaResultsView(game) {
+  const percent = Math.round((game.score / game.questions.length) * 100);
+  return `
+    <div class="trivia-results">
+      <div class="trivia-result-ring">${percent}%</div>
+      <h2>${triviaResultTitle(percent)}</h2>
+      <p>You answered ${game.score} of ${game.questions.length} correctly in ${escapeHtml(game.category)}.</p>
+      <div class="trivia-actions">
+        <button class="ghost-btn" id="restartTriviaGame">Try again</button>
+        <button class="primary-btn" id="newTriviaGame">New category</button>
+      </div>
+    </div>
+  `;
+}
+
+function triviaResultTitle(percent) {
+  if (percent >= 90) return "Excellent round";
+  if (percent >= 70) return "Strong work";
+  if (percent >= 50) return "Good start";
+  return "Keep going";
+}
+
+function triviaScoreLabel() {
+  if (!state.triviaGame) return `${triviaQuestions().length} questions`;
+  if (state.triviaGame.complete) return `${state.triviaGame.score} / ${state.triviaGame.questions.length}`;
+  return `${state.triviaGame.score} correct`;
 }
 
 function parallelView() {
@@ -1378,6 +1498,7 @@ function shortcutOverlay() {
     ["F", "Toggle focus layout"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
+    ["T", "Open trivia"],
     ["V", "Open verse picker"],
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
@@ -1536,6 +1657,27 @@ function bindEvents() {
   document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
+  document.getElementById("triviaCategorySelect")?.addEventListener("change", (event) => {
+    state.triviaCategory = event.target.value;
+    localStorage.setItem("lw_trivia_category", state.triviaCategory);
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("triviaCountSelect")?.addEventListener("change", (event) => {
+    state.triviaCount = Number(event.target.value) || 10;
+    localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
+  document.getElementById("restartTriviaGame")?.addEventListener("click", startTriviaGame);
+  document.getElementById("newTriviaGame")?.addEventListener("click", () => {
+    state.triviaGame = null;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("nextTriviaQuestion")?.addEventListener("click", nextTriviaQuestion);
+  document.getElementById("openTriviaReference")?.addEventListener("click", openTriviaReference);
+  document.querySelectorAll("[data-trivia-answer]").forEach((button) => {
+    button.addEventListener("click", () => answerTriviaQuestion(button.dataset.triviaAnswer));
+  });
   ["chapterSelect", "chapterSelectInline"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state.reference = event.target.value;
@@ -1759,6 +1901,79 @@ function setPresentationTheme(theme) {
   localStorage.setItem("lw_presentation_theme", theme);
   state.presentationSettingsOpen = false;
   render();
+}
+
+function triviaQuestions() {
+  return Array.isArray(window.bibleTriviaQuestions) ? window.bibleTriviaQuestions : [];
+}
+
+function triviaCategories(questions = triviaQuestions()) {
+  return ["Mixed", ...Array.from(new Set(questions.map((question) => question.category).filter(Boolean))).sort((a, b) => a.localeCompare(b))];
+}
+
+function triviaPool() {
+  const questions = triviaQuestions();
+  if (state.triviaCategory === "Mixed") return questions;
+  return questions.filter((question) => question.category === state.triviaCategory);
+}
+
+function startTriviaGame() {
+  const pool = shuffleItems(triviaPool());
+  if (!pool.length) {
+    showToast("No trivia questions available for that category yet");
+    return;
+  }
+  const questionCount = Math.min(state.triviaCount || 10, pool.length);
+  state.triviaGame = {
+    category: state.triviaCategory,
+    questions: pool.slice(0, questionCount),
+    index: 0,
+    score: 0,
+    selectedAnswer: null,
+    complete: false,
+  };
+  renderPreservingReaderScroll();
+}
+
+function answerTriviaQuestion(answer) {
+  const game = state.triviaGame;
+  if (!game || game.complete || game.selectedAnswer !== null) return;
+  const question = game.questions[game.index];
+  game.selectedAnswer = answer;
+  if (answer === question.answer) game.score += 1;
+  renderPreservingReaderScroll();
+}
+
+function nextTriviaQuestion() {
+  const game = state.triviaGame;
+  if (!game) return;
+  if (game.index >= game.questions.length - 1) {
+    game.complete = true;
+  } else {
+    game.index += 1;
+    game.selectedAnswer = null;
+  }
+  renderPreservingReaderScroll();
+}
+
+function openTriviaReference() {
+  const question = state.triviaGame?.questions?.[state.triviaGame.index];
+  if (!question?.reference || !setReferenceFromString(question.reference)) return showToast("Reference is not available");
+  state.mode = "reader";
+  state.focusMode = false;
+  state.libraryOpen = false;
+  state.pendingVerseFocus = true;
+  recordHistory();
+  render();
+}
+
+function shuffleItems(items) {
+  const copy = items.slice();
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
 }
 
 function setScriptureFont(font) {
@@ -2303,11 +2518,11 @@ function handleGlobalShortcuts(event) {
 
   if (typing || state.shortcutsOpen) return;
 
-  if (event.key === "ArrowLeft") {
+  if (event.key === "ArrowLeft" && state.mode !== "trivia") {
     event.preventDefault();
     return moveVerse(-1);
   }
-  if (event.key === "ArrowRight") {
+  if (event.key === "ArrowRight" && state.mode !== "trivia") {
     event.preventDefault();
     return moveVerse(1);
   }
@@ -2322,6 +2537,11 @@ function handleGlobalShortcuts(event) {
   if (key === "f") {
     event.preventDefault();
     return toggleFocusMode();
+  }
+  if (key === "t") {
+    event.preventDefault();
+    state.mode = "trivia";
+    return render();
   }
   if (event.key === "/") {
     event.preventDefault();
