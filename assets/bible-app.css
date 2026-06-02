@@ -1216,9 +1216,17 @@ select {
 }
 
 .trivia-game {
+  position: relative;
   display: grid;
   gap: 24px;
   padding-top: 24px;
+  overflow: hidden;
+}
+
+.trivia-game > :not(.trivia-confetti),
+.trivia-results > :not(.trivia-confetti) {
+  position: relative;
+  z-index: 1;
 }
 
 .trivia-progress {
@@ -1313,6 +1321,11 @@ select {
   overflow: hidden;
 }
 
+.trivia-results.perfect,
+.trivia-game.perfect {
+  min-height: 430px;
+}
+
 .trivia-result-ring {
   width: 128px;
   min-height: 128px;
@@ -1327,7 +1340,8 @@ select {
 
 .trivia-confetti {
   position: absolute;
-  inset: 0;
+  inset: -40px 0 0;
+  z-index: 0;
   pointer-events: none;
   overflow: hidden;
 }
@@ -1342,7 +1356,7 @@ select {
   background: hsl(calc(var(--i) * 31), 88%, 62%);
   opacity: 0;
   transform: translate3d(0, -20px, 0) rotate(0deg);
-  animation: trivia-confetti-fall 1700ms ease-out calc(var(--i) * 36ms) forwards;
+  animation: trivia-confetti-fall 3200ms ease-out calc(var(--i) * 24ms) forwards;
 }
 
 .trivia-confetti span:nth-child(3n) {
@@ -1364,8 +1378,8 @@ select {
     opacity: 1;
   }
   100% {
-    opacity: 0;
-    transform: translate3d(calc(((var(--i) % 7) - 3) * 18px), 280px, 0) rotate(420deg);
+    opacity: 0.15;
+    transform: translate3d(calc(((var(--i) % 9) - 4) * 24px), 520px, 0) rotate(720deg);
   }
 }
 

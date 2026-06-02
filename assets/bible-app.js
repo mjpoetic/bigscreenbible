@@ -953,8 +953,10 @@ function triviaGameView() {
   const question = game.questions[game.index];
   const answered = game.selectedAnswer !== null;
   const correct = game.selectedAnswer === question.answer;
+  const finalPerfectAnswer = answered && correct && game.index === game.questions.length - 1 && game.score === game.questions.length;
   return `
-    <div class="trivia-game">
+    <div class="trivia-game ${finalPerfectAnswer ? "perfect" : ""}">
+      ${finalPerfectAnswer ? triviaCelebration() : ""}
       <div class="trivia-progress">
         <span>${escapeHtml(game.category)} · ${escapeHtml(game.difficulty)}</span>
         <strong>${game.index + 1} / ${game.questions.length}</strong>
@@ -1013,7 +1015,7 @@ function triviaResultsView(game) {
 }
 
 function triviaCelebration() {
-  return `<div class="trivia-confetti" aria-hidden="true">${Array.from({ length: 30 }, (_, index) => `<span style="--i:${index};--x:${(index * 37) % 100}"></span>`).join("")}</div>`;
+  return `<div class="trivia-confetti" aria-hidden="true">${Array.from({ length: 72 }, (_, index) => `<span style="--i:${index};--x:${(index * 37) % 100}"></span>`).join("")}</div>`;
 }
 
 function triviaResultTitle(percent) {
