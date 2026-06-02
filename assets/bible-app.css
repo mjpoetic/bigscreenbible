@@ -1197,7 +1197,7 @@ select {
 
 .trivia-setup-controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -1304,11 +1304,13 @@ select {
 }
 
 .trivia-results {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 18px;
   padding-top: 34px;
   text-align: center;
+  overflow: hidden;
 }
 
 .trivia-result-ring {
@@ -1321,6 +1323,50 @@ select {
 
 .trivia-results h2 {
   font-size: clamp(30px, 4vw, 50px);
+}
+
+.trivia-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.trivia-confetti span {
+  position: absolute;
+  top: -18px;
+  left: calc(var(--x) * 1%);
+  width: 9px;
+  height: 15px;
+  border-radius: 3px;
+  background: hsl(calc(var(--i) * 31), 88%, 62%);
+  opacity: 0;
+  transform: translate3d(0, -20px, 0) rotate(0deg);
+  animation: trivia-confetti-fall 1700ms ease-out calc(var(--i) * 36ms) forwards;
+}
+
+.trivia-confetti span:nth-child(3n) {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.trivia-confetti span:nth-child(4n) {
+  background: var(--gold);
+}
+
+@keyframes trivia-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(((var(--i) % 7) - 3) * 18px), 280px, 0) rotate(420deg);
+  }
 }
 
 .section-title {

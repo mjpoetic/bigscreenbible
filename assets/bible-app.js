@@ -195,6 +195,7 @@ const state = {
   notes: JSON.parse(localStorage.getItem("lw_notes") || '{"John 3:16":"This verse is the heart of the Gospel. Mark for Sabbath worship display."}'),
   history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
   triviaCategory: localStorage.getItem("lw_trivia_category") || "Mixed",
+  triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
   triviaGame: null,
 };
@@ -909,7 +910,8 @@ function triviaView() {
   const questions = triviaQuestions();
   const categories = triviaCategories(questions);
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const countOptions = [5, 10, 15, 20].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} questions</option>`).join("");
+  const difficultyOptions = triviaDifficulties().map((difficulty) => `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(difficulty)}</option>`).join("");
+  const countOptions = [5, 10, 15, 20, 25].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} questions</option>`).join("");
   return `
     <section class="reader trivia-reader">
       <article class="trivia-panel">
@@ -927,6 +929,10 @@ function triviaView() {
               <label>
                 <span>Category</span>
                 <select id="triviaCategorySelect">${categoryOptions}</select>
+              </label>
+              <label>
+                <span>Difficulty</span>
+                <select id="triviaDifficultySelect">${difficultyOptions}</select>
               </label>
               <label>
                 <span>Round length</span>
@@ -950,7 +956,7 @@ function triviaGameView() {
   return `
     <div class="trivia-game">
       <div class="trivia-progress">
-        <span>${escapeHtml(game.category)}</span>
+        <span>${escapeHtml(game.category)} · ${escapeHtml(game.difficulty)}</span>
         <strong>${game.index + 1} / ${game.questions.length}</strong>
       </div>
       <h2>${escapeHtml(question.question)}</h2>
@@ -993,16 +999,21 @@ function triviaChoiceButton(question, choice, answered) {
 function triviaResultsView(game) {
   const percent = Math.round((game.score / game.questions.length) * 100);
   return `
-    <div class="trivia-results">
+    <div class="trivia-results ${percent === 100 ? "perfect" : ""}">
+      ${percent === 100 ? triviaCelebration() : ""}
       <div class="trivia-result-ring">${percent}%</div>
       <h2>${triviaResultTitle(percent)}</h2>
-      <p>You answered ${game.score} of ${game.questions.length} correctly in ${escapeHtml(game.category)}.</p>
+      <p>You answered ${game.score} of ${game.questions.length} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.</p>
       <div class="trivia-actions">
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
         <button class="primary-btn" id="newTriviaGame">New category</button>
       </div>
     </div>
   `;
+}
+
+function triviaCelebration() {
+  return `<div class="trivia-confetti" aria-hidden="true">${Array.from({ length: 30 }, (_, index) => `<span style="--i:${index};--x:${(index * 37) % 100}"></span>`).join("")}</div>`;
 }
 
 function triviaResultTitle(percent) {
@@ -1013,7 +1024,7 @@ function triviaResultTitle(percent) {
 }
 
 function triviaScoreLabel() {
-  if (!state.triviaGame) return `${triviaQuestions().length} questions`;
+  if (!state.triviaGame) return `${triviaPool().length} questions`;
   if (state.triviaGame.complete) return `${state.triviaGame.score} / ${state.triviaGame.questions.length}`;
   return `${state.triviaGame.score} correct`;
 }
@@ -1662,6 +1673,11 @@ function bindEvents() {
     localStorage.setItem("lw_trivia_category", state.triviaCategory);
     renderPreservingReaderScroll();
   });
+  document.getElementById("triviaDifficultySelect")?.addEventListener("change", (event) => {
+    state.triviaDifficulty = event.target.value;
+    localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+    renderPreservingReaderScroll();
+  });
   document.getElementById("triviaCountSelect")?.addEventListener("change", (event) => {
     state.triviaCount = Number(event.target.value) || 10;
     localStorage.setItem("lw_trivia_count", String(state.triviaCount));
@@ -1911,10 +1927,16 @@ function triviaCategories(questions = triviaQuestions()) {
   return ["Mixed", ...Array.from(new Set(questions.map((question) => question.category).filter(Boolean))).sort((a, b) => a.localeCompare(b))];
 }
 
+function triviaDifficulties() {
+  return ["All", "Easy", "Medium", "Hard"];
+}
+
 function triviaPool() {
-  const questions = triviaQuestions();
-  if (state.triviaCategory === "Mixed") return questions;
-  return questions.filter((question) => question.category === state.triviaCategory);
+  return triviaQuestions().filter((question) => {
+    const categoryMatches = state.triviaCategory === "Mixed" || question.category === state.triviaCategory;
+    const difficultyMatches = state.triviaDifficulty === "All" || question.difficulty === state.triviaDifficulty.toLowerCase();
+    return categoryMatches && difficultyMatches;
+  });
 }
 
 function startTriviaGame() {
@@ -1926,6 +1948,7 @@ function startTriviaGame() {
   const questionCount = Math.min(state.triviaCount || 10, pool.length);
   state.triviaGame = {
     category: state.triviaCategory,
+    difficulty: state.triviaDifficulty,
     questions: pool.slice(0, questionCount),
     index: 0,
     score: 0,
