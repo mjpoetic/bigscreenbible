@@ -510,6 +510,45 @@ button {
   text-transform: uppercase;
 }
 
+.streak-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.streak-chip svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+.streak-chip > span {
+  display: grid;
+  gap: 1px;
+  line-height: 1;
+}
+
+.streak-chip strong {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.streak-chip span span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .search {
   display: flex;
   align-items: center;
@@ -712,6 +751,135 @@ button {
 .settings-popover-close svg {
   width: 15px;
   height: 15px;
+}
+
+.streak-card {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--soft) 70%, transparent);
+}
+
+.streak-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.streak-card-head svg {
+  width: 24px;
+  height: 24px;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.streak-card-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.streak-card-head strong {
+  color: var(--ink);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.streak-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.streak-stats span {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.streak-stats strong {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.streak-stats small,
+.streak-card p {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.streak-card p {
+  margin: 0;
+}
+
+.streak-popup {
+  position: fixed;
+  top: calc(18px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 180;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, calc(100vw - 28px));
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: streakPopupIn 360ms ease both;
+}
+
+.streak-popup-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.streak-popup-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.streak-popup strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.streak-popup p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+@keyframes streakPopupIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
 }
 
 .mobile-floating-settings {
@@ -2720,6 +2888,10 @@ svg {
   .topbar {
     gap: 10px;
     padding-inline: 12px;
+  }
+
+  .streak-chip {
+    display: none;
   }
 
   .mode-tabs {

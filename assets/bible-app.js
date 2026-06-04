@@ -102,6 +102,8 @@ let strongLexiconStatus = "idle";
 let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
+let streakPopupTimer = 0;
+const streakStorageKey = "lw_reading_streak";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -194,6 +196,8 @@ const state = {
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
   notes: JSON.parse(localStorage.getItem("lw_notes") || '{"John 3:16":"This verse is the heart of the Gospel. Mark for Sabbath worship display."}'),
   history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
+  streak: savedReadingStreak(),
+  streakPopupVisible: false,
   triviaCategory: localStorage.getItem("lw_trivia_category") || "Mixed",
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
@@ -239,6 +243,58 @@ function savedFocusMode() {
   return true;
 }
 
+function savedReadingStreak() {
+  try {
+    return normalizeReadingStreak(JSON.parse(localStorage.getItem(streakStorageKey) || "{}"));
+  } catch {
+    return normalizeReadingStreak({});
+  }
+}
+
+function normalizeReadingStreak(value) {
+  return {
+    current: Math.max(0, Number(value?.current) || 0),
+    best: Math.max(0, Number(value?.best) || 0),
+    totalDays: Math.max(0, Number(value?.totalDays) || 0),
+    lastVisit: typeof value?.lastVisit === "string" ? value.lastVisit : "",
+  };
+}
+
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function daysBetweenDateKeys(fromKey, toKey) {
+  const parseDateKey = (key) => {
+    const [year, month, day] = String(key).split("-").map(Number);
+    if (!year || !month || !day) return NaN;
+    return Date.UTC(year, month - 1, day);
+  };
+  const from = parseDateKey(fromKey);
+  const to = parseDateKey(toKey);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return 0;
+  return Math.round((to - from) / 86400000);
+}
+
+function recordReadingStreak(date = new Date()) {
+  const today = localDateKey(date);
+  const streak = normalizeReadingStreak(state.streak);
+  if (streak.lastVisit === today) return false;
+  const gap = streak.lastVisit ? daysBetweenDateKeys(streak.lastVisit, today) : 0;
+  const current = gap === 1 ? streak.current + 1 : 1;
+  state.streak = {
+    current,
+    best: Math.max(streak.best, current),
+    totalDays: streak.totalDays + 1,
+    lastVisit: today,
+  };
+  localStorage.setItem(streakStorageKey, JSON.stringify(state.streak));
+  return true;
+}
+
 const icons = {
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
@@ -247,6 +303,7 @@ const icons = {
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.6 0 6.5-2.7 6.5-6.2 0-2.6-1.4-4.7-3.5-6.7-.6 2-1.9 3.2-3.1 3.7.6-2.7-.4-5.2-3-8.1C8.5 8 5.5 10.8 5.5 15.8 5.5 19.3 8.4 22 12 22z"/><path d="M12 18.5c1.2 0 2.2-.9 2.2-2.1 0-1-.6-1.8-1.4-2.5-.2.7-.7 1.1-1.1 1.3.2-.9-.1-1.8-1-2.8-.1 1.2-.9 2.2-.9 4 0 1.2 1 2.1 2.2 2.1z"/></svg>',
   fullscreenEnter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5H5v3.5"/><path d="M5 5l5.5 5.5"/><path d="M15.5 5H19v3.5"/><path d="M19 5l-5.5 5.5"/><path d="M8.5 19H5v-3.5"/><path d="M5 19l5.5-5.5"/><path d="M15.5 19H19v-3.5"/><path d="M19 19l-5.5-5.5"/></svg>',
   fullscreenExit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5v5H5"/><path d="M5 5l5 5"/><path d="M14 5v5h5"/><path d="M19 5l-5 5"/><path d="M10 19v-5H5"/><path d="M5 19l5-5"/><path d="M14 19v-5h5"/><path d="M19 19l-5-5"/></svg>',
   parallel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/><path d="M7 9h1M16 9h1M7 13h1M16 13h1"/></svg>',
@@ -345,6 +402,7 @@ function render() {
       ${presentation()}
       ${shortcutOverlay()}
       ${printSheet()}
+      ${streakPopup()}
       <div class="status-toast" id="toast"></div>
     </main>
   `;
@@ -361,6 +419,7 @@ function render() {
   }
   requestAnimationFrame(fitPresentationText);
   requestAnimationFrame(applyTextScaleVars);
+  scheduleStreakPopupDismiss();
 }
 
 function syncPresentationShell() {
@@ -448,6 +507,7 @@ function mobileSettingsPanel() {
   return `
     <div class="mobile-settings-popover" id="mobileSettingsPopover" role="dialog" aria-label="Settings">
       <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+      ${streakCard()}
       <div class="setting-group">
         <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
         <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
@@ -557,6 +617,7 @@ function topbar() {
           <div class="brand-subtitle">Bible</div>
         </div>
       </button>
+      ${streakChip()}
       <label class="search">${icons.search}<input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
@@ -569,6 +630,7 @@ function topbar() {
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
         <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
           <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+          ${streakCard()}
           <div class="setting-group">
             <label class="setting-label" for="themePresetSelect">Color theme</label>
             <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
@@ -623,6 +685,67 @@ function topbar() {
       </div>
     </header>
   `;
+}
+
+function streakChip() {
+  const streak = normalizeReadingStreak(state.streak);
+  return `
+    <div class="streak-chip" aria-label="Reading streak">
+      ${icons.flame}
+      <span>
+        <strong>${streak.current}</strong>
+        <span>day streak</span>
+      </span>
+    </div>
+  `;
+}
+
+function streakCard() {
+  const streak = normalizeReadingStreak(state.streak);
+  const lastVisitLabel = streak.lastVisit ? "Checked in today" : "Start today";
+  return `
+    <section class="streak-card" aria-label="Reading streak">
+      <div class="streak-card-head">
+        ${icons.flame}
+        <div>
+          <span class="setting-label">Daily streak</span>
+          <strong>${streak.current} ${streak.current === 1 ? "day" : "days"}</strong>
+        </div>
+      </div>
+      <div class="streak-stats">
+        <span><strong>${streak.best}</strong><small>Best</small></span>
+        <span><strong>${streak.totalDays}</strong><small>Total days</small></span>
+      </div>
+      <p>${lastVisitLabel}. This stays private to this browser until account sync is added.</p>
+    </section>
+  `;
+}
+
+function streakPopup() {
+  if (!state.streakPopupVisible) return "";
+  const streak = normalizeReadingStreak(state.streak);
+  const title = streak.current > 1 ? `${streak.current}-day streak` : "You started a streak";
+  const message = streak.current > 1
+    ? "Welcome back. A little daily rhythm is taking shape."
+    : "Welcome. Come back tomorrow to keep it going.";
+  return `
+    <aside class="streak-popup" role="status" aria-live="polite">
+      <div class="streak-popup-icon">${icons.flame}</div>
+      <div>
+        <strong>${title}</strong>
+        <p>${message}</p>
+      </div>
+    </aside>
+  `;
+}
+
+function scheduleStreakPopupDismiss() {
+  if (!state.streakPopupVisible) return;
+  clearTimeout(streakPopupTimer);
+  streakPopupTimer = setTimeout(() => {
+    state.streakPopupVisible = false;
+    render();
+  }, 4200);
 }
 
 function rail() {
@@ -3274,5 +3397,6 @@ compactWidthQuery?.addEventListener("change", () => {
 });
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
+state.streakPopupVisible = recordReadingStreak();
 watchSystemTheme();
 initializeBibleData();
