@@ -44,11 +44,13 @@ const themePresets = [
   { code: "meadow", name: "Meadow", mode: "light" },
   { code: "blush", name: "Blush", mode: "light" },
   { code: "lavender", name: "Lavender", mode: "light" },
+  { code: "sapphire", name: "Sapphire", mode: "light" },
   { code: "midnight", name: "Midnight", mode: "dark" },
   { code: "chapel", name: "Chapel", mode: "dark" },
   { code: "aurora", name: "Aurora", mode: "dark" },
   { code: "rose-night", name: "Rose Night", mode: "dark" },
   { code: "violet-night", name: "Violet Night", mode: "dark" },
+  { code: "nocturne", name: "Nocturne", mode: "dark" },
   { code: "contrast", name: "Contrast", mode: "dark" },
 ];
 const themePresetLookup = Object.fromEntries(themePresets.map((preset) => [preset.code, preset]));
@@ -62,8 +64,10 @@ const presentationThemes = [
   { code: "meadow", name: "Meadow" },
   { code: "blush", name: "Blush" },
   { code: "lavender", name: "Lavender" },
+  { code: "sapphire", name: "Sapphire" },
   { code: "rose-night", name: "Rose Night" },
   { code: "violet-night", name: "Violet Night" },
+  { code: "nocturne", name: "Nocturne" },
   { code: "midnight", name: "Midnight" },
   { code: "contrast", name: "Contrast" },
 ];
@@ -77,8 +81,10 @@ const presentationThemeColors = {
   meadow: "#b8d99e",
   blush: "#f5d7e6",
   lavender: "#e7ddfb",
+  sapphire: "#dbeafe",
   "rose-night": "#281121",
   "violet-night": "#1b1534",
+  nocturne: "#07111f",
   midnight: "#111827",
   contrast: "#000000",
 };

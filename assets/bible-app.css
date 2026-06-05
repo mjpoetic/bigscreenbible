@@ -160,6 +160,22 @@
   --shadow: 0 18px 48px rgba(78, 57, 124, 0.1);
 }
 
+[data-theme-preset="sapphire"] {
+  --bg: linear-gradient(145deg, #f8fbff 0%, #dbeafe 50%, #c7d8ee 100%);
+  --paper: #fbfdff;
+  --panel: rgba(251, 253, 255, 0.95);
+  --ink: #07111f;
+  --muted: #5b6b80;
+  --soft: #dbe7f6;
+  --line: #bdcce0;
+  --teal: #1f5f9c;
+  --teal-dark: #174677;
+  --gold: #a96d24;
+  --gold-soft: #f0dcc2;
+  --success: #2f735c;
+  --shadow: 0 18px 48px rgba(16, 49, 92, 0.1);
+}
+
 [data-theme-preset="chapel"] {
   --bg: #12100d;
   --paper: #191611;
@@ -222,6 +238,22 @@
   --gold-soft: #37294e;
   --success: #9fc493;
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme-preset="nocturne"] {
+  --bg: linear-gradient(145deg, #02050a 0%, #07111f 46%, #0b2342 100%);
+  --paper: #070d16;
+  --panel: rgba(8, 16, 28, 0.95);
+  --ink: #f5f9ff;
+  --muted: #afbfd4;
+  --soft: #14243a;
+  --line: #263a56;
+  --teal: #67a7ff;
+  --teal-dark: #4384d6;
+  --gold: #d59a52;
+  --gold-soft: #352518;
+  --success: #7cd3b0;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.54);
 }
 
 [data-theme-preset="contrast"] {
@@ -328,6 +360,14 @@ html[data-presentation-mode="big"][data-presentation-theme="lavender"] {
   background-color: #e7ddfb;
 }
 
+html[data-presentation-mode="big"][data-presentation-theme="sapphire"] {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.58), transparent 30%),
+    radial-gradient(circle at 82% 12%, rgba(190, 129, 58, 0.2), transparent 35%),
+    linear-gradient(145deg, #f8fbff 0%, #dbeafe 46%, #16263a 100%);
+  background-color: #dbeafe;
+}
+
 html[data-presentation-mode="big"][data-presentation-theme="rose-night"] {
   background:
     radial-gradient(circle at 18% 18%, rgba(230, 112, 166, 0.26), transparent 30%),
@@ -342,6 +382,14 @@ html[data-presentation-mode="big"][data-presentation-theme="violet-night"] {
     radial-gradient(circle at 82% 12%, rgba(255, 142, 215, 0.18), transparent 34%),
     linear-gradient(145deg, #0f0a1d 0%, #1b1534 52%, #2d1a46 100%);
   background-color: #1b1534;
+}
+
+html[data-presentation-mode="big"][data-presentation-theme="nocturne"] {
+  background:
+    radial-gradient(circle at 15% 16%, rgba(70, 136, 255, 0.22), transparent 30%),
+    radial-gradient(circle at 84% 12%, rgba(213, 154, 82, 0.16), transparent 34%),
+    linear-gradient(145deg, #02050a 0%, #07111f 48%, #0b2342 100%);
+  background-color: #07111f;
 }
 
 html[data-presentation-mode="big"][data-presentation-theme="midnight"] {
@@ -1731,11 +1779,12 @@ select {
 }
 
 .selection-bar {
-  position: sticky;
-  top: 14px;
-  z-index: 5;
-  width: min(100%, 720px);
-  margin: 0 auto 24px;
+  position: fixed;
+  top: calc(146px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 35;
+  width: min(720px, calc(100vw - 96px));
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1747,6 +1796,24 @@ select {
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   box-shadow: var(--shadow);
   backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+  animation: selectionBarIn 180ms ease both;
+}
+
+.focus-shell .selection-bar {
+  top: calc(104px + env(safe-area-inset-top, 0px));
+}
+
+@keyframes selectionBarIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .selection-bar span {
@@ -2678,7 +2745,8 @@ kbd {
 .presentation[data-presentation-theme="dawn"] .presentation-brand-copy,
 .presentation[data-presentation-theme="meadow"] .presentation-brand-copy,
 .presentation[data-presentation-theme="blush"] .presentation-brand-copy,
-.presentation[data-presentation-theme="lavender"] .presentation-brand-copy {
+.presentation[data-presentation-theme="lavender"] .presentation-brand-copy,
+.presentation[data-presentation-theme="sapphire"] .presentation-brand-copy {
   color: #201810;
 }
 
@@ -2795,6 +2863,32 @@ kbd {
   background: rgba(250, 245, 255, 0.94);
 }
 
+.presentation[data-presentation-theme="sapphire"] {
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.58), transparent 30%),
+    radial-gradient(circle at 82% 12%, rgba(190, 129, 58, 0.2), transparent 35%),
+    linear-gradient(145deg, #f8fbff 0%, #dbeafe 46%, #16263a 100%);
+  background-color: #dbeafe;
+  color: #07111f;
+  --presentation-accent: #a96d24;
+  --presentation-button-bg: rgba(255, 255, 255, 0.42);
+  --presentation-button-border: rgba(22, 38, 58, 0.34);
+  --presentation-muted: rgba(7, 17, 31, 0.72);
+}
+
+.presentation[data-presentation-theme="sapphire"] .presentation-copy,
+.presentation[data-presentation-theme="sapphire"] .presentation-version-select,
+.presentation[data-presentation-theme="sapphire"] .presentation-theme-select,
+.presentation[data-presentation-theme="sapphire"] .custom-font-input,
+.presentation[data-presentation-theme="sapphire"] button,
+.presentation[data-presentation-theme="sapphire"] .presentation-search input {
+  color: #07111f;
+}
+
+.presentation[data-presentation-theme="sapphire"] .presentation-settings-popover {
+  background: rgba(248, 251, 255, 0.94);
+}
+
 .presentation[data-presentation-theme="rose-night"] {
   background:
     radial-gradient(circle at 18% 18%, rgba(230, 112, 166, 0.26), transparent 30%),
@@ -2815,6 +2909,17 @@ kbd {
   --presentation-accent: #dec8ff;
   --presentation-button-border: rgba(224, 207, 255, 0.34);
   --presentation-muted: rgba(245, 238, 255, 0.76);
+}
+
+.presentation[data-presentation-theme="nocturne"] {
+  background:
+    radial-gradient(circle at 15% 16%, rgba(70, 136, 255, 0.22), transparent 30%),
+    radial-gradient(circle at 84% 12%, rgba(213, 154, 82, 0.16), transparent 34%),
+    linear-gradient(145deg, #02050a 0%, #07111f 48%, #0b2342 100%);
+  background-color: #07111f;
+  --presentation-accent: #d59a52;
+  --presentation-button-border: rgba(154, 195, 255, 0.34);
+  --presentation-muted: rgba(225, 236, 255, 0.78);
 }
 
 .presentation[data-presentation-theme="midnight"] {
@@ -3077,6 +3182,14 @@ svg {
   .app-shell.focus-shell .main-grid {
     height: calc(100vh - 118px);
   }
+
+  .selection-bar {
+    top: 196px;
+  }
+
+  .focus-shell .selection-bar {
+    top: 132px;
+  }
 }
 
 @media (min-width: 841px) and (max-width: 1180px) {
@@ -3101,6 +3214,15 @@ svg {
 
   .app-shell.focus-shell .main-grid {
     height: calc(100vh - 72px);
+  }
+
+  .selection-bar {
+    top: 142px;
+    width: min(680px, calc(100vw - 72px));
+  }
+
+  .focus-shell .selection-bar {
+    top: 88px;
   }
 
   .brand {
@@ -3359,6 +3481,7 @@ svg {
     padding: 8px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--panel) 90%, transparent);
+    transform: none;
   }
 
   .selection-bar span {
