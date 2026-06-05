@@ -2848,6 +2848,86 @@ svg {
   height: 20px;
 }
 
+@media (min-width: 1321px) and (max-width: 1620px) {
+  .topbar {
+    gap: 9px;
+    padding-inline: 12px;
+  }
+
+  .brand {
+    min-width: 226px;
+    gap: 6px;
+  }
+
+  .brand-mark-image {
+    width: 64px;
+  }
+
+  .brand-divider {
+    height: 36px;
+  }
+
+  .brand-title {
+    font-size: 20px;
+  }
+
+  .brand-subtitle {
+    font-size: 11px;
+  }
+
+  .streak-chip {
+    display: none;
+  }
+
+  .search {
+    width: clamp(190px, 18vw, 248px);
+    padding-inline: 11px;
+  }
+
+  .versions {
+    min-width: 276px;
+    max-width: 310px;
+    flex: 1 1 276px;
+    padding-inline: 8px;
+  }
+
+  .primary-version-control select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mode-tabs {
+    flex: 0 0 auto;
+    grid-template-columns: 112px 142px 128px 108px;
+    margin-left: 0;
+  }
+
+  .mode-tabs button {
+    min-width: 0;
+    gap: 7px;
+    padding-inline: 10px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .mode-tabs svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  #shortcutsButton,
+  #focusToggle,
+  .settings-toggle {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .settings-menu {
+    flex: 0 0 40px;
+  }
+}
+
 @media (max-width: 1460px) {
   :root {
     --rail-width: 64px;
@@ -2907,6 +2987,44 @@ svg {
 
   #openStudy {
     display: inline-flex;
+  }
+}
+
+@media (min-width: 1321px) and (max-width: 1460px) {
+  .brand {
+    min-width: 208px;
+  }
+
+  .brand-mark-image {
+    width: 58px;
+  }
+
+  .search {
+    width: clamp(178px, 16vw, 218px);
+    padding-inline: 10px;
+  }
+
+  .versions {
+    min-width: 248px;
+    max-width: 280px;
+    flex: 1 1 248px;
+    padding-inline: 8px;
+  }
+
+  .primary-version-control select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mode-tabs {
+    grid-template-columns: 100px 134px 118px 100px;
+    margin-left: 0;
+  }
+
+  .mode-tabs button {
+    gap: 6px;
+    padding-inline: 8px;
+    white-space: nowrap;
   }
 }
 
