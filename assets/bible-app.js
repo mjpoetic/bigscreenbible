@@ -190,6 +190,7 @@ const state = {
   presentationTheme: localStorage.getItem("lw_presentation_theme") || "deep",
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
+  showStreakPopup: localStorage.getItem("lw_show_streak_popup") !== "false",
   startupApplied: false,
   settingsOpen: false,
   shortcutsOpen: false,
@@ -556,6 +557,10 @@ function mobileSettingsPanel() {
           <input type="checkbox" id="mobileStartVerseOfDayToggle" ${state.startVerseOfDay ? "checked" : ""} />
           <span>Start with Verse of the Day</span>
         </label>
+        <label class="setting-checkbox">
+          <input type="checkbox" id="mobileShowStreakPopupToggle" ${state.showStreakPopup ? "checked" : ""} />
+          <span>Show daily streak popup</span>
+        </label>
       </div>
       <div class="setting-group">
         <span class="setting-label">Text size</span>
@@ -679,6 +684,10 @@ function topbar() {
               <input type="checkbox" id="startVerseOfDayToggle" ${state.startVerseOfDay ? "checked" : ""} />
               <span>Start with Verse of the Day</span>
             </label>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="showStreakPopupToggle" ${state.showStreakPopup ? "checked" : ""} />
+              <span>Show daily streak popup</span>
+            </label>
           </div>
           <div class="setting-group">
             <span class="setting-label">Text size</span>
@@ -736,7 +745,7 @@ function streakPopup() {
     ? "Welcome back. A little daily rhythm is taking shape."
     : "Welcome. Come back tomorrow to keep it going.";
   return `
-    <aside class="streak-popup" role="status" aria-live="polite">
+    <aside class="streak-popup" id="streakPopup" role="status" aria-live="polite" tabindex="0" aria-label="Dismiss streak popup">
       <div class="streak-popup-icon">${icons.flame}</div>
       <div>
         <strong>${title}</strong>
@@ -746,12 +755,18 @@ function streakPopup() {
   `;
 }
 
+function dismissStreakPopup() {
+  if (!state.streakPopupVisible) return;
+  clearTimeout(streakPopupTimer);
+  state.streakPopupVisible = false;
+  render();
+}
+
 function scheduleStreakPopupDismiss() {
   if (!state.streakPopupVisible) return;
   clearTimeout(streakPopupTimer);
   streakPopupTimer = setTimeout(() => {
-    state.streakPopupVisible = false;
-    render();
+    dismissStreakPopup();
   }, 4200);
 }
 
@@ -2039,6 +2054,37 @@ function bindEvents() {
     state.startVerseOfDay = event.target.checked;
     localStorage.setItem("lw_start_verse_of_day", state.startVerseOfDay ? "true" : "false");
   });
+  document.getElementById("showStreakPopupToggle")?.addEventListener("change", (event) => {
+    state.showStreakPopup = event.target.checked;
+    localStorage.setItem("lw_show_streak_popup", state.showStreakPopup ? "true" : "false");
+    if (!state.showStreakPopup) dismissStreakPopup();
+  });
+  document.getElementById("mobileShowStreakPopupToggle")?.addEventListener("change", (event) => {
+    state.showStreakPopup = event.target.checked;
+    localStorage.setItem("lw_show_streak_popup", state.showStreakPopup ? "true" : "false");
+    if (!state.showStreakPopup) dismissStreakPopup();
+  });
+  const streakPopupElement = document.getElementById("streakPopup");
+  if (streakPopupElement) {
+    let streakSwipeStartX = 0;
+    let streakSwipeStartY = 0;
+    streakPopupElement.addEventListener("pointerdown", (event) => {
+      streakSwipeStartX = event.clientX;
+      streakSwipeStartY = event.clientY;
+    });
+    streakPopupElement.addEventListener("pointerup", (event) => {
+      const deltaX = event.clientX - streakSwipeStartX;
+      const deltaY = event.clientY - streakSwipeStartY;
+      if (Math.abs(deltaX) > 42 || Math.abs(deltaY) > 42) dismissStreakPopup();
+    });
+    streakPopupElement.addEventListener("click", dismissStreakPopup);
+    streakPopupElement.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        dismissStreakPopup();
+      }
+    });
+  }
   document.getElementById("decreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("increaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("resetText")?.addEventListener("click", resetTextScale);
@@ -4181,6 +4227,7 @@ compactWidthQuery?.addEventListener("change", () => {
 });
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
-state.streakPopupVisible = recordReadingStreak();
+const streakUpdatedToday = recordReadingStreak();
+state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
 initializeBibleData();

@@ -882,9 +882,17 @@ button {
   color: var(--ink);
   box-shadow: var(--shadow);
   backdrop-filter: blur(18px);
-  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
   transform: translateX(-50%);
   animation: streakPopupIn 360ms ease both;
+}
+
+.streak-popup:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 60%, transparent);
+  outline-offset: 3px;
 }
 
 .streak-popup-icon {
@@ -3557,21 +3565,24 @@ svg {
   .mobile-floating-settings {
     position: fixed;
     right: auto;
-    left: max(4px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 48px) / 2)));
-    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    left: max(6px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 46px) / 2)));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     z-index: 42;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    min-height: 48px;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
+    padding: 0;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--panel) 74%, transparent);
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
     color: var(--ink);
-    box-shadow: var(--shadow);
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 14%, transparent);
     backdrop-filter: blur(14px);
-    opacity: 0.62;
+    opacity: 0.84;
     transition: opacity 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
   }
 
@@ -3585,8 +3596,8 @@ svg {
   }
 
   .mobile-floating-settings svg {
-    width: 22px;
-    height: 22px;
+    width: 21px;
+    height: 21px;
   }
 
   .settings-popover.open {
@@ -3741,10 +3752,13 @@ svg {
 
     .mobile-floating-settings {
       right: auto;
-      left: max(4px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 48px) / 2)));
-      bottom: calc(128px + env(safe-area-inset-bottom, 0px));
-      width: 48px;
-      min-height: 48px;
+      left: max(6px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 46px) / 2)));
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      width: 46px;
+      height: 46px;
+      min-width: 46px;
+      min-height: 46px;
+      padding: 0;
     }
 
     .selection-bar {
@@ -3821,7 +3835,7 @@ svg {
     }
 
     .mobile-floating-settings {
-      left: max(4px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 48px) / 2)));
+      left: max(6px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 46px) / 2)));
     }
 
     .mobile-settings-popover {
