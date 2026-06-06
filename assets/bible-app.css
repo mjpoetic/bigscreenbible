@@ -4451,13 +4451,13 @@ svg {
 
 @media (orientation: landscape) and (max-height: 560px) {
   :root {
-    --phone-landscape-left-safe: max(env(safe-area-inset-left, 0px), 12px);
+    --phone-landscape-left-safe: 0px;
     --phone-landscape-right-safe: max(env(safe-area-inset-right, 0px), 14px);
   }
 
   .main-grid {
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
-    padding-left: var(--phone-landscape-left-safe);
+    padding-left: 0;
     padding-right: var(--phone-landscape-right-safe);
     position: relative;
   }
@@ -4467,16 +4467,16 @@ svg {
   }
 
   .main-grid::before {
-    left: var(--phone-landscape-left-safe);
+    left: 0;
   }
 
   .library {
     position: absolute !important;
     top: 0 !important;
     bottom: 0;
-    left: calc(var(--phone-landscape-left-safe) + var(--rail-width)) !important;
+    left: var(--rail-width) !important;
     z-index: 36;
-    width: min(300px, calc(100vw - var(--phone-landscape-left-safe) - var(--rail-width) - var(--phone-landscape-right-safe) - 12px));
+    width: min(300px, calc(100vw - var(--rail-width) - var(--phone-landscape-right-safe) - 12px));
     height: 100%;
     max-height: none;
     box-shadow: var(--shadow);
@@ -4488,7 +4488,7 @@ svg {
   }
 
   .bottombar {
-    padding-left: var(--phone-landscape-left-safe);
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: var(--phone-landscape-right-safe);
   }
 
@@ -4498,7 +4498,7 @@ svg {
 
   .mobile-settings-popover,
   .settings-popover.open {
-    left: calc(var(--phone-landscape-left-safe) + var(--rail-width) + 10px);
+    left: calc(var(--rail-width) + 10px);
     right: calc(var(--phone-landscape-right-safe) + 12px);
   }
 }
@@ -4517,6 +4517,19 @@ svg {
 
   .selection-bar .selection-action {
     min-width: 0;
+  }
+
+  .app-shell.focus-shell .selection-bar,
+  .focus-shell .selection-bar {
+    top: auto !important;
+    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
+    right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(36px, 1fr));
+    gap: 6px;
+    max-height: min(42vh, 240px);
+    overflow-x: hidden;
   }
 }
 
