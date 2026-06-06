@@ -110,7 +110,9 @@ let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
+let bookSprintTimer = 0;
 const streakStorageKey = "lw_reading_streak";
+const bookSprintBestStorageKey = "lw_book_sprint_bests";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -392,6 +394,8 @@ function render() {
   const app = document.querySelector("#app");
   syncPresentationShell();
   if (dataLoading || dataError) {
+    clearInterval(bookSprintTimer);
+    bookSprintTimer = 0;
     app.innerHTML = loadingScreen();
     return;
   }
@@ -430,6 +434,7 @@ function render() {
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
   scheduleStreakPopupDismiss();
+  scheduleBookSprintTimer();
 }
 
 function syncPresentationShell() {
@@ -1070,6 +1075,75 @@ function readerView() {
   `;
 }
 
+function formatGameTime(milliseconds) {
+  const totalSeconds = Math.max(0, Math.floor((Number(milliseconds) || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function bookSprintElapsedMs(game = state.triviaGame) {
+  if (!game || game.type !== "book-sprint" || !game.startedAt) return 0;
+  return Math.max(0, (game.finishedAt || Date.now()) - game.startedAt);
+}
+
+function bookSprintBestKey(difficulty = state.triviaDifficulty, rounds = state.triviaCount || 10) {
+  return `${difficulty || "All"}:${rounds || 10}`;
+}
+
+function savedBookSprintBests() {
+  try {
+    return JSON.parse(localStorage.getItem(bookSprintBestStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function savedBookSprintBest(difficulty = state.triviaDifficulty, rounds = state.triviaCount || 10) {
+  return savedBookSprintBests()[bookSprintBestKey(difficulty, rounds)] || null;
+}
+
+function bookSprintBestLabel(best) {
+  return best ? `${best.score}/${best.rounds} in ${formatGameTime(best.elapsedMs)}` : "No best yet";
+}
+
+function recordBookSprintBest(game) {
+  if (!game || game.type !== "book-sprint") return null;
+  const rounds = game.puzzles?.length || 0;
+  const result = {
+    difficulty: game.difficulty || "All",
+    rounds,
+    score: game.score || 0,
+    elapsedMs: bookSprintElapsedMs(game),
+    completedAt: new Date().toISOString(),
+  };
+  const key = bookSprintBestKey(result.difficulty, result.rounds);
+  const bests = savedBookSprintBests();
+  const previous = bests[key];
+  const isNewBest = !previous
+    || result.score > previous.score
+    || (result.score === previous.score && result.elapsedMs < previous.elapsedMs);
+  if (isNewBest) {
+    bests[key] = result;
+    localStorage.setItem(bookSprintBestStorageKey, JSON.stringify(bests));
+  }
+  return { best: bests[key] || previous || result, isNewBest };
+}
+
+function scheduleBookSprintTimer() {
+  clearInterval(bookSprintTimer);
+  bookSprintTimer = 0;
+  updateBookSprintTimerDisplay();
+  const game = state.triviaGame;
+  if (state.mode !== "trivia" || game?.type !== "book-sprint" || game.complete) return;
+  bookSprintTimer = setInterval(updateBookSprintTimerDisplay, 500);
+}
+
+function updateBookSprintTimerDisplay() {
+  const timer = document.getElementById("bookSprintTimer");
+  if (timer) timer.textContent = formatGameTime(bookSprintElapsedMs());
+}
+
 function triviaView() {
   const questions = triviaQuestions();
   const isVerseOrder = state.triviaGameType === "verse-order";
@@ -1080,8 +1154,12 @@ function triviaView() {
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
   const difficultyOptions = triviaDifficulties().map((difficulty) => `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(difficulty)}</option>`).join("");
-  const countOptions = [5, 10, 15, 20, 25, 50].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} ${isVerseOrder || isReferenceRush ? "verses" : "questions"}</option>`).join("");
+  const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : "questions";
+  const countValues = isBookSprint ? [5, 10, 15, 20] : [5, 10, 15, 20, 25, 50];
+  const selectedCount = isBookSprint ? Math.min(state.triviaCount || 10, 20) : state.triviaCount;
+  const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
   const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : "Bible Trivia";
+  const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
   const setupCopy = isVerseOrder
     ? "Tap shuffled verse fragments back into their original order. The app will reveal the reference after each puzzle."
     : isReferenceRush
@@ -1111,12 +1189,12 @@ function triviaView() {
               <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button">${icons.note}<span>Who Said It?</span></button>
             </div>
             <p>${setupCopy}</p>
-            <div class="trivia-setup-controls ${isVerseOrder || isBookSprint ? "single-control" : isReferenceRush || isWhoSaidIt ? "two-controls" : ""}">
+            <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
               <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt ? "is-hidden" : ""}">
                 <span>Category</span>
                 <select id="triviaCategorySelect">${categoryOptions}</select>
               </label>
-              <label class="${isVerseOrder || isBookSprint ? "is-hidden" : ""}">
+              <label class="${isVerseOrder ? "is-hidden" : ""}">
                 <span>Difficulty</span>
                 <select id="triviaDifficultySelect">${difficultyOptions}</select>
               </label>
@@ -1125,6 +1203,12 @@ function triviaView() {
                 <select id="triviaCountSelect">${countOptions}</select>
               </label>
             </div>
+            ${isBookSprint ? `
+              <div class="book-sprint-best-card">
+                <span>Best for this setup</span>
+                <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
+              </div>
+            ` : ""}
             <button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.chevron : isWhoSaidIt ? icons.note : icons.trivia}<span>Start ${gameTitle}</span></button>
           </div>
         `}
@@ -1306,11 +1390,22 @@ function bookSprintGameView(game) {
   const selectedSet = new Set(puzzle.selectedBooks);
   const answered = puzzle.answered;
   const correct = answered && puzzle.correct;
+  const best = savedBookSprintBest(game.difficulty, game.puzzles.length);
   return `
     <div class="trivia-game book-sprint-game">
       <div class="trivia-progress">
-        <span>Book Sprint</span>
-        <strong>${game.index + 1} / ${game.puzzles.length}</strong>
+        <span>Book Sprint · ${escapeHtml(game.difficulty)}</span>
+        <strong>Round ${game.index + 1} / ${game.puzzles.length}</strong>
+      </div>
+      <div class="book-sprint-meter" aria-label="Book Sprint timer and best result">
+        <div>
+          <span>Time</span>
+          <strong id="bookSprintTimer">${formatGameTime(bookSprintElapsedMs(game))}</strong>
+        </div>
+        <div>
+          <span>Best</span>
+          <strong>${escapeHtml(bookSprintBestLabel(best))}</strong>
+        </div>
       </div>
       <h2>Tap these books in Bible order.</h2>
       <div class="verse-order-board">
@@ -1321,6 +1416,12 @@ function bookSprintGameView(game) {
           ${puzzle.shuffledBooks.map((book) => `<button class="verse-fragment ${selectedSet.has(book) ? "is-used" : ""}" data-book-answer="${escapeHtml(book)}" ${selectedSet.has(book) || answered ? "disabled" : ""}>${escapeHtml(book)}</button>`).join("")}
         </div>
       </div>
+      ${!answered && puzzle.lastAttemptIncorrect ? `
+        <div class="trivia-feedback incorrect book-sprint-retry">
+          <strong>Not quite</strong>
+          <p>Try that round again. The timer is still running.</p>
+        </div>
+      ` : ""}
       ${answered ? `
         <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
           <strong>${correct ? "Correct" : "Not quite"}</strong>
@@ -1329,7 +1430,7 @@ function bookSprintGameView(game) {
         <div class="trivia-actions">
           <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
-          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next sprint"}</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish Book Sprint" : "Next round"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
@@ -1398,12 +1499,14 @@ function whoSaidItChoiceButton(question, choice, answered) {
 function triviaResultsView(game) {
   const roundLength = game.questions?.length || game.puzzles?.length || 1;
   const percent = Math.round((game.score / roundLength) * 100);
+  const isBookSprint = game.type === "book-sprint";
+  const bookSprintBest = isBookSprint ? (game.bookSprintBest || savedBookSprintBest(game.difficulty, roundLength)) : null;
   const resultText = game.type === "verse-order"
     ? `You ordered ${game.score} of ${roundLength} passages correctly.`
     : game.type === "reference-rush"
       ? `You matched ${game.score} of ${roundLength} references correctly.`
       : game.type === "book-sprint"
-        ? `You ordered ${game.score} of ${roundLength} book sets correctly.`
+        ? `You ordered ${game.score} of ${roundLength} rounds correctly in ${formatGameTime(bookSprintElapsedMs(game))}.`
         : game.type === "who-said-it"
           ? `You identified ${game.score} of ${roundLength} speakers correctly.`
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
@@ -1413,6 +1516,18 @@ function triviaResultsView(game) {
       <div class="trivia-result-ring">${percent}%</div>
       <h2>${triviaResultTitle(percent)}</h2>
       <p>${resultText}</p>
+      ${isBookSprint ? `
+        <div class="book-sprint-result-stats">
+          <div>
+            <span>Your time</span>
+            <strong>${formatGameTime(bookSprintElapsedMs(game))}</strong>
+          </div>
+          <div>
+            <span>${game.bookSprintNewBest ? "New best" : "Best result"}</span>
+            <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
+          </div>
+        </div>
+      ` : ""}
       <div class="trivia-actions">
         <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
@@ -1437,7 +1552,7 @@ function triviaScoreLabel() {
   if (!state.triviaGame) {
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
     if (state.triviaGameType === "reference-rush") return `${referenceRushPool().length} verses`;
-    if (state.triviaGameType === "book-sprint") return "66 books";
+    if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, Math.min(state.triviaCount || 10, 20)))}`;
     if (state.triviaGameType === "who-said-it") return `${whoSaidItPool().length} quotes`;
     return `${triviaPool().length} questions`;
   }
@@ -1445,7 +1560,7 @@ function triviaScoreLabel() {
   if (state.triviaGame.complete) return `${state.triviaGame.score} / ${roundLength}`;
   if (state.triviaGame.type === "verse-order") return `${state.triviaGame.score} ordered`;
   if (state.triviaGame.type === "reference-rush") return `${state.triviaGame.score} matched`;
-  if (state.triviaGame.type === "book-sprint") return `${state.triviaGame.score} sprints`;
+  if (state.triviaGame.type === "book-sprint") return `${state.triviaGame.score} / ${roundLength}`;
   if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
   return `${state.triviaGame.score} correct`;
 }
@@ -2558,12 +2673,18 @@ function bookFromChapterKey(chapterKey) {
 }
 
 function startBookSprintGame() {
-  const puzzleCount = Math.min(state.triviaCount || 10, 50);
+  const puzzleCount = Math.min(state.triviaCount || 10, 20);
   state.triviaGame = {
     type: "book-sprint",
+    difficulty: state.triviaDifficulty,
     puzzles: Array.from({ length: puzzleCount }, createBookSprintPuzzle),
     index: 0,
     score: 0,
+    startedAt: Date.now(),
+    finishedAt: null,
+    bookSprintBest: null,
+    bookSprintNewBest: false,
+    bookSprintBestRecorded: false,
     complete: false,
   };
   renderPreservingReaderScroll();
@@ -2579,6 +2700,7 @@ function createBookSprintPuzzle() {
     selectedBooks: [],
     answered: false,
     correct: false,
+    lastAttemptIncorrect: false,
   };
 }
 
@@ -2833,6 +2955,7 @@ function nextReferenceRushPuzzle() {
 function selectBookSprintBook(book) {
   const puzzle = currentBookSprintPuzzle();
   if (!puzzle || puzzle.answered || puzzle.selectedBooks.includes(book)) return;
+  puzzle.lastAttemptIncorrect = false;
   puzzle.selectedBooks.push(book);
   renderPreservingReaderScroll();
 }
@@ -2840,6 +2963,7 @@ function selectBookSprintBook(book) {
 function removeBookSprintBook(book) {
   const puzzle = currentBookSprintPuzzle();
   if (!puzzle || puzzle.answered) return;
+  puzzle.lastAttemptIncorrect = false;
   puzzle.selectedBooks = puzzle.selectedBooks.filter((item) => item !== book);
   renderPreservingReaderScroll();
 }
@@ -2848,6 +2972,7 @@ function resetBookSprintPuzzle() {
   const puzzle = currentBookSprintPuzzle();
   if (!puzzle || puzzle.answered) return;
   puzzle.selectedBooks = [];
+  puzzle.lastAttemptIncorrect = false;
   renderPreservingReaderScroll();
 }
 
@@ -2856,8 +2981,15 @@ function checkBookSprint() {
   const puzzle = currentBookSprintPuzzle();
   if (!game || !puzzle || puzzle.answered || puzzle.selectedBooks.length !== puzzle.books.length) return;
   puzzle.correct = puzzle.selectedBooks.every((book, index) => book === puzzle.books[index]);
+  if (!puzzle.correct) {
+    puzzle.selectedBooks = [];
+    puzzle.lastAttemptIncorrect = true;
+    renderPreservingReaderScroll();
+    return;
+  }
   puzzle.answered = true;
-  if (puzzle.correct) game.score += 1;
+  puzzle.lastAttemptIncorrect = false;
+  game.score += 1;
   renderPreservingReaderScroll();
 }
 
@@ -2866,10 +2998,21 @@ function nextBookSprintPuzzle() {
   if (!game) return;
   if (game.index >= game.puzzles.length - 1) {
     game.complete = true;
+    finishBookSprintGame(game);
   } else {
     game.index += 1;
   }
   renderPreservingReaderScroll();
+}
+
+function finishBookSprintGame(game) {
+  if (!game || game.type !== "book-sprint") return;
+  if (!game.finishedAt) game.finishedAt = Date.now();
+  if (game.bookSprintBestRecorded) return;
+  const result = recordBookSprintBest(game);
+  game.bookSprintBest = result?.best || null;
+  game.bookSprintNewBest = Boolean(result?.isNewBest);
+  game.bookSprintBestRecorded = true;
 }
 
 function currentBookSprintPuzzle() {
