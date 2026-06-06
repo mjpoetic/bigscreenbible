@@ -508,7 +508,6 @@ function mobileSettingsPanel() {
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
-  const themeLabel = state.theme === "dark" ? "Light mode" : "Dark mode";
   const themePresetOptions = themePresets
     .filter((preset) => preset.mode === state.theme)
     .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
@@ -542,13 +541,13 @@ function mobileSettingsPanel() {
         </select>
         ${customFontField}
       </div>
-      <div class="setting-row">
-        <span class="setting-label">Mode</span>
-        <button class="ghost-btn theme-toggle" id="mobileThemeToggle" aria-label="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}<span>${themeLabel}</span></button>
-      </div>
-      <div class="setting-row">
-        <span class="setting-label">System</span>
-        <button class="ghost-btn system-theme-btn" id="mobileSystemThemeButton" ${followsSystemTheme ? "disabled" : ""} aria-label="Follow system theme">${followsSystemTheme ? "Following system" : "Follow system"}</button>
+      <div class="setting-group">
+        <span class="setting-label">Appearance</span>
+        <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
+          <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
+          <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
+          <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
+        </div>
       </div>
       <div class="setting-row">
         <span class="setting-label">Display</span>
@@ -615,7 +614,6 @@ function topbar() {
     ["trivia", "Games", icons.trivia],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
-  const themeLabel = state.theme === "dark" ? "Light mode" : "Dark mode";
   const themePresetOptions = themePresets
     .filter((preset) => preset.mode === state.theme)
     .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
@@ -669,13 +667,13 @@ function topbar() {
             </select>
             ${customFontField}
           </div>
-          <div class="setting-row">
-            <span class="setting-label">Mode</span>
-            <button class="ghost-btn theme-toggle" id="themeToggle" aria-label="${themeLabel}">${state.theme === "dark" ? icons.sun : icons.moon}<span>${themeLabel}</span></button>
-          </div>
-          <div class="setting-row">
-            <span class="setting-label">System</span>
-            <button class="ghost-btn system-theme-btn" id="systemThemeButton" ${followsSystemTheme ? "disabled" : ""} aria-label="Follow system theme">${followsSystemTheme ? "Following system" : "Follow system"}</button>
+          <div class="setting-group">
+            <span class="setting-label">Appearance</span>
+            <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
+              <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
+              <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
+              <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
+            </div>
           </div>
           <div class="setting-row">
             <span class="setting-label">Display</span>
@@ -2132,20 +2130,9 @@ function bindEvents() {
     state.settingsOpen = false;
     renderPreservingReaderScroll();
   });
-  document.getElementById("themeToggle")?.addEventListener("click", () => {
-    state.theme = state.theme === "dark" ? "light" : "dark";
-    state.themePreset = savedThemePreset(state.theme);
-    localStorage.setItem("lw_theme", state.theme);
-    renderPreservingReaderScroll();
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice));
   });
-  document.getElementById("mobileThemeToggle")?.addEventListener("click", () => {
-    state.theme = state.theme === "dark" ? "light" : "dark";
-    state.themePreset = savedThemePreset(state.theme);
-    localStorage.setItem("lw_theme", state.theme);
-    renderPreservingReaderScroll();
-  });
-  document.getElementById("systemThemeButton")?.addEventListener("click", resetThemeToSystem);
-  document.getElementById("mobileSystemThemeButton")?.addEventListener("click", resetThemeToSystem);
   document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
   });
@@ -2498,6 +2485,15 @@ function setThemePreset(preset) {
   if (themePresetLookup[preset]?.mode !== state.theme) return;
   state.themePreset = preset;
   localStorage.setItem(`lw_theme_preset_${state.theme}`, preset);
+  renderPreservingReaderScroll();
+}
+
+function setThemeMode(mode) {
+  if (mode === "system") return resetThemeToSystem();
+  if (!["light", "dark"].includes(mode)) return;
+  state.theme = mode;
+  state.themePreset = savedThemePreset(state.theme);
+  localStorage.setItem("lw_theme", state.theme);
   renderPreservingReaderScroll();
 }
 
