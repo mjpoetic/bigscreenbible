@@ -109,6 +109,7 @@ let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let streakPopupTimer = 0;
+let mobileSettingsIdleTimer = 0;
 const streakStorageKey = "lw_reading_streak";
 
 const loadedVersionData = new Map();
@@ -427,6 +428,7 @@ function render() {
   }
   requestAnimationFrame(fitPresentationText);
   requestAnimationFrame(applyTextScaleVars);
+  requestAnimationFrame(bindMobileSettingsVisibility);
   scheduleStreakPopupDismiss();
 }
 
@@ -768,6 +770,23 @@ function scheduleStreakPopupDismiss() {
   streakPopupTimer = setTimeout(() => {
     dismissStreakPopup();
   }, 4200);
+}
+
+function revealMobileSettingsButton() {
+  const button = document.getElementById("mobileFloatingSettings");
+  if (!button) return;
+  button.classList.remove("mobile-settings-idle");
+  clearTimeout(mobileSettingsIdleTimer);
+  if (state.settingsOpen || state.mode === "big" || !isCompactScreen()) return;
+  mobileSettingsIdleTimer = setTimeout(() => {
+    if (state.settingsOpen) return;
+    document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
+  }, 3200);
+}
+
+function bindMobileSettingsVisibility() {
+  revealMobileSettingsButton();
+  document.querySelector(".scripture")?.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 }
 
 function rail() {
@@ -4225,6 +4244,7 @@ compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   renderPreservingReaderScroll();
 });
+window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 const streakUpdatedToday = recordReadingStreak();
