@@ -1,6 +1,10 @@
 {
   "name": "Big Screen Bible",
   "short_name": "Big Screen Bible",
+  "description": "A clean Bible reader, study workspace, scripture display tool, and Bible games experience.",
+  "id": "https://bigscreenbible.com/",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "./assets/icons/icon-192.png",
