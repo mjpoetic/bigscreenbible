@@ -1040,16 +1040,23 @@ function triviaView() {
   const questions = triviaQuestions();
   const isVerseOrder = state.triviaGameType === "verse-order";
   const isReferenceRush = state.triviaGameType === "reference-rush";
+  const isBookSprint = state.triviaGameType === "book-sprint";
+  const isWhoSaidIt = state.triviaGameType === "who-said-it";
   const categories = triviaCategories(questions);
+  if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
   const difficultyOptions = triviaDifficulties().map((difficulty) => `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(difficulty)}</option>`).join("");
   const countOptions = [5, 10, 15, 20, 25, 50].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} ${isVerseOrder || isReferenceRush ? "verses" : "questions"}</option>`).join("");
-  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : "Bible Trivia";
+  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : "Bible Trivia";
   const setupCopy = isVerseOrder
     ? "Tap shuffled verse fragments back into their original order. The app will reveal the reference after each puzzle."
     : isReferenceRush
       ? "Read the verse, then choose the correct reference before opening the passage."
-      : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
+      : isBookSprint
+        ? "Tap the books in Bible order as quickly and carefully as you can."
+        : isWhoSaidIt
+          ? "Read the quote, then choose who said it before opening the reference."
+          : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   return `
     <section class="reader trivia-reader">
       <article class="trivia-panel">
@@ -1066,14 +1073,16 @@ function triviaView() {
               <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button">${icons.trivia}<span>Trivia</span></button>
               <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button">${icons.book}<span>Verse Order</span></button>
               <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button">${icons.search}<span>Reference Rush</span></button>
+              <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button">${icons.chevron}<span>Book Sprint</span></button>
+              <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button">${icons.note}<span>Who Said It?</span></button>
             </div>
             <p>${setupCopy}</p>
-            <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : isReferenceRush ? "two-controls" : ""}">
-              <label class="${isVerseOrder || isReferenceRush ? "is-hidden" : ""}">
+            <div class="trivia-setup-controls ${isVerseOrder || isBookSprint ? "single-control" : isReferenceRush || isWhoSaidIt ? "two-controls" : ""}">
+              <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt ? "is-hidden" : ""}">
                 <span>Category</span>
                 <select id="triviaCategorySelect">${categoryOptions}</select>
               </label>
-              <label class="${isVerseOrder ? "is-hidden" : ""}">
+              <label class="${isVerseOrder || isBookSprint ? "is-hidden" : ""}">
                 <span>Difficulty</span>
                 <select id="triviaDifficultySelect">${difficultyOptions}</select>
               </label>
@@ -1082,7 +1091,7 @@ function triviaView() {
                 <select id="triviaCountSelect">${countOptions}</select>
               </label>
             </div>
-            <button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : icons.trivia}<span>${isVerseOrder ? "Start Verse Order" : isReferenceRush ? "Start Reference Rush" : "Start Trivia"}</span></button>
+            <button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.chevron : isWhoSaidIt ? icons.note : icons.trivia}<span>Start ${gameTitle}</span></button>
           </div>
         `}
       </article>
@@ -1094,6 +1103,8 @@ function triviaGameView() {
   const game = state.triviaGame;
   if (game?.type === "verse-order") return verseOrderGameView(game);
   if (game?.type === "reference-rush") return referenceRushGameView(game);
+  if (game?.type === "book-sprint") return bookSprintGameView(game);
+  if (game?.type === "who-said-it") return whoSaidItGameView(game);
   if (game.complete) return triviaResultsView(game);
   const question = game.questions[game.index];
   const answered = game.selectedAnswer !== null;
@@ -1120,11 +1131,13 @@ function triviaGameView() {
           </div>
         </div>
         <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.questions.length - 1 ? "Finish round" : "Next question"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
         </div>
       `}
@@ -1183,11 +1196,13 @@ function verseOrderGameView(game) {
           </div>
         </div>
         <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next verse"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="resetVerseOrderPuzzle" ${puzzle.selectedIds.length ? "" : "disabled"}>Reset puzzle</button>
           <button class="primary-btn" id="checkVerseOrder" ${puzzle.selectedIds.length === puzzle.segments.length ? "" : "disabled"}>Check order</button>
         </div>
@@ -1226,11 +1241,13 @@ function referenceRushGameView(game) {
           </div>
         </div>
         <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next verse"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
         </div>
       `}
@@ -1249,6 +1266,101 @@ function referenceRushChoiceButton(puzzle, choice, answered) {
   return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
 }
 
+function bookSprintGameView(game) {
+  if (game.complete) return triviaResultsView(game);
+  const puzzle = game.puzzles[game.index];
+  const selectedSet = new Set(puzzle.selectedBooks);
+  const answered = puzzle.answered;
+  const correct = answered && puzzle.correct;
+  return `
+    <div class="trivia-game book-sprint-game">
+      <div class="trivia-progress">
+        <span>Book Sprint</span>
+        <strong>${game.index + 1} / ${game.puzzles.length}</strong>
+      </div>
+      <h2>Tap these books in Bible order.</h2>
+      <div class="verse-order-board">
+        <div class="verse-order-answer book-sprint-answer" aria-label="Selected books">
+          ${puzzle.selectedBooks.length ? puzzle.selectedBooks.map((book, index) => `<button class="verse-fragment selected-fragment" data-book-selected="${escapeHtml(book)}" ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(book)}</button>`).join("") : `<span class="verse-order-placeholder">Build the order here.</span>`}
+        </div>
+        <div class="verse-fragment-bank" aria-label="Book choices">
+          ${puzzle.shuffledBooks.map((book) => `<button class="verse-fragment ${selectedSet.has(book) ? "is-used" : ""}" data-book-answer="${escapeHtml(book)}" ${selectedSet.has(book) || answered ? "disabled" : ""}>${escapeHtml(book)}</button>`).join("")}
+        </div>
+      </div>
+      ${answered ? `
+        <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
+          <strong>${correct ? "Correct" : "Not quite"}</strong>
+          <p>The Bible order is: ${escapeHtml(puzzle.books.join(", "))}.</p>
+        </div>
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next sprint"}</button>
+        </div>
+      ` : `
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          <button class="ghost-btn" id="resetBookSprintPuzzle" ${puzzle.selectedBooks.length ? "" : "disabled"}>Reset puzzle</button>
+          <button class="primary-btn" id="checkBookSprint" ${puzzle.selectedBooks.length === puzzle.books.length ? "" : "disabled"}>Check order</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function whoSaidItGameView(game) {
+  if (game.complete) return triviaResultsView(game);
+  const question = game.questions[game.index];
+  const answered = question.selectedAnswer !== null;
+  const correct = question.selectedAnswer === question.answer;
+  return `
+    <div class="trivia-game who-said-it-game">
+      <div class="trivia-progress">
+        <span>Who Said It? · ${escapeHtml(game.difficulty)}</span>
+        <strong>${game.index + 1} / ${game.questions.length}</strong>
+      </div>
+      <div class="reference-rush-prompt">
+        <p>${escapeHtml(question.quote)}</p>
+        <span>Who said it?</span>
+      </div>
+      <div class="trivia-choices">
+        ${question.choices.map((choice) => whoSaidItChoiceButton(question, choice, answered)).join("")}
+      </div>
+      ${answered ? `
+        <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
+          <strong>${correct ? "Correct" : "Not quite"}</strong>
+          <p>${escapeHtml(question.explanation)}</p>
+          <div class="trivia-reference">
+            <span>${escapeHtml(question.reference)}</span>
+            <button class="text-btn" id="openTriviaReference">Open reference</button>
+          </div>
+        </div>
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.questions.length - 1 ? "Finish round" : "Next quote"}</button>
+        </div>
+      ` : `
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function whoSaidItChoiceButton(question, choice, answered) {
+  const selected = choice === question.selectedAnswer;
+  const isCorrect = choice === question.answer;
+  const classes = [
+    "trivia-choice",
+    answered && isCorrect ? "correct" : "",
+    answered && selected && !isCorrect ? "incorrect" : "",
+  ].filter(Boolean).join(" ");
+  return `<button class="${classes}" data-who-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+}
+
 function triviaResultsView(game) {
   const roundLength = game.questions?.length || game.puzzles?.length || 1;
   const percent = Math.round((game.score / roundLength) * 100);
@@ -1256,7 +1368,11 @@ function triviaResultsView(game) {
     ? `You ordered ${game.score} of ${roundLength} passages correctly.`
     : game.type === "reference-rush"
       ? `You matched ${game.score} of ${roundLength} references correctly.`
-      : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
+      : game.type === "book-sprint"
+        ? `You ordered ${game.score} of ${roundLength} book sets correctly.`
+        : game.type === "who-said-it"
+          ? `You identified ${game.score} of ${roundLength} speakers correctly.`
+          : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
     <div class="trivia-results ${percent === 100 ? "perfect" : ""}">
       ${percent === 100 ? triviaCelebration() : ""}
@@ -1264,6 +1380,7 @@ function triviaResultsView(game) {
       <h2>${triviaResultTitle(percent)}</h2>
       <p>${resultText}</p>
       <div class="trivia-actions">
+        <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
         <button class="primary-btn" id="newTriviaGame">${game.type === "trivia" || !game.type ? "New category" : "New round"}</button>
       </div>
@@ -1286,12 +1403,16 @@ function triviaScoreLabel() {
   if (!state.triviaGame) {
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
     if (state.triviaGameType === "reference-rush") return `${referenceRushPool().length} verses`;
+    if (state.triviaGameType === "book-sprint") return "66 books";
+    if (state.triviaGameType === "who-said-it") return `${whoSaidItPool().length} quotes`;
     return `${triviaPool().length} questions`;
   }
   const roundLength = state.triviaGame.questions?.length || state.triviaGame.puzzles?.length || 0;
   if (state.triviaGame.complete) return `${state.triviaGame.score} / ${roundLength}`;
   if (state.triviaGame.type === "verse-order") return `${state.triviaGame.score} ordered`;
   if (state.triviaGame.type === "reference-rush") return `${state.triviaGame.score} matched`;
+  if (state.triviaGame.type === "book-sprint") return `${state.triviaGame.score} sprints`;
+  if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
   return `${state.triviaGame.score} correct`;
 }
 
@@ -1959,6 +2080,7 @@ function bindEvents() {
   });
   document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
   document.getElementById("restartTriviaGame")?.addEventListener("click", startTriviaGame);
+  document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
   document.getElementById("newTriviaGame")?.addEventListener("click", () => {
     state.triviaGame = null;
     renderPreservingReaderScroll();
@@ -1971,6 +2093,15 @@ function bindEvents() {
   document.querySelectorAll("[data-reference-answer]").forEach((button) => {
     button.addEventListener("click", () => answerReferenceRush(button.dataset.referenceAnswer));
   });
+  document.querySelectorAll("[data-book-answer]").forEach((button) => {
+    button.addEventListener("click", () => selectBookSprintBook(button.dataset.bookAnswer));
+  });
+  document.querySelectorAll("[data-book-selected]").forEach((button) => {
+    button.addEventListener("click", () => removeBookSprintBook(button.dataset.bookSelected));
+  });
+  document.querySelectorAll("[data-who-answer]").forEach((button) => {
+    button.addEventListener("click", () => answerWhoSaidIt(button.dataset.whoAnswer));
+  });
   document.querySelectorAll("[data-order-fragment]").forEach((button) => {
     button.addEventListener("click", () => selectVerseOrderFragment(button.dataset.orderFragment));
   });
@@ -1979,6 +2110,8 @@ function bindEvents() {
   });
   document.getElementById("resetVerseOrderPuzzle")?.addEventListener("click", resetVerseOrderPuzzle);
   document.getElementById("checkVerseOrder")?.addEventListener("click", checkVerseOrder);
+  document.getElementById("resetBookSprintPuzzle")?.addEventListener("click", resetBookSprintPuzzle);
+  document.getElementById("checkBookSprint")?.addEventListener("click", checkBookSprint);
   ["chapterSelect", "chapterSelectInline"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state.reference = event.target.value;
@@ -2208,8 +2341,12 @@ function triviaQuestions() {
   return Array.isArray(window.bibleTriviaQuestions) ? window.bibleTriviaQuestions : [];
 }
 
+function normalizedTriviaCategory(category) {
+  return ["Old Testament", "New Testament"].includes(category) ? "Bible Survey" : category;
+}
+
 function triviaCategories(questions = triviaQuestions()) {
-  return ["Mixed", ...Array.from(new Set(questions.map((question) => question.category).filter(Boolean))).sort((a, b) => a.localeCompare(b))];
+  return ["Mixed", ...Array.from(new Set(questions.map((question) => normalizedTriviaCategory(question.category)).filter(Boolean))).sort((a, b) => a.localeCompare(b))];
 }
 
 function triviaDifficulties() {
@@ -2218,7 +2355,7 @@ function triviaDifficulties() {
 
 function triviaPool() {
   return triviaQuestions().filter((question) => {
-    const categoryMatches = state.triviaCategory === "Mixed" || question.category === state.triviaCategory;
+    const categoryMatches = state.triviaCategory === "Mixed" || normalizedTriviaCategory(question.category) === state.triviaCategory;
     const difficultyMatches = state.triviaDifficulty === "All" || question.difficulty === state.triviaDifficulty.toLowerCase();
     return categoryMatches && difficultyMatches;
   });
@@ -2227,6 +2364,8 @@ function triviaPool() {
 function startTriviaGame() {
   if (state.triviaGameType === "verse-order") return startVerseOrderGame();
   if (state.triviaGameType === "reference-rush") return startReferenceRushGame();
+  if (state.triviaGameType === "book-sprint") return startBookSprintGame();
+  if (state.triviaGameType === "who-said-it") return startWhoSaidItGame();
   const pool = shuffleItems(triviaPool());
   if (!pool.length) {
     showToast("No trivia questions available for that category yet");
@@ -2234,6 +2373,7 @@ function startTriviaGame() {
   }
   const questionCount = Math.min(state.triviaCount || 10, pool.length);
   state.triviaGame = {
+    type: "trivia",
     category: state.triviaCategory,
     difficulty: state.triviaDifficulty,
     questions: pool.slice(0, questionCount),
@@ -2264,9 +2404,25 @@ function startReferenceRushGame() {
   renderPreservingReaderScroll();
 }
 
+const referenceRushEasyRefs = new Set([
+  "Genesis 1:1", "Genesis 1:27", "Genesis 9:13", "Exodus 20:3", "Exodus 20:12",
+  "Numbers 6:24", "Deuteronomy 6:5", "Joshua 1:9", "Ruth 1:16", "1 Samuel 16:7",
+  "Psalm 1:1", "Psalm 23:1", "Psalm 27:1", "Psalm 37:4", "Psalm 46:10", "Psalm 51:10",
+  "Psalm 91:1", "Psalm 119:105", "Psalm 121:1", "Proverbs 3:5", "Proverbs 15:1",
+  "Ecclesiastes 3:1", "Isaiah 9:6", "Isaiah 40:31", "Isaiah 41:10", "Jeremiah 29:11",
+  "Micah 6:8", "Matthew 5:14", "Matthew 6:33", "Matthew 7:12", "Matthew 11:28",
+  "Matthew 22:37", "Matthew 28:19", "Luke 2:11", "John 1:1", "John 3:16", "John 8:32",
+  "John 10:10", "John 11:25", "John 14:6", "John 14:27", "Acts 1:8", "Romans 3:23",
+  "Romans 6:23", "Romans 8:28", "Romans 12:2", "1 Corinthians 13:4", "2 Corinthians 5:17",
+  "Galatians 5:22", "Ephesians 2:8", "Ephesians 6:11", "Philippians 4:4", "Philippians 4:13",
+  "Philippians 4:19", "Colossians 3:23", "1 Thessalonians 5:16", "2 Timothy 1:7",
+  "Hebrews 11:1", "Hebrews 12:2", "James 1:5", "1 Peter 5:7", "1 John 1:9", "1 John 4:7",
+  "Revelation 3:20", "Revelation 21:4",
+]);
+
 function referenceRushPool() {
   const version = state.versions[0] || "BSB";
-  return Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
+  const pool = Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
     const book = bookFromChapterKey(chapterKey);
     const testament = oldTestamentBooks.includes(book) ? "old" : "new";
     return (chapter.verses || []).map((verse) => {
@@ -2285,6 +2441,11 @@ function referenceRushPool() {
     const wordCount = item.text.split(/\s+/).filter(Boolean).length;
     return wordCount >= 7 && wordCount <= 45 && item.book;
   });
+  if (state.triviaDifficulty === "Easy") {
+    const easyPool = pool.filter((item) => referenceRushEasyRefs.has(item.reference));
+    if (easyPool.length >= 4) return easyPool;
+  }
+  return pool;
 }
 
 function createReferenceRushPuzzle(item, pool) {
@@ -2329,6 +2490,74 @@ function bookFromChapterKey(chapterKey) {
     .slice()
     .sort((a, b) => b.length - a.length)
     .find((book) => chapterKey.startsWith(`${book} `)) || "";
+}
+
+function startBookSprintGame() {
+  const puzzleCount = Math.min(state.triviaCount || 10, 50);
+  state.triviaGame = {
+    type: "book-sprint",
+    puzzles: Array.from({ length: puzzleCount }, createBookSprintPuzzle),
+    index: 0,
+    score: 0,
+    complete: false,
+  };
+  renderPreservingReaderScroll();
+}
+
+function createBookSprintPuzzle() {
+  const size = state.triviaDifficulty === "Hard" ? 7 : state.triviaDifficulty === "Medium" ? 6 : 5;
+  const start = Math.floor(Math.random() * (books.length - size + 1));
+  const bookSet = books.slice(start, start + size);
+  return {
+    books: bookSet,
+    shuffledBooks: shuffleItems(bookSet),
+    selectedBooks: [],
+    answered: false,
+    correct: false,
+  };
+}
+
+const whoSaidItQuestions = [
+  { difficulty: "easy", quote: "Here I am. Send me!", answer: "Isaiah", choices: ["Isaiah", "Jeremiah", "Samuel", "Moses"], reference: "Isaiah 6:8", explanation: "Isaiah responded to God's call with willingness." },
+  { difficulty: "easy", quote: "Your people shall be my people, and your God my God.", answer: "Ruth", choices: ["Ruth", "Naomi", "Esther", "Hannah"], reference: "Ruth 1:16", explanation: "Ruth spoke these words to Naomi." },
+  { difficulty: "easy", quote: "I am the way and the truth and the life.", answer: "Jesus", choices: ["Jesus", "Peter", "Paul", "John"], reference: "John 14:6", explanation: "Jesus said this to His disciples." },
+  { difficulty: "easy", quote: "You are the Christ, the Son of the living God.", answer: "Peter", choices: ["Peter", "John", "Thomas", "Andrew"], reference: "Matthew 16:16", explanation: "Peter confessed Jesus as the Christ." },
+  { difficulty: "easy", quote: "Speak, LORD, for Your servant is listening.", answer: "Samuel", choices: ["Samuel", "Eli", "David", "Solomon"], reference: "1 Samuel 3:9", explanation: "Eli taught Samuel to answer God's call this way." },
+  { difficulty: "easy", quote: "My Lord and my God!", answer: "Thomas", choices: ["Thomas", "Peter", "John", "Philip"], reference: "John 20:28", explanation: "Thomas said this after seeing the risen Jesus." },
+  { difficulty: "medium", quote: "As for me and my house, we will serve the LORD.", answer: "Joshua", choices: ["Joshua", "Moses", "Caleb", "Gideon"], reference: "Joshua 24:15", explanation: "Joshua called Israel to covenant faithfulness." },
+  { difficulty: "medium", quote: "Create in me a clean heart, O God.", answer: "David", choices: ["David", "Solomon", "Asaph", "Moses"], reference: "Psalm 51:10", explanation: "David prayed this after his sin was exposed." },
+  { difficulty: "medium", quote: "Vanity of vanities, says the Teacher.", answer: "Solomon", choices: ["Solomon", "Job", "David", "Agur"], reference: "Ecclesiastes 1:2", explanation: "Ecclesiastes is traditionally associated with Solomon's wisdom." },
+  { difficulty: "medium", quote: "Let it be to me according to your word.", answer: "Mary", choices: ["Mary", "Elizabeth", "Anna", "Martha"], reference: "Luke 1:38", explanation: "Mary responded faithfully to Gabriel's announcement." },
+  { difficulty: "medium", quote: "Lord, to whom shall we go? You have the words of eternal life.", answer: "Peter", choices: ["Peter", "John", "Andrew", "James"], reference: "John 6:68", explanation: "Peter answered when many disciples turned away." },
+  { difficulty: "medium", quote: "Believe in the Lord Jesus, and you will be saved.", answer: "Paul and Silas", choices: ["Paul and Silas", "Peter and John", "Barnabas and Mark", "Aquila and Priscilla"], reference: "Acts 16:31", explanation: "Paul and Silas answered the Philippian jailer." },
+  { difficulty: "hard", quote: "Am I my brother's keeper?", answer: "Cain", choices: ["Cain", "Esau", "Laban", "Reuben"], reference: "Genesis 4:9", explanation: "Cain spoke this after murdering Abel." },
+  { difficulty: "hard", quote: "Who knows if perhaps you have come to the kingdom for such a time as this?", answer: "Mordecai", choices: ["Mordecai", "Haman", "Ezra", "Nehemiah"], reference: "Esther 4:14", explanation: "Mordecai urged Esther to act courageously." },
+  { difficulty: "hard", quote: "I know that my Redeemer lives.", answer: "Job", choices: ["Job", "David", "Isaiah", "Daniel"], reference: "Job 19:25", explanation: "Job confessed hope in his Redeemer amid suffering." },
+  { difficulty: "hard", quote: "Almost you persuade me to become a Christian.", answer: "Agrippa", choices: ["Agrippa", "Festus", "Felix", "Pilate"], reference: "Acts 26:28", explanation: "Agrippa responded to Paul's testimony." },
+  { difficulty: "hard", quote: "Silver and gold I do not have, but what I have I give you.", answer: "Peter", choices: ["Peter", "Paul", "Stephen", "Philip"], reference: "Acts 3:6", explanation: "Peter spoke to the lame man at the temple gate." },
+  { difficulty: "hard", quote: "I see the heavens opened and the Son of Man standing at the right hand of God.", answer: "Stephen", choices: ["Stephen", "Paul", "John", "Peter"], reference: "Acts 7:56", explanation: "Stephen saw this vision before his death." },
+];
+
+function startWhoSaidItGame() {
+  const pool = shuffleItems(whoSaidItPool());
+  if (!pool.length) {
+    showToast("No Who Said It questions available for that difficulty yet");
+    return;
+  }
+  const questionCount = Math.min(state.triviaCount || 10, pool.length);
+  state.triviaGame = {
+    type: "who-said-it",
+    difficulty: state.triviaDifficulty,
+    questions: pool.slice(0, questionCount).map((question) => ({ ...question, choices: shuffleItems(question.choices), selectedAnswer: null })),
+    index: 0,
+    score: 0,
+    complete: false,
+  };
+  renderPreservingReaderScroll();
+}
+
+function whoSaidItPool() {
+  return whoSaidItQuestions.filter((question) => state.triviaDifficulty === "All" || question.difficulty === state.triviaDifficulty.toLowerCase());
 }
 
 function startVerseOrderGame() {
@@ -2429,12 +2658,19 @@ function nextTriviaQuestion() {
   if (!game) return;
   if (game.type === "verse-order") return nextVerseOrderPuzzle();
   if (game.type === "reference-rush") return nextReferenceRushPuzzle();
+  if (game.type === "book-sprint") return nextBookSprintPuzzle();
+  if (game.type === "who-said-it") return nextWhoSaidItQuestion();
   if (game.index >= game.questions.length - 1) {
     game.complete = true;
   } else {
     game.index += 1;
     game.selectedAnswer = null;
   }
+  renderPreservingReaderScroll();
+}
+
+function exitTriviaGame() {
+  state.triviaGame = null;
   renderPreservingReaderScroll();
 }
 
@@ -2452,6 +2688,75 @@ function nextReferenceRushPuzzle() {
   const game = state.triviaGame;
   if (!game) return;
   if (game.index >= game.puzzles.length - 1) {
+    game.complete = true;
+  } else {
+    game.index += 1;
+  }
+  renderPreservingReaderScroll();
+}
+
+function selectBookSprintBook(book) {
+  const puzzle = currentBookSprintPuzzle();
+  if (!puzzle || puzzle.answered || puzzle.selectedBooks.includes(book)) return;
+  puzzle.selectedBooks.push(book);
+  renderPreservingReaderScroll();
+}
+
+function removeBookSprintBook(book) {
+  const puzzle = currentBookSprintPuzzle();
+  if (!puzzle || puzzle.answered) return;
+  puzzle.selectedBooks = puzzle.selectedBooks.filter((item) => item !== book);
+  renderPreservingReaderScroll();
+}
+
+function resetBookSprintPuzzle() {
+  const puzzle = currentBookSprintPuzzle();
+  if (!puzzle || puzzle.answered) return;
+  puzzle.selectedBooks = [];
+  renderPreservingReaderScroll();
+}
+
+function checkBookSprint() {
+  const game = state.triviaGame;
+  const puzzle = currentBookSprintPuzzle();
+  if (!game || !puzzle || puzzle.answered || puzzle.selectedBooks.length !== puzzle.books.length) return;
+  puzzle.correct = puzzle.selectedBooks.every((book, index) => book === puzzle.books[index]);
+  puzzle.answered = true;
+  if (puzzle.correct) game.score += 1;
+  renderPreservingReaderScroll();
+}
+
+function nextBookSprintPuzzle() {
+  const game = state.triviaGame;
+  if (!game) return;
+  if (game.index >= game.puzzles.length - 1) {
+    game.complete = true;
+  } else {
+    game.index += 1;
+  }
+  renderPreservingReaderScroll();
+}
+
+function currentBookSprintPuzzle() {
+  const game = state.triviaGame;
+  if (game?.type !== "book-sprint") return null;
+  return game.puzzles[game.index];
+}
+
+function answerWhoSaidIt(answer) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "who-said-it" || game.complete) return;
+  const question = game.questions[game.index];
+  if (!question || question.selectedAnswer !== null) return;
+  question.selectedAnswer = answer;
+  if (answer === question.answer) game.score += 1;
+  renderPreservingReaderScroll();
+}
+
+function nextWhoSaidItQuestion() {
+  const game = state.triviaGame;
+  if (!game) return;
+  if (game.index >= game.questions.length - 1) {
     game.complete = true;
   } else {
     game.index += 1;
@@ -2512,6 +2817,8 @@ function openTriviaReference() {
   const game = state.triviaGame;
   const reference = game?.type === "verse-order" || game?.type === "reference-rush"
     ? game.puzzles?.[game.index]?.reference
+    : game?.type === "who-said-it"
+      ? game.questions?.[game.index]?.reference
     : game?.questions?.[game.index]?.reference;
   if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
   state.mode = "reader";

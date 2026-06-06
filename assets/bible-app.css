@@ -1403,8 +1403,8 @@ select {
 
 .trivia-mode-tabs {
   display: inline-grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: min(640px, 100%);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: min(900px, 100%);
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
@@ -3870,6 +3870,18 @@ svg {
 
   .trivia-mode-tabs {
     width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .trivia-mode-tabs button {
+    justify-content: flex-start;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 16px;
+  }
+
+  .trivia-mode-tabs button:last-child {
+    border-bottom: 0;
   }
 
   .trivia-choice {
