@@ -204,6 +204,7 @@ const state = {
   history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
   streak: savedReadingStreak(),
   streakPopupVisible: false,
+  triviaGameType: localStorage.getItem("lw_trivia_game_type") || "trivia",
   triviaCategory: localStorage.getItem("lw_trivia_category") || "Mixed",
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
@@ -599,7 +600,7 @@ function topbar() {
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
     ["big", "Big Screen", icons.screen],
-    ["trivia", "Trivia", icons.trivia],
+    ["trivia", "Games", icons.trivia],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
   const themeLabel = state.theme === "dark" ? "Light mode" : "Dark mode";
@@ -1037,29 +1038,34 @@ function readerView() {
 
 function triviaView() {
   const questions = triviaQuestions();
+  const isVerseOrder = state.triviaGameType === "verse-order";
   const categories = triviaCategories(questions);
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
   const difficultyOptions = triviaDifficulties().map((difficulty) => `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(difficulty)}</option>`).join("");
-  const countOptions = [5, 10, 15, 20, 25, 50].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} questions</option>`).join("");
+  const countOptions = [5, 10, 15, 20, 25, 50].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} ${isVerseOrder ? "verses" : "questions"}</option>`).join("");
   return `
     <section class="reader trivia-reader">
       <article class="trivia-panel">
         <div class="trivia-header">
           <div>
-            <div class="trivia-eyebrow">Scripture knowledge</div>
-            <h1>Bible Trivia</h1>
+            <div class="trivia-eyebrow">${isVerseOrder ? "Verse Order" : "Bible Trivia"}</div>
+            <h1>Games</h1>
           </div>
           <div class="trivia-score-chip">${triviaScoreLabel()}</div>
         </div>
         ${state.triviaGame ? triviaGameView() : `
           <div class="trivia-setup">
-            <p>Choose a category, then answer multiple-choice questions with a reference reveal after each answer.</p>
-            <div class="trivia-setup-controls">
-              <label>
+            <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
+              <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button">${icons.trivia}<span>Trivia</span></button>
+              <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button">${icons.book}<span>Verse Order</span></button>
+            </div>
+            <p>${isVerseOrder ? "Tap shuffled verse fragments back into their original order. The app will reveal the reference after each puzzle." : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer."}</p>
+            <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : ""}">
+              <label class="${isVerseOrder ? "is-hidden" : ""}">
                 <span>Category</span>
                 <select id="triviaCategorySelect">${categoryOptions}</select>
               </label>
-              <label>
+              <label class="${isVerseOrder ? "is-hidden" : ""}">
                 <span>Difficulty</span>
                 <select id="triviaDifficultySelect">${difficultyOptions}</select>
               </label>
@@ -1068,7 +1074,7 @@ function triviaView() {
                 <select id="triviaCountSelect">${countOptions}</select>
               </label>
             </div>
-            <button class="primary-btn trivia-start" id="startTriviaGame">${icons.trivia}<span>Start Trivia</span></button>
+            <button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : icons.trivia}<span>${isVerseOrder ? "Start Verse Order" : "Start Trivia"}</span></button>
           </div>
         `}
       </article>
@@ -1078,6 +1084,7 @@ function triviaView() {
 
 function triviaGameView() {
   const game = state.triviaGame;
+  if (game?.type === "verse-order") return verseOrderGameView(game);
   if (game.complete) return triviaResultsView(game);
   const question = game.questions[game.index];
   const answered = game.selectedAnswer !== null;
@@ -1127,17 +1134,74 @@ function triviaChoiceButton(question, choice, answered) {
   return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
 }
 
+function verseOrderGameView(game) {
+  if (game.complete) return triviaResultsView(game);
+  const puzzle = game.puzzles[game.index];
+  const selectedSet = new Set(puzzle.selectedIds);
+  const answered = puzzle.answered;
+  const correct = answered && puzzle.correct;
+  const finalPerfectAnswer = answered && correct && game.index === game.puzzles.length - 1 && game.score === game.puzzles.length;
+  return `
+    <div class="trivia-game verse-order-game ${finalPerfectAnswer ? "perfect" : ""}">
+      ${finalPerfectAnswer ? triviaCelebration() : ""}
+      <div class="trivia-progress">
+        <span>Verse Order · ${escapeHtml(game.version)}</span>
+        <strong>${game.index + 1} / ${game.puzzles.length}</strong>
+      </div>
+      <h2>Put this verse back in order.</h2>
+      <div class="verse-order-board">
+        <div class="verse-order-answer" aria-label="Selected verse fragments">
+          ${puzzle.selectedIds.length ? puzzle.selectedIds.map((id, index) => {
+            const segment = puzzle.segments.find((item) => item.id === id);
+            return `<button class="verse-fragment selected-fragment" data-order-selected="${escapeHtml(id)}" ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(segment?.text || "")}</button>`;
+          }).join("") : `<span class="verse-order-placeholder">Tap fragments below to build the verse.</span>`}
+        </div>
+        <div class="verse-fragment-bank" aria-label="Shuffled verse fragments">
+          ${puzzle.shuffledIds.map((id) => {
+            const segment = puzzle.segments.find((item) => item.id === id);
+            const isSelected = selectedSet.has(id);
+            return `<button class="verse-fragment ${isSelected ? "is-used" : ""}" data-order-fragment="${escapeHtml(id)}" ${isSelected || answered ? "disabled" : ""}>${escapeHtml(segment?.text || "")}</button>`;
+          }).join("")}
+        </div>
+      </div>
+      ${answered ? `
+        <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
+          <strong>${correct ? "Correct" : "Not quite"}</strong>
+          <p>${correct ? "You restored the verse in order." : `The original order is: ${puzzle.segments.map((segment) => segment.text).join(" ")}`}</p>
+          <div class="trivia-reference">
+            <span>${escapeHtml(puzzle.reference)}</span>
+            <button class="text-btn" id="openTriviaReference">Open reference</button>
+          </div>
+        </div>
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next verse"}</button>
+        </div>
+      ` : `
+        <div class="trivia-actions">
+          <button class="ghost-btn" id="resetVerseOrderPuzzle" ${puzzle.selectedIds.length ? "" : "disabled"}>Reset puzzle</button>
+          <button class="primary-btn" id="checkVerseOrder" ${puzzle.selectedIds.length === puzzle.segments.length ? "" : "disabled"}>Check order</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
 function triviaResultsView(game) {
-  const percent = Math.round((game.score / game.questions.length) * 100);
+  const roundLength = game.questions?.length || game.puzzles?.length || 1;
+  const percent = Math.round((game.score / roundLength) * 100);
+  const resultText = game.type === "verse-order"
+    ? `You ordered ${game.score} of ${roundLength} passages correctly.`
+    : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
     <div class="trivia-results ${percent === 100 ? "perfect" : ""}">
       ${percent === 100 ? triviaCelebration() : ""}
       <div class="trivia-result-ring">${percent}%</div>
       <h2>${triviaResultTitle(percent)}</h2>
-      <p>You answered ${game.score} of ${game.questions.length} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.</p>
+      <p>${resultText}</p>
       <div class="trivia-actions">
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
-        <button class="primary-btn" id="newTriviaGame">New category</button>
+        <button class="primary-btn" id="newTriviaGame">${game.type === "verse-order" ? "New round" : "New category"}</button>
       </div>
     </div>
   `;
@@ -1155,9 +1219,12 @@ function triviaResultTitle(percent) {
 }
 
 function triviaScoreLabel() {
-  if (!state.triviaGame) return `${triviaPool().length} questions`;
-  if (state.triviaGame.complete) return `${state.triviaGame.score} / ${state.triviaGame.questions.length}`;
-  return `${state.triviaGame.score} correct`;
+  if (!state.triviaGame) {
+    return state.triviaGameType === "verse-order" ? `${verseOrderPool().length} verses` : `${triviaPool().length} questions`;
+  }
+  const roundLength = state.triviaGame.questions?.length || state.triviaGame.puzzles?.length || 0;
+  if (state.triviaGame.complete) return `${state.triviaGame.score} / ${roundLength}`;
+  return state.triviaGame.type === "verse-order" ? `${state.triviaGame.score} ordered` : `${state.triviaGame.score} correct`;
 }
 
 function parallelView() {
@@ -1640,7 +1707,7 @@ function shortcutOverlay() {
     ["F", "Toggle focus layout"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
-    ["T", "Open trivia"],
+    ["T", "Open games"],
     ["V", "Open verse picker"],
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
@@ -1799,6 +1866,14 @@ function bindEvents() {
   document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
+  document.querySelectorAll("[data-trivia-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.triviaGameType = button.dataset.triviaMode || "trivia";
+      state.triviaGame = null;
+      localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
+      renderPreservingReaderScroll();
+    });
+  });
   document.getElementById("triviaCategorySelect")?.addEventListener("change", (event) => {
     state.triviaCategory = event.target.value;
     localStorage.setItem("lw_trivia_category", state.triviaCategory);
@@ -1825,6 +1900,14 @@ function bindEvents() {
   document.querySelectorAll("[data-trivia-answer]").forEach((button) => {
     button.addEventListener("click", () => answerTriviaQuestion(button.dataset.triviaAnswer));
   });
+  document.querySelectorAll("[data-order-fragment]").forEach((button) => {
+    button.addEventListener("click", () => selectVerseOrderFragment(button.dataset.orderFragment));
+  });
+  document.querySelectorAll("[data-order-selected]").forEach((button) => {
+    button.addEventListener("click", () => removeVerseOrderFragment(button.dataset.orderSelected));
+  });
+  document.getElementById("resetVerseOrderPuzzle")?.addEventListener("click", resetVerseOrderPuzzle);
+  document.getElementById("checkVerseOrder")?.addEventListener("click", checkVerseOrder);
   ["chapterSelect", "chapterSelectInline"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state.reference = event.target.value;
@@ -2071,6 +2154,7 @@ function triviaPool() {
 }
 
 function startTriviaGame() {
+  if (state.triviaGameType === "verse-order") return startVerseOrderGame();
   const pool = shuffleItems(triviaPool());
   if (!pool.length) {
     showToast("No trivia questions available for that category yet");
@@ -2089,6 +2173,90 @@ function startTriviaGame() {
   renderPreservingReaderScroll();
 }
 
+function startVerseOrderGame() {
+  const pool = shuffleItems(verseOrderPool());
+  if (!pool.length) {
+    showToast("No verses available for Verse Order yet");
+    return;
+  }
+  const puzzleCount = Math.min(state.triviaCount || 10, pool.length);
+  state.triviaGame = {
+    type: "verse-order",
+    version: state.versions[0] || "BSB",
+    puzzles: pool.slice(0, puzzleCount).map(createVerseOrderPuzzle),
+    index: 0,
+    score: 0,
+    complete: false,
+  };
+  renderPreservingReaderScroll();
+}
+
+function verseOrderPool() {
+  const version = state.versions[0] || "BSB";
+  return Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
+    return (chapter.verses || []).map((verse) => {
+      const text = cleanVerseOrderText(getVerseText(verse, version));
+      return {
+        reference: `${chapterKey}:${verse.n}`,
+        version,
+        text,
+      };
+    });
+  }).filter((item) => {
+    const wordCount = item.text.split(/\s+/).filter(Boolean).length;
+    return wordCount >= 10 && wordCount <= 34 && !/^\s*$/.test(item.text);
+  });
+}
+
+function cleanVerseOrderText(text) {
+  return String(text || "")
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\{[^}]+\}/g, "")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function createVerseOrderPuzzle(item) {
+  const segments = splitVerseIntoSegments(item.text).map((text, index) => ({
+    id: `fragment-${index}`,
+    order: index,
+    text,
+  }));
+  let shuffledIds = shuffleItems(segments.map((segment) => segment.id));
+  if (segments.length > 1 && shuffledIds.every((id, index) => id === segments[index].id)) {
+    shuffledIds = shuffledIds.slice(1).concat(shuffledIds[0]);
+  }
+  return {
+    ...item,
+    segments,
+    shuffledIds,
+    selectedIds: [],
+    answered: false,
+    correct: false,
+  };
+}
+
+function splitVerseIntoSegments(text) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const segmentCount = Math.min(5, Math.max(3, Math.ceil(words.length / 7)));
+  const baseSize = Math.ceil(words.length / segmentCount);
+  const segments = [];
+  for (let index = 0; index < words.length; index += baseSize) {
+    segments.push(words.slice(index, index + baseSize).join(" "));
+  }
+  if (segments.length < 3 && words.length >= 6) {
+    const third = Math.ceil(words.length / 3);
+    return [
+      words.slice(0, third).join(" "),
+      words.slice(third, third * 2).join(" "),
+      words.slice(third * 2).join(" "),
+    ].filter(Boolean);
+  }
+  return segments;
+}
+
 function answerTriviaQuestion(answer) {
   const game = state.triviaGame;
   if (!game || game.complete || game.selectedAnswer !== null) return;
@@ -2101,6 +2269,7 @@ function answerTriviaQuestion(answer) {
 function nextTriviaQuestion() {
   const game = state.triviaGame;
   if (!game) return;
+  if (game.type === "verse-order") return nextVerseOrderPuzzle();
   if (game.index >= game.questions.length - 1) {
     game.complete = true;
   } else {
@@ -2110,9 +2279,59 @@ function nextTriviaQuestion() {
   renderPreservingReaderScroll();
 }
 
+function selectVerseOrderFragment(id) {
+  const puzzle = currentVerseOrderPuzzle();
+  if (!puzzle || puzzle.answered || puzzle.selectedIds.includes(id)) return;
+  puzzle.selectedIds.push(id);
+  renderPreservingReaderScroll();
+}
+
+function removeVerseOrderFragment(id) {
+  const puzzle = currentVerseOrderPuzzle();
+  if (!puzzle || puzzle.answered) return;
+  puzzle.selectedIds = puzzle.selectedIds.filter((item) => item !== id);
+  renderPreservingReaderScroll();
+}
+
+function resetVerseOrderPuzzle() {
+  const puzzle = currentVerseOrderPuzzle();
+  if (!puzzle || puzzle.answered) return;
+  puzzle.selectedIds = [];
+  renderPreservingReaderScroll();
+}
+
+function checkVerseOrder() {
+  const game = state.triviaGame;
+  const puzzle = currentVerseOrderPuzzle();
+  if (!game || !puzzle || puzzle.answered || puzzle.selectedIds.length !== puzzle.segments.length) return;
+  const correctIds = puzzle.segments.map((segment) => segment.id);
+  puzzle.correct = puzzle.selectedIds.every((id, index) => id === correctIds[index]);
+  puzzle.answered = true;
+  if (puzzle.correct) game.score += 1;
+  renderPreservingReaderScroll();
+}
+
+function nextVerseOrderPuzzle() {
+  const game = state.triviaGame;
+  if (!game) return;
+  if (game.index >= game.puzzles.length - 1) {
+    game.complete = true;
+  } else {
+    game.index += 1;
+  }
+  renderPreservingReaderScroll();
+}
+
+function currentVerseOrderPuzzle() {
+  const game = state.triviaGame;
+  if (game?.type !== "verse-order") return null;
+  return game.puzzles[game.index];
+}
+
 function openTriviaReference() {
-  const question = state.triviaGame?.questions?.[state.triviaGame.index];
-  if (!question?.reference || !setReferenceFromString(question.reference)) return showToast("Reference is not available");
+  const game = state.triviaGame;
+  const reference = game?.type === "verse-order" ? game.puzzles?.[game.index]?.reference : game?.questions?.[game.index]?.reference;
+  if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
   state.mode = "reader";
   state.focusMode = false;
   state.libraryOpen = false;
