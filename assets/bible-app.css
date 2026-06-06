@@ -3564,23 +3564,23 @@ svg {
 
   .mobile-floating-settings {
     position: fixed;
-    right: auto;
-    left: max(6px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 46px) / 2)));
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    left: auto;
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
     z-index: 42;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 46px;
-    height: 46px;
-    min-width: 46px;
-    min-height: 46px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
     padding: 0;
     border: 1px solid var(--line);
     border-radius: 999px;
     background: color-mix(in srgb, var(--paper) 86%, transparent);
     color: var(--ink);
-    box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 14%, transparent);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 12%, transparent);
     backdrop-filter: blur(14px);
     opacity: 0.84;
     transition: opacity 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
@@ -3596,8 +3596,8 @@ svg {
   }
 
   .mobile-floating-settings svg {
-    width: 21px;
-    height: 21px;
+    width: 20px;
+    height: 20px;
   }
 
   .settings-popover.open {
@@ -3751,13 +3751,13 @@ svg {
     }
 
     .mobile-floating-settings {
-      right: auto;
-      left: max(6px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 46px) / 2)));
-      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-      width: 46px;
-      height: 46px;
-      min-width: 46px;
-      min-height: 46px;
+      right: max(12px, env(safe-area-inset-right, 0px));
+      left: auto;
+      bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      min-height: 42px;
       padding: 0;
     }
 
@@ -3835,7 +3835,8 @@ svg {
     }
 
     .mobile-floating-settings {
-      left: max(6px, calc(env(safe-area-inset-left, 0px) + ((var(--rail-width) - 46px) / 2)));
+      right: max(12px, env(safe-area-inset-right, 0px));
+      left: auto;
     }
 
     .mobile-settings-popover {
