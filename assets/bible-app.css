@@ -1403,8 +1403,8 @@ select {
 
 .trivia-mode-tabs {
   display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(420px, 100%);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(640px, 100%);
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
@@ -1457,6 +1457,11 @@ select {
 .trivia-setup-controls.single-control {
   width: min(260px, 100%);
   grid-template-columns: 1fr;
+}
+
+.trivia-setup-controls.two-controls {
+  width: min(540px, 100%);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .trivia-setup label {
@@ -1647,6 +1652,35 @@ select {
   color: var(--inverse);
   font-size: 12px;
   font-weight: 900;
+}
+
+.reference-rush-prompt {
+  display: grid;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 34%),
+    color-mix(in srgb, var(--soft) 72%, var(--paper));
+  padding: clamp(22px, 4vw, 42px);
+}
+
+.reference-rush-prompt p {
+  max-width: 860px;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--scripture-font), "Libre Baskerville", Georgia, serif;
+  font-size: clamp(26px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.28;
+}
+
+.reference-rush-prompt span {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .trivia-results {
