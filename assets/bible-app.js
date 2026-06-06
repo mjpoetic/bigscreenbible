@@ -549,9 +549,16 @@ function mobileSettingsPanel() {
           <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
         </div>
       </div>
-      <div class="setting-row">
+      <div class="setting-group">
         <span class="setting-label">Display</span>
-        <button class="ghost-btn fullscreen-btn" id="mobileFullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+        <div class="settings-control-row">
+          <div class="text-size-control" aria-label="Text size controls">
+            <button class="icon-btn" id="mobileDecreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
+            <button class="text-size-reset" id="mobileResetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
+            <button class="icon-btn" id="mobileIncreaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+          </div>
+          <button class="ghost-btn fullscreen-btn" id="mobileFullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+        </div>
       </div>
       <div class="setting-group">
         <span class="setting-label">Startup</span>
@@ -567,14 +574,6 @@ function mobileSettingsPanel() {
           <input type="checkbox" id="mobileShowStreakPopupToggle" ${state.showStreakPopup ? "checked" : ""} />
           <span>Show daily streak popup</span>
         </label>
-      </div>
-      <div class="setting-group">
-        <span class="setting-label">Text size</span>
-        <div class="text-size-control" aria-label="Text size controls">
-          <button class="icon-btn" id="mobileDecreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
-          <button class="text-size-reset" id="mobileResetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size">Aa ${Math.round(state.textScale * 100)}%</button>
-          <button class="icon-btn" id="mobileIncreaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
-        </div>
       </div>
     </div>
   `;
@@ -675,9 +674,16 @@ function topbar() {
               <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
             </div>
           </div>
-          <div class="setting-row">
+          <div class="setting-group">
             <span class="setting-label">Display</span>
-            <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+            <div class="settings-control-row">
+              <div class="text-size-control" aria-label="Text size controls">
+                <button class="icon-btn" id="decreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
+                <button class="text-size-reset" id="resetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
+                <button class="icon-btn" id="increaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+              </div>
+              <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+            </div>
           </div>
           <div class="setting-group">
             <span class="setting-label">Startup</span>
@@ -693,14 +699,6 @@ function topbar() {
               <input type="checkbox" id="showStreakPopupToggle" ${state.showStreakPopup ? "checked" : ""} />
               <span>Show daily streak popup</span>
             </label>
-          </div>
-          <div class="setting-group">
-            <span class="setting-label">Text size</span>
-            <div class="text-size-control" aria-label="Text size controls">
-              <button class="icon-btn" id="decreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
-              <button class="text-size-reset" id="resetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size">Aa ${Math.round(state.textScale * 100)}%</button>
-              <button class="icon-btn" id="increaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
-            </div>
           </div>
         </div>
       </div>
@@ -724,20 +722,22 @@ function streakChip() {
 function streakCard() {
   const streak = normalizeReadingStreak(state.streak);
   const lastVisitLabel = streak.lastVisit ? "Checked in today" : "Start today";
+  const streakNote = `${lastVisitLabel}. This stays private to this browser until account sync is added.`;
   return `
-    <section class="streak-card" aria-label="Reading streak">
-      <div class="streak-card-head">
-        ${icons.flame}
-        <div>
-          <span class="setting-label">Daily streak</span>
-          <strong>${streak.current} ${streak.current === 1 ? "day" : "days"}</strong>
+    <section class="streak-card" aria-label="Reading streak. ${streakNote}" title="${escapeHtml(streakNote)}">
+      <div class="streak-card-top">
+        <div class="streak-card-head">
+          ${icons.flame}
+          <div>
+            <span class="setting-label">Daily streak</span>
+            <strong>${streak.current} ${streak.current === 1 ? "day" : "days"}</strong>
+          </div>
+        </div>
+        <div class="streak-stats">
+          <span><strong>${streak.best}</strong><small>Best</small></span>
+          <span><strong>${streak.totalDays}</strong><small>Total days</small></span>
         </div>
       </div>
-      <div class="streak-stats">
-        <span><strong>${streak.best}</strong><small>Best</small></span>
-        <span><strong>${streak.totalDays}</strong><small>Total days</small></span>
-      </div>
-      <p>${lastVisitLabel}. This stays private to this browser until account sync is added.</p>
     </section>
   `;
 }

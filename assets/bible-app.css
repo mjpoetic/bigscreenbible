@@ -724,6 +724,10 @@ button {
 }
 
 .text-size-reset {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-width: 62px;
   min-height: 34px;
   border: 0;
@@ -732,6 +736,7 @@ button {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+  line-height: 1.08;
   text-align: center;
 }
 
@@ -782,7 +787,7 @@ button {
 
 .settings-popover.open {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .settings-popover-close {
@@ -803,47 +808,56 @@ button {
 
 .streak-card {
   display: grid;
-  gap: 11px;
-  padding: 13px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--soft) 70%, transparent);
 }
 
+.streak-card-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 94px;
+  align-items: center;
+  gap: 8px;
+}
+
 .streak-card-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .streak-card-head svg {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   color: var(--gold);
   flex-shrink: 0;
 }
 
 .streak-card-head div {
   display: grid;
-  gap: 3px;
+  gap: 2px;
 }
 
 .streak-card-head strong {
   color: var(--ink);
-  font-size: 21px;
+  font-size: 19px;
   line-height: 1;
 }
 
 .streak-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 5px;
 }
 
 .streak-stats span {
   display: grid;
-  gap: 2px;
-  padding: 9px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
@@ -851,15 +865,16 @@ button {
 
 .streak-stats strong {
   color: var(--ink);
-  font-size: 18px;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .streak-stats small,
 .streak-card p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.12;
 }
 
 .streak-card p {
@@ -949,7 +964,7 @@ button {
 .setting-group,
 .setting-row {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .setting-row {
@@ -987,6 +1002,34 @@ button {
   justify-content: space-between;
 }
 
+.settings-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.settings-control-row .text-size-control {
+  width: 100%;
+  min-height: 38px;
+  min-width: 0;
+}
+
+.settings-control-row .fullscreen-btn {
+  min-width: 122px;
+  min-height: 38px;
+  padding-inline: 10px;
+}
+
+.settings-control-row .text-size-reset {
+  min-height: 30px;
+}
+
+.settings-control-row .text-size-control .icon-btn {
+  width: 34px;
+  min-height: 30px;
+}
+
 .theme-mode-segment {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1003,7 +1046,7 @@ button {
   justify-content: center;
   gap: 6px;
   min-width: 0;
-  min-height: 42px;
+  min-height: 38px;
   border: 0;
   border-right: 1px solid var(--line);
   border-radius: 0;
@@ -1032,7 +1075,7 @@ button {
 .settings-popover .theme-toggle,
 .settings-popover .fullscreen-btn,
 .settings-popover .system-theme-btn {
-  min-width: 126px;
+  min-width: 122px;
 }
 
 .mode-label {
@@ -3946,7 +3989,7 @@ svg {
   .mobile-settings-popover .theme-toggle,
   .mobile-settings-popover .fullscreen-btn,
   .mobile-settings-popover .system-theme-btn {
-    min-width: 126px;
+    min-width: 122px;
   }
 
   @media (orientation: landscape) {
