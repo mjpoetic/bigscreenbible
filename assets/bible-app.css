@@ -1980,6 +1980,18 @@ select {
   }
 }
 
+@keyframes selectionBarMobileIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .selection-bar span {
   color: var(--muted);
   font-size: 12px;
@@ -3641,8 +3653,8 @@ svg {
 
   .selection-bar {
     position: fixed;
-    left: 12px;
-    right: 74px;
+    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px);
+    right: calc(env(safe-area-inset-right, 0px) + 8px);
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     top: auto;
     z-index: 41;
@@ -3655,6 +3667,7 @@ svg {
     border-radius: 10px;
     background: color-mix(in srgb, var(--panel) 90%, transparent);
     transform: none;
+    animation: selectionBarMobileIn 180ms ease both;
   }
 
   .selection-bar span {
@@ -3777,6 +3790,7 @@ svg {
       gap: 6px;
       max-width: none;
       max-height: min(42vh, 240px);
+      overflow-x: hidden;
     }
 
     .selection-bar span {
@@ -3787,11 +3801,15 @@ svg {
       grid-column: 1 / -1;
       justify-content: center;
       border-radius: 8px;
+      min-width: 0;
+      overflow-x: auto;
+      padding-inline: 4px;
     }
 
     .selection-action {
       width: 100%;
-      min-height: 40px;
+      min-height: 38px;
+      min-width: 0;
       padding-inline: 0;
     }
 
@@ -3809,8 +3827,8 @@ svg {
     }
 
     .selection-action-icon svg {
-      width: 21px;
-      height: 21px;
+      width: 20px;
+      height: 20px;
     }
   }
 
@@ -4433,13 +4451,19 @@ svg {
 
 @media (orientation: landscape) and (max-height: 560px) {
   :root {
-    --phone-landscape-left-safe: max(env(safe-area-inset-left, 0px), 88px);
+    --phone-landscape-left-safe: max(env(safe-area-inset-left, 0px), 12px);
     --phone-landscape-right-safe: max(env(safe-area-inset-right, 0px), 14px);
   }
 
   .main-grid {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
     padding-left: var(--phone-landscape-left-safe);
     padding-right: var(--phone-landscape-right-safe);
+    position: relative;
+  }
+
+  .main-grid.library-closed {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
   }
 
   .main-grid::before {
@@ -4447,8 +4471,20 @@ svg {
   }
 
   .library {
-    left: calc(var(--phone-landscape-left-safe) + var(--rail-width));
-    width: min(330px, calc(100vw - var(--phone-landscape-left-safe) - var(--rail-width)));
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0;
+    left: calc(var(--phone-landscape-left-safe) + var(--rail-width)) !important;
+    z-index: 36;
+    width: min(300px, calc(100vw - var(--phone-landscape-left-safe) - var(--rail-width) - var(--phone-landscape-right-safe) - 12px));
+    height: 100%;
+    max-height: none;
+    box-shadow: var(--shadow);
+  }
+
+  .reader {
+    grid-column: 2 !important;
+    min-width: 0;
   }
 
   .bottombar {
@@ -4464,6 +4500,23 @@ svg {
   .settings-popover.open {
     left: calc(var(--phone-landscape-left-safe) + var(--rail-width) + 10px);
     right: calc(var(--phone-landscape-right-safe) + 12px);
+  }
+}
+
+@media (max-width: 840px) {
+  .selection-bar {
+    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
+    right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    transform: none !important;
+    animation: selectionBarMobileIn 180ms ease both !important;
+  }
+
+  .selection-bar .selection-action {
+    min-width: 0;
   }
 }
 
