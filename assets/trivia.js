@@ -348,3 +348,214 @@ window.bibleTriviaQuestions.push(
   { category: "Worship", difficulty: "medium", question: "Who led Israel in song after crossing the Red Sea?", choices: ["Miriam", "Deborah", "Hannah", "Rahab"], answer: "Miriam", reference: "Exodus 15:20-21", explanation: "Miriam led the women with tambourines and dancing." },
   { category: "Worship", difficulty: "hard", question: "Who dedicated the temple with prayer in Jerusalem?", choices: ["David", "Solomon", "Hezekiah", "Josiah"], answer: "Solomon", reference: "1 Kings 8:22-23", explanation: "Solomon prayed before the altar at the dedication of the temple." }
 );
+
+(() => {
+  const targetQuestionCount = 500;
+  const books = [
+    ["Genesis", 50, "Old Testament", "Law"],
+    ["Exodus", 40, "Old Testament", "Law"],
+    ["Leviticus", 27, "Old Testament", "Law"],
+    ["Numbers", 36, "Old Testament", "Law"],
+    ["Deuteronomy", 34, "Old Testament", "Law"],
+    ["Joshua", 24, "Old Testament", "History"],
+    ["Judges", 21, "Old Testament", "History"],
+    ["Ruth", 4, "Old Testament", "History"],
+    ["1 Samuel", 31, "Old Testament", "History"],
+    ["2 Samuel", 24, "Old Testament", "History"],
+    ["1 Kings", 22, "Old Testament", "History"],
+    ["2 Kings", 25, "Old Testament", "History"],
+    ["1 Chronicles", 29, "Old Testament", "History"],
+    ["2 Chronicles", 36, "Old Testament", "History"],
+    ["Ezra", 10, "Old Testament", "History"],
+    ["Nehemiah", 13, "Old Testament", "History"],
+    ["Esther", 10, "Old Testament", "History"],
+    ["Job", 42, "Old Testament", "Poetry and Wisdom"],
+    ["Psalm", 150, "Old Testament", "Poetry and Wisdom"],
+    ["Proverbs", 31, "Old Testament", "Poetry and Wisdom"],
+    ["Ecclesiastes", 12, "Old Testament", "Poetry and Wisdom"],
+    ["Song of Songs", 8, "Old Testament", "Poetry and Wisdom"],
+    ["Isaiah", 66, "Old Testament", "Major Prophets"],
+    ["Jeremiah", 52, "Old Testament", "Major Prophets"],
+    ["Lamentations", 5, "Old Testament", "Major Prophets"],
+    ["Ezekiel", 48, "Old Testament", "Major Prophets"],
+    ["Daniel", 12, "Old Testament", "Major Prophets"],
+    ["Hosea", 14, "Old Testament", "Minor Prophets"],
+    ["Joel", 3, "Old Testament", "Minor Prophets"],
+    ["Amos", 9, "Old Testament", "Minor Prophets"],
+    ["Obadiah", 1, "Old Testament", "Minor Prophets"],
+    ["Jonah", 4, "Old Testament", "Minor Prophets"],
+    ["Micah", 7, "Old Testament", "Minor Prophets"],
+    ["Nahum", 3, "Old Testament", "Minor Prophets"],
+    ["Habakkuk", 3, "Old Testament", "Minor Prophets"],
+    ["Zephaniah", 3, "Old Testament", "Minor Prophets"],
+    ["Haggai", 2, "Old Testament", "Minor Prophets"],
+    ["Zechariah", 14, "Old Testament", "Minor Prophets"],
+    ["Malachi", 4, "Old Testament", "Minor Prophets"],
+    ["Matthew", 28, "New Testament", "Gospels"],
+    ["Mark", 16, "New Testament", "Gospels"],
+    ["Luke", 24, "New Testament", "Gospels"],
+    ["John", 21, "New Testament", "Gospels"],
+    ["Acts", 28, "New Testament", "Church History"],
+    ["Romans", 16, "New Testament", "Pauline Letters"],
+    ["1 Corinthians", 16, "New Testament", "Pauline Letters"],
+    ["2 Corinthians", 13, "New Testament", "Pauline Letters"],
+    ["Galatians", 6, "New Testament", "Pauline Letters"],
+    ["Ephesians", 6, "New Testament", "Pauline Letters"],
+    ["Philippians", 4, "New Testament", "Pauline Letters"],
+    ["Colossians", 4, "New Testament", "Pauline Letters"],
+    ["1 Thessalonians", 5, "New Testament", "Pauline Letters"],
+    ["2 Thessalonians", 3, "New Testament", "Pauline Letters"],
+    ["1 Timothy", 6, "New Testament", "Pauline Letters"],
+    ["2 Timothy", 4, "New Testament", "Pauline Letters"],
+    ["Titus", 3, "New Testament", "Pauline Letters"],
+    ["Philemon", 1, "New Testament", "Pauline Letters"],
+    ["Hebrews", 13, "New Testament", "General Letters"],
+    ["James", 5, "New Testament", "General Letters"],
+    ["1 Peter", 5, "New Testament", "General Letters"],
+    ["2 Peter", 3, "New Testament", "General Letters"],
+    ["1 John", 5, "New Testament", "General Letters"],
+    ["2 John", 1, "New Testament", "General Letters"],
+    ["3 John", 1, "New Testament", "General Letters"],
+    ["Jude", 1, "New Testament", "General Letters"],
+    ["Revelation", 22, "New Testament", "Prophecy"],
+  ];
+
+  const sectionChoices = [
+    "Law",
+    "History",
+    "Poetry and Wisdom",
+    "Major Prophets",
+    "Minor Prophets",
+    "Gospels",
+    "Church History",
+    "Pauline Letters",
+    "General Letters",
+    "Prophecy",
+  ];
+
+  const orderLabel = (number) => {
+    const suffix = number % 10 === 1 && number % 100 !== 11 ? "st"
+      : number % 10 === 2 && number % 100 !== 12 ? "nd"
+      : number % 10 === 3 && number % 100 !== 13 ? "rd"
+      : "th";
+    return `${number}${suffix}`;
+  };
+
+  const shuffle = (items, seed) => items
+    .map((item, index) => ({ item, sort: ((seed + 3) * (index + 11) * 7919) % 104729 }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ item }) => item);
+
+  const choicesAround = (answer, allChoices, seed) => {
+    const choices = [answer];
+    for (const choice of shuffle(allChoices, seed)) {
+      if (choices.length >= 4) break;
+      if (!choices.includes(choice)) choices.push(choice);
+    }
+    return shuffle(choices, seed + 17);
+  };
+
+  const chapterChoices = (answer, seed) => {
+    const pool = Array.from(new Set([
+      answer,
+      Math.max(1, answer - 1),
+      answer + 1,
+      answer + 2,
+      Math.max(1, answer - 3),
+      4,
+      12,
+      16,
+      24,
+      28,
+      40,
+      66,
+      150,
+    ])).map(String);
+    return choicesAround(String(answer), pool, seed);
+  };
+
+  const generated = [];
+  const bookNames = books.map(([book]) => book);
+  const testamentChoices = ["Old Testament", "New Testament", "Apocrypha", "Gospels"];
+
+  books.forEach(([book, chapters, testament, section], index) => {
+    generated.push({
+      category: "Bible Library",
+      difficulty: chapters > 40 || chapters === 1 ? "hard" : "medium",
+      question: `How many chapters are in ${book}?`,
+      choices: chapterChoices(chapters, index),
+      answer: String(chapters),
+      reference: `${book} ${chapters}:1`,
+      explanation: `${book} has ${chapters} ${chapters === 1 ? "chapter" : "chapters"}.`,
+    });
+
+    generated.push({
+      category: testament,
+      difficulty: "easy",
+      question: `Which testament contains ${book}?`,
+      choices: choicesAround(testament, testamentChoices, index + 100),
+      answer: testament,
+      reference: `${book} 1:1`,
+      explanation: `${book} belongs to the ${testament}.`,
+    });
+
+    generated.push({
+      category: "Bible Library",
+      difficulty: "medium",
+      question: `What kind of biblical book is ${book}?`,
+      choices: choicesAround(section, sectionChoices, index + 200),
+      answer: section,
+      reference: `${book} 1:1`,
+      explanation: `${book} is commonly grouped with the ${section} books.`,
+    });
+
+    generated.push({
+      category: "Bible Order",
+      difficulty: index < 10 || index > books.length - 6 ? "easy" : "medium",
+      question: `Which book is ${orderLabel(index + 1)} in the Bible?`,
+      choices: choicesAround(book, bookNames, index + 300),
+      answer: book,
+      reference: `${book} 1:1`,
+      explanation: `${book} is the ${orderLabel(index + 1)} book in the Bible.`,
+    });
+
+    if (index > 0) {
+      const previousBook = books[index - 1][0];
+      generated.push({
+        category: "Bible Order",
+        difficulty: index < 8 || index > books.length - 5 ? "easy" : "medium",
+        question: `Which book comes immediately before ${book}?`,
+        choices: choicesAround(previousBook, bookNames, index + 400),
+        answer: previousBook,
+        reference: `${book} 1:1`,
+        explanation: `${previousBook} comes immediately before ${book}.`,
+      });
+    }
+
+    if (index < books.length - 1) {
+      const nextBook = books[index + 1][0];
+      generated.push({
+        category: "Bible Order",
+        difficulty: index < 8 || index > books.length - 6 ? "easy" : "medium",
+        question: `Which book comes immediately after ${book}?`,
+        choices: choicesAround(nextBook, bookNames, index + 500),
+        answer: nextBook,
+        reference: `${book} ${chapters}:1`,
+        explanation: `${nextBook} comes immediately after ${book}.`,
+      });
+    }
+  });
+
+  generated.push({
+    category: "Bible Library",
+    difficulty: "easy",
+    question: "How many books are in the Bible?",
+    choices: ["27", "39", "66", "73"],
+    answer: "66",
+    reference: "Genesis 1:1",
+    explanation: "The Protestant Bible has 66 books: 39 in the Old Testament and 27 in the New Testament.",
+  });
+
+  const needed = Math.max(0, targetQuestionCount - window.bibleTriviaQuestions.length);
+  window.bibleTriviaQuestions.push(...generated.slice(0, needed));
+})();

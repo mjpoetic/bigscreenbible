@@ -1040,7 +1040,7 @@ function triviaView() {
   const categories = triviaCategories(questions);
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
   const difficultyOptions = triviaDifficulties().map((difficulty) => `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(difficulty)}</option>`).join("");
-  const countOptions = [5, 10, 15, 20, 25].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} questions</option>`).join("");
+  const countOptions = [5, 10, 15, 20, 25, 50].map((count) => `<option value="${count}" ${count === state.triviaCount ? "selected" : ""}>${count} questions</option>`).join("");
   return `
     <section class="reader trivia-reader">
       <article class="trivia-panel">
