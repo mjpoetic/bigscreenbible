@@ -587,6 +587,9 @@ function topbar() {
   const primaryVersionOptions = translationCodes
     .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
     .join("");
+  const primaryVersionHeaderOptions = translationCodes
+    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version}</option>`)
+    .join("");
   const versionControls = state.mode === "parallel"
     ? `
       <div class="versions version-manager" aria-label="Selected Bible versions">
@@ -599,7 +602,7 @@ function topbar() {
     : `
       <div class="versions primary-version-control" aria-label="Bible version">
         <select id="versionSelect" aria-label="Bible version">
-          ${primaryVersionOptions}
+          ${primaryVersionHeaderOptions}
         </select>
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");

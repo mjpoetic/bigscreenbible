@@ -631,6 +631,20 @@ button {
   flex-shrink: 0;
 }
 
+.topbar .primary-version-control {
+  flex: 0 0 92px;
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+  padding-inline: 8px;
+}
+
+.topbar .primary-version-control select {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
 .version-pill {
   display: inline-flex;
   align-items: center;
@@ -3310,7 +3324,9 @@ svg {
   }
 
   .streak-chip {
-    display: none;
+    min-height: 40px;
+    padding-inline: 10px;
+    gap: 7px;
   }
 
   .search {
@@ -3318,10 +3334,10 @@ svg {
     padding-inline: 11px;
   }
 
-  .versions {
-    min-width: 276px;
-    max-width: 310px;
-    flex: 1 1 276px;
+  .topbar .primary-version-control {
+    min-width: 92px;
+    max-width: 92px;
+    flex: 0 0 92px;
     padding-inline: 8px;
   }
 
@@ -3404,10 +3420,6 @@ svg {
     padding-inline: 12px;
   }
 
-  .streak-chip {
-    display: none;
-  }
-
   .mode-tabs {
     grid-template-columns: repeat(4, minmax(68px, 1fr));
   }
@@ -3438,10 +3450,10 @@ svg {
     padding-inline: 10px;
   }
 
-  .versions {
-    min-width: 248px;
-    max-width: 280px;
-    flex: 1 1 248px;
+  .topbar .primary-version-control {
+    min-width: 92px;
+    max-width: 92px;
+    flex: 0 0 92px;
     padding-inline: 8px;
   }
 
@@ -3482,6 +3494,10 @@ svg {
   }
 
   .mode-label {
+    display: none;
+  }
+
+  .streak-chip {
     display: none;
   }
 
