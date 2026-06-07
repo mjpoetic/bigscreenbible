@@ -740,6 +740,10 @@ button {
   text-align: center;
 }
 
+.text-size-reset span:first-child {
+  transform: translateX(-2px);
+}
+
 .text-size-reset:hover,
 .text-size-reset:focus-visible {
   background: var(--soft);
@@ -1351,22 +1355,22 @@ select {
 .chapter-tools {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 64px;
+  gap: 8px;
+  min-height: 54px;
   border-bottom: 1px solid var(--line);
-  padding: 8px 28px;
+  padding: 6px 24px;
 }
 
 .chapter-tools :is(button, select) {
-  min-height: 46px;
+  min-height: 40px;
 }
 
 .chapter-tools #prevVerse,
 .chapter-tools #nextVerse,
 .chapter-tools #bookmarkBtn,
 .chapter-tools #noteBtn {
-  min-width: 46px;
-  width: 46px;
+  min-width: 40px;
+  width: 40px;
   padding-inline: 0;
 }
 
@@ -1379,7 +1383,7 @@ select {
 }
 
 .chapter-tools select {
-  height: 46px;
+  height: 40px;
 }
 
 .chapter-tools .spacer {
