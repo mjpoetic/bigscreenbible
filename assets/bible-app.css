@@ -632,6 +632,7 @@ button {
 }
 
 .topbar .primary-version-control {
+  position: relative;
   flex: 0 0 92px;
   width: 92px;
   min-width: 92px;
@@ -643,6 +644,77 @@ button {
   width: 100%;
   min-width: 0;
   text-align: center;
+}
+
+.primary-version-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.primary-version-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 65;
+  display: none;
+  width: min(280px, calc(100vw - 24px));
+  max-height: min(360px, calc(100vh - 120px));
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+}
+
+.primary-version-control.open .primary-version-menu {
+  display: grid;
+  gap: 3px;
+}
+
+.primary-version-option {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.primary-version-option:hover,
+.primary-version-option:focus-visible,
+.primary-version-option.active {
+  background: var(--soft);
+}
+
+.primary-version-option span {
+  font-weight: 850;
+}
+
+.primary-version-option small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .version-pill {

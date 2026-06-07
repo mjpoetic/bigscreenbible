@@ -196,6 +196,7 @@ const state = {
   showStreakPopup: localStorage.getItem("lw_show_streak_popup") !== "false",
   startupApplied: false,
   settingsOpen: false,
+  headerVersionMenuOpen: false,
   shortcutsOpen: false,
   searchQuery: "",
   searchResults: [],
@@ -588,7 +589,12 @@ function topbar() {
     .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
     .join("");
   const primaryVersionHeaderOptions = translationCodes
-    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version}</option>`)
+    .map((version) => `
+      <button class="primary-version-option ${version === primaryVersion ? "active" : ""}" type="button" data-primary-version-option="${version}" role="option" aria-selected="${version === primaryVersion ? "true" : "false"}">
+        <span>${version}</span>
+        <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+      </button>
+    `)
     .join("");
   const versionControls = state.mode === "parallel"
     ? `
@@ -600,10 +606,14 @@ function topbar() {
         </select>
       </div>`
     : `
-      <div class="versions primary-version-control" aria-label="Bible version">
-        <select id="versionSelect" aria-label="Bible version">
+      <div class="versions primary-version-control ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Bible version">
+        <button class="primary-version-toggle" id="versionMenuToggle" type="button" aria-label="Bible version ${primaryVersion}" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
+          <span>${primaryVersion}</span>
+          <span aria-hidden="true">⌄</span>
+        </button>
+        <div class="primary-version-menu" role="listbox" aria-label="Bible version options">
           ${primaryVersionHeaderOptions}
-        </select>
+        </div>
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
   const fullscreenActive = isFullscreenActive();
@@ -2076,6 +2086,7 @@ function bindEvents() {
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       state.mode = button.dataset.mode;
+      state.headerVersionMenuOpen = false;
       if (state.mode === "big") {
         state.presentationControlsVisible = false;
         state.presentationSearchOpen = false;
@@ -2110,6 +2121,18 @@ function bindEvents() {
     rebuildBibleData();
     localStorage.setItem("lw_versions", JSON.stringify(state.versions));
     renderPreservingReaderScroll();
+  });
+  document.getElementById("versionMenuToggle")?.addEventListener("click", () => {
+    state.headerVersionMenuOpen = !state.headerVersionMenuOpen;
+    renderPreservingReaderScroll();
+  });
+  document.querySelectorAll("[data-primary-version-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const version = button.dataset.primaryVersionOption;
+      if (!translationCodes.includes(version)) return;
+      state.headerVersionMenuOpen = false;
+      await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
+    });
   });
   document.getElementById("settingsPrimaryVersionSelect")?.addEventListener("change", async (event) => {
     await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
@@ -3635,6 +3658,11 @@ function handleGlobalShortcuts(event) {
       state.settingsOpen = false;
       return renderPreservingReaderScroll();
     }
+    if (state.headerVersionMenuOpen) {
+      event.preventDefault();
+      state.headerVersionMenuOpen = false;
+      return renderPreservingReaderScroll();
+    }
     if (state.presentationSearchOpen) {
       event.preventDefault();
       state.presentationSearchOpen = false;
@@ -4384,9 +4412,15 @@ function chapterKeys() {
 const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
+  state.headerVersionMenuOpen = false;
   renderPreservingReaderScroll();
 });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
+document.addEventListener("click", (event) => {
+  if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control")) return;
+  state.headerVersionMenuOpen = false;
+  renderPreservingReaderScroll();
+});
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 const streakUpdatedToday = recordReadingStreak();
