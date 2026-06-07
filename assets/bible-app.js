@@ -216,6 +216,9 @@ const state = {
   triviaGame: null,
 };
 
+if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
+if (state.triviaGameType === "book-sprint") state.triviaCount = 5;
+
 const highlightColors = ["yellow", "blue", "pink", "green", "orange"];
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
@@ -2281,6 +2284,14 @@ function bindEvents() {
     button.addEventListener("click", () => {
       state.triviaGameType = button.dataset.triviaMode || "trivia";
       state.triviaGame = null;
+      if (state.triviaGameType === "reference-rush") {
+        state.triviaDifficulty = "Easy";
+        localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+      }
+      if (state.triviaGameType === "book-sprint") {
+        state.triviaCount = 5;
+        localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+      }
       localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
       renderPreservingReaderScroll();
     });

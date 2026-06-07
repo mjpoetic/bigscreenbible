@@ -476,7 +476,7 @@ window.bibleTriviaQuestions.push(
 
   const generated = [];
   const bookNames = books.map(([book]) => book);
-  const testamentChoices = ["Old Testament", "New Testament", "Apocrypha", "Gospels"];
+  const testamentChoices = ["Old Testament", "New Testament"];
 
   books.forEach(([book, chapters, testament, section], index) => {
     generated.push({
