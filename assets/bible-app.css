@@ -631,8 +631,12 @@ button {
   flex-shrink: 0;
 }
 
-.topbar .primary-version-control {
+.topbar .primary-version-control,
+.topbar .version-manager {
   position: relative;
+}
+
+.topbar .primary-version-control {
   flex: 0 0 92px;
   width: 92px;
   min-width: 92px;
@@ -661,6 +665,19 @@ button {
   font-weight: 800;
 }
 
+.primary-version-toggle:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.version-add-toggle {
+  min-width: 76px;
+  border-radius: 5px;
+  background: var(--soft);
+  padding-inline: 10px;
+}
+
 .primary-version-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -678,7 +695,8 @@ button {
   transform: translateX(-50%);
 }
 
-.primary-version-control.open .primary-version-menu {
+.primary-version-control.open .primary-version-menu,
+.version-manager.open .primary-version-menu {
   display: grid;
   gap: 3px;
 }
@@ -715,6 +733,14 @@ button {
   font-weight: 750;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.primary-version-empty {
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
 }
 
 .version-pill {
