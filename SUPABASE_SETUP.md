@@ -39,6 +39,8 @@ Paste them into `assets/supabase-config.js`:
 window.BigScreenBibleSupabase = {
   url: "https://YOUR_PROJECT.supabase.co",
   anonKey: "YOUR_PUBLIC_ANON_KEY",
+  // Optional: override where password reset links return.
+  // redirectTo: "https://bigscreenbible.com/",
 };
 ```
 

@@ -227,6 +227,8 @@ const state = {
   authStatus: "idle",
   authMessage: "",
   authBusy: false,
+  accountOpen: false,
+  passwordRecoveryMode: false,
   syncStatus: "local",
   syncMessage: "",
   lastCloudSyncAt: "",
@@ -348,6 +350,8 @@ const icons = {
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="11" height="13" rx="1.5"/><path d="M5 16H4a1.5 1.5 0 0 1-1.5-1.5v-10A1.5 1.5 0 0 1 4 3h9.5A1.5 1.5 0 0 1 15 4.5V5"/></svg>',
   print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M17 12h.01"/></svg>',
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
+  key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="14.5" r="4.5"/><path d="M11 11l8-8"/><path d="M16 6l2 2"/><path d="M14 8l2 2"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
@@ -723,6 +727,7 @@ function topbar() {
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
+  const accountLabel = state.authUser ? "Account" : "Sign in";
   const modeOptions = [
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
@@ -759,6 +764,13 @@ function topbar() {
       </nav>
       <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
+      <div class="account-menu ${state.accountOpen ? "open" : ""}">
+        <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${accountLabel}" data-tooltip="${accountLabel}">${icons.user}</button>
+        <div class="account-popover ${state.accountOpen ? "open" : ""}" aria-hidden="${state.accountOpen ? "false" : "true"}">
+          <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
+          ${accountPanel("quick")}
+        </div>
+      </div>
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
         <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
@@ -863,7 +875,8 @@ function streakCard() {
 function accountPanel(prefix = "") {
   const suffix = prefix ? `${prefix}-` : "";
   const email = state.authUser?.email || "";
-  const status = state.syncMessage || (state.authUser ? "Signed in and ready to sync." : "Sign in to carry your settings across devices.");
+  const signedOutStatus = "Sign in or create an account to carry your settings, bookmarks, notes, highlights, and streak across devices.";
+  const status = state.syncMessage || (state.authUser ? "Signed in and ready to sync." : signedOutStatus);
   if (!state.authConfigured) {
     return `
       <section class="account-card">
@@ -877,6 +890,9 @@ function accountPanel(prefix = "") {
   }
 
   if (state.authUser) {
+    const recoveryText = state.passwordRecoveryMode
+      ? "Choose a new password to finish account recovery."
+      : "Change your password whenever you need to.";
     return `
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
@@ -888,6 +904,11 @@ function accountPanel(prefix = "") {
           <button class="ghost-btn compact-account-btn" id="${suffix}syncNowButton" type="button" ${state.authBusy ? "disabled" : ""}>Sync now</button>
           <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out</button>
         </div>
+        <form class="account-form password-update-form" id="${suffix}passwordUpdateForm">
+          <label class="account-mini-label" for="${suffix}newPassword">${recoveryText}</label>
+          <input id="${suffix}newPassword" type="password" autocomplete="new-password" placeholder="New password" aria-label="New password" minlength="8" required />
+          <button class="ghost-btn compact-account-btn" type="submit" ${state.authBusy ? "disabled" : ""}>${icons.key}<span>Update password</span></button>
+        </form>
       </section>
     `;
   }
@@ -896,7 +917,7 @@ function accountPanel(prefix = "") {
     <section class="account-card">
       <div class="account-card-head">
         <span class="setting-label">Account sync</span>
-        <strong>Sign in</strong>
+        <strong>Sign in or create account</strong>
       </div>
       <p>${escapeHtml(state.authMessage || status)}</p>
       <form class="account-form" id="${suffix}accountForm">
@@ -904,9 +925,10 @@ function accountPanel(prefix = "") {
         <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
         <div class="account-actions">
           <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
-          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create</button>
+          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create account</button>
         </div>
       </form>
+      <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
     </section>
   `;
 }
@@ -1281,9 +1303,15 @@ async function initializeSupabaseAuth() {
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
     if (session?.user) await loadCloudSync();
-    client.auth.onAuthStateChange((_event, session) => {
+    client.auth.onAuthStateChange((event, session) => {
       state.authUser = session?.user || null;
       state.authBusy = false;
+      if (event === "PASSWORD_RECOVERY") {
+        state.passwordRecoveryMode = true;
+        state.accountOpen = true;
+        state.settingsOpen = false;
+        state.authMessage = "Choose a new password to finish account recovery.";
+      }
       if (state.authUser) {
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
@@ -1306,6 +1334,30 @@ async function initializeSupabaseAuth() {
   }
 }
 
+function authRedirectUrl() {
+  const config = window.BigScreenBibleSupabase || {};
+  const configuredRedirect = String(config.redirectTo || config.redirectUrl || "").trim();
+  if (configuredRedirect) return configuredRedirect;
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    return `${location.origin}${location.pathname}`;
+  }
+  return "https://bigscreenbible.com/";
+}
+
+function toggleAccountMenu(forceOpen = null) {
+  state.accountOpen = forceOpen === null ? !state.accountOpen : Boolean(forceOpen);
+  if (state.accountOpen) state.settingsOpen = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => {
+    if (!state.accountOpen) return;
+    const accountField = document.getElementById("quick-accountEmail")
+      || document.getElementById("quick-newPassword")
+      || document.getElementById("accountEmail")
+      || document.getElementById("newPassword");
+    accountField?.focus?.();
+  });
+}
+
 async function handleAccountSubmit(event, prefix = "") {
   event.preventDefault();
   const submitter = event.submitter;
@@ -1326,6 +1378,7 @@ async function handleAccountSubmit(event, prefix = "") {
     if (response.error) throw response.error;
     const session = response.data?.session || await authenticatedSupabaseSession(client);
     state.authUser = session?.user || null;
+    state.passwordRecoveryMode = false;
     state.authMessage = action === "signup" && !session
       ? "Account created. Check your email if Supabase asks you to confirm it."
       : "Signed in.";
@@ -1341,6 +1394,68 @@ async function handleAccountSubmit(event, prefix = "") {
   }
 }
 
+async function requestPasswordReset(prefix = "") {
+  const suffix = prefix ? `${prefix}-` : "";
+  const email = document.getElementById(`${suffix}accountEmail`)?.value.trim();
+  if (!email) {
+    state.authMessage = "Enter your email first, then choose Forgot your password.";
+    renderPreservingReaderScroll();
+    return showToast("Enter your email first");
+  }
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.authBusy = true;
+  state.authMessage = "Sending password reset email...";
+  renderPreservingReaderScroll();
+  try {
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: authRedirectUrl(),
+    });
+    if (error) throw error;
+    state.authMessage = "Password reset email sent. Check your inbox, then return here to choose a new password.";
+  } catch (error) {
+    console.warn("Password reset failed", error);
+    state.authMessage = error?.message || "Password reset could not be sent. Please try again.";
+    showToast("Password reset failed");
+  } finally {
+    state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+async function updateAccountPassword(event, prefix = "") {
+  event.preventDefault();
+  const suffix = prefix ? `${prefix}-` : "";
+  const password = document.getElementById(`${suffix}newPassword`)?.value || "";
+  if (password.length < 8) {
+    state.authMessage = "Use at least 8 characters for the new password.";
+    renderPreservingReaderScroll();
+    return showToast("Use at least 8 characters");
+  }
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.authBusy = true;
+  state.authMessage = "Updating password...";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    if (!session?.user) throw new Error("Open the reset email link or sign in before changing your password.");
+    const { error } = await client.auth.updateUser({ password });
+    if (error) throw error;
+    state.passwordRecoveryMode = false;
+    state.authMessage = "Password updated.";
+    state.syncMessage = "Password updated. Your account is still synced.";
+    showToast("Password updated");
+  } catch (error) {
+    console.warn("Password update failed", error);
+    state.authMessage = error?.message || "Password could not be updated. Please try again.";
+    showToast("Password update failed");
+  } finally {
+    state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
 async function signOutAccount() {
   const client = createSupabaseClient();
   if (!client) return;
@@ -1349,6 +1464,8 @@ async function signOutAccount() {
   try {
     await client.auth.signOut();
     state.authUser = null;
+    state.accountOpen = false;
+    state.passwordRecoveryMode = false;
     state.authMessage = "";
     state.syncStatus = "local";
     state.syncMessage = "Signed out. Changes are saved on this device.";
@@ -2743,14 +2860,18 @@ function bindEvents() {
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
+    if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
   });
   document.getElementById("settingsClose")?.addEventListener("click", () => {
     state.settingsOpen = false;
     renderPreservingReaderScroll();
   });
+  document.getElementById("accountQuickButton")?.addEventListener("click", () => toggleAccountMenu());
+  document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
+    if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", () => {
@@ -2759,10 +2880,19 @@ function bindEvents() {
   });
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
+  document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
+  document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
+  document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
+  document.getElementById("quick-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("quick"));
+  document.getElementById("passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event));
+  document.getElementById("mobile-passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event, "mobile"));
+  document.getElementById("quick-passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event, "quick"));
   document.getElementById("syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("mobile-syncNowButton")?.addEventListener("click", syncNowAccount);
+  document.getElementById("quick-syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("signOutButton")?.addEventListener("click", signOutAccount);
   document.getElementById("mobile-signOutButton")?.addEventListener("click", signOutAccount);
+  document.getElementById("quick-signOutButton")?.addEventListener("click", signOutAccount);
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice));
   });
