@@ -111,9 +111,11 @@ let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
+let cloudSyncTimer = 0;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const tutorialStorageKey = "lw_tutorial_seen";
+const cloudSyncTable = "bsb_user_sync";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -219,6 +221,15 @@ const state = {
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
   triviaGame: null,
+  authConfigured: isSupabaseConfigured(),
+  authClient: null,
+  authUser: null,
+  authStatus: "idle",
+  authMessage: "",
+  authBusy: false,
+  syncStatus: "local",
+  syncMessage: "",
+  lastCloudSyncAt: "",
 };
 
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
@@ -312,6 +323,7 @@ function recordReadingStreak(date = new Date()) {
     lastVisit: today,
   };
   localStorage.setItem(streakStorageKey, JSON.stringify(state.streak));
+  scheduleCloudSync();
   return true;
 }
 
@@ -602,6 +614,7 @@ function mobileSettingsPanel() {
     <div class="mobile-settings-popover" id="mobileSettingsPopover" role="dialog" aria-label="Settings">
       <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
       ${streakCard()}
+      ${accountPanel("mobile")}
       <div class="setting-group">
         <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
         <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
@@ -751,6 +764,7 @@ function topbar() {
         <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
           <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           ${streakCard()}
+          ${accountPanel()}
           <div class="setting-group">
             <label class="setting-label" for="themePresetSelect">Color theme</label>
             <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
@@ -842,6 +856,57 @@ function streakCard() {
           <span><strong>${streak.totalDays}</strong><small>Total days</small></span>
         </div>
       </div>
+    </section>
+  `;
+}
+
+function accountPanel(prefix = "") {
+  const suffix = prefix ? `${prefix}-` : "";
+  const email = state.authUser?.email || "";
+  const status = state.syncMessage || (state.authUser ? "Signed in and ready to sync." : "Sign in to carry your settings across devices.");
+  if (!state.authConfigured) {
+    return `
+      <section class="account-card">
+        <div class="account-card-head">
+          <span class="setting-label">Account sync</span>
+          <strong>Supabase ready</strong>
+        </div>
+        <p>Add your Supabase project URL and anon key in <code>assets/supabase-config.js</code> to enable sign in.</p>
+      </section>
+    `;
+  }
+
+  if (state.authUser) {
+    return `
+      <section class="account-card account-card-signed-in">
+        <div class="account-card-head">
+          <span class="setting-label">Account sync</span>
+          <strong>${escapeHtml(email)}</strong>
+        </div>
+        <p>${escapeHtml(status)}</p>
+        <div class="account-actions">
+          <button class="ghost-btn compact-account-btn" id="${suffix}syncNowButton" type="button" ${state.authBusy ? "disabled" : ""}>Sync now</button>
+          <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out</button>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="account-card">
+      <div class="account-card-head">
+        <span class="setting-label">Account sync</span>
+        <strong>Sign in</strong>
+      </div>
+      <p>${escapeHtml(state.authMessage || status)}</p>
+      <form class="account-form" id="${suffix}accountForm">
+        <input id="${suffix}accountEmail" type="email" autocomplete="email" placeholder="Email" aria-label="Email" required />
+        <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
+        <div class="account-actions">
+          <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
+          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create</button>
+        </div>
+      </form>
     </section>
   `;
 }
@@ -1160,6 +1225,338 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#39;",
   }[character]));
+}
+
+function supabaseCredentials() {
+  const config = window.BigScreenBibleSupabase || {};
+  return {
+    url: String(config.url || "").trim(),
+    anonKey: String(config.anonKey || config.publishableKey || "").trim(),
+  };
+}
+
+function isSupabaseConfigured() {
+  const { url, anonKey } = supabaseCredentials();
+  return Boolean(url && anonKey && !url.includes("YOUR_") && !anonKey.includes("YOUR_"));
+}
+
+function createSupabaseClient() {
+  if (state.authClient) return state.authClient;
+  if (!state.authConfigured) return null;
+  if (!window.supabase?.createClient) {
+    state.authMessage = "Supabase could not load. Check the internet connection and try again.";
+    return null;
+  }
+  const { url, anonKey } = supabaseCredentials();
+  state.authClient = window.supabase.createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+  return state.authClient;
+}
+
+async function initializeSupabaseAuth() {
+  state.authConfigured = isSupabaseConfigured();
+  if (!state.authConfigured) {
+    state.syncStatus = "local";
+    state.syncMessage = "Your settings are saved on this device until Supabase is connected.";
+    return;
+  }
+  const client = createSupabaseClient();
+  if (!client) return;
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) throw error;
+    state.authUser = data?.session?.user || null;
+    state.syncStatus = state.authUser ? "loading" : "local";
+    state.syncMessage = state.authUser ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
+    if (state.authUser) await loadCloudSync();
+    client.auth.onAuthStateChange((_event, session) => {
+      state.authUser = session?.user || null;
+      state.authBusy = false;
+      if (state.authUser) {
+        state.syncStatus = "loading";
+        state.syncMessage = "Loading your saved settings...";
+        loadCloudSync().catch((error) => {
+          console.warn("Cloud sync load failed", error);
+          state.syncStatus = "error";
+          state.syncMessage = "Signed in, but sync could not load yet.";
+          renderPreservingReaderScroll();
+        });
+      } else {
+        state.syncStatus = "local";
+        state.syncMessage = "Signed out. Changes are saved on this device.";
+        renderPreservingReaderScroll();
+      }
+    });
+  } catch (error) {
+    console.warn("Supabase auth setup failed", error);
+    state.authMessage = "Supabase sign in is configured, but the connection failed.";
+    state.syncStatus = "error";
+  }
+}
+
+async function handleAccountSubmit(event, prefix = "") {
+  event.preventDefault();
+  const submitter = event.submitter;
+  const action = submitter?.dataset.authAction || "signin";
+  const suffix = prefix ? `${prefix}-` : "";
+  const email = document.getElementById(`${suffix}accountEmail`)?.value.trim();
+  const password = document.getElementById(`${suffix}accountPassword`)?.value || "";
+  if (!email || !password) return;
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.authBusy = true;
+  state.authMessage = action === "signup" ? "Creating your account..." : "Signing you in...";
+  renderPreservingReaderScroll();
+  try {
+    const response = action === "signup"
+      ? await client.auth.signUp({ email, password })
+      : await client.auth.signInWithPassword({ email, password });
+    if (response.error) throw response.error;
+    state.authUser = response.data?.user || response.data?.session?.user || state.authUser;
+    state.authMessage = action === "signup" && !response.data?.session
+      ? "Account created. Check your email if Supabase asks you to confirm it."
+      : "Signed in.";
+    if (state.authUser) await loadCloudSync();
+    else renderPreservingReaderScroll();
+  } catch (error) {
+    console.warn("Account action failed", error);
+    state.authMessage = error?.message || "Account action failed. Please try again.";
+    showToast("Account sign in failed");
+    renderPreservingReaderScroll();
+  } finally {
+    state.authBusy = false;
+  }
+}
+
+async function signOutAccount() {
+  const client = createSupabaseClient();
+  if (!client) return;
+  state.authBusy = true;
+  renderPreservingReaderScroll();
+  try {
+    await client.auth.signOut();
+    state.authUser = null;
+    state.authMessage = "";
+    state.syncStatus = "local";
+    state.syncMessage = "Signed out. Changes are saved on this device.";
+  } catch (error) {
+    console.warn("Sign out failed", error);
+    state.authMessage = "Could not sign out yet. Please try again.";
+  } finally {
+    state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+function captureCloudSnapshot() {
+  return {
+    settings: {
+      versions: state.versions,
+      themeMode: localStorage.getItem("lw_theme") || "system",
+      themePresetLight: localStorage.getItem("lw_theme_preset_light") || defaultThemePresets.light,
+      themePresetDark: localStorage.getItem("lw_theme_preset_dark") || defaultThemePresets.dark,
+      scriptureFont: state.scriptureFont,
+      customScriptureFont: state.customScriptureFont,
+      textScale: state.textScale,
+      focusMode: state.focusMode,
+      libraryOpen: state.libraryOpen,
+      presentationTheme: state.presentationTheme,
+      startBigScreen: state.startBigScreen,
+      startVerseOfDay: state.startVerseOfDay,
+      showStreakPopup: state.showStreakPopup,
+      triviaGameType: state.triviaGameType,
+      triviaCategory: state.triviaCategory,
+      triviaDifficulty: state.triviaDifficulty,
+      triviaCount: state.triviaCount,
+    },
+    bookmarks: state.bookmarks,
+    notes: state.notes,
+    highlights: state.highlights,
+    history: state.history,
+    streak: normalizeReadingStreak(state.streak),
+  };
+}
+
+function normalizeCloudRow(row = {}) {
+  return {
+    settings: row.settings && typeof row.settings === "object" ? row.settings : {},
+    bookmarks: Array.isArray(row.bookmarks) ? row.bookmarks : [],
+    notes: row.notes && typeof row.notes === "object" ? row.notes : {},
+    highlights: row.highlights && typeof row.highlights === "object" ? row.highlights : {},
+    history: Array.isArray(row.history) ? row.history : [],
+    streak: normalizeReadingStreak(row.streak || {}),
+  };
+}
+
+function mergeCloudSnapshots(cloudRow, localSnapshot) {
+  const cloud = normalizeCloudRow(cloudRow);
+  return {
+    settings: {
+      ...localSnapshot.settings,
+      ...cloud.settings,
+      versions: mergeVersions(cloud.settings.versions, localSnapshot.settings.versions),
+    },
+    bookmarks: uniqueList([...cloud.bookmarks, ...localSnapshot.bookmarks]).slice(0, 200),
+    notes: { ...cloud.notes, ...localSnapshot.notes },
+    highlights: { ...cloud.highlights, ...localSnapshot.highlights },
+    history: mergeHistory(cloud.history, localSnapshot.history),
+    streak: mergeStreaks(cloud.streak, localSnapshot.streak),
+  };
+}
+
+function uniqueList(items) {
+  return [...new Set((items || []).filter(Boolean))];
+}
+
+function mergeVersions(cloudVersions = [], localVersions = []) {
+  const merged = uniqueList([...(cloudVersions || []), ...(localVersions || [])]).filter((version) => translationCodes.includes(version));
+  return merged.length ? merged : ["BSB", "KJV"];
+}
+
+function mergeHistory(cloudHistory = [], localHistory = []) {
+  const normalized = [...cloudHistory, ...localHistory]
+    .map((item) => typeof item === "string" ? { ref: item, at: "" } : item)
+    .filter((item) => item?.ref);
+  const byRef = new Map();
+  normalized.forEach((item) => {
+    const existing = byRef.get(item.ref);
+    if (!existing || String(item.at || "") > String(existing.at || "")) byRef.set(item.ref, item);
+  });
+  return Array.from(byRef.values())
+    .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")))
+    .slice(0, 80);
+}
+
+function mergeStreaks(cloudStreak, localStreak) {
+  const cloud = normalizeReadingStreak(cloudStreak);
+  const local = normalizeReadingStreak(localStreak);
+  const lastVisit = [cloud.lastVisit, local.lastVisit].sort().pop() || "";
+  return {
+    current: Math.max(cloud.current, local.current),
+    best: Math.max(cloud.best, local.best),
+    totalDays: Math.max(cloud.totalDays, local.totalDays),
+    lastVisit,
+  };
+}
+
+function applyCloudSnapshot(snapshot) {
+  const settings = snapshot.settings || {};
+  state.versions = mergeVersions(settings.versions, ["BSB", "KJV"]);
+  state.theme = settings.themeMode === "dark" || settings.themeMode === "light" ? settings.themeMode : savedTheme();
+  state.themePreset = settings[`themePreset${state.theme === "dark" ? "Dark" : "Light"}`] || savedThemePreset(state.theme);
+  state.scriptureFont = scriptureFontCodes.includes(settings.scriptureFont) ? settings.scriptureFont : "libre";
+  state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
+  state.textScale = clampTextScale(Number(settings.textScale) || 1);
+  state.focusMode = Boolean(settings.focusMode);
+  state.libraryOpen = settings.libraryOpen !== false;
+  state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : "deep";
+  state.startBigScreen = settings.startBigScreen !== false;
+  state.startVerseOfDay = settings.startVerseOfDay !== false;
+  state.showStreakPopup = settings.showStreakPopup !== false;
+  state.triviaGameType = settings.triviaGameType || state.triviaGameType;
+  state.triviaCategory = settings.triviaCategory || state.triviaCategory;
+  state.triviaDifficulty = settings.triviaDifficulty || state.triviaDifficulty;
+  state.triviaCount = Number(settings.triviaCount) || state.triviaCount;
+  state.bookmarks = Array.isArray(snapshot.bookmarks) ? uniqueList(snapshot.bookmarks).slice(0, 200) : [];
+  state.notes = snapshot.notes && typeof snapshot.notes === "object" ? snapshot.notes : {};
+  state.highlights = snapshot.highlights && typeof snapshot.highlights === "object" ? snapshot.highlights : {};
+  state.history = mergeHistory(snapshot.history, []);
+  state.streak = normalizeReadingStreak(snapshot.streak);
+  persistCloudSnapshotLocally(snapshot);
+  applyCustomScriptureFont();
+}
+
+function persistCloudSnapshotLocally(snapshot) {
+  const settings = snapshot.settings || {};
+  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  if (settings.themeMode === "dark" || settings.themeMode === "light") localStorage.setItem("lw_theme", settings.themeMode);
+  else localStorage.removeItem("lw_theme");
+  localStorage.setItem("lw_theme_preset_light", settings.themePresetLight || defaultThemePresets.light);
+  localStorage.setItem("lw_theme_preset_dark", settings.themePresetDark || defaultThemePresets.dark);
+  localStorage.setItem("lw_scripture_font", state.scriptureFont);
+  localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
+  localStorage.setItem("lw_text_scale", String(state.textScale));
+  localStorage.setItem("lw_focus_mode", String(state.focusMode));
+  localStorage.setItem("lw_library_open", String(state.libraryOpen));
+  localStorage.setItem("lw_presentation_theme", state.presentationTheme);
+  localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
+  localStorage.setItem("lw_start_verse_of_day", String(state.startVerseOfDay));
+  localStorage.setItem("lw_show_streak_popup", String(state.showStreakPopup));
+  localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
+  localStorage.setItem("lw_trivia_category", state.triviaCategory);
+  localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+  localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+  localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  localStorage.setItem("lw_notes", JSON.stringify(state.notes));
+  localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
+  localStorage.setItem("lw_history", JSON.stringify(state.history));
+  localStorage.setItem(streakStorageKey, JSON.stringify(state.streak));
+}
+
+async function loadCloudSync() {
+  const client = createSupabaseClient();
+  const userId = state.authUser?.id;
+  if (!client || !userId) return;
+  state.authBusy = true;
+  state.syncStatus = "loading";
+  state.syncMessage = "Loading your saved settings...";
+  const localSnapshot = captureCloudSnapshot();
+  try {
+    const { data, error } = await client
+      .from(cloudSyncTable)
+      .select("settings, bookmarks, notes, highlights, history, streak, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    const nextSnapshot = data ? mergeCloudSnapshots(data, localSnapshot) : localSnapshot;
+    applyCloudSnapshot(nextSnapshot);
+    await upsertCloudSnapshot(nextSnapshot, { quiet: true });
+    state.syncStatus = "synced";
+    state.syncMessage = "Synced across your signed-in devices.";
+    state.lastCloudSyncAt = new Date().toISOString();
+  } catch (error) {
+    console.warn("Cloud sync failed", error);
+    state.syncStatus = "error";
+    state.syncMessage = error?.message || "Sync could not finish yet.";
+  } finally {
+    state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+function scheduleCloudSync() {
+  if (!state.authUser || !state.authClient) return;
+  clearTimeout(cloudSyncTimer);
+  state.syncStatus = "pending";
+  state.syncMessage = "Sync pending...";
+  cloudSyncTimer = window.setTimeout(() => {
+    upsertCloudSnapshot(captureCloudSnapshot()).catch((error) => {
+      console.warn("Cloud sync save failed", error);
+      state.syncStatus = "error";
+      state.syncMessage = "Could not sync your latest change yet.";
+      renderPreservingReaderScroll();
+    });
+  }, 900);
+}
+
+async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = {}) {
+  const client = createSupabaseClient();
+  const userId = state.authUser?.id;
+  if (!client || !userId) return;
+  state.syncStatus = "saving";
+  const { error } = await client
+    .from(cloudSyncTable)
+    .upsert({ user_id: userId, ...snapshot }, { onConflict: "user_id" });
+  if (error) throw error;
+  state.syncStatus = "synced";
+  state.syncMessage = "Synced across your signed-in devices.";
+  state.lastCloudSyncAt = new Date().toISOString();
+  if (!options.quiet) showToast("Account synced");
 }
 
 function readerView() {
@@ -2252,6 +2649,7 @@ function bindEvents() {
       if (state.versions.length === 1) return showToast("Keep at least one version selected");
       state.versions = state.versions.filter((version) => version !== button.dataset.removeVersion);
       localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+      scheduleCloudSync();
       render();
     });
   });
@@ -2270,6 +2668,7 @@ function bindEvents() {
     await loadBibleVersion(version);
     rebuildBibleData();
     localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+    scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("versionMenuToggle")?.addEventListener("click", () => {
@@ -2296,6 +2695,7 @@ function bindEvents() {
       await loadBibleVersion(version);
       rebuildBibleData();
       localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+      scheduleCloudSync();
       renderPreservingReaderScroll();
     });
   });
@@ -2321,6 +2721,12 @@ function bindEvents() {
     state.settingsOpen = false;
     renderPreservingReaderScroll();
   });
+  document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
+  document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
+  document.getElementById("syncNowButton")?.addEventListener("click", () => upsertCloudSnapshot());
+  document.getElementById("mobile-syncNowButton")?.addEventListener("click", () => upsertCloudSnapshot());
+  document.getElementById("signOutButton")?.addEventListener("click", signOutAccount);
+  document.getElementById("mobile-signOutButton")?.addEventListener("click", signOutAccount);
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice));
   });
@@ -2353,27 +2759,33 @@ function bindEvents() {
   document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
     state.startBigScreen = event.target.checked;
     localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
+    scheduleCloudSync();
   });
   document.getElementById("mobileStartBigScreenToggle")?.addEventListener("change", (event) => {
     state.startBigScreen = event.target.checked;
     localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
+    scheduleCloudSync();
   });
   document.getElementById("startVerseOfDayToggle")?.addEventListener("change", (event) => {
     state.startVerseOfDay = event.target.checked;
     localStorage.setItem("lw_start_verse_of_day", state.startVerseOfDay ? "true" : "false");
+    scheduleCloudSync();
   });
   document.getElementById("mobileStartVerseOfDayToggle")?.addEventListener("change", (event) => {
     state.startVerseOfDay = event.target.checked;
     localStorage.setItem("lw_start_verse_of_day", state.startVerseOfDay ? "true" : "false");
+    scheduleCloudSync();
   });
   document.getElementById("showStreakPopupToggle")?.addEventListener("change", (event) => {
     state.showStreakPopup = event.target.checked;
     localStorage.setItem("lw_show_streak_popup", state.showStreakPopup ? "true" : "false");
+    scheduleCloudSync();
     if (!state.showStreakPopup) dismissStreakPopup();
   });
   document.getElementById("mobileShowStreakPopupToggle")?.addEventListener("change", (event) => {
     state.showStreakPopup = event.target.checked;
     localStorage.setItem("lw_show_streak_popup", state.showStreakPopup ? "true" : "false");
+    scheduleCloudSync();
     if (!state.showStreakPopup) dismissStreakPopup();
   });
   const streakPopupElement = document.getElementById("streakPopup");
@@ -2432,22 +2844,26 @@ function bindEvents() {
         localStorage.setItem("lw_trivia_count", String(state.triviaCount));
       }
       localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
+      scheduleCloudSync();
       renderPreservingReaderScroll();
     });
   });
   document.getElementById("triviaCategorySelect")?.addEventListener("change", (event) => {
     state.triviaCategory = event.target.value;
     localStorage.setItem("lw_trivia_category", state.triviaCategory);
+    scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("triviaDifficultySelect")?.addEventListener("change", (event) => {
     state.triviaDifficulty = event.target.value;
     localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+    scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("triviaCountSelect")?.addEventListener("change", (event) => {
     state.triviaCount = Number(event.target.value) || 10;
     localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+    scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
@@ -2682,6 +3098,7 @@ async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  scheduleCloudSync();
   if (translationLookup[version]?.status === "bundled") {
     await loadBibleVersion(version);
     rebuildBibleData();
@@ -2695,6 +3112,7 @@ function setThemePreset(preset) {
   if (themePresetLookup[preset]?.mode !== state.theme) return;
   state.themePreset = preset;
   localStorage.setItem(`lw_theme_preset_${state.theme}`, preset);
+  scheduleCloudSync();
   renderPreservingReaderScroll();
 }
 
@@ -2704,6 +3122,7 @@ function setThemeMode(mode) {
   state.theme = mode;
   state.themePreset = savedThemePreset(state.theme);
   localStorage.setItem("lw_theme", state.theme);
+  scheduleCloudSync();
   renderPreservingReaderScroll();
 }
 
@@ -2711,6 +3130,7 @@ function resetThemeToSystem() {
   localStorage.removeItem("lw_theme");
   state.theme = savedTheme();
   state.themePreset = savedThemePreset(state.theme);
+  scheduleCloudSync();
   showToast("Following system theme");
   renderPreservingReaderScroll();
 }
@@ -2719,6 +3139,7 @@ function setPresentationTheme(theme) {
   if (!presentationThemeCodes.includes(theme)) return;
   state.presentationTheme = theme;
   localStorage.setItem("lw_presentation_theme", theme);
+  scheduleCloudSync();
   state.presentationSettingsOpen = false;
   render();
 }
@@ -3348,6 +3769,7 @@ function setScriptureFont(font) {
   if (!scriptureFontCodes.includes(font)) return;
   state.scriptureFont = font;
   localStorage.setItem("lw_scripture_font", font);
+  scheduleCloudSync();
   renderPreservingReaderScroll();
 }
 
@@ -3355,6 +3777,7 @@ function setCustomScriptureFont(font) {
   state.customScriptureFont = sanitizeFontName(font);
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
   applyCustomScriptureFont();
+  scheduleCloudSync();
   renderPreservingReaderScroll();
 }
 
@@ -3760,12 +4183,14 @@ function recordHistory(ref = referenceLabel()) {
   history.unshift({ ref, at: new Date().toISOString() });
   state.history = history.slice(0, 80);
   localStorage.setItem("lw_history", JSON.stringify(state.history));
+  scheduleCloudSync();
 }
 
 function activateWorkspace(target) {
   state.activeRail = target;
   state.libraryOpen = true;
   localStorage.setItem("lw_library_open", "true");
+  scheduleCloudSync();
   state.pendingPanelFocus = target;
   renderPreservingReaderScroll();
 }
@@ -3773,18 +4198,21 @@ function activateWorkspace(target) {
 function closeLibrary() {
   state.libraryOpen = false;
   localStorage.setItem("lw_library_open", "false");
+  scheduleCloudSync();
   render();
 }
 
 function adjustTextScale(delta) {
   state.textScale = clampTextScale(state.textScale + delta);
   localStorage.setItem("lw_text_scale", String(state.textScale));
+  scheduleCloudSync();
   render();
 }
 
 function resetTextScale() {
   state.textScale = 1;
   localStorage.setItem("lw_text_scale", "1");
+  scheduleCloudSync();
   render();
 }
 
@@ -3792,6 +4220,7 @@ function toggleFocusMode() {
   state.focusMode = !state.focusMode;
   if (state.focusMode) state.mobileControlsOpen = false;
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
+  scheduleCloudSync();
   render();
 }
 
@@ -4195,6 +4624,7 @@ function toggleBookmark() {
     showToast("Bookmark saved");
   }
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  scheduleCloudSync();
   render();
 }
 
@@ -4204,6 +4634,7 @@ function saveNote() {
   if (note) state.notes[ref] = note;
   else delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
+  scheduleCloudSync();
   showToast(note ? "Note saved" : "Note deleted");
   render();
 }
@@ -4216,6 +4647,7 @@ function editBookmark(ref) {
   state.bookmarks = state.bookmarks.map((item) => item === ref ? cleaned : item);
   state.bookmarks = [...new Set(state.bookmarks)];
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  scheduleCloudSync();
   showToast("Bookmark updated");
   render();
 }
@@ -4223,6 +4655,7 @@ function editBookmark(ref) {
 function deleteBookmark(ref) {
   state.bookmarks = state.bookmarks.filter((item) => item !== ref);
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  scheduleCloudSync();
   showToast("Bookmark deleted");
   render();
 }
@@ -4234,6 +4667,7 @@ function editNote(ref) {
   if (note) state.notes[ref] = note;
   else delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
+  scheduleCloudSync();
   showToast(note ? "Note updated" : "Note deleted");
   render();
 }
@@ -4241,6 +4675,7 @@ function editNote(ref) {
 function deleteNote(ref) {
   delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
+  scheduleCloudSync();
   showToast("Note deleted");
   render();
 }
@@ -4262,6 +4697,7 @@ function removeHighlight(ref) {
   if (parsed) parsed.verses.forEach((verse) => delete state.highlights[`${parsed.key}:${verse}`]);
   else delete state.highlights[ref];
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
+  scheduleCloudSync();
   showToast("Highlight removed");
   renderPreservingReaderScroll();
 }
@@ -4269,6 +4705,7 @@ function removeHighlight(ref) {
 function deleteHistoryItem(ref) {
   state.history = state.history.filter((item) => (typeof item === "string" ? item : item.ref) !== ref);
   localStorage.setItem("lw_history", JSON.stringify(state.history));
+  scheduleCloudSync();
   showToast("History item deleted");
   render();
 }
@@ -4276,6 +4713,7 @@ function deleteHistoryItem(ref) {
 function clearHistory() {
   state.history = [];
   localStorage.setItem("lw_history", JSON.stringify(state.history));
+  scheduleCloudSync();
   showToast("History cleared");
   render();
 }
@@ -4386,6 +4824,7 @@ function applyHighlight(color) {
     else delete state.highlights[ref];
   });
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
+  scheduleCloudSync();
   showToast(highlightColors.includes(color) ? "Highlight added" : "Highlight removed");
   renderPreservingReaderScroll();
 }
@@ -4755,4 +5194,5 @@ document.addEventListener("webkitfullscreenchange", render);
 const streakUpdatedToday = recordReadingStreak();
 state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
+initializeSupabaseAuth();
 initializeBibleData();
