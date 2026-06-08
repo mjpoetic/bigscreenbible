@@ -349,103 +349,35 @@ window.bibleTriviaQuestions.push(
   { category: "Worship", difficulty: "hard", question: "Who dedicated the temple with prayer in Jerusalem?", choices: ["David", "Solomon", "Hezekiah", "Josiah"], answer: "Solomon", reference: "1 Kings 8:22-23", explanation: "Solomon prayed before the altar at the dedication of the temple." }
 );
 
+
 (() => {
-  const targetQuestionCount = 500;
-  const books = [
-    ["Genesis", 50, "Old Testament", "Law"],
-    ["Exodus", 40, "Old Testament", "Law"],
-    ["Leviticus", 27, "Old Testament", "Law"],
-    ["Numbers", 36, "Old Testament", "Law"],
-    ["Deuteronomy", 34, "Old Testament", "Law"],
-    ["Joshua", 24, "Old Testament", "History"],
-    ["Judges", 21, "Old Testament", "History"],
-    ["Ruth", 4, "Old Testament", "History"],
-    ["1 Samuel", 31, "Old Testament", "History"],
-    ["2 Samuel", 24, "Old Testament", "History"],
-    ["1 Kings", 22, "Old Testament", "History"],
-    ["2 Kings", 25, "Old Testament", "History"],
-    ["1 Chronicles", 29, "Old Testament", "History"],
-    ["2 Chronicles", 36, "Old Testament", "History"],
-    ["Ezra", 10, "Old Testament", "History"],
-    ["Nehemiah", 13, "Old Testament", "History"],
-    ["Esther", 10, "Old Testament", "History"],
-    ["Job", 42, "Old Testament", "Poetry and Wisdom"],
-    ["Psalm", 150, "Old Testament", "Poetry and Wisdom"],
-    ["Proverbs", 31, "Old Testament", "Poetry and Wisdom"],
-    ["Ecclesiastes", 12, "Old Testament", "Poetry and Wisdom"],
-    ["Song of Songs", 8, "Old Testament", "Poetry and Wisdom"],
-    ["Isaiah", 66, "Old Testament", "Major Prophets"],
-    ["Jeremiah", 52, "Old Testament", "Major Prophets"],
-    ["Lamentations", 5, "Old Testament", "Major Prophets"],
-    ["Ezekiel", 48, "Old Testament", "Major Prophets"],
-    ["Daniel", 12, "Old Testament", "Major Prophets"],
-    ["Hosea", 14, "Old Testament", "Minor Prophets"],
-    ["Joel", 3, "Old Testament", "Minor Prophets"],
-    ["Amos", 9, "Old Testament", "Minor Prophets"],
-    ["Obadiah", 1, "Old Testament", "Minor Prophets"],
-    ["Jonah", 4, "Old Testament", "Minor Prophets"],
-    ["Micah", 7, "Old Testament", "Minor Prophets"],
-    ["Nahum", 3, "Old Testament", "Minor Prophets"],
-    ["Habakkuk", 3, "Old Testament", "Minor Prophets"],
-    ["Zephaniah", 3, "Old Testament", "Minor Prophets"],
-    ["Haggai", 2, "Old Testament", "Minor Prophets"],
-    ["Zechariah", 14, "Old Testament", "Minor Prophets"],
-    ["Malachi", 4, "Old Testament", "Minor Prophets"],
-    ["Matthew", 28, "New Testament", "Gospels"],
-    ["Mark", 16, "New Testament", "Gospels"],
-    ["Luke", 24, "New Testament", "Gospels"],
-    ["John", 21, "New Testament", "Gospels"],
-    ["Acts", 28, "New Testament", "Church History"],
-    ["Romans", 16, "New Testament", "Pauline Letters"],
-    ["1 Corinthians", 16, "New Testament", "Pauline Letters"],
-    ["2 Corinthians", 13, "New Testament", "Pauline Letters"],
-    ["Galatians", 6, "New Testament", "Pauline Letters"],
-    ["Ephesians", 6, "New Testament", "Pauline Letters"],
-    ["Philippians", 4, "New Testament", "Pauline Letters"],
-    ["Colossians", 4, "New Testament", "Pauline Letters"],
-    ["1 Thessalonians", 5, "New Testament", "Pauline Letters"],
-    ["2 Thessalonians", 3, "New Testament", "Pauline Letters"],
-    ["1 Timothy", 6, "New Testament", "Pauline Letters"],
-    ["2 Timothy", 4, "New Testament", "Pauline Letters"],
-    ["Titus", 3, "New Testament", "Pauline Letters"],
-    ["Philemon", 1, "New Testament", "Pauline Letters"],
-    ["Hebrews", 13, "New Testament", "General Letters"],
-    ["James", 5, "New Testament", "General Letters"],
-    ["1 Peter", 5, "New Testament", "General Letters"],
-    ["2 Peter", 3, "New Testament", "General Letters"],
-    ["1 John", 5, "New Testament", "General Letters"],
-    ["2 John", 1, "New Testament", "General Letters"],
-    ["3 John", 1, "New Testament", "General Letters"],
-    ["Jude", 1, "New Testament", "General Letters"],
-    ["Revelation", 22, "New Testament", "Prophecy"],
-  ];
-
-  const sectionChoices = [
-    "Law",
-    "History",
-    "Poetry and Wisdom",
-    "Major Prophets",
-    "Minor Prophets",
-    "Gospels",
-    "Church History",
-    "Pauline Letters",
-    "General Letters",
-    "Prophecy",
-  ];
-
-  const orderLabel = (number) => {
-    const suffix = number % 10 === 1 && number % 100 !== 11 ? "st"
-      : number % 10 === 2 && number % 100 !== 12 ? "nd"
-      : number % 10 === 3 && number % 100 !== 13 ? "rd"
-      : "th";
-    return `${number}${suffix}`;
+  const targetCounts = {
+    People: 28,
+    Places: 26,
+    Miracles: 26,
+    Parables: 26,
+    "Life of Jesus": 55,
+    Wisdom: 26,
+    "Bible Survey": 40,
+    Books: 26,
+    Women: 26,
+    Faith: 26,
+    Prophets: 26,
+    Prayer: 26,
+    Commandments: 35,
+    Psalms: 26,
+    Angels: 20,
+    Family: 20,
+    Worship: 20,
+    "Bible Library": 22,
   };
 
+  const normalizeCategory = (category) => ["Old Testament", "New Testament"].includes(category) ? "Bible Survey" : category;
+  const categoryCount = (category) => window.bibleTriviaQuestions.filter((question) => normalizeCategory(question.category) === category).length;
   const shuffle = (items, seed) => items
     .map((item, index) => ({ item, sort: ((seed + 3) * (index + 11) * 7919) % 104729 }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ item }) => item);
-
   const choicesAround = (answer, allChoices, seed) => {
     const choices = [answer];
     for (const choice of shuffle(allChoices, seed)) {
@@ -454,108 +386,248 @@ window.bibleTriviaQuestions.push(
     }
     return shuffle(choices, seed + 17);
   };
-
-  const chapterChoices = (answer, seed) => {
-    const pool = Array.from(new Set([
+  const addQuestion = (category, difficulty, question, answer, distractors, reference, explanation) => {
+    window.bibleTriviaQuestions.push({
+      category,
+      difficulty,
+      question,
+      choices: choicesAround(answer, [answer, ...distractors], question.length + reference.length),
       answer,
-      Math.max(1, answer - 1),
-      answer + 1,
-      answer + 2,
-      Math.max(1, answer - 3),
-      4,
-      12,
-      16,
-      24,
-      28,
-      40,
-      66,
-      150,
-    ])).map(String);
-    return choicesAround(String(answer), pool, seed);
+      reference,
+      explanation,
+    });
+  };
+  const addRows = (category, rows) => {
+    const target = targetCounts[category] || 20;
+    const references = rows.map((row) => row[4]);
+    let round = 0;
+    while (categoryCount(category) < target && round < 4) {
+      for (const row of rows) {
+        if (categoryCount(category) >= target) break;
+        const [difficulty, question, answer, distractors, reference, explanation, clue] = row;
+        const mode = round % 3;
+        if (mode === 0) {
+          addQuestion(category, difficulty, question, answer, distractors, reference, explanation);
+        } else if (mode === 1) {
+          addQuestion(category, difficulty, "Which reference fits this clue: " + clue, reference, references.filter((item) => item !== reference), reference, explanation);
+        } else {
+          addQuestion(category, difficulty, "At " + reference + ", what answer fits this clue: " + clue, answer, distractors, reference, explanation);
+        }
+      }
+      round += 1;
+    }
   };
 
-  const generated = [];
-  const bookNames = books.map(([book]) => book);
-  const testamentChoices = ["Old Testament", "New Testament"];
+  addRows("People", [
+    ["easy", "Who received the Ten Commandments from God on Mount Sinai?", "Moses", ["Aaron", "Joshua", "Caleb"], "Exodus 31:18", "Moses received the tablets of testimony from God.", "the leader who received the tablets at Sinai"],
+    ["easy", "Who became king after Saul and was known as a man after God's own heart?", "David", ["Solomon", "Jonathan", "Samuel"], "1 Samuel 13:14", "David was chosen by God to lead Israel after Saul.", "the shepherd king after Saul"],
+    ["medium", "Who asked God for wisdom to govern Israel?", "Solomon", ["David", "Saul", "Josiah"], "1 Kings 3:9", "Solomon asked for an understanding heart to judge the people.", "the king who asked for wisdom"],
+    ["medium", "Who rebuilt Jerusalem's wall after returning from exile?", "Nehemiah", ["Ezra", "Zerubbabel", "Haggai"], "Nehemiah 6:15", "Nehemiah led the rebuilding of Jerusalem's wall.", "the wall-building leader after exile"],
+    ["medium", "Who stood before Pharaoh with Moses and spoke on his behalf?", "Aaron", ["Hur", "Joshua", "Caleb"], "Exodus 7:1-2", "Aaron served as Moses' spokesman before Pharaoh.", "Moses' spokesman before Pharaoh"],
+    ["hard", "Who was David's friend whose covenant loyalty protected David?", "Jonathan", ["Joab", "Abner", "Nathan"], "1 Samuel 18:3", "Jonathan made a covenant with David because he loved him as himself.", "the covenant friend of David"],
+    ["hard", "Who interpreted Nebuchadnezzar's dream of the statue?", "Daniel", ["Hananiah", "Mishael", "Azariah"], "Daniel 2:26-28", "Daniel gave God credit for revealing the king's dream.", "the exile who interpreted the statue dream"],
+    ["medium", "Who was Ruth's kinsman-redeemer?", "Boaz", ["Elimelech", "Obed", "Mahlon"], "Ruth 4:9-10", "Boaz redeemed the family line and married Ruth.", "Ruth's redeemer"],
+  ]);
 
-  books.forEach(([book, chapters, testament, section], index) => {
-    generated.push({
-      category: "Bible Library",
-      difficulty: chapters > 40 || chapters === 1 ? "hard" : "medium",
-      question: `How many chapters are in ${book}?`,
-      choices: chapterChoices(chapters, index),
-      answer: String(chapters),
-      reference: `${book} ${chapters}:1`,
-      explanation: `${book} has ${chapters} ${chapters === 1 ? "chapter" : "chapters"}.`,
-    });
+  addRows("Places", [
+    ["easy", "Where did God confuse human language at the tower?", "Babel", ["Bethel", "Jericho", "Nineveh"], "Genesis 11:9", "The place was called Babel because the LORD confused the language there.", "the tower where languages were confused"],
+    ["easy", "What city repented after Jonah preached there?", "Nineveh", ["Babylon", "Tyre", "Damascus"], "Jonah 3:5", "The people of Nineveh believed God and repented.", "the city that repented after Jonah preached"],
+    ["medium", "Where did Jesus raise Lazarus from the dead?", "Bethany", ["Bethlehem", "Bethsaida", "Capernaum"], "John 11:1", "Lazarus lived in Bethany with Mary and Martha.", "the village of Lazarus, Mary, and Martha"],
+    ["medium", "Where were believers first called Christians?", "Antioch", ["Jerusalem", "Rome", "Corinth"], "Acts 11:26", "The disciples were first called Christians in Antioch.", "the city where disciples were first called Christians"],
+    ["hard", "On what mountain did Elijah confront the prophets of Baal?", "Mount Carmel", ["Mount Sinai", "Mount Zion", "Mount Nebo"], "1 Kings 18:19-20", "Elijah gathered Israel and the prophets of Baal on Mount Carmel.", "Elijah's confrontation with Baal's prophets"],
+    ["hard", "Where did Moses view the promised land before his death?", "Mount Nebo", ["Mount Carmel", "Mount Tabor", "Mount Zion"], "Deuteronomy 34:1", "Moses went up Mount Nebo and saw the land from Pisgah.", "Moses viewing the promised land"],
+    ["medium", "Where was Paul born?", "Tarsus", ["Jerusalem", "Antioch", "Rome"], "Acts 22:3", "Paul said he was born in Tarsus of Cilicia.", "Paul's birthplace"],
+    ["hard", "Where did Abraham nearly offer Isaac?", "Moriah", ["Sinai", "Carmel", "Nebo"], "Genesis 22:2", "God directed Abraham to the land of Moriah.", "Abraham's test with Isaac"],
+  ]);
 
-    generated.push({
-      category: testament,
-      difficulty: "easy",
-      question: `Which testament contains ${book}?`,
-      choices: choicesAround(testament, testamentChoices, index + 100),
-      answer: testament,
-      reference: `${book} 1:1`,
-      explanation: `${book} belongs to the ${testament}.`,
-    });
+  addRows("Miracles", [
+    ["easy", "What sea did God part for Israel during the exodus?", "Red Sea", ["Sea of Galilee", "Dead Sea", "Mediterranean Sea"], "Exodus 14:21-22", "God made a path through the Red Sea.", "Israel crossing on dry ground"],
+    ["easy", "What did Jesus do with five loaves and two fish?", "Fed a multitude", ["Filled a boat", "Healed a leper", "Opened prison doors"], "Matthew 14:19-21", "Jesus blessed the food and fed about five thousand men.", "five loaves and two fish"],
+    ["medium", "What happened when Jesus spoke to the storm on the sea?", "The wind and waves became calm", ["The boat sank", "Fish filled the nets", "The sea turned red"], "Mark 4:39", "Jesus rebuked the wind and told the sea to be still.", "Jesus commanding the storm"],
+    ["medium", "What did Elisha make float for the prophets' sons?", "An axe head", ["A jar of oil", "A scroll", "A spear"], "2 Kings 6:5-7", "Elisha caused the borrowed axe head to float.", "the borrowed tool that floated"],
+    ["medium", "Who was raised by Peter in Joppa?", "Tabitha", ["Lydia", "Priscilla", "Eutychus"], "Acts 9:40", "Peter prayed and told Tabitha to arise.", "Peter raising a disciple in Joppa"],
+    ["hard", "What happened when Paul shook a viper into the fire on Malta?", "He suffered no harm", ["He became blind", "The ship sank", "The fire went out"], "Acts 28:5", "Paul shook off the creature and was unharmed.", "Paul and the viper on Malta"],
+    ["medium", "Who was healed after dipping seven times in the Jordan?", "Naaman", ["Gehazi", "Uzziah", "Hezekiah"], "2 Kings 5:10-14", "Naaman obeyed Elisha's instruction and was cleansed.", "a commander washed seven times"],
+    ["hard", "What miracle happened when Hezekiah received a sign from God?", "The shadow moved backward", ["The sun stopped at noon", "Rain fell for seven days", "A river dried up"], "2 Kings 20:9-11", "The shadow went back on the steps as a sign to Hezekiah.", "the sign given to Hezekiah"],
+  ]);
 
-    generated.push({
-      category: "Bible Library",
-      difficulty: "medium",
-      question: `What kind of biblical book is ${book}?`,
-      choices: choicesAround(section, sectionChoices, index + 200),
-      answer: section,
-      reference: `${book} 1:1`,
-      explanation: `${book} is commonly grouped with the ${section} books.`,
-    });
+  addRows("Parables", [
+    ["easy", "In the parable of the lost sheep, how many sheep went missing?", "One", ["Two", "Ten", "Ninety-nine"], "Luke 15:4", "The shepherd leaves the ninety-nine to seek the one lost sheep.", "the shepherd seeking one missing sheep"],
+    ["easy", "In the parable of the sower, what ate the seed along the path?", "Birds", ["Foxes", "Locusts", "Worms"], "Matthew 13:4", "Birds devoured the seed that fell along the path.", "seed falling along the path"],
+    ["medium", "In the parable of the good Samaritan, who passed by before the Samaritan helped?", "A priest and a Levite", ["Two soldiers", "A tax collector and a scribe", "Two fishermen"], "Luke 10:31-33", "A priest and a Levite passed by before the Samaritan showed mercy.", "the wounded man on the road"],
+    ["medium", "In the parable of the pearl, what did the merchant sell to buy it?", "Everything he had", ["Only his house", "His boat", "His vineyard"], "Matthew 13:45-46", "The merchant sold all he had to buy the pearl of great value.", "the pearl of great value"],
+    ["hard", "In the parable of the rich fool, what did the man plan to build larger?", "Barns", ["Walls", "Boats", "Towers"], "Luke 12:18", "The rich man planned bigger barns but ignored his soul.", "the wealthy man planning storage"],
+    ["hard", "In the parable of the persistent widow, who finally gave her justice?", "An unjust judge", ["A priest", "A king", "A prophet"], "Luke 18:2-5", "The unjust judge granted justice because of the widow's persistence.", "the widow who kept asking"],
+    ["medium", "In the parable of the net, what did fishermen separate?", "Good fish from bad fish", ["Sheep from goats", "Wheat from tares", "Coins from pearls"], "Matthew 13:47-48", "The net gathered fish that were later sorted.", "the dragnet and sorted fish"],
+    ["hard", "In the parable of the Pharisee and tax collector, who went home justified?", "The tax collector", ["The Pharisee", "Both men", "Neither man"], "Luke 18:14", "The humble tax collector went home justified.", "two men praying at the temple"],
+  ]);
 
-    generated.push({
-      category: "Bible Order",
-      difficulty: index < 10 || index > books.length - 6 ? "easy" : "medium",
-      question: `Which book is ${orderLabel(index + 1)} in the Bible?`,
-      choices: choicesAround(book, bookNames, index + 300),
-      answer: book,
-      reference: `${book} 1:1`,
-      explanation: `${book} is the ${orderLabel(index + 1)} book in the Bible.`,
-    });
+  addRows("Life of Jesus", [
+    ["easy", "Where was Jesus laid after His birth?", "In a manger", ["In a palace", "In the temple", "In a boat"], "Luke 2:7", "Mary laid Jesus in a manger because there was no room in the inn.", "Jesus' first bed after birth"],
+    ["easy", "Who announced Jesus' birth to shepherds?", "An angel", ["A prophet", "A priest", "A king"], "Luke 2:9-11", "An angel announced good news of great joy to the shepherds.", "the announcement to shepherds"],
+    ["easy", "What gifts did the wise men bring to Jesus?", "Gold, frankincense, and myrrh", ["Silver, oil, and bread", "Wine, linen, and spices", "Wheat, figs, and honey"], "Matthew 2:11", "The wise men presented gold, frankincense, and myrrh.", "the gifts of the magi"],
+    ["easy", "Who baptized Jesus?", "John the Baptist", ["Peter", "James", "Andrew"], "Matthew 3:13-16", "Jesus came to John at the Jordan to be baptized.", "Jesus' baptism at the Jordan"],
+    ["easy", "How many days was Jesus tempted in the wilderness?", "40", ["7", "12", "30"], "Matthew 4:1-2", "Jesus fasted forty days and forty nights.", "Jesus' wilderness temptation"],
+    ["medium", "Which tax collector left his booth to follow Jesus?", "Matthew", ["Zacchaeus", "Judas", "Nicodemus"], "Matthew 9:9", "Matthew rose from the tax booth and followed Jesus.", "a tax collector called from his booth"],
+    ["medium", "Who climbed a tree to see Jesus in Jericho?", "Zacchaeus", ["Bartimaeus", "Nicodemus", "Joseph"], "Luke 19:4", "Zacchaeus climbed a sycamore tree because he was short.", "the short tax collector in Jericho"],
+    ["medium", "Which garden did Jesus pray in before His arrest?", "Gethsemane", ["Eden", "Bethany", "Olives"], "Matthew 26:36", "Jesus went with His disciples to Gethsemane to pray.", "Jesus' prayer before arrest"],
+    ["medium", "Who betrayed Jesus?", "Judas Iscariot", ["Peter", "Thomas", "Pilate"], "Matthew 26:14-16", "Judas agreed to betray Jesus for silver.", "the disciple who betrayed Jesus"],
+    ["medium", "Which disciple denied knowing Jesus three times?", "Peter", ["John", "Thomas", "Philip"], "Luke 22:61", "Peter remembered Jesus' words after denying Him three times.", "the disciple and the rooster"],
+    ["medium", "Who carried Jesus' cross on the way to Golgotha?", "Simon of Cyrene", ["Joseph of Arimathea", "Barabbas", "Nicodemus"], "Luke 23:26", "The soldiers compelled Simon of Cyrene to carry the cross behind Jesus.", "the man compelled to carry the cross"],
+    ["hard", "Who asked Pilate for Jesus' body?", "Joseph of Arimathea", ["Nicodemus", "John", "Simon of Cyrene"], "Mark 15:43", "Joseph of Arimathea boldly asked Pilate for the body of Jesus.", "the council member who requested Jesus' body"],
+    ["hard", "Who mistook the risen Jesus for the gardener?", "Mary Magdalene", ["Mary of Bethany", "Martha", "Joanna"], "John 20:15", "Mary Magdalene did not recognize Jesus at first.", "the first meeting near the empty tomb in John"],
+    ["hard", "Which disciple said, 'My Lord and my God'?", "Thomas", ["Peter", "John", "Philip"], "John 20:28", "Thomas confessed faith when he saw the risen Jesus.", "the disciple who confessed after seeing Jesus"],
+    ["hard", "On what road did the risen Jesus walk with two disciples?", "Emmaus", ["Damascus", "Jericho", "Bethany"], "Luke 24:13-15", "Jesus drew near to two disciples on the road to Emmaus.", "the resurrection walk with two disciples"],
+    ["medium", "What did Jesus call Himself in John 10?", "The good shepherd", ["The bronze serpent", "The hidden manna", "The morning star"], "John 10:11", "Jesus said, I am the good shepherd.", "Jesus' shepherd image"],
+    ["medium", "What did Jesus call Himself in John 15?", "The true vine", ["The living stone", "The open door", "The chief musician"], "John 15:1", "Jesus said, I am the true vine.", "Jesus' vine image"],
+    ["hard", "Who said, 'Lord, to whom shall we go?'", "Peter", ["John", "Andrew", "Thomas"], "John 6:68", "Peter confessed that Jesus has the words of eternal life.", "a confession after many disciples left"],
+    ["hard", "Which ruler sent Jesus back to Pilate after questioning Him?", "Herod", ["Caiaphas", "Felix", "Agrippa"], "Luke 23:11", "Herod mocked Jesus and sent Him back to Pilate.", "Jesus before Herod"],
+    ["hard", "What did Jesus ask Peter three times after the resurrection?", "Do you love Me?", ["Where is Thomas?", "Did you sleep?", "Will you build a temple?"], "John 21:15-17", "Jesus restored Peter with a threefold question and commission.", "Peter's restoration beside the sea"],
+  ]);
 
-    if (index > 0) {
-      const previousBook = books[index - 1][0];
-      generated.push({
-        category: "Bible Order",
-        difficulty: index < 8 || index > books.length - 5 ? "easy" : "medium",
-        question: `Which book comes immediately before ${book}?`,
-        choices: choicesAround(previousBook, bookNames, index + 400),
-        answer: previousBook,
-        reference: `${book} 1:1`,
-        explanation: `${previousBook} comes immediately before ${book}.`,
-      });
-    }
+  addRows("Wisdom", [
+    ["easy", "Proverbs says to trust in the LORD with how much of your heart?", "All your heart", ["Half your heart", "Your mind only", "Your strength only"], "Proverbs 3:5", "Proverbs calls for wholehearted trust in the LORD.", "wholehearted trust"],
+    ["easy", "According to Proverbs, what is the beginning of knowledge?", "The fear of the LORD", ["Hard work", "Long life", "Riches"], "Proverbs 1:7", "Proverbs begins by connecting knowledge with reverence for the LORD.", "the beginning of knowledge"],
+    ["medium", "Proverbs says death and life are in the power of what?", "The tongue", ["The sword", "The king", "The hand"], "Proverbs 18:21", "Words carry great power for harm or healing.", "death and life in verbal power"],
+    ["medium", "Proverbs says iron sharpens what?", "Iron", ["Gold", "Stone", "Silver"], "Proverbs 27:17", "One person sharpens another like iron sharpens iron.", "one person sharpening another"],
+    ["medium", "What does Proverbs say goes before destruction?", "Pride", ["Silence", "Poverty", "Sleep"], "Proverbs 16:18", "Pride goes before destruction and a haughty spirit before a fall.", "the warning before destruction"],
+    ["hard", "Ecclesiastes says God has put eternity where?", "In man's heart", ["In the sea", "In the stars", "In the temple"], "Ecclesiastes 3:11", "God has set eternity in the human heart.", "eternity placed in humanity"],
+    ["medium", "What does Proverbs call better than great riches?", "A good name", ["A large field", "A king's table", "A sharp sword"], "Proverbs 22:1", "A good name is to be chosen rather than great riches.", "reputation over wealth"],
+    ["medium", "James says heavenly wisdom is first what?", "Pure", ["Loud", "Ancient", "Hidden"], "James 3:17", "Wisdom from above is first pure, then peaceable and gentle.", "the first trait of wisdom from above"],
+  ]);
 
-    if (index < books.length - 1) {
-      const nextBook = books[index + 1][0];
-      generated.push({
-        category: "Bible Order",
-        difficulty: index < 8 || index > books.length - 6 ? "easy" : "medium",
-        question: `Which book comes immediately after ${book}?`,
-        choices: choicesAround(nextBook, bookNames, index + 500),
-        answer: nextBook,
-        reference: `${book} ${chapters}:1`,
-        explanation: `${nextBook} comes immediately after ${book}.`,
-      });
-    }
-  });
+  addRows("Books", [
+    ["easy", "Which book tells about Queen Esther?", "Esther", ["Ruth", "Judges", "Ezra"], "Esther 2:17", "The book of Esther tells how she became queen and helped save her people.", "the queen who saved her people"],
+    ["easy", "Which book tells about Jonah and the great fish?", "Jonah", ["Nahum", "Micah", "Amos"], "Jonah 1:17", "Jonah records the prophet's flight, rescue, and mission to Nineveh.", "the prophet and the great fish"],
+    ["medium", "Which book contains the Sermon on the Mount?", "Matthew", ["Acts", "Romans", "Hebrews"], "Matthew 5:1-2", "Matthew records Jesus' Sermon on the Mount.", "the Sermon on the Mount"],
+    ["medium", "Which book records the day of Pentecost?", "Acts", ["Luke", "Romans", "John"], "Acts 2:1-4", "Acts records the Spirit being poured out at Pentecost.", "Pentecost and the Spirit poured out"],
+    ["medium", "Which book includes Paul's teaching on the armor of God?", "Ephesians", ["Philippians", "Colossians", "Romans"], "Ephesians 6:11", "Ephesians tells believers to put on the whole armor of God.", "the armor of God"],
+    ["medium", "Which book includes the fruit of the Spirit?", "Galatians", ["Ephesians", "Colossians", "James"], "Galatians 5:22-23", "Galatians lists the fruit of the Spirit.", "love, joy, peace, and the fruit of the Spirit"],
+    ["hard", "Which book includes Paul's appeal for Onesimus?", "Philemon", ["Titus", "2 Timothy", "Colossians"], "Philemon 1:10", "Paul appeals to Philemon on behalf of Onesimus.", "Paul's appeal for Onesimus"],
+    ["hard", "Which book describes the valley of dry bones?", "Ezekiel", ["Daniel", "Isaiah", "Jeremiah"], "Ezekiel 37:1-10", "Ezekiel records the vision of dry bones coming to life.", "the valley of dry bones"],
+  ]);
 
-  generated.push({
-    category: "Bible Library",
-    difficulty: "easy",
-    question: "How many books are in the Bible?",
-    choices: ["27", "39", "66", "73"],
-    answer: "66",
-    reference: "Genesis 1:1",
-    explanation: "The Protestant Bible has 66 books: 39 in the Old Testament and 27 in the New Testament.",
-  });
+  addRows("Women", [
+    ["easy", "Who became queen and helped save her people from destruction?", "Esther", ["Ruth", "Miriam", "Deborah"], "Esther 4:14", "Esther was positioned to intercede for her people.", "the queen who risked her life"],
+    ["easy", "Who became the mother of John the Baptist?", "Elizabeth", ["Mary", "Anna", "Martha"], "Luke 1:57-60", "Elizabeth gave birth to John and affirmed his name.", "John the Baptist's mother"],
+    ["medium", "Who judged Israel and sat under a palm tree?", "Deborah", ["Miriam", "Huldah", "Jael"], "Judges 4:4-5", "Deborah was a prophetess and judge in Israel.", "the prophetess and judge under a palm"],
+    ["medium", "Who hid the Israelite spies in Jericho?", "Rahab", ["Ruth", "Deborah", "Jael"], "Joshua 2:1-6", "Rahab hid the spies and helped them escape.", "the Jericho woman who protected spies"],
+    ["medium", "Who prayed for a son and later dedicated him to the LORD?", "Hannah", ["Sarah", "Leah", "Rebekah"], "1 Samuel 1:27-28", "Hannah prayed for Samuel and gave him to the LORD's service.", "Samuel's praying mother"],
+    ["hard", "Who was Moses' mother?", "Jochebed", ["Miriam", "Zipporah", "Hannah"], "Exodus 6:20", "Jochebed was the mother of Aaron, Moses, and Miriam.", "Moses' mother"],
+    ["hard", "Who was a prophetess consulted during Josiah's reforms?", "Huldah", ["Deborah", "Miriam", "Anna"], "2 Kings 22:14", "Huldah spoke the word of the LORD to Josiah's officials.", "the prophetess consulted about the Book of the Law"],
+    ["hard", "Who hosted a church in her house and sold purple goods?", "Lydia", ["Priscilla", "Phoebe", "Tabitha"], "Acts 16:14-15", "Lydia opened her home after the Lord opened her heart.", "the purple-cloth seller in Philippi"],
+  ]);
 
-  const needed = Math.max(0, targetQuestionCount - window.bibleTriviaQuestions.length);
-  window.bibleTriviaQuestions.push(...generated.slice(0, needed));
+  addRows("Faith", [
+    ["easy", "Hebrews says without faith it is impossible to do what?", "Please God", ["Build a temple", "Enter Jerusalem", "Keep records"], "Hebrews 11:6", "Hebrews teaches that faith is necessary to please God.", "what faith makes possible before God"],
+    ["medium", "Who believed God's promise and it was credited as righteousness?", "Abraham", ["Moses", "Noah", "Isaac"], "Genesis 15:6", "Abraham believed the LORD, and it was counted to him as righteousness.", "faith credited as righteousness"],
+    ["medium", "Who said, 'If I perish, I perish'?", "Esther", ["Ruth", "Deborah", "Abigail"], "Esther 4:16", "Esther chose faithful courage before approaching the king.", "courage before approaching the king"],
+    ["hard", "Who said, 'Though He slay me, I will hope in Him'?", "Job", ["David", "Habakkuk", "Jeremiah"], "Job 13:15", "Job expressed trust even in suffering.", "trust spoken from suffering"],
+    ["hard", "Who asked Jesus to help his unbelief?", "A desperate father", ["A centurion", "A Pharisee", "A tax collector"], "Mark 9:24", "The father brought honest, imperfect faith to Jesus.", "help for unbelief"],
+    ["hard", "Who said Jesus could heal his servant with only a word?", "A centurion", ["Jairus", "Nicodemus", "Zacchaeus"], "Matthew 8:8-10", "Jesus marveled at the centurion's faith.", "faith in Jesus' word to heal"],
+    ["medium", "Who touched Jesus' garment believing she would be healed?", "A woman with a flow of blood", ["Mary Magdalene", "Martha", "Jairus's wife"], "Mark 5:27-29", "She believed touching Jesus' garment would make her well.", "faith reaching for Jesus' garment"],
+    ["hard", "What did Habakkuk say the righteous shall live by?", "Faith", ["Strength", "Gold", "Wisdom alone"], "Habakkuk 2:4", "Habakkuk says the righteous shall live by faith.", "how the righteous live"],
+  ]);
+
+  addRows("Prophets", [
+    ["easy", "Which prophet was sent to Nineveh?", "Jonah", ["Amos", "Micah", "Nahum"], "Jonah 1:2", "God sent Jonah to cry out against Nineveh.", "the prophet sent to Nineveh"],
+    ["medium", "Which prophet saw a valley of dry bones?", "Ezekiel", ["Daniel", "Isaiah", "Jeremiah"], "Ezekiel 37:1-2", "Ezekiel saw dry bones in a valley vision.", "the dry bones vision"],
+    ["medium", "Which prophet interpreted dreams in Babylon?", "Daniel", ["Ezekiel", "Jeremiah", "Haggai"], "Daniel 2:27-28", "Daniel said God reveals mysteries.", "dream interpretation in Babylon"],
+    ["medium", "Which prophet spoke of a suffering servant wounded for transgressions?", "Isaiah", ["Jeremiah", "Ezekiel", "Amos"], "Isaiah 53:5", "Isaiah 53 describes the servant's suffering and healing.", "the suffering servant"],
+    ["medium", "Which prophet challenged Israel to let justice roll like waters?", "Amos", ["Micah", "Hosea", "Joel"], "Amos 5:24", "Amos called for justice and righteousness.", "justice rolling like waters"],
+    ["hard", "Which prophet said the just shall live by faith?", "Habakkuk", ["Haggai", "Zephaniah", "Malachi"], "Habakkuk 2:4", "Habakkuk contrasts pride with the righteous who live by faith.", "the just living by faith"],
+    ["hard", "Which prophet called people to consider their ways while rebuilding the temple?", "Haggai", ["Zechariah", "Malachi", "Joel"], "Haggai 1:5", "Haggai urged the returned exiles to rebuild the temple.", "consider your ways"],
+    ["medium", "Which prophet anointed David as king?", "Samuel", ["Nathan", "Gad", "Elijah"], "1 Samuel 16:13", "Samuel anointed David in the presence of his brothers.", "the prophet who anointed David"],
+  ]);
+
+  addRows("Prayer", [
+    ["easy", "Who prayed in the belly of the fish?", "Jonah", ["Daniel", "Elijah", "Moses"], "Jonah 2:1", "Jonah prayed to the LORD from the belly of the fish.", "prayer from inside the fish"],
+    ["easy", "Who prayed for a son and later gave him to the LORD?", "Hannah", ["Sarah", "Rachel", "Rebekah"], "1 Samuel 1:10-11", "Hannah prayed bitterly and vowed her son to the LORD.", "a mother praying for a son"],
+    ["medium", "Who prayed for fire to fall on Mount Carmel?", "Elijah", ["Elisha", "Moses", "Samuel"], "1 Kings 18:36-38", "Elijah prayed and God answered by fire.", "fire from heaven after prayer"],
+    ["medium", "Who prayed at midnight in prison with Silas?", "Paul", ["Peter", "Barnabas", "John Mark"], "Acts 16:25", "Paul and Silas prayed and sang hymns in prison.", "midnight prayer in jail"],
+    ["medium", "Who prayed, 'Not My will, but Yours be done'?", "Jesus", ["Peter", "Paul", "Stephen"], "Luke 22:42", "Jesus surrendered to the Father's will in Gethsemane.", "surrendered prayer in Gethsemane"],
+    ["hard", "Who prayed a short prayer before answering King Artaxerxes?", "Nehemiah", ["Ezra", "Daniel", "Mordecai"], "Nehemiah 2:4", "Nehemiah prayed to God before speaking to the king.", "a silent prayer before speaking to a king"],
+    ["hard", "Who prayed for God to open his servant's eyes to see horses and chariots of fire?", "Elisha", ["Elijah", "Isaiah", "Micaiah"], "2 Kings 6:17", "Elisha prayed and his servant saw heavenly help.", "eyes opened to heavenly armies"],
+    ["medium", "What did the early church do while Peter was kept in prison?", "Prayed earnestly", ["Gathered weapons", "Left Jerusalem", "Sent taxes"], "Acts 12:5", "The church made earnest prayer to God for Peter.", "the church responding to Peter's imprisonment"],
+  ]);
+
+  addRows("Commandments", [
+    ["easy", "Which commandment forbids murder?", "Sixth", ["Fourth", "Fifth", "Seventh"], "Exodus 20:13", "The sixth commandment says, You shall not murder.", "the command against murder"],
+    ["easy", "Which commandment forbids stealing?", "Eighth", ["Second", "Fourth", "Ninth"], "Exodus 20:15", "The eighth commandment says, You shall not steal.", "the command against theft"],
+    ["easy", "Which commandment forbids bearing false witness?", "Ninth", ["Third", "Fifth", "Tenth"], "Exodus 20:16", "The ninth commandment forbids false witness against a neighbor.", "the command protecting truthful witness"],
+    ["easy", "Which commandment says not to covet?", "Tenth", ["First", "Fourth", "Seventh"], "Exodus 20:17", "The tenth commandment forbids coveting what belongs to another.", "the command about coveting"],
+    ["medium", "Which commandment calls for remembering the Sabbath day?", "Fourth", ["First", "Second", "Fifth"], "Exodus 20:8", "The fourth commandment calls God's people to remember the Sabbath day.", "remembering the Sabbath"],
+    ["medium", "Which commandment says not to make carved images for worship?", "Second", ["First", "Third", "Fourth"], "Exodus 20:4", "The second commandment forbids making images for worship.", "the command against idols"],
+    ["medium", "Which commandment says not to misuse the LORD's name?", "Third", ["Second", "Fourth", "Sixth"], "Exodus 20:7", "The third commandment protects the holiness of God's name.", "the command about God's name"],
+    ["medium", "Which commandment says not to commit adultery?", "Seventh", ["Fifth", "Sixth", "Eighth"], "Exodus 20:14", "The seventh commandment protects covenant faithfulness in marriage.", "the command protecting marriage"],
+    ["medium", "Which commandment tells children to honor father and mother?", "Fifth", ["Second", "Fourth", "Sixth"], "Exodus 20:12", "The fifth commandment calls for honoring father and mother.", "honoring parents"],
+    ["medium", "What is the first commandment about?", "Having no other gods", ["Keeping Sabbath", "Honoring parents", "Not stealing"], "Exodus 20:3", "The first commandment calls for exclusive loyalty to the LORD.", "exclusive loyalty to God"],
+    ["medium", "Jesus summarized the law with love for God and love for whom?", "Neighbor", ["Rome", "Angels", "Tradition"], "Matthew 22:37-40", "Jesus said the law and prophets hang on love for God and neighbor.", "the second great love command"],
+  ]);
+
+  addRows("Psalms", [
+    ["easy", "Which Psalm begins, 'Blessed is the man'?", "Psalm 1", ["Psalm 8", "Psalm 23", "Psalm 51"], "Psalm 1:1", "Psalm 1 opens by blessing the one who avoids wicked counsel.", "the blessed person who avoids wicked counsel"],
+    ["easy", "Which Psalm says the heavens declare the glory of God?", "Psalm 19", ["Psalm 2", "Psalm 23", "Psalm 46"], "Psalm 19:1", "Psalm 19 begins by praising God's glory in creation.", "the heavens declaring God's glory"],
+    ["medium", "Which Psalm says, 'Be still, and know that I am God'?", "Psalm 46", ["Psalm 23", "Psalm 51", "Psalm 91"], "Psalm 46:10", "Psalm 46 calls God's people to rest in His sovereignty.", "be still and know"],
+    ["medium", "Which Psalm begins, 'I lift up my eyes to the hills'?", "Psalm 121", ["Psalm 23", "Psalm 46", "Psalm 91"], "Psalm 121:1", "Psalm 121 is a song of trust in the LORD's help.", "lifting eyes to the hills"],
+    ["hard", "Which Psalm contains the line, 'My God, my God, why have You forsaken me?'", "Psalm 22", ["Psalm 2", "Psalm 16", "Psalm 40"], "Psalm 22:1", "Psalm 22 opens with words Jesus later cries from the cross.", "the forsaken cry quoted at the cross"],
+    ["hard", "Which Psalm says God's word is hidden in the heart?", "Psalm 119", ["Psalm 19", "Psalm 23", "Psalm 91"], "Psalm 119:11", "Psalm 119 celebrates treasuring God's word.", "hiding God's word in the heart"],
+    ["hard", "Which Psalm says, 'Let everything that has breath praise the LORD'?", "Psalm 150", ["Psalm 100", "Psalm 119", "Psalm 136"], "Psalm 150:6", "Psalm 150 closes the Psalter with a call to universal praise.", "everything with breath praising the LORD"],
+    ["medium", "Which Psalm says the LORD is near to the brokenhearted?", "Psalm 34", ["Psalm 1", "Psalm 19", "Psalm 46"], "Psalm 34:18", "Psalm 34 promises God's nearness to the brokenhearted.", "God near the brokenhearted"],
+  ]);
+
+  addRows("Angels", [
+    ["easy", "Who shut the lions' mouths when Daniel was in the den?", "God's angel", ["A guard", "The king", "Daniel's friends"], "Daniel 6:22", "Daniel said God sent His angel and shut the lions' mouths.", "Daniel protected in the lions' den"],
+    ["medium", "Which angel told Zechariah that John would be born?", "Gabriel", ["Michael", "Raphael", "Uriel"], "Luke 1:19", "Gabriel stood in God's presence and brought the message.", "John the Baptist's birth announcement"],
+    ["medium", "Which archangel is named in Jude?", "Michael", ["Gabriel", "Raphael", "Uriel"], "Jude 1:9", "Jude identifies Michael as the archangel.", "the named archangel"],
+    ["medium", "Who freed Peter from prison in Acts 12?", "An angel", ["Paul", "John", "Barnabas"], "Acts 12:7-10", "An angel woke Peter and led him out of prison.", "Peter's prison rescue"],
+    ["hard", "What beings cried 'Holy, holy, holy' in Isaiah's vision?", "Seraphim", ["Cherubim", "Elders", "Watchmen"], "Isaiah 6:2-3", "Seraphim called out God's holiness around the throne.", "holy, holy, holy around the throne"],
+    ["hard", "What beings guarded Eden after Adam and Eve were driven out?", "Cherubim", ["Seraphim", "Levites", "Prophets"], "Genesis 3:24", "Cherubim and a flaming sword guarded the way to the tree of life.", "guardians at Eden"],
+    ["medium", "What did an angel tell the women at Jesus' tomb?", "He is risen", ["He is in Egypt", "He is asleep", "He is in prison"], "Matthew 28:5-6", "The angel told the women Jesus had risen.", "the message at the empty tomb"],
+  ]);
+
+  addRows("Family", [
+    ["easy", "Who were the parents of Cain and Abel?", "Adam and Eve", ["Abraham and Sarah", "Isaac and Rebekah", "Jacob and Leah"], "Genesis 4:1-2", "Cain and Abel were sons of Adam and Eve.", "the first brothers' parents"],
+    ["medium", "Who was Joseph's younger full brother?", "Benjamin", ["Judah", "Reuben", "Simeon"], "Genesis 35:18", "Rachel named her second son Benjamin before she died.", "Joseph's younger brother"],
+    ["medium", "Who was Ruth's mother-in-law?", "Naomi", ["Orpah", "Mara", "Hannah"], "Ruth 1:3-5", "Naomi was Ruth's mother-in-law after both women were widowed.", "Ruth's mother-in-law"],
+    ["medium", "Who was Abraham's promised son through Sarah?", "Isaac", ["Ishmael", "Jacob", "Esau"], "Genesis 21:3", "Isaac was born to Abraham and Sarah as God promised.", "Abraham and Sarah's promised son"],
+    ["medium", "Who were Moses' brother and sister?", "Aaron and Miriam", ["Caleb and Deborah", "Joshua and Zipporah", "Nadab and Abihu"], "Numbers 26:59", "Aaron, Moses, and Miriam were siblings.", "Moses' siblings"],
+    ["hard", "Who was John the Baptist's mother?", "Elizabeth", ["Mary", "Anna", "Martha"], "Luke 1:57", "Elizabeth gave birth to John in her old age.", "John the Baptist's mother"],
+    ["hard", "Who was the father of James and John?", "Zebedee", ["Alphaeus", "Jonah", "Cleopas"], "Matthew 4:21", "James and John were sons of Zebedee.", "the father of the sons of thunder"],
+  ]);
+
+  addRows("Worship", [
+    ["easy", "Who danced before the LORD when the ark came to Jerusalem?", "David", ["Solomon", "Saul", "Samuel"], "2 Samuel 6:14", "David danced before the LORD with all his might.", "worship as the ark entered Jerusalem"],
+    ["medium", "What instrument did Miriam use when leading women in praise?", "Tambourine", ["Harp", "Trumpet", "Lyre"], "Exodus 15:20", "Miriam took a tambourine and led the women.", "Miriam's instrument after the Red Sea"],
+    ["medium", "What did Paul and Silas do in prison at midnight?", "Prayed and sang hymns", ["Slept silently", "Wrote taxes", "Built a wall"], "Acts 16:25", "They prayed and sang hymns to God.", "worship in prison at midnight"],
+    ["medium", "What did Jesus say true worshipers worship in?", "Spirit and truth", ["Gold and silver", "Jerusalem only", "Mountains and rivers"], "John 4:23-24", "Jesus said true worshipers worship the Father in spirit and truth.", "true worship according to Jesus"],
+    ["hard", "What did Jehoshaphat appoint singers to declare before battle?", "Give thanks to the LORD", ["Retreat to the hills", "Bring more spears", "Build a tower"], "2 Chronicles 20:21", "The singers praised the LORD before the victory.", "singers going before the army"],
+    ["hard", "What did the seraphim cry in Isaiah's vision?", "Holy, holy, holy", ["Mercy, mercy, mercy", "Peace, peace, peace", "Glory to David"], "Isaiah 6:3", "The seraphim proclaimed the LORD's holiness.", "the throne-room worship cry"],
+    ["medium", "What kind of sacrifice does Romans 12 call believers to present?", "A living sacrifice", ["A hidden coin", "A Roman tax", "A cedar branch"], "Romans 12:1", "Paul calls believers to present their bodies as a living sacrifice.", "the believer's living offering"],
+  ]);
+
+  addRows("Bible Survey", [
+    ["easy", "Which testament begins with Genesis?", "Old Testament", ["New Testament"], "Genesis 1:1", "Genesis opens the Old Testament.", "Genesis starts this testament"],
+    ["easy", "Which testament begins with Matthew?", "New Testament", ["Old Testament"], "Matthew 1:1", "Matthew opens the New Testament.", "Matthew starts this testament"],
+    ["easy", "Which testament tells of Israel's exodus from Egypt?", "Old Testament", ["New Testament"], "Exodus 12:51", "The exodus is recorded in the Old Testament.", "Israel leaving Egypt"],
+    ["easy", "Which testament records Jesus' earthly ministry?", "New Testament", ["Old Testament"], "Matthew 4:23", "The Gospels in the New Testament record Jesus' ministry.", "Jesus' earthly ministry"],
+    ["medium", "Which testament contains the Psalms?", "Old Testament", ["New Testament"], "Psalm 1:1", "Psalms belongs to the Old Testament.", "the book of Psalms"],
+    ["medium", "Which testament contains the book of Acts?", "New Testament", ["Old Testament"], "Acts 1:1", "Acts belongs to the New Testament.", "the book of Acts"],
+    ["hard", "Which testament contains the Ten Commandments at Sinai?", "Old Testament", ["New Testament"], "Exodus 20:1-17", "The Ten Commandments at Sinai are recorded in Exodus.", "Sinai and the Ten Commandments"],
+    ["hard", "Which testament contains the conversion of Saul of Tarsus?", "New Testament", ["Old Testament"], "Acts 9:1-9", "Saul's conversion is recorded in Acts.", "Saul on the road to Damascus"],
+  ]);
+
+  addRows("Bible Library", [
+    ["easy", "How many books are in the Protestant Bible?", "66", ["27", "39", "73"], "Genesis 1:1", "The Protestant Bible has 66 books.", "the total Protestant Bible book count"],
+    ["easy", "How many books are in the New Testament?", "27", ["12", "39", "66"], "Matthew 1:1", "The New Testament contains 27 books.", "the New Testament book count"],
+    ["easy", "How many books are in the Old Testament?", "39", ["27", "40", "66"], "Genesis 1:1", "The Old Testament contains 39 books in the Protestant Bible.", "the Old Testament book count"],
+    ["medium", "How many Gospels are in the New Testament?", "4", ["3", "5", "12"], "Matthew 1:1", "Matthew, Mark, Luke, and John are the four Gospels.", "the number of Gospels"],
+    ["medium", "How many chapters are in Genesis?", "50", ["40", "52", "66"], "Genesis 50:1", "Genesis has 50 chapters.", "Genesis chapter count"],
+    ["medium", "How many chapters are in Exodus?", "40", ["27", "39", "50"], "Exodus 40:1", "Exodus has 40 chapters.", "Exodus chapter count"],
+    ["hard", "How many chapters are in Psalms?", "150", ["119", "120", "100"], "Psalm 150:1", "Psalms has 150 chapters.", "Psalms chapter count"],
+    ["medium", "How many chapters are in Matthew?", "28", ["16", "21", "24"], "Matthew 28:1", "Matthew has 28 chapters.", "Matthew chapter count"],
+    ["medium", "How many chapters are in John?", "21", ["16", "22", "24"], "John 21:1", "John has 21 chapters.", "John chapter count"],
+    ["hard", "What kind of biblical book is Romans?", "Pauline Letters", ["Gospels", "History", "General Letters"], "Romans 1:1", "Romans is commonly grouped with Paul's letters.", "Romans' library grouping"],
+    ["hard", "What kind of biblical book is Revelation?", "Prophecy", ["Gospels", "History", "Pauline Letters"], "Revelation 1:1", "Revelation is commonly grouped as prophecy.", "Revelation's library grouping"],
+  ]);
 })();
