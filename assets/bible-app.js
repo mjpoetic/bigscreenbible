@@ -352,6 +352,7 @@ const icons = {
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="14.5" r="4.5"/><path d="M11 11l8-8"/><path d="M16 6l2 2"/><path d="M14 8l2 2"/></svg>',
+  google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.2 3-7.2z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.6-2.5l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.8A6 6 0 0 1 6 12c0-.6.1-1.2.4-1.8V7.6H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.4l3.3-2.6z"/><path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2 10 10 0 0 0 3.1 7.6l3.3 2.6c.8-2.3 3-4.1 5.6-4.1z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
@@ -928,6 +929,8 @@ function accountPanel(prefix = "") {
           <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create account</button>
         </div>
       </form>
+      <div class="account-divider"><span>or</span></div>
+      <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
       <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
     </section>
   `;
@@ -1419,6 +1422,29 @@ async function requestPasswordReset(prefix = "") {
     showToast("Password reset failed");
   } finally {
     state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+async function signInWithGoogle() {
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.authBusy = true;
+  state.authMessage = "Opening Google sign in...";
+  renderPreservingReaderScroll();
+  try {
+    const { error } = await client.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn("Google sign in failed", error);
+    state.authBusy = false;
+    state.authMessage = error?.message || "Google sign in could not start. Please try again.";
+    showToast("Google sign in failed");
     renderPreservingReaderScroll();
   }
 }
@@ -2884,6 +2910,9 @@ function bindEvents() {
   document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
   document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
   document.getElementById("quick-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("quick"));
+  document.getElementById("googleSignInButton")?.addEventListener("click", signInWithGoogle);
+  document.getElementById("mobile-googleSignInButton")?.addEventListener("click", signInWithGoogle);
+  document.getElementById("quick-googleSignInButton")?.addEventListener("click", signInWithGoogle);
   document.getElementById("passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event));
   document.getElementById("mobile-passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event, "mobile"));
   document.getElementById("quick-passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event, "quick"));

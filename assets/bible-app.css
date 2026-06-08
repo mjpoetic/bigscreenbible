@@ -1109,6 +1109,39 @@ button {
   width: 100%;
 }
 
+.account-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-divider::before,
+.account-divider::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+  flex: 1;
+}
+
+.google-account-btn {
+  width: 100%;
+  min-height: 36px;
+  gap: 8px;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.google-account-btn svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
 .account-secondary-action {
   justify-self: start;
   min-height: 0;

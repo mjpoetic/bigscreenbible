@@ -26,6 +26,8 @@ For local testing from a temporary local server, you can also add:
 
 Email/password sign-in does not require a redirect after every sign-in, but these URLs matter for confirmation emails, password recovery, OAuth providers, and future passkey work.
 
+If Google sign-in is enabled, Supabase can automatically link identities that share the same verified email address. Big Screen Bible does not link accounts by email itself; it always syncs with the Supabase `session.user.id` returned after sign-in.
+
 ## 4. Add the public browser keys
 
 Open your Supabase project settings and copy:
