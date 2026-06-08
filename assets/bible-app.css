@@ -1142,6 +1142,13 @@ button {
   flex-shrink: 0;
 }
 
+.google-auth-note {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--soft) 62%, transparent);
+}
+
 .account-secondary-action {
   justify-self: start;
   min-height: 0;
@@ -4198,7 +4205,7 @@ svg {
 
   .app-shell.mobile-controls-open #shortcutsButton {
     order: 4;
-    grid-column: 7 / 9;
+    grid-column: 4 / 6;
     display: inline-flex;
     width: 100%;
     min-height: 40px;
@@ -4206,16 +4213,40 @@ svg {
 
   #focusToggle {
     order: 4;
-    grid-column: 9 / 11;
+    grid-column: 8 / 10;
   }
 
   .account-menu {
+    order: 4;
+    grid-column: 6 / 8;
+    width: 100%;
     display: none;
+  }
+
+  .app-shell.mobile-controls-open .account-menu,
+  .account-menu.open {
+    display: block;
+  }
+
+  .account-menu .account-quick-button {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .account-popover.open {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(620px, calc(100dvh - 156px));
+    overflow: auto;
+    z-index: 43;
   }
 
   .settings-menu {
     order: 4;
-    grid-column: 11 / -1;
+    grid-column: 10 / -1;
     width: 100%;
   }
 
@@ -5026,12 +5057,16 @@ svg {
     grid-column: 1 / 4;
   }
 
+  .app-shell.mobile-controls-open .account-menu {
+    grid-column: 4 / 7;
+  }
+
   .app-shell.mobile-controls-open #focusToggle {
-    grid-column: 4 / 8;
+    grid-column: 7 / 10;
   }
 
   .app-shell.mobile-controls-open .settings-menu {
-    grid-column: 8 / -1;
+    grid-column: 10 / -1;
   }
 
   #focusToggle {
@@ -5123,6 +5158,7 @@ svg {
   .mode-tabs button,
   #shortcutsButton,
   #focusToggle,
+  .account-menu .account-quick-button,
   .settings-toggle {
     min-height: 38px;
   }

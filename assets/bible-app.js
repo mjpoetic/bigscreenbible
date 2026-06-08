@@ -228,6 +228,7 @@ const state = {
   authMessage: "",
   authBusy: false,
   accountOpen: false,
+  passwordChangeOpen: false,
   passwordRecoveryMode: false,
   syncStatus: "local",
   syncMessage: "",
@@ -618,8 +619,6 @@ function mobileSettingsPanel() {
   return `
     <div class="mobile-settings-popover" id="mobileSettingsPopover" role="dialog" aria-label="Settings">
       <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
-      ${streakCard()}
-      ${accountPanel("mobile")}
       <div class="setting-group">
         <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
         <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
@@ -776,8 +775,6 @@ function topbar() {
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
         <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
           <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
-          ${streakCard()}
-          ${accountPanel()}
           <div class="setting-group">
             <label class="setting-label" for="themePresetSelect">Color theme</label>
             <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
@@ -880,6 +877,7 @@ function accountPanel(prefix = "") {
   const status = state.syncMessage || (state.authUser ? "Signed in and ready to sync." : signedOutStatus);
   if (!state.authConfigured) {
     return `
+      ${streakCard()}
       <section class="account-card">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -894,7 +892,20 @@ function accountPanel(prefix = "") {
     const recoveryText = state.passwordRecoveryMode
       ? "Choose a new password to finish account recovery."
       : "Change your password whenever you need to.";
+    const passwordTools = state.passwordRecoveryMode || state.passwordChangeOpen
+      ? `
+        <form class="account-form password-update-form" id="${suffix}passwordUpdateForm">
+          <label class="account-mini-label" for="${suffix}newPassword">${recoveryText}</label>
+          <input id="${suffix}newPassword" type="password" autocomplete="new-password" placeholder="New password" aria-label="New password" minlength="8" required />
+          <div class="account-actions">
+            <button class="ghost-btn compact-account-btn" type="submit" ${state.authBusy ? "disabled" : ""}>${icons.key}<span>Update password</span></button>
+            ${state.passwordRecoveryMode ? "" : `<button class="ghost-btn compact-account-btn" id="${suffix}cancelPasswordUpdateButton" type="button">Cancel</button>`}
+          </div>
+        </form>
+      `
+      : `<button class="account-secondary-action" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change Password</button>`;
     return `
+      ${streakCard()}
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -905,16 +916,13 @@ function accountPanel(prefix = "") {
           <button class="ghost-btn compact-account-btn" id="${suffix}syncNowButton" type="button" ${state.authBusy ? "disabled" : ""}>Sync now</button>
           <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out</button>
         </div>
-        <form class="account-form password-update-form" id="${suffix}passwordUpdateForm">
-          <label class="account-mini-label" for="${suffix}newPassword">${recoveryText}</label>
-          <input id="${suffix}newPassword" type="password" autocomplete="new-password" placeholder="New password" aria-label="New password" minlength="8" required />
-          <button class="ghost-btn compact-account-btn" type="submit" ${state.authBusy ? "disabled" : ""}>${icons.key}<span>Update password</span></button>
-        </form>
+        ${passwordTools}
       </section>
     `;
   }
 
   return `
+    ${streakCard()}
     <section class="account-card">
       <div class="account-card-head">
         <span class="setting-label">Account sync</span>
@@ -931,6 +939,7 @@ function accountPanel(prefix = "") {
       </form>
       <div class="account-divider"><span>or</span></div>
       <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
+      <p class="google-auth-note">Google may briefly show our Supabase sign-in address while we finish custom auth branding. It is the secure sign-in provider for Big Screen Bible.</p>
       <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
     </section>
   `;
@@ -1311,6 +1320,7 @@ async function initializeSupabaseAuth() {
       state.authBusy = false;
       if (event === "PASSWORD_RECOVERY") {
         state.passwordRecoveryMode = true;
+        state.passwordChangeOpen = true;
         state.accountOpen = true;
         state.settingsOpen = false;
         state.authMessage = "Choose a new password to finish account recovery.";
@@ -1381,6 +1391,7 @@ async function handleAccountSubmit(event, prefix = "") {
     if (response.error) throw response.error;
     const session = response.data?.session || await authenticatedSupabaseSession(client);
     state.authUser = session?.user || null;
+    state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
     state.authMessage = action === "signup" && !session
       ? "Account created. Check your email if Supabase asks you to confirm it."
@@ -1449,6 +1460,19 @@ async function signInWithGoogle() {
   }
 }
 
+function showPasswordChange() {
+  state.passwordChangeOpen = true;
+  state.accountOpen = true;
+  state.settingsOpen = false;
+  renderPreservingReaderScroll();
+}
+
+function hidePasswordChange() {
+  if (state.passwordRecoveryMode) return;
+  state.passwordChangeOpen = false;
+  renderPreservingReaderScroll();
+}
+
 async function updateAccountPassword(event, prefix = "") {
   event.preventDefault();
   const suffix = prefix ? `${prefix}-` : "";
@@ -1468,6 +1492,7 @@ async function updateAccountPassword(event, prefix = "") {
     if (!session?.user) throw new Error("Open the reset email link or sign in before changing your password.");
     const { error } = await client.auth.updateUser({ password });
     if (error) throw error;
+    state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
     state.authMessage = "Password updated.";
     state.syncMessage = "Password updated. Your account is still synced.";
@@ -1491,6 +1516,7 @@ async function signOutAccount() {
     await client.auth.signOut();
     state.authUser = null;
     state.accountOpen = false;
+    state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
     state.authMessage = "";
     state.syncStatus = "local";
@@ -2916,6 +2942,12 @@ function bindEvents() {
   document.getElementById("passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event));
   document.getElementById("mobile-passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event, "mobile"));
   document.getElementById("quick-passwordUpdateForm")?.addEventListener("submit", (event) => updateAccountPassword(event, "quick"));
+  document.getElementById("changePasswordButton")?.addEventListener("click", showPasswordChange);
+  document.getElementById("mobile-changePasswordButton")?.addEventListener("click", showPasswordChange);
+  document.getElementById("quick-changePasswordButton")?.addEventListener("click", showPasswordChange);
+  document.getElementById("cancelPasswordUpdateButton")?.addEventListener("click", hidePasswordChange);
+  document.getElementById("mobile-cancelPasswordUpdateButton")?.addEventListener("click", hidePasswordChange);
+  document.getElementById("quick-cancelPasswordUpdateButton")?.addEventListener("click", hidePasswordChange);
   document.getElementById("syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("mobile-syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("quick-syncNowButton")?.addEventListener("click", syncNowAccount);
