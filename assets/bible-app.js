@@ -1576,7 +1576,23 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
   state.syncStatus = "synced";
   state.syncMessage = "Synced across your signed-in devices.";
   state.lastCloudSyncAt = new Date().toISOString();
-  if (!options.quiet) showToast("Account synced");
+}
+
+async function syncNowAccount() {
+  state.authBusy = true;
+  state.syncMessage = "Syncing now...";
+  renderPreservingReaderScroll();
+  try {
+    await upsertCloudSnapshot(captureCloudSnapshot());
+  } catch (error) {
+    console.warn("Manual cloud sync failed", error);
+    state.syncStatus = "error";
+    state.syncMessage = error?.message || "Sync could not finish yet.";
+    showToast("Sync failed");
+  } finally {
+    state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
 }
 
 function readerView() {
@@ -2743,8 +2759,8 @@ function bindEvents() {
   });
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
-  document.getElementById("syncNowButton")?.addEventListener("click", () => upsertCloudSnapshot());
-  document.getElementById("mobile-syncNowButton")?.addEventListener("click", () => upsertCloudSnapshot());
+  document.getElementById("syncNowButton")?.addEventListener("click", syncNowAccount);
+  document.getElementById("mobile-syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("signOutButton")?.addEventListener("click", signOutAccount);
   document.getElementById("mobile-signOutButton")?.addEventListener("click", signOutAccount);
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
