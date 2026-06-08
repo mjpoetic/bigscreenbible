@@ -57,6 +57,8 @@ When signed in, the app syncs:
 - Reading history
 - Reading streak
 
+If you see a Row Level Security insert error, confirm that the app is signed in with an active Supabase session. The sync code writes `user_id` from `session.user.id`; it never uses the email address as the user id.
+
 ## 6. Passkeys later
 
 The current implementation uses Supabase email/password auth first. Device passkeys can be added later when we choose the exact WebAuthn/passkey provider path. The sync table can stay the same.

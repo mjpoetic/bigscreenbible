@@ -1258,6 +1258,15 @@ function createSupabaseClient() {
   return state.authClient;
 }
 
+async function authenticatedSupabaseSession(client = createSupabaseClient()) {
+  if (!client) return null;
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  const session = data?.session || null;
+  state.authUser = session?.user || null;
+  return session;
+}
+
 async function initializeSupabaseAuth() {
   state.authConfigured = isSupabaseConfigured();
   if (!state.authConfigured) {
@@ -1268,12 +1277,10 @@ async function initializeSupabaseAuth() {
   const client = createSupabaseClient();
   if (!client) return;
   try {
-    const { data, error } = await client.auth.getSession();
-    if (error) throw error;
-    state.authUser = data?.session?.user || null;
-    state.syncStatus = state.authUser ? "loading" : "local";
-    state.syncMessage = state.authUser ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
-    if (state.authUser) await loadCloudSync();
+    const session = await authenticatedSupabaseSession(client);
+    state.syncStatus = session?.user ? "loading" : "local";
+    state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
+    if (session?.user) await loadCloudSync();
     client.auth.onAuthStateChange((_event, session) => {
       state.authUser = session?.user || null;
       state.authBusy = false;
@@ -1317,11 +1324,12 @@ async function handleAccountSubmit(event, prefix = "") {
       ? await client.auth.signUp({ email, password })
       : await client.auth.signInWithPassword({ email, password });
     if (response.error) throw response.error;
-    state.authUser = response.data?.user || response.data?.session?.user || state.authUser;
-    state.authMessage = action === "signup" && !response.data?.session
+    const session = response.data?.session || await authenticatedSupabaseSession(client);
+    state.authUser = session?.user || null;
+    state.authMessage = action === "signup" && !session
       ? "Account created. Check your email if Supabase asks you to confirm it."
       : "Signed in.";
-    if (state.authUser) await loadCloudSync();
+    if (session?.user) await loadCloudSync();
     else renderPreservingReaderScroll();
   } catch (error) {
     console.warn("Account action failed", error);
@@ -1500,13 +1508,19 @@ function persistCloudSnapshotLocally(snapshot) {
 
 async function loadCloudSync() {
   const client = createSupabaseClient();
-  const userId = state.authUser?.id;
-  if (!client || !userId) return;
+  if (!client) return;
   state.authBusy = true;
   state.syncStatus = "loading";
   state.syncMessage = "Loading your saved settings...";
   const localSnapshot = captureCloudSnapshot();
   try {
+    const session = await authenticatedSupabaseSession(client);
+    const userId = session?.user?.id;
+    if (!userId) {
+      state.syncStatus = "local";
+      state.syncMessage = "Sign in to sync across devices.";
+      return;
+    }
     const { data, error } = await client
       .from(cloudSyncTable)
       .select("settings, bookmarks, notes, highlights, history, streak, updated_at")
@@ -1530,7 +1544,7 @@ async function loadCloudSync() {
 }
 
 function scheduleCloudSync() {
-  if (!state.authUser || !state.authClient) return;
+  if (!state.authClient || !state.authUser) return;
   clearTimeout(cloudSyncTimer);
   state.syncStatus = "pending";
   state.syncMessage = "Sync pending...";
@@ -1546,9 +1560,15 @@ function scheduleCloudSync() {
 
 async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = {}) {
   const client = createSupabaseClient();
-  const userId = state.authUser?.id;
-  if (!client || !userId) return;
+  if (!client) return;
   state.syncStatus = "saving";
+  const session = await authenticatedSupabaseSession(client);
+  const userId = session?.user?.id;
+  if (!userId) {
+    state.syncStatus = "local";
+    state.syncMessage = "Sign in to sync across devices.";
+    return;
+  }
   const { error } = await client
     .from(cloudSyncTable)
     .upsert({ user_id: userId, ...snapshot }, { onConflict: "user_id" });
