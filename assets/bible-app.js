@@ -113,6 +113,7 @@ let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
+const tutorialStorageKey = "lw_tutorial_seen";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -198,6 +199,10 @@ const state = {
   settingsOpen: false,
   headerVersionMenuOpen: false,
   shortcutsOpen: false,
+  tutorialIntroVisible: localStorage.getItem(tutorialStorageKey) !== "true",
+  tutorialActive: false,
+  tutorialStep: 0,
+  tutorialMode: "app",
   searchQuery: "",
   searchResults: [],
   pendingPanelFocus: null,
@@ -338,6 +343,72 @@ const icons = {
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
 };
 
+const tutorialSteps = [
+  {
+    target: ".brand, .presentation-brand",
+    title: "Start with the logo",
+    body: "Tap the Big Screen Bible logo any time you want to return to the verse of the day.",
+  },
+  {
+    target: "#referenceInput, #presentationSearchToggle",
+    title: "Search by reference or phrase",
+    body: "Type a passage like Ecc 9:5, or search a phrase when you remember the words but not the reference.",
+  },
+  {
+    target: ".mode-tabs, .presentation-bible-toggle",
+    title: "Switch reading spaces",
+    body: "Move between Reader, Parallel Study, Big Screen display, and Games from this mode area.",
+  },
+  {
+    target: ".chapter-tools",
+    title: "Move around the Bible",
+    body: "Use the chapter and verse controls for precise navigation, or use the arrow buttons to step verse by verse.",
+  },
+  {
+    target: ".side-rail, #openStudy",
+    title: "Study tools live on the side",
+    body: "Bookmarks, notes, highlights, cross references, history, and search open from the side tools.",
+  },
+  {
+    target: ".selection-bar, .verse-card.selected, .verse-row.selected",
+    title: "Select verses to act on them",
+    body: "Tap a verse to copy, share, print, link, or highlight a passage without losing your place.",
+  },
+  {
+    target: "#settingsToggle, #mobileFloatingSettings, #presentationSettingsToggle",
+    title: "Tune the experience",
+    body: "Settings handle themes, fonts, text size, startup behavior, fullscreen, and your private reading streak.",
+  },
+];
+
+const presentationTutorialSteps = [
+  {
+    target: ".presentation-ref",
+    title: "Big Screen starts with the verse",
+    body: "This mode keeps the reference, version, and Scripture clean for worship, teaching, or family reading.",
+  },
+  {
+    target: "#presentationSearchToggle",
+    title: "Jump to another passage",
+    body: "Open search to type a reference quickly without leaving the display.",
+  },
+  {
+    target: ".presentation-controls",
+    title: "Move verse by verse",
+    body: "Use Previous and Next, arrow keys, or swipe on touch devices to move through the chapter.",
+  },
+  {
+    target: "#presentationSettingsToggle",
+    title: "Change the display",
+    body: "Theme, Bible version, font, and fullscreen controls live inside Big Screen settings.",
+  },
+  {
+    target: ".presentation-bible-toggle",
+    title: "Return to the Bible workspace",
+    body: "Use this button when you want the full reader, study tools, notes, highlights, and games.",
+  },
+];
+
 state.textScale = clampTextScale(state.textScale);
 
 function currentChapter() {
@@ -420,6 +491,8 @@ function render() {
       ${mobileSettingsPanel()}
       ${presentation()}
       ${shortcutOverlay()}
+      ${tutorialIntro()}
+      ${tutorialOverlay()}
       ${printSheet()}
       ${streakPopup()}
       <div class="status-toast" id="toast"></div>
@@ -439,6 +512,7 @@ function render() {
   requestAnimationFrame(fitPresentationText);
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
+  requestAnimationFrame(updateTutorialSpotlight);
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
 }
@@ -670,7 +744,7 @@ function topbar() {
       <nav class="mode-tabs" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
       </nav>
-      <button class="icon-btn" id="shortcutsButton" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
+      <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
@@ -2026,6 +2100,7 @@ function presentation() {
                 ${customFontField}
               </label>
               <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+              <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
               <div class="presentation-help">
                 <span>Keyboard</span>
                 <div><kbd>←</kbd><kbd>→</kbd> Move verse by verse</div>
@@ -2067,8 +2142,8 @@ function printSheet() {
 function shortcutOverlay() {
   const platformKey = navigator.platform?.toLowerCase().includes("mac") ? "Cmd" : "Ctrl";
   const shortcuts = [
-    [`${platformKey} /`, "Show keyboard shortcuts"],
-    ["?", "Show keyboard shortcuts"],
+    [`${platformKey} /`, "Open Help"],
+    ["?", "Open Help"],
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
     ["/", "Jump to reference search"],
@@ -2086,15 +2161,73 @@ function shortcutOverlay() {
       <div class="shortcut-panel" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle">
         <div class="shortcut-head">
           <div>
-            <div class="shortcut-eyebrow">Quick navigation</div>
-            <h2 id="shortcutTitle">Keyboard Shortcuts</h2>
+            <div class="shortcut-eyebrow">Help center</div>
+            <h2 id="shortcutTitle">Big Screen Bible Help</h2>
           </div>
-          <button class="icon-btn" id="closeShortcuts" aria-label="Close keyboard shortcuts" data-tooltip="Close">×</button>
+          <button class="icon-btn" id="closeShortcuts" aria-label="Close help" data-tooltip="Close">×</button>
         </div>
+        <div class="help-tour-card">
+          <div>
+            <strong>New here?</strong>
+            <p>Take a quick guided tour of the main controls. You can come back here and restart it any time.</p>
+          </div>
+          <button class="primary-btn" id="startHelpTour" type="button">Take tour</button>
+        </div>
+        <div class="help-grid">
+          <div><strong>Search</strong><span>Find a verse by reference or by remembered words.</span></div>
+          <div><strong>Study</strong><span>Use notes, highlights, bookmarks, cross references, and history from the side tools.</span></div>
+          <div><strong>Display</strong><span>Big Screen Mode is built for clean, full-screen Scripture display.</span></div>
+          <div><strong>Games</strong><span>Practice Bible knowledge with trivia, verse order, and quick-reference games.</span></div>
+        </div>
+        <div class="shortcut-section-title">Keyboard shortcuts</div>
         <div class="shortcut-list">
           ${shortcuts.map(([keys, label]) => `<div class="shortcut-row"><kbd>${keys}</kbd><span>${label}</span></div>`).join("")}
         </div>
       </div>
+    </section>
+  `;
+}
+
+function tutorialIntro() {
+  if (!state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen) return "";
+  return `
+    <section class="tutorial-welcome-overlay open" role="dialog" aria-modal="true" aria-labelledby="tutorialWelcomeTitle">
+      <div class="tutorial-welcome-card">
+        <img class="tutorial-welcome-logo" src="./assets/brand-mark.png" alt="" />
+        <div class="shortcut-eyebrow">First visit</div>
+        <h2 id="tutorialWelcomeTitle">Want a quick tour?</h2>
+        <p>Big Screen Bible has a few lovely corners: reading, study tools, display mode, games, themes, sharing, and highlights. The tour takes about a minute.</p>
+        <div class="tutorial-actions">
+          <button class="primary-btn" id="startTutorialPrompt" type="button">Start tour</button>
+          <button class="ghost-btn" id="dismissTutorialPrompt" type="button">Maybe later</button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function tutorialOverlay() {
+  if (!state.tutorialActive) return "";
+  const step = currentTutorialStep();
+  const steps = activeTutorialSteps();
+  const stepNumber = Math.min(state.tutorialStep + 1, steps.length);
+  const isLast = state.tutorialStep >= steps.length - 1;
+  return `
+    <section class="tutorial-overlay open" aria-live="polite">
+      <div class="tutorial-spotlight" id="tutorialSpotlight" aria-hidden="true"></div>
+      <article class="tutorial-card" id="tutorialCard" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+        <button class="tutorial-close" id="tutorialSkip" type="button" aria-label="Close tour">${icons.clear}</button>
+        <div class="shortcut-eyebrow">Tour ${stepNumber} of ${steps.length}</div>
+        <h2 id="tutorialTitle">${step.title}</h2>
+        <p>${step.body}</p>
+        <div class="tutorial-dots" aria-hidden="true">
+          ${steps.map((_, index) => `<span class="${index === state.tutorialStep ? "active" : ""}"></span>`).join("")}
+        </div>
+        <div class="tutorial-actions">
+          <button class="ghost-btn" id="tutorialBack" type="button" ${state.tutorialStep === 0 ? "disabled" : ""}>Back</button>
+          <button class="primary-btn" id="tutorialNext" type="button">${isLast ? "Finish" : "Next"}</button>
+        </div>
+      </article>
     </section>
   `;
 }
@@ -2272,9 +2405,15 @@ function bindEvents() {
   document.getElementById("mobileResetText")?.addEventListener("click", resetTextScale);
   document.getElementById("shortcutsButton")?.addEventListener("click", () => toggleShortcuts(true));
   document.getElementById("closeShortcuts")?.addEventListener("click", () => toggleShortcuts(false));
+  document.getElementById("startHelpTour")?.addEventListener("click", startTutorial);
   document.querySelector(".shortcut-overlay")?.addEventListener("click", (event) => {
     if (event.target.classList.contains("shortcut-overlay")) toggleShortcuts(false);
   });
+  document.getElementById("startTutorialPrompt")?.addEventListener("click", startTutorial);
+  document.getElementById("dismissTutorialPrompt")?.addEventListener("click", dismissTutorialIntro);
+  document.getElementById("tutorialNext")?.addEventListener("click", advanceTutorial);
+  document.getElementById("tutorialBack")?.addEventListener("click", retreatTutorial);
+  document.getElementById("tutorialSkip")?.addEventListener("click", finishTutorial);
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
@@ -2468,6 +2607,11 @@ function bindEvents() {
     render();
   });
   document.getElementById("presentationSettingsClose")?.addEventListener("click", () => {
+    state.presentationSettingsOpen = false;
+    render();
+  });
+  document.getElementById("presentationHelpButton")?.addEventListener("click", () => {
+    state.shortcutsOpen = true;
     state.presentationSettingsOpen = false;
     render();
   });
@@ -3661,6 +3805,119 @@ function toggleShortcuts(forceOpen) {
   render();
 }
 
+function markTutorialSeen() {
+  state.tutorialIntroVisible = false;
+  localStorage.setItem(tutorialStorageKey, "true");
+}
+
+function dismissTutorialIntro() {
+  markTutorialSeen();
+  renderPreservingReaderScroll();
+}
+
+function startTutorial() {
+  markTutorialSeen();
+  state.shortcutsOpen = false;
+  state.settingsOpen = false;
+  state.presentationSettingsOpen = false;
+  state.headerVersionMenuOpen = false;
+  state.tutorialActive = true;
+  state.tutorialStep = 0;
+  state.tutorialMode = state.mode === "big" ? "presentation" : "app";
+  if (state.mode === "big") state.presentationControlsVisible = true;
+  renderPreservingReaderScroll();
+}
+
+function finishTutorial() {
+  state.tutorialActive = false;
+  state.tutorialStep = 0;
+  renderPreservingReaderScroll();
+}
+
+function advanceTutorial() {
+  if (state.tutorialStep >= activeTutorialSteps().length - 1) {
+    state.tutorialActive = false;
+    state.tutorialStep = 0;
+    renderPreservingReaderScroll();
+    return showToast("Tour complete");
+  }
+  state.tutorialStep += 1;
+  renderPreservingReaderScroll();
+}
+
+function retreatTutorial() {
+  state.tutorialStep = Math.max(0, state.tutorialStep - 1);
+  renderPreservingReaderScroll();
+}
+
+function currentTutorialStep() {
+  const steps = activeTutorialSteps();
+  return steps[Math.min(Math.max(state.tutorialStep, 0), steps.length - 1)] || steps[0];
+}
+
+function activeTutorialSteps() {
+  return state.tutorialMode === "presentation" ? presentationTutorialSteps : tutorialSteps;
+}
+
+function resolveTutorialTarget(step = currentTutorialStep()) {
+  return step.target
+    .split(",")
+    .map((selector) => selector.trim())
+    .map((selector) => document.querySelector(selector))
+    .find((element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+}
+
+function updateTutorialSpotlight() {
+  if (!state.tutorialActive) return;
+  const spotlight = document.getElementById("tutorialSpotlight");
+  const card = document.getElementById("tutorialCard");
+  if (!spotlight || !card) return;
+  const target = resolveTutorialTarget();
+  if (!target) {
+    spotlight.classList.add("hidden");
+    card.style.removeProperty("left");
+    card.style.removeProperty("top");
+    card.style.removeProperty("right");
+    card.style.removeProperty("bottom");
+    return;
+  }
+  const rect = target.getBoundingClientRect();
+  const pad = isCompactScreen() ? 7 : 9;
+  const left = Math.max(8, rect.left - pad);
+  const top = Math.max(8, rect.top - pad);
+  const width = Math.min(window.innerWidth - left - 8, rect.width + pad * 2);
+  const height = Math.min(window.innerHeight - top - 8, rect.height + pad * 2);
+  spotlight.classList.remove("hidden");
+  spotlight.style.left = `${left}px`;
+  spotlight.style.top = `${top}px`;
+  spotlight.style.width = `${width}px`;
+  spotlight.style.height = `${height}px`;
+
+  if (isCompactScreen()) {
+    card.style.removeProperty("left");
+    card.style.removeProperty("top");
+    card.style.removeProperty("right");
+    card.style.removeProperty("bottom");
+    return;
+  }
+
+  const cardRect = card.getBoundingClientRect();
+  const gap = 18;
+  const desiredLeft = rect.left + rect.width / 2 - cardRect.width / 2;
+  const clampedLeft = Math.min(Math.max(18, desiredLeft), window.innerWidth - cardRect.width - 18);
+  const canPlaceBelow = rect.bottom + gap + cardRect.height < window.innerHeight - 18;
+  const desiredTop = canPlaceBelow ? rect.bottom + gap : rect.top - cardRect.height - gap;
+  const clampedTop = Math.min(Math.max(18, desiredTop), window.innerHeight - cardRect.height - 18);
+  card.style.left = `${clampedLeft}px`;
+  card.style.top = `${clampedTop}px`;
+  card.style.right = "auto";
+  card.style.bottom = "auto";
+}
+
 function revealPresentationControls(duration = 3200) {
   if (state.mode !== "big") return;
   clearTimeout(presentationControlsTimer);
@@ -3707,6 +3964,14 @@ function handleGlobalShortcuts(event) {
   }
 
   if (event.key === "Escape") {
+    if (state.tutorialActive) {
+      event.preventDefault();
+      return finishTutorial();
+    }
+    if (state.tutorialIntroVisible) {
+      event.preventDefault();
+      return dismissTutorialIntro();
+    }
     if (document.getElementById("studyPopup")) {
       event.preventDefault();
       return closeStudyPopup();
@@ -3745,7 +4010,7 @@ function handleGlobalShortcuts(event) {
     }
   }
 
-  if (typing || state.shortcutsOpen) return;
+  if (typing || state.shortcutsOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
   if (event.key === "ArrowLeft" && state.mode !== "trivia") {
     event.preventDefault();
@@ -4478,6 +4743,8 @@ compactWidthQuery?.addEventListener("change", () => {
   renderPreservingReaderScroll();
 });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
+window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
+window.addEventListener("resize", updateTutorialSpotlight);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   state.headerVersionMenuOpen = false;
