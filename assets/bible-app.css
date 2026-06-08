@@ -1630,7 +1630,10 @@ select {
   border-radius: 0;
   background: var(--panel);
   color: var(--ink);
+  font-size: 16px;
   font-weight: 850;
+  line-height: 1.08;
+  white-space: nowrap;
 }
 
 .trivia-mode-tabs button:last-child {
@@ -4018,6 +4021,14 @@ svg {
     display: none;
   }
 
+  .app-shell.mobile-controls-open #shortcutsButton {
+    order: 4;
+    grid-column: 7 / 9;
+    display: inline-flex;
+    width: 100%;
+    min-height: 40px;
+  }
+
   #focusToggle {
     order: 4;
     grid-column: 9 / 11;
@@ -4382,6 +4393,7 @@ svg {
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding: 0 16px;
+    font-size: 15px;
   }
 
   .trivia-mode-tabs button:last-child {
@@ -4827,6 +4839,22 @@ svg {
     grid-column: 1 / 7;
   }
 
+  .app-shell.mobile-controls-open .mode-tabs {
+    grid-column: 1 / -1;
+  }
+
+  .app-shell.mobile-controls-open #shortcutsButton {
+    grid-column: 1 / 4;
+  }
+
+  .app-shell.mobile-controls-open #focusToggle {
+    grid-column: 4 / 8;
+  }
+
+  .app-shell.mobile-controls-open .settings-menu {
+    grid-column: 8 / -1;
+  }
+
   #focusToggle {
     grid-column: 7 / 10;
   }
@@ -4972,6 +5000,17 @@ svg {
   .settings-popover.open {
     left: calc(var(--rail-width) + 10px);
     right: calc(var(--phone-landscape-right-safe) + 12px);
+  }
+
+  .trivia-mode-tabs button {
+    gap: 8px;
+    padding-inline: 8px;
+    font-size: clamp(12px, 1.45vw, 14px);
+  }
+
+  .trivia-mode-tabs svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
