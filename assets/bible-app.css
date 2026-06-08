@@ -5001,7 +5001,7 @@ svg {
   }
 
   .brand {
-    grid-column: 1 / 9;
+    grid-column: 1 / 7;
   }
 
   .brand-mark-image {
@@ -5018,7 +5018,7 @@ svg {
 
   .mobile-controls-toggle {
     order: 1;
-    grid-column: 9 / -1;
+    grid-column: 10 / -1;
     display: inline-flex;
     width: 100%;
     min-height: 38px;
@@ -5050,31 +5050,54 @@ svg {
   }
 
   .app-shell.mobile-controls-open .mode-tabs {
-    grid-column: 1 / -1;
+    grid-column: 1 / 11;
+  }
+
+  .app-shell.mobile-controls-open .mode-tabs button {
+    padding-inline: 4px;
   }
 
   .app-shell.mobile-controls-open #shortcutsButton {
-    grid-column: 1 / 4;
+    order: 5;
+    grid-column: 5 / 7;
   }
 
+  .account-menu,
   .app-shell.mobile-controls-open .account-menu {
-    grid-column: 4 / 7;
+    order: 4;
+    grid-column: 9 / 11;
+    display: block;
   }
 
   .app-shell.mobile-controls-open #focusToggle {
-    grid-column: 7 / 10;
+    grid-column: 11 / -1;
+  }
+
+  .app-shell.mobile-controls-open .account-menu {
+    order: 5;
+    grid-column: 7 / 9;
   }
 
   .app-shell.mobile-controls-open .settings-menu {
-    grid-column: 10 / -1;
+    order: 5;
+    grid-column: 9 / -1;
   }
 
   #focusToggle {
-    grid-column: 7 / 10;
+    grid-column: 7 / 9;
   }
 
   .settings-menu {
-    grid-column: 10 / -1;
+    grid-column: 11 / -1;
+  }
+
+  .account-popover.open {
+    top: auto;
+    right: calc(env(safe-area-inset-right, 0px) + 8px);
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    left: calc(env(safe-area-inset-left, 0px) + 8px);
+    width: auto;
+    max-height: min(560px, calc(100dvh - 118px));
   }
 
   .selection-bar {
