@@ -4235,11 +4235,13 @@ svg {
 
   .account-popover.open {
     position: fixed;
-    top: auto;
-    right: 12px;
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-    width: min(320px, calc(100vw - 24px));
-    max-height: min(620px, calc(100dvh - 156px));
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    right: calc(env(safe-area-inset-right, 0px) + 12px);
+    bottom: auto;
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
     overflow: auto;
     z-index: 43;
   }
@@ -5092,12 +5094,12 @@ svg {
   }
 
   .account-popover.open {
-    top: auto;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
     right: calc(env(safe-area-inset-right, 0px) + 8px);
-    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    bottom: auto;
     left: calc(env(safe-area-inset-left, 0px) + 8px);
     width: auto;
-    max-height: min(560px, calc(100dvh - 118px));
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
   }
 
   .selection-bar {
