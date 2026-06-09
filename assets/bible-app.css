@@ -3462,11 +3462,18 @@ select {
 .about-body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--gold) 14%, transparent), transparent 34rem),
-    linear-gradient(180deg, color-mix(in srgb, var(--soft) 78%, #fff), var(--bg));
+  background: var(--bg);
   color: var(--ink);
   font-family: var(--ui-font);
+}
+
+.about-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--gold) 13%, transparent), transparent 34rem);
 }
 
 .about-shell {

@@ -43,7 +43,29 @@
       href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./assets/bible-app.css?v=20260609-about-panel" />
+    <script>
+      (function applyAboutTheme() {
+        const presets = {
+          light: ["paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire"],
+          dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
+        };
+        const defaults = { light: "paper", dark: "midnight" };
+        const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+        function setThemeFromStorage() {
+          const savedMode = localStorage.getItem("lw_theme");
+          const theme = savedMode === "light" || savedMode === "dark" ? savedMode : systemQuery?.matches ? "dark" : "light";
+          const savedPreset = localStorage.getItem(`lw_theme_preset_${theme}`);
+          const preset = presets[theme].includes(savedPreset) ? savedPreset : defaults[theme];
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.dataset.themePreset = preset;
+        }
+        setThemeFromStorage();
+        systemQuery?.addEventListener("change", () => {
+          if (!localStorage.getItem("lw_theme")) setThemeFromStorage();
+        });
+      })();
+    </script>
+    <link rel="stylesheet" href="./assets/bible-app.css?v=20260609-about-theme" />
   </head>
   <body class="about-body">
     <main class="about-shell">
