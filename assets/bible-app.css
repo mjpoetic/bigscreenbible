@@ -489,6 +489,10 @@ button {
   justify-content: space-between;
 }
 
+.topbar {
+  z-index: 90;
+}
+
 .bottom-actions {
   display: inline-flex;
   align-items: center;
@@ -4235,15 +4239,15 @@ svg {
 
   .account-popover.open {
     position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    top: var(--account-popover-top, calc(env(safe-area-inset-top, 0px) + 10px));
     right: calc(env(safe-area-inset-right, 0px) + 12px);
     bottom: auto;
     left: calc(env(safe-area-inset-left, 0px) + 12px);
     width: auto;
     max-width: none;
-    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 20px);
+    max-height: calc(100dvh - var(--account-popover-top, 10px) - env(safe-area-inset-bottom, 0px) - 12px);
     overflow: auto;
-    z-index: 43;
+    z-index: 140;
   }
 
   .settings-menu {
@@ -4303,13 +4307,13 @@ svg {
 
   .settings-popover.open {
     position: fixed;
-    top: auto;
+    top: var(--settings-popover-top, calc(env(safe-area-inset-top, 0px) + 10px));
     right: 12px;
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    bottom: auto;
     width: min(320px, calc(100vw - 24px));
-    max-height: min(620px, calc(100dvh - 156px));
+    max-height: calc(100dvh - var(--settings-popover-top, 10px) - env(safe-area-inset-bottom, 0px) - 12px);
     overflow: auto;
-    z-index: 43;
+    z-index: 140;
   }
 
   .settings-menu .settings-popover.open {
@@ -4320,12 +4324,13 @@ svg {
     position: fixed;
     right: 12px;
     left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 10px);
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-    z-index: 43;
+    top: var(--settings-popover-top, calc(env(safe-area-inset-top, 0px) + 10px));
+    bottom: auto;
+    z-index: 140;
     display: grid;
     gap: 14px;
     width: auto;
-    max-height: min(620px, calc(100dvh - 156px));
+    max-height: calc(100dvh - var(--settings-popover-top, 10px) - env(safe-area-inset-bottom, 0px) - 12px);
     overflow: auto;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -5094,12 +5099,13 @@ svg {
   }
 
   .account-popover.open {
-    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    top: var(--account-popover-top, calc(env(safe-area-inset-top, 0px) + 8px));
     right: calc(env(safe-area-inset-right, 0px) + 8px);
     bottom: auto;
     left: calc(env(safe-area-inset-left, 0px) + 8px);
     width: auto;
-    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
+    max-height: calc(100dvh - var(--account-popover-top, 8px) - env(safe-area-inset-bottom, 0px) - 8px);
+    z-index: 140;
   }
 
   .selection-bar {

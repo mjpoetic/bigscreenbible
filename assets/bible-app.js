@@ -517,6 +517,10 @@ function render() {
     </main>
   `;
   bindEvents();
+  requestAnimationFrame(() => {
+    positionAccountPopover();
+    positionSettingsPopover();
+  });
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
     state.pendingVerseFocus = false;
@@ -1363,11 +1367,86 @@ function toggleAccountMenu(forceOpen = null) {
   renderPreservingReaderScroll();
   requestAnimationFrame(() => {
     if (!state.accountOpen) return;
+    positionAccountPopover();
     const accountField = document.getElementById("quick-accountEmail")
       || document.getElementById("quick-newPassword")
       || document.getElementById("accountEmail")
       || document.getElementById("newPassword");
     accountField?.focus?.();
+  });
+}
+
+function positionAccountPopover() {
+  const popover = document.querySelector(".account-popover.open");
+  const button = document.getElementById("accountQuickButton");
+  if (!popover || !button || !isCompactScreen()) {
+    document.documentElement.style.removeProperty("--account-popover-top");
+    clearFixedPopoverPosition(popover);
+    return;
+  }
+  const top = positionFixedPopoverBelowButton(popover, button, { coverRail: true });
+  document.documentElement.style.setProperty("--account-popover-top", `${top}px`);
+}
+
+function positionSettingsPopover() {
+  const popover = document.querySelector(".mobile-settings-popover, .settings-popover.open");
+  const headerButton = document.getElementById("settingsToggle");
+  const floatingButton = document.getElementById("mobileFloatingSettings");
+  const button = isElementVisible(headerButton) ? headerButton : floatingButton;
+  if (!popover || !button || !isCompactScreen()) {
+    document.documentElement.style.removeProperty("--settings-popover-top");
+    clearFixedPopoverPosition(popover);
+    return;
+  }
+  const top = positionFixedPopoverBelowButton(popover, button, { coverRail: false });
+  document.documentElement.style.setProperty("--settings-popover-top", `${top}px`);
+}
+
+function isElementVisible(element) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function compactRailWidth() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--rail-width");
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 56;
+}
+
+function fixedPopoverViewport() {
+  return window.visualViewport || { width: window.innerWidth, height: window.innerHeight, offsetLeft: 0, offsetTop: 0 };
+}
+
+function positionFixedPopoverBelowButton(popover, button, { coverRail = false } = {}) {
+  const viewport = fixedPopoverViewport();
+  const buttonRect = button.getBoundingClientRect();
+  const viewportLeft = viewport.offsetLeft || 0;
+  const viewportTop = viewport.offsetTop || 0;
+  const gutter = 8;
+  const left = coverRail
+    ? viewportLeft + gutter
+    : viewportLeft + compactRailWidth() + gutter;
+  const right = gutter;
+  const top = Math.max(gutter, Math.round(viewportTop + buttonRect.bottom + gutter));
+  const maxHeight = Math.max(180, Math.round(viewport.height - (top - viewportTop) - gutter));
+  popover.style.position = "fixed";
+  popover.style.top = `${top}px`;
+  popover.style.right = `${right}px`;
+  popover.style.bottom = "auto";
+  popover.style.left = `${left}px`;
+  popover.style.width = "auto";
+  popover.style.maxWidth = "none";
+  popover.style.maxHeight = `${maxHeight}px`;
+  popover.style.overflow = "auto";
+  popover.style.zIndex = "360";
+  return top;
+}
+
+function clearFixedPopoverPosition(popover) {
+  if (!popover) return;
+  ["position", "top", "right", "bottom", "left", "width", "maxWidth", "maxHeight", "overflow", "zIndex"].forEach((property) => {
+    popover.style[property] = "";
   });
 }
 
@@ -2914,6 +2993,7 @@ function bindEvents() {
     state.settingsOpen = !state.settingsOpen;
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
+    requestAnimationFrame(positionSettingsPopover);
   });
   document.getElementById("settingsClose")?.addEventListener("click", () => {
     state.settingsOpen = false;
@@ -2925,6 +3005,7 @@ function bindEvents() {
     state.settingsOpen = !state.settingsOpen;
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
+    requestAnimationFrame(positionSettingsPopover);
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", () => {
     state.settingsOpen = false;
@@ -5410,7 +5491,13 @@ compactWidthQuery?.addEventListener("change", () => {
 });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
-window.addEventListener("resize", updateTutorialSpotlight);
+window.addEventListener("scroll", positionAccountPopover, { passive: true });
+window.addEventListener("scroll", positionSettingsPopover, { passive: true });
+window.addEventListener("resize", () => {
+  updateTutorialSpotlight();
+  positionAccountPopover();
+  positionSettingsPopover();
+});
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   state.headerVersionMenuOpen = false;
