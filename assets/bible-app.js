@@ -2442,41 +2442,23 @@ function highlightItemsMarkup() {
 function historyItemsMarkup() {
   if (!state.history.length) return `<div class="empty-state">No reading history yet.</div>`;
   const groups = groupedHistoryItems();
-  const currentSections = [
-    ["Today", groups.today],
-    ["Earlier this week", groups.thisWeek],
-  ]
-    .filter(([, items]) => items.length)
-    .map(([label, items]) => historySectionMarkup(label, items, false))
+  const currentWeekSections = groups.currentWeek
+    .map((group) => historySectionMarkup(group.label, group.items, { open: group.isToday }))
     .join("");
-  const olderSections = groups.older
-    .map((group) => historySectionMarkup(group.label, group.items, true))
-    .join("");
-  return currentSections + olderSections;
+  return currentWeekSections + previousWeeksHistoryMarkup(groups.previousWeeks);
 }
 
-function historySectionMarkup(label, items, collapsed = false) {
+function historySectionMarkup(label, items, { open = false } = {}) {
   if (!items.length) return "";
   const body = `<div class="history-group-items">${items.map(historyItemMarkup).join("")}</div>`;
-  if (collapsed) {
-    return `
-      <details class="history-group">
-        <summary>
-          <span>${escapeHtml(label)}</span>
-          <small>${items.length} ${items.length === 1 ? "entry" : "entries"}</small>
-        </summary>
-        ${body}
-      </details>
-    `;
-  }
   return `
-    <section class="history-group current-history-group" aria-label="${escapeHtml(label)}">
-      <div class="history-group-heading">
+    <details class="history-group" ${open ? "open" : ""}>
+      <summary>
         <span>${escapeHtml(label)}</span>
         <small>${items.length} ${items.length === 1 ? "entry" : "entries"}</small>
-      </div>
+      </summary>
       ${body}
-    </section>
+    </details>
   `;
 }
 
@@ -2499,25 +2481,57 @@ function historyItemMarkup(item) {
 function groupedHistoryItems() {
   const todayStart = startOfDay(new Date());
   const weekStart = startOfWeek(new Date());
-  const grouped = { today: [], thisWeek: [], older: [] };
+  const grouped = { currentWeek: [], previousWeeks: [] };
+  const currentWeekByDay = new Map();
   const olderByWeek = new Map();
   normalizedHistoryItems().forEach((item) => {
     if (!item.date) {
       addOlderHistoryGroup(olderByWeek, "Older history", item);
       return;
     }
-    if (item.date >= todayStart) {
-      grouped.today.push(item);
-      return;
-    }
     if (item.date >= weekStart) {
-      grouped.thisWeek.push(item);
+      const day = startOfDay(item.date);
+      const label = historyDayLabel(day, todayStart);
+      if (!currentWeekByDay.has(label)) currentWeekByDay.set(label, { label, date: day, isToday: day.getTime() === todayStart.getTime(), items: [] });
+      currentWeekByDay.get(label).items.push(item);
       return;
     }
     addOlderHistoryGroup(olderByWeek, historyWeekLabel(item.date), item);
   });
-  grouped.older = Array.from(olderByWeek.entries()).map(([label, items]) => ({ label, items }));
+  grouped.currentWeek = Array.from(currentWeekByDay.values())
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+  grouped.previousWeeks = Array.from(olderByWeek.entries()).map(([label, items]) => ({ label, items }));
   return grouped;
+}
+
+function previousWeeksHistoryMarkup(groups) {
+  if (!groups.length) return "";
+  const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+  return `
+    <details class="history-group history-previous-weeks">
+      <summary>
+        <span>Previous weeks</span>
+        <small>${total} ${total === 1 ? "entry" : "entries"}</small>
+      </summary>
+      <div class="history-week-list">
+        ${groups.map(historyWeekItemsMarkup).join("")}
+      </div>
+    </details>
+  `;
+}
+
+function historyWeekItemsMarkup(group) {
+  return `
+    <section class="history-week-subgroup" aria-label="${escapeHtml(group.label)}">
+      <div class="history-week-heading">
+        <span>${escapeHtml(group.label)}</span>
+        <small>${group.items.length} ${group.items.length === 1 ? "entry" : "entries"}</small>
+      </div>
+      <div class="history-group-items">
+        ${group.items.map(historyItemMarkup).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function normalizedHistoryItems() {
@@ -2550,6 +2564,14 @@ function startOfWeek(date) {
   const start = startOfDay(date);
   start.setDate(start.getDate() - start.getDay());
   return start;
+}
+
+function historyDayLabel(date, todayStart) {
+  if (date.getTime() === todayStart.getTime()) return "Today";
+  const yesterday = new Date(todayStart);
+  yesterday.setDate(todayStart.getDate() - 1);
+  if (date.getTime() === yesterday.getTime()) return "Yesterday";
+  return date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 }
 
 function historyWeekLabel(date) {
