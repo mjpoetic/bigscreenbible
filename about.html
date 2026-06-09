@@ -78,9 +78,9 @@
           <aside class="about-side">
             <nav class="about-nav-card" aria-label="Explore more about Big Screen Bible">
               <span class="about-nav-title">Explore more</span>
+              <a href="#creator" data-about-section="creator">Meet the Creator</a>
               <a href="#vision" data-about-section="vision">The Vision</a>
               <a href="#features" data-about-section="features">What Makes It Different?</a>
-              <a href="#creator" data-about-section="creator">Meet the Creator</a>
               <a href="#passion" data-about-section="passion">A Personal Passion Project</a>
               <a href="#accessibility" data-about-section="accessibility">Keeping It Accessible</a>
               <a href="#looking-ahead" data-about-section="looking-ahead">Looking Ahead</a>
@@ -101,7 +101,24 @@
           </aside>
 
           <section class="about-main-copy" aria-live="polite">
-            <div class="about-panel active" id="vision" data-about-panel="vision">
+            <div class="about-panel active" id="creator" data-about-panel="creator">
+              <p class="about-panel-kicker">The person behind the project</p>
+              <h2>Meet the Creator</h2>
+              <div class="about-panel-copy">
+                <p>Hello! My name is Dane.</p>
+                <p>
+                  I'm a Christian educator, worship leader, and lifelong student of the Bible. For many years, I've served in classrooms, churches, and ministry settings where Scripture is regularly read, taught, studied, and displayed.
+                </p>
+                <p>
+                  Throughout those experiences, I often found myself searching for a better way to present God's Word, one that was simple, readable, and designed specifically to keep Scripture front and center.
+                </p>
+                <p>
+                  Big Screen Bible grew out of that desire and became a project dedicated to helping churches, schools, families, small groups, and individual believers engage more deeply with God's Word.
+                </p>
+              </div>
+            </div>
+
+            <div class="about-panel" id="vision" data-about-panel="vision">
               <p class="about-panel-kicker">Why Big Screen Bible exists</p>
               <h2>The Vision</h2>
               <div class="about-panel-copy">
@@ -139,23 +156,6 @@
                   <p>Does this help people engage more deeply with God's Word?</p>
                 </blockquote>
                 <p>If the answer is yes, it belongs. If not, it probably doesn't.</p>
-              </div>
-            </div>
-
-            <div class="about-panel" id="creator" data-about-panel="creator">
-              <p class="about-panel-kicker">The person behind the project</p>
-              <h2>Meet the Creator</h2>
-              <div class="about-panel-copy">
-                <p>Hello! My name is Dane.</p>
-                <p>
-                  I'm a Christian educator, worship leader, and lifelong student of the Bible. For many years, I've served in classrooms, churches, and ministry settings where Scripture is regularly read, taught, studied, and displayed.
-                </p>
-                <p>
-                  Throughout those experiences, I often found myself searching for a better way to present God's Word, one that was simple, readable, and designed specifically to keep Scripture front and center.
-                </p>
-                <p>
-                  Big Screen Bible grew out of that desire and became a project dedicated to helping churches, schools, families, small groups, and individual believers engage more deeply with God's Word.
-                </p>
               </div>
             </div>
 
@@ -228,7 +228,7 @@
       const aboutLinks = Array.from(document.querySelectorAll("[data-about-section]"));
       const aboutPanels = Array.from(document.querySelectorAll("[data-about-panel]"));
       function setAboutSection(sectionId, updateHash = true) {
-        const nextId = aboutPanels.some((panel) => panel.dataset.aboutPanel === sectionId) ? sectionId : "vision";
+        const nextId = aboutPanels.some((panel) => panel.dataset.aboutPanel === sectionId) ? sectionId : "creator";
         aboutLinks.forEach((link) => {
           const active = link.dataset.aboutSection === nextId;
           link.classList.toggle("active", active);

@@ -3621,16 +3621,16 @@ select {
 .about-thanks-card h2 {
   margin: 0 0 9px;
   color: var(--ink);
-  font: 700 18px/1.25 "Libre Baskerville", Georgia, serif;
+  font: 700 15px/1.28 "Libre Baskerville", Georgia, serif;
   letter-spacing: 0;
 }
 
 .about-thanks-card p {
   margin: 0 0 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .about-thanks-card blockquote {
@@ -6003,7 +6003,7 @@ svg {
   }
 
   .about-thanks-card h2 {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .about-detail summary {
