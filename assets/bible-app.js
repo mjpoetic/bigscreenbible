@@ -2441,21 +2441,125 @@ function highlightItemsMarkup() {
 
 function historyItemsMarkup() {
   if (!state.history.length) return `<div class="empty-state">No reading history yet.</div>`;
-  return state.history.map((item) => {
-    const ref = typeof item === "string" ? item : item.ref;
-    const when = typeof item === "string" ? "" : formatHistoryTime(item.at);
+  const groups = groupedHistoryItems();
+  const currentSections = [
+    ["Today", groups.today],
+    ["Earlier this week", groups.thisWeek],
+  ]
+    .filter(([, items]) => items.length)
+    .map(([label, items]) => historySectionMarkup(label, items, false))
+    .join("");
+  const olderSections = groups.older
+    .map((group) => historySectionMarkup(group.label, group.items, true))
+    .join("");
+  return currentSections + olderSections;
+}
+
+function historySectionMarkup(label, items, collapsed = false) {
+  if (!items.length) return "";
+  const body = `<div class="history-group-items">${items.map(historyItemMarkup).join("")}</div>`;
+  if (collapsed) {
     return `
-      <div class="saved-item">
-        <button class="history-item" data-goto="${escapeHtml(ref)}">
-          <div class="bookmark-title">${escapeHtml(ref)}</div>
-          <div class="muted">${when || "Open recent passage"}</div>
-        </button>
-        <div class="saved-actions">
-          <button class="text-btn danger-text" data-delete-history="${escapeHtml(ref)}">Delete</button>
-        </div>
-      </div>
+      <details class="history-group">
+        <summary>
+          <span>${escapeHtml(label)}</span>
+          <small>${items.length} ${items.length === 1 ? "entry" : "entries"}</small>
+        </summary>
+        ${body}
+      </details>
     `;
-  }).join("");
+  }
+  return `
+    <section class="history-group current-history-group" aria-label="${escapeHtml(label)}">
+      <div class="history-group-heading">
+        <span>${escapeHtml(label)}</span>
+        <small>${items.length} ${items.length === 1 ? "entry" : "entries"}</small>
+      </div>
+      ${body}
+    </section>
+  `;
+}
+
+function historyItemMarkup(item) {
+  const ref = item.ref;
+  const when = formatHistoryTime(item.at);
+  return `
+    <div class="saved-item">
+      <button class="history-item" data-goto="${escapeHtml(ref)}">
+        <div class="bookmark-title">${escapeHtml(ref)}</div>
+        <div class="muted">${when || "Open recent passage"}</div>
+      </button>
+      <div class="saved-actions">
+        <button class="text-btn danger-text" data-delete-history="${escapeHtml(ref)}">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function groupedHistoryItems() {
+  const todayStart = startOfDay(new Date());
+  const weekStart = startOfWeek(new Date());
+  const grouped = { today: [], thisWeek: [], older: [] };
+  const olderByWeek = new Map();
+  normalizedHistoryItems().forEach((item) => {
+    if (!item.date) {
+      addOlderHistoryGroup(olderByWeek, "Older history", item);
+      return;
+    }
+    if (item.date >= todayStart) {
+      grouped.today.push(item);
+      return;
+    }
+    if (item.date >= weekStart) {
+      grouped.thisWeek.push(item);
+      return;
+    }
+    addOlderHistoryGroup(olderByWeek, historyWeekLabel(item.date), item);
+  });
+  grouped.older = Array.from(olderByWeek.entries()).map(([label, items]) => ({ label, items }));
+  return grouped;
+}
+
+function normalizedHistoryItems() {
+  return state.history
+    .map((item) => {
+      const ref = typeof item === "string" ? item : item.ref;
+      const at = typeof item === "string" ? "" : item.at;
+      const date = parseHistoryDate(at);
+      return ref ? { ref, at, date } : null;
+    })
+    .filter(Boolean);
+}
+
+function addOlderHistoryGroup(groupMap, label, item) {
+  if (!groupMap.has(label)) groupMap.set(label, []);
+  groupMap.get(label).push(item);
+}
+
+function parseHistoryDate(timestamp) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date) {
+  const start = startOfDay(date);
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function historyWeekLabel(date) {
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startLabel = start.toLocaleDateString([], { month: "short", day: "numeric" });
+  const endLabel = end.toLocaleDateString([], sameMonth ? { day: "numeric", year: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
+  return `${startLabel}-${endLabel}`;
 }
 
 function formatHistoryTime(timestamp) {
