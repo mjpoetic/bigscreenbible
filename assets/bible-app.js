@@ -2815,6 +2815,9 @@ function bottombar() {
           <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
           <span class="bottom-action-label">Print</span>
         </button>
+        <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible">
+          <span class="bottom-action-label">About</span>
+        </a>
       </div>
       <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
         <span class="chapter-nav-label">Next Chapter</span>
@@ -2928,7 +2931,7 @@ function presentation() {
           <button class="ghost-btn" id="presentationPrev" data-tooltip="Previous verse" ${canGoBack ? "" : "disabled"}>Previous</button>
           <button class="ghost-btn" id="presentationNext" data-tooltip="Next verse" ${canGoForward ? "" : "disabled"}>Next</button>
         </div>
-        <span class="presentation-bottom-spacer" aria-hidden="true"></span>
+        <a class="presentation-about-link" href="./about.html">About</a>
       </div>
     </section>
   `;
@@ -2986,6 +2989,7 @@ function shortcutOverlay() {
           <div><strong>Display</strong><span>Big Screen Mode is built for clean, full-screen Scripture display.</span></div>
           <div><strong>Games</strong><span>Practice Bible knowledge with trivia, verse order, and quick-reference games.</span></div>
         </div>
+        <a class="help-about-link" href="./about.html">About Big Screen Bible</a>
         <div class="shortcut-section-title">Keyboard shortcuts</div>
         <div class="shortcut-list">
           ${shortcuts.map(([keys, label]) => `<div class="shortcut-row"><kbd>${keys}</kbd><span>${label}</span></div>`).join("")}
