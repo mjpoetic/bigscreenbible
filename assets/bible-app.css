@@ -5984,10 +5984,12 @@ svg {
   }
 
   .about-side {
+    display: contents;
     position: static;
   }
 
   .about-nav-card {
+    order: 1;
     position: static;
     grid-template-columns: 1fr;
     padding: 14px;
@@ -6005,8 +6007,13 @@ svg {
   }
 
   .about-main-copy {
+    order: 2;
     min-height: 0;
     padding: 18px;
+  }
+
+  .about-thanks-card {
+    order: 3;
   }
 
   .about-thanks-card h2 {
