@@ -4419,16 +4419,21 @@ function applyStartupExperience() {
   if (state.startupApplied) return;
   state.startupApplied = true;
   const sharedRef = sharedReferenceFromUrl();
+  const openBigScreen = shouldOpenBigScreenFromUrl();
   if (sharedRef && setReferenceFromString(sharedRef)) {
     const selected = sharedVersesFromUrl();
     if (selected.length) state.selectedVerses = selected;
+    if (openBigScreen) {
+      state.mode = "big";
+      state.presentationControlsVisible = !isCompactScreen();
+    }
     return;
   }
   if (state.startVerseOfDay) {
     const verseOfDay = verseOfDayReference();
     if (verseOfDay) setReferenceFromString(verseOfDay);
   }
-  if (state.startBigScreen) {
+  if (openBigScreen || state.startBigScreen) {
     state.mode = "big";
     state.presentationControlsVisible = !isCompactScreen();
   }
@@ -4467,6 +4472,12 @@ function sharedVersesFromUrl() {
     })
     .filter((verse, index, list) => available.has(verse) && list.indexOf(verse) === index)
     .sort((a, b) => a - b);
+}
+
+function shouldOpenBigScreenFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedMode = (params.get("mode") || params.get("view") || "").toLowerCase();
+  return ["big", "bigscreen", "big-screen", "presentation"].includes(requestedMode);
 }
 
 function verseOfDayReference(date = new Date()) {
