@@ -852,6 +852,10 @@ button {
   border-right: 0;
 }
 
+.mode-tabs .mobile-mode-focus {
+  display: none;
+}
+
 .mode-tabs button.active,
 .primary-btn,
 .focus-toggle.active {
