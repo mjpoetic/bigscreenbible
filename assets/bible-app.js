@@ -214,6 +214,7 @@ const state = {
   pendingVerseFocus: false,
   selectedVerses: [],
   highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
+  customHighlightColor: normalizeHighlightColor(localStorage.getItem("lw_custom_highlight_color")) || "#c084fc",
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
   notes: JSON.parse(localStorage.getItem("lw_notes") || '{"John 3:16":"This verse is the heart of the Gospel. Mark for Sabbath worship display."}'),
   history: JSON.parse(localStorage.getItem("lw_history") || "[]"),
@@ -241,7 +242,7 @@ const state = {
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
 if (state.triviaGameType === "book-sprint") state.triviaCount = 5;
 
-const highlightColors = ["yellow", "blue", "pink", "green", "orange"];
+const highlightColors = ["yellow", "blue", "pink", "green", "orange", "purple"];
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
 if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
@@ -1275,6 +1276,15 @@ function escapeHtml(value) {
   }[character]));
 }
 
+function normalizeHighlightColor(color) {
+  const value = String(color || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : "";
+}
+
+function isHighlightColor(color) {
+  return highlightColors.includes(color) || Boolean(normalizeHighlightColor(color));
+}
+
 function supabaseCredentials() {
   const config = window.BigScreenBibleSupabase || {};
   return {
@@ -1628,6 +1638,7 @@ function captureCloudSnapshot() {
       themePresetDark: localStorage.getItem("lw_theme_preset_dark") || defaultThemePresets.dark,
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
+      customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
@@ -1717,6 +1728,7 @@ function applyCloudSnapshot(snapshot) {
   state.themePreset = settings[`themePreset${state.theme === "dark" ? "Dark" : "Light"}`] || savedThemePreset(state.theme);
   state.scriptureFont = scriptureFontCodes.includes(settings.scriptureFont) ? settings.scriptureFont : "libre";
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
+  state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.textScale = clampTextScale(Number(settings.textScale) || 1);
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
@@ -1746,6 +1758,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_theme_preset_dark", settings.themePresetDark || defaultThemePresets.dark);
   localStorage.setItem("lw_scripture_font", state.scriptureFont);
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
+  localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
@@ -1859,7 +1872,7 @@ function readerView() {
     <h1 class="section-title">${currentChapter().title}</h1>
     ${selectionBar()}
     ${currentChapter().verses.map((verse) => `
-      <p class="verse ${verseStateClasses(verse.n)}" data-verse="${verse.n}">
+      <p class="verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
         <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
         <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
@@ -2365,7 +2378,7 @@ function parallelView() {
     <div class="parallel-table" style="--version-count: ${versions.length}">
       <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${version}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
-        <div class="parallel-row ${verseStateClasses(verse.n)}" data-verse="${verse.n}">
+        <div class="parallel-row ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
           ${versions.map((version) => `<div class="parallel-copy" data-version="${escapeHtml(version)}">${renderStrongText(verse, version)}</div>`).join("")}
         </div>
@@ -2384,7 +2397,21 @@ function verseStateClasses(verseNumber) {
 
 function highlightClassForVerse(verseNumber) {
   const color = state.highlights[`${state.reference}:${verseNumber}`];
-  return highlightColors.includes(color) ? `highlight-${color}` : "";
+  return highlightClassForColor(color);
+}
+
+function highlightClassForColor(color) {
+  if (highlightColors.includes(color)) return `highlight-${color}`;
+  return normalizeHighlightColor(color) ? "highlight-custom" : "";
+}
+
+function highlightStyleForVerse(verseNumber) {
+  return highlightStyleForColor(state.highlights[`${state.reference}:${verseNumber}`]);
+}
+
+function highlightStyleForColor(color) {
+  const customColor = normalizeHighlightColor(color);
+  return customColor ? `style="--custom-highlight-color: ${escapeHtml(customColor)}"` : "";
 }
 
 function crossReferenceItems(reference = referenceLabel()) {
@@ -2435,7 +2462,7 @@ function highlightItemsMarkup() {
       <div class="saved-item">
         <button class="highlight-item" data-goto="${escapeHtml(ref)}">
           <div class="highlight-title">
-            <span class="highlight-dot highlight-${escapeHtml(color)}" aria-hidden="true"></span>
+            <span class="highlight-dot ${highlightClassForColor(color)}" ${highlightStyleForColor(color)} aria-hidden="true"></span>
             <span>${escapeHtml(ref)}</span>
           </div>
           <div class="note-copy">${escapeHtml(truncatePreview(preview || "Open highlighted verse"))}</div>
@@ -2604,7 +2631,7 @@ function formatHistoryTime(timestamp) {
 function groupedHighlightItems() {
   const parsed = Object.entries(state.highlights)
     .map(([ref, color]) => ({ ...parsePassageReference(ref), color }))
-    .filter((item) => item.key && item.verses.length === 1 && highlightColors.includes(item.color))
+    .filter((item) => item.key && item.verses.length === 1 && isHighlightColor(item.color))
     .sort((a, b) => compareReferenceParts(a, b));
   const groups = [];
   parsed.forEach((item) => {
@@ -2846,6 +2873,9 @@ function selectionBar() {
       <span>${count} selected · ${label}</span>
       <div class="highlight-palette" aria-label="Highlight selected verses">
         ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}"></button>`).join("")}
+        <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" title="Custom highlight color">
+          <input id="customHighlightColor" type="color" value="${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color">
+        </label>
         <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight">${icons.clear}</button>
       </div>
       <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
@@ -3382,6 +3412,7 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-verse]").forEach((row) => {
     row.addEventListener("click", (event) => {
+      event.stopPropagation();
       const verseNumber = Number(row.dataset.verse);
       state.verse = verseNumber;
       toggleVerseSelection(verseNumber, event.shiftKey);
@@ -3529,6 +3560,18 @@ function bindEvents() {
   document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
   document.querySelectorAll("[data-highlight-color]").forEach((button) => {
     button.addEventListener("click", () => applyHighlight(button.dataset.highlightColor));
+  });
+  const customHighlightInput = document.getElementById("customHighlightColor");
+  customHighlightInput?.addEventListener("input", (event) => {
+    const color = normalizeHighlightColor(event.target.value);
+    if (!color) return;
+    state.customHighlightColor = color;
+    localStorage.setItem("lw_custom_highlight_color", color);
+    event.target.closest(".highlight-custom-swatch")?.style.setProperty("--custom-highlight-color", color);
+  });
+  customHighlightInput?.addEventListener("change", (event) => {
+    const color = normalizeHighlightColor(event.target.value);
+    if (color) applyHighlight(color);
   });
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
   document.getElementById("closePresentation")?.addEventListener("click", () => {
@@ -5273,25 +5316,42 @@ function toggleVerseSelection(verseNumber, extendRange) {
 
 function clearSelection() {
   state.selectedVerses = [];
-  render();
+  renderPreservingReaderScroll();
 }
 
 function applyHighlight(color) {
   const verses = selectedVerseNumbers();
   if (!verses.length) return;
+  const normalizedColor = normalizeHighlightColor(color);
+  const shouldRemove = color === "none";
+  const highlightColor = highlightColors.includes(color) ? color : normalizedColor;
+  if (!shouldRemove && !highlightColor) return;
   verses.forEach((verseNumber) => {
     const ref = `${state.reference}:${verseNumber}`;
-    if (highlightColors.includes(color)) state.highlights[ref] = color;
+    if (highlightColor) state.highlights[ref] = highlightColor;
     else delete state.highlights[ref];
   });
+  if (normalizedColor) {
+    state.customHighlightColor = normalizedColor;
+    localStorage.setItem("lw_custom_highlight_color", normalizedColor);
+  }
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
   scheduleCloudSync();
-  showToast(highlightColors.includes(color) ? "Highlight added" : "Highlight removed");
+  showToast(shouldRemove ? "Highlight removed" : "Highlight added");
   renderPreservingReaderScroll();
 }
 
 function selectedVerseNumbers() {
   return state.selectedVerses.length ? state.selectedVerses : [state.verse];
+}
+
+function dismissSelectionBarOnOutsideClick(event) {
+  if (!state.selectedVerses.length) return;
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest(".selection-bar, .cross-ref-popup, .strong-popup")) return;
+  state.selectedVerses = [];
+  renderPreservingReaderScroll();
 }
 
 function passageLines(verseNumbers = selectedVerseNumbers()) {
@@ -5728,6 +5788,7 @@ document.addEventListener("click", (event) => {
   state.headerVersionMenuOpen = false;
   renderPreservingReaderScroll();
 });
+document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 const streakUpdatedToday = recordReadingStreak();
