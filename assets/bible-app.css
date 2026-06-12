@@ -5574,42 +5574,54 @@ svg {
 
   @media (orientation: portrait) {
     .presentation-bottom {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto auto auto;
-      justify-items: center;
-      justify-content: center;
-      gap: 10px;
-      min-height: 184px;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      grid-template-rows: 1fr;
+      justify-items: stretch;
+      justify-content: stretch;
+      gap: 8px;
+      min-height: 86px;
+      padding-inline: max(10px, env(safe-area-inset-left, 0px)) max(10px, env(safe-area-inset-right, 0px));
       padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
     }
 
     .presentation-brand {
       grid-row: 1;
-      justify-self: center;
-      gap: 8px;
+      justify-self: start;
+      gap: 6px;
     }
 
     .presentation-brand-mark {
-      width: 38px;
+      width: 30px;
     }
 
     .presentation-brand-copy {
-      font-size: 16px;
+      font-size: 13px;
       text-align: left;
     }
 
     .presentation-brand-copy strong {
-      font-size: 10px;
+      font-size: 8px;
     }
 
     .presentation-controls {
-      grid-row: 2;
+      grid-row: 1;
       justify-self: center;
+      gap: 8px;
+    }
+
+    .presentation-controls .ghost-btn,
+    .presentation-about-link {
+      width: 78px;
+      box-sizing: border-box;
+      padding-inline: 8px;
     }
 
     .presentation-about-link {
-      grid-row: 3;
-      justify-self: center;
+      grid-row: 1;
+      justify-self: end;
+      min-height: 38px;
+      min-width: 78px;
+      font-size: 13px;
     }
 
     .presentation.search-active .presentation-top {
