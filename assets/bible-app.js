@@ -1007,19 +1007,23 @@ function rail() {
   const items = [
     ["Verse", icons.book],
     ["Bookmarks", icons.bookmark],
-    ["Notes", icons.note],
+    ["Annotations", icons.note],
     ["Cross-Refs", icons.link],
     ["History", icons.history],
     ["Search", icons.search],
   ];
-  return `<aside class="rail">${items.map(([label, icon]) => `<button class="${state.activeRail === label ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`).join("")}</aside>`;
+  return `<aside class="rail">${items.map(([label, icon]) => {
+    const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
+    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`;
+  }).join("")}</aside>`;
 }
 
 function library() {
   const titleMap = {
     Verse: "Verse",
     Bookmarks: "Bookmarks",
-    Notes: "Notes",
+    Notes: "Annotations",
+    Annotations: "Annotations",
     "Cross-Refs": "Cross References",
     History: "History",
     Search: "Search",
@@ -1039,7 +1043,7 @@ function library() {
 
 function libraryContent() {
   if (state.activeRail === "Bookmarks") return bookmarksPanel();
-  if (state.activeRail === "Notes") return notesPanel();
+  if (state.activeRail === "Notes" || state.activeRail === "Annotations") return notesPanel();
   if (state.activeRail === "Cross-Refs") return crossReferencesPanel();
   if (state.activeRail === "History") return historyPanel();
   if (state.activeRail === "Search") return searchPanel();
@@ -2435,10 +2439,48 @@ function bookmarkItemsMarkup() {
   `).join("");
 }
 
+function referenceBookName(ref) {
+  const parsed = parsePassageReference(ref);
+  const key = parsed?.key || String(ref || "");
+  const match = key.match(/^(.+)\s\d+$/);
+  return match?.[1] || key || "Other";
+}
+
+function groupedAnnotationItemsMarkup(items, emptyText, renderItem) {
+  if (!items.length) return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+  const groups = new Map();
+  items.forEach((item) => {
+    const book = referenceBookName(item.ref);
+    if (!groups.has(book)) groups.set(book, []);
+    groups.get(book).push(item);
+  });
+  const currentBook = referenceBookName(state.reference);
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => {
+      const left = books.indexOf(a);
+      const right = books.indexOf(b);
+      if (left !== -1 && right !== -1) return left - right;
+      if (left !== -1) return -1;
+      if (right !== -1) return 1;
+      return a.localeCompare(b);
+    })
+    .map(([book, group], index) => {
+      const open = book === currentBook || groups.size === 1 || index === 0;
+      return `
+        <details class="annotation-group" ${open ? "open" : ""}>
+          <summary><span>${escapeHtml(book)}</span><small>${group.length}</small></summary>
+          <div class="annotation-group-list">
+            ${group.map(renderItem).join("")}
+          </div>
+        </details>
+      `;
+    }).join("");
+}
+
 function noteItemsMarkup() {
   const entries = Object.entries(state.notes).filter(([, note]) => String(note || "").trim());
-  if (!entries.length) return `<div class="empty-state">No saved notes yet.</div>`;
-  return entries.sort(([a], [b]) => compareReferenceStrings(a, b)).map(([ref, note]) => `
+  const items = entries.sort(([a], [b]) => compareReferenceStrings(a, b)).map(([ref, note]) => ({ ref, note }));
+  return groupedAnnotationItemsMarkup(items, "No saved notes yet.", ({ ref, note }) => `
     <div class="saved-item">
       <button class="note-item" data-goto="${escapeHtml(ref)}">
         <div class="note-title">${escapeHtml(ref)}</div>
@@ -2449,13 +2491,12 @@ function noteItemsMarkup() {
         <button class="text-btn danger-text" data-delete-note="${escapeHtml(ref)}">Delete</button>
       </div>
     </div>
-  `).join("");
+  `);
 }
 
 function highlightItemsMarkup() {
   const groups = groupedHighlightItems();
-  if (!groups.length) return `<div class="empty-state">No highlighted verses yet.</div>`;
-  return groups.map(({ ref, color }) => {
+  return groupedAnnotationItemsMarkup(groups, "No highlighted verses yet.", ({ ref, color }) => {
     const preview = passagePreviewForReference(ref);
     const hasNote = Boolean(String(state.notes[ref] || "").trim());
     return `
@@ -2473,7 +2514,7 @@ function highlightItemsMarkup() {
         </div>
       </div>
     `;
-  }).join("");
+  });
 }
 
 function historyItemsMarkup() {
@@ -3543,7 +3584,7 @@ function bindEvents() {
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("bookmarkBtn")?.addEventListener("click", toggleBookmark);
   document.getElementById("panelBookmarkToggle")?.addEventListener("click", toggleBookmark);
-  document.getElementById("noteBtn")?.addEventListener("click", () => activateWorkspace("Notes"));
+  document.getElementById("noteBtn")?.addEventListener("click", () => activateWorkspace("Annotations"));
   document.getElementById("openStudy")?.addEventListener("click", () => {
     state.libraryOpen = true;
     state.activeRail = "Cross-Refs";
@@ -4979,7 +5020,7 @@ function handleGlobalShortcuts(event) {
     l: "Verse",
     v: "Verse",
     s: "Search",
-    n: "Notes",
+    n: "Annotations",
     b: "Bookmarks",
     c: "Cross-Refs",
   };
@@ -5052,6 +5093,7 @@ function focusWorkspaceTarget(target) {
     Verse: "#chapterSelect",
     Search: "#studySearchInput",
     Notes: "#notesSection",
+    Annotations: "#notesSection",
     Bookmarks: "#bookmarksSection",
     History: "#historySection",
     "Cross-Refs": "#crossRefsSection",
@@ -5067,7 +5109,7 @@ function focusWorkspaceTarget(target) {
   }
 
   element.scrollIntoView({ block: "start", behavior: "smooth" });
-  if (target === "Notes") document.getElementById("noteBox")?.focus();
+  if (target === "Notes" || target === "Annotations") document.getElementById("noteBox")?.focus();
 }
 
 function availableReferenceForBook(book) {
@@ -5186,9 +5228,9 @@ function deleteNote(ref) {
 
 function openHighlightNote(ref) {
   if (!setReferenceFromString(ref)) return;
-  state.activeRail = "Notes";
+  state.activeRail = "Annotations";
   state.libraryOpen = true;
-  state.pendingPanelFocus = "Notes";
+  state.pendingPanelFocus = "Annotations";
   state.pendingVerseFocus = true;
   localStorage.setItem("lw_library_open", "true");
   recordHistory();
