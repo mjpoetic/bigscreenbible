@@ -542,13 +542,14 @@ button {
 
 .brand-mark-image {
   display: block;
-  width: clamp(72px, 7vw, 118px);
+  width: clamp(78px, 7.35vw, 124px);
   height: auto;
+  margin-right: -6px;
 }
 
 .brand-divider {
   width: 1px;
-  height: 44px;
+  height: 48px;
   margin-left: -2px;
   background: color-mix(in srgb, var(--muted) 38%, transparent);
 }
@@ -562,11 +563,13 @@ button {
 
 .brand-subtitle {
   color: var(--gold);
+  display: block;
   font-family: var(--brand-subtitle-font);
   font-size: clamp(10px, 0.7vw, 13px);
   font-weight: 700;
   letter-spacing: 0.2em;
   line-height: 1.15;
+  margin-left: 1px;
   text-transform: uppercase;
 }
 
@@ -3412,7 +3415,7 @@ select {
 }
 
 .presentation-brand-mark {
-  width: 46px;
+  width: 50px;
   height: auto;
   flex: 0 0 auto;
 }
@@ -3430,6 +3433,7 @@ select {
   color: var(--presentation-accent);
   font: 700 11px/1 var(--brand-subtitle-font);
   letter-spacing: 0.2em;
+  margin-left: 1px;
   text-transform: uppercase;
 }
 
@@ -3655,14 +3659,15 @@ select {
 }
 
 .about-brand-mark {
-  width: 78px;
+  width: 86px;
   height: auto;
   flex: 0 0 auto;
+  margin-right: -8px;
 }
 
 .about-brand-divider {
   width: 1px;
-  height: 46px;
+  height: 50px;
   background: var(--line);
 }
 
@@ -3678,6 +3683,7 @@ select {
   color: var(--gold);
   font: 700 0.42em/1.15 var(--brand-subtitle-font);
   letter-spacing: 0.2em;
+  margin-left: 1px;
   text-transform: uppercase;
 }
 
@@ -4532,11 +4538,11 @@ svg {
   }
 
   .brand-mark-image {
-    width: 64px;
+    width: 68px;
   }
 
   .brand-divider {
-    height: 36px;
+    height: 40px;
   }
 
   .brand-title {
@@ -4634,7 +4640,7 @@ svg {
   }
 
   .brand-mark-image {
-    width: 66px;
+    width: 70px;
   }
 
   .brand-title {
@@ -4642,7 +4648,7 @@ svg {
   }
 
   .brand-divider {
-    height: 38px;
+    height: 42px;
   }
 
   .topbar {
@@ -4672,7 +4678,7 @@ svg {
   }
 
   .brand-mark-image {
-    width: 58px;
+    width: 62px;
   }
 
   .search {
@@ -4807,7 +4813,7 @@ svg {
   }
 
   .brand-mark-image {
-    width: 50px;
+    width: 54px;
   }
 
   .brand-title {
@@ -4897,11 +4903,11 @@ svg {
   }
 
   .brand-mark-image {
-    width: 52px;
+    width: 56px;
   }
 
   .brand-divider {
-    height: 30px;
+    height: 34px;
   }
 
   .brand-title {
@@ -5743,7 +5749,7 @@ svg {
     }
 
     .presentation-brand-mark {
-      width: 30px;
+      width: 34px;
     }
 
     .presentation-brand-copy {
@@ -5808,7 +5814,7 @@ svg {
   }
 
   .brand-mark-image {
-    width: 46px;
+    width: 50px;
   }
 
   .brand-title {
@@ -6109,11 +6115,11 @@ svg {
   }
 
   .about-brand-mark {
-    width: 54px;
+    width: 60px;
   }
 
   .about-brand-divider {
-    height: 36px;
+    height: 40px;
   }
 
   .about-brand-copy {
