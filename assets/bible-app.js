@@ -471,11 +471,15 @@ function mainGridClass() {
 }
 
 function versionLimit() {
-  return isCompactScreen() ? 2 : 3;
+  return isCompactScreen() || isShortLandscapeScreen() ? 2 : 3;
 }
 
 function isCompactScreen() {
   return window.matchMedia?.("(max-width: 840px)")?.matches || false;
+}
+
+function isShortLandscapeScreen() {
+  return window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)")?.matches || false;
 }
 
 function enforceVersionLimit() {
@@ -2431,7 +2435,8 @@ function crossReferenceItems(reference = referenceLabel()) {
 
 function bookmarkItemsMarkup() {
   if (!state.bookmarks.length) return `<div class="empty-state">No bookmarks saved yet.</div>`;
-  return state.bookmarks.slice().sort(compareReferenceStrings).map((ref) => `
+  const items = state.bookmarks.slice().sort(compareReferenceStrings).map((ref) => ({ ref }));
+  return groupedAnnotationItemsMarkup(items, "No bookmarks saved yet.", ({ ref }) => `
     <div class="saved-item">
       <button class="bookmark-item" data-goto="${escapeHtml(ref)}">
         <div class="bookmark-title">${escapeHtml(ref)}</div>
@@ -2442,7 +2447,7 @@ function bookmarkItemsMarkup() {
         <button class="text-btn danger-text" data-delete-bookmark="${escapeHtml(ref)}">Delete</button>
       </div>
     </div>
-  `).join("");
+  `);
 }
 
 function referenceBookName(ref) {
@@ -5824,6 +5829,12 @@ function chapterKeys() {
 
 const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
+  state.settingsOpen = false;
+  state.headerVersionMenuOpen = false;
+  renderPreservingReaderScroll();
+});
+const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)");
+shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
   renderPreservingReaderScroll();
