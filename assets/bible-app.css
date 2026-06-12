@@ -5220,8 +5220,8 @@ svg {
     }
 
     .mobile-floating-settings {
-      right: max(12px, env(safe-area-inset-right, 0px));
-      left: auto;
+      right: auto;
+      left: max(7px, env(safe-area-inset-left, 0px));
       bottom: calc(118px + env(safe-area-inset-bottom, 0px));
       width: 42px;
       height: 42px;
