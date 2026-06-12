@@ -3289,12 +3289,17 @@ select {
 
 .presentation-about-link {
   align-self: center;
-  color: var(--presentation-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  min-width: 78px;
+  color: var(--presentation-accent);
   border: 1px solid var(--presentation-button-border);
   border-radius: 6px;
   background: var(--presentation-button-bg);
-  padding: 10px 12px;
-  font: 800 13px/1 var(--ui-font);
+  padding: 0 18px;
+  font: 800 14px/1 var(--ui-font);
   text-decoration: none;
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
@@ -5570,11 +5575,11 @@ svg {
   @media (orientation: portrait) {
     .presentation-bottom {
       grid-template-columns: 1fr;
-      grid-template-rows: auto auto;
+      grid-template-rows: auto auto auto;
       justify-items: center;
       justify-content: center;
       gap: 10px;
-      min-height: 132px;
+      min-height: 184px;
       padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
     }
 
@@ -5602,16 +5607,9 @@ svg {
       justify-self: center;
     }
 
-    .presentation-bottom-spacer {
-      display: none;
-    }
-
     .presentation-about-link {
-      position: absolute;
-      right: max(14px, env(safe-area-inset-right, 0px));
-      bottom: max(14px, env(safe-area-inset-bottom, 0px));
-      padding: 8px 10px;
-      font-size: 12px;
+      grid-row: 3;
+      justify-self: center;
     }
 
     .presentation.search-active .presentation-top {
