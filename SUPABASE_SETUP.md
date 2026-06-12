@@ -66,3 +66,35 @@ If you see a Row Level Security insert error, confirm that the app is signed in 
 ## 6. Passkeys later
 
 The current implementation uses Supabase email/password auth first. Device passkeys can be added later when we choose the exact WebAuthn/passkey provider path. The sync table can stay the same.
+
+## 7. Optional: ESV API proxy
+
+The ESV is licensed through Crossway's API, so Big Screen Bible does not store a full ESV text file in the public repo. Instead, the browser calls a Supabase Edge Function and the function calls Crossway with a private API token.
+
+1. Request an ESV API key from Crossway for your non-commercial use case.
+2. Add `ESV_API_KEY` as a Supabase project secret in the Supabase dashboard.
+3. Add a GitHub repository secret named `SUPABASE_ACCESS_TOKEN`.
+
+You can create the access token in Supabase from Account settings → Access Tokens. Do not commit this token to the repo.
+
+4. Commit and push the included GitHub Actions workflow:
+
+- `.github/workflows/deploy-supabase-functions.yml`
+- `supabase/config.toml`
+- `supabase/functions/esv-passage/index.ts`
+
+The workflow deploys the `esv-passage` function to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
+
+5. In GitHub, open Actions → Deploy Supabase Edge Functions → Run workflow.
+
+If you ever want to deploy from a machine where the Supabase CLI works, the equivalent commands are:
+
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
+supabase secrets set ESV_API_KEY=YOUR_CROSSWAY_ESV_API_KEY
+supabase functions deploy esv-passage --no-verify-jwt
+```
+
+The included `supabase/config.toml` keeps JWT verification off for this one function so visitors can read ESV without signing in. The function still does not expose the Crossway API token.
+
+The website only contains the public Supabase publishable/anon key. The Crossway token stays in Supabase and is never committed to GitHub or exposed in the browser.

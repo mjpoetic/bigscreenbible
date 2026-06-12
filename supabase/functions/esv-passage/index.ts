@@ -1,0 +1,89 @@
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": status === 200 ? "public, max-age=3600" : "no-store",
+    },
+  });
+}
+
+function cleanVerseText(text: string) {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .trim();
+}
+
+function parseEsvVerses(passages: string[]) {
+  const body = passages.join("\n").replace(/\u00a0/g, " ");
+  const verses: Array<{ n: number; text: string }> = [];
+  const markerPattern = /\[(\d+)\]\s*([\s\S]*?)(?=\s*\[\d+\]|$)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = markerPattern.exec(body))) {
+    const n = Number(match[1]);
+    const text = cleanVerseText(match[2]);
+    if (Number.isFinite(n) && text) verses.push({ n, text });
+  }
+
+  if (verses.length) return verses;
+
+  const fallbackText = cleanVerseText(body);
+  return fallbackText ? [{ n: 1, text: fallbackText }] : [];
+}
+
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (request.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+
+  const apiKey = Deno.env.get("ESV_API_KEY");
+  if (!apiKey) return jsonResponse({ error: "ESV_API_KEY is not configured" }, 500);
+
+  const url = new URL(request.url);
+  const ref = (url.searchParams.get("ref") || "").trim();
+  if (!ref || ref.length > 80) return jsonResponse({ error: "A valid passage reference is required" }, 400);
+
+  const esvUrl = new URL("https://api.esv.org/v3/passage/text/");
+  esvUrl.searchParams.set("q", ref);
+  esvUrl.searchParams.set("include-passage-references", "false");
+  esvUrl.searchParams.set("include-verse-numbers", "true");
+  esvUrl.searchParams.set("include-first-verse-numbers", "true");
+  esvUrl.searchParams.set("include-footnotes", "false");
+  esvUrl.searchParams.set("include-footnote-body", "false");
+  esvUrl.searchParams.set("include-headings", "false");
+  esvUrl.searchParams.set("include-short-copyright", "false");
+  esvUrl.searchParams.set("include-passage-horizontal-lines", "false");
+  esvUrl.searchParams.set("include-heading-horizontal-lines", "false");
+  esvUrl.searchParams.set("include-selahs", "true");
+  esvUrl.searchParams.set("indent-paragraphs", "0");
+
+  const esvResponse = await fetch(esvUrl, {
+    headers: {
+      Authorization: `Token ${apiKey}`,
+    },
+  });
+  const payload = await esvResponse.json().catch(() => ({}));
+
+  if (!esvResponse.ok) {
+    return jsonResponse(
+      { error: payload.detail || payload.error || "ESV API request failed" },
+      esvResponse.status,
+    );
+  }
+
+  const verses = parseEsvVerses(Array.isArray(payload.passages) ? payload.passages : []);
+  return jsonResponse({
+    version: "ESV",
+    reference: ref,
+    canonical: payload.canonical || ref,
+    verses,
+  });
+});

@@ -29,6 +29,7 @@ const translations = [
   { code: "ASV", name: "American Standard Version", status: "bundled" },
   { code: "BBE", name: "Bible in Basic English", status: "bundled" },
   { code: "BSB", name: "Berean Standard Bible", status: "bundled" },
+  { code: "ESV", name: "English Standard Version", status: "remote", provider: "Crossway ESV API" },
   { code: "KJV", name: "King James Version", status: "bundled" },
   { code: "WEB", name: "World English Bible", status: "bundled" },
 ];
@@ -119,6 +120,8 @@ const cloudSyncTable = "bsb_user_sync";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
+const remoteVersionData = new Map();
+const remoteVersionErrors = new Map();
 let verseOfDayPool = null;
 const strongLexiconSources = [
   {
@@ -1178,6 +1181,13 @@ function renderStrongText(verse, version) {
 
 function getVerseText(verse, version) {
   if (verse[version]) return verse[version];
+  if (translationLookup[version]?.status === "remote") {
+    ensureRemoteBibleVersion(version, state.reference);
+    const loadKey = remoteVersionLoadKey(version, state.reference);
+    if (loadingVersions.has(loadKey)) return `Loading ${version}...`;
+    if (remoteVersionErrors.has(loadKey)) return `${version} is unavailable for this passage.`;
+    return `Loading ${version}...`;
+  }
   if (loadingVersions.has(version)) return `Loading ${version}...`;
   return verse.KJV || verse.WEB || verse.ASV || verse.BSB || verse.BBE || "";
 }
@@ -4327,10 +4337,12 @@ function searchBible(query) {
   const tokens = searchTokens(query);
   if (!tokens.length) return [];
   const phrase = normalizeSearchText(query);
-  const primaryExact = searchVersion(primaryVersion, phrase, tokens, { exactOnly: true });
+  const searchableVersions = translationCodes.filter((version) => translationLookup[version]?.status === "bundled");
+  const primarySearchVersion = searchableVersions.includes(primaryVersion) ? primaryVersion : "BSB";
+  const primaryExact = searchVersion(primarySearchVersion, phrase, tokens, { exactOnly: true });
   if (primaryExact.length) return primaryExact.slice(0, 40);
 
-  const versionOrder = [primaryVersion, ...translationCodes.filter((version) => version !== primaryVersion)];
+  const versionOrder = [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
   const results = versionOrder.flatMap((version) => searchVersion(version, phrase, tokens));
   const seen = new Set();
   return results
@@ -5500,6 +5512,10 @@ async function initializeBibleData() {
 }
 
 async function loadBibleVersion(version) {
+  if (translationLookup[version]?.status === "remote") {
+    await ensureRemoteBibleVersion(version, state.reference);
+    return;
+  }
   if (loadedVersionData.has(version) || loadingVersions.has(version)) return;
   loadingVersions.add(version);
   try {
@@ -5513,6 +5529,70 @@ async function loadBibleVersion(version) {
   } finally {
     loadingVersions.delete(version);
   }
+}
+
+function remoteVersionLoadKey(version, chapterKey) {
+  return `${version}:${chapterKey}`;
+}
+
+function esvFunctionUrl(chapterKey) {
+  const config = window.BigScreenBibleSupabase || {};
+  if (!config.url || !config.anonKey) return "";
+  const baseUrl = config.url.replace(/\/$/, "");
+  return `${baseUrl}/functions/v1/esv-passage?ref=${encodeURIComponent(chapterKey)}`;
+}
+
+async function ensureRemoteBibleVersion(version, chapterKey) {
+  if (translationLookup[version]?.status !== "remote") return;
+  const loadKey = remoteVersionLoadKey(version, chapterKey);
+  if (remoteVersionData.has(loadKey) || loadingVersions.has(loadKey)) return;
+
+  const config = window.BigScreenBibleSupabase || {};
+  const url = version === "ESV" ? esvFunctionUrl(chapterKey) : "";
+  if (!url || !config.anonKey) {
+    remoteVersionErrors.set(loadKey, "Remote Bible version is not configured.");
+    return;
+  }
+
+  loadingVersions.add(loadKey);
+  remoteVersionErrors.delete(loadKey);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${config.anonKey}`,
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || `${version} request failed`);
+    }
+    const verses = Array.isArray(payload.verses) ? payload.verses : [];
+    if (!verses.length) throw new Error(`${version} returned no verses`);
+    remoteVersionData.set(loadKey, { ...payload, verses });
+    mergeRemoteVersionChapter(version, chapterKey, verses);
+  } catch (error) {
+    console.error(error);
+    remoteVersionErrors.set(loadKey, error.message || `${version} could not be loaded`);
+  } finally {
+    loadingVersions.delete(loadKey);
+    renderPreservingReaderScroll();
+  }
+}
+
+function mergeRemoteVersionChapter(version, chapterKey, verses) {
+  const chapter = bibleData[chapterKey];
+  if (!chapter) return;
+  verses.forEach(({ n, text }) => {
+    if (!Number.isFinite(Number(n)) || !text) return;
+    let verse = chapter.verses.find((item) => item.n === Number(n));
+    if (!verse) {
+      verse = { n: Number(n) };
+      chapter.verses.push(verse);
+    }
+    verse[version] = text;
+  });
+  chapter.verses.sort((a, b) => a.n - b.n);
 }
 
 function loadBibleBundleScript(name) {
@@ -5617,6 +5697,10 @@ function rebuildBibleData() {
   });
   Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
   bibleData = merged;
+  remoteVersionData.forEach((payload, loadKey) => {
+    const [version, ...chapterParts] = loadKey.split(":");
+    mergeRemoteVersionChapter(version, chapterParts.join(":"), payload.verses || []);
+  });
 }
 
 function chapterKeys() {
