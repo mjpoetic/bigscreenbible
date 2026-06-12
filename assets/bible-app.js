@@ -700,25 +700,30 @@ function topbar() {
       </button>
     `)
     .join("");
-  const addVersionOptions = translationCodes
-    .filter((version) => !selectedVersions.includes(version))
-    .map((version) => `
-      <button class="primary-version-option" type="button" data-add-version-option="${version}" role="option" aria-selected="false">
-        <span>${version}</span>
-        <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
-      </button>
-    `)
+  const parallelVersionOptions = translationCodes
+    .map((version) => {
+      const selected = selectedVersions.includes(version);
+      const addDisabled = !selected && selectedVersions.length >= maxVersions;
+      return `
+        <button class="primary-version-option parallel-version-option ${selected ? "active" : ""}" type="button" data-toggle-version-option="${version}" role="option" aria-selected="${selected ? "true" : "false"}" ${addDisabled ? "disabled" : ""}>
+          <span class="version-option-check" aria-hidden="true">${selected ? "✓" : ""}</span>
+          <span>${version}</span>
+          <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+        </button>
+      `;
+    })
     .join("");
   const versionControls = state.mode === "parallel"
     ? `
       <div class="versions version-manager ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Selected Bible versions">
         ${selectedVersions.map((version) => `<span class="version-pill">${version}<button data-remove-version="${version}" aria-label="Remove ${version}" data-tooltip="Remove ${version}">x</button></span>`).join("")}
-        <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Add Bible version" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}" ${selectedVersions.length >= maxVersions ? "disabled" : ""}>
-          <span>${versionSelectLabel}</span>
+        <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Choose Bible versions" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
+          <span class="version-add-label">${versionSelectLabel}</span>
+          <span class="version-selected-label">${selectedVersions.length} Selected</span>
           <span aria-hidden="true">⌄</span>
         </button>
-        <div class="primary-version-menu" role="listbox" aria-label="Add Bible version options">
-          ${addVersionOptions || `<div class="primary-version-empty">All available versions are shown.</div>`}
+        <div class="primary-version-menu" role="listbox" aria-label="Bible version options">
+          ${parallelVersionOptions}
         </div>
       </div>`
     : `
@@ -769,6 +774,7 @@ function topbar() {
       ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
+        <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">Focus</span></button>
       </nav>
       <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
@@ -3178,17 +3184,22 @@ function bindEvents() {
       await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
     });
   });
-  document.querySelectorAll("[data-add-version-option]").forEach((button) => {
+  document.querySelectorAll("[data-toggle-version-option]").forEach((button) => {
     button.addEventListener("click", async () => {
-      const version = button.dataset.addVersionOption;
+      const version = button.dataset.toggleVersionOption;
       if (!translationCodes.includes(version)) return;
-      state.headerVersionMenuOpen = false;
-      if (state.versions.length >= versionLimit()) {
-        return showToast(`Use up to ${versionLimit()} versions on this screen`);
+      if (state.versions.includes(version)) {
+        if (state.versions.length === 1) return showToast("Keep at least one version selected");
+        state.versions = state.versions.filter((item) => item !== version);
+      } else {
+        if (state.versions.length >= versionLimit()) {
+          return showToast(`Use up to ${versionLimit()} versions on this screen`);
+        }
+        state.versions.push(version);
+        await loadBibleVersion(version);
+        rebuildBibleData();
       }
-      state.versions.push(version);
-      await loadBibleVersion(version);
-      rebuildBibleData();
+      state.headerVersionMenuOpen = true;
       localStorage.setItem("lw_versions", JSON.stringify(state.versions));
       scheduleCloudSync();
       renderPreservingReaderScroll();
@@ -3347,6 +3358,7 @@ function bindEvents() {
   document.getElementById("tutorialSkip")?.addEventListener("click", finishTutorial);
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
+  document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);

@@ -702,6 +702,10 @@ button {
   padding-inline: 10px;
 }
 
+.version-selected-label {
+  display: none;
+}
+
 .primary-version-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -737,6 +741,21 @@ button {
   background: transparent;
   color: var(--ink);
   text-align: left;
+}
+
+.parallel-version-option {
+  grid-template-columns: 24px 42px minmax(0, 1fr);
+}
+
+.parallel-version-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.version-option-check {
+  color: var(--teal);
+  font-weight: 900;
+  text-align: center;
 }
 
 .primary-version-option:hover,
@@ -821,6 +840,15 @@ button {
 }
 
 .mode-tabs button:last-child {
+  border-right: 0;
+}
+
+.mode-tabs button[data-mode="trivia"] {
+  border-right: 0;
+}
+
+.mobile-mode-focus {
+  display: none;
   border-right: 0;
 }
 
@@ -5320,6 +5348,28 @@ svg {
       padding-right: max(8px, env(safe-area-inset-right, 0px));
     }
 
+    .version-manager {
+      justify-content: center;
+    }
+
+    .version-manager .version-pill {
+      display: none;
+    }
+
+    .version-manager .version-add-toggle {
+      min-width: 0;
+      background: transparent;
+      padding-inline: 0;
+    }
+
+    .version-manager .version-add-label {
+      display: none;
+    }
+
+    .version-manager .version-selected-label {
+      display: inline;
+    }
+
     .main-grid {
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
@@ -5858,6 +5908,10 @@ svg {
     grid-column: 1 / 7;
   }
 
+  .mode-tabs .mobile-mode-focus {
+    display: none;
+  }
+
   .app-shell.mobile-controls-open .mode-tabs {
     grid-column: 1 / 11;
   }
@@ -5968,6 +6022,122 @@ svg {
   #noteBtn,
   #openStudy {
     display: none;
+  }
+
+  @media (orientation: portrait) {
+    .app-shell.mobile-controls-open .topbar {
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .app-shell.mobile-controls-open .search {
+      order: 2;
+      grid-column: 1 / -1;
+      display: flex;
+      height: 44px;
+    }
+
+    .app-shell.mobile-controls-open .versions {
+      order: 3;
+      grid-column: 1 / 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      overflow: visible;
+      padding: 4px 8px;
+    }
+
+    .app-shell.mobile-controls-open .topbar .primary-version-control,
+    .app-shell.mobile-controls-open .topbar .version-manager {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+    }
+
+    .app-shell.mobile-controls-open .version-manager .version-pill {
+      display: none;
+    }
+
+    .app-shell.mobile-controls-open .version-add-toggle {
+      min-width: 0;
+      min-height: 38px;
+      padding-inline: 0;
+      background: transparent;
+      font-size: 12px;
+      gap: 5px;
+    }
+
+    .app-shell.mobile-controls-open .version-add-label {
+      display: none;
+    }
+
+    .app-shell.mobile-controls-open .version-selected-label {
+      display: inline;
+    }
+
+    .app-shell.mobile-controls-open .primary-version-menu {
+      left: 0;
+      width: min(312px, calc(100vw - 16px));
+      max-height: min(54dvh, 390px);
+      transform: none;
+    }
+
+    .app-shell.mobile-controls-open #shortcutsButton,
+    .app-shell.mobile-controls-open .account-menu,
+    .app-shell.mobile-controls-open .settings-menu {
+      order: 3;
+      display: block;
+      width: 100%;
+    }
+
+    .app-shell.mobile-controls-open #shortcutsButton {
+      grid-column: 4 / 7;
+      display: inline-flex;
+      min-height: 48px;
+    }
+
+    .app-shell.mobile-controls-open .account-menu {
+      grid-column: 7 / 10;
+    }
+
+    .app-shell.mobile-controls-open .settings-menu {
+      grid-column: 10 / -1;
+    }
+
+    .app-shell.mobile-controls-open .settings-toggle,
+    .app-shell.mobile-controls-open .account-menu .account-quick-button {
+      min-height: 48px;
+    }
+
+    .app-shell.mobile-controls-open .mode-tabs {
+      order: 4;
+      grid-column: 1 / -1;
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-left: 0;
+    }
+
+    .app-shell.mobile-controls-open .mode-tabs button,
+    .app-shell.mobile-controls-open .mode-tabs .mobile-mode-focus {
+      display: inline-flex;
+      min-height: 52px;
+      padding-inline: 4px;
+    }
+
+    .app-shell.mobile-controls-open .mode-tabs button[data-mode="trivia"] {
+      border-right: 1px solid var(--line);
+    }
+
+    .app-shell.mobile-controls-open .mode-tabs .mobile-mode-focus {
+      border-right: 0;
+    }
+
+    .app-shell.mobile-controls-open #focusToggle {
+      display: none;
+    }
   }
 }
 
