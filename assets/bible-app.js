@@ -1424,7 +1424,10 @@ function positionAccountPopover() {
 }
 
 function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
-  const popover = document.querySelector(".mobile-settings-popover, .settings-popover.open");
+  const compact = isCompactScreen();
+  const mobilePopover = document.querySelector(".mobile-settings-popover");
+  const headerPopover = document.querySelector(".settings-popover.open");
+  const popover = compact && mobilePopover ? mobilePopover : headerPopover || mobilePopover;
   const headerButton = document.getElementById("settingsToggle");
   const floatingButton = document.getElementById("mobileFloatingSettings");
   const isMobilePopover = popover?.classList.contains("mobile-settings-popover");
@@ -1436,11 +1439,12 @@ function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
   } else {
     button = isElementVisible(headerButton) ? headerButton : floatingButton;
   }
-  if (!popover || !button || !isCompactScreen()) {
+  if (!popover || !button || !compact) {
     document.documentElement.style.removeProperty("--settings-popover-top");
-    clearFixedPopoverPosition(popover);
+    [mobilePopover, headerPopover].forEach(clearFixedPopoverPosition);
     return;
   }
+  if (mobilePopover && headerPopover && mobilePopover !== headerPopover) clearFixedPopoverPosition(headerPopover);
   const top = positionFixedPopoverBelowButton(popover, button, {
     coverRail: false,
     preferAbove: isMobilePopover && button === floatingButton,
@@ -1475,10 +1479,15 @@ function positionFixedPopoverBelowButton(popover, button, { coverRail = false, p
     : viewportLeft + compactRailWidth() + gutter;
   const right = gutter;
   const belowTop = Math.max(gutter, Math.round(viewportTop + buttonRect.bottom + gutter));
-  const measuredHeight = Math.min(popover.scrollHeight || popover.offsetHeight || 360, viewport.height - (gutter * 2));
-  const aboveTop = Math.max(gutter, Math.round(viewportTop + buttonRect.top - measuredHeight - gutter));
-  const top = preferAbove ? aboveTop : belowTop;
-  const maxHeight = Math.max(180, Math.round(viewport.height - (top - viewportTop) - gutter));
+  let top = belowTop;
+  let maxHeight = Math.max(180, Math.round(viewport.height - (top - viewportTop) - gutter));
+  if (preferAbove) {
+    const buttonTop = viewportTop + buttonRect.top;
+    const availableAbove = Math.max(180, Math.round(buttonRect.top - gutter * 2));
+    const measuredHeight = Math.min(popover.scrollHeight || popover.offsetHeight || 360, availableAbove);
+    top = Math.max(viewportTop + gutter, Math.round(buttonTop - measuredHeight - gutter));
+    maxHeight = Math.max(180, Math.round(buttonTop - top - gutter));
+  }
   popover.style.position = "fixed";
   popover.style.top = `${top}px`;
   popover.style.right = `${right}px`;
