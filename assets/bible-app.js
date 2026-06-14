@@ -202,6 +202,7 @@ const state = {
   showStreakPopup: localStorage.getItem("lw_show_streak_popup") !== "false",
   startupApplied: false,
   settingsOpen: false,
+  settingsAnchor: "header",
   headerVersionMenuOpen: false,
   shortcutsOpen: false,
   tutorialIntroVisible: localStorage.getItem(tutorialStorageKey) !== "true",
@@ -1422,17 +1423,28 @@ function positionAccountPopover() {
   document.documentElement.style.setProperty("--account-popover-top", `${top}px`);
 }
 
-function positionSettingsPopover() {
+function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
   const popover = document.querySelector(".mobile-settings-popover, .settings-popover.open");
   const headerButton = document.getElementById("settingsToggle");
   const floatingButton = document.getElementById("mobileFloatingSettings");
-  const button = isElementVisible(headerButton) ? headerButton : floatingButton;
+  const isMobilePopover = popover?.classList.contains("mobile-settings-popover");
+  let button = null;
+  if (isMobilePopover) {
+    if (anchorPreference === "floating" && isElementVisible(floatingButton)) button = floatingButton;
+    else if (anchorPreference === "header" && isElementVisible(headerButton)) button = headerButton;
+    else button = isElementVisible(floatingButton) ? floatingButton : headerButton;
+  } else {
+    button = isElementVisible(headerButton) ? headerButton : floatingButton;
+  }
   if (!popover || !button || !isCompactScreen()) {
     document.documentElement.style.removeProperty("--settings-popover-top");
     clearFixedPopoverPosition(popover);
     return;
   }
-  const top = positionFixedPopoverBelowButton(popover, button, { coverRail: false });
+  const top = positionFixedPopoverBelowButton(popover, button, {
+    coverRail: false,
+    preferAbove: isMobilePopover && button === floatingButton,
+  });
   document.documentElement.style.setProperty("--settings-popover-top", `${top}px`);
 }
 
@@ -1452,7 +1464,7 @@ function fixedPopoverViewport() {
   return window.visualViewport || { width: window.innerWidth, height: window.innerHeight, offsetLeft: 0, offsetTop: 0 };
 }
 
-function positionFixedPopoverBelowButton(popover, button, { coverRail = false } = {}) {
+function positionFixedPopoverBelowButton(popover, button, { coverRail = false, preferAbove = false } = {}) {
   const viewport = fixedPopoverViewport();
   const buttonRect = button.getBoundingClientRect();
   const viewportLeft = viewport.offsetLeft || 0;
@@ -1462,7 +1474,10 @@ function positionFixedPopoverBelowButton(popover, button, { coverRail = false } 
     ? viewportLeft + gutter
     : viewportLeft + compactRailWidth() + gutter;
   const right = gutter;
-  const top = Math.max(gutter, Math.round(viewportTop + buttonRect.bottom + gutter));
+  const belowTop = Math.max(gutter, Math.round(viewportTop + buttonRect.bottom + gutter));
+  const measuredHeight = Math.min(popover.scrollHeight || popover.offsetHeight || 360, viewport.height - (gutter * 2));
+  const aboveTop = Math.max(gutter, Math.round(viewportTop + buttonRect.top - measuredHeight - gutter));
+  const top = preferAbove ? aboveTop : belowTop;
   const maxHeight = Math.max(180, Math.round(viewport.height - (top - viewportTop) - gutter));
   popover.style.position = "fixed";
   popover.style.top = `${top}px`;
@@ -3218,9 +3233,10 @@ function bindEvents() {
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
+    state.settingsAnchor = "header";
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
-    requestAnimationFrame(positionSettingsPopover);
+    requestAnimationFrame(() => positionSettingsPopover("header"));
   });
   document.getElementById("settingsClose")?.addEventListener("click", () => {
     state.settingsOpen = false;
@@ -3230,9 +3246,10 @@ function bindEvents() {
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     state.settingsOpen = !state.settingsOpen;
+    state.settingsAnchor = "floating";
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
-    requestAnimationFrame(positionSettingsPopover);
+    requestAnimationFrame(() => positionSettingsPopover("floating"));
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", () => {
     state.settingsOpen = false;
@@ -3648,7 +3665,11 @@ async function setPrimaryVersion(version, options = {}) {
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
   scheduleCloudSync();
-  if (translationLookup[version]?.status === "bundled") {
+  if (translationLookup[version]?.status === "remote") {
+    await loadBibleVersion("BSB");
+    rebuildBibleData();
+    await loadBibleVersion(version);
+  } else {
     await loadBibleVersion(version);
     rebuildBibleData();
   }
@@ -4654,6 +4675,7 @@ function referenceExists(ref) {
   const parsed = parsePassageReference(ref);
   if (!parsed) return false;
   const available = new Set((bibleData[parsed.key]?.verses || []).map((verse) => verse.n));
+  if (!available.size && bibleData[parsed.key]) return parsed.verses.every((verse) => Number.isFinite(verse) && verse > 0);
   return parsed.verses.every((verse) => available.has(verse));
 }
 
@@ -4730,10 +4752,11 @@ function setReferenceFromString(value) {
     showToast(`${parsed.key} is not available in the bundled Bible data`);
     return false;
   }
+  const chapter = bibleData[parsed.key];
   state.reference = parsed.key;
   state.verse = parsed.verse;
   state.selectedVerses = parsed.verses.length > 1 ? parsed.verses : [];
-  if (!bibleData[parsed.key].verses.some((verse) => verse.n === state.verse)) state.verse = bibleData[parsed.key].verses[0].n;
+  if (chapter.verses.length && !chapter.verses.some((verse) => verse.n === state.verse)) state.verse = chapter.verses[0].n;
   return true;
 }
 
@@ -5617,7 +5640,8 @@ async function initializeBibleData() {
     await loadBibleBundleScript("index");
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
-    await Promise.all(state.versions.filter((version) => translationLookup[version]?.status === "bundled").map(loadBibleVersion));
+    const bundledVersions = new Set(["BSB", ...state.versions.filter((version) => translationLookup[version]?.status === "bundled")]);
+    await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
     applyStartupExperience();
     dataLoading = false;
