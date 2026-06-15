@@ -1,4 +1,5 @@
 window.BIGSCREEN_VERSE_OF_DAY = {
+  targetCount: 500,
   seasonal: {
     "01-01": "Isaiah 43:19",
     "01-06": "Matthew 2:10",
@@ -56,9 +57,9 @@ window.BIGSCREEN_VERSE_OF_DAY = {
     "Jude 1:24", "Revelation 21:4", "Revelation 22:17"
   ],
   keywords: [
-    "abide", "bless", "comfort", "courage", "deliver", "faith", "forgive", "grace",
+    "abide", "bless", "blessed", "comfort", "compassion", "courage", "deliver", "faith", "forgive", "grace",
     "guide", "heal", "help", "hope", "joy", "kindness", "light", "love",
-    "mercy", "peace", "pray", "refuge", "renew", "rest", "salvation", "seek",
-    "shepherd", "strength", "trust", "truth", "wisdom"
+    "mercy", "peace", "pray", "refuge", "rejoice", "renew", "rescue", "rest", "salvation", "seek",
+    "shepherd", "strength", "sustain", "thanks", "trust", "truth", "wisdom"
   ],
 };

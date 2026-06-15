@@ -4655,15 +4655,21 @@ function buildVerseOfDayPool() {
   };
 
   (config.anchors || []).forEach(addRef);
+  const priorityRefs = [...refs];
 
   const keywords = config.keywords?.length ? config.keywords : ["hope", "peace", "love", "strength", "wisdom"];
   const keywordPattern = new RegExp(`\\b(${keywords.map(escapeRegExp).join("|")})\\b`, "i");
   const preferredBooks = new Set([
-    "Psalm", "Proverbs", "Isaiah", "Jeremiah", "Lamentations", "Matthew", "Mark", "Luke", "John",
+    "Genesis", "Exodus", "Numbers", "Deuteronomy", "Joshua", "Ruth", "1 Samuel", "2 Samuel",
+    "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalm", "Proverbs",
+    "Ecclesiastes", "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel",
+    "Amos", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
+    "Matthew", "Mark", "Luke", "John",
     "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians",
     "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus",
     "Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude"
   ]);
+  const generatedRefs = [];
   Object.entries(bibleData).forEach(([chapterKey, chapter]) => {
     if (!preferredBooks.has(bookNameFromChapterKey(chapterKey))) return;
     chapter.verses.forEach((verse) => {
@@ -4673,13 +4679,67 @@ function buildVerseOfDayPool() {
       const normalized = text.replace(/\s+/g, " ").trim();
       if (normalized.length < 34 || normalized.length > 240) return;
       if (!keywordPattern.test(normalized)) return;
-      seen.add(ref);
-      refs.push(ref);
+      const score = verseOfDayTextScore(normalized);
+      if (score < 2) return;
+      generatedRefs.push({ ref, score });
     });
   });
+  generatedRefs
+    .sort((a, b) => b.score - a.score || books.indexOf(bookNameFromReference(a.ref)) - books.indexOf(bookNameFromReference(b.ref)))
+    .forEach(({ ref }) => addRef(ref));
 
-  verseOfDayPool = variedVerseOfDayRotation(refs);
+  const targetCount = Math.max(366, Number(config.targetCount) || 500);
+  verseOfDayPool = limitVerseOfDayPool(variedVerseOfDayRotation(refs), priorityRefs, targetCount);
   return verseOfDayPool;
+}
+
+function limitVerseOfDayPool(refs, priorityRefs, targetCount) {
+  if (refs.length <= targetCount) return refs;
+  const selected = [];
+  const selectedSet = new Set();
+  priorityRefs.forEach((ref) => {
+    if (!selectedSet.has(ref) && refs.includes(ref)) {
+      selected.push(ref);
+      selectedSet.add(ref);
+    }
+  });
+  refs.forEach((ref) => {
+    if (selected.length >= targetCount) return;
+    if (!selectedSet.has(ref)) {
+      selected.push(ref);
+      selectedSet.add(ref);
+    }
+  });
+  return variedVerseOfDayRotation(selected);
+}
+
+function verseOfDayTextScore(text) {
+  const lower = text.toLowerCase();
+  const strongTerms = [
+    "do not be afraid", "fear not", "do not fear", "be strong", "take heart", "trust in",
+    "the lord is", "i am with you", "peace", "hope", "love", "grace", "mercy", "comfort",
+    "refuge", "strength", "salvation", "wisdom", "rejoice", "blessed", "rest", "light"
+  ];
+  const cautionTerms = [
+    "wrath", "anger", "destroy", "destruction", "punish", "curse", "cursed", "wicked",
+    "evil", "slaughter", "plague", "idols", "idolatry", "adultery", "harlot", "bloodshed",
+    "famine", "sword", "condemn", "judgment"
+  ];
+  let score = lower.length >= 60 && lower.length <= 180 ? 1 : 0;
+  strongTerms.forEach((term) => {
+    if (lower.includes(term)) score += term.includes(" ") ? 3 : 2;
+  });
+  cautionTerms.forEach((term) => {
+    if (new RegExp(`\\b${escapeRegExp(term)}\\b`, "i").test(lower)) score -= 2;
+  });
+  if (/[?]/.test(text)) score -= 1;
+  if (/^and\b/i.test(text)) score -= 0.5;
+  return score;
+}
+
+function bookNameFromReference(ref) {
+  const parsed = parsePassageReference(ref);
+  return parsed ? bookNameFromChapterKey(parsed.key) : String(ref).replace(/\s+\d+(?::\d+)?$/, "");
 }
 
 function variedVerseOfDayRotation(refs) {
