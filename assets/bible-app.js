@@ -4633,12 +4633,14 @@ function verseOfDayReference(date = new Date()) {
 
   const seasonalRefs = new Set(Object.values(config.seasonal || {}));
   const usablePool = pool.filter((ref) => !seasonalRefs.has(ref));
+  const selectablePool = usablePool.length ? usablePool : pool;
   const dayNumber = dayOfYear(date);
   const seasonalBeforeToday = Object.keys(config.seasonal || {})
     .map((seasonalKey) => dayOfYearFromMonthDay(seasonalKey, date.getFullYear()))
     .filter((seasonalDay) => seasonalDay && seasonalDay < dayNumber).length;
   const index = Math.max(0, dayNumber - seasonalBeforeToday - 1);
-  return usablePool[index % usablePool.length] || pool[index % pool.length] || "John 3:16";
+  const step = verseOfDayStep(selectablePool.length);
+  return selectablePool[(index * step) % selectablePool.length] || pool[index % pool.length] || "John 3:16";
 }
 
 function buildVerseOfDayPool() {
@@ -4676,8 +4678,96 @@ function buildVerseOfDayPool() {
     });
   });
 
-  verseOfDayPool = refs;
-  return refs;
+  verseOfDayPool = variedVerseOfDayRotation(refs);
+  return verseOfDayPool;
+}
+
+function variedVerseOfDayRotation(refs) {
+  const categories = {
+    gospel: [],
+    poetry: [],
+    epistle: [],
+    prophet: [],
+    history: [],
+    apocalyptic: [],
+  };
+  refs.forEach((ref) => {
+    const parsed = parsePassageReference(ref);
+    const book = parsed ? bookNameFromChapterKey(parsed.key) : "";
+    const category = verseOfDayCategory(book);
+    categories[category].push(ref);
+  });
+
+  Object.keys(categories).forEach((category) => {
+    categories[category] = spreadRefsByBook(categories[category]);
+  });
+
+  const order = ["gospel", "poetry", "epistle", "prophet", "history", "epistle", "poetry", "apocalyptic"];
+  const rotation = [];
+  const used = new Set();
+  while (Object.values(categories).some((bucket) => bucket.length)) {
+    let progressed = false;
+    order.forEach((category) => {
+      const ref = categories[category].shift();
+      if (!ref || used.has(ref)) return;
+      used.add(ref);
+      rotation.push(ref);
+      progressed = true;
+    });
+    if (!progressed) break;
+  }
+  refs.forEach((ref) => {
+    if (!used.has(ref)) rotation.push(ref);
+  });
+  return rotation.length ? rotation : refs;
+}
+
+function verseOfDayCategory(book) {
+  if (["Matthew", "Mark", "Luke", "John", "Acts"].includes(book)) return "gospel";
+  if (["Job", "Psalm", "Proverbs", "Ecclesiastes", "Song of Songs", "Lamentations"].includes(book)) return "poetry";
+  if (["Isaiah", "Jeremiah", "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi"].includes(book)) return "prophet";
+  if (book === "Revelation") return "apocalyptic";
+  if (newTestamentBooks.includes(book)) return "epistle";
+  return "history";
+}
+
+function spreadRefsByBook(refs) {
+  const byBook = new Map();
+  refs.forEach((ref) => {
+    const parsed = parsePassageReference(ref);
+    const book = parsed ? bookNameFromChapterKey(parsed.key) : "Other";
+    if (!byBook.has(book)) byBook.set(book, []);
+    byBook.get(book).push(ref);
+  });
+
+  const booksByDepth = [...byBook.keys()].sort((a, b) => {
+    const diff = (byBook.get(b)?.length || 0) - (byBook.get(a)?.length || 0);
+    return diff || books.indexOf(a) - books.indexOf(b);
+  });
+  const spread = [];
+  while (booksByDepth.some((book) => byBook.get(book)?.length)) {
+    booksByDepth.forEach((book) => {
+      const ref = byBook.get(book)?.shift();
+      if (ref) spread.push(ref);
+    });
+  }
+  return spread;
+}
+
+function verseOfDayStep(poolLength) {
+  const candidates = [41, 43, 37, 47, 53, 29, 31, 59, 61, 67, 23, 19, 17];
+  return candidates.find((step) => step < poolLength && greatestCommonDivisor(step, poolLength) === 1) || 1;
+}
+
+function greatestCommonDivisor(a, b) {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y) {
+    const next = x % y;
+    x = y;
+    y = next;
+  }
+  return x || 1;
 }
 
 function referenceExists(ref) {
