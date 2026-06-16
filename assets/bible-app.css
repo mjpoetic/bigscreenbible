@@ -2791,6 +2791,76 @@ select {
   gap: 10px;
 }
 
+.annotation-shelves {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.annotation-shelf {
+  display: grid;
+  gap: 12px;
+}
+
+.annotation-shelf > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--teal) 54%, var(--line));
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--teal) 20%, var(--panel)),
+      color-mix(in srgb, var(--soft) 82%, var(--paper)));
+  color: var(--ink);
+  padding: 13px 14px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: inset 4px 0 0 var(--gold);
+}
+
+.annotation-shelf > summary::-webkit-details-marker {
+  display: none;
+}
+
+.annotation-shelf > summary::after {
+  content: "+";
+  color: var(--teal);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.annotation-shelf[open] > summary::after {
+  content: "-";
+}
+
+.annotation-shelf > summary small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  min-width: 28px;
+  min-height: 24px;
+  border: 1px solid color-mix(in srgb, var(--teal) 38%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.annotation-shelf-list {
+  padding-left: 2px;
+}
+
 .annotation-group summary {
   display: flex;
   align-items: center;
@@ -2832,6 +2902,23 @@ select {
   letter-spacing: 0.02em;
   text-transform: none;
   white-space: nowrap;
+}
+
+.annotation-shelf .annotation-group summary {
+  border-color: color-mix(in srgb, var(--line) 78%, transparent);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--muted);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--muted) 20%, transparent);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+.annotation-shelf .annotation-group summary small {
+  min-width: auto;
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
 }
 
 .annotation-group-list {

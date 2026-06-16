@@ -213,6 +213,9 @@ const state = {
   searchResults: [],
   pendingPanelFocus: null,
   pendingVerseFocus: false,
+  openAnnotationShelves: [],
+  openAnnotationGroups: [],
+  touchedAnnotationGroupCollections: [],
   selectedVerses: [],
   highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
   customHighlightColor: normalizeHighlightColor(localStorage.getItem("lw_custom_highlight_color")) || "#c084fc",
@@ -582,6 +585,36 @@ function restoreReaderScroll(scrollState) {
     scripture.scrollLeft = scrollState.scriptureLeft || 0;
   }
   window.scrollTo(scrollState.windowX, scrollState.windowY);
+}
+
+function syncOpenStateList(stateKey, value, isOpen) {
+  if (!value) return;
+  const current = Array.isArray(state[stateKey]) ? state[stateKey] : [];
+  if (isOpen) {
+    if (!current.includes(value)) state[stateKey] = [...current, value];
+    return;
+  }
+  state[stateKey] = current.filter((item) => item !== value);
+}
+
+function markAnnotationGroupCollectionTouched(value) {
+  const collectionKey = String(value || "").split(":")[0];
+  if (!collectionKey) return;
+  if (!state.touchedAnnotationGroupCollections.includes(collectionKey)) {
+    state.touchedAnnotationGroupCollections = [...state.touchedAnnotationGroupCollections, collectionKey];
+  }
+}
+
+function captureAnnotationOpenState() {
+  state.openAnnotationShelves = Array.from(document.querySelectorAll("[data-annotation-shelf][open]"))
+    .map((details) => details.dataset.annotationShelf)
+    .filter(Boolean);
+  const annotationGroups = Array.from(document.querySelectorAll("[data-annotation-group]"));
+  state.openAnnotationGroups = annotationGroups
+    .filter((details) => details.open)
+    .map((details) => details.dataset.annotationGroup)
+    .filter(Boolean);
+  annotationGroups.forEach((details) => markAnnotationGroupCollectionTouched(details.dataset.annotationGroup));
 }
 
 function loadingScreen() {
@@ -1124,20 +1157,30 @@ function searchPanel() {
 
 function notesPanel() {
   const activeRef = activePassageLabel();
+  const savedNotesCount = savedNoteItems().length;
+  const savedHighlightsCount = groupedHighlightItems().length;
   return `
     <section class="study-section panel-section" id="notesSection">
       <div class="study-heading">${icons.note} ${escapeHtml(activeRef)}</div>
       <textarea class="note-box" id="noteBox" aria-label="Note for ${activeRef}">${state.notes[activeRef] || ""}</textarea>
       <button class="text-btn" id="saveNote">Save note</button>
-      <div class="panel-subheading">Highlighted verses</div>
-      <div class="highlight-list saved-list">
-        ${highlightItemsMarkup()}
-      </div>
-      <div class="panel-subheading">Saved notes</div>
-      <div class="note-list saved-list">
-        ${noteItemsMarkup()}
+      <div class="annotation-shelves" aria-label="Saved annotations">
+        ${annotationShelfMarkup("Saved notes", savedNotesCount, "note-list", noteItemsMarkup(), "notes")}
+        ${annotationShelfMarkup("Highlighted verses", savedHighlightsCount, "highlight-list", highlightItemsMarkup(), "highlights")}
       </div>
     </section>
+  `;
+}
+
+function annotationShelfMarkup(label, count, listClass, content, shelfKey) {
+  const open = state.openAnnotationShelves.includes(shelfKey);
+  return `
+    <details class="annotation-shelf" data-annotation-shelf="${escapeHtml(shelfKey)}" ${open ? "open" : ""}>
+      <summary><span>${escapeHtml(label)}</span><small>${count}</small></summary>
+      <div class="${listClass} saved-list annotation-shelf-list">
+        ${content}
+      </div>
+    </details>
   `;
 }
 
@@ -2471,7 +2514,7 @@ function bookmarkItemsMarkup() {
         <button class="text-btn danger-text" data-delete-bookmark="${escapeHtml(ref)}">Delete</button>
       </div>
     </div>
-  `);
+  `, "bookmarks");
 }
 
 function referenceBookName(ref) {
@@ -2481,7 +2524,7 @@ function referenceBookName(ref) {
   return match?.[1] || key || "Other";
 }
 
-function groupedAnnotationItemsMarkup(items, emptyText, renderItem) {
+function groupedAnnotationItemsMarkup(items, emptyText, renderItem, collectionKey = "annotations") {
   if (!items.length) return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
   const groups = new Map();
   items.forEach((item) => {
@@ -2500,9 +2543,13 @@ function groupedAnnotationItemsMarkup(items, emptyText, renderItem) {
       return a.localeCompare(b);
     })
     .map(([book, group], index) => {
-      const open = book === currentBook || groups.size === 1 || index === 0;
+      const groupKey = `${collectionKey}:${book}`;
+      const hasTrackedGroups = state.touchedAnnotationGroupCollections.includes(collectionKey);
+      const open = hasTrackedGroups
+        ? state.openAnnotationGroups.includes(groupKey)
+        : book === currentBook || groups.size === 1 || index === 0;
       return `
-        <details class="annotation-group" ${open ? "open" : ""}>
+        <details class="annotation-group" data-annotation-group="${escapeHtml(groupKey)}" ${open ? "open" : ""}>
           <summary><span>${escapeHtml(book)}</span><small>${group.length}</small></summary>
           <div class="annotation-group-list">
             ${group.map(renderItem).join("")}
@@ -2513,8 +2560,7 @@ function groupedAnnotationItemsMarkup(items, emptyText, renderItem) {
 }
 
 function noteItemsMarkup() {
-  const entries = Object.entries(state.notes).filter(([, note]) => String(note || "").trim());
-  const items = entries.sort(([a], [b]) => compareReferenceStrings(a, b)).map(([ref, note]) => ({ ref, note }));
+  const items = savedNoteItems();
   return groupedAnnotationItemsMarkup(items, "No saved notes yet.", ({ ref, note }) => `
     <div class="saved-item">
       <button class="note-item" data-goto="${escapeHtml(ref)}">
@@ -2526,7 +2572,14 @@ function noteItemsMarkup() {
         <button class="text-btn danger-text" data-delete-note="${escapeHtml(ref)}">Delete</button>
       </div>
     </div>
-  `);
+  `, "notes");
+}
+
+function savedNoteItems() {
+  return Object.entries(state.notes)
+    .filter(([, note]) => String(note || "").trim())
+    .sort(([a], [b]) => compareReferenceStrings(a, b))
+    .map(([ref, note]) => ({ ref, note }));
 }
 
 function highlightItemsMarkup() {
@@ -2549,7 +2602,7 @@ function highlightItemsMarkup() {
         </div>
       </div>
     `;
-  });
+  }, "highlights");
 }
 
 function historyItemsMarkup() {
@@ -3503,7 +3556,23 @@ function bindEvents() {
       renderPreservingReaderScroll();
     });
   });
-  document.querySelectorAll("[data-goto]").forEach((button) => button.addEventListener("click", () => gotoReference(button.dataset.goto)));
+  document.querySelectorAll("[data-annotation-shelf]").forEach((details) => {
+    details.addEventListener("toggle", () => {
+      syncOpenStateList("openAnnotationShelves", details.dataset.annotationShelf, details.open);
+    });
+  });
+  document.querySelectorAll("[data-annotation-group]").forEach((details) => {
+    details.addEventListener("toggle", () => {
+      markAnnotationGroupCollectionTouched(details.dataset.annotationGroup);
+      syncOpenStateList("openAnnotationGroups", details.dataset.annotationGroup, details.open);
+    });
+  });
+  document.querySelectorAll("[data-goto]").forEach((button) => {
+    button.addEventListener("click", () => {
+      captureAnnotationOpenState();
+      gotoReference(button.dataset.goto);
+    });
+  });
   document.querySelectorAll("[data-edit-bookmark]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
