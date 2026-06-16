@@ -577,6 +577,19 @@ function captureReaderScroll() {
   };
 }
 
+function captureLibraryScroll() {
+  const libraryPanel = document.querySelector(".library");
+  return libraryPanel ? { top: libraryPanel.scrollTop, left: libraryPanel.scrollLeft } : null;
+}
+
+function restoreLibraryScroll(scrollState) {
+  if (!scrollState) return;
+  const libraryPanel = document.querySelector(".library");
+  if (!libraryPanel) return;
+  libraryPanel.scrollTop = scrollState.top || 0;
+  libraryPanel.scrollLeft = scrollState.left || 0;
+}
+
 function restoreReaderScroll(scrollState) {
   if (!scrollState) return;
   const scripture = document.querySelector(".scripture");
@@ -2563,7 +2576,7 @@ function noteItemsMarkup() {
   const items = savedNoteItems();
   return groupedAnnotationItemsMarkup(items, "No saved notes yet.", ({ ref, note }) => `
     <div class="saved-item">
-      <button class="note-item" data-goto="${escapeHtml(ref)}">
+      <button class="note-item" data-goto="${escapeHtml(ref)}" data-goto-verse="${escapeHtml(firstVerseFromReference(ref))}">
         <div class="note-title">${escapeHtml(ref)}</div>
         <div class="note-copy">${escapeHtml(truncatePreview(note))}</div>
       </button>
@@ -2589,7 +2602,7 @@ function highlightItemsMarkup() {
     const hasNote = Boolean(String(state.notes[ref] || "").trim());
     return `
       <div class="saved-item">
-        <button class="highlight-item" data-goto="${escapeHtml(ref)}">
+        <button class="highlight-item" data-goto="${escapeHtml(ref)}" data-goto-verse="${escapeHtml(firstVerseFromReference(ref))}">
           <div class="highlight-title">
             <span class="highlight-dot ${highlightClassForColor(color)}" ${highlightStyleForColor(color)} aria-hidden="true"></span>
             <span>${escapeHtml(ref)}</span>
@@ -3570,7 +3583,12 @@ function bindEvents() {
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
       captureAnnotationOpenState();
-      gotoReference(button.dataset.goto);
+      const libraryScroll = captureLibraryScroll();
+      const focusVerse = button.dataset.gotoVerse ? Number(button.dataset.gotoVerse) : NaN;
+      gotoReference(button.dataset.goto, {
+        focusVerse,
+        libraryScroll,
+      });
     });
   });
   document.querySelectorAll("[data-edit-bookmark]").forEach((button) => {
@@ -4493,14 +4511,16 @@ async function exitFullscreen() {
   }
 }
 
-function gotoReference(value) {
+function gotoReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (setReferenceFromString(cleaned)) {
+    if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
     state.searchQuery = "";
     state.pendingVerseFocus = true;
     recordHistory();
     updateShareUrl();
     render();
+    if (options.libraryScroll) requestAnimationFrame(() => restoreLibraryScroll(options.libraryScroll));
   }
 }
 
@@ -4915,6 +4935,10 @@ function referenceExists(ref) {
 function parseReference(value) {
   const parsed = parsePassageReference(value);
   return parsed ? { key: parsed.key, verse: parsed.verse } : null;
+}
+
+function firstVerseFromReference(value) {
+  return parsePassageReference(value)?.verse || "";
 }
 
 function parsePassageReference(value) {
@@ -5407,7 +5431,7 @@ function normalizeBookName(value) {
 }
 
 function scrollSelectedVerseIntoView() {
-  const selected = document.querySelector(`[data-verse="${state.verse}"]`);
+  const selected = document.querySelector(`.scripture [data-verse="${state.verse}"], .parallel-table [data-verse="${state.verse}"], [data-verse="${state.verse}"]`);
   selected?.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 
