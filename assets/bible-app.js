@@ -3659,14 +3659,19 @@ function bindEvents() {
   });
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
   document.getElementById("closePresentation")?.addEventListener("click", () => {
-    clearTimeout(presentationControlsTimer);
-    state.mode = "reader";
-    state.presentationSearchOpen = false;
-    state.presentationSettingsOpen = false;
-    state.presentationControlsVisible = true;
-    render();
+    returnFromPresentationToBible();
   });
   window.onkeydown = handleGlobalShortcuts;
+}
+
+function returnFromPresentationToBible() {
+  clearTimeout(presentationControlsTimer);
+  state.mode = "reader";
+  state.presentationSearchOpen = false;
+  state.presentationSettingsOpen = false;
+  state.presentationControlsVisible = true;
+  state.pendingVerseFocus = true;
+  render();
 }
 
 async function setPrimaryVersion(version, options = {}) {
@@ -5175,11 +5180,7 @@ function handleGlobalShortcuts(event) {
     }
     if (state.mode === "big") {
       event.preventDefault();
-      clearTimeout(presentationControlsTimer);
-      state.mode = "reader";
-      state.presentationSettingsOpen = false;
-      state.presentationControlsVisible = true;
-      return render();
+      return returnFromPresentationToBible();
     }
   }
 
