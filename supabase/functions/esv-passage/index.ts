@@ -24,20 +24,26 @@ function cleanVerseText(text: string) {
 
 function parseEsvVerses(passages: string[]) {
   const body = passages.join("\n").replace(/\u00a0/g, " ");
-  const verses: Array<{ n: number; text: string }> = [];
+  const verses: Array<{ n: number; text: string; paragraphStart: boolean }> = [];
   const markerPattern = /\[(\d+)\]\s*([\s\S]*?)(?=\s*\[\d+\]|$)/g;
   let match: RegExpExecArray | null;
+  let previousEnd = 0;
 
   while ((match = markerPattern.exec(body))) {
     const n = Number(match[1]);
     const text = cleanVerseText(match[2]);
-    if (Number.isFinite(n) && text) verses.push({ n, text });
+    const leadingText = body.slice(previousEnd, match.index);
+    const paragraphStart = verses.length === 0
+      || /\n\s*\n/.test(leadingText)
+      || /(?:^|\n)[ \t]{2,}$/.test(leadingText);
+    if (Number.isFinite(n) && text) verses.push({ n, text, paragraphStart });
+    previousEnd = markerPattern.lastIndex;
   }
 
   if (verses.length) return verses;
 
   const fallbackText = cleanVerseText(body);
-  return fallbackText ? [{ n: 1, text: fallbackText }] : [];
+  return fallbackText ? [{ n: 1, text: fallbackText, paragraphStart: true }] : [];
 }
 
 Deno.serve(async (request) => {
@@ -63,7 +69,7 @@ Deno.serve(async (request) => {
   esvUrl.searchParams.set("include-passage-horizontal-lines", "false");
   esvUrl.searchParams.set("include-heading-horizontal-lines", "false");
   esvUrl.searchParams.set("include-selahs", "true");
-  esvUrl.searchParams.set("indent-paragraphs", "0");
+  esvUrl.searchParams.set("indent-paragraphs", "2");
 
   const esvResponse = await fetch(esvUrl, {
     headers: {

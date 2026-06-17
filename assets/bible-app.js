@@ -187,6 +187,7 @@ const state = {
   scriptureFont: localStorage.getItem("lw_scripture_font") || "libre",
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
+  paragraphLayout: localStorage.getItem("lw_paragraph_layout") === "true",
   focusMode: savedFocusMode(),
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
   activeRail: "Verse",
@@ -715,6 +716,10 @@ function mobileSettingsPanel() {
           </div>
           <button class="ghost-btn fullscreen-btn" id="mobileFullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
         </div>
+        <label class="setting-checkbox">
+          <input type="checkbox" id="mobileParagraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
+          <span>Paragraph layout when available</span>
+        </label>
       </div>
       <div class="setting-group">
         <span class="setting-label">Startup</span>
@@ -877,6 +882,10 @@ function topbar() {
               </div>
               <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
             </div>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="paragraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
+              <span>Paragraph layout when available</span>
+            </label>
           </div>
           <div class="setting-group">
             <span class="setting-label">Startup</span>
@@ -1734,6 +1743,7 @@ function captureCloudSnapshot() {
       customScriptureFont: state.customScriptureFont,
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
+      paragraphLayout: state.paragraphLayout,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
       presentationTheme: state.presentationTheme,
@@ -1824,6 +1834,7 @@ function applyCloudSnapshot(snapshot) {
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.textScale = clampTextScale(Number(settings.textScale) || 1);
+  state.paragraphLayout = Boolean(settings.paragraphLayout);
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : "deep";
@@ -1854,6 +1865,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
+  localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
@@ -1962,16 +1974,54 @@ async function syncNowAccount() {
 
 function readerView() {
   const version = state.versions[0] || "BSB";
+  const chapter = currentChapter();
+  const useParagraphs = shouldUseParagraphLayout(version, chapter);
   return `
-    <h1 class="section-title">${currentChapter().title}</h1>
+    <h1 class="section-title">${chapter.title}</h1>
     ${selectionBar()}
-    ${currentChapter().verses.map((verse) => `
+    ${useParagraphs ? paragraphReaderView(chapter.verses, version) : chapter.verses.map((verse) => `
       <p class="verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
         <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
         <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
       </p>
     `).join("")}
+  `;
+}
+
+function shouldUseParagraphLayout(version, chapter = currentChapter()) {
+  const paragraphStarts = chapter?.verses?.filter((verse) => paragraphStartForVerse(verse, version)) || [];
+  return Boolean(
+    state.paragraphLayout
+      && version === "ESV"
+      && (paragraphStarts.length > 1 || chapter?.verses?.length <= 1),
+  );
+}
+
+function paragraphStartForVerse(verse, version) {
+  return Boolean(verse?.paragraphStart?.[version]);
+}
+
+function paragraphReaderView(verses, version) {
+  const groups = [];
+  verses.forEach((verse) => {
+    if (!groups.length || paragraphStartForVerse(verse, version)) groups.push([]);
+    groups[groups.length - 1].push(verse);
+  });
+  return `
+    <div class="scripture-paragraphs" data-paragraph-version="${escapeHtml(version)}">
+      ${groups.map((group) => `
+        <p class="scripture-paragraph">
+          ${group.map((verse) => `
+            <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
+              <button class="verse-num cross-ref-trigger paragraph-verse-num" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+              <span class="verse-text">${renderStrongText(verse, version)}</span>
+              <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
+            </span>
+          `).join(" ")}
+        </p>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -3383,6 +3433,18 @@ function bindEvents() {
   });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("mobileFullscreenButton")?.addEventListener("click", toggleFullscreen);
+  document.getElementById("paragraphLayoutToggle")?.addEventListener("change", (event) => {
+    state.paragraphLayout = event.target.checked;
+    localStorage.setItem("lw_paragraph_layout", state.paragraphLayout ? "true" : "false");
+    scheduleCloudSync();
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("mobileParagraphLayoutToggle")?.addEventListener("change", (event) => {
+    state.paragraphLayout = event.target.checked;
+    localStorage.setItem("lw_paragraph_layout", state.paragraphLayout ? "true" : "false");
+    scheduleCloudSync();
+    renderPreservingReaderScroll();
+  });
   document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
     state.startBigScreen = event.target.checked;
     localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
@@ -5979,7 +6041,7 @@ async function ensureRemoteBibleVersion(version, chapterKey) {
 function mergeRemoteVersionChapter(version, chapterKey, verses) {
   const chapter = bibleData[chapterKey];
   if (!chapter) return;
-  verses.forEach(({ n, text }) => {
+  verses.forEach(({ n, text, paragraphStart }) => {
     if (!Number.isFinite(Number(n)) || !text) return;
     let verse = chapter.verses.find((item) => item.n === Number(n));
     if (!verse) {
@@ -5987,6 +6049,10 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       chapter.verses.push(verse);
     }
     verse[version] = text;
+    if (typeof paragraphStart === "boolean") {
+      verse.paragraphStart = verse.paragraphStart || {};
+      verse.paragraphStart[version] = paragraphStart;
+    }
   });
   chapter.verses.sort((a, b) => a.n - b.n);
 }
