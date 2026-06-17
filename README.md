@@ -28,6 +28,8 @@ The data bundles were generated from eBible.org USFX packages for [KJV](https://
 
 The bundled data also includes word-level Strong's number tags where the USFX source provides them.
 
+Paragraph layout support is data-driven. The app loads optional paragraph-start metadata from `assets/bibles/paragraphs.js`, and `scripts/build-paragraph-metadata.mjs` can regenerate that file from USFM/USFX sources that already include paragraph markers. This keeps paragraph grouping tied to source metadata rather than guessed by the app.
+
 Cross references are bundled in `assets/crossrefs.js` from the [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/) dataset, credited under CC-BY.
 
 Strong's dictionary lookup data is loaded from the [Open Scriptures Strong's dictionaries](https://github.com/openscriptures/strongs). Their browser dictionary files identify the JSON editions as Open Scriptures CC-BY-SA data derived from the public-domain Strong's dictionaries.

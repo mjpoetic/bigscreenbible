@@ -102,6 +102,7 @@ const scriptureFontCodes = scriptureFonts.map((font) => font.code);
 
 let bibleData = {};
 let bibleIndex = null;
+let bibleParagraphs = null;
 let dataLoading = true;
 let dataError = "";
 let strongLexicon = {};
@@ -1993,7 +1994,6 @@ function shouldUseParagraphLayout(version, chapter = currentChapter()) {
   const paragraphStarts = chapter?.verses?.filter((verse) => paragraphStartForVerse(verse, version)) || [];
   return Boolean(
     state.paragraphLayout
-      && version === "ESV"
       && (paragraphStarts.length > 1 || chapter?.verses?.length <= 1),
   );
 }
@@ -5955,6 +5955,7 @@ async function initializeBibleData() {
     await loadBibleBundleScript("index");
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
+    await loadBibleParagraphMetadata();
     const bundledVersions = new Set(["BSB", ...state.versions.filter((version) => translationLookup[version]?.status === "bundled")]);
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
@@ -6057,8 +6058,16 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
   chapter.verses.sort((a, b) => a.n - b.n);
 }
 
-function loadBibleBundleScript(name) {
-  const globalName = name === "index" ? "BIGSCREEN_BIBLE_INDEX" : `BIGSCREEN_BIBLE_${name}`;
+async function loadBibleParagraphMetadata() {
+  await loadBibleBundleScript("paragraphs", {
+    globalName: "BIGSCREEN_BIBLE_PARAGRAPHS",
+    optional: true,
+  });
+  bibleParagraphs = window.BIGSCREEN_BIBLE_PARAGRAPHS || null;
+}
+
+function loadBibleBundleScript(name, options = {}) {
+  const globalName = options.globalName || (name === "index" ? "BIGSCREEN_BIBLE_INDEX" : `BIGSCREEN_BIBLE_${name}`);
   if (window[globalName]) return Promise.resolve();
 
   const scriptId = `bible-data-${name}`;
@@ -6066,7 +6075,13 @@ function loadBibleBundleScript(name) {
   if (existing) {
     return new Promise((resolve, reject) => {
       existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error(`${name} Bible data failed to load`)), { once: true });
+      existing.addEventListener("error", () => {
+        if (options.optional) {
+          resolve();
+          return;
+        }
+        reject(new Error(`${name} Bible data failed to load`));
+      }, { once: true });
     });
   }
 
@@ -6076,7 +6091,15 @@ function loadBibleBundleScript(name) {
     script.src = `./assets/bibles/${name}.js`;
     script.async = true;
     script.addEventListener("load", () => resolve(), { once: true });
-    script.addEventListener("error", () => reject(new Error(`${name} Bible data failed to load`)), { once: true });
+    script.addEventListener("error", () => {
+      const error = new Error(`${name} Bible data failed to load`);
+      if (options.optional) {
+        console.info(error.message);
+        resolve();
+        return;
+      }
+      reject(error);
+    }, { once: true });
     document.head.appendChild(script);
   });
 }
@@ -6154,14 +6177,35 @@ function rebuildBibleData() {
           verse.strong = verse.strong || {};
           verse.strong[version] = sourceVerse.strong;
         }
+        if (sourceVerse.paragraphStart === true) {
+          verse.paragraphStart = verse.paragraphStart || {};
+          verse.paragraphStart[version] = true;
+        }
       });
     });
   });
+  applyParagraphMetadata(merged);
   Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
   bibleData = merged;
   remoteVersionData.forEach((payload, loadKey) => {
     const [version, ...chapterParts] = loadKey.split(":");
     mergeRemoteVersionChapter(version, chapterParts.join(":"), payload.verses || []);
+  });
+}
+
+function applyParagraphMetadata(merged) {
+  const versions = bibleParagraphs?.versions || {};
+  Object.entries(versions).forEach(([version, chapters]) => {
+    Object.entries(chapters || {}).forEach(([chapterKey, starts]) => {
+      const chapter = merged[chapterKey];
+      if (!chapter || !Array.isArray(starts)) return;
+      const startSet = new Set(starts.map((value) => Number(value)).filter(Number.isFinite));
+      chapter.verses.forEach((verse) => {
+        if (!startSet.has(verse.n)) return;
+        verse.paragraphStart = verse.paragraphStart || {};
+        verse.paragraphStart[version] = true;
+      });
+    });
   });
 }
 
