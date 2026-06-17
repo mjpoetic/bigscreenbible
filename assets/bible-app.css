@@ -50,6 +50,18 @@
   --scripture-font: var(--custom-scripture-font, Georgia, serif);
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 [data-theme="dark"] {
   --bg: #101413;
   --paper: #141a18;
@@ -2295,6 +2307,8 @@ select {
   padding: 0 0.08em;
   scroll-margin-block: 140px;
   cursor: pointer;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .paragraph-verse .verse-text {
@@ -2312,20 +2326,48 @@ select {
 }
 
 .paragraph-verse .verse-copy {
-  position: static;
-  display: none;
-  min-height: 24px;
-  margin-left: 6px;
-  padding: 0 8px;
-  vertical-align: middle;
-  transform: none;
+  left: -36px;
+  top: 32px;
 }
 
-.paragraph-verse:hover .verse-copy,
-.paragraph-verse:focus-within .verse-copy,
-.paragraph-verse.passage-selected .verse-copy {
-  display: inline-flex;
+.paragraph-verse .verse-select {
+  left: -36px;
+  top: 0;
+}
+
+.paragraph-verse .verse-action {
+  position: absolute;
+  z-index: 5;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  margin: 0;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 999px;
+  grid-column: auto;
+  justify-self: auto;
+  vertical-align: baseline;
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--teal) 46%, var(--line));
+  color: var(--teal);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+  font: 700 13px/1 Inter, sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity 0.16s ease, transform 0.16s ease, color 0.16s ease, background 0.16s ease;
+}
+
+.paragraph-verse:hover .verse-action,
+.paragraph-verse:focus-within .verse-action,
+.paragraph-verse.verse-actions-visible .verse-action,
+.paragraph-verse.passage-selected .verse-action {
   opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .verse.selected,
@@ -2340,8 +2382,20 @@ select {
 .paragraph-verse.passage-selected {
   background: color-mix(in srgb, var(--teal) 13%, var(--gold-soft));
   box-shadow: inset 3px 0 0 var(--teal);
-  outline: 2px solid color-mix(in srgb, var(--teal) 40%, transparent);
-  outline-offset: 1px;
+}
+
+.paragraph-verse.selected,
+.paragraph-verse.passage-selected {
+  box-shadow: none;
+}
+
+@media (hover: none) {
+  .paragraph-verse .verse-select,
+  .paragraph-verse.passage-selected .verse-copy {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
 }
 
 .verse.highlight-yellow,
@@ -2565,8 +2619,12 @@ select {
   position: absolute;
   right: 8px;
   top: 12px;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   min-height: 28px;
-  padding: 0 9px;
+  padding: 0;
   border-radius: 999px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -2588,6 +2646,13 @@ select {
 .verse-copy:hover,
 .verse-copy:focus-visible {
   color: var(--teal);
+}
+
+.verse-action-icon,
+.verse-action-icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
 }
 
 .selection-bar {

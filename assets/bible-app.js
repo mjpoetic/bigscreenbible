@@ -1984,7 +1984,7 @@ function readerView() {
       <p class="verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
         <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
-        <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
+        ${verseCopyButton(verse.n)}
       </p>
     `).join("")}
   `;
@@ -2002,6 +2002,51 @@ function paragraphStartForVerse(verse, version) {
   return Boolean(verse?.paragraphStart?.[version]);
 }
 
+function verseCopyButton(verseNumber) {
+  return `
+    <button class="verse-copy verse-action" data-copy-verse="${verseNumber}" aria-label="Copy ${state.reference}:${verseNumber}" data-tooltip="Copy verse">
+      <span class="verse-action-icon" aria-hidden="true">${icons.copy}</span>
+      <span class="sr-only">Copy verse</span>
+    </button>
+  `;
+}
+
+function verseSelectButton(verseNumber) {
+  return `
+    <button class="verse-select verse-action" data-select-verse="${verseNumber}" aria-label="Select ${state.reference}:${verseNumber}" data-tooltip="Select verse">
+      <span class="verse-action-icon" aria-hidden="true">${icons.plus}</span>
+      <span class="sr-only">Select verse</span>
+    </button>
+  `;
+}
+
+function bindParagraphVerseActionGracePeriod() {
+  document.querySelectorAll(".paragraph-verse").forEach((verse) => {
+    let hideTimer = null;
+    const showActions = () => {
+      window.clearTimeout(hideTimer);
+      verse.classList.add("verse-actions-visible");
+    };
+    const scheduleHide = () => {
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => {
+        if (!verse.matches(":hover") && !verse.contains(document.activeElement)) {
+          verse.classList.remove("verse-actions-visible");
+        }
+      }, 1500);
+    };
+
+    verse.addEventListener("pointerenter", showActions);
+    verse.addEventListener("pointerleave", scheduleHide);
+    verse.addEventListener("focusin", showActions);
+    verse.addEventListener("focusout", scheduleHide);
+    verse.querySelectorAll(".verse-action").forEach((action) => {
+      action.addEventListener("pointerenter", showActions);
+      action.addEventListener("pointerleave", scheduleHide);
+    });
+  });
+}
+
 function paragraphReaderView(verses, version) {
   const groups = [];
   verses.forEach((verse) => {
@@ -2016,7 +2061,8 @@ function paragraphReaderView(verses, version) {
             <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
               <button class="verse-num cross-ref-trigger paragraph-verse-num" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
               <span class="verse-text">${renderStrongText(verse, version)}</span>
-              <button class="verse-copy" data-copy-verse="${verse.n}" aria-label="Copy ${state.reference}:${verse.n}" data-tooltip="Copy verse">Copy</button>
+              ${verseSelectButton(verse.n)}
+              ${verseCopyButton(verse.n)}
             </span>
           `).join(" ")}
         </p>
@@ -3622,6 +3668,16 @@ function bindEvents() {
       copySpecificVerses([Number(button.dataset.copyVerse)]);
     });
   });
+  document.querySelectorAll("[data-select-verse]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const verseNumber = Number(button.dataset.selectVerse);
+      state.verse = verseNumber;
+      toggleVerseSelection(verseNumber, event.shiftKey);
+      renderPreservingReaderScroll();
+    });
+  });
+  bindParagraphVerseActionGracePeriod();
   document.querySelectorAll("[data-verse]").forEach((row) => {
     row.addEventListener("click", (event) => {
       event.stopPropagation();
