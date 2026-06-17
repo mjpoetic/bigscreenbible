@@ -28,7 +28,29 @@ The data bundles were generated from eBible.org USFX packages for [KJV](https://
 
 The bundled data also includes word-level Strong's number tags where the USFX source provides them.
 
-Paragraph layout support is data-driven. The app loads optional paragraph-start metadata from `assets/bibles/paragraphs.js`, and `scripts/build-paragraph-metadata.mjs` can regenerate that file from USFM/USFX sources that already include paragraph markers. This keeps paragraph grouping tied to source metadata rather than guessed by the app.
+Paragraph layout support is data-driven. ESV paragraphing comes from the ESV passage API. The bundled public-domain/open translations can also use paragraph metadata when source files with paragraph markers are available.
+
+To generate bundled paragraph metadata:
+
+1. Download and unzip USFM or USFX source packages from the eBible detail pages, not the country/territory landing page:
+   - [WEB formats](https://ebible.org/find/details.php?id=engwebp): `engwebp_usfm.zip` or `engwebp_usfx.zip`
+   - [BSB formats](https://ebible.org/find/details.php?id=engbsb): `engbsb_usfm.zip` or `engbsb_usfx.zip`
+   - [KJV formats](https://ebible.org/find/details.php?id=eng-kjv): `eng-kjv_usfm.zip` or `eng-kjv_usfx.zip`
+   - [ASV formats](https://ebible.org/find/details.php?id=eng-asv): `eng-asv_usfm.zip` or `eng-asv_usfx.zip`
+2. Put the unzipped source folders or files inside a local `sources/` folder. This folder is ignored by git.
+3. Check the exact folder names:
+
+   ```bash
+   find sources -maxdepth 2 -type d | sort
+   ```
+
+4. Run the builder with the exact paths shown on your machine:
+
+   ```bash
+   node scripts/build-paragraph-metadata.mjs WEB=./sources/engwebp_usfm BSB=./sources/engbsb_usfm KJV=./sources/eng-kjv_usfm ASV=./sources/eng-asv_usfm
+   ```
+
+The generated `assets/bibles/paragraphs.js` is safe to commit. The raw `sources/` files should stay local.
 
 Cross references are bundled in `assets/crossrefs.js` from the [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/) dataset, credited under CC-BY.
 

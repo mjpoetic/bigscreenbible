@@ -48,7 +48,7 @@ for (const arg of args) {
   const sourcePath = sourceParts.join("=");
   if (!version || !sourcePath) throw new Error(`Expected VERSION=path, got: ${arg}`);
   const resolved = path.resolve(sourcePath);
-  if (!fs.existsSync(resolved)) throw new Error(`Source path does not exist: ${resolved}`);
+  if (!fs.existsSync(resolved)) throw new Error(missingSourceMessage(version, sourcePath, resolved));
   versions[version.toUpperCase()] = parseSource(resolved);
   sources[version.toUpperCase()] = sourcePath;
 }
@@ -64,6 +64,20 @@ const payload = {
 const outputPath = path.resolve("assets/bibles/paragraphs.js");
 fs.writeFileSync(outputPath, `window.BIGSCREEN_BIBLE_PARAGRAPHS = ${JSON.stringify(payload, null, 2)};\n`);
 console.log(`Wrote ${outputPath}`);
+
+function missingSourceMessage(version, sourcePath, resolved) {
+  return [
+    `Source path does not exist for ${version.toUpperCase()}: ${resolved}`,
+    "",
+    `The path "${sourcePath}" needs to point to an unzipped USFM folder or a USFX/XML file on your computer.`,
+    "The examples in the README are placeholders until those source files are downloaded into the project.",
+    "",
+    "Try this from the project folder to see what source folders are available:",
+    "  find sources -maxdepth 2 -type d | sort",
+    "",
+    "Then rerun this script using the exact folder or file names that command shows.",
+  ].join("\n");
+}
 
 function parseSource(sourcePath) {
   const stat = fs.statSync(sourcePath);
