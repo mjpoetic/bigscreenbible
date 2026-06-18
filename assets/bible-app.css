@@ -2325,51 +2325,6 @@ select {
   vertical-align: super;
 }
 
-.paragraph-verse .verse-copy {
-  left: -36px;
-  top: 32px;
-}
-
-.paragraph-verse .verse-select {
-  left: -36px;
-  top: 0;
-}
-
-.paragraph-verse .verse-action {
-  position: absolute;
-  z-index: 5;
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  min-height: 0;
-  margin: 0;
-  margin-top: 0;
-  padding: 0;
-  border-radius: 999px;
-  grid-column: auto;
-  justify-self: auto;
-  vertical-align: baseline;
-  background: var(--panel);
-  border: 1px solid color-mix(in srgb, var(--teal) 46%, var(--line));
-  color: var(--teal);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
-  font: 700 13px/1 Inter, sans-serif;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-2px);
-  transition: opacity 0.16s ease, transform 0.16s ease, color 0.16s ease, background 0.16s ease;
-}
-
-.paragraph-verse:hover .verse-action,
-.paragraph-verse:focus-within .verse-action,
-.paragraph-verse.verse-actions-visible .verse-action,
-.paragraph-verse.passage-selected .verse-action {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
 .verse.selected,
 .parallel-row.selected,
 .paragraph-verse.selected {
@@ -2387,15 +2342,6 @@ select {
 .paragraph-verse.selected,
 .paragraph-verse.passage-selected {
   box-shadow: none;
-}
-
-@media (hover: none) {
-  .paragraph-verse .verse-select,
-  .paragraph-verse.passage-selected .verse-copy {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
 }
 
 .verse.highlight-yellow,
@@ -2571,6 +2517,56 @@ select {
   outline: none;
   text-decoration: underline;
   text-underline-offset: 0.18em;
+}
+
+.paragraph-verse-num:hover,
+.paragraph-verse-num:focus-visible,
+.paragraph-verse-num[aria-expanded="true"] {
+  color: var(--teal);
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.verse-action-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+}
+
+.verse-action-menu button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.verse-action-menu button:hover,
+.verse-action-menu button:focus-visible {
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  color: var(--teal);
+  outline: 2px solid color-mix(in srgb, var(--teal) 42%, transparent);
+  outline-offset: -2px;
+}
+
+.verse-action-menu svg {
+  display: block;
+  width: 17px;
+  height: 17px;
 }
 
 .verse-text {

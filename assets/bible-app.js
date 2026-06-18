@@ -2011,42 +2011,6 @@ function verseCopyButton(verseNumber) {
   `;
 }
 
-function verseSelectButton(verseNumber) {
-  return `
-    <button class="verse-select verse-action" data-select-verse="${verseNumber}" aria-label="Select ${state.reference}:${verseNumber}" data-tooltip="Select verse">
-      <span class="verse-action-icon" aria-hidden="true">${icons.plus}</span>
-      <span class="sr-only">Select verse</span>
-    </button>
-  `;
-}
-
-function bindParagraphVerseActionGracePeriod() {
-  document.querySelectorAll(".paragraph-verse").forEach((verse) => {
-    let hideTimer = null;
-    const showActions = () => {
-      window.clearTimeout(hideTimer);
-      verse.classList.add("verse-actions-visible");
-    };
-    const scheduleHide = () => {
-      window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => {
-        if (!verse.matches(":hover") && !verse.contains(document.activeElement)) {
-          verse.classList.remove("verse-actions-visible");
-        }
-      }, 1500);
-    };
-
-    verse.addEventListener("pointerenter", showActions);
-    verse.addEventListener("pointerleave", scheduleHide);
-    verse.addEventListener("focusin", showActions);
-    verse.addEventListener("focusout", scheduleHide);
-    verse.querySelectorAll(".verse-action").forEach((action) => {
-      action.addEventListener("pointerenter", showActions);
-      action.addEventListener("pointerleave", scheduleHide);
-    });
-  });
-}
-
 function paragraphReaderView(verses, version) {
   const groups = [];
   verses.forEach((verse) => {
@@ -2059,10 +2023,8 @@ function paragraphReaderView(verses, version) {
         <p class="scripture-paragraph">
           ${group.map((verse) => `
             <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
-              <button class="verse-num cross-ref-trigger paragraph-verse-num" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}" aria-expanded="false">${verse.n}</button>
               <span class="verse-text">${renderStrongText(verse, version)}</span>
-              ${verseSelectButton(verse.n)}
-              ${verseCopyButton(verse.n)}
             </span>
           `).join(" ")}
         </p>
@@ -2953,6 +2915,98 @@ function openCrossReferencePopup(anchor) {
   showStudyPopup(anchor, content, "Cross references");
 }
 
+function openVerseActionMenu(anchor) {
+  const verseNumber = Number(anchor.dataset.verseActions);
+  if (!verseNumber) return;
+  const existingMenu = document.getElementById("verseActionMenu");
+  if (existingMenu?.dataset.verse === String(verseNumber)) {
+    closeVerseActionMenu();
+    return;
+  }
+
+  closeVerseActionMenu();
+  const menu = document.createElement("div");
+  menu.className = "verse-action-menu";
+  menu.id = "verseActionMenu";
+  menu.dataset.verse = String(verseNumber);
+  menu.setAttribute("role", "toolbar");
+  menu.setAttribute("aria-label", `Actions for ${state.reference}:${verseNumber}`);
+  menu.innerHTML = `
+    <button type="button" data-menu-select aria-label="Select ${state.reference}:${verseNumber}">${icons.plus}</button>
+    <button type="button" data-menu-copy aria-label="Copy ${state.reference}:${verseNumber}">${icons.copy}</button>
+    <button type="button" data-menu-cross-ref data-cross-ref-verse="${verseNumber}" aria-label="Cross references for ${state.reference}:${verseNumber}">${icons.link}</button>
+  `;
+  (document.querySelector(".app-shell") || document.body).appendChild(menu);
+  anchor.setAttribute("aria-expanded", "true");
+  positionVerseActionMenu(anchor, menu);
+
+  menu.querySelector("[data-menu-select]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    state.verse = verseNumber;
+    toggleVerseSelection(verseNumber, event.shiftKey);
+    closeVerseActionMenu();
+    renderPreservingReaderScroll();
+  });
+  menu.querySelector("[data-menu-copy]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    copySpecificVerses([verseNumber]);
+    closeVerseActionMenu();
+  });
+  menu.querySelector("[data-menu-cross-ref]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const button = event.currentTarget;
+    openCrossReferencePopup(button);
+    closeVerseActionMenu();
+  });
+
+  requestAnimationFrame(() => {
+    document.addEventListener("click", closeVerseActionMenuOnOutside, true);
+    document.addEventListener("keydown", closeVerseActionMenuOnEscape);
+    window.addEventListener("resize", closeVerseActionMenu, { once: true });
+    window.addEventListener("scroll", closeVerseActionMenu, { once: true, passive: true });
+    menu.querySelector("button")?.focus();
+  });
+}
+
+function positionVerseActionMenu(anchor, menu) {
+  const rect = anchor.getBoundingClientRect();
+  const gap = 7;
+  const menuRect = menu.getBoundingClientRect();
+  const left = Math.min(
+    Math.max(8, rect.left + rect.width / 2 - menuRect.width / 2),
+    window.innerWidth - menuRect.width - 8,
+  );
+  const canFitAbove = rect.top - menuRect.height - gap >= 8;
+  const top = canFitAbove ? rect.top - menuRect.height - gap : rect.bottom + gap;
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function closeVerseActionMenuOnOutside(event) {
+  const menu = document.getElementById("verseActionMenu");
+  if (!menu) return;
+  if (menu.contains(event.target) || event.target.closest?.("[data-verse-actions]")) return;
+  closeVerseActionMenu();
+}
+
+function closeVerseActionMenuOnEscape(event) {
+  if (event.key !== "Escape") return;
+  closeVerseActionMenu();
+}
+
+function closeVerseActionMenu() {
+  const menu = document.getElementById("verseActionMenu");
+  const verseNumber = menu?.dataset.verse;
+  if (verseNumber) {
+    document.querySelector(`[data-verse-actions="${verseNumber}"]`)?.setAttribute("aria-expanded", "false");
+  }
+  menu?.remove();
+  document.removeEventListener("click", closeVerseActionMenuOnOutside, true);
+  document.removeEventListener("keydown", closeVerseActionMenuOnEscape);
+  window.removeEventListener("resize", closeVerseActionMenu);
+  window.removeEventListener("scroll", closeVerseActionMenu);
+}
+
 function showStudyPopup(anchor, content, label) {
   closeStudyPopup();
   const popup = document.createElement("div");
@@ -3662,22 +3716,18 @@ function bindEvents() {
       openCrossReferencePopup(button);
     });
   });
+  document.querySelectorAll("[data-verse-actions]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openVerseActionMenu(button);
+    });
+  });
   document.querySelectorAll("[data-copy-verse]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       copySpecificVerses([Number(button.dataset.copyVerse)]);
     });
   });
-  document.querySelectorAll("[data-select-verse]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const verseNumber = Number(button.dataset.selectVerse);
-      state.verse = verseNumber;
-      toggleVerseSelection(verseNumber, event.shiftKey);
-      renderPreservingReaderScroll();
-    });
-  });
-  bindParagraphVerseActionGracePeriod();
   document.querySelectorAll("[data-verse]").forEach((row) => {
     row.addEventListener("click", (event) => {
       event.stopPropagation();
