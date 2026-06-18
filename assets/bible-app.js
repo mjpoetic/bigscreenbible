@@ -46,7 +46,7 @@ const translations = [
   { code: "BSB", name: "Berean Standard Bible", provider: "local" },
   { code: "ESV", name: "English Standard Version", provider: "esv" },
   { code: "KJV", name: "King James Version", provider: "local" },
-  { code: "NASB2020", name: "New American Standard Bible 2020", provider: "apiBible" },
+  { code: "NASB2020", displayCode: "NASB", name: "New American Standard Bible 2020", provider: "apiBible" },
   { code: "NIV", name: "New International Version", provider: "apiBible" },
   { code: "NLT", name: "New Living Translation", provider: "apiBible" },
   { code: "WEB", name: "World English Bible", provider: "local" },
@@ -54,6 +54,7 @@ const translations = [
 
 const translationCodes = translations.map((translation) => translation.code).sort((a, b) => a.localeCompare(b));
 const translationLookup = Object.fromEntries(translations.map((translation) => [translation.code, translation]));
+const translationDisplayCode = (version) => translationLookup[version]?.displayCode || version;
 const translationProvider = (version) => bibleProviders[translationLookup[version]?.provider] || bibleProviders.local;
 const isRemoteTranslation = (version) => translationProvider(version).type === "remote";
 const isBundledTranslation = (version) => translationProvider(version).type === "bundled";
@@ -689,7 +690,7 @@ function mobileSettingsPanel() {
   if (state.mode === "big" || !state.settingsOpen) return "";
   const primaryVersion = state.versions[0] || "BSB";
   const primaryVersionOptions = translationCodes
-    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
+    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}</option>`)
     .join("");
   const followsSystemTheme = !localStorage.getItem("lw_theme");
   const fullscreenActive = isFullscreenActive();
@@ -774,12 +775,12 @@ function topbar() {
   const maxVersions = versionLimit();
   const primaryVersion = state.versions[0] || "BSB";
   const primaryVersionOptions = translationCodes
-    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
+    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}</option>`)
     .join("");
   const primaryVersionHeaderOptions = translationCodes
     .map((version) => `
       <button class="primary-version-option ${version === primaryVersion ? "active" : ""}" type="button" data-primary-version-option="${version}" role="option" aria-selected="${version === primaryVersion ? "true" : "false"}">
-        <span>${version}</span>
+        <span>${translationDisplayCode(version)}</span>
         <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
       </button>
     `)
@@ -791,7 +792,7 @@ function topbar() {
       return `
         <button class="primary-version-option parallel-version-option ${selected ? "active" : ""}" type="button" data-toggle-version-option="${version}" role="option" aria-selected="${selected ? "true" : "false"}" ${addDisabled ? "disabled" : ""}>
           <span class="version-option-check" aria-hidden="true">${selected ? "✓" : ""}</span>
-          <span>${version}</span>
+          <span>${translationDisplayCode(version)}</span>
           <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
         </button>
       `;
@@ -810,8 +811,8 @@ function topbar() {
       </div>`
     : `
       <div class="versions primary-version-control ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Bible version">
-        <button class="primary-version-toggle" id="versionMenuToggle" type="button" aria-label="Bible version ${primaryVersion}" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
-          <span>${primaryVersion}</span>
+        <button class="primary-version-toggle" id="versionMenuToggle" type="button" aria-label="Bible version ${translationDisplayCode(primaryVersion)}" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
+          <span>${translationDisplayCode(primaryVersion)}</span>
           <span aria-hidden="true">⌄</span>
         </button>
         <div class="primary-version-menu" role="listbox" aria-label="Bible version options">
@@ -1164,7 +1165,7 @@ function versePickerPanel() {
       `).join("")}
     </div>
     <div class="library-footer">
-      <strong>${activeVersions().join(" + ")}</strong>
+      <strong>${activeVersions().map(translationDisplayCode).join(" + ")}</strong>
       <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
       <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
       <span>Verse of the Day uses a local Big Screen Bible curated schedule with no borrowed daily calendar.</span>
@@ -1266,7 +1267,7 @@ function reader() {
         <button class="icon-btn" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">‹</button>
         <button class="icon-btn" id="nextVerse" aria-label="Next verse" data-tooltip="Next verse">›</button>
         <div class="spacer"></div>
-        <div class="compact-reference">${referenceLabel()} · ${activeVersions().join(" / ")}</div>
+        <div class="compact-reference">${referenceLabel()} · ${activeVersions().map(translationDisplayCode).join(" / ")}</div>
         <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
         <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
         <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
@@ -2650,7 +2651,7 @@ function parallelView() {
   return `
     ${selectionBar()}
     <div class="parallel-table" style="--version-count: ${versions.length}">
-      <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${version}</div>`).join("")}</div>
+      <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${translationDisplayCode(version)}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
         <div class="parallel-row ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
@@ -3259,7 +3260,7 @@ function bottombar() {
         <span class="chapter-nav-icon" aria-hidden="true">‹</span>
         <span class="chapter-nav-label">Previous Chapter</span>
       </button>
-      <div class="fineprint">${activeVersions().join(" / ")} · ${referenceLabel()}</div>
+      <div class="fineprint">${activeVersions().map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
       <div class="bottom-actions">
         <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse">
           <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
@@ -3316,7 +3317,7 @@ function presentation() {
   const canGoBack = verseIndex > 0;
   const canGoForward = verseIndex < verses.length - 1;
   const versionOptions = translationCodes
-    .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${code}</option>`)
+    .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)}</option>`)
     .join("");
   const themeOptions = presentationThemes
     .map((theme) => `<option value="${theme.code}" ${theme.code === state.presentationTheme ? "selected" : ""}>${theme.name}</option>`)
@@ -3339,7 +3340,7 @@ function presentation() {
         </div>
         <div class="presentation-ref">
           <span class="presentation-reference-label">${referenceLabel()}</span>
-          <span class="presentation-version-label">${version}</span>
+          <span class="presentation-version-label">${translationDisplayCode(version)}</span>
         </div>
         <div class="presentation-actions">
           <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
@@ -3406,7 +3407,7 @@ function printSheet() {
     <section class="print-sheet" aria-hidden="true">
       <div class="print-brand">Big Screen Bible</div>
       <h1>${printReferenceLabel()}</h1>
-      <div class="print-version">${state.versions[0]}</div>
+      <div class="print-version">${translationDisplayCode(state.versions[0])}</div>
       ${lines.map(({ n, text }) => `<p><sup>${n}</sup>${escapeHtml(text)}</p>`).join("")}
       ${apiBibleAttributionMarkup([state.versions[0]], "print-attribution")}
     </section>
@@ -5981,7 +5982,7 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
 function passageText(verseNumbers = selectedVerseNumbers()) {
   const lines = passageLines(verseNumbers);
   const reference = formatReferenceLabel(state.reference, verseNumbers);
-  return `${reference} ${state.versions[0]}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
+  return `${reference} ${translationDisplayCode(state.versions[0])}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
 }
 
 function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
