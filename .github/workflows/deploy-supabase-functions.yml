@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy esv-passage
+    name: Deploy Bible API functions
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -34,3 +34,6 @@ jobs:
 
       - name: Deploy ESV Edge Function
         run: supabase functions deploy esv-passage --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Deploy API.Bible Edge Function
+        run: supabase functions deploy api-bible-passage --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

@@ -30,6 +30,15 @@ The bundled data also includes word-level Strong's number tags where the USFX so
 
 Paragraph layout support is data-driven. ESV paragraphing comes from the ESV passage API. The bundled public-domain/open translations can also use paragraph metadata when source files with paragraph markers are available.
 
+Licensed remote translations are provider-based:
+
+- ESV uses the Crossway ESV Supabase Edge Function.
+- NIV, NLT, and NASB 2020 use the API.Bible Supabase Edge Function.
+- API keys remain Supabase secrets; the browser only calls the project Edge Functions.
+- API.Bible copyright notices and FUMS view tracking are included in the rendered experience.
+
+See `SUPABASE_SETUP.md` for secret names, deployment, caching, and API.Bible usage constraints.
+
 To generate bundled paragraph metadata:
 
 1. Download and unzip USFM or USFX source packages from the eBible detail pages, not the country/territory landing page:

@@ -1,2 +1,5 @@
 [functions.esv-passage]
 verify_jwt = false
+
+[functions.api-bible-passage]
+verify_jwt = false

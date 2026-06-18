@@ -25,17 +25,38 @@ const testamentGroups = [
 
 const bookAliases = buildBookAliases();
 
+const bibleProviders = {
+  local: {
+    type: "bundled",
+  },
+  esv: {
+    type: "remote",
+    edgeFunction: "esv-passage",
+  },
+  apiBible: {
+    type: "remote",
+    edgeFunction: "api-bible-passage",
+    tracksFums: true,
+  },
+};
+
 const translations = [
-  { code: "ASV", name: "American Standard Version", status: "bundled" },
-  { code: "BBE", name: "Bible in Basic English", status: "bundled" },
-  { code: "BSB", name: "Berean Standard Bible", status: "bundled" },
-  { code: "ESV", name: "English Standard Version", status: "remote", provider: "Crossway ESV API" },
-  { code: "KJV", name: "King James Version", status: "bundled" },
-  { code: "WEB", name: "World English Bible", status: "bundled" },
+  { code: "ASV", name: "American Standard Version", provider: "local" },
+  { code: "BBE", name: "Bible in Basic English", provider: "local" },
+  { code: "BSB", name: "Berean Standard Bible", provider: "local" },
+  { code: "ESV", name: "English Standard Version", provider: "esv" },
+  { code: "KJV", name: "King James Version", provider: "local" },
+  { code: "NASB2020", name: "New American Standard Bible 2020", provider: "apiBible" },
+  { code: "NIV", name: "New International Version", provider: "apiBible" },
+  { code: "NLT", name: "New Living Translation", provider: "apiBible" },
+  { code: "WEB", name: "World English Bible", provider: "local" },
 ];
 
 const translationCodes = translations.map((translation) => translation.code).sort((a, b) => a.localeCompare(b));
 const translationLookup = Object.fromEntries(translations.map((translation) => [translation.code, translation]));
+const translationProvider = (version) => bibleProviders[translationLookup[version]?.provider] || bibleProviders.local;
+const isRemoteTranslation = (version) => translationProvider(version).type === "remote";
+const isBundledTranslation = (version) => translationProvider(version).type === "bundled";
 
 const themePresets = [
   { code: "paper", name: "Paper", mode: "light" },
@@ -127,6 +148,7 @@ const loadedVersionData = new Map();
 const loadingVersions = new Set();
 const remoteVersionData = new Map();
 const remoteVersionErrors = new Map();
+const trackedFumsTokens = new Set();
 let verseOfDayPool = null;
 const strongLexiconSources = [
   {
@@ -257,7 +279,7 @@ const highlightColors = ["yellow", "blue", "pink", "green", "orange", "purple"];
 
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
 if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
-if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("BSB");
+if (!state.versions.some(isBundledTranslation)) state.versions.unshift("BSB");
 state.themePreset = savedThemePreset(state.theme);
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = defaultPresentationTheme;
 if (!scriptureFontCodes.includes(state.scriptureFont)) state.scriptureFont = "libre";
@@ -1266,7 +1288,7 @@ function renderStrongText(verse, version) {
 
 function getVerseText(verse, version) {
   if (verse[version]) return verse[version];
-  if (translationLookup[version]?.status === "remote") {
+  if (isRemoteTranslation(version)) {
     ensureRemoteBibleVersion(version, state.reference);
     const loadKey = remoteVersionLoadKey(version, state.reference);
     if (loadingVersions.has(loadKey)) return `Loading ${version}...`;
@@ -1990,6 +2012,7 @@ function readerView() {
         ${verseCopyButton(verse.n)}
       </p>
     `).join("")}
+    ${apiBibleAttributionMarkup([version])}
   `;
 }
 
@@ -2635,6 +2658,7 @@ function parallelView() {
         </div>
       `).join("")}
     </div>
+    ${apiBibleAttributionMarkup(versions)}
   `;
 }
 
@@ -3356,8 +3380,9 @@ function presentation() {
       </div>
       <div class="presentation-text">
         <div class="presentation-passage">
-          <span class="presentation-copy">${text}</span>
+          <span class="presentation-copy">${escapeHtml(text)}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
+          ${apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
       </div>
       <div class="presentation-bottom">
@@ -3382,7 +3407,8 @@ function printSheet() {
       <div class="print-brand">Big Screen Bible</div>
       <h1>${printReferenceLabel()}</h1>
       <div class="print-version">${state.versions[0]}</div>
-      ${lines.map(({ n, text }) => `<p><sup>${n}</sup>${text}</p>`).join("")}
+      ${lines.map(({ n, text }) => `<p><sup>${n}</sup>${escapeHtml(text)}</p>`).join("")}
+      ${apiBibleAttributionMarkup([state.versions[0]], "print-attribution")}
     </section>
   `;
 }
@@ -4050,7 +4076,7 @@ async function setPrimaryVersion(version, options = {}) {
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
   scheduleCloudSync();
-  if (translationLookup[version]?.status === "remote") {
+  if (isRemoteTranslation(version)) {
     await loadBibleVersion("BSB");
     rebuildBibleData();
     await loadBibleVersion(version);
@@ -4840,7 +4866,7 @@ async function runPhraseSearch(value) {
 }
 
 async function ensureAllSearchVersionsLoaded() {
-  const bundled = translationCodes.filter((version) => translationLookup[version]?.status === "bundled");
+  const bundled = translationCodes.filter(isBundledTranslation);
   await Promise.all(bundled.map(loadBibleVersion));
 }
 
@@ -4849,7 +4875,7 @@ function searchBible(query) {
   const tokens = searchTokens(query);
   if (!tokens.length) return [];
   const phrase = normalizeSearchText(query);
-  const searchableVersions = translationCodes.filter((version) => translationLookup[version]?.status === "bundled");
+  const searchableVersions = translationCodes.filter(isBundledTranslation);
   const primarySearchVersion = searchableVersions.includes(primaryVersion) ? primaryVersion : "BSB";
   const primaryExact = searchVersion(primarySearchVersion, phrase, tokens, { exactOnly: true });
   if (primaryExact.length) return primaryExact.slice(0, 40);
@@ -6151,7 +6177,7 @@ async function initializeBibleData() {
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
     await loadBibleParagraphMetadata();
-    const bundledVersions = new Set(["BSB", ...state.versions.filter((version) => translationLookup[version]?.status === "bundled")]);
+    const bundledVersions = new Set(["BSB", ...state.versions.filter(isBundledTranslation)]);
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
     applyStartupExperience();
@@ -6166,7 +6192,7 @@ async function initializeBibleData() {
 }
 
 async function loadBibleVersion(version) {
-  if (translationLookup[version]?.status === "remote") {
+  if (isRemoteTranslation(version)) {
     await ensureRemoteBibleVersion(version, state.reference);
     return;
   }
@@ -6189,20 +6215,38 @@ function remoteVersionLoadKey(version, chapterKey) {
   return `${version}:${chapterKey}`;
 }
 
-function esvFunctionUrl(chapterKey) {
+function supabaseFunctionUrl(functionName, params = {}) {
   const config = window.BigScreenBibleSupabase || {};
   if (!config.url || !config.anonKey) return "";
   const baseUrl = config.url.replace(/\/$/, "");
-  return `${baseUrl}/functions/v1/esv-passage?ref=${encodeURIComponent(chapterKey)}`;
+  const searchParams = new URLSearchParams(params);
+  return `${baseUrl}/functions/v1/${functionName}?${searchParams}`;
+}
+
+function remoteFunctionUrl(version, chapterKey) {
+  const provider = translationProvider(version);
+  if (!provider.edgeFunction) return "";
+  const params = provider === bibleProviders.apiBible
+    ? { version, ref: chapterKey }
+    : { ref: chapterKey };
+  return supabaseFunctionUrl(provider.edgeFunction, params);
+}
+
+function trackApiBibleView(fumsToken) {
+  if (!fumsToken || trackedFumsTokens.has(fumsToken)) return;
+  trackedFumsTokens.add(fumsToken);
+  if (state.authUser?.id) window.fums?.("config", { userId: state.authUser.id });
+  window.fums?.("trackView", fumsToken);
 }
 
 async function ensureRemoteBibleVersion(version, chapterKey) {
-  if (translationLookup[version]?.status !== "remote") return;
+  if (!isRemoteTranslation(version)) return;
   const loadKey = remoteVersionLoadKey(version, chapterKey);
   if (remoteVersionData.has(loadKey) || loadingVersions.has(loadKey)) return;
 
   const config = window.BigScreenBibleSupabase || {};
-  const url = version === "ESV" ? esvFunctionUrl(chapterKey) : "";
+  const provider = translationProvider(version);
+  const url = remoteFunctionUrl(version, chapterKey);
   if (!url || !config.anonKey) {
     remoteVersionErrors.set(loadKey, "Remote Bible version is not configured.");
     return;
@@ -6212,6 +6256,7 @@ async function ensureRemoteBibleVersion(version, chapterKey) {
   remoteVersionErrors.delete(loadKey);
   try {
     const response = await fetch(url, {
+      cache: provider === bibleProviders.apiBible ? "no-store" : "default",
       headers: {
         apikey: config.anonKey,
         Authorization: `Bearer ${config.anonKey}`,
@@ -6225,6 +6270,7 @@ async function ensureRemoteBibleVersion(version, chapterKey) {
     if (!verses.length) throw new Error(`${version} returned no verses`);
     remoteVersionData.set(loadKey, { ...payload, verses });
     mergeRemoteVersionChapter(version, chapterKey, verses);
+    if (provider.tracksFums) trackApiBibleView(payload.fumsToken);
   } catch (error) {
     console.error(error);
     remoteVersionErrors.set(loadKey, error.message || `${version} could not be loaded`);
@@ -6232,6 +6278,27 @@ async function ensureRemoteBibleVersion(version, chapterKey) {
     loadingVersions.delete(loadKey);
     renderPreservingReaderScroll();
   }
+}
+
+function apiBibleAttributionMarkup(versions, className = "") {
+  const notices = [];
+  const seen = new Set();
+  versions.forEach((version) => {
+    if (translationProvider(version) !== bibleProviders.apiBible) return;
+    const payload = remoteVersionData.get(remoteVersionLoadKey(version, state.reference));
+    const copyright = String(payload?.copyright || "").trim();
+    if (!copyright || seen.has(copyright)) return;
+    seen.add(copyright);
+    notices.push(`<span>${escapeHtml(copyright)}</span>`);
+  });
+  if (!notices.length) return "";
+  const classes = ["scripture-attribution", className].filter(Boolean).join(" ");
+  return `
+    <aside class="${classes}" aria-label="Bible translation copyright">
+      ${notices.join("")}
+      <a href="https://api.bible/" target="_blank" rel="noopener noreferrer">Powered by API.Bible</a>
+    </aside>
+  `;
 }
 
 function mergeRemoteVersionChapter(version, chapterKey, verses) {

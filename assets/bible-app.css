@@ -2812,6 +2812,22 @@ select {
   border: 1px solid var(--line);
 }
 
+.scripture-attribution {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 28px 4px 8px;
+  color: var(--muted);
+  font: 500 11px / 1.5 var(--ui-font);
+}
+
+.scripture-attribution a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .parallel-head,
 .parallel-row {
   display: grid;
@@ -3690,6 +3706,16 @@ select {
   font: 700 clamp(11px, 1vw, 14px) / 1.2 var(--ui-font);
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.presentation-attribution {
+  align-items: center;
+  max-width: min(920px, 84vw);
+  margin: clamp(14px, 2.2vh, 24px) 0 0;
+  color: currentColor;
+  opacity: 0.62;
+  font-size: clamp(8px, 0.68vw, 11px);
+  line-height: 1.35;
 }
 
 .presentation.presentation-overflow .presentation-text {
