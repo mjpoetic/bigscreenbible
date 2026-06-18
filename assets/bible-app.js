@@ -114,10 +114,13 @@ let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
 let cloudSyncTimer = 0;
+let activeTriviaCelebration = null;
+let triviaCelebrationToken = 0;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const tutorialStorageKey = "lw_tutorial_seen";
 const cloudSyncTable = "bsb_user_sync";
+const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -550,6 +553,7 @@ function render() {
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
   requestAnimationFrame(updateTutorialSpotlight);
+  requestAnimationFrame(runPendingTriviaCelebration);
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
 }
@@ -2186,10 +2190,8 @@ function triviaGameView() {
   const question = game.questions[game.index];
   const answered = game.selectedAnswer !== null;
   const correct = game.selectedAnswer === question.answer;
-  const finalPerfectAnswer = answered && correct && game.index === game.questions.length - 1 && game.score === game.questions.length;
   return `
-    <div class="trivia-game ${finalPerfectAnswer ? "perfect" : ""}">
-      ${finalPerfectAnswer ? triviaCelebration() : ""}
+    <div class="trivia-game">
       <div class="trivia-progress">
         <span>${escapeHtml(game.category)} · ${escapeHtml(game.difficulty)}</span>
         <strong>${game.index + 1} / ${game.questions.length}</strong>
@@ -2239,10 +2241,8 @@ function verseOrderGameView(game) {
   const selectedSet = new Set(puzzle.selectedIds);
   const answered = puzzle.answered;
   const correct = answered && puzzle.correct;
-  const finalPerfectAnswer = answered && correct && game.index === game.puzzles.length - 1 && game.score === game.puzzles.length;
   return `
-    <div class="trivia-game verse-order-game ${finalPerfectAnswer ? "perfect" : ""}">
-      ${finalPerfectAnswer ? triviaCelebration() : ""}
+    <div class="trivia-game verse-order-game">
       <div class="trivia-progress">
         <span>Verse Order · ${escapeHtml(game.version)}</span>
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
@@ -2293,10 +2293,8 @@ function referenceRushGameView(game) {
   const puzzle = game.puzzles[game.index];
   const answered = puzzle.selectedReference !== null;
   const correct = puzzle.selectedReference === puzzle.reference;
-  const finalPerfectAnswer = answered && correct && game.index === game.puzzles.length - 1 && game.score === game.puzzles.length;
   return `
-    <div class="trivia-game reference-rush-game ${finalPerfectAnswer ? "perfect" : ""}">
-      ${finalPerfectAnswer ? triviaCelebration() : ""}
+    <div class="trivia-game reference-rush-game">
       <div class="trivia-progress">
         <span>Reference Rush · ${escapeHtml(game.difficulty)}</span>
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
@@ -2458,6 +2456,7 @@ function whoSaidItChoiceButton(question, choice, answered) {
 function triviaResultsView(game) {
   const roundLength = game.questions?.length || game.puzzles?.length || 1;
   const percent = Math.round((game.score / roundLength) * 100);
+  const perfect = game.score === roundLength;
   const isBookSprint = game.type === "book-sprint";
   const bookSprintBest = isBookSprint ? (game.bookSprintBest || savedBookSprintBest(game.difficulty, roundLength)) : null;
   const resultText = game.type === "verse-order"
@@ -2470,11 +2469,11 @@ function triviaResultsView(game) {
           ? `You identified ${game.score} of ${roundLength} speakers correctly.`
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
-    <div class="trivia-results ${percent === 100 ? "perfect" : ""}">
-      ${percent === 100 ? triviaCelebration() : ""}
+    <div class="trivia-results ${perfect ? "perfect" : ""}">
       <div class="trivia-result-ring">${percent}%</div>
       <h2>${triviaResultTitle(percent)}</h2>
       <p>${resultText}</p>
+      ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       ${isBookSprint ? `
         <div class="book-sprint-result-stats">
           <div>
@@ -2496,8 +2495,109 @@ function triviaResultsView(game) {
   `;
 }
 
-function triviaCelebration() {
-  return `<div class="trivia-confetti" aria-hidden="true">${Array.from({ length: 72 }, (_, index) => `<span style="--i:${index};--x:${(index * 37) % 100}"></span>`).join("")}</div>`;
+function triviaRoundLength(game) {
+  return game?.questions?.length || game?.puzzles?.length || 0;
+}
+
+function completeTriviaGame(game) {
+  if (!game || game.complete) return;
+  game.complete = true;
+  const roundLength = triviaRoundLength(game);
+  game.celebrationPending = roundLength > 0 && game.score === roundLength;
+}
+
+function runPendingTriviaCelebration() {
+  const game = state.triviaGame;
+  if (state.mode !== "trivia" || !game?.complete || !game.celebrationPending) return;
+  game.celebrationPending = false;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+    revealTriviaMotionSuccess();
+    return;
+  }
+  launchTriviaConfetti(game).catch(() => {
+    cleanupTriviaCelebration();
+    if (state.triviaGame === game) revealTriviaMotionSuccess(game);
+  });
+}
+
+function revealTriviaMotionSuccess(game = state.triviaGame) {
+  if (game) game.motionSuccessVisible = true;
+  const message = document.getElementById("triviaMotionSuccess");
+  if (!message) return;
+  message.hidden = false;
+  requestAnimationFrame(() => message.classList.add("visible"));
+}
+
+async function launchTriviaConfetti(game) {
+  cleanupTriviaCelebration();
+  const token = triviaCelebrationToken;
+  let confettiModule;
+  try {
+    confettiModule = await import(confettiModuleUrl);
+  } catch {
+    if (token === triviaCelebrationToken && state.triviaGame === game) revealTriviaMotionSuccess(game);
+    return;
+  }
+  if (token !== triviaCelebrationToken || state.triviaGame !== game || state.mode !== "trivia") return;
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "trivia-confetti-canvas";
+  canvas.setAttribute("aria-hidden", "true");
+  document.body.append(canvas);
+
+  const confetti = confettiModule.default.create(canvas, { resize: true, useWorker: true });
+  const duration = 2400;
+  const end = performance.now() + duration;
+  let frameId = 0;
+  let cleanupTimer = 0;
+
+  const fire = () => {
+    confetti({
+      particleCount: 2,
+      angle: 60,
+      spread: 58,
+      startVelocity: 42,
+      gravity: 0.9,
+      scalar: 0.9,
+      origin: { x: 0, y: 0.66 },
+      colors: ["#0f766e", "#d4a72c", "#f97316", "#ec4899", "#6366f1"],
+    });
+    confetti({
+      particleCount: 2,
+      angle: 120,
+      spread: 58,
+      startVelocity: 42,
+      gravity: 0.9,
+      scalar: 0.9,
+      origin: { x: 1, y: 0.66 },
+      colors: ["#0f766e", "#d4a72c", "#f97316", "#ec4899", "#6366f1"],
+    });
+    if (performance.now() < end) {
+      frameId = requestAnimationFrame(fire);
+      return;
+    }
+    cleanupTimer = window.setTimeout(cleanupTriviaCelebration, 700);
+  };
+
+  activeTriviaCelebration = {
+    canvas,
+    confetti,
+    cancel: () => {
+      cancelAnimationFrame(frameId);
+      clearTimeout(cleanupTimer);
+    },
+  };
+  confetti({ particleCount: 70, spread: 82, startVelocity: 48, origin: { y: 0.7 } });
+  fire();
+}
+
+function cleanupTriviaCelebration() {
+  triviaCelebrationToken += 1;
+  if (!activeTriviaCelebration) return;
+  activeTriviaCelebration.cancel();
+  activeTriviaCelebration.confetti.reset();
+  activeTriviaCelebration.canvas.remove();
+  activeTriviaCelebration = null;
 }
 
 function triviaResultTitle(percent) {
@@ -3386,6 +3486,7 @@ function tutorialOverlay() {
 function bindEvents() {
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.dataset.mode !== "trivia") cleanupTriviaCelebration();
       state.mode = button.dataset.mode;
       state.headerVersionMenuOpen = false;
       if (state.mode === "big") {
@@ -3631,6 +3732,7 @@ function bindEvents() {
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   document.querySelectorAll("[data-trivia-mode]").forEach((button) => {
     button.addEventListener("click", () => {
+      cleanupTriviaCelebration();
       state.triviaGameType = button.dataset.triviaMode || "trivia";
       state.triviaGame = null;
       if (state.triviaGameType === "reference-rush") {
@@ -3668,6 +3770,7 @@ function bindEvents() {
   document.getElementById("restartTriviaGame")?.addEventListener("click", startTriviaGame);
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
   document.getElementById("newTriviaGame")?.addEventListener("click", () => {
+    cleanupTriviaCelebration();
     state.triviaGame = null;
     renderPreservingReaderScroll();
   });
@@ -4019,6 +4122,7 @@ function triviaPool() {
 }
 
 function startTriviaGame() {
+  cleanupTriviaCelebration();
   if (state.triviaGameType === "verse-order") return startVerseOrderGame();
   if (state.triviaGameType === "reference-rush") return startReferenceRushGame();
   if (state.triviaGameType === "book-sprint") return startBookSprintGame();
@@ -4417,7 +4521,7 @@ function nextTriviaQuestion() {
   if (game.type === "book-sprint") return nextBookSprintPuzzle();
   if (game.type === "who-said-it") return nextWhoSaidItQuestion();
   if (game.index >= game.questions.length - 1) {
-    game.complete = true;
+    completeTriviaGame(game);
   } else {
     game.index += 1;
     game.selectedAnswer = null;
@@ -4426,6 +4530,7 @@ function nextTriviaQuestion() {
 }
 
 function exitTriviaGame() {
+  cleanupTriviaCelebration();
   state.triviaGame = null;
   renderPreservingReaderScroll();
 }
@@ -4444,7 +4549,7 @@ function nextReferenceRushPuzzle() {
   const game = state.triviaGame;
   if (!game) return;
   if (game.index >= game.puzzles.length - 1) {
-    game.complete = true;
+    completeTriviaGame(game);
   } else {
     game.index += 1;
   }
@@ -4496,8 +4601,8 @@ function nextBookSprintPuzzle() {
   const game = state.triviaGame;
   if (!game) return;
   if (game.index >= game.puzzles.length - 1) {
-    game.complete = true;
     finishBookSprintGame(game);
+    completeTriviaGame(game);
   } else {
     game.index += 1;
   }
@@ -4534,7 +4639,7 @@ function nextWhoSaidItQuestion() {
   const game = state.triviaGame;
   if (!game) return;
   if (game.index >= game.questions.length - 1) {
-    game.complete = true;
+    completeTriviaGame(game);
   } else {
     game.index += 1;
   }
@@ -4577,7 +4682,7 @@ function nextVerseOrderPuzzle() {
   const game = state.triviaGame;
   if (!game) return;
   if (game.index >= game.puzzles.length - 1) {
-    game.complete = true;
+    completeTriviaGame(game);
   } else {
     game.index += 1;
   }
