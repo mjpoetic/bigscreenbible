@@ -215,7 +215,7 @@ const state = {
   scriptureFont: localStorage.getItem("lw_scripture_font") || "libre",
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
-  paragraphLayout: localStorage.getItem("lw_paragraph_layout") === "true",
+  paragraphLayout: savedParagraphLayout(),
   focusMode: savedFocusMode(),
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
   activeRail: "Verse",
@@ -310,6 +310,13 @@ function watchSystemTheme() {
 
 function savedFocusMode() {
   const saved = localStorage.getItem("lw_focus_mode");
+  if (saved === "true") return true;
+  if (saved === "false") return false;
+  return true;
+}
+
+function savedParagraphLayout() {
+  const saved = localStorage.getItem("lw_paragraph_layout");
   if (saved === "true") return true;
   if (saved === "false") return false;
   return true;
@@ -1861,7 +1868,9 @@ function applyCloudSnapshot(snapshot) {
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.textScale = clampTextScale(Number(settings.textScale) || 1);
-  state.paragraphLayout = Boolean(settings.paragraphLayout);
+  state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
+    ? settings.paragraphLayout
+    : savedParagraphLayout();
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
