@@ -49,7 +49,7 @@
           light: ["paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire"],
           dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
         };
-        const defaults = { light: "paper", dark: "midnight" };
+        const defaults = { light: "sapphire", dark: "aurora" };
         const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
         function setThemeFromStorage() {
           const savedMode = localStorage.getItem("lw_theme");

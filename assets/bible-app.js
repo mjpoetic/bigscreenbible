@@ -55,7 +55,7 @@ const themePresets = [
   { code: "contrast", name: "Contrast", mode: "dark" },
 ];
 const themePresetLookup = Object.fromEntries(themePresets.map((preset) => [preset.code, preset]));
-const defaultThemePresets = { light: "paper", dark: "midnight" };
+const defaultThemePresets = { light: "sapphire", dark: "aurora" };
 const presentationThemes = [
   { code: "deep", name: "Deep" },
   { code: "warm", name: "Warm" },
@@ -73,6 +73,7 @@ const presentationThemes = [
   { code: "contrast", name: "Contrast" },
 ];
 const presentationThemeCodes = presentationThemes.map((theme) => theme.code);
+const defaultPresentationTheme = "aurora";
 const presentationThemeColors = {
   deep: "#004f54",
   warm: "#4b3021",
@@ -201,7 +202,7 @@ const state = {
   presentationSearchOpen: false,
   presentationSettingsOpen: false,
   presentationControlsVisible: !isCompactScreen(),
-  presentationTheme: localStorage.getItem("lw_presentation_theme") || "deep",
+  presentationTheme: localStorage.getItem("lw_presentation_theme") || defaultPresentationTheme,
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
   isVerseOfDayActive: false,
@@ -258,7 +259,7 @@ state.versions = state.versions.filter((version) => translationCodes.includes(ve
 if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
 if (!state.versions.some((version) => translationLookup[version]?.status === "bundled")) state.versions.unshift("BSB");
 state.themePreset = savedThemePreset(state.theme);
-if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = "deep";
+if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = defaultPresentationTheme;
 if (!scriptureFontCodes.includes(state.scriptureFont)) state.scriptureFont = "libre";
 
 function savedTheme() {
@@ -1843,7 +1844,7 @@ function applyCloudSnapshot(snapshot) {
   state.paragraphLayout = Boolean(settings.paragraphLayout);
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
-  state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : "deep";
+  state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
   state.startBigScreen = settings.startBigScreen !== false;
   state.startVerseOfDay = settings.startVerseOfDay !== false;
   state.showStreakPopup = settings.showStreakPopup !== false;
