@@ -4888,21 +4888,19 @@ function shouldOpenBigScreenFromUrl() {
 function verseOfDayReference(date = new Date()) {
   const config = window.BIGSCREEN_VERSE_OF_DAY || {};
   const key = monthDayKey(date);
-  if (config.seasonal?.[key] && referenceExists(config.seasonal[key])) return config.seasonal[key];
+  const seasonalRef = config.seasonal?.[key];
+  const anchors = buildVerseOfDayPool();
+  const dayIndex = Math.max(0, dayOfYear(date) - 1);
+  const selectedRef = seasonalRef && referenceExists(seasonalRef)
+    ? seasonalRef
+    : anchors[dayIndex % anchors.length];
+  const approvedRefs = new Set([...(config.anchors || []), ...Object.values(config.seasonal || {})]);
 
-  const pool = buildVerseOfDayPool();
-  if (!pool.length) return "John 3:16";
-
-  const seasonalRefs = new Set(Object.values(config.seasonal || {}));
-  const usablePool = pool.filter((ref) => !seasonalRefs.has(ref));
-  const selectablePool = usablePool.length ? usablePool : pool;
-  const dayNumber = dayOfYear(date);
-  const seasonalBeforeToday = Object.keys(config.seasonal || {})
-    .map((seasonalKey) => dayOfYearFromMonthDay(seasonalKey, date.getFullYear()))
-    .filter((seasonalDay) => seasonalDay && seasonalDay < dayNumber).length;
-  const index = Math.max(0, dayNumber - seasonalBeforeToday - 1);
-  const step = verseOfDayStep(selectablePool.length);
-  return selectablePool[(index * step) % selectablePool.length] || pool[index % pool.length] || "John 3:16";
+  if (!approvedRefs.has(selectedRef)) {
+    console.warn(`[Verse of the Day] Rejected unapproved reference: ${selectedRef || "(none)"}`);
+    return "";
+  }
+  return selectedRef;
 }
 
 function buildVerseOfDayPool() {
@@ -4917,41 +4915,7 @@ function buildVerseOfDayPool() {
   };
 
   (config.anchors || []).forEach(addRef);
-  const priorityRefs = [...refs];
-
-  const keywords = config.keywords?.length ? config.keywords : ["hope", "peace", "love", "strength", "wisdom"];
-  const keywordPattern = new RegExp(`\\b(${keywords.map(escapeRegExp).join("|")})\\b`, "i");
-  const preferredBooks = new Set([
-    "Genesis", "Exodus", "Numbers", "Deuteronomy", "Joshua", "Ruth", "1 Samuel", "2 Samuel",
-    "1 Chronicles", "2 Chronicles", "Ezra", "Nehemiah", "Esther", "Job", "Psalm", "Proverbs",
-    "Ecclesiastes", "Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel",
-    "Amos", "Jonah", "Micah", "Nahum", "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
-    "Matthew", "Mark", "Luke", "John",
-    "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians",
-    "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", "2 Timothy", "Titus",
-    "Hebrews", "James", "1 Peter", "2 Peter", "1 John", "2 John", "3 John", "Jude"
-  ]);
-  const generatedRefs = [];
-  Object.entries(bibleData).forEach(([chapterKey, chapter]) => {
-    if (!preferredBooks.has(bookNameFromChapterKey(chapterKey))) return;
-    chapter.verses.forEach((verse) => {
-      const ref = `${chapterKey}:${verse.n}`;
-      if (seen.has(ref)) return;
-      const text = getVerseText(verse, "BSB") || getVerseText(verse, state.versions[0] || "BSB");
-      const normalized = text.replace(/\s+/g, " ").trim();
-      if (normalized.length < 34 || normalized.length > 240) return;
-      if (!keywordPattern.test(normalized)) return;
-      const score = verseOfDayTextScore(normalized);
-      if (score < 2) return;
-      generatedRefs.push({ ref, score });
-    });
-  });
-  generatedRefs
-    .sort((a, b) => b.score - a.score || books.indexOf(bookNameFromReference(a.ref)) - books.indexOf(bookNameFromReference(b.ref)))
-    .forEach(({ ref }) => addRef(ref));
-
-  const targetCount = Math.max(366, Number(config.targetCount) || 500);
-  verseOfDayPool = limitVerseOfDayPool(variedVerseOfDayRotation(refs), priorityRefs, targetCount);
+  verseOfDayPool = refs;
   return verseOfDayPool;
 }
 
