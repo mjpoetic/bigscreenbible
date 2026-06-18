@@ -523,6 +523,20 @@ function isShortLandscapeScreen() {
   return window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)")?.matches || false;
 }
 
+function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240 } = {}) {
+  const visibleElements = Array.from(document.querySelectorAll(selector))
+    .filter((element) => element.getClientRects().length);
+  if (visibleElements.some((element) => element.classList.contains(className))) return;
+  const elements = visibleElements.filter((element) => !element.classList.contains(className));
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!elements.length || reducedMotion) {
+    callback();
+    return;
+  }
+  elements.forEach((element) => element.classList.add(className));
+  window.setTimeout(callback, duration);
+}
+
 function enforceVersionLimit() {
   const limit = versionLimit();
   if (state.versions.length <= limit) return;
@@ -1074,8 +1088,10 @@ function streakPopup() {
 function dismissStreakPopup() {
   if (!state.streakPopupVisible) return;
   clearTimeout(streakPopupTimer);
-  state.streakPopupVisible = false;
-  render();
+  animateBeforeRemoval("#streakPopup", () => {
+    state.streakPopupVisible = false;
+    render();
+  }, { duration: 220 });
 }
 
 function scheduleStreakPopupDismiss() {
@@ -1496,7 +1512,15 @@ function authRedirectUrl() {
 }
 
 function toggleAccountMenu(forceOpen = null) {
-  state.accountOpen = forceOpen === null ? !state.accountOpen : Boolean(forceOpen);
+  const nextOpen = forceOpen === null ? !state.accountOpen : Boolean(forceOpen);
+  if (state.accountOpen && !nextOpen) {
+    animateBeforeRemoval(".account-popover.open", () => {
+      state.accountOpen = false;
+      renderPreservingReaderScroll();
+    }, { duration: 190 });
+    return;
+  }
+  state.accountOpen = nextOpen;
   if (state.accountOpen) state.settingsOpen = false;
   renderPreservingReaderScroll();
   requestAnimationFrame(() => {
@@ -3058,7 +3082,7 @@ function openVerseActionMenu(anchor) {
     return;
   }
 
-  closeVerseActionMenu();
+  closeVerseActionMenu(true);
   const menu = document.createElement("div");
   menu.className = "verse-action-menu";
   menu.id = "verseActionMenu";
@@ -3129,21 +3153,26 @@ function closeVerseActionMenuOnEscape(event) {
   closeVerseActionMenu();
 }
 
-function closeVerseActionMenu() {
+function closeVerseActionMenu(immediate = false) {
   const menu = document.getElementById("verseActionMenu");
   const verseNumber = menu?.dataset.verse;
   if (verseNumber) {
     document.querySelector(`[data-verse-actions="${verseNumber}"]`)?.setAttribute("aria-expanded", "false");
   }
-  menu?.remove();
   document.removeEventListener("click", closeVerseActionMenuOnOutside, true);
   document.removeEventListener("keydown", closeVerseActionMenuOnEscape);
   window.removeEventListener("resize", closeVerseActionMenu);
   window.removeEventListener("scroll", closeVerseActionMenu);
+  if (!menu) return;
+  if (immediate) {
+    menu.remove();
+    return;
+  }
+  animateBeforeRemoval("#verseActionMenu", () => menu.remove(), { duration: 150 });
 }
 
 function showStudyPopup(anchor, content, label) {
-  closeStudyPopup();
+  closeStudyPopup(true);
   const popup = document.createElement("div");
   popup.className = "study-popup";
   popup.id = "studyPopup";
@@ -3191,9 +3220,15 @@ function closeStudyPopupOnOutside(event) {
   closeStudyPopup();
 }
 
-function closeStudyPopup() {
-  document.getElementById("studyPopup")?.remove();
+function closeStudyPopup(immediate = false) {
+  const popup = document.getElementById("studyPopup");
   document.removeEventListener("click", closeStudyPopupOnOutside, true);
+  if (!popup) return;
+  if (immediate) {
+    popup.remove();
+    return;
+  }
+  animateBeforeRemoval("#studyPopup", () => popup.remove(), { duration: 180 });
 }
 
 function searchResultsMarkup() {
@@ -3561,7 +3596,8 @@ function bindEvents() {
     renderPreservingReaderScroll();
   });
   document.getElementById("versionMenuToggle")?.addEventListener("click", () => {
-    state.headerVersionMenuOpen = !state.headerVersionMenuOpen;
+    if (state.headerVersionMenuOpen) return closeHeaderVersionMenu();
+    state.headerVersionMenuOpen = true;
     renderPreservingReaderScroll();
   });
   document.querySelectorAll("[data-primary-version-option]").forEach((button) => {
@@ -3600,29 +3636,25 @@ function bindEvents() {
     await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
+    if (state.settingsOpen) return closeSettingsPopover();
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "header";
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
     requestAnimationFrame(() => positionSettingsPopover("header"));
   });
-  document.getElementById("settingsClose")?.addEventListener("click", () => {
-    state.settingsOpen = false;
-    renderPreservingReaderScroll();
-  });
+  document.getElementById("settingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("accountQuickButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
+    if (state.settingsOpen) return closeSettingsPopover();
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "floating";
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
     requestAnimationFrame(() => positionSettingsPopover("floating"));
   });
-  document.getElementById("mobileSettingsClose")?.addEventListener("click", () => {
-    state.settingsOpen = false;
-    renderPreservingReaderScroll();
-  });
+  document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
   document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
@@ -3989,13 +4021,11 @@ function bindEvents() {
   document.getElementById("presentationFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
-    state.presentationSettingsOpen = !state.presentationSettingsOpen;
+    if (state.presentationSettingsOpen) return closePresentationSettings();
+    state.presentationSettingsOpen = true;
     render();
   });
-  document.getElementById("presentationSettingsClose")?.addEventListener("click", () => {
-    state.presentationSettingsOpen = false;
-    render();
-  });
+  document.getElementById("presentationSettingsClose")?.addEventListener("click", closePresentationSettings);
   document.getElementById("presentationHelpButton")?.addEventListener("click", () => {
     state.shortcutsOpen = true;
     state.presentationSettingsOpen = false;
@@ -5327,10 +5357,12 @@ function activateWorkspace(target) {
 }
 
 function closeLibrary() {
-  state.libraryOpen = false;
-  localStorage.setItem("lw_library_open", "false");
-  scheduleCloudSync();
-  render();
+  animateBeforeRemoval(".library", () => {
+    state.libraryOpen = false;
+    localStorage.setItem("lw_library_open", "false");
+    scheduleCloudSync();
+    render();
+  }, { duration: 220 });
 }
 
 function adjustTextScale(delta) {
@@ -5356,13 +5388,56 @@ function toggleFocusMode() {
 }
 
 function toggleMobileControls() {
+  if (state.mobileControlsOpen) {
+    animateBeforeRemoval(
+      ".app-shell.mobile-controls-open :is(.search, .versions, #shortcutsButton, .account-menu, .settings-menu)",
+      () => {
+        state.mobileControlsOpen = false;
+        render();
+      },
+      { className: "mobile-control-exit", duration: 180 },
+    );
+    return;
+  }
   state.mobileControlsOpen = !state.mobileControlsOpen;
   render();
 }
 
 function toggleShortcuts(forceOpen) {
-  state.shortcutsOpen = typeof forceOpen === "boolean" ? forceOpen : !state.shortcutsOpen;
+  const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !state.shortcutsOpen;
+  if (state.shortcutsOpen && !nextOpen) {
+    animateBeforeRemoval(".shortcut-overlay.open", () => {
+      state.shortcutsOpen = false;
+      render();
+    }, { duration: 220 });
+    return;
+  }
+  state.shortcutsOpen = nextOpen;
   render();
+}
+
+function closeHeaderVersionMenu() {
+  if (!state.headerVersionMenuOpen) return;
+  animateBeforeRemoval(".primary-version-menu", () => {
+    state.headerVersionMenuOpen = false;
+    renderPreservingReaderScroll();
+  }, { duration: 180 });
+}
+
+function closeSettingsPopover() {
+  if (!state.settingsOpen) return;
+  animateBeforeRemoval(".settings-popover.open, .mobile-settings-popover", () => {
+    state.settingsOpen = false;
+    renderPreservingReaderScroll();
+  }, { duration: 190 });
+}
+
+function closePresentationSettings() {
+  if (!state.presentationSettingsOpen) return;
+  animateBeforeRemoval(".presentation-settings-popover.open", () => {
+    state.presentationSettingsOpen = false;
+    render();
+  }, { duration: 190 });
 }
 
 function markTutorialSeen() {
@@ -5371,8 +5446,10 @@ function markTutorialSeen() {
 }
 
 function dismissTutorialIntro() {
-  markTutorialSeen();
-  renderPreservingReaderScroll();
+  animateBeforeRemoval(".tutorial-welcome-overlay", () => {
+    markTutorialSeen();
+    renderPreservingReaderScroll();
+  }, { duration: 220 });
 }
 
 function startTutorial() {
@@ -5389,17 +5466,22 @@ function startTutorial() {
 }
 
 function finishTutorial() {
-  state.tutorialActive = false;
-  state.tutorialStep = 0;
-  renderPreservingReaderScroll();
+  animateBeforeRemoval(".tutorial-card", () => {
+    state.tutorialActive = false;
+    state.tutorialStep = 0;
+    renderPreservingReaderScroll();
+  }, { duration: 180 });
 }
 
 function advanceTutorial() {
   if (state.tutorialStep >= activeTutorialSteps().length - 1) {
-    state.tutorialActive = false;
-    state.tutorialStep = 0;
-    renderPreservingReaderScroll();
-    return showToast("Tour complete");
+    animateBeforeRemoval(".tutorial-card", () => {
+      state.tutorialActive = false;
+      state.tutorialStep = 0;
+      renderPreservingReaderScroll();
+      showToast("Tour complete");
+    }, { duration: 180 });
+    return;
   }
   state.tutorialStep += 1;
   renderPreservingReaderScroll();
@@ -5542,13 +5624,11 @@ function handleGlobalShortcuts(event) {
     }
     if (state.settingsOpen) {
       event.preventDefault();
-      state.settingsOpen = false;
-      return renderPreservingReaderScroll();
+      return closeSettingsPopover();
     }
     if (state.headerVersionMenuOpen) {
       event.preventDefault();
-      state.headerVersionMenuOpen = false;
-      return renderPreservingReaderScroll();
+      return closeHeaderVersionMenu();
     }
     if (state.presentationSearchOpen) {
       event.preventDefault();
@@ -5557,8 +5637,7 @@ function handleGlobalShortcuts(event) {
     }
     if (state.presentationSettingsOpen) {
       event.preventDefault();
-      state.presentationSettingsOpen = false;
-      return render();
+      return closePresentationSettings();
     }
     if (state.mode === "big") {
       event.preventDefault();
@@ -6508,8 +6587,7 @@ window.addEventListener("resize", () => {
 });
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
-  state.headerVersionMenuOpen = false;
-  renderPreservingReaderScroll();
+  closeHeaderVersionMenu();
 });
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);

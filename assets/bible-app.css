@@ -20,6 +20,10 @@
   --reader-pad-y: clamp(42px, 5vh, 82px);
   --verse-font: clamp(23px, 1.35vw, 38px);
   --parallel-font: clamp(16px, 0.9vw, 25px);
+  --motion-fast: 160ms;
+  --motion-base: 210ms;
+  --motion-slow: 240ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --scripture-font: "Libre Baskerville", Georgia, serif;
   --brand-title-font: Copperplate, "Copperplate Gothic Light", "Copperplate Gothic Bold", "Libre Baskerville", Georgia, serif;
   --brand-subtitle-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -744,6 +748,7 @@ button {
 .version-manager.open .primary-version-menu {
   display: grid;
   gap: 3px;
+  animation: versionMenuIn var(--motion-base) var(--motion-ease) both;
 }
 
 .primary-version-option {
@@ -983,6 +988,7 @@ button {
 .account-popover.open {
   display: grid;
   gap: 10px;
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
 }
 
 .settings-popover {
@@ -1002,6 +1008,7 @@ button {
 .settings-popover.open {
   display: grid;
   gap: 10px;
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
 }
 
 .settings-popover-close {
@@ -1577,6 +1584,7 @@ button {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  animation: drawerIn var(--motion-slow) var(--motion-ease) both;
 }
 
 .panel-minihead {
@@ -2522,6 +2530,7 @@ select {
   background: var(--panel);
   color: var(--ink);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  animation: compactSurfaceIn var(--motion-fast) var(--motion-ease) both;
 }
 
 .verse-action-menu button {
@@ -3311,6 +3320,7 @@ select {
   color: var(--ink);
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
   padding: 0 16px 16px;
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
 }
 
 .study-popup-head {
@@ -3393,6 +3403,7 @@ select {
   display: grid;
   grid-template-rows: minmax(calc(64px + env(safe-area-inset-top, 0px)), auto) minmax(0, 1fr) minmax(72px, auto);
   overflow: hidden;
+  animation: backdropIn var(--motion-base) ease-out both;
 }
 
 .presentation :is(button, select, input) {
@@ -3546,6 +3557,7 @@ select {
 .presentation-settings-popover.open {
   display: grid;
   gap: 12px;
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
 }
 
 .presentation-popover-close {
@@ -3833,6 +3845,11 @@ select {
 
 .shortcut-overlay.open {
   display: flex;
+  animation: backdropIn var(--motion-base) ease-out both;
+}
+
+.shortcut-overlay.open .shortcut-panel {
+  animation: dialogIn var(--motion-slow) var(--motion-ease) both;
 }
 
 .shortcut-panel {
@@ -4455,6 +4472,7 @@ kbd {
   padding: 22px;
   background: rgba(12, 16, 15, 0.46);
   backdrop-filter: blur(10px);
+  animation: backdropIn var(--motion-base) ease-out both;
 }
 
 .tutorial-welcome-card,
@@ -4471,6 +4489,7 @@ kbd {
   width: min(500px, 100%);
   padding: 24px;
   text-align: center;
+  animation: dialogIn var(--motion-slow) var(--motion-ease) both;
 }
 
 .tutorial-welcome-logo {
@@ -4526,6 +4545,7 @@ kbd {
   width: min(390px, calc(100vw - 32px));
   padding: 18px;
   pointer-events: auto;
+  animation: tutorialCardIn var(--motion-base) var(--motion-ease) both;
 }
 
 .tutorial-close {
@@ -4836,6 +4856,225 @@ kbd {
 .status-toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(-8px);
+}
+
+.motion-exit {
+  pointer-events: none !important;
+}
+
+.primary-version-menu.motion-exit {
+  animation: versionMenuOut var(--motion-fast) ease-in both !important;
+}
+
+.account-popover.motion-exit,
+.settings-popover.motion-exit,
+.presentation-settings-popover.motion-exit,
+.study-popup.motion-exit {
+  animation: surfaceOut var(--motion-fast) ease-in both !important;
+}
+
+.verse-action-menu.motion-exit {
+  animation: compactSurfaceOut 140ms ease-in both !important;
+}
+
+.library.motion-exit {
+  animation: drawerOut var(--motion-base) ease-in both !important;
+}
+
+.shortcut-overlay.motion-exit,
+.tutorial-welcome-overlay.motion-exit {
+  animation: backdropOut var(--motion-base) ease-in both !important;
+}
+
+.shortcut-overlay.motion-exit .shortcut-panel,
+.tutorial-welcome-overlay.motion-exit .tutorial-welcome-card,
+.tutorial-card.motion-exit {
+  animation: dialogOut var(--motion-fast) ease-in both !important;
+}
+
+.streak-popup.motion-exit {
+  animation: streakPopupOut var(--motion-base) ease-in both !important;
+}
+
+@keyframes surfaceIn {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes surfaceOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.985);
+  }
+}
+
+@keyframes compactSurfaceIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes compactSurfaceOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+
+@keyframes versionMenuIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-7px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes versionMenuOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px) scale(0.985);
+  }
+}
+
+@keyframes drawerIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawerOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes backdropOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dialogOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@keyframes tutorialCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes streakPopupOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.98);
+  }
+}
+
+@keyframes mobileControlIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-control-exit {
+  pointer-events: none !important;
+  animation: surfaceOut var(--motion-fast) ease-in both !important;
 }
 
 .print-sheet {
@@ -5419,6 +5658,11 @@ svg {
     background: var(--panel);
     box-shadow: var(--shadow);
     padding: 14px;
+    animation: surfaceIn var(--motion-base) var(--motion-ease) both;
+  }
+
+  .mobile-settings-popover.motion-exit {
+    animation: surfaceOut var(--motion-fast) ease-in both !important;
   }
 
   .selection-bar {
@@ -6193,6 +6437,10 @@ svg {
     display: flex;
   }
 
+  .app-shell.mobile-controls-open :is(.search, .versions, #shortcutsButton, .account-menu, .settings-menu) {
+    animation: mobileControlIn var(--motion-base) var(--motion-ease) both;
+  }
+
   .versions {
     grid-column: 1 / -1;
   }
@@ -6940,6 +7188,23 @@ svg {
   .tutorial-actions .ghost-btn,
   .tutorial-actions .primary-btn {
     flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }
 
