@@ -680,6 +680,14 @@ button {
   padding-inline: 8px;
 }
 
+.topbar .version-manager {
+  flex: 0 0 112px;
+  width: 112px;
+  min-width: 112px;
+  max-width: 112px;
+  padding-inline: 8px;
+}
+
 .topbar .primary-version-control select {
   width: 100%;
   min-width: 0;
@@ -708,14 +716,11 @@ button {
 }
 
 .version-add-toggle {
-  min-width: 76px;
-  border-radius: 5px;
-  background: var(--soft);
-  padding-inline: 10px;
+  min-width: 0;
 }
 
 .version-selected-label {
-  display: none;
+  display: inline;
 }
 
 .primary-version-menu {

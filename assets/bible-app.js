@@ -750,7 +750,6 @@ function mobileSettingsPanel() {
 function topbar() {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
-  const versionSelectLabel = selectedVersions.length >= maxVersions ? `Max ${maxVersions}` : "Add";
   const primaryVersion = state.versions[0] || "BSB";
   const primaryVersionOptions = translationCodes
     .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${version} · ${translationLookup[version]?.name || version}</option>`)
@@ -779,9 +778,7 @@ function topbar() {
   const versionControls = state.mode === "parallel"
     ? `
       <div class="versions version-manager ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Selected Bible versions">
-        ${selectedVersions.map((version) => `<span class="version-pill">${version}<button data-remove-version="${version}" aria-label="Remove ${version}" data-tooltip="Remove ${version}">x</button></span>`).join("")}
-        <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Choose Bible versions" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
-          <span class="version-add-label">${versionSelectLabel}</span>
+        <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Choose Bible versions, ${selectedVersions.length} selected" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
           <span class="version-selected-label">${selectedVersions.length} Selected</span>
           <span aria-hidden="true">⌄</span>
         </button>
