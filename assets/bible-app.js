@@ -3363,10 +3363,10 @@ function presentation() {
         </div>
       </div>
       <div class="presentation-bottom">
-        <div class="presentation-brand" aria-label="Big Screen Bible">
+        <a class="presentation-brand" id="presentationBrandVerseOfDay" href="#verse-of-the-day" aria-label="Open verse of the day">
           <img class="presentation-brand-mark" src="./assets/brand-mark.png" alt="" />
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
-        </div>
+        </a>
         <div class="presentation-controls">
           <button class="ghost-btn" id="presentationPrev" data-tooltip="Previous verse" ${canGoBack ? "" : "disabled"}>Previous</button>
           <button class="ghost-btn" id="presentationNext" data-tooltip="Next verse" ${canGoForward ? "" : "disabled"}>Next</button>
@@ -3728,6 +3728,10 @@ function bindEvents() {
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
+  document.getElementById("presentationBrandVerseOfDay")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    openVerseOfDay({ mode: "big" });
+  });
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   document.querySelectorAll("[data-trivia-mode]").forEach((button) => {
@@ -4961,12 +4965,12 @@ function applyStartupExperience() {
   }
 }
 
-function openVerseOfDay() {
+function openVerseOfDay(options = {}) {
   const ref = verseOfDayReference();
   if (!ref) return showToast("Verse of the day is not available yet");
   if (!setReferenceFromString(ref)) return;
   state.isVerseOfDayActive = true;
-  state.mode = "reader";
+  state.mode = options.mode || "reader";
   state.searchQuery = "";
   state.pendingVerseFocus = true;
   recordHistory();
