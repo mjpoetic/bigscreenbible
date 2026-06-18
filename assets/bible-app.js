@@ -201,6 +201,7 @@ const state = {
   presentationTheme: localStorage.getItem("lw_presentation_theme") || "deep",
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
+  isVerseOfDayActive: false,
   showStreakPopup: localStorage.getItem("lw_show_streak_popup") !== "false",
   startupApplied: false,
   settingsOpen: false,
@@ -2903,6 +2904,7 @@ function openCrossReferencePopup(anchor) {
   const reference = `${state.reference}:${verseNumber}`;
   const refs = crossReferenceItems(reference);
   state.verse = verseNumber;
+  state.isVerseOfDayActive = false;
   const content = `
     <div class="ref-title">${escapeHtml(reference)} cross references</div>
     <div class="popup-ref-list">
@@ -2943,6 +2945,7 @@ function openVerseActionMenu(anchor) {
   menu.querySelector("[data-menu-select]")?.addEventListener("click", (event) => {
     event.stopPropagation();
     state.verse = verseNumber;
+    state.isVerseOfDayActive = false;
     toggleVerseSelection(verseNumber, event.shiftKey);
     closeVerseActionMenu();
     renderPreservingReaderScroll();
@@ -3253,7 +3256,12 @@ function presentation() {
           <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" data-tooltip="Back to Bible">${icons.book}</button>
         </div>
       </div>
-      <div class="presentation-text"><span class="presentation-copy">${text}</span></div>
+      <div class="presentation-text">
+        <div class="presentation-passage">
+          <span class="presentation-copy">${text}</span>
+          ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
+        </div>
+      </div>
       <div class="presentation-bottom">
         <div class="presentation-brand" aria-label="Big Screen Bible">
           <img class="presentation-brand-mark" src="./assets/brand-mark.png" alt="" />
@@ -3695,12 +3703,14 @@ function bindEvents() {
       state.reference = event.target.value;
       state.verse = currentChapter().verses[0].n;
       state.selectedVerses = [];
+      state.isVerseOfDayActive = false;
       render();
     });
   });
   ["verseSelect", "verseSelectInline"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state.verse = Number(event.target.value);
+      state.isVerseOfDayActive = false;
       render();
     });
   });
@@ -3733,6 +3743,7 @@ function bindEvents() {
       event.stopPropagation();
       const verseNumber = Number(row.dataset.verse);
       state.verse = verseNumber;
+      state.isVerseOfDayActive = false;
       toggleVerseSelection(verseNumber, event.shiftKey);
       renderPreservingReaderScroll();
     });
@@ -4695,6 +4706,7 @@ function gotoReference(value, options = {}) {
 async function runReferenceOrPhraseSearch(value) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
+  state.isVerseOfDayActive = false;
   if (parseReference(cleaned)) {
     gotoReference(cleaned);
     return;
@@ -4836,7 +4848,7 @@ function applyStartupExperience() {
   }
   if (state.startVerseOfDay) {
     const verseOfDay = verseOfDayReference();
-    if (verseOfDay) setReferenceFromString(verseOfDay);
+    if (verseOfDay && setReferenceFromString(verseOfDay)) state.isVerseOfDayActive = true;
   }
   if (openBigScreen || state.startBigScreen) {
     state.mode = "big";
@@ -4848,6 +4860,7 @@ function openVerseOfDay() {
   const ref = verseOfDayReference();
   if (!ref) return showToast("Verse of the day is not available yet");
   if (!setReferenceFromString(ref)) return;
+  state.isVerseOfDayActive = true;
   state.mode = "reader";
   state.searchQuery = "";
   state.pendingVerseFocus = true;
@@ -5142,6 +5155,7 @@ function setReferenceFromString(value) {
     return false;
   }
   const chapter = bibleData[parsed.key];
+  state.isVerseOfDayActive = false;
   state.reference = parsed.key;
   state.verse = parsed.verse;
   state.selectedVerses = parsed.verses.length > 1 ? parsed.verses : [];
@@ -5547,6 +5561,7 @@ function openBook(book) {
   state.reference = reference;
   state.verse = currentChapter().verses[0].n;
   state.selectedVerses = [];
+  state.isVerseOfDayActive = false;
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -5571,6 +5586,7 @@ function moveVerse(direction) {
   const verses = currentChapter().verses.map((verse) => verse.n);
   const index = verses.indexOf(state.verse);
   state.verse = verses[Math.max(0, Math.min(verses.length - 1, index + direction))];
+  state.isVerseOfDayActive = false;
   recordHistory();
   render();
 }
@@ -5581,6 +5597,7 @@ function moveChapter(direction) {
   state.reference = keys[Math.max(0, Math.min(keys.length - 1, index + direction))];
   state.verse = currentChapter().verses[0].n;
   state.selectedVerses = [];
+  state.isVerseOfDayActive = false;
   recordHistory();
   render();
 }
@@ -5894,8 +5911,9 @@ function fitPresentationText() {
   if (!presentation?.classList.contains("open")) return;
 
   const viewport = presentation.querySelector(".presentation-text");
+  const passage = presentation.querySelector(".presentation-passage");
   const copy = presentation.querySelector(".presentation-copy");
-  if (!viewport || !copy) return;
+  if (!viewport || !passage || !copy) return;
 
   presentation.classList.remove("presentation-overflow");
   presentation.style.removeProperty("--presentation-font-size");
@@ -5918,7 +5936,7 @@ function fitPresentationText() {
     presentation.style.setProperty("--presentation-font-size", `${baseFontSize * maxScale}px`);
   }
 
-  const fits = () => copy.scrollHeight <= viewport.clientHeight * 0.92 && copy.scrollWidth <= viewport.clientWidth * 0.98;
+  const fits = () => passage.scrollHeight <= viewport.clientHeight * 0.92 && passage.scrollWidth <= viewport.clientWidth * 0.98;
   if (fits()) return;
 
   let low = readableMinimum;

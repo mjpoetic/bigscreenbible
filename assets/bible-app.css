@@ -3688,10 +3688,26 @@ select {
   text-align: center;
 }
 
+.presentation-passage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+
 .presentation-copy {
   display: block;
   max-width: 100%;
   font: 700 var(--presentation-font-size, clamp(34px, 5.2vw, 74px)) / var(--presentation-line-height, 1.12) var(--scripture-font);
+}
+
+.presentation-verse-of-day-label {
+  margin-top: clamp(20px, 3.2vh, 38px);
+  color: currentColor;
+  opacity: 0.58;
+  font: 700 clamp(11px, 1vw, 14px) / 1.2 var(--ui-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .presentation.presentation-overflow .presentation-text {
