@@ -2815,17 +2815,9 @@ select {
 .scripture-attribution {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   margin: 28px 4px 8px;
   color: var(--muted);
   font: 500 11px / 1.5 var(--ui-font);
-}
-
-.scripture-attribution a {
-  color: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .parallel-head,
@@ -3710,12 +3702,12 @@ select {
 
 .presentation-attribution {
   align-items: center;
-  max-width: min(920px, 84vw);
-  margin: clamp(14px, 2.2vh, 24px) 0 0;
+  max-width: min(1100px, 92vw);
+  margin: clamp(9px, 1.3vh, 14px) 0 0;
   color: currentColor;
-  opacity: 0.62;
-  font-size: clamp(8px, 0.68vw, 11px);
-  line-height: 1.35;
+  opacity: 0.42;
+  font-size: clamp(6px, 0.5vw, 8px);
+  line-height: 1.25;
 }
 
 .presentation.presentation-overflow .presentation-text {

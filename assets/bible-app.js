@@ -6296,7 +6296,6 @@ function apiBibleAttributionMarkup(versions, className = "") {
   return `
     <aside class="${classes}" aria-label="Bible translation copyright">
       ${notices.join("")}
-      <a href="https://api.bible/" target="_blank" rel="noopener noreferrer">Powered by API.Bible</a>
     </aside>
   `;
 }
