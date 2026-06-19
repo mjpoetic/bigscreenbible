@@ -2222,6 +2222,35 @@ select {
   text-transform: uppercase;
 }
 
+.reference-rush-level-note {
+  border-left: 3px solid var(--gold);
+  padding-left: 12px;
+}
+
+.reference-rush-hints {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reference-rush-hints p {
+  margin: 0 auto 0 0;
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.trivia-choice.eliminated {
+  opacity: 0.42;
+  text-decoration: line-through;
+}
+
+.reference-rush-learning {
+  border-top: 1px solid color-mix(in srgb, var(--success) 24%, transparent);
+  padding-top: 8px;
+}
+
 .trivia-results {
   position: relative;
   display: grid;
@@ -6030,6 +6059,10 @@ svg {
 
   .trivia-choice {
     min-height: 58px;
+  }
+
+  .reference-rush-level-note {
+    margin-left: 28px;
   }
 
   .book-sprint-best-card,

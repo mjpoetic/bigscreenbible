@@ -2172,7 +2172,10 @@ function triviaView() {
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const difficultyOptions = triviaDifficulties().map((difficulty) => `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(difficulty)}</option>`).join("");
+  const difficultyOptions = triviaDifficulties().map((difficulty) => {
+    const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
+    return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
   const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : "questions";
   const countValues = isBookSprint ? [5, 10, 15, 20] : [5, 10, 15, 20, 25, 50];
   const selectedCount = isBookSprint ? Math.min(state.triviaCount || 10, 20) : state.triviaCount;
@@ -2182,7 +2185,7 @@ function triviaView() {
   const setupCopy = isVerseOrder
     ? "Tap shuffled verse fragments back into their original order. The app will reveal the reference after each puzzle."
     : isReferenceRush
-      ? "Read the verse, then choose the correct reference before opening the passage."
+      ? "Read the verse and follow its clues. Easy asks for the book; Medium and Hard move toward the exact reference."
       : isBookSprint
         ? "Tap the books in Bible order as quickly and carefully as you can."
         : isWhoSaidIt
@@ -2222,6 +2225,7 @@ function triviaView() {
                 <select id="triviaCountSelect">${countOptions}</select>
               </label>
             </div>
+            ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
             ${isBookSprint ? `
               <div class="book-sprint-best-card">
                 <span>Best for this setup</span>
@@ -2348,11 +2352,13 @@ function referenceRushGameView(game) {
   if (game.complete) return triviaResultsView(game);
   const puzzle = game.puzzles[game.index];
   const answered = puzzle.selectedReference !== null;
-  const correct = puzzle.selectedReference === puzzle.reference;
+  const correct = puzzle.selectedReference === puzzle.correctAnswer;
+  const levelLabel = game.difficulty === "All" ? `Progressive · ${puzzle.difficulty}` : game.difficulty;
+  const hintText = referenceRushHintText(puzzle);
   return `
     <div class="trivia-game reference-rush-game">
       <div class="trivia-progress">
-        <span>Reference Rush · ${escapeHtml(game.difficulty)}</span>
+        <span>Reference Rush · ${escapeHtml(levelLabel)}</span>
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
       <div class="reference-rush-prompt">
@@ -2362,10 +2368,17 @@ function referenceRushGameView(game) {
       <div class="trivia-choices reference-rush-choices">
         ${puzzle.choices.map((choice) => referenceRushChoiceButton(puzzle, choice, answered)).join("")}
       </div>
+      ${!answered ? `
+        <div class="reference-rush-hints">
+          ${hintText ? `<p role="status">${escapeHtml(hintText)}</p>` : ""}
+          <button class="ghost-btn" id="referenceRushHint" ${puzzle.hintLevel >= 2 ? "disabled" : ""}>${puzzle.hintLevel >= 2 ? "Hints used" : puzzle.hintLevel ? "Another hint" : "Hint"}</button>
+        </div>
+      ` : ""}
       ${answered ? `
         <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
           <strong>${correct ? "Correct" : "Not quite"}</strong>
-          <p>${correct ? "You found the passage." : `The correct reference is ${puzzle.reference}.`}</p>
+          <p>${correct ? "You found the passage." : `The correct answer is ${puzzle.correctAnswer}.`}</p>
+          <p class="reference-rush-learning">${escapeHtml(puzzle.learningNote)}</p>
           <div class="trivia-reference">
             <span>${escapeHtml(puzzle.reference)}</span>
             <button class="text-btn" id="openTriviaReference">Open reference</button>
@@ -2388,13 +2401,15 @@ function referenceRushGameView(game) {
 
 function referenceRushChoiceButton(puzzle, choice, answered) {
   const selected = choice === puzzle.selectedReference;
-  const isCorrect = choice === puzzle.reference;
+  const isCorrect = choice === puzzle.correctAnswer;
+  const eliminated = puzzle.eliminatedChoices.includes(choice);
   const classes = [
     "trivia-choice",
     answered && isCorrect ? "correct" : "",
     answered && selected && !isCorrect ? "incorrect" : "",
+    eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
-  return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+  return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" ${answered || eliminated ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
 }
 
 function bookSprintGameView(game) {
@@ -2666,7 +2681,7 @@ function triviaResultTitle(percent) {
 function triviaScoreLabel() {
   if (!state.triviaGame) {
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
-    if (state.triviaGameType === "reference-rush") return `${referenceRushPool().length} verses`;
+    if (state.triviaGameType === "reference-rush") return `${referenceRushAvailableCount()} verses`;
     if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, Math.min(state.triviaCount || 10, 20)))}`;
     if (state.triviaGameType === "who-said-it") return `${whoSaidItPool().length} quotes`;
     return `${triviaPool().length} questions`;
@@ -3853,6 +3868,7 @@ function bindEvents() {
   document.querySelectorAll("[data-reference-answer]").forEach((button) => {
     button.addEventListener("click", () => answerReferenceRush(button.dataset.referenceAnswer));
   });
+  document.getElementById("referenceRushHint")?.addEventListener("click", revealReferenceRushHint);
   document.querySelectorAll("[data-book-answer]").forEach((button) => {
     button.addEventListener("click", () => selectBookSprintBook(button.dataset.bookAnswer));
   });
@@ -4216,17 +4232,17 @@ function startTriviaGame() {
 }
 
 function startReferenceRushGame() {
-  const pool = shuffleItems(referenceRushPool());
-  if (pool.length < 4) {
+  const pools = referenceRushPools();
+  const puzzles = referenceRushPuzzles(pools, state.triviaDifficulty, state.triviaCount || 10);
+  if (puzzles.length < 4) {
     showToast("Not enough verses available for Reference Rush yet");
     return;
   }
-  const puzzleCount = Math.min(state.triviaCount || 10, pool.length);
   state.triviaGame = {
     type: "reference-rush",
     version: state.versions[0] || "BSB",
     difficulty: state.triviaDifficulty,
-    puzzles: pool.slice(0, puzzleCount).map((item) => createReferenceRushPuzzle(item, pool)),
+    puzzles,
     index: 0,
     score: 0,
     complete: false,
@@ -4250,18 +4266,37 @@ const referenceRushEasyRefs = new Set([
   "Revelation 3:20", "Revelation 21:4",
 ]);
 
-const referenceRushMediumBooks = new Set([
-  "Genesis", "Exodus", "Ruth", "1 Samuel", "2 Samuel", "Esther", "Job", "Psalm",
-  "Proverbs", "Isaiah", "Daniel", "Jonah", "Matthew", "Mark", "Luke", "John",
-  "Acts", "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians",
-  "Philippians", "Hebrews", "James", "1 Peter", "1 John", "Revelation",
+const referenceRushMediumRefs = new Set([
+  "Genesis 3:15", "Genesis 4:9", "Genesis 15:5", "Genesis 22:8", "Genesis 50:20",
+  "Exodus 3:14", "Exodus 14:14", "Exodus 15:2", "Joshua 24:15", "Judges 6:12",
+  "1 Samuel 3:10", "1 Samuel 17:45", "2 Samuel 6:14", "1 Kings 18:21", "Esther 4:14",
+  "Job 19:25", "Psalm 8:4", "Psalm 34:18", "Psalm 42:1", "Psalm 90:12",
+  "Psalm 103:12", "Psalm 118:24", "Psalm 127:1", "Psalm 133:1", "Psalm 139:14",
+  "Proverbs 16:9", "Proverbs 17:17", "Proverbs 27:17", "Ecclesiastes 4:9", "Ecclesiastes 12:13",
+  "Isaiah 6:8", "Isaiah 53:5", "Jeremiah 1:5", "Ezekiel 37:5", "Daniel 3:17",
+  "Daniel 6:22", "Jonah 2:2", "Matthew 4:19", "Matthew 5:44", "Matthew 6:9",
+  "Matthew 16:16", "Matthew 18:20", "Matthew 25:40", "Mark 10:14", "Luke 1:38",
+  "Luke 2:14", "Luke 10:27", "Luke 15:20", "Luke 19:10", "John 2:5",
+  "John 6:35", "John 13:35", "John 15:5", "Acts 9:4", "Acts 16:31",
+  "Acts 17:11", "Romans 5:8", "Romans 10:9", "1 Corinthians 10:13", "2 Corinthians 12:9",
+  "Galatians 2:20", "Ephesians 4:32", "Philippians 2:5", "Colossians 3:2", "1 Thessalonians 5:18",
+  "1 Timothy 4:12", "2 Timothy 3:16", "Hebrews 4:12", "James 1:22", "James 2:17",
+  "1 Peter 3:15", "1 John 4:19", "Revelation 22:13",
 ]);
 
-function referenceRushPool() {
+function referenceRushDifficultyDescription(difficulty) {
+  if (difficulty === "Easy") return "Easy · Choose the Bible book from three options using a familiar verse.";
+  if (difficulty === "Medium") return "Medium · Choose the full reference from four clue-friendly passages.";
+  if (difficulty === "Hard") return "Hard · Pinpoint the reference among close choices from the same book.";
+  return "Progressive · Begin by finding books, then finish with exact-reference challenges.";
+}
+
+function referenceRushPools() {
   const version = state.versions[0] || "BSB";
-  const pool = Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
+  const all = Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
     const book = bookFromChapterKey(chapterKey);
     const testament = oldTestamentBooks.includes(book) ? "old" : "new";
+    const chapterNumber = Number(chapterKey.match(/(\d+)$/)?.[1]) || 0;
     return (chapter.verses || []).map((verse) => {
       const text = cleanVerseOrderText(getVerseText(verse, version));
       const wordCount = text.split(/\s+/).filter(Boolean).length;
@@ -4270,6 +4305,7 @@ function referenceRushPool() {
         chapterKey,
         book,
         testament,
+        chapterNumber,
         verseNumber: verse.n,
         version,
         text,
@@ -4279,52 +4315,141 @@ function referenceRushPool() {
   }).filter((item) => {
     return item.wordCount >= 7 && item.wordCount <= 45 && item.book;
   });
-  const difficulty = state.triviaDifficulty.toLowerCase();
-  if (difficulty === "easy") {
-    const easyPool = pool.filter((item) => referenceRushEasyRefs.has(item.reference));
-    if (easyPool.length >= 4) return easyPool;
+  const easy = all.filter((item) => referenceRushEasyRefs.has(item.reference));
+  const medium = all.filter((item) => referenceRushMediumRefs.has(item.reference));
+  const hardTriviaRefs = new Set(triviaQuestions()
+    .filter((question) => question.difficulty === "hard" && /^[1-3]?\s?[A-Za-z]+(?:\s[A-Za-z]+)*\s\d+:\d+$/.test(question.reference || ""))
+    .map((question) => question.reference));
+  let hard = all.filter((item) => {
+    return hardTriviaRefs.has(item.reference)
+      && !referenceRushEasyRefs.has(item.reference)
+      && !referenceRushMediumRefs.has(item.reference);
+  });
+  if (hard.length < 20) {
+    hard = all.filter((item) => !referenceRushEasyRefs.has(item.reference) && !referenceRushMediumRefs.has(item.reference));
   }
-  if (difficulty === "medium") {
-    const mediumPool = pool.filter((item) => {
-      return !referenceRushEasyRefs.has(item.reference)
-        && referenceRushMediumBooks.has(item.book)
-        && item.wordCount >= 14
-        && item.wordCount <= 24;
-    });
-    if (mediumPool.length >= 4) return mediumPool;
-  }
-  if (difficulty === "hard") {
-    const hardPool = pool.filter((item) => !referenceRushEasyRefs.has(item.reference));
-    if (hardPool.length >= 4) return hardPool;
-  }
-  return pool;
+  return { all, easy, medium, hard };
 }
 
-function createReferenceRushPuzzle(item, pool) {
-  const distractors = referenceRushDistractors(item, pool);
+function referenceRushAvailableCount() {
+  const pools = referenceRushPools();
+  if (state.triviaDifficulty === "All") return pools.easy.length + pools.medium.length + pools.hard.length;
+  return pools[state.triviaDifficulty.toLowerCase()]?.length || 0;
+}
+
+function referenceRushPuzzles(pools, difficulty, requestedCount) {
+  const count = Math.max(1, requestedCount);
+  if (difficulty !== "All") {
+    const level = difficulty.toLowerCase();
+    const pool = shuffleItems(pools[level]);
+    return pool.slice(0, Math.min(count, pool.length)).map((item) => createReferenceRushPuzzle(item, pools, level));
+  }
+  const easyCount = Math.ceil(count / 3);
+  const mediumCount = Math.ceil((count - easyCount) / 2);
+  const hardCount = count - easyCount - mediumCount;
+  return [
+    ...shuffleItems(pools.easy).slice(0, easyCount).map((item) => createReferenceRushPuzzle(item, pools, "easy")),
+    ...shuffleItems(pools.medium).slice(0, mediumCount).map((item) => createReferenceRushPuzzle(item, pools, "medium")),
+    ...shuffleItems(pools.hard).slice(0, hardCount).map((item) => createReferenceRushPuzzle(item, pools, "hard")),
+  ];
+}
+
+function createReferenceRushPuzzle(item, pools, difficulty) {
+  const distractors = referenceRushDistractors(item, pools, difficulty);
+  const correctAnswer = difficulty === "easy" ? item.book : item.reference;
+  const choices = difficulty === "easy"
+    ? shuffleItems([item.book, ...distractors.map((choice) => choice.book)])
+    : shuffleItems([item.reference, ...distractors.map((choice) => choice.reference)]);
   return {
     ...item,
-    choices: shuffleItems([item.reference, ...distractors.map((choice) => choice.reference)]),
+    difficulty: `${difficulty.charAt(0).toUpperCase()}${difficulty.slice(1)}`,
+    correctAnswer,
+    choices,
     selectedReference: null,
+    hintLevel: 0,
+    eliminatedChoices: [],
+    learningNote: referenceRushLearningNote(item),
   };
 }
 
-function referenceRushDistractors(item, pool) {
-  const difficulty = state.triviaDifficulty.toLowerCase();
-  const otherItems = pool.filter((candidate) => candidate.reference !== item.reference);
-  let candidates = otherItems;
+function referenceRushDistractors(item, pools, difficulty) {
+  const levelPool = pools[difficulty];
+  const otherItems = levelPool.filter((candidate) => candidate.reference !== item.reference);
+  let candidates = otherItems.slice();
   if (difficulty === "easy") {
-    candidates = otherItems.filter((candidate) => candidate.testament === item.testament && candidate.book !== item.book);
+    candidates = uniqueBookChoices(shuffleItems(otherItems.filter((candidate) => candidate.book !== item.book)), 2);
+    return candidates;
   } else if (difficulty === "medium") {
-    candidates = otherItems.filter((candidate) => candidate.book !== item.book);
+    const topics = referenceRushTopics(item.text);
+    candidates = otherItems
+      .filter((candidate) => candidate.book !== item.book)
+      .sort((a, b) => referenceRushTopicScore(b, topics) - referenceRushTopicScore(a, topics));
   } else if (difficulty === "hard") {
-    candidates = otherItems.filter((candidate) => candidate.book === item.book);
+    candidates = pools.all
+      .filter((candidate) => candidate.book === item.book && candidate.reference !== item.reference)
+      .sort((a, b) => referenceRushReferenceDistance(item, a) - referenceRushReferenceDistance(item, b));
   }
-  const picked = uniqueReferenceChoices(shuffleItems(candidates), 3);
+  const candidateWindow = difficulty === "medium" ? candidates.slice(0, 18) : candidates.slice(0, 20);
+  const picked = uniqueReferenceChoices(shuffleItems(candidateWindow), 3);
   if (picked.length < 3) {
     picked.push(...uniqueReferenceChoices(shuffleItems(otherItems), 3 - picked.length, new Set([item.reference, ...picked.map((choice) => choice.reference)])));
   }
   return picked.slice(0, 3);
+}
+
+function uniqueBookChoices(items, limit) {
+  const booksSeen = new Set();
+  const choices = [];
+  items.forEach((item) => {
+    if (choices.length >= limit || booksSeen.has(item.book)) return;
+    booksSeen.add(item.book);
+    choices.push(item);
+  });
+  return choices;
+}
+
+function referenceRushTopics(text) {
+  const topicPatterns = {
+    love: /\blove|loving|beloved\b/i,
+    faith: /\bfaith|believ|trust\b/i,
+    prayer: /\bpray|ask|seek\b/i,
+    wisdom: /\bwisdom|wise|understand|knowledge\b/i,
+    courage: /\bfear|afraid|courage|strong\b/i,
+    creation: /\bcreat|heaven|earth|light\b/i,
+    salvation: /\bsav|redeem|forgiv|sin|grace\b/i,
+    shepherd: /\bshepherd|sheep|flock\b/i,
+    spirit: /\bspirit|fruit\b/i,
+    life: /\blife|death|resurrection|eternal\b/i,
+    word: /\bword|scripture|law|command\b/i,
+    peace: /\bpeace|rest|comfort\b/i,
+  };
+  return Object.entries(topicPatterns).filter(([, pattern]) => pattern.test(text)).map(([topic]) => topic);
+}
+
+function referenceRushTopicScore(item, topics) {
+  const candidateTopics = referenceRushTopics(item.text);
+  return candidateTopics.filter((topic) => topics.includes(topic)).length;
+}
+
+function referenceRushReferenceDistance(item, candidate) {
+  return Math.abs(item.chapterNumber - candidate.chapterNumber) * 100 + Math.abs(Number(item.verseNumber) - Number(candidate.verseNumber));
+}
+
+function referenceRushLearningNote(item) {
+  const exactQuestion = triviaQuestions().find((question) => question.reference === item.reference && question.explanation);
+  if (exactQuestion) return exactQuestion.explanation;
+  const contexts = {
+    old: "the Old Testament story, poetry, or prophecy",
+    new: "the New Testament account of Jesus and the early church",
+  };
+  return `This passage comes from ${item.book}, part of ${contexts[item.testament]}.`;
+}
+
+function referenceRushHintText(puzzle) {
+  if (!puzzle.hintLevel) return "";
+  const testament = puzzle.testament === "old" ? "Old Testament" : "New Testament";
+  if (puzzle.hintLevel === 1) return `This passage is in the ${testament}.`;
+  return `This passage is in the ${testament}. One incorrect choice has been removed.`;
 }
 
 function uniqueReferenceChoices(items, limit, seen = new Set()) {
@@ -4610,7 +4735,24 @@ function answerReferenceRush(reference) {
   const puzzle = game.puzzles[game.index];
   if (!puzzle || puzzle.selectedReference !== null) return;
   puzzle.selectedReference = reference;
-  if (reference === puzzle.reference) game.score += 1;
+  if (reference === puzzle.correctAnswer) game.score += 1;
+  renderPreservingReaderScroll();
+}
+
+function revealReferenceRushHint() {
+  const game = state.triviaGame;
+  if (!game || game.type !== "reference-rush" || game.complete) return;
+  const puzzle = game.puzzles[game.index];
+  if (!puzzle || puzzle.selectedReference !== null) return;
+  if (puzzle.hintLevel === 0) {
+    puzzle.hintLevel = 1;
+  } else {
+    puzzle.hintLevel = 2;
+    if (!puzzle.eliminatedChoices.length) {
+      const removable = puzzle.choices.filter((choice) => choice !== puzzle.correctAnswer);
+      puzzle.eliminatedChoices = shuffleItems(removable).slice(0, 1);
+    }
+  }
   renderPreservingReaderScroll();
 }
 
