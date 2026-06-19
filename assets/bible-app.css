@@ -676,6 +676,11 @@ button {
   position: relative;
 }
 
+.topbar .primary-version-control.open,
+.topbar .version-manager.open {
+  z-index: 100;
+}
+
 .topbar .primary-version-control {
   flex: 0 0 92px;
   width: 92px;
@@ -1603,6 +1608,19 @@ button {
 .panel-minihead .icon-btn {
   width: 34px;
   min-height: 34px;
+}
+
+.panel-minihead .icon-btn[data-tooltip]::after {
+  top: calc(100% + 9px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  transform: translate(0, -4px);
+}
+
+.panel-minihead .icon-btn[data-tooltip]:hover::after,
+.panel-minihead .icon-btn[data-tooltip]:focus-visible::after {
+  transform: translate(0, 0);
 }
 
 .select-row {
@@ -3310,7 +3328,7 @@ select {
 
 .study-popup {
   position: fixed;
-  z-index: 50;
+  z-index: 210;
   width: min(360px, calc(100vw - 24px));
   max-height: min(460px, calc(100vh - 24px));
   overflow: auto;
