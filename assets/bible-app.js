@@ -136,6 +136,8 @@ let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
+let bookSprintDragState = null;
+let bookSprintSuppressClickUntil = 0;
 let cloudSyncTimer = 0;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
@@ -2467,13 +2469,14 @@ function bookSprintGameView(game) {
           <strong>${escapeHtml(bookSprintBestLabel(best))}</strong>
         </div>
       </div>
-      <h2>Tap these books in Bible order.</h2>
+      <h2>Put these books in Bible order.</h2>
+      <p class="book-sprint-instructions" id="bookSprintInstructions">Tap books to add them, or drag them into place. Drag placed books to reorder them.</p>
       <div class="verse-order-board">
-        <div class="verse-order-answer book-sprint-answer" aria-label="Selected books">
-          ${puzzle.selectedBooks.length ? puzzle.selectedBooks.map((book, index) => `<button class="verse-fragment selected-fragment" data-book-selected="${escapeHtml(book)}" ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(book)}</button>`).join("") : `<span class="verse-order-placeholder">Build the order here.</span>`}
+        <div class="verse-order-answer book-sprint-answer" data-book-drop-zone aria-label="Selected books" aria-describedby="bookSprintInstructions">
+          ${puzzle.selectedBooks.length ? puzzle.selectedBooks.map((book, index) => `<button class="verse-fragment selected-fragment book-sprint-draggable" data-book-selected="${escapeHtml(book)}" data-book-drag="${escapeHtml(book)}" data-book-position="${index}" aria-label="${escapeHtml(book)}, position ${index + 1}. Tap to remove or drag to reorder." ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(book)}</button>`).join("") : `<span class="verse-order-placeholder">Build the order here.</span>`}
         </div>
-        <div class="verse-fragment-bank" aria-label="Book choices">
-          ${puzzle.shuffledBooks.map((book) => `<button class="verse-fragment ${selectedSet.has(book) ? "is-used" : ""}" data-book-answer="${escapeHtml(book)}" ${selectedSet.has(book) || answered ? "disabled" : ""}>${escapeHtml(book)}</button>`).join("")}
+        <div class="verse-fragment-bank book-sprint-bank" data-book-bank-drop aria-label="Book choices">
+          ${puzzle.shuffledBooks.map((book) => `<button class="verse-fragment book-sprint-draggable ${selectedSet.has(book) ? "is-used" : ""}" data-book-answer="${escapeHtml(book)}" data-book-drag="${escapeHtml(book)}" aria-label="${escapeHtml(book)}. Tap or drag to add." ${selectedSet.has(book) || answered ? "disabled" : ""}>${escapeHtml(book)}</button>`).join("")}
         </div>
       </div>
       ${!answered && puzzle.lastAttemptIncorrect ? `
@@ -3906,10 +3909,19 @@ function bindEvents() {
     button.addEventListener("click", () => useReferenceRushHint(button.dataset.referenceHint));
   });
   document.querySelectorAll("[data-book-answer]").forEach((button) => {
-    button.addEventListener("click", () => selectBookSprintBook(button.dataset.bookAnswer));
+    button.addEventListener("click", () => {
+      if (shouldSuppressBookSprintClick()) return;
+      selectBookSprintBook(button.dataset.bookAnswer);
+    });
   });
   document.querySelectorAll("[data-book-selected]").forEach((button) => {
-    button.addEventListener("click", () => removeBookSprintBook(button.dataset.bookSelected));
+    button.addEventListener("click", () => {
+      if (shouldSuppressBookSprintClick()) return;
+      removeBookSprintBook(button.dataset.bookSelected);
+    });
+  });
+  document.querySelectorAll("[data-book-drag]:not(:disabled)").forEach((button) => {
+    button.addEventListener("pointerdown", (event) => beginBookSprintDrag(event, button));
   });
   document.querySelectorAll("[data-who-answer]").forEach((button) => {
     button.addEventListener("click", () => answerWhoSaidIt(button.dataset.whoAnswer));
@@ -4976,9 +4988,149 @@ function selectBookSprintBook(book) {
 
 function removeBookSprintBook(book) {
   const puzzle = currentBookSprintPuzzle();
-  if (!puzzle || puzzle.answered) return;
+  if (!puzzle || puzzle.answered || !puzzle.selectedBooks.includes(book)) return;
   puzzle.lastAttemptIncorrect = false;
   puzzle.selectedBooks = puzzle.selectedBooks.filter((item) => item !== book);
+  renderPreservingReaderScroll();
+}
+
+function shouldSuppressBookSprintClick() {
+  return Date.now() < bookSprintSuppressClickUntil;
+}
+
+function beginBookSprintDrag(event, button) {
+  const puzzle = currentBookSprintPuzzle();
+  if (!puzzle || puzzle.answered || event.button !== 0 || bookSprintDragState) return;
+  bookSprintDragState = {
+    pointerId: event.pointerId,
+    book: button.dataset.bookDrag,
+    source: button,
+    startX: event.clientX,
+    startY: event.clientY,
+    dragging: false,
+    ghost: null,
+    drop: null,
+  };
+  button.setPointerCapture?.(event.pointerId);
+  document.addEventListener("pointermove", moveBookSprintDrag, { passive: false });
+  document.addEventListener("pointerup", finishBookSprintDrag);
+  document.addEventListener("pointercancel", cancelBookSprintDrag);
+}
+
+function moveBookSprintDrag(event) {
+  const drag = bookSprintDragState;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+  if (!drag.dragging && distance < 7) return;
+  if (!drag.dragging) {
+    drag.dragging = true;
+    drag.ghost = drag.source.cloneNode(true);
+    drag.ghost.className = "book-sprint-drag-ghost";
+    drag.ghost.removeAttribute("id");
+    drag.ghost.removeAttribute("disabled");
+    drag.ghost.setAttribute("aria-hidden", "true");
+    document.body.appendChild(drag.ghost);
+    drag.source.classList.add("is-dragging");
+    document.body.classList.add("book-sprint-is-dragging");
+  }
+  event.preventDefault();
+  drag.ghost.style.left = `${event.clientX}px`;
+  drag.ghost.style.top = `${event.clientY}px`;
+  drag.drop = bookSprintDropTarget(event.clientX, event.clientY);
+  updateBookSprintDropIndicator(drag.drop);
+}
+
+function bookSprintDropTarget(x, y) {
+  const answer = document.querySelector("[data-book-drop-zone]");
+  const bank = document.querySelector("[data-book-bank-drop]");
+  const element = document.elementFromPoint(x, y);
+  if (answer && (element?.closest("[data-book-drop-zone]") === answer || pointInsideElement(x, y, answer))) {
+    const buttons = [...answer.querySelectorAll("[data-book-selected]")];
+    if (!buttons.length) return { type: "answer", index: 0 };
+    const directTarget = element?.closest("[data-book-selected]");
+    if (directTarget && answer.contains(directTarget)) {
+      const index = buttons.indexOf(directTarget);
+      const rect = directTarget.getBoundingClientRect();
+      const singleColumn = buttons.length > 1 && buttons.every((button) => Math.abs(button.getBoundingClientRect().left - buttons[0].getBoundingClientRect().left) < 4);
+      const insertAfter = singleColumn ? y >= rect.top + rect.height / 2 : x >= rect.left + rect.width / 2;
+      return { type: "answer", index: index + (insertAfter ? 1 : 0), indicator: directTarget, insertAfter };
+    }
+    const closestIndex = buttons.reduce((best, button, index) => {
+      const rect = button.getBoundingClientRect();
+      const distance = Math.hypot(x - (rect.left + rect.width / 2), y - (rect.top + rect.height / 2));
+      return distance < best.distance ? { index, distance, rect } : best;
+    }, { index: buttons.length - 1, distance: Infinity, rect: null });
+    const insertAfter = y > closestIndex.rect.bottom || x >= closestIndex.rect.left + closestIndex.rect.width / 2;
+    return { type: "answer", index: closestIndex.index + (insertAfter ? 1 : 0), indicator: buttons[closestIndex.index], insertAfter };
+  }
+  if (bank && (element?.closest("[data-book-bank-drop]") === bank || pointInsideElement(x, y, bank))) {
+    return { type: "bank" };
+  }
+  return null;
+}
+
+function pointInsideElement(x, y, element) {
+  const rect = element.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function updateBookSprintDropIndicator(drop) {
+  document.querySelectorAll(".book-sprint-drop-active, .book-sprint-insert-before, .book-sprint-insert-after").forEach((element) => {
+    element.classList.remove("book-sprint-drop-active", "book-sprint-insert-before", "book-sprint-insert-after");
+  });
+  if (!drop) return;
+  const zone = document.querySelector(drop.type === "answer" ? "[data-book-drop-zone]" : "[data-book-bank-drop]");
+  zone?.classList.add("book-sprint-drop-active");
+  drop.indicator?.classList.add(drop.insertAfter ? "book-sprint-insert-after" : "book-sprint-insert-before");
+}
+
+function finishBookSprintDrag(event) {
+  const drag = bookSprintDragState;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const drop = drag.dragging ? bookSprintDropTarget(event.clientX, event.clientY) : null;
+  const didDrag = drag.dragging;
+  cleanupBookSprintDrag();
+  if (!didDrag || !drop) return;
+  bookSprintSuppressClickUntil = Date.now() + 500;
+  if (drop.type === "answer") {
+    moveBookSprintBook(drag.book, drop.index);
+  } else {
+    removeBookSprintBook(drag.book);
+  }
+}
+
+function cancelBookSprintDrag(event) {
+  if (!bookSprintDragState || event.pointerId !== bookSprintDragState.pointerId) return;
+  cleanupBookSprintDrag();
+}
+
+function cleanupBookSprintDrag() {
+  const drag = bookSprintDragState;
+  if (!drag) return;
+  drag.source.classList.remove("is-dragging");
+  drag.ghost?.remove();
+  document.body.classList.remove("book-sprint-is-dragging");
+  updateBookSprintDropIndicator(null);
+  document.removeEventListener("pointermove", moveBookSprintDrag);
+  document.removeEventListener("pointerup", finishBookSprintDrag);
+  document.removeEventListener("pointercancel", cancelBookSprintDrag);
+  bookSprintDragState = null;
+}
+
+function moveBookSprintBook(book, targetIndex) {
+  const puzzle = currentBookSprintPuzzle();
+  if (!puzzle || puzzle.answered) return;
+  const currentIndex = puzzle.selectedBooks.indexOf(book);
+  const nextBooks = puzzle.selectedBooks.slice();
+  if (currentIndex >= 0) {
+    nextBooks.splice(currentIndex, 1);
+    if (currentIndex < targetIndex) targetIndex -= 1;
+  }
+  targetIndex = Math.max(0, Math.min(targetIndex, nextBooks.length));
+  nextBooks.splice(targetIndex, 0, book);
+  if (nextBooks.every((item, index) => item === puzzle.selectedBooks[index])) return;
+  puzzle.lastAttemptIncorrect = false;
+  puzzle.selectedBooks = nextBooks;
   renderPreservingReaderScroll();
 }
 

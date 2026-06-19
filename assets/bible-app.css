@@ -2032,6 +2032,14 @@ select {
   text-align: center;
 }
 
+.book-sprint-instructions {
+  margin: -10px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .trivia-game {
   position: relative;
   display: grid;
@@ -2195,6 +2203,63 @@ select {
   color: var(--inverse);
   font-size: 12px;
   font-weight: 900;
+}
+
+.book-sprint-draggable:not(:disabled) {
+  cursor: grab;
+  touch-action: none;
+}
+
+.book-sprint-draggable.is-dragging {
+  opacity: 0.28;
+}
+
+.book-sprint-is-dragging,
+.book-sprint-is-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.book-sprint-drag-ghost {
+  position: fixed;
+  z-index: 10000;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  transform: translate(-50%, -58%) rotate(-1deg);
+  pointer-events: none;
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--ink) 22%, transparent);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 11px 14px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.book-sprint-drag-ghost span {
+  display: none;
+}
+
+.book-sprint-answer,
+.book-sprint-bank {
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.book-sprint-answer.book-sprint-drop-active,
+.book-sprint-bank.book-sprint-drop-active {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 15%, var(--paper));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--teal) 22%, transparent);
+}
+
+.book-sprint-insert-before {
+  box-shadow: -4px 0 0 var(--teal);
+}
+
+.book-sprint-insert-after {
+  box-shadow: 4px 0 0 var(--teal);
 }
 
 .reference-rush-prompt {
@@ -6139,6 +6204,14 @@ svg {
   .verse-fragment-bank {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .book-sprint-insert-before {
+    box-shadow: 0 -4px 0 var(--teal);
+  }
+
+  .book-sprint-insert-after {
+    box-shadow: 0 4px 0 var(--teal);
   }
 
   .trivia-reference,
