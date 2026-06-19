@@ -3403,7 +3403,6 @@ select {
   display: grid;
   grid-template-rows: minmax(calc(64px + env(safe-area-inset-top, 0px)), auto) minmax(0, 1fr) minmax(72px, auto);
   overflow: hidden;
-  animation: backdropIn var(--motion-base) ease-out both;
 }
 
 .presentation :is(button, select, input) {
