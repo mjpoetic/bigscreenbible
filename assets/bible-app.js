@@ -587,7 +587,7 @@ function render() {
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
     state.pendingVerseFocus = false;
-    requestAnimationFrame(scrollSelectedVerseIntoView);
+    requestAnimationFrame(() => requestAnimationFrame(scrollSelectedVerseIntoView));
   }
   if (state.pendingPanelFocus) {
     const target = state.pendingPanelFocus;
@@ -5943,8 +5943,21 @@ function normalizeBookName(value) {
 }
 
 function scrollSelectedVerseIntoView() {
-  const selected = document.querySelector(`.scripture [data-verse="${state.verse}"], .parallel-table [data-verse="${state.verse}"], [data-verse="${state.verse}"]`);
-  selected?.scrollIntoView({ block: "center", behavior: "smooth" });
+  const scripture = document.querySelector(".scripture");
+  const selected = scripture?.querySelector(`[data-verse="${state.verse}"]`)
+    || document.querySelector(`[data-verse="${state.verse}"]`);
+  if (!selected) return;
+  if (scripture && scripture.scrollHeight > scripture.clientHeight) {
+    const scriptureBounds = scripture.getBoundingClientRect();
+    const selectedBounds = selected.getBoundingClientRect();
+    const centeredTop = scripture.scrollTop
+      + selectedBounds.top
+      - scriptureBounds.top
+      - ((scripture.clientHeight - selectedBounds.height) / 2);
+    scripture.scrollTop = Math.max(0, centeredTop);
+    return;
+  }
+  selected.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 
 function moveVerse(direction) {
