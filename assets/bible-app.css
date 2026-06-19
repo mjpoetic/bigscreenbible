@@ -6515,6 +6515,11 @@ svg {
     animation: mobileControlIn var(--motion-base) var(--motion-ease) both;
   }
 
+  .app-shell.mobile-controls-open .account-menu.open {
+    animation: none !important;
+    transform: none !important;
+  }
+
   .versions {
     grid-column: 1 / -1;
   }
