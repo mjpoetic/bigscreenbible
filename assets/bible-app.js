@@ -2354,7 +2354,7 @@ function referenceRushGameView(game) {
   const answered = puzzle.selectedReference !== null;
   const correct = puzzle.selectedReference === puzzle.correctAnswer;
   const levelLabel = game.difficulty === "All" ? `Progressive · ${puzzle.difficulty}` : game.difficulty;
-  const hintText = referenceRushHintText(puzzle);
+  const hintOptions = referenceRushHintOptions(puzzle);
   return `
     <div class="trivia-game reference-rush-game">
       <div class="trivia-progress">
@@ -2370,8 +2370,28 @@ function referenceRushGameView(game) {
       </div>
       ${!answered ? `
         <div class="reference-rush-hints">
-          ${hintText ? `<p role="status">${escapeHtml(hintText)}</p>` : ""}
-          <button class="ghost-btn" id="referenceRushHint" ${puzzle.hintLevel >= 2 ? "disabled" : ""}>${puzzle.hintLevel >= 2 ? "Hints used" : puzzle.hintLevel ? "Another hint" : "Hint"}</button>
+          ${puzzle.hintUsed ? `
+            <div class="reference-rush-hint-result" role="status">
+              <strong>${escapeHtml(referenceRushHintLabel(puzzle.hintUsed))} used</strong>
+              <p>${escapeHtml(puzzle.hintMessage)}</p>
+            </div>
+          ` : puzzle.hintMenuOpen ? `
+            <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
+              <div>
+                <strong>Choose one hint</strong>
+                <span>You can use one type for this verse.</span>
+              </div>
+              ${hintOptions.map((hint) => `
+                <button type="button" data-reference-hint="${escapeHtml(hint.type)}">
+                  <strong>${escapeHtml(hint.label)}</strong>
+                  <span>${escapeHtml(hint.description)}</span>
+                </button>
+              `).join("")}
+              <button class="reference-rush-hint-cancel" id="closeReferenceRushHints" type="button">Cancel</button>
+            </div>
+          ` : `
+            <button class="ghost-btn" id="referenceRushHint" type="button">Choose a hint</button>
+          `}
         </div>
       ` : ""}
       ${answered ? `
@@ -3868,7 +3888,11 @@ function bindEvents() {
   document.querySelectorAll("[data-reference-answer]").forEach((button) => {
     button.addEventListener("click", () => answerReferenceRush(button.dataset.referenceAnswer));
   });
-  document.getElementById("referenceRushHint")?.addEventListener("click", revealReferenceRushHint);
+  document.getElementById("referenceRushHint")?.addEventListener("click", toggleReferenceRushHintMenu);
+  document.getElementById("closeReferenceRushHints")?.addEventListener("click", toggleReferenceRushHintMenu);
+  document.querySelectorAll("[data-reference-hint]").forEach((button) => {
+    button.addEventListener("click", () => useReferenceRushHint(button.dataset.referenceHint));
+  });
   document.querySelectorAll("[data-book-answer]").forEach((button) => {
     button.addEventListener("click", () => selectBookSprintBook(button.dataset.bookAnswer));
   });
@@ -4366,9 +4390,14 @@ function createReferenceRushPuzzle(item, pools, difficulty) {
     correctAnswer,
     choices,
     selectedReference: null,
-    hintLevel: 0,
+    hintMenuOpen: false,
+    hintUsed: "",
+    hintMessage: "",
     eliminatedChoices: [],
     learningNote: referenceRushLearningNote(item),
+    scholarHint: referenceRushScholarHint(item),
+    contextPreview: referenceRushContextPreview(item),
+    higherLowerHint: referenceRushHigherLowerHint(item, choices),
   };
 }
 
@@ -4445,11 +4474,147 @@ function referenceRushLearningNote(item) {
   return `This passage comes from ${item.book}, part of ${contexts[item.testament]}.`;
 }
 
-function referenceRushHintText(puzzle) {
-  if (!puzzle.hintLevel) return "";
-  const testament = puzzle.testament === "old" ? "Old Testament" : "New Testament";
-  if (puzzle.hintLevel === 1) return `This passage is in the ${testament}.`;
-  return `This passage is in the ${testament}. One incorrect choice has been removed.`;
+function referenceRushHintOptions(puzzle) {
+  const options = [];
+  if (puzzle.choices.length >= 3) {
+    options.push({
+      type: "eliminate",
+      label: "Eliminate One",
+      description: "Remove one incorrect answer.",
+    });
+  }
+  if (puzzle.choices.length >= 4) {
+    options.push({
+      type: "fifty-fifty",
+      label: "50/50",
+      description: "Leave the correct answer and one wrong answer.",
+    });
+  }
+  if (puzzle.higherLowerHint) {
+    options.push({
+      type: "higher-lower",
+      label: "Higher or Lower",
+      description: "Get a clue about the chapter or verse number.",
+    });
+  }
+  if (puzzle.scholarHint) {
+    options.push({
+      type: "scholar",
+      label: "Bible Scholar",
+      description: "Reveal a literary or historical clue.",
+    });
+  }
+  if (puzzle.contextPreview) {
+    options.push({
+      type: "context",
+      label: "Context Preview",
+      description: "Read a nearby verse without its reference.",
+    });
+  }
+  return options;
+}
+
+function referenceRushHintLabel(type) {
+  return {
+    eliminate: "Eliminate One",
+    "fifty-fifty": "50/50",
+    "higher-lower": "Higher or Lower",
+    scholar: "Bible Scholar",
+    context: "Context Preview",
+  }[type] || "Hint";
+}
+
+function referenceRushScholarHint(item) {
+  const exactQuestion = triviaQuestions().find((question) => {
+    return question.reference === item.reference
+      && question.explanation
+      && question.explanation.trim() !== item.text.trim();
+  });
+  if (exactQuestion) return exactQuestion.explanation;
+  if (["Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy"].includes(item.book)) {
+    return "Look within the Torah—the Bible’s first five books, which introduce creation, covenant, and Israel’s law.";
+  }
+  if (["Job", "Psalm", "Proverbs", "Ecclesiastes", "Song of Songs"].includes(item.book)) {
+    return item.book === "Psalm"
+      ? "This comes from Israel’s collection of songs and prayers."
+      : "This comes from the Bible’s wisdom and poetry writings.";
+  }
+  if (["Isaiah", "Jeremiah", "Lamentations", "Ezekiel", "Daniel"].includes(item.book)) {
+    return "This comes from one of the Major Prophets.";
+  }
+  if (verseOfDayCategory(item.book) === "prophet") {
+    return "This comes from one of the twelve Minor Prophets.";
+  }
+  if (["Matthew", "Mark", "Luke", "John"].includes(item.book)) {
+    return "This appears in one of the four Gospel accounts of Jesus.";
+  }
+  if (item.book === "Acts") {
+    return "This comes from the history of the earliest Christians after Jesus’ resurrection.";
+  }
+  if (["1 Timothy", "2 Timothy", "Titus"].includes(item.book)) {
+    return "This comes from one of Paul’s pastoral letters to a church leader.";
+  }
+  if (["Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "Philemon"].includes(item.book)) {
+    return "This comes from one of Paul’s letters to an early Christian community or coworker.";
+  }
+  if (item.book === "Revelation") {
+    return "This comes from the New Testament’s apocalyptic vision of Christ’s victory.";
+  }
+  if (newTestamentBooks.includes(item.book)) {
+    return "This comes from one of the New Testament’s general letters.";
+  }
+  return "This comes from the Old Testament books that tell Israel’s history.";
+}
+
+function referenceRushContextPreview(item) {
+  const chapter = bibleData[item.chapterKey];
+  const verses = chapter?.verses || [];
+  const verseIndex = verses.findIndex((verse) => Number(verse.n) === Number(item.verseNumber));
+  if (verseIndex < 0) return "";
+  const neighbor = verses[verseIndex - 1] || verses[verseIndex + 1];
+  if (!neighbor) return "";
+  const text = cleanVerseOrderText(getVerseText(neighbor, item.version));
+  if (!text) return "";
+  const direction = verses[verseIndex - 1] ? "The preceding verse says" : "The following verse says";
+  return `${direction}: ${text}`;
+}
+
+function referenceRushHigherLowerHint(item, choices) {
+  const parsedChoices = choices.map((choice) => {
+    const match = String(choice).match(/^(.+)\s(\d+):(\d+)$/);
+    return match ? { choice, book: match[1], chapter: Number(match[2]), verse: Number(match[3]) } : null;
+  }).filter(Boolean);
+  if (parsedChoices.length !== choices.length || new Set(parsedChoices.map((choice) => choice.book)).size !== 1) return "";
+  const correct = parsedChoices.find((choice) => choice.choice === item.reference);
+  if (!correct) return "";
+  const chapterValues = new Set(parsedChoices.map((choice) => choice.chapter));
+  if (chapterValues.size > 1) {
+    return referenceRushNumberHint(parsedChoices.map((choice) => choice.chapter), correct.chapter, "chapter");
+  }
+  return referenceRushNumberHint(parsedChoices.map((choice) => choice.verse), correct.verse, "verse");
+}
+
+function referenceRushNumberHint(values, correctValue, label) {
+  const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+  if (uniqueValues.length < 2) return "";
+  const clues = uniqueValues.flatMap((threshold) => {
+    const results = [];
+    if (correctValue < threshold) {
+      results.push({
+        text: `The correct ${label} number is lower than ${threshold}.`,
+        remaining: values.filter((value) => value < threshold).length,
+      });
+    }
+    if (correctValue > threshold) {
+      results.push({
+        text: `The correct ${label} number is higher than ${threshold}.`,
+        remaining: values.filter((value) => value > threshold).length,
+      });
+    }
+    return results;
+  }).filter((clue) => clue.remaining > 0 && clue.remaining < values.length);
+  clues.sort((a, b) => Math.abs(a.remaining - values.length / 2) - Math.abs(b.remaining - values.length / 2));
+  return clues[0]?.text || "";
 }
 
 function uniqueReferenceChoices(items, limit, seen = new Set()) {
@@ -4739,20 +4904,38 @@ function answerReferenceRush(reference) {
   renderPreservingReaderScroll();
 }
 
-function revealReferenceRushHint() {
+function toggleReferenceRushHintMenu() {
   const game = state.triviaGame;
   if (!game || game.type !== "reference-rush" || game.complete) return;
   const puzzle = game.puzzles[game.index];
-  if (!puzzle || puzzle.selectedReference !== null) return;
-  if (puzzle.hintLevel === 0) {
-    puzzle.hintLevel = 1;
-  } else {
-    puzzle.hintLevel = 2;
-    if (!puzzle.eliminatedChoices.length) {
-      const removable = puzzle.choices.filter((choice) => choice !== puzzle.correctAnswer);
-      puzzle.eliminatedChoices = shuffleItems(removable).slice(0, 1);
-    }
+  if (!puzzle || puzzle.selectedReference !== null || puzzle.hintUsed) return;
+  puzzle.hintMenuOpen = !puzzle.hintMenuOpen;
+  renderPreservingReaderScroll();
+}
+
+function useReferenceRushHint(type) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "reference-rush" || game.complete) return;
+  const puzzle = game.puzzles[game.index];
+  if (!puzzle || puzzle.selectedReference !== null || puzzle.hintUsed) return;
+  const availableTypes = new Set(referenceRushHintOptions(puzzle).map((hint) => hint.type));
+  if (!availableTypes.has(type)) return;
+  const removable = puzzle.choices.filter((choice) => choice !== puzzle.correctAnswer);
+  if (type === "eliminate") {
+    puzzle.eliminatedChoices = shuffleItems(removable).slice(0, 1);
+    puzzle.hintMessage = "One incorrect answer has been removed.";
+  } else if (type === "fifty-fifty") {
+    puzzle.eliminatedChoices = shuffleItems(removable).slice(0, Math.max(0, puzzle.choices.length - 2));
+    puzzle.hintMessage = "Two possibilities remain.";
+  } else if (type === "higher-lower") {
+    puzzle.hintMessage = puzzle.higherLowerHint;
+  } else if (type === "scholar") {
+    puzzle.hintMessage = puzzle.scholarHint;
+  } else if (type === "context") {
+    puzzle.hintMessage = puzzle.contextPreview;
   }
+  puzzle.hintUsed = type;
+  puzzle.hintMenuOpen = false;
   renderPreservingReaderScroll();
 }
 

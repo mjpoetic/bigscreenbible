@@ -2228,17 +2228,76 @@ select {
 }
 
 .reference-rush-hints {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  display: grid;
+  justify-items: end;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
-.reference-rush-hints p {
-  margin: 0 auto 0 0;
+.reference-rush-hint-result {
+  width: 100%;
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--gold) 8%, var(--paper));
+  padding: 14px 16px;
+}
+
+.reference-rush-hint-result strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--gold);
+}
+
+.reference-rush-hint-result p {
+  margin: 0;
   color: var(--muted);
   font-weight: 750;
+  line-height: 1.55;
+}
+
+.reference-rush-hint-menu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+
+.reference-rush-hint-menu > div {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+}
+
+.reference-rush-hint-menu > div span,
+.reference-rush-hint-menu button span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.reference-rush-hint-menu button {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 12px;
+  text-align: left;
+}
+
+.reference-rush-hint-menu button:not(.reference-rush-hint-cancel):hover {
+  border-color: var(--teal);
+}
+
+.reference-rush-hint-menu .reference-rush-hint-cancel {
+  grid-column: 1 / -1;
+  justify-items: center;
+  background: transparent;
+  color: var(--muted);
 }
 
 .trivia-choice.eliminated {
@@ -6063,6 +6122,15 @@ svg {
 
   .reference-rush-level-note {
     margin-left: 28px;
+  }
+
+  .reference-rush-hint-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-rush-hint-menu > div,
+  .reference-rush-hint-menu .reference-rush-hint-cancel {
+    grid-column: 1;
   }
 
   .book-sprint-best-card,
