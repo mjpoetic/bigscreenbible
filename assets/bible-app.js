@@ -616,16 +616,23 @@ function syncPresentationShell() {
 function renderPreservingReaderScroll() {
   const scrollState = captureReaderScroll();
   render();
-  requestAnimationFrame(() => restoreReaderScroll(scrollState));
+  restoreReaderScroll(scrollState);
+  requestAnimationFrame(() => {
+    restoreReaderScroll(scrollState);
+    requestAnimationFrame(() => restoreReaderScroll(scrollState));
+  });
 }
 
 function captureReaderScroll() {
   const scripture = document.querySelector(".scripture");
+  const triviaReader = document.querySelector(".trivia-reader");
   return {
     windowX: window.scrollX,
     windowY: window.scrollY,
     scriptureTop: scripture?.scrollTop ?? null,
     scriptureLeft: scripture?.scrollLeft ?? null,
+    triviaTop: triviaReader?.scrollTop ?? null,
+    triviaLeft: triviaReader?.scrollLeft ?? null,
   };
 }
 
@@ -645,9 +652,14 @@ function restoreLibraryScroll(scrollState) {
 function restoreReaderScroll(scrollState) {
   if (!scrollState) return;
   const scripture = document.querySelector(".scripture");
+  const triviaReader = document.querySelector(".trivia-reader");
   if (scripture && scrollState.scriptureTop !== null) {
     scripture.scrollTop = scrollState.scriptureTop;
     scripture.scrollLeft = scrollState.scriptureLeft || 0;
+  }
+  if (triviaReader && scrollState.triviaTop !== null) {
+    triviaReader.scrollTop = scrollState.triviaTop;
+    triviaReader.scrollLeft = scrollState.triviaLeft || 0;
   }
   window.scrollTo(scrollState.windowX, scrollState.windowY);
 }
@@ -6141,7 +6153,8 @@ function scrollSelectedVerseIntoView() {
       + selectedBounds.top
       - scriptureBounds.top
       - ((scripture.clientHeight - selectedBounds.height) / 2);
-    scripture.scrollTop = Math.max(0, centeredTop);
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+    scripture.scrollTo({ top: Math.max(0, centeredTop), behavior });
     return;
   }
   selected.scrollIntoView({ block: "center", behavior: "smooth" });
