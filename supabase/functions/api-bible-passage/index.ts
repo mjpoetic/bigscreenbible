@@ -1,3 +1,5 @@
+import { parseVerseContent } from "./content-parser.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -25,18 +27,6 @@ type AuthorizedBible = {
   abbreviation: string;
   name: string;
   copyright: string;
-};
-
-type ApiBibleContentNode = {
-  name?: string;
-  type?: string;
-  text?: string;
-  attrs?: {
-    number?: string;
-    verseId?: string;
-    verseOrgIds?: string[];
-  };
-  items?: ApiBibleContentNode[];
 };
 
 let authorizedBibleCache:
@@ -197,61 +187,6 @@ function chapterIdFromReference(reference: string) {
   const chapter = Number(match[2]);
   if (!bookId || !Number.isInteger(chapter) || chapter < 1 || chapter > 150) return "";
   return `${bookId}.${chapter}`;
-}
-
-function verseNumberFromId(value: unknown) {
-  const match = String(value || "").match(/\.(\d+)$/);
-  return match ? Number(match[1]) : 0;
-}
-
-function parseVerseContent(content: ApiBibleContentNode[]) {
-  const verseText = new Map<number, string>();
-  const paragraphStarts = new Set<number>();
-  let currentVerse = 0;
-
-  const appendText = (verseNumber: number, text: string) => {
-    if (!verseNumber || !text) return;
-    verseText.set(verseNumber, `${verseText.get(verseNumber) || ""}${text}`);
-  };
-
-  const visit = (node: ApiBibleContentNode, paragraphState: { firstVerse: number }) => {
-    if (!node || typeof node !== "object") return;
-
-    if (node.name === "verse") {
-      const verseNumber = Number(node.attrs?.number) || verseNumberFromId(node.attrs?.verseId);
-      if (verseNumber) {
-        currentVerse = verseNumber;
-        if (!paragraphState.firstVerse) paragraphState.firstVerse = verseNumber;
-      }
-      return;
-    }
-
-    if (node.type === "text" && typeof node.text === "string") {
-      const attributedVerse = verseNumberFromId(node.attrs?.verseId)
-        || verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
-      appendText(attributedVerse || currentVerse, node.text);
-      return;
-    }
-
-    (node.items || []).forEach((item) => visit(item, paragraphState));
-  };
-
-  content.forEach((block) => {
-    const paragraphState = { firstVerse: 0 };
-    visit(block, paragraphState);
-    if (block?.name === "para" && paragraphState.firstVerse) {
-      paragraphStarts.add(paragraphState.firstVerse);
-    }
-  });
-
-  return [...verseText.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([n, text]) => ({
-      n,
-      text: text.trim(),
-      paragraphStart: paragraphStarts.has(n),
-    }))
-    .filter(({ text }) => text.length > 0);
 }
 
 Deno.serve(async (request) => {
