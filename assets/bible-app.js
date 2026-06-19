@@ -4264,7 +4264,7 @@ function startReferenceRushGame() {
   }
   state.triviaGame = {
     type: "reference-rush",
-    version: state.versions[0] || "BSB",
+    version: referenceRushVersion(),
     difficulty: state.triviaDifficulty,
     puzzles,
     index: 0,
@@ -4315,8 +4315,12 @@ function referenceRushDifficultyDescription(difficulty) {
   return "Progressive · Begin by finding books, then finish with exact-reference challenges.";
 }
 
+function referenceRushVersion() {
+  return state.versions.find(isBundledTranslation) || "BSB";
+}
+
 function referenceRushPools() {
-  const version = state.versions[0] || "BSB";
+  const version = referenceRushVersion();
   const all = Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
     const book = bookFromChapterKey(chapterKey);
     const testament = oldTestamentBooks.includes(book) ? "old" : "new";
