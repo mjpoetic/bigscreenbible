@@ -5148,7 +5148,6 @@ function checkBookSprint() {
   if (!game || !puzzle || puzzle.answered || puzzle.selectedBooks.length !== puzzle.books.length) return;
   puzzle.correct = puzzle.selectedBooks.every((book, index) => book === puzzle.books[index]);
   if (!puzzle.correct) {
-    puzzle.selectedBooks = [];
     puzzle.lastAttemptIncorrect = true;
     renderPreservingReaderScroll();
     return;
