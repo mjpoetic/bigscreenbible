@@ -27,6 +27,9 @@
   --scripture-font: "Libre Baskerville", Georgia, serif;
   --brand-title-font: Copperplate, "Copperplate Gothic Light", "Copperplate Gothic Bold", "Libre Baskerville", Georgia, serif;
   --brand-subtitle-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --brand-title-size: clamp(21px, 1.65vw, 30px);
+  --brand-subtitle-size: clamp(11px, 0.75vw, 14px);
+  --brand-subtitle-gap: 0px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -571,7 +574,7 @@ button {
 }
 
 .brand-title {
-  font: 700 clamp(20px, 1.58vw, 29px)/0.96 var(--brand-title-font);
+  font: 700 var(--brand-title-size)/0.96 var(--brand-title-font);
   font-variant-caps: small-caps;
   letter-spacing: 0;
   white-space: nowrap;
@@ -581,11 +584,12 @@ button {
   color: var(--gold);
   display: block;
   font-family: var(--brand-subtitle-font);
-  font-size: clamp(10px, 0.7vw, 13px);
+  font-size: var(--brand-subtitle-size);
   font-weight: 700;
   letter-spacing: 0.2em;
   line-height: 1.15;
   margin-left: 1px;
+  margin-top: var(--brand-subtitle-gap);
   text-transform: uppercase;
 }
 
@@ -5216,6 +5220,11 @@ svg {
 }
 
 @media (min-width: 1321px) and (max-width: 1620px) {
+  :root {
+    --brand-title-size: 21px;
+    --brand-subtitle-size: 12px;
+  }
+
   .topbar {
     gap: 9px;
     padding-inline: 12px;
@@ -5232,14 +5241,6 @@ svg {
 
   .brand-divider {
     height: 40px;
-  }
-
-  .brand-title {
-    font-size: 20px;
-  }
-
-  .brand-subtitle {
-    font-size: 11px;
   }
 
   .streak-chip {
@@ -5310,6 +5311,8 @@ svg {
     --study-width: min(390px, 94vw);
     --reader-max: 100%;
     --reader-pad-x: clamp(28px, 4vw, 56px);
+    --brand-title-size: 21px;
+    --brand-subtitle-size: 12px;
   }
 
   .main-grid {
@@ -5330,10 +5333,6 @@ svg {
 
   .brand-mark-image {
     width: 70px;
-  }
-
-  .brand-title {
-    font-size: 20px;
   }
 
   .brand-divider {
@@ -5463,6 +5462,11 @@ svg {
 }
 
 @media (min-width: 841px) and (max-width: 1180px) {
+  :root {
+    --brand-title-size: 19px;
+    --brand-subtitle-size: 11px;
+  }
+
   .topbar {
     flex-wrap: nowrap;
     min-height: 72px;
@@ -5503,14 +5507,6 @@ svg {
 
   .brand-mark-image {
     width: 54px;
-  }
-
-  .brand-title {
-    font-size: 18px;
-  }
-
-  .brand-subtitle {
-    font-size: 10px;
   }
 
   .search {
@@ -5563,6 +5559,8 @@ svg {
     --rail-width: 56px;
     --verse-font: clamp(20px, 5.2vw, 27px);
     --parallel-font: clamp(16px, 4.2vw, 20px);
+    --brand-title-size: 19px;
+    --brand-subtitle-size: 12px;
   }
 
   [data-tooltip]::after {
@@ -5597,14 +5595,6 @@ svg {
 
   .brand-divider {
     height: 34px;
-  }
-
-  .brand-title {
-    font-size: 18px;
-  }
-
-  .brand-subtitle {
-    font-size: 11px;
   }
 
   .search {
@@ -6534,6 +6524,11 @@ svg {
 }
 
 @media (max-width: 560px) {
+  :root {
+    --brand-title-size: 17px;
+    --brand-subtitle-size: 11px;
+  }
+
   .topbar {
     grid-template-columns: repeat(12, minmax(0, 1fr));
   }
@@ -6544,14 +6539,6 @@ svg {
 
   .brand-mark-image {
     width: 50px;
-  }
-
-  .brand-title {
-    font-size: 16px;
-  }
-
-  .brand-subtitle {
-    font-size: 10px;
   }
 
   .mobile-controls-toggle {
