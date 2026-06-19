@@ -1441,7 +1441,7 @@ button {
 
 .theme-mode-button.active {
   background: var(--teal);
-  color: var(--inverse);
+  color: #fff;
 }
 
 .settings-popover .theme-toggle,
