@@ -1310,14 +1310,15 @@ function renderStrongText(verse, version) {
   return renderTextWithStrongNumbers(text, getStrongEntries(verse, version));
 }
 
-function getVerseText(verse, version) {
+function getVerseText(verse, version, chapterKey = state.reference) {
   if (verse[version]) return verse[version];
   if (isRemoteTranslation(version)) {
-    ensureRemoteBibleVersion(version, state.reference);
-    const loadKey = remoteVersionLoadKey(version, state.reference);
-    if (loadingVersions.has(loadKey)) return `Loading ${version}...`;
-    if (remoteVersionErrors.has(loadKey)) return `${version} is unavailable for this passage.`;
-    return `Loading ${version}...`;
+    ensureRemoteBibleVersion(version, chapterKey);
+    const loadKey = remoteVersionLoadKey(version, chapterKey);
+    const displayVersion = translationDisplayCode(version);
+    if (loadingVersions.has(loadKey)) return `Loading ${displayVersion}...`;
+    if (remoteVersionErrors.has(loadKey)) return `${displayVersion} is unavailable for this passage.`;
+    return `Loading ${displayVersion}...`;
   }
   if (loadingVersions.has(version)) return `Loading ${version}...`;
   return verse.KJV || verse.WEB || verse.ASV || verse.BSB || verse.BBE || "";
@@ -3277,7 +3278,7 @@ function verseTextAtReference(ref) {
   const key = `${match[1]} ${match[2]}`;
   const verse = bibleData[key]?.verses.find((item) => item.n === Number(match[3]));
   if (!verse) return "";
-  return getVerseText(verse, state.versions[0] || "BSB");
+  return getVerseText(verse, state.versions[0] || "BSB", key);
 }
 
 function truncatePreview(value) {
