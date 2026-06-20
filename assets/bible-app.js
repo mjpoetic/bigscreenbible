@@ -2274,6 +2274,32 @@ function triviaGameView() {
       <div class="trivia-choices">
         ${question.choices.map((choice) => triviaChoiceButton(question, choice, answered)).join("")}
       </div>
+      ${!answered ? `
+        <div class="reference-rush-hints">
+          ${question.hintUsed ? `
+            <div class="reference-rush-hint-result" role="status">
+              <strong>${escapeHtml(referenceRushHintLabel(question.hintUsed))} used</strong>
+              <p>${escapeHtml(question.hintMessage)}</p>
+            </div>
+          ` : question.hintMenuOpen ? `
+            <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
+              <div>
+                <strong>Choose one hint</strong>
+                <span>You can use one hint for this question.</span>
+              </div>
+              ${triviaHintOptions(question).map((hint) => `
+                <button type="button" data-trivia-hint="${escapeHtml(hint.type)}">
+                  <strong>${escapeHtml(hint.label)}</strong>
+                  <span>${escapeHtml(hint.description)}</span>
+                </button>
+              `).join("")}
+              <button class="reference-rush-hint-cancel" id="closeTriviaHints" type="button">Cancel</button>
+            </div>
+          ` : `
+            <button class="ghost-btn" id="triviaHint" type="button">Choose a hint</button>
+          `}
+        </div>
+      ` : ""}
       ${answered ? `
         <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
           <strong>${correct ? "Correct" : "Not quite"}</strong>
@@ -2301,12 +2327,14 @@ function triviaGameView() {
 function triviaChoiceButton(question, choice, answered) {
   const selected = choice === state.triviaGame.selectedAnswer;
   const isCorrect = choice === question.answer;
+  const eliminated = question.eliminatedChoices.includes(choice);
   const classes = [
     "trivia-choice",
     answered && isCorrect ? "correct" : "",
     answered && selected && !isCorrect ? "incorrect" : "",
+    eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
-  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" ${answered || eliminated ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
 }
 
 function verseOrderGameView(game) {
@@ -3901,6 +3929,11 @@ function bindEvents() {
   document.querySelectorAll("[data-trivia-answer]").forEach((button) => {
     button.addEventListener("click", () => answerTriviaQuestion(button.dataset.triviaAnswer));
   });
+  document.getElementById("triviaHint")?.addEventListener("click", toggleTriviaHintMenu);
+  document.getElementById("closeTriviaHints")?.addEventListener("click", toggleTriviaHintMenu);
+  document.querySelectorAll("[data-trivia-hint]").forEach((button) => {
+    button.addEventListener("click", () => useTriviaHint(button.dataset.triviaHint));
+  });
   document.querySelectorAll("[data-reference-answer]").forEach((button) => {
     button.addEventListener("click", () => answerReferenceRush(button.dataset.referenceAnswer));
   });
@@ -4240,8 +4273,30 @@ function setPresentationTheme(theme) {
   render();
 }
 
+function normalizedTriviaText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function triviaQuestionIsPlayable(question) {
+  if (!question?.question || !question.answer || !Array.isArray(question.choices)) return false;
+  if (/^At .+, what answer fits this clue:/i.test(question.question)) return false;
+  if (new Set(question.choices.map(normalizedTriviaText)).size < 4) return false;
+  const prompt = ` ${normalizedTriviaText(question.question)} `;
+  const answer = normalizedTriviaText(question.answer);
+  const referenceBook = String(question.answer).match(/^(.+?)\s+\d+:\d/)?.[1];
+  if (/^Which reference fits this clue:/i.test(question.question)
+    && referenceBook
+    && prompt.includes(` ${normalizedTriviaText(referenceBook)} `)) return false;
+  return !answer || !prompt.includes(` ${answer} `);
+}
+
 function triviaQuestions() {
-  return Array.isArray(window.bibleTriviaQuestions) ? window.bibleTriviaQuestions : [];
+  const questions = Array.isArray(window.bibleTriviaQuestions) ? window.bibleTriviaQuestions : [];
+  return questions.filter(triviaQuestionIsPlayable);
 }
 
 function normalizedTriviaCategory(category) {
@@ -4280,7 +4335,14 @@ function startTriviaGame() {
     type: "trivia",
     category: state.triviaCategory,
     difficulty: state.triviaDifficulty,
-    questions: pool.slice(0, questionCount),
+    questions: pool.slice(0, questionCount).map((question) => ({
+      ...question,
+      choices: shuffleItems(question.choices),
+      hintMenuOpen: false,
+      hintUsed: "",
+      hintMessage: "",
+      eliminatedChoices: [],
+    })),
     index: 0,
     score: 0,
     selectedAnswer: null,
@@ -4907,8 +4969,52 @@ function answerTriviaQuestion(answer) {
   const game = state.triviaGame;
   if (!game || game.complete || game.selectedAnswer !== null) return;
   const question = game.questions[game.index];
+  if (question.eliminatedChoices.includes(answer)) return;
   game.selectedAnswer = answer;
   if (answer === question.answer) game.score += 1;
+  renderPreservingReaderScroll();
+}
+
+function triviaHintOptions(question) {
+  const options = [{
+    type: "eliminate",
+    label: "Eliminate One",
+    description: "Remove one incorrect answer.",
+  }];
+  if (question.choices.length >= 4) {
+    options.push({
+      type: "fifty-fifty",
+      label: "50/50",
+      description: "Leave the correct answer and one wrong answer.",
+    });
+  }
+  return options;
+}
+
+function toggleTriviaHintMenu() {
+  const game = state.triviaGame;
+  if (!game || game.type !== "trivia" || game.complete || game.selectedAnswer !== null) return;
+  const question = game.questions[game.index];
+  if (!question || question.hintUsed) return;
+  question.hintMenuOpen = !question.hintMenuOpen;
+  renderPreservingReaderScroll();
+}
+
+function useTriviaHint(type) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "trivia" || game.complete || game.selectedAnswer !== null) return;
+  const question = game.questions[game.index];
+  if (!question || question.hintUsed) return;
+  const availableTypes = new Set(triviaHintOptions(question).map((hint) => hint.type));
+  if (!availableTypes.has(type)) return;
+  const removable = question.choices.filter((choice) => choice !== question.answer);
+  const removeCount = type === "fifty-fifty" ? Math.max(0, question.choices.length - 2) : 1;
+  question.eliminatedChoices = shuffleItems(removable).slice(0, removeCount);
+  question.hintMessage = type === "fifty-fifty"
+    ? "Two possibilities remain."
+    : "One incorrect answer has been removed.";
+  question.hintUsed = type;
+  question.hintMenuOpen = false;
   renderPreservingReaderScroll();
 }
 
