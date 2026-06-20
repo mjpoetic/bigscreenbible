@@ -136,6 +136,7 @@ let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
+let bookSprintAudioContext = null;
 let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
 let cloudSyncTimer = 0;
@@ -262,6 +263,7 @@ const state = {
   triviaCategory: localStorage.getItem("lw_trivia_category") || "Mixed",
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
+  bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   triviaGame: null,
   authConfigured: isSupabaseConfigured(),
   authClient: null,
@@ -1829,6 +1831,7 @@ function captureCloudSnapshot() {
       triviaCategory: state.triviaCategory,
       triviaDifficulty: state.triviaDifficulty,
       triviaCount: state.triviaCount,
+      bookSprintSound: state.bookSprintSound,
     },
     bookmarks: state.bookmarks,
     notes: state.notes,
@@ -1922,6 +1925,7 @@ function applyCloudSnapshot(snapshot) {
   state.triviaCategory = settings.triviaCategory || state.triviaCategory;
   state.triviaDifficulty = settings.triviaDifficulty || state.triviaDifficulty;
   state.triviaCount = normalizedTriviaCount(state.triviaGameType, Number(settings.triviaCount) || state.triviaCount);
+  state.bookSprintSound = settings.bookSprintSound !== false;
   state.bookmarks = Array.isArray(snapshot.bookmarks) ? uniqueList(snapshot.bookmarks).slice(0, 200) : [];
   state.notes = snapshot.notes && typeof snapshot.notes === "object" ? snapshot.notes : {};
   state.highlights = snapshot.highlights && typeof snapshot.highlights === "object" ? snapshot.highlights : {};
@@ -1953,6 +1957,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_trivia_category", state.triviaCategory);
   localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
   localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+  localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
@@ -2186,6 +2191,34 @@ function scheduleBookSprintTimer() {
   bookSprintTimer = setInterval(updateBookSprintTimerDisplay, 500);
 }
 
+function primeBookSprintAudio() {
+  if (!state.bookSprintSound) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  try {
+    if (!bookSprintAudioContext) bookSprintAudioContext = new AudioContext();
+  } catch {
+    return;
+  }
+  if (bookSprintAudioContext.state === "suspended") bookSprintAudioContext.resume().catch(() => {});
+}
+
+function playBookSprintTick(secondsRemaining) {
+  if (!state.bookSprintSound || !bookSprintAudioContext || bookSprintAudioContext.state !== "running") return;
+  const now = bookSprintAudioContext.currentTime;
+  const oscillator = bookSprintAudioContext.createOscillator();
+  const gain = bookSprintAudioContext.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.setValueAtTime(secondsRemaining <= 3 ? 1180 : 920, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(secondsRemaining <= 3 ? 0.045 : 0.028, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+  oscillator.connect(gain);
+  gain.connect(bookSprintAudioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.05);
+}
+
 function updateBookSprintTimerDisplay() {
   const game = state.triviaGame;
   const timer = document.getElementById("bookSprintTimer");
@@ -2196,12 +2229,19 @@ function updateBookSprintTimerDisplay() {
   if (!targetMs) {
     timer.textContent = formatGameTime(elapsedMs);
     if (label) label.textContent = "Time";
-    timer.classList.remove("is-expired");
+    timer.classList.remove("is-urgent", "is-critical", "is-expired");
     return;
   }
   const remainingMs = Math.max(0, targetMs - elapsedMs);
+  const secondsRemaining = Math.ceil(remainingMs / 1000);
   timer.textContent = formatCountdownTime(remainingMs);
+  timer.classList.toggle("is-urgent", remainingMs > 0 && remainingMs <= 10000);
+  timer.classList.toggle("is-critical", remainingMs > 0 && remainingMs <= 5000);
   timer.classList.toggle("is-expired", remainingMs <= 0);
+  if (secondsRemaining > 0 && secondsRemaining <= 10 && game.bookSprintLastTick !== secondsRemaining) {
+    game.bookSprintLastTick = secondsRemaining;
+    playBookSprintTick(secondsRemaining);
+  }
   if (label) label.textContent = remainingMs > 0 ? "Time to beat" : "Best time passed";
 }
 
@@ -2536,6 +2576,10 @@ function bookSprintGameView(game) {
           <span>Best</span>
           <strong>${escapeHtml(bookSprintBestLabel(best))}</strong>
         </div>
+        <button class="book-sprint-sound-toggle" id="bookSprintSoundToggle" type="button" aria-pressed="${state.bookSprintSound}" aria-label="Turn Book Sprint ticking ${state.bookSprintSound ? "off" : "on"}">
+          <span>Ticking</span>
+          <strong>${state.bookSprintSound ? "On" : "Off"}</strong>
+        </button>
       </div>
       <h2>Put these books in Bible order.</h2>
       <p class="book-sprint-instructions" id="bookSprintInstructions">Tap books to add them, or drag them into place. Drag placed books to reorder them.</p>
@@ -3984,6 +4028,13 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  document.getElementById("bookSprintSoundToggle")?.addEventListener("click", () => {
+    state.bookSprintSound = !state.bookSprintSound;
+    localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
+    if (state.bookSprintSound) primeBookSprintAudio();
+    scheduleCloudSync();
+    renderPreservingReaderScroll();
+  });
   document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
   document.getElementById("restartTriviaGame")?.addEventListener("click", startTriviaGame);
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
@@ -4807,6 +4858,7 @@ function bookFromChapterKey(chapterKey) {
 function startBookSprintGame() {
   const puzzleCount = normalizedTriviaCount("book-sprint", state.triviaCount);
   const target = savedBookSprintBest(state.triviaDifficulty, puzzleCount);
+  if (target) primeBookSprintAudio();
   state.triviaGame = {
     type: "book-sprint",
     difficulty: state.triviaDifficulty,
@@ -4820,6 +4872,7 @@ function startBookSprintGame() {
     bookSprintBeatBest: false,
     bookSprintHadPrevious: Boolean(target),
     bookSprintTarget: target,
+    bookSprintLastTick: null,
     bookSprintBestRecorded: false,
     complete: false,
   };

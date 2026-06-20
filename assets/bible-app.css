@@ -2008,6 +2008,7 @@ select {
 }
 
 .book-sprint-meter > div,
+.book-sprint-sound-toggle,
 .book-sprint-result-stats > div {
   display: grid;
   gap: 4px;
@@ -2018,13 +2019,49 @@ select {
   padding: 14px 16px;
 }
 
+.book-sprint-sound-toggle {
+  min-width: 112px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.book-sprint-sound-toggle:hover {
+  border-color: var(--teal);
+}
+
 .book-sprint-meter strong {
   font-size: clamp(24px, 3vw, 40px);
   line-height: 1;
 }
 
+.book-sprint-meter .book-sprint-sound-toggle strong {
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.book-sprint-meter strong.is-urgent {
+  color: #d32f2f;
+}
+
+[data-theme="dark"] .book-sprint-meter strong.is-urgent {
+  color: #ff6b6b;
+}
+
+.book-sprint-meter strong.is-critical {
+  animation: bookSprintClockPressure 700ms ease-in-out infinite;
+}
+
 .book-sprint-meter strong.is-expired {
   color: var(--gold);
+  animation: none;
+}
+
+@keyframes bookSprintClockPressure {
+  50% {
+    color: #ff3b30;
+    transform: scale(1.055);
+  }
 }
 
 .book-sprint-time-ring {
@@ -6206,6 +6243,7 @@ svg {
   }
 
   .book-sprint-meter > div,
+  .book-sprint-sound-toggle,
   .book-sprint-result-stats > div {
     width: 100%;
   }
