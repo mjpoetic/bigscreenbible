@@ -1349,6 +1349,48 @@ button {
   display: none;
 }
 
+.reader-top-button {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  z-index: 41;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, var(--teal));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  color: var(--teal);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ink) 15%, transparent);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.reader-top-button:hover,
+.reader-top-button:focus-visible {
+  background: var(--teal);
+  color: var(--accent-ink);
+  opacity: 1;
+  transform: translateY(-3px);
+}
+
+.reader-top-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 42%, transparent);
+  outline-offset: 3px;
+}
+
+.reader-top-button svg {
+  width: 21px;
+  height: 21px;
+}
+
 .mobile-settings-popover {
   display: none;
 }
@@ -5851,6 +5893,42 @@ svg {
     backdrop-filter: blur(14px);
     opacity: 0.84;
     transition: opacity 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+
+  .reader-top-button {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  .reader-top-button:not(.available) {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  .reader-top-button.available {
+    opacity: 0.88;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+
+  .reader-top-button.available:hover,
+  .reader-top-button.available:focus-visible {
+    opacity: 1;
+    transform: translateY(-2px) scale(1);
+  }
+
+  .reader-top-button.reader-top-idle:not(:focus-visible) {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px) scale(0.94);
   }
 
   .mobile-floating-settings:hover,

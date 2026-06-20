@@ -135,6 +135,7 @@ let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
+let readerTopButtonIdleTimer = 0;
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
 let orderingDragState = null;
@@ -410,6 +411,7 @@ const icons = {
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
+  arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 10 6-6 6 6"/><path d="M12 4v16"/></svg>',
 };
 
 const tutorialSteps = [
@@ -1170,6 +1172,44 @@ function bindMobileSettingsVisibility() {
   document.querySelector(".scripture")?.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 }
 
+function updateReaderTopButton() {
+  const scripture = document.querySelector(".scripture");
+  const button = document.getElementById("readerTopButton");
+  if (!scripture || !button) return;
+  const scriptureScrolls = scripture.scrollHeight > scripture.clientHeight + 1;
+  const scrollTop = scriptureScrolls ? scripture.scrollTop : window.scrollY;
+  const isAvailable = scrollTop > 160;
+  button.classList.toggle("available", isAvailable);
+  if (!isCompactScreen() || !isAvailable) {
+    button.classList.remove("reader-top-idle");
+    clearTimeout(readerTopButtonIdleTimer);
+    return;
+  }
+  button.classList.remove("reader-top-idle");
+  clearTimeout(readerTopButtonIdleTimer);
+  readerTopButtonIdleTimer = setTimeout(() => {
+    document.getElementById("readerTopButton")?.classList.add("reader-top-idle");
+  }, 2400);
+}
+
+function bindReaderTopButton() {
+  const scripture = document.querySelector(".scripture");
+  const button = document.getElementById("readerTopButton");
+  if (!scripture || !button) return;
+  updateReaderTopButton();
+  scripture.addEventListener("scroll", updateReaderTopButton, { passive: true });
+  button.addEventListener("click", () => {
+    clearTimeout(readerTopButtonIdleTimer);
+    button.classList.remove("reader-top-idle");
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+    if (scripture.scrollHeight > scripture.clientHeight + 1) {
+      scripture.scrollTo({ top: 0, behavior });
+    } else {
+      window.scrollTo({ top: 0, behavior });
+    }
+  });
+}
+
 function rail() {
   const items = [
     ["Verse", icons.book],
@@ -1352,6 +1392,11 @@ function reader() {
       <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""}">
         ${state.mode === "parallel" ? parallelView() : readerView()}
       </article>
+      ${state.mode === "reader" || state.mode === "parallel" ? `
+        <button class="reader-top-button" id="readerTopButton" type="button" aria-label="Back to top" title="Back to top">
+          ${icons.arrowUp}
+        </button>
+      ` : ""}
     </section>
   `;
 }
@@ -3776,6 +3821,7 @@ function tutorialOverlay() {
 }
 
 function bindEvents() {
+  bindReaderTopButton();
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.mode !== "trivia") cleanupTriviaCelebration();
@@ -7410,6 +7456,7 @@ shortLandscapeQuery?.addEventListener("change", () => {
   renderPreservingReaderScroll();
 });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
+window.addEventListener("scroll", updateReaderTopButton, { passive: true });
 window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
 window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
