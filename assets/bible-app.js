@@ -224,6 +224,8 @@ const state = {
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
   focusMode: savedFocusMode(),
+  verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
+  footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
   activeRail: "Verse",
   selectedStrong: "G2316",
@@ -562,6 +564,7 @@ function activeVersions() {
 
 function render() {
   const app = document.querySelector("#app");
+  const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   if (state.startupApplied) syncModeUrl();
   syncPresentationShell();
   if (dataLoading || dataError) {
@@ -575,7 +578,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -594,6 +597,7 @@ function render() {
       <div class="status-toast" id="toast"></div>
     </main>
   `;
+  pendingFocusChromeEnter = false;
   bindEvents();
   requestAnimationFrame(() => {
     positionAccountPopover();
@@ -1382,35 +1386,44 @@ function reader() {
   const chapterKeys = currentBookChapterKeys();
   return `
     <section class="reader">
-      <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
-        <div class="verse-nav-direction verse-nav-direction-before">
-          <button class="icon-btn verse-nav-button verse-nav-button-double verse-nav-button-left" id="prevChapterInline" aria-label="Previous chapter" data-tooltip="Previous chapter">${icons.chevronDouble}</button>
-          <button class="icon-btn verse-nav-button verse-nav-button-left" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">${icons.chevron}</button>
+      <div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
+        <div class="chapter-tools-clip" id="verseSelectorBar" ${state.verseNavCollapsed ? 'inert aria-hidden="true"' : ""}>
+          <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
+            <div class="verse-nav-direction verse-nav-direction-before">
+              <button class="icon-btn verse-nav-button verse-nav-button-double verse-nav-button-left" id="prevChapterInline" aria-label="Previous chapter" data-tooltip="Previous chapter">${icons.chevronDouble}</button>
+              <button class="icon-btn verse-nav-button verse-nav-button-left" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">${icons.chevron}</button>
+            </div>
+            <div class="compact-reference">${referenceLabel()} · ${activeVersions().map(translationDisplayCode).join(" / ")}</div>
+            <div class="verse-nav-selectors">
+              <label class="verse-nav-select verse-nav-chapter-select">
+                <span class="sr-only">Chapter</span>
+                <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
+                <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
+              </label>
+              <span class="verse-nav-divider" aria-hidden="true"></span>
+              <label class="verse-nav-select verse-nav-verse-select">
+                <span class="sr-only">Verse</span>
+                <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
+                <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
+              </label>
+            </div>
+            <div class="verse-nav-direction verse-nav-direction-after">
+              <button class="icon-btn verse-nav-button" id="nextVerse" aria-label="Next verse" data-tooltip="Next verse">${icons.chevron}</button>
+              <button class="icon-btn verse-nav-button verse-nav-button-double" id="nextChapterInline" aria-label="Next chapter" data-tooltip="Next chapter">${icons.chevronDouble}</button>
+            </div>
+            <div class="verse-nav-utilities">
+              <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
+              <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.note}</button>
+            </div>
+            <button class="ghost-btn" id="openStudy">${icons.layers} Study</button>
+            <button class="ghost-btn compact-control" id="exitFocusInline">Show Panels</button>
+          </div>
         </div>
-        <div class="compact-reference">${referenceLabel()} · ${activeVersions().map(translationDisplayCode).join(" / ")}</div>
-        <div class="verse-nav-selectors">
-          <label class="verse-nav-select verse-nav-chapter-select">
-            <span class="sr-only">Chapter</span>
-            <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
-            <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
-          </label>
-          <span class="verse-nav-divider" aria-hidden="true"></span>
-          <label class="verse-nav-select verse-nav-verse-select">
-            <span class="sr-only">Verse</span>
-            <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
-            <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
-          </label>
-        </div>
-        <div class="verse-nav-direction verse-nav-direction-after">
-          <button class="icon-btn verse-nav-button" id="nextVerse" aria-label="Next verse" data-tooltip="Next verse">${icons.chevron}</button>
-          <button class="icon-btn verse-nav-button verse-nav-button-double" id="nextChapterInline" aria-label="Next chapter" data-tooltip="Next chapter">${icons.chevronDouble}</button>
-        </div>
-        <div class="verse-nav-utilities">
-          <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
-          <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.note}</button>
-        </div>
-        <button class="ghost-btn" id="openStudy">${icons.layers} Study</button>
-        <button class="ghost-btn compact-control" id="exitFocusInline">Show Panels</button>
+        ${state.focusMode ? "" : `
+          <button class="bar-collapse-toggle verse-nav-collapse-toggle" id="verseNavCollapseToggle" type="button" aria-label="${state.verseNavCollapsed ? "Show verse selector bar" : "Hide verse selector bar"}" aria-controls="verseSelectorBar" aria-expanded="${state.verseNavCollapsed ? "false" : "true"}" data-tooltip="${state.verseNavCollapsed ? "Show verse selector" : "Hide verse selector"}">
+            ${icons.chevron}
+          </button>
+        `}
       </div>
       <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""}">
         ${state.mode === "parallel" ? parallelView() : readerView()}
@@ -3690,30 +3703,35 @@ function strongLookupCard(entry, selectedWord) {
 
 function bottombar() {
   return `
-    <footer class="bottombar">
-      <button class="nav-button chapter-nav chapter-nav-prev" id="prevChapter" aria-label="Previous chapter">
-        <span class="chapter-nav-icon" aria-hidden="true">‹</span>
-        <span class="chapter-nav-label">Previous Chapter</span>
-      </button>
-      <div class="fineprint">${activeVersions().map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
-      <div class="bottom-actions">
-        <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse">
-          <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
-          <span class="bottom-action-label">Copy Verse</span>
+    <div class="footer-region ${state.footerCollapsed ? "collapsed" : ""}">
+      <footer class="bottombar" id="footerBar" ${state.footerCollapsed ? 'inert aria-hidden="true"' : ""}>
+        <button class="nav-button chapter-nav chapter-nav-prev" id="prevChapter" aria-label="Previous chapter">
+          <span class="chapter-nav-icon" aria-hidden="true">‹</span>
+          <span class="chapter-nav-label">Previous Chapter</span>
         </button>
-        <button class="ghost-btn bottom-action" id="printPage" aria-label="Print">
-          <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
-          <span class="bottom-action-label">Print</span>
+        <div class="fineprint">${activeVersions().map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
+        <div class="bottom-actions">
+          <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse">
+            <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
+            <span class="bottom-action-label">Copy Verse</span>
+          </button>
+          <button class="ghost-btn bottom-action" id="printPage" aria-label="Print">
+            <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
+            <span class="bottom-action-label">Print</span>
+          </button>
+          <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible">
+            <span class="bottom-action-label">About</span>
+          </a>
+        </div>
+        <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
+          <span class="chapter-nav-label">Next Chapter</span>
+          <span class="chapter-nav-icon" aria-hidden="true">›</span>
         </button>
-        <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible">
-          <span class="bottom-action-label">About</span>
-        </a>
-      </div>
-      <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
-        <span class="chapter-nav-label">Next Chapter</span>
-        <span class="chapter-nav-icon" aria-hidden="true">›</span>
+      </footer>
+      <button class="bar-collapse-toggle footer-collapse-toggle" id="footerCollapseToggle" type="button" aria-label="${state.footerCollapsed ? "Show footer bar" : "Hide footer bar"}" aria-controls="footerBar" aria-expanded="${state.footerCollapsed ? "false" : "true"}" data-tooltip="${state.footerCollapsed ? "Show footer" : "Hide footer"}">
+        ${icons.chevron}
       </button>
-    </footer>
+    </div>
   `;
 }
 
@@ -4183,6 +4201,8 @@ function bindEvents() {
   document.getElementById("tutorialBack")?.addEventListener("click", retreatTutorial);
   document.getElementById("tutorialSkip")?.addEventListener("click", finishTutorial);
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
+  document.getElementById("verseNavCollapseToggle")?.addEventListener("click", toggleVerseNavCollapsed);
+  document.getElementById("footerCollapseToggle")?.addEventListener("click", toggleFooterCollapsed);
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
@@ -6374,12 +6394,61 @@ function resetTextScale() {
   render();
 }
 
+let pendingFocusChromeEnter = false;
+
 function toggleFocusMode() {
-  state.focusMode = !state.focusMode;
-  if (state.focusMode) state.mobileControlsOpen = false;
-  localStorage.setItem("lw_focus_mode", String(state.focusMode));
-  scheduleCloudSync();
-  render();
+  const enteringFocus = !state.focusMode;
+  const applyFocusMode = () => {
+    state.focusMode = enteringFocus;
+    if (state.focusMode) state.mobileControlsOpen = false;
+    else pendingFocusChromeEnter = true;
+    localStorage.setItem("lw_focus_mode", String(state.focusMode));
+    scheduleCloudSync();
+    renderPreservingReaderScroll();
+  };
+  if (!enteringFocus) {
+    applyFocusMode();
+    return;
+  }
+  animateBeforeRemoval(
+    ".rail, .library, .chapter-tools-region, .footer-region",
+    applyFocusMode,
+    { className: "focus-chrome-exit", duration: 240 },
+  );
+}
+
+function toggleVerseNavCollapsed() {
+  state.verseNavCollapsed = !state.verseNavCollapsed;
+  localStorage.setItem("lw_verse_nav_collapsed", String(state.verseNavCollapsed));
+  const region = document.querySelector(".chapter-tools-region");
+  const content = document.getElementById("verseSelectorBar");
+  const toggle = document.getElementById("verseNavCollapseToggle");
+  region?.classList.toggle("collapsed", state.verseNavCollapsed);
+  content?.toggleAttribute("inert", state.verseNavCollapsed);
+  if (content) content.setAttribute("aria-hidden", String(state.verseNavCollapsed));
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(!state.verseNavCollapsed));
+    toggle.setAttribute("aria-label", state.verseNavCollapsed ? "Show verse selector bar" : "Hide verse selector bar");
+    toggle.dataset.tooltip = state.verseNavCollapsed ? "Show verse selector" : "Hide verse selector";
+  }
+}
+
+function toggleFooterCollapsed() {
+  state.footerCollapsed = !state.footerCollapsed;
+  localStorage.setItem("lw_footer_collapsed", String(state.footerCollapsed));
+  const shell = document.querySelector(".app-shell");
+  const region = document.querySelector(".footer-region");
+  const content = document.getElementById("footerBar");
+  const toggle = document.getElementById("footerCollapseToggle");
+  shell?.classList.toggle("footer-collapsed", state.footerCollapsed);
+  region?.classList.toggle("collapsed", state.footerCollapsed);
+  content?.toggleAttribute("inert", state.footerCollapsed);
+  if (content) content.setAttribute("aria-hidden", String(state.footerCollapsed));
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(!state.footerCollapsed));
+    toggle.setAttribute("aria-label", state.footerCollapsed ? "Show footer bar" : "Hide footer bar");
+    toggle.dataset.tooltip = state.footerCollapsed ? "Show footer" : "Hide footer";
+  }
 }
 
 function toggleMobileControls() {

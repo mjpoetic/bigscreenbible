@@ -493,13 +493,18 @@ button {
   grid-template-rows: 72px 1fr 64px;
   background: var(--bg);
   color: var(--ink);
+  transition: grid-template-rows var(--motion-slow) var(--motion-ease);
 }
 
 .app-shell.focus-shell {
   grid-template-rows: 72px 1fr;
 }
 
-.app-shell.focus-shell .bottombar {
+.app-shell.footer-collapsed:not(.focus-shell) {
+  grid-template-rows: 72px 1fr 0;
+}
+
+.app-shell.focus-shell .footer-region {
   display: none;
 }
 
@@ -524,6 +529,30 @@ button {
   bottom: 0;
   top: auto;
   justify-content: space-between;
+}
+
+.footer-region {
+  position: relative;
+  min-height: 0;
+  z-index: 19;
+}
+
+.footer-region .bottombar {
+  height: 64px;
+  transition:
+    opacity var(--motion-base) ease,
+    transform var(--motion-slow) var(--motion-ease);
+}
+
+.footer-region.collapsed .bottombar {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity var(--motion-base) ease,
+    transform var(--motion-slow) var(--motion-ease),
+    visibility 0s var(--motion-slow);
 }
 
 .topbar {
@@ -1594,11 +1623,21 @@ button {
   min-height: 0;
   max-width: 100vw;
   overflow-x: hidden;
+  transition: height var(--motion-slow) var(--motion-ease);
 }
 
-.main-grid.focus-mode {
+.main-grid.focus-mode,
+.app-shell.footer-collapsed .main-grid {
   grid-template-columns: minmax(0, 1fr);
   height: calc(100vh - 72px);
+}
+
+.app-shell.footer-collapsed .main-grid:not(.focus-mode) {
+  grid-template-columns: var(--rail-width) var(--library-width) minmax(0, 1fr);
+}
+
+.app-shell.footer-collapsed .main-grid.library-closed:not(.focus-mode) {
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
 }
 
 .main-grid.library-closed {
@@ -1810,6 +1849,101 @@ select {
   min-height: 52px;
   border-bottom: 1px solid var(--line);
   padding: 5px clamp(14px, 2.4vw, 40px);
+}
+
+.chapter-tools-region {
+  position: relative;
+  z-index: 4;
+}
+
+.chapter-tools-clip {
+  max-height: 62px;
+  overflow: hidden;
+  transition: max-height var(--motion-slow) var(--motion-ease);
+}
+
+.chapter-tools-region .chapter-tools {
+  transition:
+    opacity var(--motion-base) ease,
+    transform var(--motion-slow) var(--motion-ease);
+}
+
+.chapter-tools-region.collapsed .chapter-tools-clip {
+  max-height: 0;
+}
+
+.chapter-tools-region.collapsed .chapter-tools {
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
+}
+
+.bar-collapse-toggle {
+  position: absolute;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--muted);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 10%, transparent);
+  cursor: pointer;
+  opacity: 0.62;
+  transition:
+    opacity var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-base) var(--motion-ease);
+}
+
+.bar-collapse-toggle:hover,
+.bar-collapse-toggle:focus-visible {
+  color: var(--teal);
+  opacity: 1;
+}
+
+.bar-collapse-toggle svg {
+  width: 15px;
+  height: 15px;
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+
+.verse-nav-collapse-toggle {
+  left: 50%;
+  bottom: -9px;
+  border-radius: 0 0 10px 10px;
+  transform: translateX(-50%);
+}
+
+.verse-nav-collapse-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.chapter-tools-region.collapsed .verse-nav-collapse-toggle svg {
+  transform: rotate(90deg);
+}
+
+.footer-collapse-toggle {
+  left: 50%;
+  top: -9px;
+  border-radius: 10px 10px 0 0;
+  transform: translateX(-50%);
+}
+
+.footer-collapse-toggle svg {
+  transform: rotate(90deg);
+}
+
+.footer-region.collapsed .footer-collapse-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.footer-region.collapsed .footer-collapse-toggle {
+  top: -18px;
 }
 
 .chapter-tools :is(button, select) {
@@ -5324,6 +5458,74 @@ kbd {
   animation: streakPopupOut var(--motion-base) ease-in both !important;
 }
 
+.rail.focus-chrome-exit,
+.library.focus-chrome-exit {
+  animation: focusChromeLeftOut var(--motion-slow) ease-in both !important;
+}
+
+.chapter-tools-region.focus-chrome-exit {
+  animation: focusChromeTopOut var(--motion-slow) ease-in both !important;
+}
+
+.footer-region.focus-chrome-exit {
+  animation: focusChromeBottomOut var(--motion-slow) ease-in both !important;
+}
+
+.focus-chrome-enter .rail,
+.focus-chrome-enter .library {
+  animation: focusChromeLeftIn var(--motion-slow) var(--motion-ease) both !important;
+}
+
+.focus-chrome-enter .chapter-tools-region {
+  animation: focusChromeTopIn var(--motion-slow) var(--motion-ease) both !important;
+}
+
+.focus-chrome-enter .footer-region {
+  animation: focusChromeBottomIn var(--motion-slow) var(--motion-ease) both !important;
+}
+
+@keyframes focusChromeLeftOut {
+  to {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+}
+
+@keyframes focusChromeTopOut {
+  to {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+@keyframes focusChromeBottomOut {
+  to {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes focusChromeLeftIn {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+}
+
+@keyframes focusChromeTopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+@keyframes focusChromeBottomIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
 @keyframes surfaceIn {
   from {
     opacity: 0;
@@ -5767,6 +5969,14 @@ svg {
     grid-template-rows: 118px 1fr;
   }
 
+  .app-shell.footer-collapsed:not(.focus-shell) {
+    grid-template-rows: 118px 1fr 0;
+  }
+
+  .app-shell.footer-collapsed .main-grid {
+    height: calc(100vh - 118px);
+  }
+
   .app-shell.focus-shell .main-grid {
     height: calc(100vh - 118px);
   }
@@ -5799,6 +6009,14 @@ svg {
 
   .app-shell.focus-shell {
     grid-template-rows: 72px 1fr;
+  }
+
+  .app-shell.footer-collapsed:not(.focus-shell) {
+    grid-template-rows: 72px 1fr 0;
+  }
+
+  .app-shell.footer-collapsed .main-grid {
+    height: calc(100vh - 72px);
   }
 
   .main-grid {
@@ -5888,6 +6106,14 @@ svg {
 
   .app-shell {
     grid-template-rows: auto 1fr auto;
+  }
+
+  .app-shell.footer-collapsed:not(.focus-shell) {
+    grid-template-rows: auto 1fr 0;
+  }
+
+  .app-shell.footer-collapsed .main-grid {
+    height: auto;
   }
 
   .topbar {
