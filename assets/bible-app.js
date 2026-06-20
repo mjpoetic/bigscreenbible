@@ -135,7 +135,6 @@ let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
-let readerTopButtonIdleTimer = 0;
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
 let orderingDragState = null;
@@ -1156,14 +1155,20 @@ function scheduleStreakPopupDismiss() {
 }
 
 function revealMobileSettingsButton() {
-  const button = document.getElementById("mobileFloatingSettings");
-  if (!button) return;
-  button.classList.remove("mobile-settings-idle");
+  const settingsButton = document.getElementById("mobileFloatingSettings");
+  const topButton = document.getElementById("readerTopButton");
+  if (!settingsButton && !topButton) return;
+  settingsButton?.classList.remove("mobile-settings-idle");
+  topButton?.classList.remove("reader-top-idle");
   clearTimeout(mobileSettingsIdleTimer);
   if (state.settingsOpen || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
     if (state.settingsOpen) return;
     document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
+    const currentTopButton = document.getElementById("readerTopButton");
+    if (currentTopButton?.classList.contains("available")) {
+      currentTopButton.classList.add("reader-top-idle");
+    }
   }, 3200);
 }
 
@@ -1182,14 +1187,7 @@ function updateReaderTopButton() {
   button.classList.toggle("available", isAvailable);
   if (!isCompactScreen() || !isAvailable) {
     button.classList.remove("reader-top-idle");
-    clearTimeout(readerTopButtonIdleTimer);
-    return;
   }
-  button.classList.remove("reader-top-idle");
-  clearTimeout(readerTopButtonIdleTimer);
-  readerTopButtonIdleTimer = setTimeout(() => {
-    document.getElementById("readerTopButton")?.classList.add("reader-top-idle");
-  }, 2400);
 }
 
 function bindReaderTopButton() {
@@ -1199,7 +1197,6 @@ function bindReaderTopButton() {
   updateReaderTopButton();
   scripture.addEventListener("scroll", updateReaderTopButton, { passive: true });
   button.addEventListener("click", () => {
-    clearTimeout(readerTopButtonIdleTimer);
     button.classList.remove("reader-top-idle");
     const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
     if (scripture.scrollHeight > scripture.clientHeight + 1) {
@@ -7455,8 +7452,8 @@ shortLandscapeQuery?.addEventListener("change", () => {
   state.headerVersionMenuOpen = false;
   renderPreservingReaderScroll();
 });
-window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 window.addEventListener("scroll", updateReaderTopButton, { passive: true });
+window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
 window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
