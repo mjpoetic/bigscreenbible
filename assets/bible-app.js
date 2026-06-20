@@ -1511,6 +1511,7 @@ function openMobileVerseNavMenu(trigger, type) {
       state.selectedVerses = [];
     } else {
       state.verse = Number(value);
+      state.pendingVerseFocus = true;
     }
     state.isVerseOfDayActive = false;
     render();
