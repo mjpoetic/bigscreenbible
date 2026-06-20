@@ -598,6 +598,7 @@ function render() {
     </main>
   `;
   pendingFocusChromeEnter = false;
+  pendingLibraryEnter = false;
   bindEvents();
   requestAnimationFrame(() => {
     positionAccountPopover();
@@ -749,10 +750,10 @@ function captureAnnotationOpenState() {
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
-    <main class="app-shell focus-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
+    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
       <section class="reader loading-reader">
         <div class="loading-card">
-          <img class="loading-logo-mark" src="./assets/brand-mark.png" alt="" />
+          <img class="loading-logo-mark" src="./assets/brand-mark.png" width="420" height="220" alt="" />
           <h1>Big Screen Bible</h1>
           <p>${message}</p>
           ${dataError ? '<button class="primary-btn" onclick="location.reload()">Retry</button>' : ""}
@@ -929,7 +930,7 @@ function topbar() {
   return `
     <header class="topbar">
       <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day">
-        <img class="brand-mark-image" src="./assets/brand-mark.png" alt="" />
+        <img class="brand-mark-image" src="./assets/brand-mark.png" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
         <div>
           <div class="brand-title">Big Screen</div>
@@ -1247,7 +1248,7 @@ function library() {
   const title = titleMap[state.activeRail] || "Verse";
   const closeLabel = `Hide ${title.toLowerCase()}`;
   return `
-    <aside class="library">
+    <aside class="library ${pendingLibraryEnter ? "drawer-enter" : ""}">
       <div class="panel-minihead">
         <span>${title}</span>
         <button class="icon-btn" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">×</button>
@@ -6363,6 +6364,7 @@ function recordHistory(ref = referenceLabel()) {
 }
 
 function activateWorkspace(target) {
+  pendingLibraryEnter = !state.libraryOpen;
   state.activeRail = target;
   state.libraryOpen = true;
   localStorage.setItem("lw_library_open", "true");
@@ -6377,7 +6379,7 @@ function closeLibrary() {
     localStorage.setItem("lw_library_open", "false");
     scheduleCloudSync();
     render();
-  }, { duration: 220 });
+  }, { duration: 320 });
 }
 
 function adjustTextScale(delta) {
@@ -6395,6 +6397,7 @@ function resetTextScale() {
 }
 
 let pendingFocusChromeEnter = false;
+let pendingLibraryEnter = false;
 
 function toggleFocusMode() {
   const enteringFocus = !state.focusMode;
@@ -6457,14 +6460,34 @@ function toggleMobileControls() {
       ".app-shell.mobile-controls-open :is(.search, .versions, #shortcutsButton, .account-menu, .settings-menu)",
       () => {
         state.mobileControlsOpen = false;
-        render();
+        renderWithMobileTopbarResize();
       },
       { className: "mobile-control-exit", duration: 180 },
     );
     return;
   }
-  state.mobileControlsOpen = !state.mobileControlsOpen;
+  state.mobileControlsOpen = true;
+  renderWithMobileTopbarResize();
+}
+
+function renderWithMobileTopbarResize() {
+  const previousHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
   render();
+  const topbar = document.querySelector(".topbar");
+  if (!topbar || !previousHeight || !isCompactScreen()) return;
+  const nextHeight = topbar.getBoundingClientRect().height;
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reducedMotion || Math.abs(nextHeight - previousHeight) < 1) return;
+  topbar.style.overflow = "hidden";
+  const animation = topbar.animate(
+    [{ height: `${previousHeight}px` }, { height: `${nextHeight}px` }],
+    { duration: 280, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" },
+  );
+  animation.finished
+    .catch(() => {})
+    .finally(() => {
+      topbar.style.removeProperty("overflow");
+    });
 }
 
 function toggleShortcuts(forceOpen) {
