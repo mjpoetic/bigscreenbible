@@ -136,8 +136,8 @@ let presentationTouchStart = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
-let bookSprintDragState = null;
-let bookSprintSuppressClickUntil = 0;
+let orderingDragState = null;
+let orderingSuppressClickUntil = 0;
 let cloudSyncTimer = 0;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
@@ -2197,7 +2197,7 @@ function triviaView() {
   const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
   const setupCopy = isVerseOrder
-    ? "Tap shuffled verse fragments back into their original order. The app will reveal the reference after each puzzle."
+    ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
       ? "Read the verse and follow its clues. Easy asks for the book; Medium and Hard move toward the exact reference."
       : isBookSprint
@@ -2318,22 +2318,23 @@ function verseOrderGameView(game) {
   return `
     <div class="trivia-game verse-order-game">
       <div class="trivia-progress">
-        <span>Verse Order · ${escapeHtml(game.version)}</span>
+        <span>Verse Order · ${escapeHtml(game.version)} · ${puzzle.segments.length} pieces</span>
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
       <h2>Put this verse back in order.</h2>
+      <p class="book-sprint-instructions" id="verseOrderInstructions">Tap fragments to add them, or drag them into place. Drag placed fragments to reorder them.</p>
       <div class="verse-order-board">
-        <div class="verse-order-answer" aria-label="Selected verse fragments">
+        <div class="verse-order-answer book-sprint-answer" data-order-drop-zone aria-label="Selected verse fragments" aria-describedby="verseOrderInstructions">
           ${puzzle.selectedIds.length ? puzzle.selectedIds.map((id, index) => {
             const segment = puzzle.segments.find((item) => item.id === id);
-            return `<button class="verse-fragment selected-fragment" data-order-selected="${escapeHtml(id)}" ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(segment?.text || "")}</button>`;
-          }).join("") : `<span class="verse-order-placeholder">Tap fragments below to build the verse.</span>`}
+            return `<button class="verse-fragment selected-fragment book-sprint-draggable" data-order-selected="${escapeHtml(id)}" data-order-drag="${escapeHtml(id)}" data-order-position="${index}" aria-label="Fragment ${index + 1}: ${escapeHtml(segment?.text || "")}. Tap to remove or drag to reorder." ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(segment?.text || "")}</button>`;
+          }).join("") : `<span class="verse-order-placeholder">Build the verse here.</span>`}
         </div>
-        <div class="verse-fragment-bank" aria-label="Shuffled verse fragments">
+        <div class="verse-fragment-bank book-sprint-bank" data-order-bank-drop aria-label="Shuffled verse fragments">
           ${puzzle.shuffledIds.map((id) => {
             const segment = puzzle.segments.find((item) => item.id === id);
             const isSelected = selectedSet.has(id);
-            return `<button class="verse-fragment ${isSelected ? "is-used" : ""}" data-order-fragment="${escapeHtml(id)}" ${isSelected || answered ? "disabled" : ""}>${escapeHtml(segment?.text || "")}</button>`;
+            return `<button class="verse-fragment book-sprint-draggable ${isSelected ? "is-used" : ""}" data-order-fragment="${escapeHtml(id)}" data-order-drag="${escapeHtml(id)}" aria-label="${escapeHtml(segment?.text || "")}. Tap or drag to add." ${isSelected || answered ? "disabled" : ""}>${escapeHtml(segment?.text || "")}</button>`;
           }).join("")}
         </div>
       </div>
@@ -3910,27 +3911,36 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-book-answer]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (shouldSuppressBookSprintClick()) return;
+      if (shouldSuppressOrderingClick()) return;
       selectBookSprintBook(button.dataset.bookAnswer);
     });
   });
   document.querySelectorAll("[data-book-selected]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (shouldSuppressBookSprintClick()) return;
+      if (shouldSuppressOrderingClick()) return;
       removeBookSprintBook(button.dataset.bookSelected);
     });
   });
   document.querySelectorAll("[data-book-drag]:not(:disabled)").forEach((button) => {
-    button.addEventListener("pointerdown", (event) => beginBookSprintDrag(event, button));
+    button.addEventListener("pointerdown", (event) => beginOrderingDrag(event, button, "book-sprint"));
   });
   document.querySelectorAll("[data-who-answer]").forEach((button) => {
     button.addEventListener("click", () => answerWhoSaidIt(button.dataset.whoAnswer));
   });
   document.querySelectorAll("[data-order-fragment]").forEach((button) => {
-    button.addEventListener("click", () => selectVerseOrderFragment(button.dataset.orderFragment));
+    button.addEventListener("click", () => {
+      if (shouldSuppressOrderingClick()) return;
+      selectVerseOrderFragment(button.dataset.orderFragment);
+    });
   });
   document.querySelectorAll("[data-order-selected]").forEach((button) => {
-    button.addEventListener("click", () => removeVerseOrderFragment(button.dataset.orderSelected));
+    button.addEventListener("click", () => {
+      if (shouldSuppressOrderingClick()) return;
+      removeVerseOrderFragment(button.dataset.orderSelected);
+    });
+  });
+  document.querySelectorAll("[data-order-drag]:not(:disabled)").forEach((button) => {
+    button.addEventListener("pointerdown", (event) => beginOrderingDrag(event, button, "verse-order"));
   });
   document.getElementById("resetVerseOrderPuzzle")?.addEventListener("click", resetVerseOrderPuzzle);
   document.getElementById("checkVerseOrder")?.addEventListener("click", checkVerseOrder);
@@ -4814,10 +4824,11 @@ function startVerseOrderGame() {
     return;
   }
   const puzzleCount = Math.min(state.triviaCount || 10, pool.length);
+  const selectedVerses = pool.slice(0, puzzleCount);
   state.triviaGame = {
     type: "verse-order",
     version: state.versions[0] || "BSB",
-    puzzles: pool.slice(0, puzzleCount).map(createVerseOrderPuzzle),
+    puzzles: selectedVerses.map((item, index) => createVerseOrderPuzzle(item, verseOrderPieceCount(index, puzzleCount))),
     index: 0,
     score: 0,
     complete: false,
@@ -4852,8 +4863,8 @@ function cleanVerseOrderText(text) {
     .trim();
 }
 
-function createVerseOrderPuzzle(item) {
-  const segments = splitVerseIntoSegments(item.text).map((text, index) => ({
+function createVerseOrderPuzzle(item, pieceCount = 3) {
+  const segments = splitVerseIntoSegments(item.text, pieceCount).map((text, index) => ({
     id: `fragment-${index}`,
     order: index,
     text,
@@ -4872,21 +4883,22 @@ function createVerseOrderPuzzle(item) {
   };
 }
 
-function splitVerseIntoSegments(text) {
+function verseOrderPieceCount(index, puzzleCount) {
+  if (puzzleCount <= 1) return 3;
+  return Math.min(7, 3 + Math.round((index * 4) / (puzzleCount - 1)));
+}
+
+function splitVerseIntoSegments(text, requestedCount = 3) {
   const words = text.split(/\s+/).filter(Boolean);
-  const segmentCount = Math.min(5, Math.max(3, Math.ceil(words.length / 7)));
-  const baseSize = Math.ceil(words.length / segmentCount);
+  const segmentCount = Math.min(7, words.length, Math.max(3, requestedCount));
+  const baseSize = Math.floor(words.length / segmentCount);
+  const remainder = words.length % segmentCount;
   const segments = [];
-  for (let index = 0; index < words.length; index += baseSize) {
-    segments.push(words.slice(index, index + baseSize).join(" "));
-  }
-  if (segments.length < 3 && words.length >= 6) {
-    const third = Math.ceil(words.length / 3);
-    return [
-      words.slice(0, third).join(" "),
-      words.slice(third, third * 2).join(" "),
-      words.slice(third * 2).join(" "),
-    ].filter(Boolean);
+  let wordIndex = 0;
+  for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
+    const size = baseSize + (segmentIndex < remainder ? 1 : 0);
+    segments.push(words.slice(wordIndex, wordIndex + size).join(" "));
+    wordIndex += size;
   }
   return segments;
 }
@@ -4994,16 +5006,17 @@ function removeBookSprintBook(book) {
   renderPreservingReaderScroll();
 }
 
-function shouldSuppressBookSprintClick() {
-  return Date.now() < bookSprintSuppressClickUntil;
+function shouldSuppressOrderingClick() {
+  return Date.now() < orderingSuppressClickUntil;
 }
 
-function beginBookSprintDrag(event, button) {
-  const puzzle = currentBookSprintPuzzle();
-  if (!puzzle || puzzle.answered || event.button !== 0 || bookSprintDragState) return;
-  bookSprintDragState = {
+function beginOrderingDrag(event, button, type) {
+  const puzzle = type === "verse-order" ? currentVerseOrderPuzzle() : currentBookSprintPuzzle();
+  if (!puzzle || puzzle.answered || event.button !== 0 || orderingDragState) return;
+  orderingDragState = {
     pointerId: event.pointerId,
-    book: button.dataset.bookDrag,
+    type,
+    item: type === "verse-order" ? button.dataset.orderDrag : button.dataset.bookDrag,
     source: button,
     startX: event.clientX,
     startY: event.clientY,
@@ -5012,13 +5025,13 @@ function beginBookSprintDrag(event, button) {
     drop: null,
   };
   button.setPointerCapture?.(event.pointerId);
-  document.addEventListener("pointermove", moveBookSprintDrag, { passive: false });
-  document.addEventListener("pointerup", finishBookSprintDrag);
-  document.addEventListener("pointercancel", cancelBookSprintDrag);
+  document.addEventListener("pointermove", moveOrderingDrag, { passive: false });
+  document.addEventListener("pointerup", finishOrderingDrag);
+  document.addEventListener("pointercancel", cancelOrderingDrag);
 }
 
-function moveBookSprintDrag(event) {
-  const drag = bookSprintDragState;
+function moveOrderingDrag(event) {
+  const drag = orderingDragState;
   if (!drag || event.pointerId !== drag.pointerId) return;
   const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
   if (!drag.dragging && distance < 7) return;
@@ -5036,18 +5049,21 @@ function moveBookSprintDrag(event) {
   event.preventDefault();
   drag.ghost.style.left = `${event.clientX}px`;
   drag.ghost.style.top = `${event.clientY}px`;
-  drag.drop = bookSprintDropTarget(event.clientX, event.clientY);
-  updateBookSprintDropIndicator(drag.drop);
+  drag.drop = orderingDropTarget(drag, event.clientX, event.clientY);
+  updateOrderingDropIndicator(drag, drag.drop);
 }
 
-function bookSprintDropTarget(x, y) {
-  const answer = document.querySelector("[data-book-drop-zone]");
-  const bank = document.querySelector("[data-book-bank-drop]");
+function orderingDropTarget(drag, x, y) {
+  const answerSelector = drag.type === "verse-order" ? "[data-order-drop-zone]" : "[data-book-drop-zone]";
+  const bankSelector = drag.type === "verse-order" ? "[data-order-bank-drop]" : "[data-book-bank-drop]";
+  const selectedSelector = drag.type === "verse-order" ? "[data-order-selected]" : "[data-book-selected]";
+  const answer = document.querySelector(answerSelector);
+  const bank = document.querySelector(bankSelector);
   const element = document.elementFromPoint(x, y);
-  if (answer && (element?.closest("[data-book-drop-zone]") === answer || pointInsideElement(x, y, answer))) {
-    const buttons = [...answer.querySelectorAll("[data-book-selected]")];
+  if (answer && (element?.closest(answerSelector) === answer || pointInsideElement(x, y, answer))) {
+    const buttons = [...answer.querySelectorAll(selectedSelector)];
     if (!buttons.length) return { type: "answer", index: 0 };
-    const directTarget = element?.closest("[data-book-selected]");
+    const directTarget = element?.closest(selectedSelector);
     if (directTarget && answer.contains(directTarget)) {
       const index = buttons.indexOf(directTarget);
       const rect = directTarget.getBoundingClientRect();
@@ -5063,7 +5079,7 @@ function bookSprintDropTarget(x, y) {
     const insertAfter = y > closestIndex.rect.bottom || x >= closestIndex.rect.left + closestIndex.rect.width / 2;
     return { type: "answer", index: closestIndex.index + (insertAfter ? 1 : 0), indicator: buttons[closestIndex.index], insertAfter };
   }
-  if (bank && (element?.closest("[data-book-bank-drop]") === bank || pointInsideElement(x, y, bank))) {
+  if (bank && (element?.closest(bankSelector) === bank || pointInsideElement(x, y, bank))) {
     return { type: "bank" };
   }
   return null;
@@ -5074,47 +5090,51 @@ function pointInsideElement(x, y, element) {
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
-function updateBookSprintDropIndicator(drop) {
+function updateOrderingDropIndicator(drag, drop) {
   document.querySelectorAll(".book-sprint-drop-active, .book-sprint-insert-before, .book-sprint-insert-after").forEach((element) => {
     element.classList.remove("book-sprint-drop-active", "book-sprint-insert-before", "book-sprint-insert-after");
   });
   if (!drop) return;
-  const zone = document.querySelector(drop.type === "answer" ? "[data-book-drop-zone]" : "[data-book-bank-drop]");
+  const answerSelector = drag.type === "verse-order" ? "[data-order-drop-zone]" : "[data-book-drop-zone]";
+  const bankSelector = drag.type === "verse-order" ? "[data-order-bank-drop]" : "[data-book-bank-drop]";
+  const zone = document.querySelector(drop.type === "answer" ? answerSelector : bankSelector);
   zone?.classList.add("book-sprint-drop-active");
   drop.indicator?.classList.add(drop.insertAfter ? "book-sprint-insert-after" : "book-sprint-insert-before");
 }
 
-function finishBookSprintDrag(event) {
-  const drag = bookSprintDragState;
+function finishOrderingDrag(event) {
+  const drag = orderingDragState;
   if (!drag || event.pointerId !== drag.pointerId) return;
-  const drop = drag.dragging ? bookSprintDropTarget(event.clientX, event.clientY) : null;
+  const drop = drag.dragging ? orderingDropTarget(drag, event.clientX, event.clientY) : null;
   const didDrag = drag.dragging;
-  cleanupBookSprintDrag();
+  cleanupOrderingDrag();
   if (!didDrag || !drop) return;
-  bookSprintSuppressClickUntil = Date.now() + 500;
+  orderingSuppressClickUntil = Date.now() + 500;
   if (drop.type === "answer") {
-    moveBookSprintBook(drag.book, drop.index);
+    if (drag.type === "verse-order") moveVerseOrderFragment(drag.item, drop.index);
+    else moveBookSprintBook(drag.item, drop.index);
   } else {
-    removeBookSprintBook(drag.book);
+    if (drag.type === "verse-order") removeVerseOrderFragment(drag.item);
+    else removeBookSprintBook(drag.item);
   }
 }
 
-function cancelBookSprintDrag(event) {
-  if (!bookSprintDragState || event.pointerId !== bookSprintDragState.pointerId) return;
-  cleanupBookSprintDrag();
+function cancelOrderingDrag(event) {
+  if (!orderingDragState || event.pointerId !== orderingDragState.pointerId) return;
+  cleanupOrderingDrag();
 }
 
-function cleanupBookSprintDrag() {
-  const drag = bookSprintDragState;
+function cleanupOrderingDrag() {
+  const drag = orderingDragState;
   if (!drag) return;
   drag.source.classList.remove("is-dragging");
   drag.ghost?.remove();
   document.body.classList.remove("book-sprint-is-dragging");
-  updateBookSprintDropIndicator(null);
-  document.removeEventListener("pointermove", moveBookSprintDrag);
-  document.removeEventListener("pointerup", finishBookSprintDrag);
-  document.removeEventListener("pointercancel", cancelBookSprintDrag);
-  bookSprintDragState = null;
+  updateOrderingDropIndicator(drag, null);
+  document.removeEventListener("pointermove", moveOrderingDrag);
+  document.removeEventListener("pointerup", finishOrderingDrag);
+  document.removeEventListener("pointercancel", cancelOrderingDrag);
+  orderingDragState = null;
 }
 
 function moveBookSprintBook(book, targetIndex) {
@@ -5216,8 +5236,24 @@ function selectVerseOrderFragment(id) {
 
 function removeVerseOrderFragment(id) {
   const puzzle = currentVerseOrderPuzzle();
-  if (!puzzle || puzzle.answered) return;
+  if (!puzzle || puzzle.answered || !puzzle.selectedIds.includes(id)) return;
   puzzle.selectedIds = puzzle.selectedIds.filter((item) => item !== id);
+  renderPreservingReaderScroll();
+}
+
+function moveVerseOrderFragment(id, targetIndex) {
+  const puzzle = currentVerseOrderPuzzle();
+  if (!puzzle || puzzle.answered) return;
+  const currentIndex = puzzle.selectedIds.indexOf(id);
+  const nextIds = puzzle.selectedIds.slice();
+  if (currentIndex >= 0) {
+    nextIds.splice(currentIndex, 1);
+    if (currentIndex < targetIndex) targetIndex -= 1;
+  }
+  targetIndex = Math.max(0, Math.min(targetIndex, nextIds.length));
+  nextIds.splice(targetIndex, 0, id);
+  if (nextIds.every((item, index) => item === puzzle.selectedIds[index])) return;
+  puzzle.selectedIds = nextIds;
   renderPreservingReaderScroll();
 }
 
