@@ -1366,17 +1366,22 @@ button {
   border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 72%, transparent);
   color: var(--teal);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 10%, transparent);
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--teal) 17%, transparent),
+    0 8px 20px color-mix(in srgb, var(--ink) 10%, transparent);
   backdrop-filter: blur(14px);
   cursor: pointer;
   opacity: 0.72;
-  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease, transform var(--motion-fast) ease;
+  transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, transform var(--motion-fast) ease;
 }
 
 .reader-top-button:hover,
 .reader-top-button:focus-visible {
   background: color-mix(in srgb, var(--soft) 82%, transparent);
   color: var(--teal);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--teal) 24%, transparent),
+    0 10px 24px color-mix(in srgb, var(--ink) 12%, transparent);
   opacity: 0.94;
   transform: translateY(-3px);
 }
@@ -5890,10 +5895,12 @@ svg {
     border-radius: 999px;
     background: color-mix(in srgb, var(--paper) 72%, transparent);
     color: var(--teal);
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 10%, transparent);
+    box-shadow:
+      0 0 20px color-mix(in srgb, var(--teal) 17%, transparent),
+      0 8px 20px color-mix(in srgb, var(--ink) 10%, transparent);
     backdrop-filter: blur(14px);
     opacity: 0.72;
-    transition: opacity 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+    transition: opacity 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   }
 
   .reader-top-button {
@@ -5924,6 +5931,9 @@ svg {
   .reader-top-button.available:focus-visible {
     background: color-mix(in srgb, var(--soft) 82%, transparent);
     color: var(--teal);
+    box-shadow:
+      0 0 24px color-mix(in srgb, var(--teal) 24%, transparent),
+      0 10px 24px color-mix(in srgb, var(--ink) 12%, transparent);
     opacity: 0.94;
     transform: translateY(-2px) scale(1);
   }
@@ -5939,6 +5949,9 @@ svg {
   .mobile-floating-settings.active {
     background: color-mix(in srgb, var(--soft) 82%, transparent);
     color: var(--teal);
+    box-shadow:
+      0 0 24px color-mix(in srgb, var(--teal) 24%, transparent),
+      0 10px 24px color-mix(in srgb, var(--ink) 12%, transparent);
     opacity: 0.94;
     transform: translateY(-2px);
   }
