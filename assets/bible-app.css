@@ -1352,7 +1352,7 @@ button {
 .reader-top-button {
   position: fixed;
   right: max(24px, env(safe-area-inset-right, 0px));
-  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   z-index: 41;
   display: inline-flex;
   align-items: center;
@@ -1389,6 +1389,19 @@ button {
 .reader-top-button svg {
   width: 21px;
   height: 21px;
+}
+
+.app-shell.focus-shell .reader-top-button {
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+  background: color-mix(in srgb, var(--paper) 62%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 8%, transparent);
+  opacity: 0.56;
+}
+
+.app-shell.focus-shell .reader-top-button:hover,
+.app-shell.focus-shell .reader-top-button:focus-visible {
+  background: color-mix(in srgb, var(--teal) 82%, transparent);
+  opacity: 0.9;
 }
 
 .mobile-settings-popover {
@@ -6141,6 +6154,11 @@ svg {
       padding: 0;
     }
 
+    .reader-top-button {
+      right: max(7px, env(safe-area-inset-right, 0px));
+      bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+    }
+
     .selection-bar {
       left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px);
       right: calc(env(safe-area-inset-right, 0px) + 8px);
@@ -6249,6 +6267,10 @@ svg {
     .mobile-floating-settings {
       right: max(12px, env(safe-area-inset-right, 0px));
       left: auto;
+    }
+
+    .reader-top-button {
+      bottom: calc(72px + env(safe-area-inset-bottom, 0px));
     }
 
     .mobile-settings-popover {
@@ -7203,6 +7225,15 @@ svg {
 }
 
 @media (max-width: 840px) and (orientation: landscape) {
+  .app-shell.focus-shell .reader-top-button.available {
+    opacity: 0.5;
+  }
+
+  .app-shell.focus-shell .reader-top-button.available:hover,
+  .app-shell.focus-shell .reader-top-button.available:focus-visible {
+    opacity: 0.9;
+  }
+
   .app-shell:not(.focus-shell).mobile-controls-open .search {
     order: 2;
     grid-column: 1 / 6;
