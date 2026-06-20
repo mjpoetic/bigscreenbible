@@ -7863,14 +7863,21 @@ svg {
   }
 
   .main-grid {
-    grid-template-columns: var(--rail-width) minmax(0, 1fr);
-    padding-left: 0;
-    padding-right: var(--phone-landscape-right-safe);
+    padding-right: 0;
     position: relative;
   }
 
-  .main-grid.library-closed {
+  .main-grid:not(.focus-mode) {
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
+    padding-left: 0;
+  }
+
+  .main-grid.library-closed:not(.focus-mode) {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  }
+
+  .main-grid.focus-mode {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .main-grid::before {
