@@ -2264,6 +2264,7 @@ function triviaGameView() {
   const question = game.questions[game.index];
   const answered = game.selectedAnswer !== null;
   const correct = game.selectedAnswer === question.answer;
+  const hintOptions = availableRoundHintOptions(triviaHintOptions(question), game);
   return `
     <div class="trivia-game">
       <div class="trivia-progress">
@@ -2281,13 +2282,13 @@ function triviaGameView() {
               <strong>${escapeHtml(referenceRushHintLabel(question.hintUsed))} used</strong>
               <p>${escapeHtml(question.hintMessage)}</p>
             </div>
-          ` : question.hintMenuOpen ? `
+          ` : question.hintMenuOpen && hintOptions.length ? `
             <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
               <div>
                 <strong>Choose one hint</strong>
-                <span>You can use one hint for this question.</span>
+                <span>Each hint type can be used once per round.</span>
               </div>
-              ${triviaHintOptions(question).map((hint) => `
+              ${hintOptions.map((hint) => `
                 <button type="button" data-trivia-hint="${escapeHtml(hint.type)}">
                   <strong>${escapeHtml(hint.label)}</strong>
                   <span>${escapeHtml(hint.description)}</span>
@@ -2295,8 +2296,13 @@ function triviaGameView() {
               `).join("")}
               <button class="reference-rush-hint-cancel" id="closeTriviaHints" type="button">Cancel</button>
             </div>
-          ` : `
+          ` : hintOptions.length ? `
             <button class="ghost-btn" id="triviaHint" type="button">Choose a hint</button>
+          ` : `
+            <div class="reference-rush-hint-result" role="status">
+              <strong>All hints used</strong>
+              <p>Hint types return when you start a new round.</p>
+            </div>
           `}
         </div>
       ` : ""}
@@ -2397,7 +2403,7 @@ function referenceRushGameView(game) {
   const answered = puzzle.selectedReference !== null;
   const correct = puzzle.selectedReference === puzzle.correctAnswer;
   const levelLabel = game.difficulty === "All" ? `Progressive · ${puzzle.difficulty}` : game.difficulty;
-  const hintOptions = referenceRushHintOptions(puzzle);
+  const hintOptions = availableRoundHintOptions(referenceRushHintOptions(puzzle), game);
   return `
     <div class="trivia-game reference-rush-game">
       <div class="trivia-progress">
@@ -2418,11 +2424,11 @@ function referenceRushGameView(game) {
               <strong>${escapeHtml(referenceRushHintLabel(puzzle.hintUsed))} used</strong>
               <p>${escapeHtml(puzzle.hintMessage)}</p>
             </div>
-          ` : puzzle.hintMenuOpen ? `
+          ` : puzzle.hintMenuOpen && hintOptions.length ? `
             <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
               <div>
                 <strong>Choose one hint</strong>
-                <span>You can use one type for this verse.</span>
+                <span>Each hint type can be used once per round.</span>
               </div>
               ${hintOptions.map((hint) => `
                 <button type="button" data-reference-hint="${escapeHtml(hint.type)}">
@@ -2432,8 +2438,13 @@ function referenceRushGameView(game) {
               `).join("")}
               <button class="reference-rush-hint-cancel" id="closeReferenceRushHints" type="button">Cancel</button>
             </div>
-          ` : `
+          ` : hintOptions.length ? `
             <button class="ghost-btn" id="referenceRushHint" type="button">Choose a hint</button>
+          ` : `
+            <div class="reference-rush-hint-result" role="status">
+              <strong>All hints used</strong>
+              <p>Hint types return when you start a new round.</p>
+            </div>
           `}
         </div>
       ` : ""}
@@ -4346,6 +4357,7 @@ function startTriviaGame() {
     index: 0,
     score: 0,
     selectedAnswer: null,
+    usedHintTypes: [],
     complete: false,
   };
   renderPreservingReaderScroll();
@@ -4365,6 +4377,7 @@ function startReferenceRushGame() {
     puzzles,
     index: 0,
     score: 0,
+    usedHintTypes: [],
     complete: false,
   };
   renderPreservingReaderScroll();
@@ -4991,11 +5004,16 @@ function triviaHintOptions(question) {
   return options;
 }
 
+function availableRoundHintOptions(options, game = state.triviaGame) {
+  const usedHintTypes = new Set(game?.usedHintTypes || []);
+  return options.filter((hint) => !usedHintTypes.has(hint.type));
+}
+
 function toggleTriviaHintMenu() {
   const game = state.triviaGame;
   if (!game || game.type !== "trivia" || game.complete || game.selectedAnswer !== null) return;
   const question = game.questions[game.index];
-  if (!question || question.hintUsed) return;
+  if (!question || question.hintUsed || !availableRoundHintOptions(triviaHintOptions(question), game).length) return;
   question.hintMenuOpen = !question.hintMenuOpen;
   renderPreservingReaderScroll();
 }
@@ -5005,7 +5023,7 @@ function useTriviaHint(type) {
   if (!game || game.type !== "trivia" || game.complete || game.selectedAnswer !== null) return;
   const question = game.questions[game.index];
   if (!question || question.hintUsed) return;
-  const availableTypes = new Set(triviaHintOptions(question).map((hint) => hint.type));
+  const availableTypes = new Set(availableRoundHintOptions(triviaHintOptions(question), game).map((hint) => hint.type));
   if (!availableTypes.has(type)) return;
   const removable = question.choices.filter((choice) => choice !== question.answer);
   const removeCount = type === "fifty-fifty" ? Math.max(0, question.choices.length - 2) : 1;
@@ -5015,6 +5033,7 @@ function useTriviaHint(type) {
     : "One incorrect answer has been removed.";
   question.hintUsed = type;
   question.hintMenuOpen = false;
+  game.usedHintTypes = [...new Set([...(game.usedHintTypes || []), type])];
   renderPreservingReaderScroll();
 }
 
@@ -5054,7 +5073,8 @@ function toggleReferenceRushHintMenu() {
   const game = state.triviaGame;
   if (!game || game.type !== "reference-rush" || game.complete) return;
   const puzzle = game.puzzles[game.index];
-  if (!puzzle || puzzle.selectedReference !== null || puzzle.hintUsed) return;
+  if (!puzzle || puzzle.selectedReference !== null || puzzle.hintUsed
+    || !availableRoundHintOptions(referenceRushHintOptions(puzzle), game).length) return;
   puzzle.hintMenuOpen = !puzzle.hintMenuOpen;
   renderPreservingReaderScroll();
 }
@@ -5064,7 +5084,7 @@ function useReferenceRushHint(type) {
   if (!game || game.type !== "reference-rush" || game.complete) return;
   const puzzle = game.puzzles[game.index];
   if (!puzzle || puzzle.selectedReference !== null || puzzle.hintUsed) return;
-  const availableTypes = new Set(referenceRushHintOptions(puzzle).map((hint) => hint.type));
+  const availableTypes = new Set(availableRoundHintOptions(referenceRushHintOptions(puzzle), game).map((hint) => hint.type));
   if (!availableTypes.has(type)) return;
   const removable = puzzle.choices.filter((choice) => choice !== puzzle.correctAnswer);
   if (type === "eliminate") {
@@ -5082,6 +5102,7 @@ function useReferenceRushHint(type) {
   }
   puzzle.hintUsed = type;
   puzzle.hintMenuOpen = false;
+  game.usedHintTypes = [...new Set([...(game.usedHintTypes || []), type])];
   renderPreservingReaderScroll();
 }
 
