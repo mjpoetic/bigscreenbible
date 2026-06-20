@@ -629,6 +629,38 @@ function renderPreservingReaderScroll() {
   });
 }
 
+function renderTriviaAnswerAndScroll() {
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => requestAnimationFrame(scrollTriviaAnswerActionsIntoView));
+}
+
+function scrollTriviaAnswerActionsIntoView() {
+  const triviaReader = document.querySelector(".trivia-reader");
+  const actions = document.querySelector(".trivia-game .trivia-actions");
+  const answerStart = document.querySelector(".trivia-game .trivia-reference")
+    || document.querySelector(".trivia-game .trivia-feedback");
+  if (!triviaReader || !actions || !answerStart) return;
+
+  const readerBounds = triviaReader.getBoundingClientRect();
+  const answerBounds = answerStart.getBoundingClientRect();
+  const actionsBounds = actions.getBoundingClientRect();
+  const viewportPadding = 24;
+  const visibleTop = readerBounds.top + viewportPadding;
+  const visibleBottom = readerBounds.bottom - viewportPadding;
+  if (actionsBounds.bottom <= visibleBottom) return;
+
+  const answerRegionHeight = actionsBounds.bottom - answerBounds.top;
+  const availableHeight = visibleBottom - visibleTop;
+  const offset = answerRegionHeight <= availableHeight
+    ? actionsBounds.bottom - visibleBottom
+    : answerBounds.top - visibleTop;
+  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+  triviaReader.scrollTo({
+    top: Math.max(0, triviaReader.scrollTop + offset),
+    behavior,
+  });
+}
+
 function captureReaderScroll() {
   const scripture = document.querySelector(".scripture");
   const triviaReader = document.querySelector(".trivia-reader");
@@ -5099,7 +5131,7 @@ function answerTriviaQuestion(answer) {
   if (question.eliminatedChoices.includes(answer)) return;
   game.selectedAnswer = answer;
   if (answer === question.answer) game.score += 1;
-  renderPreservingReaderScroll();
+  renderTriviaAnswerAndScroll();
 }
 
 function triviaHintOptions(question) {
@@ -5180,7 +5212,7 @@ function answerReferenceRush(reference) {
   if (!puzzle || puzzle.selectedReference !== null) return;
   puzzle.selectedReference = reference;
   if (reference === puzzle.correctAnswer) game.score += 1;
-  renderPreservingReaderScroll();
+  renderTriviaAnswerAndScroll();
 }
 
 function toggleReferenceRushHintMenu() {
@@ -5416,7 +5448,7 @@ function checkBookSprint() {
   puzzle.answered = true;
   puzzle.lastAttemptIncorrect = false;
   game.score += 1;
-  renderPreservingReaderScroll();
+  renderTriviaAnswerAndScroll();
 }
 
 function nextBookSprintPuzzle() {
@@ -5456,7 +5488,7 @@ function answerWhoSaidIt(answer) {
   if (!question || question.selectedAnswer !== null) return;
   question.selectedAnswer = answer;
   if (answer === question.answer) game.score += 1;
-  renderPreservingReaderScroll();
+  renderTriviaAnswerAndScroll();
 }
 
 function nextWhoSaidItQuestion() {
@@ -5515,7 +5547,7 @@ function checkVerseOrder() {
   puzzle.correct = puzzle.selectedIds.every((id, index) => id === correctIds[index]);
   puzzle.answered = true;
   if (puzzle.correct) game.score += 1;
-  renderPreservingReaderScroll();
+  renderTriviaAnswerAndScroll();
 }
 
 function nextVerseOrderPuzzle() {
