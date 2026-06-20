@@ -8,6 +8,8 @@
   --line: #d9d2c4;
   --teal: #006d72;
   --teal-dark: #004f54;
+  --accent-ink: #ffffff;
+  --accent-hover: var(--teal-dark);
   --gold: #ad7414;
   --gold-soft: #f5ead3;
   --success: #266d4f;
@@ -79,6 +81,8 @@
   --line: #303a36;
   --teal: #3da6a9;
   --teal-dark: #2a8185;
+  --accent-ink: #0b292a;
+  --accent-hover: #55b9bc;
   --gold: #d8a144;
   --gold-soft: #332714;
   --success: #76c49c;
@@ -207,6 +211,8 @@
   --line: #42382a;
   --teal: #8a9f88;
   --teal-dark: #6f846e;
+  --accent-ink: #171c17;
+  --accent-hover: #a1b39e;
   --gold: #d4a044;
   --gold-soft: #3a2b14;
   --success: #9ac18b;
@@ -223,6 +229,8 @@
   --line: #33495a;
   --teal: #63d3bf;
   --teal-dark: #3eaa9c;
+  --accent-ink: #082921;
+  --accent-hover: #82e0cf;
   --gold: #b9fff0;
   --gold-soft: #173b39;
   --success: #7dd9a2;
@@ -239,6 +247,8 @@
   --line: #543449;
   --teal: #e19ac1;
   --teal-dark: #b8749c;
+  --accent-ink: #351225;
+  --accent-hover: #edafd0;
   --gold: #f0b7cf;
   --gold-soft: #4a2638;
   --success: #b2c180;
@@ -255,6 +265,8 @@
   --line: #453960;
   --teal: #bda8ff;
   --teal-dark: #9981d6;
+  --accent-ink: #21143d;
+  --accent-hover: #cbbcff;
   --gold: #d9c2ff;
   --gold-soft: #37294e;
   --success: #9fc493;
@@ -271,6 +283,8 @@
   --line: #263a56;
   --teal: #67a7ff;
   --teal-dark: #4384d6;
+  --accent-ink: #071a33;
+  --accent-hover: #82b8ff;
   --gold: #d59a52;
   --gold-soft: #352518;
   --success: #7cd3b0;
@@ -287,6 +301,8 @@
   --line: #48515a;
   --teal: #55d3d0;
   --teal-dark: #34aaa9;
+  --accent-ink: #031b1c;
+  --accent-hover: #76e1df;
   --gold: #f0bf54;
   --gold-soft: #463513;
   --success: #83d7a5;
@@ -891,12 +907,12 @@ button {
 .primary-btn,
 .focus-toggle.active {
   background: var(--teal);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .primary-btn:hover,
 .mode-tabs button.active:hover {
-  background: var(--teal-dark);
+  background: var(--accent-hover);
 }
 
 .ghost-btn,
@@ -1445,7 +1461,7 @@ button {
 
 .theme-mode-button.active {
   background: var(--teal);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 .settings-popover .theme-toggle,
@@ -1916,7 +1932,7 @@ select {
 
 .trivia-mode-tabs button.active {
   background: var(--teal);
-  color: var(--inverse);
+  color: var(--accent-ink);
 }
 
 .trivia-mode-tabs svg {
@@ -2247,7 +2263,7 @@ select {
   height: 24px;
   border-radius: 999px;
   background: var(--teal);
-  color: var(--inverse);
+  color: var(--accent-ink);
   font-size: 12px;
   font-weight: 900;
 }
