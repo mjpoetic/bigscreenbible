@@ -408,6 +408,7 @@ const icons = {
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="11" height="13" rx="1.5"/><path d="M5 16H4a1.5 1.5 0 0 1-1.5-1.5v-10A1.5 1.5 0 0 1 4 3h9.5A1.5 1.5 0 0 1 15 4.5V5"/></svg>',
   print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M17 12h.01"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><path d="M12 7h.01"/></svg>',
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="14.5" r="4.5"/><path d="M11 11l8-8"/><path d="M16 6l2 2"/><path d="M14 8l2 2"/></svg>',
@@ -3874,6 +3875,7 @@ function bottombar() {
             <span class="bottom-action-label">Print</span>
           </button>
           <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible">
+            <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
             <span class="bottom-action-label">About</span>
           </a>
         </div>
@@ -6528,16 +6530,22 @@ function activateWorkspace(target) {
   state.libraryOpen = true;
   localStorage.setItem("lw_library_open", "true");
   scheduleCloudSync();
-  state.pendingPanelFocus = target;
+  state.pendingPanelFocus = isCompactScreen() || isShortLandscapeScreen() ? null : target;
   renderPreservingReaderScroll();
 }
 
 function closeLibrary() {
+  const readerScroll = captureReaderScroll();
   animateBeforeRemoval(".library", () => {
     state.libraryOpen = false;
     localStorage.setItem("lw_library_open", "false");
     scheduleCloudSync();
     render();
+    restoreReaderScroll(readerScroll);
+    requestAnimationFrame(() => {
+      restoreReaderScroll(readerScroll);
+      requestAnimationFrame(() => restoreReaderScroll(readerScroll));
+    });
   }, { duration: 320 });
 }
 
@@ -7013,14 +7021,25 @@ function focusWorkspaceTarget(target) {
   const selector = focusMap[target] || "#crossRefsSection";
   const element = document.querySelector(selector);
   if (!element) return;
+  const libraryPanel = element.closest(".library");
 
   if (target === "Verse" || target === "Search") {
-    element.focus?.();
+    libraryPanel?.scrollTo({ top: 0, behavior: "auto" });
+    element.focus?.({ preventScroll: true });
     return;
   }
 
-  element.scrollIntoView({ block: "start", behavior: "smooth" });
-  if (target === "Notes" || target === "Annotations") document.getElementById("noteBox")?.focus();
+  if (libraryPanel) {
+    const libraryBounds = libraryPanel.getBoundingClientRect();
+    const elementBounds = element.getBoundingClientRect();
+    libraryPanel.scrollTo({
+      top: Math.max(0, libraryPanel.scrollTop + elementBounds.top - libraryBounds.top),
+      behavior: "auto",
+    });
+  }
+  if (target === "Notes" || target === "Annotations") {
+    document.getElementById("noteBox")?.focus({ preventScroll: true });
+  }
 }
 
 function availableReferenceForBook(book) {
