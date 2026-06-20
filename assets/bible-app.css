@@ -2023,6 +2023,16 @@ select {
   line-height: 1;
 }
 
+.book-sprint-meter strong.is-expired {
+  color: var(--gold);
+}
+
+.book-sprint-time-ring {
+  width: auto;
+  min-width: 128px;
+  padding-inline: 18px;
+}
+
 .book-sprint-result-stats {
   justify-content: center;
 }
