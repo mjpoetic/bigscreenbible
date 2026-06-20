@@ -411,6 +411,7 @@ const icons = {
   google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.2 3-7.2z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.6-2.5l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.8A6 6 0 0 1 6 12c0-.6.1-1.2.4-1.8V7.6H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.4l3.3-2.6z"/><path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2 10 10 0 0 0 3.1 7.6l3.3 2.6c.8-2.3 3-4.1 5.6-4.1z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
+  chevronDouble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 18 6-6-6-6"/><path d="m13 18 6-6-6-6"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
@@ -1382,14 +1383,32 @@ function reader() {
   return `
     <section class="reader">
       <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
-        <button class="icon-btn" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">‹</button>
-        <button class="icon-btn" id="nextVerse" aria-label="Next verse" data-tooltip="Next verse">›</button>
-        <div class="spacer"></div>
+        <div class="verse-nav-direction verse-nav-direction-before">
+          <button class="icon-btn verse-nav-button verse-nav-button-double verse-nav-button-left" id="prevChapterInline" aria-label="Previous chapter" data-tooltip="Previous chapter">${icons.chevronDouble}</button>
+          <button class="icon-btn verse-nav-button verse-nav-button-left" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">${icons.chevron}</button>
+        </div>
         <div class="compact-reference">${referenceLabel()} · ${activeVersions().map(translationDisplayCode).join(" / ")}</div>
-        <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
-        <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
-        <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
-        <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.note}</button>
+        <div class="verse-nav-selectors">
+          <label class="verse-nav-select verse-nav-chapter-select">
+            <span class="sr-only">Chapter</span>
+            <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
+            <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
+          </label>
+          <span class="verse-nav-divider" aria-hidden="true"></span>
+          <label class="verse-nav-select verse-nav-verse-select">
+            <span class="sr-only">Verse</span>
+            <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
+            <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
+          </label>
+        </div>
+        <div class="verse-nav-direction verse-nav-direction-after">
+          <button class="icon-btn verse-nav-button" id="nextVerse" aria-label="Next verse" data-tooltip="Next verse">${icons.chevron}</button>
+          <button class="icon-btn verse-nav-button verse-nav-button-double" id="nextChapterInline" aria-label="Next chapter" data-tooltip="Next chapter">${icons.chevronDouble}</button>
+        </div>
+        <div class="verse-nav-utilities">
+          <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
+          <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.note}</button>
+        </div>
         <button class="ghost-btn" id="openStudy">${icons.layers} Study</button>
         <button class="ghost-btn compact-control" id="exitFocusInline">Show Panels</button>
       </div>
@@ -4478,6 +4497,8 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
   document.getElementById("prevChapter")?.addEventListener("click", () => moveChapter(-1));
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
+  document.getElementById("prevChapterInline")?.addEventListener("click", () => moveChapter(-1));
+  document.getElementById("nextChapterInline")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("bookmarkBtn")?.addEventListener("click", toggleBookmark);
   document.getElementById("panelBookmarkToggle")?.addEventListener("click", toggleBookmark);
   document.getElementById("noteBtn")?.addEventListener("click", () => activateWorkspace("Annotations"));
