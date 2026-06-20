@@ -556,6 +556,7 @@ function activeVersions() {
 
 function render() {
   const app = document.querySelector("#app");
+  if (state.startupApplied) syncModeUrl();
   syncPresentationShell();
   if (dataLoading || dataError) {
     clearInterval(bookSprintTimer);
@@ -5813,24 +5814,21 @@ function applyStartupExperience() {
   if (state.startupApplied) return;
   state.startupApplied = true;
   const sharedRef = sharedReferenceFromUrl();
-  const openBigScreen = shouldOpenBigScreenFromUrl();
+  const requestedMode = requestedModeFromUrl();
   if (sharedRef && setReferenceFromString(sharedRef)) {
     const selected = sharedVersesFromUrl();
     if (selected.length) state.selectedVerses = selected;
-    if (openBigScreen) {
-      state.mode = "big";
-      state.presentationControlsVisible = !isCompactScreen();
-    }
+    if (requestedMode) state.mode = requestedMode;
+    if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
     return;
   }
   if (state.startVerseOfDay) {
     const verseOfDay = verseOfDayReference();
     if (verseOfDay && setReferenceFromString(verseOfDay)) state.isVerseOfDayActive = true;
   }
-  if (openBigScreen || state.startBigScreen) {
-    state.mode = "big";
-    state.presentationControlsVisible = !isCompactScreen();
-  }
+  if (requestedMode) state.mode = requestedMode;
+  else if (state.startBigScreen) state.mode = "big";
+  if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
 }
 
 function openVerseOfDay(options = {}) {
@@ -5869,10 +5867,14 @@ function sharedVersesFromUrl() {
     .sort((a, b) => a - b);
 }
 
-function shouldOpenBigScreenFromUrl() {
+function requestedModeFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const requestedMode = (params.get("mode") || params.get("view") || "").toLowerCase();
-  return ["big", "bigscreen", "big-screen", "presentation"].includes(requestedMode);
+  if (["big", "bigscreen", "big-screen", "presentation"].includes(requestedMode)) return "big";
+  if (["reader", "read"].includes(requestedMode)) return "reader";
+  if (["parallel", "study", "parallel-study"].includes(requestedMode)) return "parallel";
+  if (["trivia", "games", "game"].includes(requestedMode)) return "trivia";
+  return "";
 }
 
 function verseOfDayReference(date = new Date()) {
@@ -6409,6 +6411,10 @@ function handleGlobalShortcuts(event) {
     return;
   }
 
+  // Leave browser and operating-system shortcuts alone. This keeps common
+  // commands such as Cmd/Ctrl+F, Cmd/Ctrl+P, Cmd/Ctrl+R, and Alt+Arrow working.
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+
   if (event.key === "Escape") {
     if (state.tutorialActive) {
       event.preventDefault();
@@ -6904,6 +6910,15 @@ function updateShareUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set("ref", referenceLabel());
   url.searchParams.delete("verses");
+  window.history.replaceState(null, "", url);
+}
+
+function syncModeUrl() {
+  if (!window.history?.replaceState) return;
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("mode") === state.mode && !url.searchParams.has("view")) return;
+  url.searchParams.set("mode", state.mode);
+  url.searchParams.delete("view");
   window.history.replaceState(null, "", url);
 }
 
