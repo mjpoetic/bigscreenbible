@@ -588,19 +588,6 @@ button {
   text-decoration: none;
 }
 
-.bottom-about-link .bottom-action-icon {
-  display: inline-flex;
-}
-
-.bottom-about-link .bottom-action-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
 .chapter-nav-icon,
 .bottom-action-icon {
   display: inline-flex;
@@ -6513,7 +6500,7 @@ svg {
   @media (orientation: portrait) {
     .bottombar {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(5, minmax(48px, 1fr));
       grid-template-rows: auto auto;
       align-items: center;
       justify-items: center;
@@ -6558,7 +6545,7 @@ svg {
     }
 
     .fineprint {
-      grid-column: 1;
+      grid-column: 1 / -1;
       grid-row: 1;
       width: min(100%, 320px);
       min-width: 0;
@@ -6574,55 +6561,52 @@ svg {
       display: contents;
     }
 
-  .chapter-nav-prev,
-  #copyVerse,
-  #printPage,
-  .chapter-nav-next,
-  .bottom-about-link {
-    grid-row: 2;
-  }
+    .chapter-nav-prev,
+    #copyVerse,
+    #printPage,
+    .chapter-nav-next,
+    .bottom-about-link {
+      grid-row: 2;
+      justify-self: center;
+      transform: none;
+    }
 
     .chapter-nav-prev {
       grid-column: 1;
-      transform: translateX(-144px);
     }
 
     #copyVerse {
-      grid-column: 1;
-      transform: translateX(-72px);
+      grid-column: 2;
     }
 
     #printPage {
-      grid-column: 1;
-      transform: translateX(0);
+      grid-column: 3;
     }
 
-  .chapter-nav-next {
-    grid-column: 1;
-    transform: translateX(72px);
-  }
+    .chapter-nav-next {
+      grid-column: 4;
+    }
 
-  .bottom-about-link {
-    grid-row: 2;
-    justify-self: center;
-    width: 48px;
-    min-width: 48px;
-    min-height: 48px;
-    padding: 0;
-    border-radius: 999px;
-    transform: translateX(144px);
-  }
+    .bottom-about-link {
+      grid-column: 5;
+      width: 48px;
+      min-width: 48px;
+      min-height: 48px;
+      padding: 0;
+      border-radius: 999px;
+    }
 
-  .bottom-about-link .bottom-action-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
+    .bottom-about-link .bottom-action-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
 
-    .bottom-action-icon {
+    .bottom-action-icon,
+    .bottom-about-link .bottom-action-icon {
       display: inline-flex;
     }
 
