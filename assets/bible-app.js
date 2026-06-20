@@ -137,6 +137,8 @@ let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
+let referenceRushTimer = 0;
+let referenceRushAudioContext = null;
 let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
 let cloudSyncTimer = 0;
@@ -264,6 +266,7 @@ const state = {
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
+  referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   triviaGame: null,
   authConfigured: isSupabaseConfigured(),
   authClient: null,
@@ -562,6 +565,8 @@ function render() {
   if (dataLoading || dataError) {
     clearInterval(bookSprintTimer);
     bookSprintTimer = 0;
+    clearInterval(referenceRushTimer);
+    referenceRushTimer = 0;
     app.innerHTML = loadingScreen();
     return;
   }
@@ -609,6 +614,7 @@ function render() {
   requestAnimationFrame(runPendingTriviaCelebration);
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
+  scheduleReferenceRushTimer();
 }
 
 function syncPresentationShell() {
@@ -1907,6 +1913,7 @@ function captureCloudSnapshot() {
       triviaDifficulty: state.triviaDifficulty,
       triviaCount: state.triviaCount,
       bookSprintSound: state.bookSprintSound,
+      referenceRushTimed: state.referenceRushTimed,
     },
     bookmarks: state.bookmarks,
     notes: state.notes,
@@ -2001,6 +2008,7 @@ function applyCloudSnapshot(snapshot) {
   state.triviaDifficulty = settings.triviaDifficulty || state.triviaDifficulty;
   state.triviaCount = normalizedTriviaCount(state.triviaGameType, Number(settings.triviaCount) || state.triviaCount);
   state.bookSprintSound = settings.bookSprintSound !== false;
+  state.referenceRushTimed = settings.referenceRushTimed !== false;
   state.bookmarks = Array.isArray(snapshot.bookmarks) ? uniqueList(snapshot.bookmarks).slice(0, 200) : [];
   state.notes = snapshot.notes && typeof snapshot.notes === "object" ? snapshot.notes : {};
   state.highlights = snapshot.highlights && typeof snapshot.highlights === "object" ? snapshot.highlights : {};
@@ -2033,6 +2041,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
   localStorage.setItem("lw_trivia_count", String(state.triviaCount));
   localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
+  localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
@@ -2320,6 +2329,80 @@ function updateBookSprintTimerDisplay() {
   if (label) label.textContent = remainingMs > 0 ? "Time to beat" : "Best time passed";
 }
 
+function referenceRushDurationMs(difficulty = state.triviaDifficulty, count = state.triviaCount) {
+  const baseSeconds = {
+    Easy: 30,
+    Medium: 45,
+    Hard: 60,
+    All: 60,
+  }[difficulty] || 60;
+  const verseCount = normalizedTriviaCount("reference-rush", count);
+  return baseSeconds * 1000 * (verseCount / 5);
+}
+
+function referenceRushRemainingMs(game = state.triviaGame) {
+  if (!game || game.type !== "reference-rush" || !game.timed || !game.deadlineAt) return 0;
+  const now = game.finishedAt || Date.now();
+  return Math.max(0, game.deadlineAt - now);
+}
+
+function primeReferenceRushAudio() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  try {
+    if (!referenceRushAudioContext) referenceRushAudioContext = new AudioContext();
+  } catch {
+    return;
+  }
+  if (referenceRushAudioContext.state === "suspended") referenceRushAudioContext.resume().catch(() => {});
+}
+
+function playReferenceRushTick(secondsRemaining) {
+  if (!referenceRushAudioContext || referenceRushAudioContext.state !== "running") return;
+  const now = referenceRushAudioContext.currentTime;
+  const oscillator = referenceRushAudioContext.createOscillator();
+  const gain = referenceRushAudioContext.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.setValueAtTime(secondsRemaining <= 3 ? 1180 : 920, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(secondsRemaining <= 3 ? 0.045 : 0.028, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+  oscillator.connect(gain);
+  gain.connect(referenceRushAudioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.05);
+}
+
+function scheduleReferenceRushTimer() {
+  clearInterval(referenceRushTimer);
+  referenceRushTimer = 0;
+  updateReferenceRushTimerDisplay();
+  const game = state.triviaGame;
+  if (state.mode !== "trivia" || game?.type !== "reference-rush" || !game.timed || game.complete || game.finishedAt) return;
+  referenceRushTimer = setInterval(updateReferenceRushTimerDisplay, 250);
+}
+
+function updateReferenceRushTimerDisplay() {
+  const game = state.triviaGame;
+  const timer = document.getElementById("referenceRushTimer");
+  if (!timer || game?.type !== "reference-rush" || !game.timed) return;
+  const remainingMs = referenceRushRemainingMs(game);
+  const secondsRemaining = Math.ceil(remainingMs / 1000);
+  timer.textContent = formatCountdownTime(remainingMs);
+  timer.classList.toggle("is-urgent", remainingMs > 0 && remainingMs <= 10000);
+  timer.classList.toggle("is-critical", remainingMs > 0 && remainingMs <= 5000);
+  timer.classList.toggle("is-expired", remainingMs <= 0);
+  if (secondsRemaining > 0 && secondsRemaining <= 10 && game.referenceRushLastTick !== secondsRemaining) {
+    game.referenceRushLastTick = secondsRemaining;
+    playReferenceRushTick(secondsRemaining);
+  }
+  if (remainingMs > 0 || game.complete || game.finishedAt) return;
+  game.timedOut = true;
+  game.finishedAt = game.deadlineAt;
+  completeTriviaGame(game);
+  renderPreservingReaderScroll();
+}
+
 function triviaView() {
   const questions = triviaQuestions();
   const isVerseOrder = state.triviaGameType === "verse-order";
@@ -2339,6 +2422,9 @@ function triviaView() {
   const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
   const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
+  const referenceRushTime = isReferenceRush
+    ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
+    : "";
   const setupCopy = isVerseOrder
     ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
@@ -2383,6 +2469,15 @@ function triviaView() {
               </label>
             </div>
             ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
+            ${isReferenceRush ? `
+              <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}">
+                ${icons.timer}
+                <span>
+                  <strong>Countdown ${state.referenceRushTimed ? "on" : "off"}</strong>
+                  <small>${state.referenceRushTimed ? `${referenceRushTime} for this round` : "Play without a timer"}</small>
+                </span>
+              </button>
+            ` : ""}
             ${isBookSprint ? `
               <div class="book-sprint-best-card">
                 <span>Best time for this setup</span>
@@ -2553,6 +2648,14 @@ function referenceRushGameView(game) {
         <span>Reference Rush · ${escapeHtml(levelLabel)}</span>
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
+      ${game.timed ? `
+        <div class="book-sprint-meter reference-rush-timer-meter" aria-label="Reference Rush countdown">
+          <div>
+            <span>Time left</span>
+            <strong id="referenceRushTimer">${formatCountdownTime(referenceRushRemainingMs(game))}</strong>
+          </div>
+        </div>
+      ` : ""}
       <div class="reference-rush-prompt">
         <p>${escapeHtml(puzzle.text)}</p>
         <span>${escapeHtml(game.version)}</span>
@@ -2791,14 +2894,16 @@ function triviaResultsView(game) {
   const resultText = game.type === "verse-order"
     ? `You ordered ${game.score} of ${roundLength} passages correctly.`
     : game.type === "reference-rush"
-      ? `You matched ${game.score} of ${roundLength} references correctly.`
+      ? game.timedOut
+        ? `Time ran out. You matched ${game.score} of ${roundLength} references correctly; unanswered verses counted against your accuracy.`
+        : `You matched ${game.score} of ${roundLength} references correctly.`
       : game.type === "who-said-it"
           ? `You identified ${game.score} of ${roundLength} speakers correctly.`
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
     <div class="trivia-results ${perfect ? "perfect" : ""}">
       <div class="trivia-result-ring">${percent}%</div>
-      <h2>${triviaResultTitle(percent)}</h2>
+      <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
       <p>${resultText}</p>
       ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       <div class="trivia-actions">
@@ -2816,6 +2921,7 @@ function triviaRoundLength(game) {
 
 function completeTriviaGame(game) {
   if (!game || game.complete) return;
+  if (game.type === "reference-rush" && game.timed && !game.finishedAt) game.finishedAt = Date.now();
   game.complete = true;
   const roundLength = triviaRoundLength(game);
   game.celebrationPending = game.type === "book-sprint"
@@ -4111,6 +4217,12 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  document.getElementById("referenceRushTimerToggle")?.addEventListener("click", () => {
+    state.referenceRushTimed = !state.referenceRushTimed;
+    localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
+    scheduleCloudSync();
+    renderPreservingReaderScroll();
+  });
   document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
   document.getElementById("restartTriviaGame")?.addEventListener("click", startTriviaGame);
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
@@ -4554,6 +4666,10 @@ function startReferenceRushGame() {
     showToast("Not enough verses available for Reference Rush yet");
     return;
   }
+  const timed = state.referenceRushTimed;
+  const startedAt = Date.now();
+  const durationMs = referenceRushDurationMs(state.triviaDifficulty, puzzles.length);
+  if (timed) primeReferenceRushAudio();
   state.triviaGame = {
     type: "reference-rush",
     version: referenceRushVersion(),
@@ -4562,6 +4678,13 @@ function startReferenceRushGame() {
     index: 0,
     score: 0,
     usedHintTypes: [],
+    timed,
+    durationMs,
+    startedAt: timed ? startedAt : null,
+    deadlineAt: timed ? startedAt + durationMs : null,
+    finishedAt: null,
+    timedOut: false,
+    referenceRushLastTick: null,
     complete: false,
   };
   renderPreservingReaderScroll();
@@ -5256,6 +5379,7 @@ function answerReferenceRush(reference) {
   if (!puzzle || puzzle.selectedReference !== null) return;
   puzzle.selectedReference = reference;
   if (reference === puzzle.correctAnswer) game.score += 1;
+  if (game.timed && game.index === game.puzzles.length - 1) game.finishedAt = Date.now();
   renderTriviaAnswerAndScroll();
 }
 

@@ -2031,6 +2031,46 @@ select {
   min-width: 180px;
 }
 
+.reference-rush-timer-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: start;
+  min-width: 230px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 13px 15px;
+  text-align: left;
+}
+
+.reference-rush-timer-option.active {
+  border-color: color-mix(in srgb, var(--teal) 58%, var(--line));
+  background: color-mix(in srgb, var(--teal) 9%, var(--paper));
+}
+
+.reference-rush-timer-option svg {
+  width: 22px;
+  height: 22px;
+  color: var(--teal);
+}
+
+.reference-rush-timer-option span {
+  display: grid;
+  gap: 3px;
+}
+
+.reference-rush-timer-option strong {
+  font-size: 16px;
+}
+
+.reference-rush-timer-option small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .book-sprint-best-card,
 .book-sprint-meter,
 .book-sprint-result-stats {
@@ -2118,6 +2158,14 @@ select {
 .book-sprint-meter strong.is-expired {
   color: var(--gold);
   animation: none;
+}
+
+.reference-rush-timer-meter {
+  justify-content: flex-start;
+}
+
+.reference-rush-timer-meter > div {
+  min-width: 180px;
 }
 
 @keyframes bookSprintClockPressure {
