@@ -141,6 +141,7 @@ let referenceRushTimer = 0;
 let referenceRushAudioContext = null;
 let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
+let activeMobileVerseNavMenu = null;
 let cloudSyncTimer = 0;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
@@ -563,6 +564,7 @@ function activeVersions() {
 }
 
 function render() {
+  closeMobileVerseNavMenu();
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   if (state.startupApplied) syncModeUrl();
@@ -1395,6 +1397,17 @@ function reader() {
               <button class="icon-btn verse-nav-button verse-nav-button-left" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">${icons.chevron}</button>
             </div>
             <div class="compact-reference">${referenceLabel()} · ${activeVersions().map(translationDisplayCode).join(" / ")}</div>
+            <div class="mobile-verse-nav-selectors">
+              <button class="verse-nav-select mobile-verse-nav-trigger mobile-verse-nav-chapter" id="mobileChapterSelectInline" type="button" aria-label="Choose chapter" aria-haspopup="listbox" aria-expanded="false">
+                <span>${escapeHtml(compactChapterLabel(state.reference))}</span>
+                <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
+              </button>
+              <span class="verse-nav-divider" aria-hidden="true"></span>
+              <button class="verse-nav-select mobile-verse-nav-trigger mobile-verse-nav-verse" id="mobileVerseSelectInline" type="button" aria-label="Choose verse" aria-haspopup="listbox" aria-expanded="false">
+                <span>${state.verse}</span>
+                <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
+              </button>
+            </div>
             <div class="verse-nav-selectors">
               <label class="verse-nav-select verse-nav-chapter-select">
                 <span class="sr-only">Chapter</span>
@@ -1436,6 +1449,145 @@ function reader() {
       ` : ""}
     </section>
   `;
+}
+
+function compactChapterLabel(chapterKey) {
+  const match = String(chapterKey).match(/^(.+)\s+(\d+)$/);
+  if (!match) return chapterKey;
+  const [, book, chapter] = match;
+  const numberedBook = book.match(/^([1-3])\s+(.+)$/);
+  if (numberedBook) return `${numberedBook[1]} ${numberedBook[2].slice(0, 3)} ${chapter}`;
+  const shortBook = book === "Song of Solomon" ? "Song" : book.slice(0, 3);
+  return `${shortBook} ${chapter}`;
+}
+
+function openMobileVerseNavMenu(trigger, type) {
+  if (!trigger) return;
+  if (activeMobileVerseNavMenu?.trigger === trigger) {
+    closeMobileVerseNavMenu();
+    return;
+  }
+  closeMobileVerseNavMenu();
+
+  const chapterMenu = type === "chapter";
+  const items = chapterMenu
+    ? currentBookChapterKeys().map((value) => ({
+      value,
+      label: compactChapterLabel(value),
+      selected: value === state.reference,
+    }))
+    : currentChapter().verses.map((verse) => ({
+      value: String(verse.n),
+      label: String(verse.n),
+      selected: verse.n === state.verse,
+    }));
+  const menu = document.createElement("div");
+  menu.className = `mobile-verse-nav-menu mobile-verse-nav-menu-${type}`;
+  menu.id = `mobileVerseNavMenu-${type}`;
+  menu.setAttribute("role", "listbox");
+  menu.setAttribute("aria-label", chapterMenu ? "Choose chapter" : "Choose verse");
+  menu.innerHTML = items.map((item) => `
+    <button class="mobile-verse-nav-option ${item.selected ? "active" : ""}" type="button" role="option" aria-selected="${item.selected ? "true" : "false"}" data-mobile-verse-nav-value="${escapeHtml(item.value)}">
+      ${escapeHtml(item.label)}
+    </button>
+  `).join("");
+  document.querySelector(".app-shell")?.appendChild(menu);
+  trigger.setAttribute("aria-expanded", "true");
+  trigger.setAttribute("aria-controls", menu.id);
+  positionMobileVerseNavMenu(trigger, menu, type);
+
+  const options = Array.from(menu.querySelectorAll(".mobile-verse-nav-option"));
+  const activeOption = menu.querySelector(".mobile-verse-nav-option.active") || options[0];
+  if (activeOption) {
+    menu.scrollTop = Math.max(0, activeOption.offsetTop - (menu.clientHeight - activeOption.offsetHeight) / 2);
+    requestAnimationFrame(() => activeOption.focus({ preventScroll: true }));
+  }
+
+  const selectOption = (value) => {
+    closeMobileVerseNavMenu();
+    if (chapterMenu) {
+      state.reference = value;
+      state.verse = currentChapter().verses[0].n;
+      state.selectedVerses = [];
+    } else {
+      state.verse = Number(value);
+    }
+    state.isVerseOfDayActive = false;
+    render();
+  };
+  options.forEach((option) => {
+    option.addEventListener("click", () => selectOption(option.dataset.mobileVerseNavValue));
+  });
+  menu.addEventListener("keydown", (event) => {
+    const index = options.indexOf(document.activeElement);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMobileVerseNavMenu({ restoreFocus: true });
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      document.activeElement?.click();
+      return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    const nextIndex = Math.min(options.length - 1, Math.max(0, index + direction));
+    options[nextIndex]?.focus({ preventScroll: true });
+    options[nextIndex]?.scrollIntoView({ block: "nearest" });
+  });
+
+  activeMobileVerseNavMenu = { menu, trigger };
+  document.addEventListener("pointerdown", closeMobileVerseNavMenuOnOutside, true);
+  window.addEventListener("resize", closeMobileVerseNavMenu);
+  window.addEventListener("scroll", closeMobileVerseNavMenu, { passive: true });
+}
+
+function positionMobileVerseNavMenu(trigger, menu, type) {
+  const bounds = trigger.getBoundingClientRect();
+  const viewportPadding = 8;
+  const menuWidth = type === "chapter"
+    ? Math.max(112, bounds.width)
+    : Math.max(72, bounds.width);
+  const left = Math.min(
+    Math.max(viewportPadding, bounds.left),
+    window.innerWidth - menuWidth - viewportPadding,
+  );
+  const spaceBelow = window.innerHeight - bounds.bottom - 12;
+  const spaceAbove = bounds.top - 12;
+  const opensAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
+  const availableHeight = Math.max(120, Math.min(360, opensAbove ? spaceAbove : spaceBelow));
+  menu.style.width = `${menuWidth}px`;
+  menu.style.maxHeight = `${availableHeight}px`;
+  menu.style.left = `${left}px`;
+  if (opensAbove) {
+    menu.style.top = "auto";
+    menu.style.bottom = `${window.innerHeight - bounds.top + 6}px`;
+  } else {
+    menu.style.top = `${bounds.bottom + 6}px`;
+    menu.style.bottom = "auto";
+  }
+}
+
+function closeMobileVerseNavMenuOnOutside(event) {
+  if (!activeMobileVerseNavMenu) return;
+  const { menu, trigger } = activeMobileVerseNavMenu;
+  if (menu.contains(event.target) || trigger.contains(event.target)) return;
+  closeMobileVerseNavMenu();
+}
+
+function closeMobileVerseNavMenu(options = {}) {
+  if (!activeMobileVerseNavMenu) return;
+  const { menu, trigger } = activeMobileVerseNavMenu;
+  activeMobileVerseNavMenu = null;
+  menu.remove();
+  trigger.removeAttribute("aria-controls");
+  trigger.setAttribute("aria-expanded", "false");
+  document.removeEventListener("pointerdown", closeMobileVerseNavMenuOnOutside, true);
+  window.removeEventListener("resize", closeMobileVerseNavMenu);
+  window.removeEventListener("scroll", closeMobileVerseNavMenu);
+  if (options.restoreFocus && trigger.isConnected) trigger.focus();
 }
 
 function renderStrongText(verse, version) {
@@ -4342,6 +4494,12 @@ function bindEvents() {
       state.isVerseOfDayActive = false;
       render();
     });
+  });
+  document.getElementById("mobileChapterSelectInline")?.addEventListener("click", (event) => {
+    openMobileVerseNavMenu(event.currentTarget, "chapter");
+  });
+  document.getElementById("mobileVerseSelectInline")?.addEventListener("click", (event) => {
+    openMobileVerseNavMenu(event.currentTarget, "verse");
   });
   document.querySelectorAll("[data-strong]").forEach((button) => {
     button.addEventListener("click", (event) => {
