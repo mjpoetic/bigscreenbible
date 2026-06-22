@@ -14,7 +14,7 @@
   --gold-soft: #f5ead3;
   --success: #266d4f;
   --shadow: 0 18px 48px rgba(31, 26, 16, 0.08);
-  --reader-chrome-height: 48px;
+  --reader-chrome-height: 38px;
   --rail-width: clamp(56px, 3.2vw, 72px);
   --library-width: clamp(320px, 20vw, 460px);
   --study-width: clamp(320px, 18vw, 460px);
@@ -1672,23 +1672,36 @@ button {
 }
 
 .rail {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   border-right: 1px solid var(--line);
   background: var(--panel);
-  padding: 18px 7px;
+  padding: 18px 0;
   overflow: visible;
 }
 
 .rail button {
-  width: 58px;
-  min-height: 54px;
+  width: 44px;
+  height: 38px;
+  min-height: 38px;
+  margin-inline: auto;
   display: grid;
   justify-items: center;
   align-content: center;
   color: var(--ink);
   background: transparent;
-  border-left: 3px solid transparent;
+  border-radius: 12px;
   font-size: 11px;
   font-weight: 650;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
 }
 
 .rail button svg {
@@ -1708,9 +1721,35 @@ button {
   transform: translate(0, -50%);
 }
 
+.rail button:hover,
+.rail button:focus-visible {
+  color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 9%, var(--panel));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--teal) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--teal) 30%, transparent);
+  transform: scale(1.04);
+}
+
+.rail button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--teal) 42%, transparent);
+  outline-offset: 2px;
+}
+
 .rail button.active {
   color: var(--teal);
-  border-left-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 14%, var(--panel));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--teal) 38%, transparent),
+    0 0 15px color-mix(in srgb, var(--teal) 22%, transparent);
+}
+
+.rail button.active:hover,
+.rail button.active:focus-visible {
+  background: color-mix(in srgb, var(--teal) 19%, var(--panel));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--teal) 52%, transparent),
+    0 0 22px color-mix(in srgb, var(--teal) 38%, transparent);
 }
 
 .library {
@@ -1891,6 +1930,10 @@ select {
   transition: max-height var(--motion-slow) var(--motion-ease);
 }
 
+.chapter-tools-region:not(.collapsed) .chapter-tools-clip {
+  overflow: visible;
+}
+
 @media (min-width: 841px) {
   .chapter-tools-clip {
     max-height: var(--reader-chrome-height);
@@ -1902,6 +1945,11 @@ select {
 
   .rail button:first-child {
     min-height: var(--reader-chrome-height);
+  }
+
+  .bottombar :is(button, .bottom-about-link) {
+    min-height: 30px;
+    padding-inline: 10px;
   }
 }
 
@@ -2059,7 +2107,7 @@ select {
     box-shadow var(--motion-fast) ease;
 }
 
-.verse-nav-selectors:focus-within .verse-nav-select {
+.verse-nav-select:focus-within {
   border-color: var(--teal);
   box-shadow: 0 0 0 1px var(--teal);
 }
@@ -2180,6 +2228,158 @@ select {
 
 .chapter-tools #openStudy {
   display: none;
+}
+
+@media (min-width: 841px) {
+  .chapter-tools {
+    gap: 8px;
+  }
+
+  .chapter-tools .icon-btn,
+  .chapter-tools .verse-nav-select {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    transition:
+      color var(--motion-fast) ease,
+      background var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      transform var(--motion-fast) var(--motion-ease);
+  }
+
+  .chapter-tools .verse-nav-select {
+    border-color: color-mix(in srgb, var(--line) 68%, transparent);
+    background: color-mix(in srgb, var(--panel) 45%, transparent);
+  }
+
+  .chapter-tools .icon-btn:hover,
+  .chapter-tools .icon-btn:focus-visible,
+  .chapter-tools .verse-nav-select:hover,
+  .chapter-tools .verse-nav-select:focus-within {
+    color: var(--teal);
+    border-color: color-mix(in srgb, var(--teal) 25%, transparent);
+    background: color-mix(in srgb, var(--teal) 9%, var(--panel));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--teal) 20%, transparent),
+      0 0 16px color-mix(in srgb, var(--teal) 28%, transparent);
+  }
+
+  .chapter-tools .icon-btn:hover,
+  .chapter-tools .icon-btn:focus-visible {
+    transform: scale(1.04);
+  }
+
+  .chapter-tools .icon-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--teal) 40%, transparent);
+    outline-offset: 2px;
+  }
+
+  .chapter-tools :is(button, select) {
+    min-height: 30px;
+    font-size: 13px;
+  }
+
+  .chapter-tools .verse-nav-button,
+  .chapter-tools #bookmarkBtn,
+  .chapter-tools #noteBtn {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+  }
+
+  .chapter-tools .verse-nav-button svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .chapter-tools .verse-nav-button-double svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .verse-nav-direction,
+  .verse-nav-utilities {
+    gap: 6px;
+  }
+
+  .verse-nav-selectors {
+    grid-template-columns: minmax(150px, 1.8fr) 8px minmax(82px, 1fr);
+    gap: 8px;
+  }
+
+  .verse-nav-select {
+    height: 30px;
+    border-radius: 6px;
+  }
+
+  .chapter-tools .verse-nav-select select {
+    padding: 0 34px 0 12px;
+    font-size: 14px;
+  }
+
+  .verse-nav-select-chevron {
+    right: 10px;
+  }
+
+  .verse-nav-select-chevron svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .verse-nav-divider {
+    width: 6px;
+    height: 6px;
+  }
+
+  .bottom-actions {
+    gap: 6px;
+  }
+
+  .bottom-action {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 !important;
+    border-color: transparent;
+    border-radius: 10px;
+    background: transparent;
+    transition:
+      color var(--motion-fast) ease,
+      background var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      transform var(--motion-fast) var(--motion-ease);
+  }
+
+  .bottom-action:hover,
+  .bottom-action:focus-visible {
+    color: var(--teal);
+    border-color: color-mix(in srgb, var(--teal) 24%, transparent);
+    background: color-mix(in srgb, var(--teal) 9%, var(--panel));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--teal) 20%, transparent),
+      0 0 16px color-mix(in srgb, var(--teal) 28%, transparent);
+    transform: scale(1.04);
+  }
+
+  .bottom-action:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--teal) 40%, transparent);
+    outline-offset: 2px;
+  }
+
+  .bottom-action-icon {
+    display: inline-flex;
+  }
+
+  .bottom-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 @container (max-width: 760px) {
@@ -6948,9 +7148,10 @@ svg {
   }
 
   .rail button {
-    width: 100%;
-    min-height: 50px;
-    border-left-width: 3px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    margin-inline: auto;
   }
 
   .rail button svg {

@@ -392,7 +392,9 @@ function recordReadingStreak(date = new Date()) {
 const icons = {
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
+  bookmarkAdd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10v18l-5-3.5L5 21z"/><path d="M19 3v6M16 6h6" stroke-width="2.1"/></svg>',
   note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  noteAdd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5h13v16h-13z" stroke-width="1.7"/><path d="M7.5 9h5M7.5 13h4.5M7.5 17h3" stroke-width="1.6"/><path d="M20 2.75v5.5M17.25 5.5h5.5" stroke-width="2.2"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
@@ -892,7 +894,7 @@ function topbar() {
   const versionControls = state.mode === "parallel"
     ? `
       <div class="versions version-manager ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Selected Bible versions">
-        <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Choose Bible versions, ${selectedVersions.length} selected" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
+        <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Choose Bible versions, ${selectedVersions.length} selected" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}" data-tooltip="Choose Bible versions">
           <span class="version-selected-label">${selectedVersions.length} Selected</span>
           <span aria-hidden="true">⌄</span>
         </button>
@@ -902,7 +904,7 @@ function topbar() {
       </div>`
     : `
       <div class="versions primary-version-control ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Bible version">
-        <button class="primary-version-toggle" id="versionMenuToggle" type="button" aria-label="Bible version ${translationDisplayCode(primaryVersion)}" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}">
+        <button class="primary-version-toggle" id="versionMenuToggle" type="button" aria-label="Bible version ${translationDisplayCode(primaryVersion)}" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}" data-tooltip="Bible version">
           <span>${translationDisplayCode(primaryVersion)}</span>
           <span aria-hidden="true">⌄</span>
         </button>
@@ -943,7 +945,7 @@ function topbar() {
         </div>
       </button>
       ${streakChip()}
-      <label class="search">${icons.search}<input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" /></label>
+      <label class="search" data-tooltip="Search Bible">${icons.search}<input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" /></label>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
@@ -1412,13 +1414,13 @@ function reader() {
               </button>
             </div>
             <div class="verse-nav-selectors">
-              <label class="verse-nav-select verse-nav-chapter-select">
+              <label class="verse-nav-select verse-nav-chapter-select" data-tooltip="Choose chapter">
                 <span class="sr-only">Chapter</span>
                 <select class="full-control" id="chapterSelectInline">${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}</select>
                 <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
               </label>
               <span class="verse-nav-divider" aria-hidden="true"></span>
-              <label class="verse-nav-select verse-nav-verse-select">
+              <label class="verse-nav-select verse-nav-verse-select" data-tooltip="Choose verse">
                 <span class="sr-only">Verse</span>
                 <select class="full-control" id="verseSelectInline">${chapter.verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}</select>
                 <span class="verse-nav-select-chevron" aria-hidden="true">${icons.chevron}</span>
@@ -1429,8 +1431,8 @@ function reader() {
               <button class="icon-btn verse-nav-button verse-nav-button-double" id="nextChapterInline" aria-label="Next chapter" data-tooltip="Next chapter">${icons.chevronDouble}</button>
             </div>
             <div class="verse-nav-utilities">
-              <button class="icon-btn" id="bookmarkBtn" aria-label="Bookmark" data-tooltip="Bookmark verse">${icons.bookmark}</button>
-              <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.note}</button>
+              <button class="icon-btn" id="bookmarkBtn" aria-label="Add bookmark" data-tooltip="Add bookmark">${icons.bookmarkAdd}</button>
+              <button class="icon-btn" id="noteBtn" aria-label="Add note" data-tooltip="Add note">${icons.noteAdd}</button>
             </div>
             <button class="ghost-btn" id="openStudy">${icons.layers} Study</button>
             <button class="ghost-btn compact-control" id="exitFocusInline">Show Panels</button>
@@ -3868,15 +3870,15 @@ function bottombar() {
         </button>
         <div class="fineprint">${activeVersions().map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
         <div class="bottom-actions">
-          <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse">
+          <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse" data-tooltip="Copy verse">
             <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
             <span class="bottom-action-label">Copy Verse</span>
           </button>
-          <button class="ghost-btn bottom-action" id="printPage" aria-label="Print">
+          <button class="ghost-btn bottom-action" id="printPage" aria-label="Print" data-tooltip="Print">
             <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
             <span class="bottom-action-label">Print</span>
           </button>
-          <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible">
+          <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible" data-tooltip="About">
             <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
             <span class="bottom-action-label">About</span>
           </a>
