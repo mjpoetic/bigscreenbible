@@ -3861,6 +3861,9 @@ function strongLookupCard(entry, selectedWord) {
 }
 
 function bottombar() {
+  const footerVersions = state.mode === "parallel"
+    ? activeVersions()
+    : [state.versions[0] || activeVersions()[0] || "BSB"];
   return `
     <div class="footer-region ${state.footerCollapsed ? "collapsed" : ""}">
       <footer class="bottombar" id="footerBar" ${state.footerCollapsed ? 'inert aria-hidden="true"' : ""}>
@@ -3868,20 +3871,22 @@ function bottombar() {
           <span class="chapter-nav-icon" aria-hidden="true">‹</span>
           <span class="chapter-nav-label">Previous Chapter</span>
         </button>
-        <div class="fineprint">${activeVersions().map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
-        <div class="bottom-actions">
-          <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse" data-tooltip="Copy verse">
-            <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
-            <span class="bottom-action-label">Copy Verse</span>
-          </button>
-          <button class="ghost-btn bottom-action" id="printPage" aria-label="Print" data-tooltip="Print">
-            <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
-            <span class="bottom-action-label">Print</span>
-          </button>
-          <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible" data-tooltip="About">
-            <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
-            <span class="bottom-action-label">About</span>
-          </a>
+        <div class="footer-center">
+          <div class="fineprint">${footerVersions.map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
+          <div class="bottom-actions">
+            <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse" data-tooltip="Copy verse">
+              <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
+              <span class="bottom-action-label">Copy Verse</span>
+            </button>
+            <button class="ghost-btn bottom-action" id="printPage" aria-label="Print" data-tooltip="Print">
+              <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
+              <span class="bottom-action-label">Print</span>
+            </button>
+            <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible" data-tooltip="About">
+              <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
+              <span class="bottom-action-label">About</span>
+            </a>
+          </div>
         </div>
         <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
           <span class="chapter-nav-label">Next Chapter</span>

@@ -551,6 +551,14 @@ button {
   justify-content: space-between;
 }
 
+.footer-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-width: 0;
+}
+
 .footer-region {
   position: relative;
   width: 100%;
@@ -664,6 +672,9 @@ button {
 }
 
 .fineprint {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
   color: var(--gold);
   font-size: 13px;
   font-weight: 700;
@@ -1935,6 +1946,24 @@ select {
 }
 
 @media (min-width: 841px) {
+  .bottombar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .chapter-nav-prev {
+    justify-self: start;
+  }
+
+  .footer-center {
+    grid-column: 2;
+    justify-self: center;
+  }
+
+  .chapter-nav-next {
+    justify-self: end;
+  }
+
   .chapter-tools-clip {
     max-height: var(--reader-chrome-height);
   }
@@ -2333,6 +2362,7 @@ select {
   }
 
   .bottom-actions {
+    min-height: 30px;
     gap: 6px;
   }
 
@@ -2370,6 +2400,11 @@ select {
 
   .bottom-action-icon {
     display: inline-flex;
+    line-height: 0;
+  }
+
+  .bottom-action-icon svg {
+    display: block;
   }
 
   .bottom-action-label {
@@ -6422,6 +6457,10 @@ svg {
 }
 
 @media (max-width: 840px) {
+  .footer-center {
+    display: contents;
+  }
+
   :root {
     --rail-width: 56px;
     --verse-font: clamp(20px, 5.2vw, 27px);
