@@ -1255,13 +1255,15 @@ function library() {
   const title = titleMap[state.activeRail] || "Verse";
   const closeLabel = `Hide ${title.toLowerCase()}`;
   return `
-    <aside class="library ${pendingLibraryEnter ? "drawer-enter" : ""}">
-      <div class="panel-minihead">
-        <span>${title}</span>
-        <button class="icon-btn" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">×</button>
-      </div>
-      ${libraryContent()}
-    </aside>
+    <div class="library-drawer ${pendingLibraryEnter ? "drawer-enter" : ""}">
+      <aside class="library">
+        <div class="panel-minihead">
+          <span>${title}</span>
+          <button class="icon-btn" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">×</button>
+        </div>
+        ${libraryContent()}
+      </aside>
+    </div>
   `;
 }
 
@@ -6621,7 +6623,7 @@ function activateWorkspace(target) {
 
 function closeLibrary() {
   const readerScroll = captureReaderScroll();
-  animateBeforeRemoval(".library", () => {
+  animateBeforeRemoval(".library-drawer", () => {
     state.libraryOpen = false;
     localStorage.setItem("lw_library_open", "false");
     scheduleCloudSync();
@@ -6631,7 +6633,7 @@ function closeLibrary() {
       restoreReaderScroll(readerScroll);
       requestAnimationFrame(() => restoreReaderScroll(readerScroll));
     });
-  }, { duration: 240 });
+  }, { duration: 220 });
 }
 
 function adjustTextScale(delta) {
@@ -6666,7 +6668,7 @@ function toggleFocusMode() {
     return;
   }
   animateBeforeRemoval(
-    ".rail, .library, .chapter-tools-region, .footer-region",
+    ".rail, .library-drawer, .chapter-tools-region, .footer-region",
     applyFocusMode,
     { className: "focus-chrome-exit", duration: 240 },
   );
