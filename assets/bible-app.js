@@ -7077,10 +7077,8 @@ function computedTextFonts() {
     verse = scaled(20, 5.2, 27);
   } else if (width <= 1320) {
     verse = scaled(22, 1.85, 28);
-  } else if (state.focusMode || !state.libraryOpen) {
-    verse = scaled(26, 1.86, 58);
   } else {
-    verse = scaled(24, 1.58, 48);
+    verse = scaled(26, 1.86, 58);
   }
 
   return {

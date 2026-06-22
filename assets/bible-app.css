@@ -1680,7 +1680,6 @@ button {
 
 .main-grid.library-closed {
   --reader-max: 100%;
-  --verse-font: clamp(24px, 1.54vw, 46px);
   grid-template-columns: var(--rail-width) minmax(0, 1fr);
 }
 
