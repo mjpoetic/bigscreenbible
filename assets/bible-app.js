@@ -6631,7 +6631,7 @@ function closeLibrary() {
       restoreReaderScroll(readerScroll);
       requestAnimationFrame(() => restoreReaderScroll(readerScroll));
     });
-  }, { duration: 320 });
+  }, { duration: 240 });
 }
 
 function adjustTextScale(delta) {

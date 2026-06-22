@@ -27,6 +27,7 @@
   --motion-base: 210ms;
   --motion-slow: 240ms;
   --motion-drawer: 320ms;
+  --motion-drawer-close: 220ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --scripture-font: "Libre Baskerville", Georgia, serif;
   --brand-title-font: Copperplate, "Copperplate Gothic Light", "Copperplate Gothic Bold", "Libre Baskerville", Georgia, serif;
@@ -1654,10 +1655,11 @@ button {
 
 .main-grid {
   display: grid;
-  grid-template-columns: var(--rail-width) var(--library-width) minmax(0, 1fr);
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
   height: calc(100vh - 72px - var(--reader-chrome-height));
   min-height: 0;
   max-width: 100vw;
+  position: relative;
   overflow-x: hidden;
   transition: height var(--motion-slow) var(--motion-ease);
 }
@@ -1669,7 +1671,7 @@ button {
 }
 
 .app-shell.footer-collapsed .main-grid:not(.focus-mode) {
-  grid-template-columns: var(--rail-width) var(--library-width) minmax(0, 1fr);
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
 }
 
 .app-shell.footer-collapsed .main-grid.library-closed:not(.focus-mode) {
@@ -1764,12 +1766,22 @@ button {
 }
 
 .library {
+  position: absolute;
+  inset: 0 auto 0 var(--rail-width);
+  z-index: 29;
+  width: var(--library-width);
   border-right: 1px solid var(--line);
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  box-shadow:
+    16px 0 36px color-mix(in srgb, var(--ink) 12%, transparent),
+    inset -1px 0 color-mix(in srgb, var(--paper) 30%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  backdrop-filter: blur(18px) saturate(120%);
   padding: 15px 14px;
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .library.drawer-enter {
@@ -1911,12 +1923,17 @@ select {
 }
 
 .reader {
+  grid-column: 2;
   background: var(--paper);
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   container-type: inline-size;
+}
+
+.main-grid.focus-mode .reader {
+  grid-column: 1;
 }
 
 .chapter-tools {
@@ -2058,16 +2075,12 @@ select {
 }
 
 .footer-collapse-toggle {
-  left: calc(var(--rail-width) + var(--library-width));
+  left: var(--rail-width);
   right: 0;
   margin-inline: auto;
   top: -14px;
   border-radius: 8px 8px 0 0;
   transform: none;
-}
-
-.app-shell:has(.main-grid.library-closed) .footer-collapse-toggle {
-  left: var(--rail-width);
 }
 
 .footer-collapse-toggle svg {
@@ -5809,7 +5822,7 @@ kbd {
 }
 
 .library.motion-exit {
-  animation: drawerOut var(--motion-drawer) cubic-bezier(0.4, 0, 0.6, 1) both !important;
+  animation: drawerOut var(--motion-drawer-close) cubic-bezier(0.32, 0.72, 0, 1) both !important;
 }
 
 .shortcut-overlay.motion-exit,
@@ -6007,7 +6020,7 @@ kbd {
   }
 
   to {
-    transform: translateX(-28px);
+    transform: translateX(calc(-100% - 1px));
   }
 }
 
@@ -6202,7 +6215,7 @@ svg {
   }
 
   .main-grid {
-    grid-template-columns: var(--rail-width) var(--library-width) minmax(0, 1fr);
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
   }
 
   .main-grid.focus-mode {
@@ -7210,8 +7223,10 @@ svg {
     max-height: none;
     padding: 16px;
     border-right: 1px solid var(--line);
-    background: var(--paper);
-    box-shadow: var(--shadow);
+    background: color-mix(in srgb, var(--panel) 82%, transparent);
+    box-shadow:
+      16px 0 36px color-mix(in srgb, var(--ink) 12%, transparent),
+      inset -1px 0 color-mix(in srgb, var(--paper) 30%, transparent);
     overscroll-behavior: contain;
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
@@ -7223,7 +7238,9 @@ svg {
     z-index: 3;
     margin: -16px -16px 12px;
     padding: 16px 16px 10px;
-    background: var(--paper);
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    backdrop-filter: blur(18px) saturate(120%);
   }
 
   .reader {
@@ -8469,6 +8486,7 @@ svg {
     --motion-base: 1ms;
     --motion-slow: 1ms;
     --motion-drawer: 1ms;
+    --motion-drawer-close: 1ms;
   }
 
   *,
