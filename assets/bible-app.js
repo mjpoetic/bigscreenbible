@@ -7107,9 +7107,9 @@ function focusWorkspaceTarget(target) {
   if (!element) return;
   const libraryPanel = element.closest(".library");
 
-  if (target === "Verse" || target === "Search") {
+  if (target === "Verse" || target === "Search" || target === "History" || target === "Cross-Refs") {
     libraryPanel?.scrollTo({ top: 0, behavior: "auto" });
-    element.focus?.({ preventScroll: true });
+    if (target === "Verse" || target === "Search") element.focus?.({ preventScroll: true });
     return;
   }
 
