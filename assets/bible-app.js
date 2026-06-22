@@ -133,6 +133,7 @@ let strongLexiconStatus = "idle";
 let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
+let presentationResizeTimer = 0;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
@@ -235,6 +236,7 @@ const state = {
   presentationSearchOpen: false,
   presentationSettingsOpen: false,
   presentationControlsVisible: !isCompactScreen(),
+  presentationPart: 0,
   presentationTheme: localStorage.getItem("lw_presentation_theme") || defaultPresentationTheme,
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
@@ -3914,17 +3916,88 @@ function selectionBar() {
   `;
 }
 
+function presentationTextBudget() {
+  const width = Math.max(window.innerWidth || 0, 320);
+  const height = Math.max(window.innerHeight || 0, 320);
+  if (width <= 520) return height <= 520 ? 105 : 125;
+  if (width <= 900) return height <= 520 ? 125 : 150;
+  if (height <= 600) return 155;
+  if (width <= 1300) return 185;
+  return 220;
+}
+
+function presentationBreakPriority(text, index) {
+  const before = text.slice(Math.max(0, index - 3), index).trimEnd();
+  const previous = before.at(-1) || "";
+  if (/[.!?]/.test(previous) || /[.!?][”’"')\]]$/.test(before)) return 4;
+  if (/[;:]/.test(previous) || /[;:][”’"')\]]$/.test(before)) return 3;
+  if (/[,—–]/.test(previous)) return 2;
+  return 1;
+}
+
+function presentationTextParts(value) {
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  const budget = presentationTextBudget();
+  if (text.length <= budget * 1.15) return [text];
+
+  const partCount = Math.max(2, Math.ceil(text.length / budget));
+  const parts = [];
+  let start = 0;
+
+  for (let partIndex = 0; partIndex < partCount - 1; partIndex += 1) {
+    const partsRemaining = partCount - partIndex;
+    const ideal = start + Math.round((text.length - start) / partsRemaining);
+    const average = (text.length - start) / partsRemaining;
+    const minimum = start + Math.max(24, Math.floor(average * 0.55));
+    const maximum = Math.min(text.length - 1, start + Math.ceil(average * 1.45));
+    const candidates = [];
+
+    for (let index = minimum; index <= maximum; index += 1) {
+      if (!/\s/.test(text[index])) continue;
+      const priority = presentationBreakPriority(text, index);
+      candidates.push({ index, score: priority * 100 - Math.abs(index - ideal) });
+    }
+
+    const nextSpace = text.indexOf(" ", ideal);
+    const chosen = candidates.sort((a, b) => b.score - a.score)[0]?.index
+      ?? (nextSpace >= 0 ? nextSpace : ideal);
+    parts.push(text.slice(start, chosen).trim());
+    start = chosen;
+    while (/\s/.test(text[start])) start += 1;
+  }
+
+  parts.push(text.slice(start).trim());
+  return parts.filter(Boolean);
+}
+
+function currentPresentationParts() {
+  const verse = currentVerse();
+  const version = state.versions[0] || "BSB";
+  return presentationTextParts(getVerseText(verse, version));
+}
+
+function presentationPartSuffix(index) {
+  return String.fromCharCode(97 + Math.min(index, 25));
+}
+
 function presentation() {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
-  const text = getVerseText(verse, version);
+  const parts = presentationTextParts(getVerseText(verse, version));
+  const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
+  const text = parts[partIndex];
+  state.presentationPart = partIndex;
+  const paginated = parts.length > 1;
+  const presentationReference = `${referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
   const verses = currentChapter().verses.map((item) => item.n);
   const verseIndex = verses.indexOf(state.verse);
-  const canGoBack = verseIndex > 0;
-  const canGoForward = verseIndex < verses.length - 1;
+  const canGoBack = partIndex > 0 || verseIndex > 0;
+  const canGoForward = partIndex < parts.length - 1 || verseIndex < verses.length - 1;
+  const previousLabel = partIndex > 0 ? "Previous part" : "Previous verse";
+  const nextLabel = partIndex < parts.length - 1 ? "Next part" : "Next verse";
   const versionOptions = translationCodes
     .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)}</option>`)
     .join("");
@@ -3948,8 +4021,9 @@ function presentation() {
           </form>
         </div>
         <div class="presentation-ref">
-          <span class="presentation-reference-label">${referenceLabel()}</span>
+          <span class="presentation-reference-label">${presentationReference}</span>
           <span class="presentation-version-label">${translationDisplayCode(version)}</span>
+          ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
         </div>
         <div class="presentation-actions">
           <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
@@ -3980,7 +4054,7 @@ function presentation() {
               <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
               <div class="presentation-help">
                 <span>Keyboard</span>
-                <div><kbd>←</kbd><kbd>→</kbd> Move verse by verse</div>
+                <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
                 <div><kbd>Esc</kbd> Back to Bible</div>
               </div>
             </div>
@@ -4001,8 +4075,8 @@ function presentation() {
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
         </a>
         <div class="presentation-controls">
-          <button class="ghost-btn" id="presentationPrev" data-tooltip="Previous verse" ${canGoBack ? "" : "disabled"}>Previous</button>
-          <button class="ghost-btn" id="presentationNext" data-tooltip="Next verse" ${canGoForward ? "" : "disabled"}>Next</button>
+          <button class="ghost-btn" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>Previous</button>
+          <button class="ghost-btn" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>Next</button>
         </div>
         <a class="presentation-about-link" href="./about.html">About</a>
       </div>
@@ -4125,6 +4199,7 @@ function bindEvents() {
       state.mode = button.dataset.mode;
       state.headerVersionMenuOpen = false;
       if (state.mode === "big") {
+        state.presentationPart = 0;
         state.presentationControlsVisible = false;
         state.presentationSearchOpen = false;
         state.presentationSettingsOpen = false;
@@ -4723,6 +4798,7 @@ function bindEvents() {
 function returnFromPresentationToBible() {
   clearTimeout(presentationControlsTimer);
   state.mode = "reader";
+  state.presentationPart = 0;
   state.presentationSearchOpen = false;
   state.presentationSettingsOpen = false;
   state.presentationControlsVisible = true;
@@ -4733,6 +4809,7 @@ function returnFromPresentationToBible() {
 async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
+  state.presentationPart = 0;
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
   scheduleCloudSync();
   if (isRemoteTranslation(version)) {
@@ -6508,6 +6585,7 @@ function setReferenceFromString(value) {
   state.isVerseOfDayActive = false;
   state.reference = parsed.key;
   state.verse = parsed.verse;
+  state.presentationPart = 0;
   state.selectedVerses = parsed.verses.length > 1 ? parsed.verses : [];
   if (chapter.verses.length && !chapter.verses.some((verse) => verse.n === state.verse)) state.verse = chapter.verses[0].n;
   return true;
@@ -6916,6 +6994,7 @@ function handleGlobalShortcuts(event) {
   if (key === "p") {
     event.preventDefault();
     state.mode = "big";
+    state.presentationPart = 0;
     state.presentationSearchOpen = false;
     state.presentationSettingsOpen = false;
     state.presentationControlsVisible = false;
@@ -7051,6 +7130,7 @@ function openBook(book) {
   if (!reference) return showToast(`${book} is not available in the bundled Bible data`);
   state.reference = reference;
   state.verse = currentChapter().verses[0].n;
+  state.presentationPart = 0;
   state.selectedVerses = [];
   state.isVerseOfDayActive = false;
   state.pendingVerseFocus = true;
@@ -7088,9 +7168,30 @@ function scrollSelectedVerseIntoView() {
 }
 
 function moveVerse(direction) {
+  if (state.mode === "big") {
+    const parts = currentPresentationParts();
+    const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
+    if (direction < 0 && partIndex > 0) {
+      state.presentationPart = partIndex - 1;
+      render();
+      return;
+    }
+    if (direction > 0 && partIndex < parts.length - 1) {
+      state.presentationPart = partIndex + 1;
+      render();
+      return;
+    }
+  }
+
   const verses = currentChapter().verses.map((verse) => verse.n);
   const index = verses.indexOf(state.verse);
-  state.verse = verses[Math.max(0, Math.min(verses.length - 1, index + direction))];
+  const nextIndex = Math.max(0, Math.min(verses.length - 1, index + direction));
+  if (nextIndex === index) return;
+  state.verse = verses[nextIndex];
+  state.presentationPart = 0;
+  if (state.mode === "big" && direction < 0) {
+    state.presentationPart = Math.max(0, currentPresentationParts().length - 1);
+  }
   state.isVerseOfDayActive = false;
   recordHistory();
   render();
@@ -7101,6 +7202,7 @@ function moveChapter(direction) {
   const index = keys.indexOf(state.reference);
   state.reference = keys[Math.max(0, Math.min(keys.length - 1, index + direction))];
   state.verse = currentChapter().verses[0].n;
+  state.presentationPart = 0;
   state.selectedVerses = [];
   state.isVerseOfDayActive = false;
   recordHistory();
@@ -7468,7 +7570,12 @@ function fitPresentationText() {
 
 window.addEventListener("resize", () => {
   applyTextScaleVars();
-  fitPresentationText();
+  if (state.mode === "big") {
+    clearTimeout(presentationResizeTimer);
+    presentationResizeTimer = setTimeout(render, 120);
+  } else {
+    fitPresentationText();
+  }
 });
 
 function buildBookAliases() {

@@ -4148,6 +4148,14 @@ select {
   white-space: nowrap;
 }
 
+.presentation-part-position {
+  color: var(--presentation-muted);
+  font: 700 clamp(8px, 0.66vw, 10px) / 1.2 var(--ui-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
 .presentation-version-label {
   max-width: min(56vw, 560px);
   color: var(--presentation-muted);
