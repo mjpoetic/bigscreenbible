@@ -30,6 +30,8 @@ The bundled data also includes word-level Strong's number tags where the USFX so
 
 Paragraph layout support is data-driven. ESV paragraphing comes from the ESV passage API. The bundled public-domain/open translations can also use paragraph metadata when source files with paragraph markers are available.
 
+Red-letter support is also data-driven. The app renders words of Jesus in red only when the selected translation supplies USFM/USX `wj` annotations. The generated bundled metadata currently covers KJV and WEB; API.Bible translations preserve `wj` ranges when their provider text includes them. Translations without source annotations remain normal text.
+
 Licensed remote translations are provider-based:
 
 - ESV uses the Crossway ESV Supabase Edge Function.
@@ -62,6 +64,14 @@ To generate bundled paragraph metadata:
    ```
 
 The generated `assets/bibles/paragraphs.js` is safe to commit. The raw `sources/` files should stay local.
+
+To regenerate bundled red-letter metadata from sources that include `wj` markers:
+
+```bash
+node scripts/build-red-letter-metadata.mjs WEB=./sources/engwebp_usfm KJV=./sources/eng-kjv_usfm
+```
+
+The generated `assets/bibles/red-letters.js` contains character ranges only; it does not duplicate Scripture text.
 
 Cross references are bundled in `assets/crossrefs.js` from the [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/) dataset, credited under CC-BY.
 

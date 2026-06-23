@@ -126,6 +126,7 @@ const scriptureFontCodes = scriptureFonts.map((font) => font.code);
 let bibleData = {};
 let bibleIndex = null;
 let bibleParagraphs = null;
+let bibleRedLetters = null;
 let dataLoading = true;
 let dataError = "";
 let strongLexicon = {};
@@ -226,6 +227,7 @@ const state = {
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
+  redLetters: localStorage.getItem("lw_red_letters") === "true",
   focusMode: savedFocusMode(),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
@@ -846,6 +848,10 @@ function mobileSettingsPanel() {
           <input type="checkbox" id="mobileParagraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
           <span>Paragraph layout when available</span>
         </label>
+        <label class="setting-checkbox">
+          <input type="checkbox" id="mobileRedLettersToggle" ${state.redLetters ? "checked" : ""} />
+          <span>Words of Jesus in red</span>
+        </label>
       </div>
       <div class="setting-group">
         <span class="setting-label">Startup</span>
@@ -1008,6 +1014,10 @@ function topbar() {
             <label class="setting-checkbox">
               <input type="checkbox" id="paragraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
               <span>Paragraph layout when available</span>
+            </label>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="redLettersToggle" ${state.redLetters ? "checked" : ""} />
+              <span>Words of Jesus in red</span>
             </label>
           </div>
           <div class="setting-group">
@@ -1603,7 +1613,11 @@ function closeMobileVerseNavMenu(options = {}) {
 
 function renderStrongText(verse, version) {
   const text = getVerseText(verse, version);
-  return renderTextWithStrongNumbers(text, getStrongEntries(verse, version));
+  return renderTextWithStrongNumbers(
+    text,
+    getStrongEntries(verse, version),
+    wordsOfJesusRanges(verse, version),
+  );
 }
 
 function getVerseText(verse, version, chapterKey = state.reference) {
@@ -1626,8 +1640,8 @@ function getStrongEntries(verse, version) {
   return sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
 }
 
-function renderTextWithStrongNumbers(text, entries) {
-  if (!entries.length) return escapeHtml(text);
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = []) {
+  if (!entries.length) return renderRedLetterText(text, redLetterRanges);
 
   let output = "";
   let cursor = 0;
@@ -1637,9 +1651,35 @@ function renderTextWithStrongNumbers(text, entries) {
     if (!hasStrongEntry(normalizedCode)) return;
     const index = text.indexOf(word, cursor);
     if (index === -1) return;
-    output += escapeHtml(text.slice(cursor, index));
-    output += `<button class="strong-word" data-strong="${escapeHtml(normalizedCode)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(normalizedCode)} for ${escapeHtml(word)}">${escapeHtml(word)}</button>`;
+    output += renderRedLetterText(text.slice(cursor, index), redLetterRanges, cursor);
+    output += `<button class="strong-word" data-strong="${escapeHtml(normalizedCode)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(normalizedCode)} for ${escapeHtml(word)}">${renderRedLetterText(word, redLetterRanges, index)}</button>`;
     cursor = index + word.length;
+  });
+  output += renderRedLetterText(text.slice(cursor), redLetterRanges, cursor);
+  return output;
+}
+
+function wordsOfJesusRanges(verse, version) {
+  const ranges = verse?.wordsOfJesus?.[version];
+  return Array.isArray(ranges) ? ranges : [];
+}
+
+function renderRedLetterText(text, ranges = [], baseOffset = 0) {
+  if (!state.redLetters || !ranges.length || !text) return escapeHtml(text);
+  const chunkStart = baseOffset;
+  const chunkEnd = baseOffset + text.length;
+  let cursor = 0;
+  let output = "";
+
+  ranges.forEach((range) => {
+    const start = Math.max(chunkStart, Number(range?.start));
+    const end = Math.min(chunkEnd, Number(range?.end));
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+    const localStart = start - chunkStart;
+    const localEnd = end - chunkStart;
+    if (localStart > cursor) output += escapeHtml(text.slice(cursor, localStart));
+    output += `<span class="words-of-jesus">${escapeHtml(text.slice(Math.max(cursor, localStart), localEnd))}</span>`;
+    cursor = Math.max(cursor, localEnd);
   });
   output += escapeHtml(text.slice(cursor));
   return output;
@@ -2099,6 +2139,7 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       paragraphLayout: state.paragraphLayout,
+      redLetters: state.redLetters,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
       presentationTheme: state.presentationTheme,
@@ -2194,6 +2235,7 @@ function applyCloudSnapshot(snapshot) {
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
+  state.redLetters = settings.redLetters === true;
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
@@ -2227,6 +2269,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
+  localStorage.setItem("lw_red_letters", String(state.redLetters));
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
@@ -3966,9 +4009,13 @@ function presentationBreakPriority(text, index) {
 }
 
 function presentationTextParts(value) {
+  return presentationTextPartsWithOffsets(value).map((part) => part.text);
+}
+
+function presentationTextPartsWithOffsets(value) {
   const text = String(value || "").trim().replace(/\s+/g, " ");
   const budget = presentationTextBudget();
-  if (text.length <= budget * 1.15) return [text];
+  if (text.length <= budget * 1.15) return [{ text, start: 0, end: text.length }];
 
   const partCount = Math.max(2, Math.ceil(text.length / budget));
   const parts = [];
@@ -3991,13 +4038,15 @@ function presentationTextParts(value) {
     const nextSpace = text.indexOf(" ", ideal);
     const chosen = candidates.sort((a, b) => b.score - a.score)[0]?.index
       ?? (nextSpace >= 0 ? nextSpace : ideal);
-    parts.push(text.slice(start, chosen).trim());
+    const partText = text.slice(start, chosen).trim();
+    parts.push({ text: partText, start, end: start + partText.length });
     start = chosen;
     while (/\s/.test(text[start])) start += 1;
   }
 
-  parts.push(text.slice(start).trim());
-  return parts.filter(Boolean);
+  const finalText = text.slice(start).trim();
+  parts.push({ text: finalText, start, end: start + finalText.length });
+  return parts.filter((part) => part.text);
 }
 
 function currentPresentationParts() {
@@ -4017,9 +4066,10 @@ function presentation() {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
   const verseOfDayItem = state.isVerseOfDayActive ? state.verseOfDayItem : null;
-  const parts = presentationTextParts(verseOfDayItem?.verseText || getVerseText(verse, version));
+  const parts = presentationTextPartsWithOffsets(verseOfDayItem?.verseText || getVerseText(verse, version));
   const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
-  const text = parts[partIndex];
+  const part = parts[partIndex];
+  const text = part.text;
   state.presentationPart = partIndex;
   const paginated = parts.length > 1;
   const presentationReference = `${verseOfDayItem?.reference || referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
@@ -4084,6 +4134,10 @@ function presentation() {
                 </select>
                 ${customFontField}
               </label>
+              <label class="presentation-setting-checkbox">
+                <input type="checkbox" id="presentationRedLettersToggle" ${state.redLetters ? "checked" : ""} />
+                <span>Words of Jesus in red</span>
+              </label>
               <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
               <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
               <div class="presentation-help">
@@ -4098,7 +4152,7 @@ function presentation() {
       </div>
       <div class="presentation-text">
         <div class="presentation-passage">
-          <span class="presentation-copy">${escapeHtml(text)}</span>
+          <span class="presentation-copy">${verseOfDayItem ? escapeHtml(text) : renderRedLetterText(text, wordsOfJesusRanges(verse, version), part.start)}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${verseOfDayItem ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
@@ -4135,7 +4189,7 @@ function printSheet() {
       <div class="print-brand">Big Screen Bible</div>
       <h1>${printReferenceLabel()}</h1>
       <div class="print-version">${translationDisplayCode(state.versions[0])}</div>
-      ${lines.map(({ n, text }) => `<p><sup>${n}</sup>${escapeHtml(text)}</p>`).join("")}
+      ${lines.map(({ n, text, verse }) => `<p><sup>${n}</sup>${renderRedLetterText(text, wordsOfJesusRanges(verse, state.versions[0]))}</p>`).join("")}
       ${apiBibleAttributionMarkup([state.versions[0]], "print-attribution")}
     </section>
   `;
@@ -4404,6 +4458,12 @@ function bindEvents() {
     localStorage.setItem("lw_paragraph_layout", state.paragraphLayout ? "true" : "false");
     scheduleCloudSync();
     renderPreservingReaderScroll();
+  });
+  document.getElementById("redLettersToggle")?.addEventListener("change", (event) => {
+    setRedLetters(event.target.checked, true);
+  });
+  document.getElementById("mobileRedLettersToggle")?.addEventListener("change", (event) => {
+    setRedLetters(event.target.checked, true);
   });
   document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
     state.startBigScreen = event.target.checked;
@@ -4758,6 +4818,9 @@ function bindEvents() {
   document.getElementById("presentationCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
   });
+  document.getElementById("presentationRedLettersToggle")?.addEventListener("change", (event) => {
+    setRedLetters(event.target.checked);
+  });
   document.getElementById("presentationFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
@@ -4907,6 +4970,14 @@ function setPresentationTheme(theme) {
   scheduleCloudSync();
   state.presentationSettingsOpen = false;
   render();
+}
+
+function setRedLetters(enabled, preserveScroll = false) {
+  state.redLetters = Boolean(enabled);
+  localStorage.setItem("lw_red_letters", state.redLetters ? "true" : "false");
+  scheduleCloudSync();
+  if (preserveScroll) renderPreservingReaderScroll();
+  else render();
 }
 
 function normalizedTriviaText(value) {
@@ -7519,7 +7590,7 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
   const selected = new Set(verseNumbers);
   return currentChapter().verses
     .filter((verse) => selected.has(verse.n))
-    .map((verse) => ({ n: verse.n, text: getVerseText(verse, state.versions[0]) }));
+    .map((verse) => ({ n: verse.n, text: getVerseText(verse, state.versions[0]), verse }));
 }
 
 function passageText(verseNumbers = selectedVerseNumbers()) {
@@ -7739,7 +7810,10 @@ async function initializeBibleData() {
     await loadBibleBundleScript("index");
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
-    await loadBibleParagraphMetadata();
+    await Promise.all([
+      loadBibleParagraphMetadata(),
+      loadBibleRedLetterMetadata(),
+    ]);
     const bundledVersions = new Set(["BSB", ...state.versions.filter(isBundledTranslation)]);
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
@@ -7931,7 +8005,7 @@ function verseOfDayAttributionMarkup(className = "") {
 function mergeRemoteVersionChapter(version, chapterKey, verses) {
   const chapter = bibleData[chapterKey];
   if (!chapter) return;
-  verses.forEach(({ n, text, paragraphStart }) => {
+  verses.forEach(({ n, text, paragraphStart, wordsOfJesus }) => {
     if (!Number.isFinite(Number(n)) || !text) return;
     let verse = chapter.verses.find((item) => item.n === Number(n));
     if (!verse) {
@@ -7943,6 +8017,10 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       verse.paragraphStart = verse.paragraphStart || {};
       verse.paragraphStart[version] = paragraphStart;
     }
+    if (Array.isArray(wordsOfJesus) && wordsOfJesus.length) {
+      verse.wordsOfJesus = verse.wordsOfJesus || {};
+      verse.wordsOfJesus[version] = wordsOfJesus;
+    }
   });
   chapter.verses.sort((a, b) => a.n - b.n);
 }
@@ -7953,6 +8031,14 @@ async function loadBibleParagraphMetadata() {
     optional: true,
   });
   bibleParagraphs = window.BIGSCREEN_BIBLE_PARAGRAPHS || null;
+}
+
+async function loadBibleRedLetterMetadata() {
+  await loadBibleBundleScript("red-letters", {
+    globalName: "BIGSCREEN_BIBLE_RED_LETTERS",
+    optional: true,
+  });
+  bibleRedLetters = window.BIGSCREEN_BIBLE_RED_LETTERS || null;
 }
 
 function loadBibleBundleScript(name, options = {}) {
@@ -8070,10 +8156,15 @@ function rebuildBibleData() {
           verse.paragraphStart = verse.paragraphStart || {};
           verse.paragraphStart[version] = true;
         }
+        if (Array.isArray(sourceVerse.wordsOfJesus)) {
+          verse.wordsOfJesus = verse.wordsOfJesus || {};
+          verse.wordsOfJesus[version] = sourceVerse.wordsOfJesus;
+        }
       });
     });
   });
   applyParagraphMetadata(merged);
+  applyRedLetterMetadata(merged);
   Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
   bibleData = merged;
   remoteVersionData.forEach((payload, loadKey) => {
@@ -8093,6 +8184,22 @@ function applyParagraphMetadata(merged) {
         if (!startSet.has(verse.n)) return;
         verse.paragraphStart = verse.paragraphStart || {};
         verse.paragraphStart[version] = true;
+      });
+    });
+  });
+}
+
+function applyRedLetterMetadata(merged) {
+  const versions = bibleRedLetters?.versions || {};
+  Object.entries(versions).forEach(([version, chapters]) => {
+    Object.entries(chapters || {}).forEach(([chapterKey, annotatedVerses]) => {
+      const chapter = merged[chapterKey];
+      if (!chapter || !annotatedVerses || typeof annotatedVerses !== "object") return;
+      chapter.verses.forEach((verse) => {
+        const ranges = annotatedVerses[verse.n];
+        if (!Array.isArray(ranges) || !ranges.length) return;
+        verse.wordsOfJesus = verse.wordsOfJesus || {};
+        verse.wordsOfJesus[version] = ranges;
       });
     });
   });

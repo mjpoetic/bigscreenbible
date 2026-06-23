@@ -88,3 +88,35 @@ Deno.test("repairs word boundaries while preserving attached punctuation", () =>
     "mockery against his land, people’s well-being—forever.",
   );
 });
+
+Deno.test("preserves words-of-Jesus character ranges without changing verse text", () => {
+  const content: ApiBibleContentNode[] = [{
+    name: "para",
+    type: "tag",
+    items: [
+      { name: "verse", type: "tag", attrs: { number: "3" } },
+      {
+        type: "text",
+        text: "Jesus answered him,",
+        attrs: { verseId: "JHN.3.3" },
+      },
+      {
+        name: "char",
+        type: "tag",
+        attrs: { style: "wj" },
+        items: [{
+          type: "text",
+          text: "“You must be born again.”",
+          attrs: { verseId: "JHN.3.3" },
+        }],
+      },
+    ],
+  }];
+
+  assertEquals(parseVerseContent(content), [{
+    n: 3,
+    text: "Jesus answered him, “You must be born again.”",
+    paragraphStart: true,
+    wordsOfJesus: [{ start: 19, end: 45 }],
+  }]);
+});

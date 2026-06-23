@@ -4,6 +4,7 @@ export type ApiBibleContentNode = {
   text?: string;
   attrs?: {
     number?: string;
+    style?: string;
     verseId?: string;
     verseOrgIds?: string[];
   };
@@ -33,20 +34,26 @@ function needsBoundarySpace(existing: string, incoming: string) {
 }
 
 export function parseVerseContent(content: ApiBibleContentNode[]) {
-  const verseText = new Map<number, string>();
+  const verseParts = new Map<number, Array<{ text: string; wordsOfJesus: boolean }>>();
   const paragraphStarts = new Set<number>();
   let currentVerse = 0;
 
-  const appendText = (verseNumber: number, text: string) => {
+  const appendText = (verseNumber: number, text: string, wordsOfJesus: boolean) => {
     if (!verseNumber || !text) return;
-    const existing = verseText.get(verseNumber) || "";
+    const parts = verseParts.get(verseNumber) || [];
+    const existing = parts.map((part) => part.text).join("");
     const separator = needsBoundarySpace(existing, text) ? " " : "";
-    verseText.set(verseNumber, `${existing}${separator}${text}`);
+    const incoming = `${separator}${text}`;
+    const previous = parts.at(-1);
+    if (previous?.wordsOfJesus === wordsOfJesus) previous.text += incoming;
+    else parts.push({ text: incoming, wordsOfJesus });
+    verseParts.set(verseNumber, parts);
   };
 
   const visit = (
     node: ApiBibleContentNode,
     paragraphState: { firstVerse: number },
+    wordsOfJesus = false,
   ) => {
     if (!node || typeof node !== "object") return;
 
@@ -63,11 +70,13 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     if (node.type === "text" && typeof node.text === "string") {
       const attributedVerse = verseNumberFromId(node.attrs?.verseId) ||
         verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
-      appendText(attributedVerse || currentVerse, node.text);
+      appendText(attributedVerse || currentVerse, node.text, wordsOfJesus);
       return;
     }
 
-    (node.items || []).forEach((item) => visit(item, paragraphState));
+    const childWordsOfJesus = wordsOfJesus ||
+      (node.name === "char" && node.attrs?.style === "wj");
+    (node.items || []).forEach((item) => visit(item, paragraphState, childWordsOfJesus));
   };
 
   content.forEach((block) => {
@@ -78,12 +87,29 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     }
   });
 
-  return [...verseText.entries()]
+  return [...verseParts.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([n, text]) => ({
-      n,
-      text: text.trim(),
-      paragraphStart: paragraphStarts.has(n),
-    }))
+    .map(([n, parts]) => {
+      const joined = parts.map((part) => part.text).join("");
+      const leadingWhitespace = joined.length - joined.trimStart().length;
+      const text = joined.trim();
+      let cursor = -leadingWhitespace;
+      const wordsOfJesus: Array<{ start: number; end: number }> = [];
+      parts.forEach((part) => {
+        const start = Math.max(0, cursor);
+        cursor += part.text.length;
+        const end = Math.min(text.length, cursor);
+        if (!part.wordsOfJesus || end <= start) return;
+        const previous = wordsOfJesus.at(-1);
+        if (previous?.end === start) previous.end = end;
+        else wordsOfJesus.push({ start, end });
+      });
+      return {
+        n,
+        text,
+        paragraphStart: paragraphStarts.has(n),
+        ...(wordsOfJesus.length ? { wordsOfJesus } : {}),
+      };
+    })
     .filter(({ text }) => text.length > 0);
 }
