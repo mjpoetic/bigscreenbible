@@ -90,8 +90,9 @@ You can create the access token in Supabase from Account settings → Access Tok
 - `supabase/config.toml`
 - `supabase/functions/esv-passage/index.ts`
 - `supabase/functions/api-bible-passage/index.ts`
+- `supabase/functions/verse-of-the-day/index.ts`
 
-The workflow deploys both Bible provider functions to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
+The workflow deploys the Bible provider functions and the Verse of the Day RSS function to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
 
 5. In GitHub, open Actions → Deploy Supabase Edge Functions → Run workflow.
 
@@ -103,6 +104,7 @@ supabase secrets set ESV_API_KEY=YOUR_CROSSWAY_ESV_API_KEY
 supabase secrets set API_BIBLE_KEY=YOUR_API_BIBLE_KEY
 supabase functions deploy esv-passage --no-verify-jwt
 supabase functions deploy api-bible-passage --no-verify-jwt
+supabase functions deploy verse-of-the-day --no-verify-jwt
 ```
 
 The included `supabase/config.toml` keeps JWT verification off for these read-only functions so visitors can read licensed translations without signing in. The provider API keys remain in Supabase and are never returned to the browser.
@@ -126,3 +128,12 @@ https://YOUR_PROJECT.supabase.co/functions/v1/api-bible-passage?action=bibles
 Send the public Supabase publishable/anon key in the `apikey` and bearer authorization headers, just as the website does. This response contains Bible IDs and metadata, never `API_BIBLE_KEY`.
 
 The website only contains the public Supabase publishable/anon key. Provider secrets stay in Supabase and are never committed to GitHub or exposed in browser code.
+
+### Verse of the Day RSS behavior
+
+- The `verse-of-the-day` Edge Function fetches `https://feeds.feedburner.com/hl-devos-votd` server-side.
+- It parses the newest RSS item and keeps only the reference, first verse paragraph, publication time, and original VerseoftheDay.com item URL.
+- The daily result is cached in `public.bsb_verse_of_day_cache`. A new cache day begins at 2:00 a.m. `America/Chicago`, matching the feed's publication boundary.
+- The cache table has Row Level Security enabled with no public policies. Only the Edge Function service role reads or writes it.
+- A failed daily refresh is cached as a failure for that date, and the website uses its existing local curated verse rotation instead.
+- The website never requests or scrapes the linked VerseoftheDay.com webpage.

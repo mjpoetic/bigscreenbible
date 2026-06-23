@@ -3208,6 +3208,34 @@ select {
   margin-bottom: 18px;
 }
 
+.verse-of-day-reader {
+  max-width: 860px;
+  margin: clamp(18px, 5vh, 64px) auto 0;
+}
+
+.verse-of-day-copy {
+  margin: 0;
+  font: 400 clamp(27px, 3.4vw, 46px) / 1.55 var(--scripture-font);
+  text-wrap: pretty;
+}
+
+.verse-of-day-attribution {
+  margin: 28px 0 0;
+  color: var(--muted);
+  font: 500 11px / 1.5 var(--ui-font);
+}
+
+.verse-of-day-attribution a {
+  color: inherit;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 3px;
+}
+
+.verse-of-day-attribution a:hover,
+.verse-of-day-attribution a:focus-visible {
+  color: var(--ink);
+}
+
 .verse {
   position: relative;
   display: grid;
@@ -4670,6 +4698,18 @@ select {
   opacity: 0.42;
   font-size: clamp(6px, 0.5vw, 8px);
   line-height: 1.25;
+}
+
+.verse-of-day-attribution.presentation-attribution {
+  margin-top: clamp(9px, 1.3vh, 14px);
+  color: currentColor;
+  opacity: 0.58;
+  font-size: clamp(9px, 0.75vw, 11px);
+}
+
+.verse-of-day-attribution.presentation-attribution a:hover,
+.verse-of-day-attribution.presentation-attribution a:focus-visible {
+  color: currentColor;
 }
 
 .presentation.presentation-overflow .presentation-text {

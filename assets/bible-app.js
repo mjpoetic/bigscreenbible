@@ -144,6 +144,7 @@ let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
 let activeMobileVerseNavMenu = null;
 let cloudSyncTimer = 0;
+let verseOfDayRequest = null;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
 const streakStorageKey = "lw_reading_streak";
@@ -241,6 +242,7 @@ const state = {
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
   isVerseOfDayActive: false,
+  verseOfDayItem: null,
   showStreakPopup: localStorage.getItem("lw_show_streak_popup") !== "false",
   startupApplied: false,
   settingsOpen: false,
@@ -519,6 +521,7 @@ function referenceLabel() {
 }
 
 function activePassageLabel() {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) return state.verseOfDayItem.reference;
   return formatReferenceLabel(state.reference, selectedVerseNumbers());
 }
 
@@ -1301,7 +1304,7 @@ function versePickerPanel() {
       <strong>${activeVersions().map(translationDisplayCode).join(" + ")}</strong>
       <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
       <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
-      <span>Verse of the Day uses a local Big Screen Bible curated schedule with no borrowed daily calendar.</span>
+      <span>Verse of the Day comes from VerseoftheDay.com / Heartlight via RSS, with the local curated schedule as a fallback.</span>
     </div>
   `;
 }
@@ -1403,7 +1406,7 @@ function reader() {
               <button class="icon-btn verse-nav-button verse-nav-button-double verse-nav-button-left" id="prevChapterInline" aria-label="Previous chapter" data-tooltip="Previous chapter">${icons.chevronDouble}</button>
               <button class="icon-btn verse-nav-button verse-nav-button-left" id="prevVerse" aria-label="Previous verse" data-tooltip="Previous verse">${icons.chevron}</button>
             </div>
-            <div class="compact-reference">${referenceLabel()} · ${activeVersions().map(translationDisplayCode).join(" / ")}</div>
+            <div class="compact-reference">${escapeHtml(activePassageLabel())}${state.isVerseOfDayActive && state.verseOfDayItem ? "" : ` · ${activeVersions().map(translationDisplayCode).join(" / ")}`}</div>
             <div class="mobile-verse-nav-selectors">
               <button class="verse-nav-select mobile-verse-nav-trigger mobile-verse-nav-chapter" id="mobileChapterSelectInline" type="button" aria-label="Choose chapter" aria-haspopup="listbox" aria-expanded="false">
                 <span>${escapeHtml(compactChapterLabel(state.reference))}</span>
@@ -2333,6 +2336,7 @@ async function syncNowAccount() {
 }
 
 function readerView() {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView();
   const version = state.versions[0] || "BSB";
   const chapter = currentChapter();
   const useParagraphs = shouldUseParagraphLayout(version, chapter);
@@ -2347,6 +2351,18 @@ function readerView() {
       </p>
     `).join("")}
     ${apiBibleAttributionMarkup([version])}
+  `;
+}
+
+function verseOfDayReaderView() {
+  const item = state.verseOfDayItem;
+  if (!item) return "";
+  return `
+    <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
+      <h1 class="section-title" id="verseOfDayReference">${escapeHtml(item.reference)}</h1>
+      <p class="verse-of-day-copy">${escapeHtml(item.verseText)}</p>
+      ${verseOfDayAttributionMarkup()}
+    </section>
   `;
 }
 
@@ -3245,6 +3261,7 @@ function triviaScoreLabel() {
 }
 
 function parallelView() {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView();
   const versions = activeVersions();
   return `
     ${selectionBar()}
@@ -3980,6 +3997,9 @@ function presentationTextParts(value) {
 }
 
 function currentPresentationParts() {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) {
+    return presentationTextParts(state.verseOfDayItem.verseText);
+  }
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
   return presentationTextParts(getVerseText(verse, version));
@@ -3992,12 +4012,13 @@ function presentationPartSuffix(index) {
 function presentation() {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
-  const parts = presentationTextParts(getVerseText(verse, version));
+  const verseOfDayItem = state.isVerseOfDayActive ? state.verseOfDayItem : null;
+  const parts = presentationTextParts(verseOfDayItem?.verseText || getVerseText(verse, version));
   const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
   const text = parts[partIndex];
   state.presentationPart = partIndex;
   const paginated = parts.length > 1;
-  const presentationReference = `${referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
+  const presentationReference = `${verseOfDayItem?.reference || referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
@@ -4031,7 +4052,7 @@ function presentation() {
         </div>
         <div class="presentation-ref">
           <span class="presentation-reference-label">${presentationReference}</span>
-          <span class="presentation-version-label">${translationDisplayCode(version)}</span>
+          ${verseOfDayItem ? "" : `<span class="presentation-version-label">${translationDisplayCode(version)}</span>`}
           ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
         </div>
         <div class="presentation-actions">
@@ -4075,7 +4096,7 @@ function presentation() {
         <div class="presentation-passage">
           <span class="presentation-copy">${escapeHtml(text)}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
-          ${apiBibleAttributionMarkup([version], "presentation-attribution")}
+          ${verseOfDayItem ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
       </div>
       <div class="presentation-bottom">
@@ -4094,6 +4115,16 @@ function presentation() {
 }
 
 function printSheet() {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) {
+    return `
+      <section class="print-sheet" aria-hidden="true">
+        <div class="print-brand">Big Screen Bible</div>
+        <h1>${escapeHtml(state.verseOfDayItem.reference)}</h1>
+        <p>${escapeHtml(state.verseOfDayItem.verseText)}</p>
+        ${verseOfDayAttributionMarkup("print-attribution")}
+      </section>
+    `;
+  }
   const lines = passageLines();
   return `
     <section class="print-sheet" aria-hidden="true">
@@ -4445,7 +4476,7 @@ function bindEvents() {
   document.getElementById("footerCollapseToggle")?.addEventListener("click", toggleFooterCollapsed);
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
-  document.getElementById("brandVerseOfDay")?.addEventListener("click", openVerseOfDay);
+  document.getElementById("brandVerseOfDay")?.addEventListener("click", () => openVerseOfDay());
   document.getElementById("presentationBrandVerseOfDay")?.addEventListener("click", (event) => {
     event.preventDefault();
     openVerseOfDay({ mode: "big" });
@@ -6267,7 +6298,7 @@ function levenshteinDistance(a, b, limit = 2) {
   return previous[b.length];
 }
 
-function applyStartupExperience() {
+async function applyStartupExperience() {
   if (state.startupApplied) return;
   state.startupApplied = true;
   const sharedRef = sharedReferenceFromUrl();
@@ -6280,18 +6311,22 @@ function applyStartupExperience() {
     return;
   }
   if (state.startVerseOfDay) {
-    const verseOfDay = verseOfDayReference();
-    if (verseOfDay && setReferenceFromString(verseOfDay)) state.isVerseOfDayActive = true;
+    const verseOfDay = await resolvedVerseOfDay();
+    if (verseOfDay.reference && setReferenceFromString(verseOfDay.reference)) {
+      state.verseOfDayItem = verseOfDay.item;
+      state.isVerseOfDayActive = true;
+    }
   }
   if (requestedMode) state.mode = requestedMode;
   else if (state.startBigScreen) state.mode = "big";
   if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
 }
 
-function openVerseOfDay(options = {}) {
-  const ref = verseOfDayReference();
-  if (!ref) return showToast("Verse of the day is not available yet");
-  if (!setReferenceFromString(ref)) return;
+async function openVerseOfDay(options = {}) {
+  const verseOfDay = await resolvedVerseOfDay();
+  if (!verseOfDay.reference) return showToast("Verse of the day is not available yet");
+  if (!setReferenceFromString(verseOfDay.reference)) return;
+  state.verseOfDayItem = verseOfDay.item;
   state.isVerseOfDayActive = true;
   state.mode = options.mode || "reader";
   state.searchQuery = "";
@@ -6299,6 +6334,12 @@ function openVerseOfDay(options = {}) {
   recordHistory();
   updateShareUrl();
   render();
+}
+
+async function resolvedVerseOfDay() {
+  const item = await fetchVerseOfDayItem();
+  if (item) return { reference: item.reference, item };
+  return { reference: verseOfDayReference(), item: null };
 }
 
 function sharedReferenceFromUrl() {
@@ -7453,6 +7494,9 @@ function dismissSelectionBarOnOutsideClick(event) {
 }
 
 function passageLines(verseNumbers = selectedVerseNumbers()) {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) {
+    return [{ n: state.verse, text: state.verseOfDayItem.verseText }];
+  }
   const selected = new Set(verseNumbers);
   return currentChapter().verses
     .filter((verse) => selected.has(verse.n))
@@ -7460,6 +7504,9 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
 }
 
 function passageText(verseNumbers = selectedVerseNumbers()) {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) {
+    return `${state.verseOfDayItem.reference}\n${state.verseOfDayItem.verseText}`;
+  }
   const lines = passageLines(verseNumbers);
   const reference = formatReferenceLabel(state.reference, verseNumbers);
   return `${reference} ${translationDisplayCode(state.versions[0])}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
@@ -7476,7 +7523,9 @@ function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
 function updateShareUrl() {
   if (!window.history?.replaceState) return;
   const url = new URL(window.location.href);
-  url.searchParams.set("ref", referenceLabel());
+  url.searchParams.set("ref", state.isVerseOfDayActive && state.verseOfDayItem
+    ? state.verseOfDayItem.reference
+    : referenceLabel());
   url.searchParams.delete("verses");
   window.history.replaceState(null, "", url);
 }
@@ -7675,7 +7724,7 @@ async function initializeBibleData() {
     const bundledVersions = new Set(["BSB", ...state.versions.filter(isBundledTranslation)]);
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
-    applyStartupExperience();
+    await applyStartupExperience();
     dataLoading = false;
     render();
   } catch (error) {
@@ -7713,9 +7762,63 @@ function remoteVersionLoadKey(version, chapterKey) {
 function supabaseFunctionUrl(functionName, params = {}) {
   const config = window.BigScreenBibleSupabase || {};
   if (!config.url || !config.anonKey) return "";
-  const baseUrl = config.url.replace(/\/$/, "");
+  const baseUrl = String(config.functionsUrl || config.url).replace(/\/$/, "");
   const searchParams = new URLSearchParams(params);
   return `${baseUrl}/functions/v1/${functionName}?${searchParams}`;
+}
+
+function normalizeVerseOfDayItem(payload) {
+  const reference = String(payload?.reference || "").trim();
+  const verseText = String(payload?.verseText || "").replace(/\s+/g, " ").trim();
+  const sourceUrl = String(payload?.sourceUrl || "").trim();
+  const publishedAt = String(payload?.publishedAt || "").trim();
+  const parsedReference = parsePassageReference(reference);
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(sourceUrl);
+  } catch {
+    return null;
+  }
+
+  const validSource = parsedUrl.protocol === "https:"
+    && ["verseoftheday.com", "www.verseoftheday.com"].includes(parsedUrl.hostname);
+  if (
+    !parsedReference || !bibleData[parsedReference.key] || !verseText ||
+    verseText.length > 2000 || !validSource || Number.isNaN(Date.parse(publishedAt))
+  ) return null;
+
+  return { reference, verseText, sourceUrl: parsedUrl.toString(), publishedAt };
+}
+
+async function fetchVerseOfDayItem() {
+  if (state.verseOfDayItem) return state.verseOfDayItem;
+  if (verseOfDayRequest) return verseOfDayRequest;
+
+  verseOfDayRequest = (async () => {
+    const config = window.BigScreenBibleSupabase || {};
+    const url = supabaseFunctionUrl("verse-of-the-day");
+    if (!url || !config.anonKey) return null;
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: {
+          apikey: config.anonKey,
+          Authorization: `Bearer ${config.anonKey}`,
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Verse of the Day request failed");
+      const item = normalizeVerseOfDayItem(payload);
+      if (!item) throw new Error("Verse of the Day returned invalid data");
+      state.verseOfDayItem = item;
+      return item;
+    } catch (error) {
+      console.warn("[Verse of the Day] Using curated fallback", error);
+      return null;
+    }
+  })();
+
+  return verseOfDayRequest;
 }
 
 function remoteFunctionUrl(version, chapterKey) {
@@ -7791,6 +7894,17 @@ function apiBibleAttributionMarkup(versions, className = "") {
   return `
     <aside class="${classes}" aria-label="Bible translation copyright">
       ${notices.join("")}
+    </aside>
+  `;
+}
+
+function verseOfDayAttributionMarkup(className = "") {
+  const item = state.isVerseOfDayActive ? state.verseOfDayItem : null;
+  if (!item?.sourceUrl) return "";
+  const classes = ["verse-of-day-attribution", className].filter(Boolean).join(" ");
+  return `
+    <aside class="${classes}" aria-label="Verse of the Day source">
+      <a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer">Verse of the Day courtesy of VerseoftheDay.com / Heartlight.</a>
     </aside>
   `;
 }

@@ -37,6 +37,8 @@ Licensed remote translations are provider-based:
 - API keys remain Supabase secrets; the browser only calls the project Edge Functions.
 - API.Bible copyright notices and FUMS view tracking are included in the rendered experience.
 
+Verse of the Day is fetched server-side from the VerseoftheDay.com / Heartlight RSS feed, cached once per Eastern calendar day in Supabase, and reduced to the item reference, verse text, and linked attribution. The bundled curated rotation remains the offline/failure fallback.
+
 See `SUPABASE_SETUP.md` for secret names, deployment, caching, and API.Bible usage constraints.
 
 To generate bundled paragraph metadata:

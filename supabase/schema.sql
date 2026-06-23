@@ -55,3 +55,16 @@ create trigger bsb_user_sync_set_updated_at
   before update on public.bsb_user_sync
   for each row
   execute function public.set_bsb_user_sync_updated_at();
+
+create table if not exists public.bsb_verse_of_day_cache (
+  cache_date date primary key,
+  status text not null default 'pending' check (status in ('pending', 'ready', 'failed')),
+  reference text,
+  verse_text text,
+  source_url text,
+  published_at timestamptz,
+  fetched_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.bsb_verse_of_day_cache enable row level security;
