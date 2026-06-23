@@ -6912,6 +6912,8 @@ svg {
     .fineprint {
       grid-column: 1 / -1;
       grid-row: 1;
+      justify-self: center;
+      justify-content: center;
       width: min(100%, 320px);
       min-width: 0;
       overflow: hidden;
@@ -6949,11 +6951,11 @@ svg {
     }
 
     .chapter-nav-next {
-      grid-column: 4;
+      grid-column: 5;
     }
 
     .bottom-about-link {
-      grid-column: 5;
+      grid-column: 4;
       width: 48px;
       min-width: 48px;
       min-height: 48px;
