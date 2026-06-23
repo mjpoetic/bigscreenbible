@@ -1047,7 +1047,17 @@ button {
   }
 
   .topbar .mode-tabs button:not(.active):hover,
-  .topbar .mode-tabs button:not(.active):focus-visible,
+  .topbar .mode-tabs button:not(.active):focus-visible {
+    color: var(--teal);
+    filter:
+      drop-shadow(0 0 4px color-mix(in srgb, var(--teal) 62%, transparent))
+      drop-shadow(0 0 12px color-mix(in srgb, var(--teal) 46%, transparent))
+      drop-shadow(0 0 22px color-mix(in srgb, var(--teal) 30%, transparent));
+    text-shadow:
+      0 0 7px color-mix(in srgb, var(--teal) 58%, transparent),
+      0 0 16px color-mix(in srgb, var(--teal) 38%, transparent);
+  }
+
   .topbar .primary-version-toggle:hover,
   .topbar .primary-version-toggle:focus-visible {
     color: var(--teal);
