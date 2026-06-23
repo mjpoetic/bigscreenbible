@@ -3219,8 +3219,27 @@ select {
   text-wrap: pretty;
 }
 
+.verse-of-day-read-button {
+  width: fit-content;
+  margin-top: 30px;
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
+  color: var(--ink);
+}
+
+.verse-of-day-read-button svg {
+  width: 17px;
+  height: 17px;
+  color: var(--gold);
+}
+
+.verse-of-day-read-button:hover,
+.verse-of-day-read-button:focus-visible {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
 .verse-of-day-attribution {
-  margin: 28px 0 0;
+  margin: 18px 0 0;
   color: var(--muted);
   font: 500 11px / 1.5 var(--ui-font);
 }

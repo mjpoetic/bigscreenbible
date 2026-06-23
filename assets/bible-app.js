@@ -2361,6 +2361,10 @@ function verseOfDayReaderView() {
     <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
       <h1 class="section-title" id="verseOfDayReference">${escapeHtml(item.reference)}</h1>
       <p class="verse-of-day-copy">${escapeHtml(item.verseText)}</p>
+      <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
+        <span aria-hidden="true">${icons.book}</span>
+        <span>Read in Bible</span>
+      </button>
       ${verseOfDayAttributionMarkup()}
     </section>
   `;
@@ -4477,6 +4481,10 @@ function bindEvents() {
   document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", () => openVerseOfDay());
+  document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openVerseOfDayInReader();
+  });
   document.getElementById("presentationBrandVerseOfDay")?.addEventListener("click", (event) => {
     event.preventDefault();
     openVerseOfDay({ mode: "big" });
@@ -6340,6 +6348,17 @@ async function resolvedVerseOfDay() {
   const item = await fetchVerseOfDayItem();
   if (item) return { reference: item.reference, item };
   return { reference: verseOfDayReference(), item: null };
+}
+
+function openVerseOfDayInReader() {
+  const reference = state.verseOfDayItem?.reference;
+  if (!reference || !setReferenceFromString(reference)) return;
+  state.mode = "reader";
+  state.searchQuery = "";
+  state.pendingVerseFocus = true;
+  recordHistory();
+  updateShareUrl();
+  render();
 }
 
 function sharedReferenceFromUrl() {
