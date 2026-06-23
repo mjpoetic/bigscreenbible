@@ -1042,6 +1042,7 @@ button {
   .topbar .primary-version-toggle {
     transition:
       color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
       filter var(--motion-fast) ease,
       text-shadow var(--motion-fast) ease;
   }
@@ -1049,13 +1050,11 @@ button {
   .topbar .mode-tabs button:not(.active):hover,
   .topbar .mode-tabs button:not(.active):focus-visible {
     color: var(--teal);
-    filter:
-      drop-shadow(0 0 4px color-mix(in srgb, var(--teal) 62%, transparent))
-      drop-shadow(0 0 12px color-mix(in srgb, var(--teal) 46%, transparent))
-      drop-shadow(0 0 22px color-mix(in srgb, var(--teal) 30%, transparent));
-    text-shadow:
-      0 0 7px color-mix(in srgb, var(--teal) 58%, transparent),
-      0 0 16px color-mix(in srgb, var(--teal) 38%, transparent);
+    box-shadow:
+      0 0 10px color-mix(in srgb, var(--teal) 32%, transparent),
+      0 0 18px color-mix(in srgb, var(--teal) 20%, transparent);
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--teal) 22%, transparent));
+    text-shadow: 0 0 5px color-mix(in srgb, var(--teal) 20%, transparent);
   }
 
   .topbar .primary-version-toggle:hover,
