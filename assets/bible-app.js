@@ -4105,7 +4105,7 @@ function presentation() {
           </form>
         </div>
         <div class="presentation-ref">
-          <span class="presentation-reference-label">${presentationReference}</span>
+          <button class="presentation-reference-label" id="presentationReferenceBackToBible" type="button" aria-label="Back to Bible at ${escapeHtml(presentationReference)}">${presentationReference}</button>
           ${verseOfDayItem ? "" : `<span class="presentation-version-label">${translationDisplayCode(version)}</span>`}
           ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
         </div>
@@ -4894,6 +4894,9 @@ function bindEvents() {
   });
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
   document.getElementById("closePresentation")?.addEventListener("click", () => {
+    returnFromPresentationToBible();
+  });
+  document.getElementById("presentationReferenceBackToBible")?.addEventListener("click", () => {
     returnFromPresentationToBible();
   });
   window.onkeydown = handleGlobalShortcuts;
