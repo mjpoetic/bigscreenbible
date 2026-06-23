@@ -94,6 +94,10 @@
   --shadow: 0 20px 56px rgba(0, 0, 0, 0.34);
 }
 
+[data-theme="light"] {
+  --accent-hover: var(--teal-dark);
+}
+
 [data-theme-preset="parchment"] {
   --bg: #f3ecdd;
   --paper: #fff8ea;
