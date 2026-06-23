@@ -8030,6 +8030,7 @@ async function loadBibleRedLetterMetadata() {
   await loadBibleBundleScript("red-letters", {
     globalName: "BIGSCREEN_BIBLE_RED_LETTERS",
     optional: true,
+    version: "20260623-derived-red-letters",
   });
   bibleRedLetters = window.BIGSCREEN_BIBLE_RED_LETTERS || null;
 }
@@ -8056,7 +8057,7 @@ function loadBibleBundleScript(name, options = {}) {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.id = scriptId;
-    script.src = `./assets/bibles/${name}.js`;
+    script.src = `./assets/bibles/${name}.js${options.version ? `?v=${encodeURIComponent(options.version)}` : ""}`;
     script.async = true;
     script.addEventListener("load", () => resolve(), { once: true });
     script.addEventListener("error", () => {

@@ -30,7 +30,7 @@ The bundled data also includes word-level Strong's number tags where the USFX so
 
 Paragraph layout support is data-driven. ESV paragraphing comes from the ESV passage API. The bundled public-domain/open translations can also use paragraph metadata when source files with paragraph markers are available.
 
-Red-letter support is also data-driven. The app renders words of Jesus in red only when the selected translation supplies USFM/USX `wj` annotations. The generated bundled metadata currently covers KJV and WEB; API.Bible translations preserve `wj` ranges when their provider text includes them. Translations without source annotations remain normal text.
+Red-letter support is also data-driven. KJV and WEB use their source USFM/USX `wj` annotations directly. BSB, BBE, and ASV use translation-specific character ranges aligned from WEB's editorial boundaries, with explicit overrides for structurally unusual mixed-speaker verses. API.Bible translations preserve `wj` ranges when their provider text includes them. Translations without source annotations or configured aligned metadata remain normal text.
 
 Licensed remote translations are provider-based:
 
@@ -68,7 +68,7 @@ The generated `assets/bibles/paragraphs.js` is safe to commit. The raw `sources/
 To regenerate bundled red-letter metadata from sources that include `wj` markers:
 
 ```bash
-node scripts/build-red-letter-metadata.mjs WEB=./sources/engwebp_usfm KJV=./sources/eng-kjv_usfm
+node scripts/build-red-letter-metadata.mjs WEB=./sources/engwebp_usfm KJV=./sources/eng-kjv_usfm --derive=BSB:WEB,BBE:WEB,ASV:WEB
 ```
 
 The generated `assets/bibles/red-letters.js` contains character ranges only; it does not duplicate Scripture text.
