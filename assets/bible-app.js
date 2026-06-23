@@ -4105,7 +4105,7 @@ function presentation() {
           </form>
         </div>
         <div class="presentation-ref">
-          <button class="presentation-reference-label" id="presentationReferenceBackToBible" type="button" aria-label="Back to Bible at ${escapeHtml(presentationReference)}">${presentationReference}</button>
+          <a class="presentation-reference-label" id="presentationReferenceBackToBible" href="#reader" aria-label="Back to Bible at ${escapeHtml(presentationReference)}">${presentationReference}</a>
           ${verseOfDayItem ? "" : `<span class="presentation-version-label">${translationDisplayCode(version)}</span>`}
           ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
         </div>
@@ -4159,10 +4159,10 @@ function presentation() {
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
         </a>
         <div class="presentation-controls">
-          <button class="ghost-btn" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>Previous</button>
-          <button class="ghost-btn" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>Next</button>
+          <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
+          <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
-        <a class="presentation-about-link" href="./about.html">About</a>
+        <a class="presentation-about-link" href="./about.html" aria-label="About Big Screen Bible" data-tooltip="About Big Screen Bible">About</a>
       </div>
     </section>
   `;
@@ -4896,7 +4896,8 @@ function bindEvents() {
   document.getElementById("closePresentation")?.addEventListener("click", () => {
     returnFromPresentationToBible();
   });
-  document.getElementById("presentationReferenceBackToBible")?.addEventListener("click", () => {
+  document.getElementById("presentationReferenceBackToBible")?.addEventListener("click", (event) => {
+    event.preventDefault();
     returnFromPresentationToBible();
   });
   window.onkeydown = handleGlobalShortcuts;

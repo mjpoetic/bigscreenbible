@@ -4472,14 +4472,8 @@ select {
 }
 
 .presentation-reference-label {
-  max-width: min(56vw, 560px);
-  padding: 0;
-  border: 0;
-  background: none;
   color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -4839,6 +4833,20 @@ select {
   justify-self: center;
 }
 
+.presentation-nav-button {
+  width: 46px;
+  padding: 0;
+}
+
+.presentation-nav-button svg {
+  width: 21px;
+  height: 21px;
+}
+
+.presentation-nav-button-prev svg {
+  transform: rotate(180deg);
+}
+
 .presentation button {
   color: #fff;
   border: 1px solid var(--presentation-button-border);
@@ -4857,6 +4865,11 @@ select {
 .presentation [data-tooltip]:hover::after,
 .presentation [data-tooltip]:focus-visible::after {
   transform: translate(-50%, 0);
+}
+
+.presentation-bottom [data-tooltip]::after {
+  top: auto;
+  bottom: calc(100% + 9px);
 }
 
 .presentation button:disabled {
@@ -7606,18 +7619,20 @@ svg {
       gap: 8px;
     }
 
-    .presentation-controls .ghost-btn,
-    .presentation-about-link {
-      width: 78px;
+    .presentation-controls .ghost-btn {
+      width: 44px;
       box-sizing: border-box;
-      padding-inline: 8px;
+      padding-inline: 0;
     }
 
     .presentation-about-link {
       grid-row: 1;
       justify-self: end;
+      width: 78px;
       min-height: 38px;
       min-width: 78px;
+      box-sizing: border-box;
+      padding-inline: 8px;
       font-size: 13px;
     }
 
