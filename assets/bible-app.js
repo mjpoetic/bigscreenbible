@@ -4134,10 +4134,6 @@ function presentation() {
                 </select>
                 ${customFontField}
               </label>
-              <label class="presentation-setting-checkbox">
-                <input type="checkbox" id="presentationRedLettersToggle" ${state.redLetters ? "checked" : ""} />
-                <span>Words of Jesus in red</span>
-              </label>
               <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
               <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
               <div class="presentation-help">
@@ -4152,7 +4148,7 @@ function presentation() {
       </div>
       <div class="presentation-text">
         <div class="presentation-passage">
-          <span class="presentation-copy">${verseOfDayItem ? escapeHtml(text) : renderRedLetterText(text, wordsOfJesusRanges(verse, version), part.start)}</span>
+          <span class="presentation-copy">${escapeHtml(text)}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${verseOfDayItem ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
@@ -4817,9 +4813,6 @@ function bindEvents() {
   });
   document.getElementById("presentationCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
-  });
-  document.getElementById("presentationRedLettersToggle")?.addEventListener("change", (event) => {
-    setRedLetters(event.target.checked);
   });
   document.getElementById("presentationFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);

@@ -4388,7 +4388,6 @@ select {
   --presentation-button-bg: rgba(255, 255, 255, 0.1);
   --presentation-button-border: rgba(255, 255, 255, 0.32);
   --presentation-muted: rgba(255, 255, 255, 0.74);
-  --red-letter: #ff9a9f;
   background:
     linear-gradient(180deg, #004f54, #0d1211),
     radial-gradient(circle at 75% 12%, rgba(173, 116, 20, 0.28), transparent 34%);
@@ -4580,23 +4579,6 @@ select {
 .presentation-settings-popover label {
   display: grid;
   gap: 6px;
-}
-
-.presentation-settings-popover .presentation-setting-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.presentation-setting-checkbox input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--presentation-accent);
 }
 
 .presentation-help {
@@ -5673,7 +5655,6 @@ kbd {
   --presentation-button-bg: rgba(255, 255, 255, 0.56);
   --presentation-button-border: rgba(87, 66, 38, 0.34);
   --presentation-muted: rgba(32, 24, 16, 0.68);
-  --red-letter: #9f2027;
 }
 
 .presentation[data-presentation-theme="paper"] .presentation-copy,
@@ -5708,7 +5689,6 @@ kbd {
   --presentation-button-bg: rgba(255, 255, 255, 0.45);
   --presentation-button-border: rgba(112, 70, 28, 0.34);
   --presentation-muted: rgba(32, 24, 16, 0.7);
-  --red-letter: #96252b;
 }
 
 .presentation[data-presentation-theme="dawn"] .presentation-copy,
@@ -5745,7 +5725,6 @@ kbd {
   --presentation-button-bg: rgba(255, 255, 255, 0.44);
   --presentation-button-border: rgba(45, 83, 59, 0.32);
   --presentation-muted: rgba(20, 33, 25, 0.7);
-  --red-letter: #92252c;
 }
 
 .presentation[data-presentation-theme="meadow"] .presentation-copy,
@@ -5772,7 +5751,6 @@ kbd {
   --presentation-button-bg: rgba(255, 255, 255, 0.44);
   --presentation-button-border: rgba(129, 76, 107, 0.32);
   --presentation-muted: rgba(38, 23, 34, 0.7);
-  --red-letter: #9b202c;
 }
 
 .presentation[data-presentation-theme="blush"] .presentation-copy,
@@ -5799,7 +5777,6 @@ kbd {
   --presentation-button-bg: rgba(255, 255, 255, 0.44);
   --presentation-button-border: rgba(99, 74, 132, 0.32);
   --presentation-muted: rgba(32, 26, 44, 0.7);
-  --red-letter: #98252d;
 }
 
 .presentation[data-presentation-theme="lavender"] .presentation-copy,
@@ -5826,7 +5803,6 @@ kbd {
   --presentation-button-bg: rgba(255, 255, 255, 0.42);
   --presentation-button-border: rgba(22, 38, 58, 0.34);
   --presentation-muted: rgba(7, 17, 31, 0.72);
-  --red-letter: #9b2028;
 }
 
 .presentation[data-presentation-theme="sapphire"] .presentation-copy,
