@@ -3424,31 +3424,33 @@ select {
 
 .scripture-heading-group {
   max-width: min(100%, 34em);
-  margin: 1.65em 0 0.45em;
-  padding: 0;
+  margin: 1.75em 0 0.58em;
+  padding: 0.28em 0.78em 0.3em 0.68em;
   border: 0;
-  border-radius: 0;
-  background: transparent;
+  border-left: 3px solid color-mix(in srgb, var(--gold) 78%, var(--ink));
+  border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--gold-soft) 58%, transparent);
   scroll-margin-block: 140px;
 }
 
 .scripture-heading-group-paragraph {
-  margin-block: 0 -0.35em;
+  margin-block: 0 -0.25em;
 }
 
 .scripture-heading {
   margin: 0;
-  color: color-mix(in srgb, var(--ink) 88%, var(--gold));
-  font: 700 calc(var(--verse-font) * 0.64) / 1.42 var(--scripture-font);
+  color: color-mix(in srgb, var(--ink) 92%, var(--gold));
+  font: italic 600 calc(var(--verse-font) * 0.62) / 1.42 var(--scripture-font);
   letter-spacing: 0;
   text-wrap: balance;
 }
 
 .scripture-heading + .scripture-heading {
-  margin-top: 0.28em;
+  margin-top: 0.22em;
   color: var(--muted);
-  font-size: calc(var(--verse-font) * 0.52);
-  font-weight: 600;
+  font-size: calc(var(--verse-font) * 0.5);
+  font-style: italic;
+  font-weight: 500;
 }
 
 .scripture-paragraph {
@@ -4078,6 +4080,7 @@ select {
   margin: 0;
   padding: 0;
   border: 0;
+  border-left: 0;
   border-radius: 0;
   background: transparent;
   scroll-margin-block: 0;
@@ -8916,6 +8919,7 @@ svg {
     margin: 26px 0 14px;
     padding: 0;
     border: 0;
+    border-left: 0;
     background: transparent !important;
   }
 

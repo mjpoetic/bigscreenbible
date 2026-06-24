@@ -30,6 +30,8 @@ The bundled data also includes word-level Strong's number tags where the USFX so
 
 Paragraph layout support is data-driven. ESV paragraphing comes from the ESV passage API. The bundled public-domain/open translations can also use paragraph metadata when source files with paragraph markers are available.
 
+Section heading support is data-driven too. Remote translations can return headings from their provider payloads, and bundled translations can use generated heading metadata from local USFM source markers such as `s1`, `r`, `d`, and `qa`.
+
 Red-letter support is also data-driven. KJV and WEB use their source USFM/USX `wj` annotations directly. BSB, BBE, and ASV use translation-specific character ranges aligned from WEB's editorial boundaries, with explicit overrides for structurally unusual mixed-speaker verses. API.Bible translations preserve `wj` ranges when their provider text includes them. Translations without source annotations or configured aligned metadata remain normal text.
 
 Licensed remote translations are provider-based:
@@ -64,6 +66,14 @@ To generate bundled paragraph metadata:
    ```
 
 The generated `assets/bibles/paragraphs.js` is safe to commit. The raw `sources/` files should stay local.
+
+To generate bundled section heading metadata from USFM source markers:
+
+```bash
+node scripts/build-section-heading-metadata.mjs BSB=./sources/engbsb_usfm
+```
+
+The generated `assets/bibles/headings.js` is safe to commit. It contains heading labels and verse attachment points, not duplicated Scripture text.
 
 To regenerate bundled red-letter metadata from sources that include `wj` markers:
 

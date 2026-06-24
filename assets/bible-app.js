@@ -126,6 +126,7 @@ const scriptureFontCodes = scriptureFonts.map((font) => font.code);
 let bibleData = {};
 let bibleIndex = null;
 let bibleParagraphs = null;
+let bibleSectionHeadings = null;
 let bibleRedLetters = null;
 let dataLoading = true;
 let dataError = "";
@@ -8163,6 +8164,7 @@ async function initializeBibleData() {
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
     await Promise.all([
       loadBibleParagraphMetadata(),
+      loadBibleSectionHeadingMetadata(),
       loadBibleRedLetterMetadata(),
     ]);
     const bundledVersions = new Set(["BSB", ...state.versions.filter(isBundledTranslation)]);
@@ -8401,6 +8403,15 @@ async function loadBibleParagraphMetadata() {
   bibleParagraphs = window.BIGSCREEN_BIBLE_PARAGRAPHS || null;
 }
 
+async function loadBibleSectionHeadingMetadata() {
+  await loadBibleBundleScript("headings", {
+    globalName: "BIGSCREEN_BIBLE_HEADINGS",
+    optional: true,
+    version: "20260624-bundled-section-headings",
+  });
+  bibleSectionHeadings = window.BIGSCREEN_BIBLE_HEADINGS || null;
+}
+
 async function loadBibleRedLetterMetadata() {
   await loadBibleBundleScript("red-letters", {
     globalName: "BIGSCREEN_BIBLE_RED_LETTERS",
@@ -8542,6 +8553,7 @@ function rebuildBibleData() {
     });
   });
   applyParagraphMetadata(merged);
+  applySectionHeadingMetadata(merged);
   applyRedLetterMetadata(merged);
   Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
   bibleData = merged;
@@ -8565,6 +8577,39 @@ function applyParagraphMetadata(merged) {
       });
     });
   });
+}
+
+function applySectionHeadingMetadata(merged) {
+  const versions = bibleSectionHeadings?.versions || {};
+  Object.entries(versions).forEach(([version, chapters]) => {
+    Object.entries(chapters || {}).forEach(([chapterKey, headingVerses]) => {
+      const chapter = merged[chapterKey];
+      if (!chapter || !headingVerses || typeof headingVerses !== "object") return;
+      chapter.verses.forEach((verse) => {
+        const headings = headingVerses[verse.n];
+        if (!Array.isArray(headings) || !headings.length) return;
+        const normalized = headings
+          .map((heading) => ({
+            text: String(heading?.text || "").trim(),
+            level: Math.max(1, Math.min(4, Number(heading?.level) || 1)),
+          }))
+          .filter((heading) => heading.text);
+        if (!normalized.length) return;
+        verse.sectionHeadings = verse.sectionHeadings || {};
+        verse.sectionHeadings[version] = mergeSectionHeadings(verse.sectionHeadings[version], normalized);
+      });
+    });
+  });
+}
+
+function mergeSectionHeadings(existingHeadings, newHeadings) {
+  const merged = Array.isArray(existingHeadings) ? [...existingHeadings] : [];
+  newHeadings.forEach((heading) => {
+    if (!merged.some((item) => item.text === heading.text && item.level === heading.level)) {
+      merged.push(heading);
+    }
+  });
+  return merged;
 }
 
 function applyRedLetterMetadata(merged) {
