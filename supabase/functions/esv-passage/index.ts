@@ -1,8 +1,13 @@
+import { normalizePsalm119AcrosticVerses } from "../api-bible-passage/content-parser.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
+
+const parserVersion = "2026-06-24-psalm119-normalized";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -32,10 +37,16 @@ function extractEsvHeadings(text: string) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !/^[-=_—–\s]+$/.test(line))
-    .map((line) => ({ text: cleanVerseText(line), level: headingLevelForLine(line) }));
+    .map((line) => ({
+      text: cleanVerseText(line),
+      level: headingLevelForLine(line),
+    }));
 }
 
-function parseEsvVerses(passages: string[]) {
+function parseEsvVerses(
+  passages: string[],
+  options: { normalizePsalm119?: boolean } = {},
+) {
   const body = passages.join("\n").replace(/\u00a0/g, " ");
   const verses: Array<{
     n: number;
@@ -52,9 +63,9 @@ function parseEsvVerses(passages: string[]) {
     const text = cleanVerseText(match[2]);
     const leadingText = body.slice(previousEnd, match.index);
     const sectionHeadings = extractEsvHeadings(leadingText);
-    const paragraphStart = verses.length === 0
-      || /\n\s*\n/.test(leadingText)
-      || /(?:^|\n)[ \t]{2,}$/.test(leadingText);
+    const paragraphStart = verses.length === 0 ||
+      /\n\s*\n/.test(leadingText) ||
+      /(?:^|\n)[ \t]{2,}$/.test(leadingText);
     if (Number.isFinite(n) && text) {
       verses.push({
         n,
@@ -66,22 +77,39 @@ function parseEsvVerses(passages: string[]) {
     previousEnd = markerPattern.lastIndex;
   }
 
-  if (verses.length) return verses;
+  if (verses.length) {
+    return options.normalizePsalm119
+      ? normalizePsalm119AcrosticVerses(verses)
+      : verses;
+  }
 
   const fallbackText = cleanVerseText(body);
-  return fallbackText ? [{ n: 1, text: fallbackText, paragraphStart: true }] : [];
+  return fallbackText
+    ? [{ n: 1, text: fallbackText, paragraphStart: true }]
+    : [];
 }
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (request.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   const apiKey = Deno.env.get("ESV_API_KEY");
-  if (!apiKey) return jsonResponse({ error: "ESV_API_KEY is not configured" }, 500);
+  if (!apiKey) {
+    return jsonResponse({ error: "ESV_API_KEY is not configured" }, 500);
+  }
 
   const url = new URL(request.url);
   const ref = (url.searchParams.get("ref") || "").trim();
-  if (!ref || ref.length > 80) return jsonResponse({ error: "A valid passage reference is required" }, 400);
+  if (!ref || ref.length > 80) {
+    return jsonResponse(
+      { error: "A valid passage reference is required" },
+      400,
+    );
+  }
 
   const esvUrl = new URL("https://api.esv.org/v3/passage/text/");
   esvUrl.searchParams.set("q", ref);
@@ -111,11 +139,19 @@ Deno.serve(async (request) => {
     );
   }
 
-  const verses = parseEsvVerses(Array.isArray(payload.passages) ? payload.passages : []);
+  const canonical = payload.canonical || ref;
+  const verses = parseEsvVerses(
+    Array.isArray(payload.passages) ? payload.passages : [],
+    {
+      normalizePsalm119: /^psalms?\s+119\b/i.test(canonical) ||
+        /^psalms?\s+119\b/i.test(ref),
+    },
+  );
   return jsonResponse({
     version: "ESV",
     reference: ref,
-    canonical: payload.canonical || ref,
+    canonical,
+    parserVersion,
     verses,
   });
 });

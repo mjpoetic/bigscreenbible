@@ -24,6 +24,21 @@ type ParagraphState = {
   trailingHeadings: SectionHeading[];
 };
 
+type ParsedVerse = {
+  n: number;
+  text: string;
+  paragraphStart: boolean;
+  sectionHeadings?: SectionHeading[];
+  wordsOfJesus?: Array<{ start: number; end: number }>;
+};
+
+type Psalm119AcrosticStart = {
+  verse: number;
+  label: string;
+  hebrew: string;
+  variants: string[];
+};
+
 const psalm119AcrosticLabels = new Set([
   "aleph",
   "beth",
@@ -64,33 +79,39 @@ const psalm119AcrosticLabels = new Set([
   "tav",
 ]);
 
-const psalm119AcrosticStarts = [
-  { verse: 1, label: "Aleph", variants: ["aleph"] },
-  { verse: 9, label: "Beth", variants: ["beth"] },
-  { verse: 17, label: "Gimel", variants: ["gimel"] },
-  { verse: 25, label: "Daleth", variants: ["daleth"] },
-  { verse: 33, label: "He", variants: ["he", "heh"] },
-  { verse: 41, label: "Waw", variants: ["waw", "vav"] },
-  { verse: 49, label: "Zayin", variants: ["zayin"] },
-  { verse: 57, label: "Heth", variants: ["heth", "cheth"] },
-  { verse: 65, label: "Teth", variants: ["teth"] },
-  { verse: 73, label: "Yodh", variants: ["yodh", "yod"] },
-  { verse: 81, label: "Kaph", variants: ["kaph", "kaf"] },
-  { verse: 89, label: "Lamedh", variants: ["lamedh", "lamed"] },
-  { verse: 97, label: "Mem", variants: ["mem"] },
-  { verse: 105, label: "Nun", variants: ["nun"] },
-  { verse: 113, label: "Samekh", variants: ["samekh", "samech"] },
-  { verse: 121, label: "Ayin", variants: ["ayin"] },
-  { verse: 129, label: "Pe", variants: ["pe", "peh"] },
+const psalm119AcrosticStarts: Psalm119AcrosticStart[] = [
+  { verse: 1, label: "Aleph", hebrew: "א", variants: ["aleph"] },
+  { verse: 9, label: "Beth", hebrew: "ב", variants: ["beth"] },
+  { verse: 17, label: "Gimel", hebrew: "ג", variants: ["gimel"] },
+  { verse: 25, label: "Daleth", hebrew: "ד", variants: ["daleth"] },
+  { verse: 33, label: "He", hebrew: "ה", variants: ["he", "heh"] },
+  { verse: 41, label: "Waw", hebrew: "ו", variants: ["waw", "vav"] },
+  { verse: 49, label: "Zayin", hebrew: "ז", variants: ["zayin"] },
+  { verse: 57, label: "Heth", hebrew: "ח", variants: ["heth", "cheth"] },
+  { verse: 65, label: "Teth", hebrew: "ט", variants: ["teth"] },
+  { verse: 73, label: "Yodh", hebrew: "י", variants: ["yodh", "yod"] },
+  { verse: 81, label: "Kaph", hebrew: "כ", variants: ["kaph", "kaf"] },
+  { verse: 89, label: "Lamedh", hebrew: "ל", variants: ["lamedh", "lamed"] },
+  { verse: 97, label: "Mem", hebrew: "מ", variants: ["mem"] },
+  { verse: 105, label: "Nun", hebrew: "נ", variants: ["nun"] },
+  { verse: 113, label: "Samekh", hebrew: "ס", variants: ["samekh", "samech"] },
+  { verse: 121, label: "Ayin", hebrew: "ע", variants: ["ayin"] },
+  { verse: 129, label: "Pe", hebrew: "פ", variants: ["pe", "peh"] },
   {
     verse: 137,
     label: "Tsadhe",
+    hebrew: "צ",
     variants: ["tsadhe", "tsadde", "tsaddi", "tsade", "tsadi", "tzaddi"],
   },
-  { verse: 145, label: "Qoph", variants: ["qoph", "qof"] },
-  { verse: 153, label: "Resh", variants: ["resh"] },
-  { verse: 161, label: "Shin", variants: ["shin"] },
-  { verse: 169, label: "Taw", variants: ["taw", "tav"] },
+  { verse: 145, label: "Qoph", hebrew: "ק", variants: ["qoph", "qof"] },
+  { verse: 153, label: "Resh", hebrew: "ר", variants: ["resh"] },
+  {
+    verse: 161,
+    label: "Shin",
+    hebrew: "ש",
+    variants: ["shin", "sin and shin", "sin and"],
+  },
+  { verse: 169, label: "Taw", hebrew: "ת", variants: ["taw", "tav"] },
 ];
 
 function verseNumberFromId(value: unknown) {
@@ -106,6 +127,14 @@ function cleanHeadingText(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function headingKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z]/g, "");
+}
+
 function collectNodeText(node: ApiBibleContentNode): string {
   if (!node || typeof node !== "object") return "";
   if (node.type === "text" && typeof node.text === "string") return node.text;
@@ -114,11 +143,15 @@ function collectNodeText(node: ApiBibleContentNode): string {
 
 function headingLevel(style: string) {
   const numericLevel = Number(style.match(/\d+/)?.[0]);
-  if (Number.isFinite(numericLevel) && numericLevel > 0) return Math.min(numericLevel, 4);
+  if (Number.isFinite(numericLevel) && numericLevel > 0) {
+    return Math.min(numericLevel, 4);
+  }
   return 1;
 }
 
-function sectionHeadingFromBlock(node: ApiBibleContentNode): SectionHeading | null {
+function sectionHeadingFromBlock(
+  node: ApiBibleContentNode,
+): SectionHeading | null {
   const style = String(node?.attrs?.style || "").toLowerCase();
   const isHeadingStyle = /^(s\d?|ms\d?|mr|r|d|sp)$/.test(style);
   if (node?.name !== "para" || !isHeadingStyle) return null;
@@ -144,11 +177,14 @@ function psalm119AcrosticForPreviousVerse(verse: number) {
 function splitPsalm119AcrosticText(text: string, verse: number) {
   const leading = psalm119AcrosticForStartVerse(verse);
   if (leading) {
-    const pattern = new RegExp(`^\\s*(${leading.variants.join("|")})(?=\\s|[.:;,-]|$)`, "i");
+    const pattern = new RegExp(
+      `^\\s*(${leading.variants.join("|")})(?=\\s|[.:;,-]|$)`,
+      "i",
+    );
     const match = text.match(pattern);
     if (match) {
       return {
-        leadingHeading: { text: match[1], level: 1 },
+        leadingHeading: { text: leading.label, level: 1 },
         text: text.slice(match[0].length),
       };
     }
@@ -156,17 +192,87 @@ function splitPsalm119AcrosticText(text: string, verse: number) {
 
   const trailing = psalm119AcrosticForPreviousVerse(verse);
   if (trailing) {
-    const pattern = new RegExp(`(?:\\s|[.:;,-])(${trailing.variants.join("|")})\\s*$`, "i");
+    const pattern = new RegExp(
+      `(?:\\s|[.:;,-])(${trailing.variants.join("|")})\\s*$`,
+      "i",
+    );
     const match = text.match(pattern);
     if (match) {
       return {
-        trailingHeading: { text: match[1], level: 1 },
+        trailingHeading: { text: trailing.label, level: 1 },
         text: text.slice(0, match.index).trimEnd(),
       };
     }
   }
 
   return { text };
+}
+
+function acrosticVariantPattern(heading: Psalm119AcrosticStart) {
+  return heading.variants
+    .map(escapeRegExp)
+    .sort((a, b) => b.length - a.length)
+    .join("|");
+}
+
+function addPsalm119Heading(
+  verse: ParsedVerse,
+  heading: Psalm119AcrosticStart,
+) {
+  const existing = verse.sectionHeadings || [];
+  if (
+    existing.some((item) => headingKey(item.text) === headingKey(heading.label))
+  ) return;
+  verse.sectionHeadings = existing.concat({ text: heading.label, level: 1 });
+}
+
+function stripLeadingPsalm119Marker(
+  text: string,
+  heading: Psalm119AcrosticStart,
+) {
+  const variantPattern = acrosticVariantPattern(heading);
+  const hebrew = escapeRegExp(heading.hebrew);
+  const pattern = new RegExp(
+    `^\\s*¶*\\s*(?:(?:${hebrew})\\s*(?:${variantPattern})?|(?:${variantPattern}))(?:\\s*[.:;,-])?\\s+`,
+    "iu",
+  );
+  return text.replace(/^(\s*¶+\s*)/u, "").replace(pattern, "");
+}
+
+function stripTrailingPsalm119Marker(
+  text: string,
+  heading: Psalm119AcrosticStart,
+) {
+  const variantPattern = acrosticVariantPattern(heading);
+  const hebrew = escapeRegExp(heading.hebrew);
+  const pattern = new RegExp(
+    `(?:\\s+)(?:(?:${hebrew})\\s*(?:${variantPattern})?|(?:${variantPattern})|(?:${hebrew}))\\s*$`,
+    "iu",
+  );
+  return text.replace(pattern, "").trimEnd();
+}
+
+export function normalizePsalm119AcrosticVerses(verses: ParsedVerse[]) {
+  const byNumber = new Map(verses.map((verse) => [verse.n, verse]));
+
+  psalm119AcrosticStarts.forEach((heading) => {
+    const startVerse = byNumber.get(heading.verse);
+    const previousVerse = byNumber.get(heading.verse - 1);
+
+    if (previousVerse) {
+      const stripped = stripTrailingPsalm119Marker(previousVerse.text, heading);
+      if (stripped !== previousVerse.text) previousVerse.text = stripped;
+    }
+
+    if (startVerse) {
+      startVerse.text = stripLeadingPsalm119Marker(startVerse.text, heading)
+        .trim();
+      startVerse.paragraphStart = true;
+      addPsalm119Heading(startVerse, heading);
+    }
+  });
+
+  return verses.filter(({ text }) => text.length > 0);
 }
 
 function needsBoundarySpace(existing: string, incoming: string) {
@@ -187,12 +293,20 @@ function needsBoundarySpace(existing: string, incoming: string) {
 }
 
 export function parseVerseContent(content: ApiBibleContentNode[]) {
-  const verseParts = new Map<number, Array<{ text: string; wordsOfJesus: boolean }>>();
+  const verseParts = new Map<
+    number,
+    Array<{ text: string; wordsOfJesus: boolean }>
+  >();
   const paragraphStarts = new Set<number>();
   const sectionHeadings = new Map<number, SectionHeading[]>();
   let pendingHeadings: SectionHeading[] = [];
+  let sawPsalm119Verse = false;
 
-  const appendText = (verseNumber: number, text: string, wordsOfJesus: boolean) => {
+  const appendText = (
+    verseNumber: number,
+    text: string,
+    wordsOfJesus: boolean,
+  ) => {
     if (!verseNumber || !text) return;
     const parts = verseParts.get(verseNumber) || [];
     const existing = parts.map((part) => part.text).join("");
@@ -212,6 +326,7 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     if (!node || typeof node !== "object") return;
 
     if (node.name === "verse") {
+      if (isPsalm119VerseId(node.attrs?.verseId)) sawPsalm119Verse = true;
       const verseNumber = Number(node.attrs?.number) ||
         verseNumberFromId(node.attrs?.verseId);
       if (verseNumber) {
@@ -226,10 +341,15 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
         verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
       const psalm119Attributed = isPsalm119VerseId(node.attrs?.verseId) ||
         isPsalm119VerseId(node.attrs?.verseOrgIds?.[0]);
+      if (psalm119Attributed) sawPsalm119Verse = true;
       if (psalm119Attributed && attributedVerse) {
         const splitText = splitPsalm119AcrosticText(node.text, attributedVerse);
-        if (splitText.leadingHeading) paragraphState.leadingHeadings.push(splitText.leadingHeading);
-        if (splitText.trailingHeading) paragraphState.trailingHeadings.push(splitText.trailingHeading);
+        if (splitText.leadingHeading) {
+          paragraphState.leadingHeadings.push(splitText.leadingHeading);
+        }
+        if (splitText.trailingHeading) {
+          paragraphState.trailingHeadings.push(splitText.trailingHeading);
+        }
         if (cleanHeadingText(splitText.text)) {
           appendText(attributedVerse, splitText.text, wordsOfJesus);
           paragraphState.textAdded = true;
@@ -239,8 +359,9 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
       if (!attributedVerse) {
         const acrosticHeading = acrosticHeadingFromText(node.text);
         if (acrosticHeading) {
-          if (paragraphState.currentVerse) paragraphState.trailingHeadings.push(acrosticHeading);
-          else paragraphState.leadingHeadings.push(acrosticHeading);
+          if (paragraphState.currentVerse) {
+            paragraphState.trailingHeadings.push(acrosticHeading);
+          } else paragraphState.leadingHeadings.push(acrosticHeading);
           return;
         }
       }
@@ -252,7 +373,9 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
 
     const childWordsOfJesus = wordsOfJesus ||
       (node.name === "char" && node.attrs?.style === "wj");
-    (node.items || []).forEach((item) => visit(item, paragraphState, childWordsOfJesus));
+    (node.items || []).forEach((item) =>
+      visit(item, paragraphState, childWordsOfJesus)
+    );
   };
 
   content.forEach((block) => {
@@ -270,7 +393,10 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
       trailingHeadings: [],
     };
     visit(block, paragraphState);
-    if (paragraphState.firstVerse && (pendingHeadings.length || paragraphState.leadingHeadings.length)) {
+    if (
+      paragraphState.firstVerse &&
+      (pendingHeadings.length || paragraphState.leadingHeadings.length)
+    ) {
       const existing = sectionHeadings.get(paragraphState.firstVerse) || [];
       sectionHeadings.set(
         paragraphState.firstVerse,
@@ -290,7 +416,7 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     }
   });
 
-  return [...verseParts.entries()]
+  const verses = [...verseParts.entries()]
     .sort(([a], [b]) => a - b)
     .map(([n, parts]) => {
       const joined = parts.map((part) => part.text).join("");
@@ -311,9 +437,13 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
         n,
         text,
         paragraphStart: paragraphStarts.has(n),
-        ...(sectionHeadings.has(n) ? { sectionHeadings: sectionHeadings.get(n) } : {}),
+        ...(sectionHeadings.has(n)
+          ? { sectionHeadings: sectionHeadings.get(n) }
+          : {}),
         ...(wordsOfJesus.length ? { wordsOfJesus } : {}),
       };
     })
     .filter(({ text }) => text.length > 0);
+
+  return sawPsalm119Verse ? normalizePsalm119AcrosticVerses(verses) : verses;
 }

@@ -2,14 +2,15 @@ import { parseVerseContent } from "./content-parser.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
 const apiBibleBaseUrl = "https://rest.api.bible";
 const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
-const parserVersion = "2026-06-24-psalm119-acrostic";
+const parserVersion = "2026-06-24-psalm119-normalized";
 
 type ApiBibleTranslationCode = "NIV" | "NLT" | "NASB2020";
 
@@ -118,8 +119,13 @@ function normalizedLabel(value: unknown) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-function matchesTranslation(bible: ApiBibleSummary, code: ApiBibleTranslationCode) {
-  const abbreviation = normalizedLabel(bible.abbreviationLocal || bible.abbreviation);
+function matchesTranslation(
+  bible: ApiBibleSummary,
+  code: ApiBibleTranslationCode,
+) {
+  const abbreviation = normalizedLabel(
+    bible.abbreviationLocal || bible.abbreviation,
+  );
   const name = normalizedLabel(bible.nameLocal || bible.name);
   if (code === "NIV") {
     return abbreviation === "NIV" || name.includes("NEWINTERNATIONALVERSION");
@@ -128,10 +134,10 @@ function matchesTranslation(bible: ApiBibleSummary, code: ApiBibleTranslationCod
     return abbreviation === "NLT" || name.includes("NEWLIVINGTRANSLATION");
   }
   return (
-    ["NASB2020", "NASB20", "NASB"].includes(abbreviation)
-    || name.includes("NEWAMERICANSTANDARDBIBLE2020")
-    || (name.includes("NEWAMERICANSTANDARDBIBLE") && name.includes("2020"))
-    || name === "NEWAMERICANSTANDARDBIBLENASB"
+    ["NASB2020", "NASB20", "NASB"].includes(abbreviation) ||
+    name.includes("NEWAMERICANSTANDARDBIBLE2020") ||
+    (name.includes("NEWAMERICANSTANDARDBIBLE") && name.includes("2020")) ||
+    name === "NEWAMERICANSTANDARDBIBLENASB"
   );
 }
 
@@ -144,7 +150,8 @@ async function apiBibleRequest(path: string, apiKey: string) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = payload?.message || payload?.error || "API.Bible request failed";
+    const message = payload?.message || payload?.error ||
+      "API.Bible request failed";
     throw new Error(`${response.status}: ${message}`);
   }
   return payload;
@@ -159,11 +166,15 @@ async function authorizedBibles(apiKey: string) {
     "/v1/bibles?language=eng&include-full-details=true",
     apiKey,
   );
-  const available = Array.isArray(payload?.data) ? payload.data as ApiBibleSummary[] : [];
+  const available = Array.isArray(payload?.data)
+    ? payload.data as ApiBibleSummary[]
+    : [];
   const bibles = new Map<ApiBibleTranslationCode, AuthorizedBible>();
 
   (["NIV", "NLT", "NASB2020"] as ApiBibleTranslationCode[]).forEach((code) => {
-    const bible = available.find((candidate) => matchesTranslation(candidate, code));
+    const bible = available.find((candidate) =>
+      matchesTranslation(candidate, code)
+    );
     if (!bible?.id) return;
     bibles.set(code, {
       code,
@@ -186,32 +197,48 @@ function chapterIdFromReference(reference: string) {
   if (!match) return "";
   const bookId = apiBookIds[match[1]];
   const chapter = Number(match[2]);
-  if (!bookId || !Number.isInteger(chapter) || chapter < 1 || chapter > 150) return "";
+  if (!bookId || !Number.isInteger(chapter) || chapter < 1 || chapter > 150) {
+    return "";
+  }
   return `${bookId}.${chapter}`;
 }
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (request.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   const apiKey = Deno.env.get("API_BIBLE_KEY");
-  if (!apiKey) return jsonResponse({ error: "API_BIBLE_KEY is not configured" }, 500);
+  if (!apiKey) {
+    return jsonResponse({ error: "API_BIBLE_KEY is not configured" }, 500);
+  }
 
   try {
     const url = new URL(request.url);
     const availableBibles = await authorizedBibles(apiKey);
 
-  if (url.searchParams.get("action") === "bibles") {
-      return jsonResponse({
-        translations: [...availableBibles.values()],
-        missing: (["NIV", "NLT", "NASB2020"] as ApiBibleTranslationCode[])
-          .filter((code) => !availableBibles.has(code)),
-      }, 200, "private, max-age=3600");
+    if (url.searchParams.get("action") === "bibles") {
+      return jsonResponse(
+        {
+          translations: [...availableBibles.values()],
+          missing: (["NIV", "NLT", "NASB2020"] as ApiBibleTranslationCode[])
+            .filter((code) => !availableBibles.has(code)),
+        },
+        200,
+        "private, max-age=3600",
+      );
     }
 
-    const version = normalizedLabel(url.searchParams.get("version")) as ApiBibleTranslationCode;
+    const version = normalizedLabel(
+      url.searchParams.get("version"),
+    ) as ApiBibleTranslationCode;
     if (!["NIV", "NLT", "NASB2020"].includes(version)) {
-      return jsonResponse({ error: "A supported API.Bible version is required" }, 400);
+      return jsonResponse({
+        error: "A supported API.Bible version is required",
+      }, 400);
     }
 
     const bible = availableBibles.get(version);
@@ -224,7 +251,12 @@ Deno.serve(async (request) => {
 
     const reference = (url.searchParams.get("ref") || "").trim();
     const chapterId = chapterIdFromReference(reference);
-    if (!chapterId) return jsonResponse({ error: "A valid chapter reference is required" }, 400);
+    if (!chapterId) {
+      return jsonResponse(
+        { error: "A valid chapter reference is required" },
+        400,
+      );
+    }
 
     const query = new URLSearchParams({
       "content-type": "json",
@@ -235,20 +267,28 @@ Deno.serve(async (request) => {
       "include-verse-spans": "false",
     });
     const payload = await apiBibleRequest(
-      `/v1/bibles/${encodeURIComponent(bible.id)}/chapters/${encodeURIComponent(chapterId)}?${query}`,
+      `/v1/bibles/${encodeURIComponent(bible.id)}/chapters/${
+        encodeURIComponent(chapterId)
+      }?${query}`,
       apiKey,
     );
     const passage = payload?.data || {};
     const verseCount = Number(passage.verseCount) || 0;
     if (verseCount > maximumPassageVerses) {
       return jsonResponse(
-        { error: `API.Bible returned more than ${maximumPassageVerses} verses` },
+        {
+          error: `API.Bible returned more than ${maximumPassageVerses} verses`,
+        },
         422,
       );
     }
 
-    const verses = parseVerseContent(Array.isArray(passage.content) ? passage.content : []);
-    if (!verses.length) return jsonResponse({ error: `${version} returned no verse text` }, 502);
+    const verses = parseVerseContent(
+      Array.isArray(passage.content) ? passage.content : [],
+    );
+    if (!verses.length) {
+      return jsonResponse({ error: `${version} returned no verse text` }, 502);
+    }
 
     return jsonResponse({
       provider: "api-bible",
@@ -266,7 +306,9 @@ Deno.serve(async (request) => {
       verses,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "API.Bible request failed";
+    const message = error instanceof Error
+      ? error.message
+      : "API.Bible request failed";
     const statusMatch = message.match(/^(\d{3}):/);
     return jsonResponse(
       { error: message.replace(/^\d{3}:\s*/, "") },

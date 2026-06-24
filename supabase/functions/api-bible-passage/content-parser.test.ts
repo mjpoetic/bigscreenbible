@@ -127,7 +127,10 @@ Deno.test("attaches API.Bible section headings to the next verse", () => {
       name: "para",
       type: "tag",
       attrs: { style: "s1" },
-      items: [{ type: "text", text: "Nothing Can Separate Us from God’s Love" }],
+      items: [{
+        type: "text",
+        text: "Nothing Can Separate Us from God’s Love",
+      }],
     },
     {
       name: "para",
@@ -147,7 +150,10 @@ Deno.test("attaches API.Bible section headings to the next verse", () => {
     n: 31,
     text: "What shall we say about such wonderful things as these?",
     paragraphStart: true,
-    sectionHeadings: [{ text: "Nothing Can Separate Us from God’s Love", level: 1 }],
+    sectionHeadings: [{
+      text: "Nothing Can Separate Us from God’s Love",
+      level: 1,
+    }],
   }]);
 });
 
@@ -160,7 +166,7 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
         { name: "verse", type: "tag", attrs: { number: "1" } },
         {
           type: "text",
-          text: "Aleph Joyful are people of integrity.",
+          text: "א Aleph Joyful are people of integrity.",
           attrs: { verseId: "PSA.119.1" },
         },
       ],
@@ -172,7 +178,7 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
         { name: "verse", type: "tag", attrs: { number: "8" } },
         {
           type: "text",
-          text: "I will obey your decrees. Please don’t give up on me! Beth",
+          text: "I will obey your decrees. Please don’t give up on me! ב Beth",
           attrs: { verseId: "PSA.119.8" },
         },
       ],
@@ -184,8 +190,32 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
         { name: "verse", type: "tag", attrs: { number: "9" } },
         {
           type: "text",
-          text: "How can a young person stay pure?",
+          text: "¶How can a young person stay pure?",
           attrs: { verseId: "PSA.119.9" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "160" } },
+        {
+          type: "text",
+          text: "All your words are true. ש Sin and",
+          attrs: { verseId: "PSA.119.160" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "161" } },
+        {
+          type: "text",
+          text: "Rulers persecute me without cause.",
+          attrs: { verseId: "PSA.119.161" },
         },
       ],
     },
@@ -208,6 +238,17 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
       text: "How can a young person stay pure?",
       paragraphStart: true,
       sectionHeadings: [{ text: "Beth", level: 1 }],
+    },
+    {
+      n: 160,
+      text: "All your words are true.",
+      paragraphStart: true,
+    },
+    {
+      n: 161,
+      text: "Rulers persecute me without cause.",
+      paragraphStart: true,
+      sectionHeadings: [{ text: "Shin", level: 1 }],
     },
   ]);
 });
