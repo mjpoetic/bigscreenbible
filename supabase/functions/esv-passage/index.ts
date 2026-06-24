@@ -22,9 +22,27 @@ function cleanVerseText(text: string) {
     .trim();
 }
 
+function headingLevelForLine(line: string) {
+  return line.length > 52 ? 2 : 1;
+}
+
+function extractEsvHeadings(text: string) {
+  return text
+    .replace(/\u00a0/g, " ")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^[-=_—–\s]+$/.test(line))
+    .map((line) => ({ text: cleanVerseText(line), level: headingLevelForLine(line) }));
+}
+
 function parseEsvVerses(passages: string[]) {
   const body = passages.join("\n").replace(/\u00a0/g, " ");
-  const verses: Array<{ n: number; text: string; paragraphStart: boolean }> = [];
+  const verses: Array<{
+    n: number;
+    text: string;
+    paragraphStart: boolean;
+    sectionHeadings?: Array<{ text: string; level: number }>;
+  }> = [];
   const markerPattern = /\[(\d+)\]\s*([\s\S]*?)(?=\s*\[\d+\]|$)/g;
   let match: RegExpExecArray | null;
   let previousEnd = 0;
@@ -33,10 +51,18 @@ function parseEsvVerses(passages: string[]) {
     const n = Number(match[1]);
     const text = cleanVerseText(match[2]);
     const leadingText = body.slice(previousEnd, match.index);
+    const sectionHeadings = extractEsvHeadings(leadingText);
     const paragraphStart = verses.length === 0
       || /\n\s*\n/.test(leadingText)
       || /(?:^|\n)[ \t]{2,}$/.test(leadingText);
-    if (Number.isFinite(n) && text) verses.push({ n, text, paragraphStart });
+    if (Number.isFinite(n) && text) {
+      verses.push({
+        n,
+        text,
+        paragraphStart,
+        ...(sectionHeadings.length ? { sectionHeadings } : {}),
+      });
+    }
     previousEnd = markerPattern.lastIndex;
   }
 
@@ -64,7 +90,7 @@ Deno.serve(async (request) => {
   esvUrl.searchParams.set("include-first-verse-numbers", "true");
   esvUrl.searchParams.set("include-footnotes", "false");
   esvUrl.searchParams.set("include-footnote-body", "false");
-  esvUrl.searchParams.set("include-headings", "false");
+  esvUrl.searchParams.set("include-headings", "true");
   esvUrl.searchParams.set("include-short-copyright", "false");
   esvUrl.searchParams.set("include-passage-horizontal-lines", "false");
   esvUrl.searchParams.set("include-heading-horizontal-lines", "false");

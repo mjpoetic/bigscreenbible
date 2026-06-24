@@ -120,3 +120,33 @@ Deno.test("preserves words-of-Jesus character ranges without changing verse text
     wordsOfJesus: [{ start: 19, end: 45 }],
   }]);
 });
+
+Deno.test("attaches API.Bible section headings to the next verse", () => {
+  const content: ApiBibleContentNode[] = [
+    {
+      name: "para",
+      type: "tag",
+      attrs: { style: "s1" },
+      items: [{ type: "text", text: "Nothing Can Separate Us from God’s Love" }],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "31" } },
+        {
+          type: "text",
+          text: "What shall we say about such wonderful things as these?",
+          attrs: { verseId: "ROM.8.31" },
+        },
+      ],
+    },
+  ];
+
+  assertEquals(parseVerseContent(content), [{
+    n: 31,
+    text: "What shall we say about such wonderful things as these?",
+    paragraphStart: true,
+    sectionHeadings: [{ text: "Nothing Can Separate Us from God’s Love", level: 1 }],
+  }]);
+});

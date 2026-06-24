@@ -228,7 +228,7 @@ Deno.serve(async (request) => {
     const query = new URLSearchParams({
       "content-type": "json",
       "include-notes": "false",
-      "include-titles": "false",
+      "include-titles": "true",
       "include-chapter-numbers": "false",
       "include-verse-numbers": "true",
       "include-verse-spans": "false",

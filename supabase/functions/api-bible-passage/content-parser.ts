@@ -11,9 +11,38 @@ export type ApiBibleContentNode = {
   items?: ApiBibleContentNode[];
 };
 
+type SectionHeading = {
+  text: string;
+  level: number;
+};
+
 function verseNumberFromId(value: unknown) {
   const match = String(value || "").match(/\.(\d+)$/);
   return match ? Number(match[1]) : 0;
+}
+
+function cleanHeadingText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function collectNodeText(node: ApiBibleContentNode): string {
+  if (!node || typeof node !== "object") return "";
+  if (node.type === "text" && typeof node.text === "string") return node.text;
+  return (node.items || []).map(collectNodeText).join(" ");
+}
+
+function headingLevel(style: string) {
+  const numericLevel = Number(style.match(/\d+/)?.[0]);
+  if (Number.isFinite(numericLevel) && numericLevel > 0) return Math.min(numericLevel, 4);
+  return 1;
+}
+
+function sectionHeadingFromBlock(node: ApiBibleContentNode): SectionHeading | null {
+  const style = String(node?.attrs?.style || "").toLowerCase();
+  const isHeadingStyle = /^(s\d?|ms\d?|mr|r|d|sp)$/.test(style);
+  if (node?.name !== "para" || !isHeadingStyle) return null;
+  const text = cleanHeadingText(collectNodeText(node));
+  return text ? { text, level: headingLevel(style) } : null;
 }
 
 function needsBoundarySpace(existing: string, incoming: string) {
@@ -36,6 +65,8 @@ function needsBoundarySpace(existing: string, incoming: string) {
 export function parseVerseContent(content: ApiBibleContentNode[]) {
   const verseParts = new Map<number, Array<{ text: string; wordsOfJesus: boolean }>>();
   const paragraphStarts = new Set<number>();
+  const sectionHeadings = new Map<number, SectionHeading[]>();
+  let pendingHeadings: SectionHeading[] = [];
   let currentVerse = 0;
 
   const appendText = (verseNumber: number, text: string, wordsOfJesus: boolean) => {
@@ -80,8 +111,19 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
   };
 
   content.forEach((block) => {
+    const sectionHeading = sectionHeadingFromBlock(block);
+    if (sectionHeading) {
+      pendingHeadings.push(sectionHeading);
+      return;
+    }
+
     const paragraphState = { firstVerse: 0 };
     visit(block, paragraphState);
+    if (paragraphState.firstVerse && pendingHeadings.length) {
+      const existing = sectionHeadings.get(paragraphState.firstVerse) || [];
+      sectionHeadings.set(paragraphState.firstVerse, existing.concat(pendingHeadings));
+      pendingHeadings = [];
+    }
     if (block?.name === "para" && paragraphState.firstVerse) {
       paragraphStarts.add(paragraphState.firstVerse);
     }
@@ -108,6 +150,7 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
         n,
         text,
         paragraphStart: paragraphStarts.has(n),
+        ...(sectionHeadings.has(n) ? { sectionHeadings: sectionHeadings.get(n) } : {}),
         ...(wordsOfJesus.length ? { wordsOfJesus } : {}),
       };
     })

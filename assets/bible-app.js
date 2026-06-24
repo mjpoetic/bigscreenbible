@@ -2387,6 +2387,7 @@ function readerView() {
     <h1 class="section-title">${chapter.title}</h1>
     ${selectionBar()}
     ${useParagraphs ? paragraphReaderView(chapter.verses, version) : chapter.verses.map((verse) => `
+      ${sectionHeadingsMarkup(verse, version)}
       <p class="verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
         <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
@@ -2425,6 +2426,30 @@ function paragraphStartForVerse(verse, version) {
   return Boolean(verse?.paragraphStart?.[version]);
 }
 
+function sectionHeadingsForVerse(verse, version) {
+  const headings = verse?.sectionHeadings?.[version];
+  if (!Array.isArray(headings)) return [];
+  return headings
+    .map((heading) => ({
+      text: String(heading?.text || "").trim(),
+      level: Math.max(1, Math.min(4, Number(heading?.level) || 1)),
+    }))
+    .filter((heading) => heading.text);
+}
+
+function sectionHeadingsMarkup(verse, version, className = "") {
+  const headings = sectionHeadingsForVerse(verse, version);
+  if (!headings.length) return "";
+  const classes = ["scripture-heading-group", className].filter(Boolean).join(" ");
+  return `
+    <div class="${classes}" data-heading-verse="${verse.n}">
+      ${headings.map((heading) => `
+        <h2 class="scripture-heading scripture-heading-level-${heading.level}">${escapeHtml(heading.text)}</h2>
+      `).join("")}
+    </div>
+  `;
+}
+
 function verseCopyButton(verseNumber) {
   return `
     <button class="verse-copy verse-action" data-copy-verse="${verseNumber}" aria-label="Copy ${state.reference}:${verseNumber}" data-tooltip="Copy verse">
@@ -2435,23 +2460,34 @@ function verseCopyButton(verseNumber) {
 }
 
 function paragraphReaderView(verses, version) {
-  const groups = [];
+  const blocks = [];
+  let group = [];
+  const flushGroup = () => {
+    if (!group.length) return;
+    blocks.push(`
+      <p class="scripture-paragraph">
+        ${group.map((verse) => `
+          <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
+            <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}" aria-expanded="false">${verse.n}</button>
+            <span class="verse-text">${renderStrongText(verse, version)}</span>
+          </span>
+        `).join(" ")}
+      </p>
+    `);
+    group = [];
+  };
   verses.forEach((verse) => {
-    if (!groups.length || paragraphStartForVerse(verse, version)) groups.push([]);
-    groups[groups.length - 1].push(verse);
+    if (sectionHeadingsForVerse(verse, version).length) {
+      flushGroup();
+      blocks.push(sectionHeadingsMarkup(verse, version, "scripture-heading-group-paragraph"));
+    }
+    if (paragraphStartForVerse(verse, version)) flushGroup();
+    group.push(verse);
   });
+  flushGroup();
   return `
     <div class="scripture-paragraphs" data-paragraph-version="${escapeHtml(version)}">
-      ${groups.map((group) => `
-        <p class="scripture-paragraph">
-          ${group.map((verse) => `
-            <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
-              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}" aria-expanded="false">${verse.n}</button>
-              <span class="verse-text">${renderStrongText(verse, version)}</span>
-            </span>
-          `).join(" ")}
-        </p>
-      `).join("")}
+      ${blocks.join("")}
     </div>
   `;
 }
@@ -3315,6 +3351,7 @@ function parallelView() {
     <div class="parallel-table" style="--version-count: ${versions.length}">
       <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${translationDisplayCode(version)}</div>`).join("")}</div>
       ${currentChapter().verses.map((verse) => `
+        ${parallelSectionHeadingsMarkup(verse, versions)}
         <div class="parallel-row ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
           ${versions.map((version) => `<div class="parallel-copy" data-version="${escapeHtml(version)}">${renderStrongText(verse, version)}</div>`).join("")}
@@ -3322,6 +3359,21 @@ function parallelView() {
       `).join("")}
     </div>
     ${apiBibleAttributionMarkup(versions)}
+  `;
+}
+
+function parallelSectionHeadingsMarkup(verse, versions) {
+  const hasHeading = versions.some((version) => sectionHeadingsForVerse(verse, version).length);
+  if (!hasHeading) return "";
+  return `
+    <div class="parallel-row parallel-heading-row" data-heading-verse="${verse.n}">
+      <div class="verse-num" aria-hidden="true"></div>
+      ${versions.map((version) => `
+        <div class="parallel-copy parallel-heading-copy" data-version="${escapeHtml(version)}">
+          ${sectionHeadingsMarkup(verse, version, "parallel-heading-group")}
+        </div>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -4185,7 +4237,10 @@ function printSheet() {
       <div class="print-brand">Big Screen Bible</div>
       <h1>${printReferenceLabel()}</h1>
       <div class="print-version">${translationDisplayCode(state.versions[0])}</div>
-      ${lines.map(({ n, text, verse }) => `<p><sup>${n}</sup>${renderRedLetterText(text, wordsOfJesusRanges(verse, state.versions[0]))}</p>`).join("")}
+      ${lines.map(({ n, text, verse }) => `
+        ${sectionHeadingsMarkup(verse, state.versions[0], "print-heading-group")}
+        <p><sup>${n}</sup>${renderRedLetterText(text, wordsOfJesusRanges(verse, state.versions[0]))}</p>
+      `).join("")}
       ${apiBibleAttributionMarkup([state.versions[0]], "print-attribution")}
     </section>
   `;
@@ -8004,7 +8059,7 @@ function verseOfDayAttributionMarkup(className = "") {
 function mergeRemoteVersionChapter(version, chapterKey, verses) {
   const chapter = bibleData[chapterKey];
   if (!chapter) return;
-  verses.forEach(({ n, text, paragraphStart, wordsOfJesus }) => {
+  verses.forEach(({ n, text, paragraphStart, sectionHeadings, wordsOfJesus }) => {
     if (!Number.isFinite(Number(n)) || !text) return;
     let verse = chapter.verses.find((item) => item.n === Number(n));
     if (!verse) {
@@ -8015,6 +8070,15 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
     if (typeof paragraphStart === "boolean") {
       verse.paragraphStart = verse.paragraphStart || {};
       verse.paragraphStart[version] = paragraphStart;
+    }
+    if (Array.isArray(sectionHeadings)) {
+      verse.sectionHeadings = verse.sectionHeadings || {};
+      verse.sectionHeadings[version] = sectionHeadings
+        .map((heading) => ({
+          text: String(heading?.text || "").trim(),
+          level: Math.max(1, Math.min(4, Number(heading?.level) || 1)),
+        }))
+        .filter((heading) => heading.text);
     }
     if (Array.isArray(wordsOfJesus) && wordsOfJesus.length) {
       verse.wordsOfJesus = verse.wordsOfJesus || {};
@@ -8155,6 +8219,15 @@ function rebuildBibleData() {
         if (sourceVerse.paragraphStart === true) {
           verse.paragraphStart = verse.paragraphStart || {};
           verse.paragraphStart[version] = true;
+        }
+        if (Array.isArray(sourceVerse.sectionHeadings)) {
+          verse.sectionHeadings = verse.sectionHeadings || {};
+          verse.sectionHeadings[version] = sourceVerse.sectionHeadings
+            .map((heading) => ({
+              text: String(heading?.text || "").trim(),
+              level: Math.max(1, Math.min(4, Number(heading?.level) || 1)),
+            }))
+            .filter((heading) => heading.text);
         }
         if (Array.isArray(sourceVerse.wordsOfJesus)) {
           verse.wordsOfJesus = verse.wordsOfJesus || {};
