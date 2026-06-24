@@ -4269,6 +4269,7 @@ function shortcutOverlay() {
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
     ["C", "Open cross references"],
+    ["H", "Open highlight bar"],
     ["↑ / ↓", "Move verse by verse"],
     ["← / →", "Move chapter by chapter"],
     ["Esc", "Close overlay or go back to Bible"],
@@ -7403,6 +7404,10 @@ function handleGlobalShortcuts(event) {
     event.preventDefault();
     return shortcutWorkspace("Search");
   }
+  if (key === "h") {
+    event.preventDefault();
+    return invokeHighlightBar();
+  }
 
   const railShortcuts = {
     l: "Verse",
@@ -7425,6 +7430,21 @@ function shortcutWorkspace(target) {
     localStorage.setItem("lw_focus_mode", "false");
   }
   activateWorkspace(target);
+}
+
+function invokeHighlightBar() {
+  if (!canUseReaderKeyboardNavigation()) return;
+  const focusHighlightPalette = () => {
+    document.querySelector("[data-highlight-color]")?.focus({ preventScroll: true });
+  };
+  if (state.selectedVerses.length) {
+    focusHighlightPalette();
+    return;
+  }
+  state.selectedVerses = [state.verse];
+  state.isVerseOfDayActive = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(focusHighlightPalette);
 }
 
 function isTypingTarget(target) {
