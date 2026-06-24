@@ -67,7 +67,6 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
   const paragraphStarts = new Set<number>();
   const sectionHeadings = new Map<number, SectionHeading[]>();
   let pendingHeadings: SectionHeading[] = [];
-  let currentVerse = 0;
 
   const appendText = (verseNumber: number, text: string, wordsOfJesus: boolean) => {
     if (!verseNumber || !text) return;
@@ -83,7 +82,7 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
 
   const visit = (
     node: ApiBibleContentNode,
-    paragraphState: { firstVerse: number },
+    paragraphState: { firstVerse: number; currentVerse: number; textAdded: boolean },
     wordsOfJesus = false,
   ) => {
     if (!node || typeof node !== "object") return;
@@ -92,7 +91,7 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
       const verseNumber = Number(node.attrs?.number) ||
         verseNumberFromId(node.attrs?.verseId);
       if (verseNumber) {
-        currentVerse = verseNumber;
+        paragraphState.currentVerse = verseNumber;
         if (!paragraphState.firstVerse) paragraphState.firstVerse = verseNumber;
       }
       return;
@@ -101,7 +100,9 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     if (node.type === "text" && typeof node.text === "string") {
       const attributedVerse = verseNumberFromId(node.attrs?.verseId) ||
         verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
-      appendText(attributedVerse || currentVerse, node.text, wordsOfJesus);
+      const verseNumber = attributedVerse || paragraphState.currentVerse;
+      appendText(verseNumber, node.text, wordsOfJesus);
+      if (verseNumber) paragraphState.textAdded = true;
       return;
     }
 
@@ -117,12 +118,16 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
       return;
     }
 
-    const paragraphState = { firstVerse: 0 };
+    const paragraphState = { firstVerse: 0, currentVerse: 0, textAdded: false };
     visit(block, paragraphState);
     if (paragraphState.firstVerse && pendingHeadings.length) {
       const existing = sectionHeadings.get(paragraphState.firstVerse) || [];
       sectionHeadings.set(paragraphState.firstVerse, existing.concat(pendingHeadings));
       pendingHeadings = [];
+    }
+    if (!paragraphState.firstVerse && !paragraphState.textAdded) {
+      const text = cleanHeadingText(collectNodeText(block));
+      if (text) pendingHeadings.push({ text, level: 1 });
     }
     if (block?.name === "para" && paragraphState.firstVerse) {
       paragraphStarts.add(paragraphState.firstVerse);

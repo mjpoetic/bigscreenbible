@@ -150,3 +150,51 @@ Deno.test("attaches API.Bible section headings to the next verse", () => {
     sectionHeadings: [{ text: "Nothing Can Separate Us from God’s Love", level: 1 }],
   }]);
 });
+
+Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () => {
+  const content: ApiBibleContentNode[] = [
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "8" } },
+        {
+          type: "text",
+          text: "I will obey your decrees. Please don’t give up on me!",
+          attrs: { verseId: "PSA.119.8" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [{ type: "text", text: "Beth" }],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "9" } },
+        {
+          type: "text",
+          text: "How can a young person stay pure?",
+          attrs: { verseId: "PSA.119.9" },
+        },
+      ],
+    },
+  ];
+
+  assertEquals(parseVerseContent(content), [
+    {
+      n: 8,
+      text: "I will obey your decrees. Please don’t give up on me!",
+      paragraphStart: true,
+    },
+    {
+      n: 9,
+      text: "How can a young person stay pure?",
+      paragraphStart: true,
+      sectionHeadings: [{ text: "Beth", level: 1 }],
+    },
+  ]);
+});
