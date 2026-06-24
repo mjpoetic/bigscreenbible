@@ -157,11 +157,10 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
       name: "para",
       type: "tag",
       items: [
-        { type: "text", text: "Aleph" },
         { name: "verse", type: "tag", attrs: { number: "1" } },
         {
           type: "text",
-          text: "Joyful are people of integrity.",
+          text: "Aleph Joyful are people of integrity.",
           attrs: { verseId: "PSA.119.1" },
         },
       ],
@@ -173,10 +172,9 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
         { name: "verse", type: "tag", attrs: { number: "8" } },
         {
           type: "text",
-          text: "I will obey your decrees. Please don’t give up on me!",
+          text: "I will obey your decrees. Please don’t give up on me! Beth",
           attrs: { verseId: "PSA.119.8" },
         },
-        { type: "text", text: "Beth" },
       ],
     },
     {

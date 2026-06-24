@@ -64,9 +64,42 @@ const psalm119AcrosticLabels = new Set([
   "tav",
 ]);
 
+const psalm119AcrosticStarts = [
+  { verse: 1, label: "Aleph", variants: ["aleph"] },
+  { verse: 9, label: "Beth", variants: ["beth"] },
+  { verse: 17, label: "Gimel", variants: ["gimel"] },
+  { verse: 25, label: "Daleth", variants: ["daleth"] },
+  { verse: 33, label: "He", variants: ["he", "heh"] },
+  { verse: 41, label: "Waw", variants: ["waw", "vav"] },
+  { verse: 49, label: "Zayin", variants: ["zayin"] },
+  { verse: 57, label: "Heth", variants: ["heth", "cheth"] },
+  { verse: 65, label: "Teth", variants: ["teth"] },
+  { verse: 73, label: "Yodh", variants: ["yodh", "yod"] },
+  { verse: 81, label: "Kaph", variants: ["kaph", "kaf"] },
+  { verse: 89, label: "Lamedh", variants: ["lamedh", "lamed"] },
+  { verse: 97, label: "Mem", variants: ["mem"] },
+  { verse: 105, label: "Nun", variants: ["nun"] },
+  { verse: 113, label: "Samekh", variants: ["samekh", "samech"] },
+  { verse: 121, label: "Ayin", variants: ["ayin"] },
+  { verse: 129, label: "Pe", variants: ["pe", "peh"] },
+  {
+    verse: 137,
+    label: "Tsadhe",
+    variants: ["tsadhe", "tsadde", "tsaddi", "tsade", "tsadi", "tzaddi"],
+  },
+  { verse: 145, label: "Qoph", variants: ["qoph", "qof"] },
+  { verse: 153, label: "Resh", variants: ["resh"] },
+  { verse: 161, label: "Shin", variants: ["shin"] },
+  { verse: 169, label: "Taw", variants: ["taw", "tav"] },
+];
+
 function verseNumberFromId(value: unknown) {
   const match = String(value || "").match(/\.(\d+)$/);
   return match ? Number(match[1]) : 0;
+}
+
+function isPsalm119VerseId(value: unknown) {
+  return /^PSA\.119\.\d+$/i.test(String(value || ""));
 }
 
 function cleanHeadingText(value: string) {
@@ -98,6 +131,42 @@ function acrosticHeadingFromText(value: string): SectionHeading | null {
   if (!text) return null;
   const normalized = text.toLowerCase().replace(/[^a-z]/g, "");
   return psalm119AcrosticLabels.has(normalized) ? { text, level: 1 } : null;
+}
+
+function psalm119AcrosticForStartVerse(verse: number) {
+  return psalm119AcrosticStarts.find((heading) => heading.verse === verse);
+}
+
+function psalm119AcrosticForPreviousVerse(verse: number) {
+  return psalm119AcrosticStarts.find((heading) => heading.verse === verse + 1);
+}
+
+function splitPsalm119AcrosticText(text: string, verse: number) {
+  const leading = psalm119AcrosticForStartVerse(verse);
+  if (leading) {
+    const pattern = new RegExp(`^\\s*(${leading.variants.join("|")})(?=\\s|[.:;,-]|$)`, "i");
+    const match = text.match(pattern);
+    if (match) {
+      return {
+        leadingHeading: { text: match[1], level: 1 },
+        text: text.slice(match[0].length),
+      };
+    }
+  }
+
+  const trailing = psalm119AcrosticForPreviousVerse(verse);
+  if (trailing) {
+    const pattern = new RegExp(`(?:\\s|[.:;,-])(${trailing.variants.join("|")})\\s*$`, "i");
+    const match = text.match(pattern);
+    if (match) {
+      return {
+        trailingHeading: { text: match[1], level: 1 },
+        text: text.slice(0, match.index).trimEnd(),
+      };
+    }
+  }
+
+  return { text };
 }
 
 function needsBoundarySpace(existing: string, incoming: string) {
@@ -155,6 +224,18 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     if (node.type === "text" && typeof node.text === "string") {
       const attributedVerse = verseNumberFromId(node.attrs?.verseId) ||
         verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
+      const psalm119Attributed = isPsalm119VerseId(node.attrs?.verseId) ||
+        isPsalm119VerseId(node.attrs?.verseOrgIds?.[0]);
+      if (psalm119Attributed && attributedVerse) {
+        const splitText = splitPsalm119AcrosticText(node.text, attributedVerse);
+        if (splitText.leadingHeading) paragraphState.leadingHeadings.push(splitText.leadingHeading);
+        if (splitText.trailingHeading) paragraphState.trailingHeadings.push(splitText.trailingHeading);
+        if (cleanHeadingText(splitText.text)) {
+          appendText(attributedVerse, splitText.text, wordsOfJesus);
+          paragraphState.textAdded = true;
+        }
+        return;
+      }
       if (!attributedVerse) {
         const acrosticHeading = acrosticHeadingFromText(node.text);
         if (acrosticHeading) {

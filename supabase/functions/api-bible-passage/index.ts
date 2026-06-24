@@ -9,6 +9,7 @@ const corsHeaders = {
 const apiBibleBaseUrl = "https://rest.api.bible";
 const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
+const parserVersion = "2026-06-24-psalm119-acrostic";
 
 type ApiBibleTranslationCode = "NIV" | "NLT" | "NASB2020";
 
@@ -252,6 +253,7 @@ Deno.serve(async (request) => {
     return jsonResponse({
       provider: "api-bible",
       version,
+      parserVersion,
       bibleId: bible.id,
       bibleName: bible.name,
       abbreviation: bible.abbreviation,
