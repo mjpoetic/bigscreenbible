@@ -623,8 +623,11 @@ function render() {
   });
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
+    const focusMode = state.pendingVerseFocus;
     state.pendingVerseFocus = false;
-    requestAnimationFrame(() => requestAnimationFrame(scrollSelectedVerseIntoView));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      scrollSelectedVerseIntoView({ block: focusMode === "nearest" ? "nearest" : "center" });
+    }));
   }
   if (state.pendingPanelFocus) {
     const target = state.pendingPanelFocus;
@@ -659,6 +662,15 @@ function renderPreservingReaderScroll() {
     restoreReaderScroll(scrollState);
     requestAnimationFrame(() => restoreReaderScroll(scrollState));
   });
+}
+
+function renderFollowingSelectedVerse() {
+  const scrollState = captureReaderScroll();
+  render();
+  restoreReaderScroll(scrollState);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    scrollSelectedVerseIntoView({ block: "nearest" });
+  }));
 }
 
 function renderTriviaAnswerAndScroll() {
@@ -7364,7 +7376,7 @@ function handleGlobalShortcuts(event) {
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
     event.preventDefault();
-    return moveVerse(event.key === "ArrowDown" ? 1 : -1);
+    return moveVerse(event.key === "ArrowDown" ? 1 : -1, { followVerse: canUseReaderKeyboardNavigation() });
   }
   if (event.key === "ArrowLeft" && state.mode === "big") {
     event.preventDefault();
@@ -7556,26 +7568,39 @@ function normalizeBookName(value) {
   return bookAliases[cleaned] || bookAliases[compact] || books.find((book) => book.toLowerCase() === cleaned) || null;
 }
 
-function scrollSelectedVerseIntoView() {
+function scrollSelectedVerseIntoView(options = {}) {
+  const block = options.block || "center";
   const scripture = document.querySelector(".scripture");
   const selected = scripture?.querySelector(`[data-verse="${state.verse}"]`)
     || document.querySelector(`[data-verse="${state.verse}"]`);
   if (!selected) return;
+  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
   if (scripture && scripture.scrollHeight > scripture.clientHeight) {
     const scriptureBounds = scripture.getBoundingClientRect();
     const selectedBounds = selected.getBoundingClientRect();
-    const centeredTop = scripture.scrollTop
+    const followMargin = 24;
+    let nextTop = scripture.scrollTop
       + selectedBounds.top
       - scriptureBounds.top
       - ((scripture.clientHeight - selectedBounds.height) / 2);
-    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
-    scripture.scrollTo({ top: Math.max(0, centeredTop), behavior });
+    if (block === "nearest") {
+      const selectedTop = selectedBounds.top - scriptureBounds.top;
+      const selectedBottom = selectedBounds.bottom - scriptureBounds.top;
+      if (selectedTop < followMargin) {
+        nextTop = scripture.scrollTop + selectedTop - followMargin;
+      } else if (selectedBottom > scripture.clientHeight - followMargin) {
+        nextTop = scripture.scrollTop + selectedBottom - scripture.clientHeight + followMargin;
+      } else {
+        return;
+      }
+    }
+    scripture.scrollTo({ top: Math.max(0, nextTop), behavior });
     return;
   }
-  selected.scrollIntoView({ block: "center", behavior: "smooth" });
+  selected.scrollIntoView({ block, behavior });
 }
 
-function moveVerse(direction) {
+function moveVerse(direction, options = {}) {
   if (state.mode === "big") {
     const parts = currentPresentationParts();
     const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
@@ -7602,6 +7627,7 @@ function moveVerse(direction) {
   }
   state.isVerseOfDayActive = false;
   recordHistory();
+  if (options.followVerse) return renderFollowingSelectedVerse();
   render();
 }
 
