@@ -3423,32 +3423,37 @@ select {
 }
 
 .scripture-heading-group {
-  max-width: min(100%, 34em);
-  margin: 1.75em 0 0.58em;
-  padding: 0.28em 0.78em 0.3em 0.68em;
+  width: min(680px, 100%);
+  margin: 1.72em 0 0.68em;
+  padding: 0.46rem 1rem 0.48rem 0.9rem;
   border: 0;
-  border-left: 3px solid color-mix(in srgb, var(--gold) 78%, var(--ink));
-  border-radius: 0 6px 6px 0;
-  background: color-mix(in srgb, var(--gold-soft) 58%, transparent);
+  border-left: 4px solid color-mix(in srgb, var(--gold) 86%, var(--ink));
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--gold-soft) 74%, transparent) 0%,
+    color-mix(in srgb, var(--gold-soft) 46%, transparent) 55%,
+    transparent 100%
+  );
   scroll-margin-block: 140px;
 }
 
 .scripture-heading-group-paragraph {
-  margin-block: 0 -0.25em;
+  margin-block: 0 -0.16em;
 }
 
 .scripture-heading {
   margin: 0;
   color: color-mix(in srgb, var(--ink) 92%, var(--gold));
-  font: italic 600 calc(var(--verse-font) * 0.62) / 1.42 var(--scripture-font);
+  font: italic 650 calc(var(--verse-font) * 0.6) / 1.36 var(--scripture-font);
   letter-spacing: 0;
   text-wrap: balance;
 }
 
 .scripture-heading + .scripture-heading {
-  margin-top: 0.22em;
+  margin-top: 0.16rem;
   color: var(--muted);
-  font-size: calc(var(--verse-font) * 0.5);
+  font-size: calc(var(--verse-font) * 0.48);
   font-style: italic;
   font-weight: 500;
 }
