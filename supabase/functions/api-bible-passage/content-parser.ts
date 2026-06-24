@@ -1,3 +1,5 @@
+import { normalizePsalm119AcrosticVerses } from "../_shared/psalm119-acrostic.ts";
+
 export type ApiBibleContentNode = {
   name?: string;
   type?: string;
@@ -22,14 +24,6 @@ type ParagraphState = {
   textAdded: boolean;
   leadingHeadings: SectionHeading[];
   trailingHeadings: SectionHeading[];
-};
-
-type ParsedVerse = {
-  n: number;
-  text: string;
-  paragraphStart: boolean;
-  sectionHeadings?: SectionHeading[];
-  wordsOfJesus?: Array<{ start: number; end: number }>;
 };
 
 type Psalm119AcrosticStart = {
@@ -127,14 +121,6 @@ function cleanHeadingText(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function headingKey(value: string) {
-  return value.toLowerCase().replace(/[^a-z]/g, "");
-}
-
 function collectNodeText(node: ApiBibleContentNode): string {
   if (!node || typeof node !== "object") return "";
   if (node.type === "text" && typeof node.text === "string") return node.text;
@@ -206,73 +192,6 @@ function splitPsalm119AcrosticText(text: string, verse: number) {
   }
 
   return { text };
-}
-
-function acrosticVariantPattern(heading: Psalm119AcrosticStart) {
-  return heading.variants
-    .map(escapeRegExp)
-    .sort((a, b) => b.length - a.length)
-    .join("|");
-}
-
-function addPsalm119Heading(
-  verse: ParsedVerse,
-  heading: Psalm119AcrosticStart,
-) {
-  const existing = verse.sectionHeadings || [];
-  if (
-    existing.some((item) => headingKey(item.text) === headingKey(heading.label))
-  ) return;
-  verse.sectionHeadings = existing.concat({ text: heading.label, level: 1 });
-}
-
-function stripLeadingPsalm119Marker(
-  text: string,
-  heading: Psalm119AcrosticStart,
-) {
-  const variantPattern = acrosticVariantPattern(heading);
-  const hebrew = escapeRegExp(heading.hebrew);
-  const pattern = new RegExp(
-    `^\\s*¶*\\s*(?:(?:${hebrew})\\s*(?:${variantPattern})?|(?:${variantPattern}))(?:\\s*[.:;,-])?\\s+`,
-    "iu",
-  );
-  return text.replace(/^(\s*¶+\s*)/u, "").replace(pattern, "");
-}
-
-function stripTrailingPsalm119Marker(
-  text: string,
-  heading: Psalm119AcrosticStart,
-) {
-  const variantPattern = acrosticVariantPattern(heading);
-  const hebrew = escapeRegExp(heading.hebrew);
-  const pattern = new RegExp(
-    `(?:\\s+)(?:(?:${hebrew})\\s*(?:${variantPattern})?|(?:${variantPattern})|(?:${hebrew}))\\s*$`,
-    "iu",
-  );
-  return text.replace(pattern, "").trimEnd();
-}
-
-export function normalizePsalm119AcrosticVerses(verses: ParsedVerse[]) {
-  const byNumber = new Map(verses.map((verse) => [verse.n, verse]));
-
-  psalm119AcrosticStarts.forEach((heading) => {
-    const startVerse = byNumber.get(heading.verse);
-    const previousVerse = byNumber.get(heading.verse - 1);
-
-    if (previousVerse) {
-      const stripped = stripTrailingPsalm119Marker(previousVerse.text, heading);
-      if (stripped !== previousVerse.text) previousVerse.text = stripped;
-    }
-
-    if (startVerse) {
-      startVerse.text = stripLeadingPsalm119Marker(startVerse.text, heading)
-        .trim();
-      startVerse.paragraphStart = true;
-      addPsalm119Heading(startVerse, heading);
-    }
-  });
-
-  return verses.filter(({ text }) => text.length > 0);
 }
 
 function needsBoundarySpace(existing: string, incoming: string) {

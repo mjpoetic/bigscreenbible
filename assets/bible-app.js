@@ -8001,7 +8001,7 @@ async function ensureRemoteBibleVersion(version, chapterKey) {
   remoteVersionErrors.delete(loadKey);
   try {
     const response = await fetch(url, {
-      cache: provider === bibleProviders.apiBible ? "no-store" : "default",
+      cache: "no-store",
       headers: {
         apikey: config.anonKey,
         Authorization: `Bearer ${config.anonKey}`,

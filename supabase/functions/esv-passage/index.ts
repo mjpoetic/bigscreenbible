@@ -1,4 +1,4 @@
-import { normalizePsalm119AcrosticVerses } from "../api-bible-passage/content-parser.ts";
+import { normalizePsalm119AcrosticVerses } from "../_shared/psalm119-acrostic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-const parserVersion = "2026-06-24-psalm119-normalized";
+const parserVersion = "2026-06-24-psalm119-shared-normalized";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

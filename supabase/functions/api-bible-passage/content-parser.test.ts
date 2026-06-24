@@ -162,6 +162,12 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
     {
       name: "para",
       type: "tag",
+      attrs: { style: "s1" },
+      items: [{ type: "text", text: "Psalm 119" }],
+    },
+    {
+      name: "para",
+      type: "tag",
       items: [
         { name: "verse", type: "tag", attrs: { number: "1" } },
         {
