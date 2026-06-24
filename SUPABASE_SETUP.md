@@ -109,11 +109,13 @@ supabase functions deploy verse-of-the-day --no-verify-jwt
 
 The included `supabase/config.toml` keeps JWT verification off for these read-only functions so visitors can read licensed translations without signing in. The provider API keys remain in Supabase and are never returned to the browser.
 
-### API.Bible behavior
+### Remote Bible behavior
 
+- ESV search requests use Crossway's server-side passage search endpoint through the `esv-passage` Edge Function. Quoted searches are sent as exact phrase searches.
 - The function calls `GET /v1/bibles?language=eng&include-full-details=true` and discovers the authorized Bible IDs for NIV, NLT, and NASB 2020 from the API.Bible account.
 - Authorized Bible metadata is cached only in Edge Function memory for up to 24 hours. Scripture responses use `Cache-Control: no-store`, so copyrighted text is not placed in a shared or persistent application cache.
 - Chapter requests use API.Bible JSON output with notes and chapter numbers disabled. Section headings are kept as display metadata, while formatting markers are removed and the returned verse wording is retained.
+- Search requests use API.Bible's server-side search endpoint through the same Edge Function proxy. Quoted searches are filtered to exact phrase matches before results are returned to the browser.
 - API.Bible currently limits passage responses to 200 verses. Big Screen Bible requests one chapter at a time, so even Psalm 119 remains below that limit.
 - API.Bible FUMS view tokens are forwarded to the browser and reported through the official FUMS web tracker.
 - Copyright text returned by API.Bible is displayed with the passage in Reader, Parallel Study, print, and Big Screen Mode.

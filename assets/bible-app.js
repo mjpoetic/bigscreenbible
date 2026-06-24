@@ -164,6 +164,7 @@ const loadedVersionData = new Map();
 const loadingVersions = new Set();
 const remoteVersionData = new Map();
 const remoteVersionErrors = new Map();
+const remoteSearchErrors = new Map();
 const trackedFumsTokens = new Set();
 let verseOfDayPool = null;
 const strongLexiconSources = [
@@ -3918,10 +3919,10 @@ function closeStudyPopup(immediate = false) {
 
 function searchResultsMarkup() {
   if (!state.searchQuery) {
-    return `<div class="empty-state">Search by phrase, word, or reference. Try “love one another” or “still small voice.”</div>`;
+    return `<div class="empty-state">Search by phrase, word, or reference. Try “love one another” or "Son of Man".</div>`;
   }
   if (!state.searchResults.length) {
-    return `<div class="empty-state">No matches found for ${escapeHtml(state.searchQuery)} in the bundled translations.</div>`;
+    return `<div class="empty-state">No matches found for ${escapeHtml(state.searchQuery)}.</div>`;
   }
   return state.searchResults.map((result) => `
     <button class="search-result" data-goto="${escapeHtml(result.ref)}">
@@ -3933,7 +3934,11 @@ function searchResultsMarkup() {
 
 function highlightSearchTerms(text, query) {
   const safeText = escapeHtml(text);
-  const terms = searchTokens(query);
+  const criteria = parseSearchQuery(query);
+  const terms = [
+    ...(criteria.exactPhrase ? [criteria.exactPhrase] : []),
+    ...criteria.tokens,
+  ].filter(Boolean);
   if (!terms.length) return safeText;
   const pattern = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi");
   return safeText.replace(pattern, "<mark>$1</mark>");
@@ -6320,7 +6325,7 @@ async function runPhraseSearch(value) {
   if (!query) return;
   state.searchQuery = query;
   await ensureAllSearchVersionsLoaded();
-  state.searchResults = searchBible(query);
+  state.searchResults = await searchBible(query);
   state.mode = state.mode === "big" ? "reader" : state.mode;
   if (state.focusMode) {
     state.focusMode = false;
@@ -6338,52 +6343,43 @@ async function ensureAllSearchVersionsLoaded() {
   await Promise.all(bundled.map(loadBibleVersion));
 }
 
-function searchBible(query) {
+async function searchBible(query) {
   const primaryVersion = state.versions[0] || "BSB";
-  const tokens = searchTokens(query);
-  if (!tokens.length) return [];
-  const phrase = normalizeSearchText(query);
+  const criteria = parseSearchQuery(query);
+  if (!criteria.tokens.length && !criteria.exactPhrase) return [];
   const searchableVersions = translationCodes.filter(isBundledTranslation);
   const primarySearchVersion = searchableVersions.includes(primaryVersion) ? primaryVersion : "BSB";
-  const primaryExact = searchVersion(primarySearchVersion, phrase, tokens, { exactOnly: true });
-  if (primaryExact.length) return primaryExact.slice(0, 40);
-
   const versionOrder = [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
-  const results = versionOrder.flatMap((version) => searchVersion(version, phrase, tokens));
+  const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria));
+  const remoteResults = await searchRemoteVersions(query, criteria);
+  const results = [...localResults, ...remoteResults];
   const seen = new Set();
-  return results
+  const ranked = results
     .sort((a, b) => b.score - a.score)
     .filter((result) => {
       const key = `${result.ref}-${result.version}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    })
-    .slice(0, 40);
+    });
+  return balancedSearchResults(ranked, primaryVersion).slice(0, 40);
 }
 
-function searchVersion(version, phrase, tokens, options = {}) {
+function searchVersion(version, criteria) {
   const versionData = loadedVersionData.get(version);
   if (!versionData?.chapters) return [];
   const results = [];
   Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
     chapter.verses.some((verse) => {
       const text = verse.text || "";
-      const normalizedText = normalizeSearchText(text);
-      const hasPhrase = phrase.length > 2 && normalizedText.includes(phrase);
-      if (options.exactOnly && !hasPhrase) return false;
-      const verseWords = normalizedText.split(" ").filter(Boolean);
-      const exactTokenCount = tokens.filter((token) => verseWords.includes(token) || normalizedText.includes(token)).length;
-      const fuzzyTokenCount = tokens.filter((token) => verseWords.some((word) => wordsCloseEnough(token, word))).length;
-      const hasTokens = exactTokenCount === tokens.length;
-      const hasFuzzyTokens = tokens.length > 1 && fuzzyTokenCount === tokens.length;
-      if (hasPhrase || hasTokens || hasFuzzyTokens) {
+      const match = scoreSearchText(text, criteria, version);
+      if (match) {
         results.push({
           ref: `${chapterKey}:${verse.n}`,
           version,
           text,
-          score: (hasPhrase ? 100 : 0) + exactTokenCount * 10 + fuzzyTokenCount + (version === (state.versions[0] || "BSB") ? 4 : 0),
-          matchType: hasPhrase ? "Phrase" : hasTokens ? "Words" : "Close match",
+          score: match.score,
+          matchType: match.matchType,
         });
       }
       return results.length >= 80;
@@ -6391,6 +6387,125 @@ function searchVersion(version, phrase, tokens, options = {}) {
     return results.length >= 80;
   });
   return results;
+}
+
+function balancedSearchResults(results, primaryVersion) {
+  const versionOrder = uniqueList([
+    primaryVersion,
+    ...state.versions,
+    ...translationCodes.filter(isRemoteTranslation),
+    ...translationCodes,
+  ]);
+  const matchTypeOrder = ["Phrase", "Words", "Close match"];
+  const ordered = [];
+  matchTypeOrder.forEach((matchType) => {
+    ordered.push(...balanceResultGroup(results.filter((result) => result.matchType === matchType), versionOrder));
+  });
+  ordered.push(...balanceResultGroup(results.filter((result) => !matchTypeOrder.includes(result.matchType)), versionOrder));
+  return ordered;
+}
+
+function balanceResultGroup(results, versionOrder) {
+  const groups = new Map();
+  results.forEach((result) => {
+    if (!groups.has(result.version)) groups.set(result.version, []);
+    groups.get(result.version).push(result);
+  });
+  const balanced = [];
+  while ([...groups.values()].some((items) => items.length)) {
+    versionOrder.forEach((version) => {
+      const group = groups.get(version);
+      if (group?.length) balanced.push(group.shift());
+    });
+  }
+  return balanced;
+}
+
+async function searchRemoteVersions(query, criteria) {
+  const remoteVersions = translationCodes.filter(isRemoteTranslation);
+  if (!remoteVersions.length) return [];
+  const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria)));
+  return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+}
+
+async function searchRemoteVersion(version, query, criteria) {
+  const provider = translationProvider(version);
+  const config = window.BigScreenBibleSupabase || {};
+  const params = provider === bibleProviders.apiBible
+    ? { action: "search", version, query, exact: criteria.exactRequested ? "true" : "false" }
+    : { action: "search", query, exact: criteria.exactRequested ? "true" : "false" };
+  const url = supabaseFunctionUrl(provider.edgeFunction, params);
+  if (!url || !config.anonKey) return [];
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${config.anonKey}`,
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `${version} search failed`);
+    remoteSearchErrors.delete(version);
+    if (provider.tracksFums) trackApiBibleView(payload.fumsToken);
+    return (Array.isArray(payload.results) ? payload.results : [])
+      .map((result) => {
+        const text = String(result?.text || "").replace(/\s+/g, " ").trim();
+        const ref = String(result?.ref || result?.reference || "").trim();
+        if (!text || !ref) return null;
+        const match = scoreSearchText(text, criteria, version, Number(result?.score) || 0);
+        if (!match) return null;
+        return {
+          ref,
+          version,
+          text,
+          score: match.score,
+          matchType: match.matchType,
+        };
+      })
+      .filter(Boolean);
+  } catch (error) {
+    remoteSearchErrors.set(version, error.message || `${version} search failed`);
+    return [];
+  }
+}
+
+function scoreSearchText(text, criteria, version, providerScore = 0) {
+  const normalizedText = normalizeSearchText(text);
+  const phrase = criteria.exactPhrase || criteria.phrase;
+  const hasPhrase = phrase.length > 2 && normalizedText.includes(phrase);
+  if (criteria.exactRequested && !hasPhrase) return null;
+  const verseWords = normalizedText.split(" ").filter(Boolean);
+  const exactTokenCount = criteria.tokens.filter((token) => verseWords.includes(token) || normalizedText.includes(token)).length;
+  const fuzzyTokenCount = criteria.tokens.filter((token) => verseWords.some((word) => wordsCloseEnough(token, word))).length;
+  const hasTokens = criteria.tokens.length > 0 && exactTokenCount === criteria.tokens.length;
+  const hasFuzzyTokens = criteria.tokens.length > 1 && fuzzyTokenCount === criteria.tokens.length;
+  if (!hasPhrase && !hasTokens && !hasFuzzyTokens) return null;
+  const primaryBoost = version === (state.versions[0] || "BSB") ? 4 : 0;
+  const exactBoost = criteria.exactRequested && hasPhrase ? 220 : 0;
+  return {
+    score: exactBoost + (hasPhrase ? 100 : 0) + exactTokenCount * 10 + fuzzyTokenCount + providerScore + primaryBoost,
+    matchType: hasPhrase ? "Phrase" : hasTokens ? "Words" : "Close match",
+  };
+}
+
+function parseSearchQuery(query) {
+  const normalizedQuery = String(query || "").trim().replace(/\s+/g, " ");
+  const quotedPhrases = [];
+  normalizedQuery.replace(/"([^"]+)"/g, (_match, phrase) => {
+    const normalizedPhrase = normalizeSearchText(phrase);
+    if (normalizedPhrase) quotedPhrases.push(normalizedPhrase);
+    return "";
+  });
+  const exactPhrase = quotedPhrases[0] || "";
+  const searchableText = exactPhrase || normalizedQuery;
+  return {
+    exactRequested: Boolean(exactPhrase),
+    exactPhrase,
+    phrase: normalizeSearchText(searchableText),
+    tokens: searchTokens(searchableText),
+  };
 }
 
 function searchTokens(query) {

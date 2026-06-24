@@ -10,6 +10,8 @@ const corsHeaders = {
 const apiBibleBaseUrl = "https://rest.api.bible";
 const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
+const maximumSearchQueryLength = 120;
+const maximumSearchResults = 20;
 const parserVersion = "2026-06-24-psalm119-shared-normalized";
 
 type ApiBibleTranslationCode = "NIV" | "NLT" | "NASB2020";
@@ -117,6 +119,26 @@ function jsonResponse(body: unknown, status = 200, cacheControl = "no-store") {
 
 function normalizedLabel(value: unknown) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function cleanPlainText(value: unknown) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeSearchText(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function searchPhraseFromQuery(value: string) {
+  const quoted = value.match(/"([^"]+)"/);
+  return normalizeSearchText(quoted?.[1] || value);
 }
 
 function matchesTranslation(
@@ -247,6 +269,57 @@ Deno.serve(async (request) => {
         { error: `${version} is not authorized for this API.Bible account` },
         403,
       );
+    }
+
+    if (url.searchParams.get("action") === "search") {
+      const searchQuery = (url.searchParams.get("query") || "").trim()
+        .replace(/\s+/g, " ");
+      if (!searchQuery || searchQuery.length > maximumSearchQueryLength) {
+        return jsonResponse({ error: "A valid search query is required" }, 400);
+      }
+      const exact = url.searchParams.get("exact") === "true";
+      const phrase = searchPhraseFromQuery(searchQuery);
+      const query = new URLSearchParams({
+        query: phrase || searchQuery,
+        limit: String(maximumSearchResults),
+        offset: "0",
+        sort: "relevance",
+        fuzziness: exact ? "0" : "AUTO",
+      });
+      const payload = await apiBibleRequest(
+        `/v1/bibles/${encodeURIComponent(bible.id)}/search?${query}`,
+        apiKey,
+      );
+      const verses = Array.isArray(payload?.data?.verses)
+        ? payload.data.verses
+        : [];
+      const results = verses
+        .map((verse: { text?: unknown; reference?: unknown }, index: number) => {
+          const text = cleanPlainText(verse.text);
+          const ref = String(verse.reference || "").trim();
+          if (!text || !ref) return null;
+          if (exact && !normalizeSearchText(text).includes(phrase)) return null;
+          return {
+            ref,
+            reference: ref,
+            text,
+            score: maximumSearchResults - index,
+          };
+        })
+        .filter(Boolean);
+
+      return jsonResponse({
+        provider: "api-bible",
+        version,
+        query: searchQuery,
+        exact,
+        bibleId: bible.id,
+        bibleName: bible.name,
+        abbreviation: bible.abbreviation,
+        copyright: bible.copyright,
+        fumsToken: payload?.meta?.fumsToken || "",
+        results,
+      });
     }
 
     const reference = (url.searchParams.get("ref") || "").trim();

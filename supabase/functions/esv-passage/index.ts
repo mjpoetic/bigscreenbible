@@ -8,14 +8,20 @@ const corsHeaders = {
 };
 
 const parserVersion = "2026-06-24-psalm119-shared-normalized";
+const maximumSearchQueryLength = 120;
+const maximumSearchResults = 20;
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  cacheControl = status === 200 ? "public, max-age=3600" : "no-store",
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": status === 200 ? "public, max-age=3600" : "no-store",
+      "Cache-Control": cacheControl,
     },
   });
 }
@@ -25,6 +31,32 @@ function cleanVerseText(text: string) {
     .replace(/\s+/g, " ")
     .replace(/\s+([,.;:!?])/g, "$1")
     .trim();
+}
+
+function cleanPlainText(value: unknown) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeSearchText(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function searchPhraseFromQuery(value: string) {
+  const quoted = value.match(/"([^"]+)"/);
+  return normalizeSearchText(quoted?.[1] || value);
+}
+
+function esvSearchQuery(value: string, exact: boolean) {
+  const phrase = searchPhraseFromQuery(value);
+  if (!exact) return value;
+  return phrase ? `"${phrase}"` : value;
 }
 
 function headingLevelForLine(line: string) {
@@ -103,6 +135,61 @@ Deno.serve(async (request) => {
   }
 
   const url = new URL(request.url);
+  if (url.searchParams.get("action") === "search") {
+    const searchQuery = (url.searchParams.get("query") || "").trim()
+      .replace(/\s+/g, " ");
+    if (!searchQuery || searchQuery.length > maximumSearchQueryLength) {
+      return jsonResponse({ error: "A valid search query is required" }, 400);
+    }
+    const exact = url.searchParams.get("exact") === "true";
+    const phrase = searchPhraseFromQuery(searchQuery);
+    const esvSearchUrl = new URL("https://api.esv.org/v3/passage/search/");
+    esvSearchUrl.searchParams.set("q", esvSearchQuery(searchQuery, exact));
+    esvSearchUrl.searchParams.set("page-size", String(maximumSearchResults));
+
+    const esvSearchResponse = await fetch(esvSearchUrl, {
+      headers: {
+        Authorization: `Token ${apiKey}`,
+      },
+    });
+    const payload = await esvSearchResponse.json().catch(() => ({}));
+
+    if (!esvSearchResponse.ok) {
+      return jsonResponse(
+        { error: payload.detail || payload.error || "ESV API search failed" },
+        esvSearchResponse.status,
+      );
+    }
+
+    const sourceResults = Array.isArray(payload.results)
+      ? payload.results
+      : [];
+    const results = sourceResults
+      .map((result: { reference?: unknown; content?: unknown }, index: number) => {
+        const text = cleanPlainText(result.content);
+        const ref = String(result.reference || "").trim();
+        if (!text || !ref) return null;
+        if (exact && !normalizeSearchText(text).includes(phrase)) return null;
+        return {
+          ref,
+          reference: ref,
+          text,
+          score: maximumSearchResults - index,
+        };
+      })
+      .filter(Boolean);
+
+    return jsonResponse({
+      provider: "esv",
+      version: "ESV",
+      query: searchQuery,
+      exact,
+      totalResults: Number(payload.total_results) || results.length,
+      totalPages: Number(payload.total_pages) || 1,
+      results,
+    }, 200, "no-store");
+  }
+
   const ref = (url.searchParams.get("ref") || "").trim();
   if (!ref || ref.length > 80) {
     return jsonResponse(
