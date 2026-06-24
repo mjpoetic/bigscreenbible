@@ -4269,7 +4269,8 @@ function shortcutOverlay() {
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
     ["C", "Open cross references"],
-    ["← / →", "Move verse by verse"],
+    ["↑ / ↓", "Move verse by verse"],
+    ["← / →", "Move chapter by chapter"],
     ["Esc", "Close overlay or go back to Bible"],
   ];
   return `
@@ -7268,6 +7269,14 @@ function canUseReaderChapterSwipe() {
   return state.mode === "reader" || state.mode === "parallel";
 }
 
+function canUseReaderKeyboardNavigation() {
+  return state.mode === "reader" || state.mode === "parallel";
+}
+
+function canUseVerseKeyboardNavigation() {
+  return state.mode === "big" || canUseReaderKeyboardNavigation();
+}
+
 function isReaderChapterSwipeIgnored(target) {
   if (target?.closest?.("[data-strong]")) return false;
   return Boolean(isSwipeControlTarget(target) || target?.closest?.(".study-popup, .mobile-verse-nav-menu"));
@@ -7352,13 +7361,25 @@ function handleGlobalShortcuts(event) {
 
   if (typing || state.shortcutsOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
-  if (event.key === "ArrowLeft" && state.mode !== "trivia") {
+  if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
+    event.preventDefault();
+    return moveVerse(event.key === "ArrowDown" ? 1 : -1);
+  }
+  if (event.key === "ArrowLeft" && state.mode === "big") {
     event.preventDefault();
     return moveVerse(-1);
   }
-  if (event.key === "ArrowRight" && state.mode !== "trivia") {
+  if (event.key === "ArrowRight" && state.mode === "big") {
     event.preventDefault();
     return moveVerse(1);
+  }
+  if (event.key === "ArrowLeft" && canUseReaderKeyboardNavigation()) {
+    event.preventDefault();
+    return moveChapter(-1);
+  }
+  if (event.key === "ArrowRight" && canUseReaderKeyboardNavigation()) {
+    event.preventDefault();
+    return moveChapter(1);
   }
   if (key === "p") {
     event.preventDefault();
