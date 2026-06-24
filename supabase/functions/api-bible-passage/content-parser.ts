@@ -275,6 +275,7 @@ export function parseVerseContent(
   const sectionHeadings = new Map<number, SectionHeading[]>();
   let pendingHeadings: SectionHeading[] = [];
   let sawPsalm119Verse = false;
+  let lastVerseNumber = 0;
 
   const appendText = (
     verseNumber: number,
@@ -291,6 +292,7 @@ export function parseVerseContent(
     if (previous?.wordsOfJesus === wordsOfJesus) previous.text += incoming;
     else parts.push({ text: incoming, wordsOfJesus });
     verseParts.set(verseNumber, parts);
+    lastVerseNumber = verseNumber;
   };
 
   const visit = (
@@ -340,7 +342,11 @@ export function parseVerseContent(
           return;
         }
       }
-      const verseNumber = attributedVerse || paragraphState.currentVerse;
+      const verseNumber = attributedVerse || paragraphState.currentVerse ||
+        lastVerseNumber;
+      if (verseNumber && !paragraphState.firstVerse) {
+        paragraphState.firstVerse = verseNumber;
+      }
       appendText(verseNumber, node.text, wordsOfJesus);
       if (verseNumber) paragraphState.textAdded = true;
       return;
@@ -378,10 +384,6 @@ export function parseVerseContent(
         existing.concat(pendingHeadings, paragraphState.leadingHeadings),
       );
       pendingHeadings = [];
-    }
-    if (!paragraphState.firstVerse && !paragraphState.textAdded) {
-      const text = cleanHeadingText(collectNodeText(block));
-      if (text) pendingHeadings.push({ text, level: 1 });
     }
     if (paragraphState.trailingHeadings.length) {
       pendingHeadings.push(...paragraphState.trailingHeadings);

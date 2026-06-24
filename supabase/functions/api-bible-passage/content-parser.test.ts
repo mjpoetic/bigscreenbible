@@ -297,6 +297,69 @@ Deno.test("hides provider chapter headings and pilcrow paragraph markers", () =>
   ]);
 });
 
+Deno.test("keeps unnumbered continuation text with the previous verse", () => {
+  const content: ApiBibleContentNode[] = [
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "5" } },
+        {
+          type: "text",
+          text: "and the sixth, Ithream the son of David’s wife Eglah.",
+          attrs: { verseId: "2SA.3.5" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [{
+        type: "text",
+        text: "These were born to David in Hebron.",
+      }],
+    },
+    {
+      name: "para",
+      type: "tag",
+      attrs: { style: "s1" },
+      items: [{
+        type: "text",
+        text: "Abner Goes Over to David",
+      }],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "6" } },
+        {
+          type: "text",
+          text:
+            "During the war between the house of Saul and the house of David, Abner had been strengthening his own position.",
+          attrs: { verseId: "2SA.3.6" },
+        },
+      ],
+    },
+  ];
+
+  assertEquals(parseVerseContent(content), [
+    {
+      n: 5,
+      text:
+        "and the sixth, Ithream the son of David’s wife Eglah. These were born to David in Hebron.",
+      paragraphStart: true,
+    },
+    {
+      n: 6,
+      text:
+        "During the war between the house of Saul and the house of David, Abner had been strengthening his own position.",
+      paragraphStart: true,
+      sectionHeadings: [{ text: "Abner Goes Over to David", level: 1 }],
+    },
+  ]);
+});
+
 Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () => {
   const content: ApiBibleContentNode[] = [
     {

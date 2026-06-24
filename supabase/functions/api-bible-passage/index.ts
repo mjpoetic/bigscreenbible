@@ -12,7 +12,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const parserVersion = "2026-06-24-small-caps-lord-fragment-cleanup";
+const parserVersion = "2026-06-24-small-caps-lord-continuation-cleanup";
 
 type ApiBibleTranslationCode = "NIV" | "NLT" | "NASB2020";
 
