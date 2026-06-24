@@ -134,6 +134,7 @@ let strongLexiconStatus = "idle";
 let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
+let readerChapterTouchStart = null;
 let presentationResizeTimer = 0;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
@@ -153,6 +154,9 @@ const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
+const horizontalSwipeMaxMs = 850;
+const horizontalSwipeMinPx = 56;
+const horizontalSwipeDominance = 1.35;
 const cloudSyncTable = "bsb_user_sync";
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 
@@ -4906,13 +4910,11 @@ function bindEvents() {
       presentationTouchStart = null;
       return;
     }
-    presentationTouchStart = {
-      x: event.touches[0].clientX,
-      y: event.touches[0].clientY,
-      time: Date.now(),
-    };
+    presentationTouchStart = touchStartPoint(event);
   }, { passive: true });
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
+  document.querySelector(".scripture")?.addEventListener("touchstart", handleReaderChapterSwipeStart, { passive: true });
+  document.querySelector(".scripture")?.addEventListener("touchend", handleReaderChapterSwipeEnd, { passive: true });
   document.getElementById("prevChapter")?.addEventListener("click", () => moveChapter(-1));
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("prevChapterInline")?.addEventListener("click", () => moveChapter(-1));
@@ -7100,8 +7102,37 @@ function revealPresentationControls(duration = 3200) {
   }, duration);
 }
 
+function touchStartPoint(event) {
+  const touch = event.touches?.[0];
+  if (!touch) return null;
+  return {
+    x: touch.clientX,
+    y: touch.clientY,
+    time: Date.now(),
+  };
+}
+
+function horizontalSwipeDirection(start, touch) {
+  if (!start || !touch) return 0;
+  const deltaX = touch.clientX - start.x;
+  const deltaY = touch.clientY - start.y;
+  const elapsed = Date.now() - start.time;
+  if (
+    elapsed > horizontalSwipeMaxMs
+    || Math.abs(deltaX) < horizontalSwipeMinPx
+    || Math.abs(deltaX) < Math.abs(deltaY) * horizontalSwipeDominance
+  ) {
+    return 0;
+  }
+  return deltaX < 0 ? 1 : -1;
+}
+
+function isSwipeControlTarget(target) {
+  return Boolean(target?.closest?.("button, input, select, textarea, a, [contenteditable='true'], [role='button']"));
+}
+
 function isPresentationSwipeIgnored(target) {
-  return Boolean(target?.closest?.("button, input, select, textarea, a, .presentation-settings-popover"));
+  return Boolean(isSwipeControlTarget(target) || target?.closest?.(".presentation-settings-popover"));
 }
 
 function handlePresentationSwipe(event) {
@@ -7112,12 +7143,41 @@ function handlePresentationSwipe(event) {
   }
   const touch = event.changedTouches?.[0];
   if (!touch) return;
-  const deltaX = touch.clientX - presentationTouchStart.x;
-  const deltaY = touch.clientY - presentationTouchStart.y;
-  const elapsed = Date.now() - presentationTouchStart.time;
+  const direction = horizontalSwipeDirection(presentationTouchStart, touch);
   presentationTouchStart = null;
-  if (elapsed > 850 || Math.abs(deltaX) < 56 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
-  moveVerse(deltaX < 0 ? 1 : -1);
+  if (!direction) return;
+  moveVerse(direction);
+}
+
+function canUseReaderChapterSwipe() {
+  return state.mode === "reader" || state.mode === "parallel";
+}
+
+function isReaderChapterSwipeIgnored(target) {
+  if (target?.closest?.("[data-strong]")) return false;
+  return Boolean(isSwipeControlTarget(target) || target?.closest?.(".study-popup, .mobile-verse-nav-menu"));
+}
+
+function handleReaderChapterSwipeStart(event) {
+  if (!canUseReaderChapterSwipe() || isReaderChapterSwipeIgnored(event.target)) {
+    readerChapterTouchStart = null;
+    return;
+  }
+  readerChapterTouchStart = touchStartPoint(event);
+}
+
+function handleReaderChapterSwipeEnd(event) {
+  if (!canUseReaderChapterSwipe() || !readerChapterTouchStart) return;
+  if (isReaderChapterSwipeIgnored(event.target)) {
+    readerChapterTouchStart = null;
+    return;
+  }
+  const touch = event.changedTouches?.[0];
+  if (!touch) return;
+  const direction = horizontalSwipeDirection(readerChapterTouchStart, touch);
+  readerChapterTouchStart = null;
+  if (!direction) return;
+  moveChapter(direction);
 }
 
 function handleGlobalShortcuts(event) {
