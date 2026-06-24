@@ -16,6 +16,54 @@ type SectionHeading = {
   level: number;
 };
 
+type ParagraphState = {
+  firstVerse: number;
+  currentVerse: number;
+  textAdded: boolean;
+  leadingHeadings: SectionHeading[];
+  trailingHeadings: SectionHeading[];
+};
+
+const psalm119AcrosticLabels = new Set([
+  "aleph",
+  "beth",
+  "gimel",
+  "daleth",
+  "he",
+  "heh",
+  "vav",
+  "waw",
+  "zayin",
+  "cheth",
+  "heth",
+  "teth",
+  "yod",
+  "yodh",
+  "kaf",
+  "kaph",
+  "lamed",
+  "lamedh",
+  "mem",
+  "nun",
+  "samech",
+  "samekh",
+  "ayin",
+  "pe",
+  "peh",
+  "tsadde",
+  "tsaddi",
+  "tsadhe",
+  "tsade",
+  "tsadi",
+  "tzaddi",
+  "qof",
+  "qoph",
+  "resh",
+  "shin",
+  "taw",
+  "tav",
+]);
+
 function verseNumberFromId(value: unknown) {
   const match = String(value || "").match(/\.(\d+)$/);
   return match ? Number(match[1]) : 0;
@@ -43,6 +91,13 @@ function sectionHeadingFromBlock(node: ApiBibleContentNode): SectionHeading | nu
   if (node?.name !== "para" || !isHeadingStyle) return null;
   const text = cleanHeadingText(collectNodeText(node));
   return text ? { text, level: headingLevel(style) } : null;
+}
+
+function acrosticHeadingFromText(value: string): SectionHeading | null {
+  const text = cleanHeadingText(value);
+  if (!text) return null;
+  const normalized = text.toLowerCase().replace(/[^a-z]/g, "");
+  return psalm119AcrosticLabels.has(normalized) ? { text, level: 1 } : null;
 }
 
 function needsBoundarySpace(existing: string, incoming: string) {
@@ -82,7 +137,7 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
 
   const visit = (
     node: ApiBibleContentNode,
-    paragraphState: { firstVerse: number; currentVerse: number; textAdded: boolean },
+    paragraphState: ParagraphState,
     wordsOfJesus = false,
   ) => {
     if (!node || typeof node !== "object") return;
@@ -100,6 +155,14 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     if (node.type === "text" && typeof node.text === "string") {
       const attributedVerse = verseNumberFromId(node.attrs?.verseId) ||
         verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
+      if (!attributedVerse) {
+        const acrosticHeading = acrosticHeadingFromText(node.text);
+        if (acrosticHeading) {
+          if (paragraphState.currentVerse) paragraphState.trailingHeadings.push(acrosticHeading);
+          else paragraphState.leadingHeadings.push(acrosticHeading);
+          return;
+        }
+      }
       const verseNumber = attributedVerse || paragraphState.currentVerse;
       appendText(verseNumber, node.text, wordsOfJesus);
       if (verseNumber) paragraphState.textAdded = true;
@@ -118,16 +181,28 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
       return;
     }
 
-    const paragraphState = { firstVerse: 0, currentVerse: 0, textAdded: false };
+    const paragraphState: ParagraphState = {
+      firstVerse: 0,
+      currentVerse: 0,
+      textAdded: false,
+      leadingHeadings: [],
+      trailingHeadings: [],
+    };
     visit(block, paragraphState);
-    if (paragraphState.firstVerse && pendingHeadings.length) {
+    if (paragraphState.firstVerse && (pendingHeadings.length || paragraphState.leadingHeadings.length)) {
       const existing = sectionHeadings.get(paragraphState.firstVerse) || [];
-      sectionHeadings.set(paragraphState.firstVerse, existing.concat(pendingHeadings));
+      sectionHeadings.set(
+        paragraphState.firstVerse,
+        existing.concat(pendingHeadings, paragraphState.leadingHeadings),
+      );
       pendingHeadings = [];
     }
     if (!paragraphState.firstVerse && !paragraphState.textAdded) {
       const text = cleanHeadingText(collectNodeText(block));
       if (text) pendingHeadings.push({ text, level: 1 });
+    }
+    if (paragraphState.trailingHeadings.length) {
+      pendingHeadings.push(...paragraphState.trailingHeadings);
     }
     if (block?.name === "para" && paragraphState.firstVerse) {
       paragraphStarts.add(paragraphState.firstVerse);
