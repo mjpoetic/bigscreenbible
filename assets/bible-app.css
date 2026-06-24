@@ -8696,6 +8696,10 @@ svg {
     min-height: 0;
   }
 
+  .shortcut-keyboard-section {
+    display: none;
+  }
+
   .shortcut-list {
     padding: 10px 18px 18px;
   }

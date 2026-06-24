@@ -4232,9 +4232,11 @@ function shortcutOverlay() {
           <div><strong>Games</strong><span>Practice Bible knowledge with trivia, verse order, and quick-reference games.</span></div>
         </div>
         <a class="help-about-link" href="./about.html">About Big Screen Bible</a>
-        <div class="shortcut-section-title">Keyboard shortcuts</div>
-        <div class="shortcut-list">
-          ${shortcuts.map(([keys, label]) => `<div class="shortcut-row"><kbd>${keys}</kbd><span>${label}</span></div>`).join("")}
+        <div class="shortcut-keyboard-section">
+          <div class="shortcut-section-title">Keyboard shortcuts</div>
+          <div class="shortcut-list">
+            ${shortcuts.map(([keys, label]) => `<div class="shortcut-row"><kbd>${keys}</kbd><span>${label}</span></div>`).join("")}
+          </div>
         </div>
       </div>
     </section>
