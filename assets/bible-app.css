@@ -3423,30 +3423,32 @@ select {
 }
 
 .scripture-heading-group {
-  max-width: 760px;
-  margin: 34px 0 18px;
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--panel) 88%, var(--gold-soft));
+  max-width: min(100%, 34em);
+  margin: 1.65em 0 0.45em;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   scroll-margin-block: 140px;
 }
 
 .scripture-heading-group-paragraph {
-  margin-block: 0 -0.15em;
+  margin-block: 0 -0.35em;
 }
 
 .scripture-heading {
   margin: 0;
-  color: var(--ink);
-  font: 800 calc(var(--verse-font) * 0.74) / 1.38 var(--scripture-font);
+  color: color-mix(in srgb, var(--ink) 88%, var(--gold));
+  font: 700 calc(var(--verse-font) * 0.64) / 1.42 var(--scripture-font);
   letter-spacing: 0;
+  text-wrap: balance;
 }
 
 .scripture-heading + .scripture-heading {
-  margin-top: 0.35em;
+  margin-top: 0.28em;
   color: var(--muted);
-  font-size: calc(var(--verse-font) * 0.58);
+  font-size: calc(var(--verse-font) * 0.52);
+  font-weight: 600;
 }
 
 .scripture-paragraph {
@@ -4025,7 +4027,7 @@ select {
 }
 
 .parallel-heading-row {
-  background: color-mix(in srgb, var(--panel) 88%, var(--gold-soft));
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
 }
 
 .parallel-heading-row > .verse-num {
@@ -4047,7 +4049,7 @@ select {
 }
 
 .parallel-heading-group .scripture-heading {
-  font-size: calc(var(--parallel-font) * 0.9);
+  font-size: calc(var(--parallel-font) * 0.84);
   line-height: 1.35;
 }
 
