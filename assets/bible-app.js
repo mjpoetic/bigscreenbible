@@ -8336,7 +8336,7 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       verse = { n: Number(n) };
       chapter.verses.push(verse);
     }
-    verse[version] = text;
+    verse[version] = normalizeRemoteProviderText(version, text);
     if (typeof paragraphStart === "boolean") {
       verse.paragraphStart = verse.paragraphStart || {};
       verse.paragraphStart[version] = paragraphStart;
@@ -8345,7 +8345,7 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       verse.sectionHeadings = verse.sectionHeadings || {};
       verse.sectionHeadings[version] = sectionHeadings
         .map((heading) => ({
-          text: String(heading?.text || "").trim(),
+          text: normalizeRemoteProviderText(version, heading?.text),
           level: Math.max(1, Math.min(4, Number(heading?.level) || 1)),
         }))
         .filter((heading) => heading.text);
@@ -8356,6 +8356,14 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
     }
   });
   chapter.verses.sort((a, b) => a.n - b.n);
+}
+
+function normalizeRemoteProviderText(version, value) {
+  const text = String(value || "").trim();
+  if (translationProvider(version) !== bibleProviders.apiBible) return text;
+  return text
+    .replace(/\bL\s+ord(?=[A-Z])/g, "Lord ")
+    .replace(/\bL\s+ord\b/g, "Lord");
 }
 
 async function loadBibleParagraphMetadata() {

@@ -142,7 +142,9 @@ function cleanVerseText(value: string) {
 }
 
 function cleanProviderSmallCapsText(value: string) {
-  return value.replace(/\bL\s+ord\b/g, "Lord");
+  return value
+    .replace(/\bL\s+ord(?=[A-Z])/g, "Lord ")
+    .replace(/\bL\s+ord\b/g, "Lord");
 }
 
 function joinNodeText(parts: string[]) {
@@ -231,6 +233,7 @@ function needsBoundarySpace(existing: string, incoming: string) {
   const nextCharacter = incoming.at(0) || "";
   if (!previousCharacter || !nextCharacter) return false;
   if (/\s/u.test(previousCharacter) || /\s/u.test(nextCharacter)) return false;
+  if (/\bL$/u.test(existing) && /^ord\b/u.test(incoming)) return false;
 
   // Keep punctuation attached to the word it belongs to.
   if (/^[,.;:!?…%)\]}”’']/u.test(nextCharacter)) return false;

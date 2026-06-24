@@ -177,22 +177,72 @@ Deno.test("normalizes provider small-caps Lord spacing", () => {
         { name: "verse", type: "tag", attrs: { number: "2" } },
         {
           type: "text",
-          text: "I will say to the L ord, “My refuge and my fortress,”",
+          text: "I will say to the ",
           attrs: { verseId: "PSA.91.2" },
+        },
+        { type: "text", text: "L", attrs: { verseId: "PSA.91.2" } },
+        { type: "text", text: "ord", attrs: { verseId: "PSA.91.2" } },
+        {
+          type: "text",
+          text: ", “My refuge and my fortress,”",
+          attrs: { verseId: "PSA.91.2" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "3" } },
+        {
+          type: "text",
+          text: "It is good to give thanks to the L ordAnd to sing praises.",
+          attrs: { verseId: "PSA.91.3" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "4" } },
+        {
+          type: "text",
+          text: "The ",
+          attrs: { verseId: "PSA.91.4" },
+        },
+        { type: "text", text: "L", attrs: { verseId: "PSA.91.4" } },
+        { type: "text", text: "ord", attrs: { verseId: "PSA.91.4" } },
+        {
+          type: "text",
+          text: " reigns; The L ord has clothed Himself.",
+          attrs: { verseId: "PSA.91.4" },
         },
       ],
     },
   ];
 
-  assertEquals(parseVerseContent(content), [{
-    n: 2,
-    text: "I will say to the Lord, “My refuge and my fortress,”",
-    paragraphStart: true,
-    sectionHeadings: [{
-      text: "Security of One Who Trusts in the Lord.",
-      level: 1,
-    }],
-  }]);
+  assertEquals(parseVerseContent(content), [
+    {
+      n: 2,
+      text: "I will say to the Lord, “My refuge and my fortress,”",
+      paragraphStart: true,
+      sectionHeadings: [{
+        text: "Security of One Who Trusts in the Lord.",
+        level: 1,
+      }],
+    },
+    {
+      n: 3,
+      text: "It is good to give thanks to the Lord And to sing praises.",
+      paragraphStart: true,
+    },
+    {
+      n: 4,
+      text: "The Lord reigns; The Lord has clothed Himself.",
+      paragraphStart: true,
+    },
+  ]);
 });
 
 Deno.test("hides provider chapter headings and pilcrow paragraph markers", () => {
