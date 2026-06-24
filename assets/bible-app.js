@@ -269,6 +269,7 @@ const state = {
   openAnnotationGroups: [],
   touchedAnnotationGroupCollections: [],
   selectedVerses: [],
+  keyboardSelectionAnchor: null,
   highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
   customHighlightColor: normalizeHighlightColor(localStorage.getItem("lw_custom_highlight_color")) || "#c084fc",
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
@@ -3417,10 +3418,14 @@ function parallelSectionHeadingsMarkup(verse, versions) {
 }
 
 function verseStateClasses(verseNumber) {
+  const highlightClass = highlightClassForVerse(verseNumber);
+  const selected = verseNumber === state.verse;
+  const passageSelected = state.selectedVerses.includes(verseNumber);
   return [
-    verseNumber === state.verse ? "selected" : "",
-    state.selectedVerses.includes(verseNumber) ? "passage-selected" : "",
-    highlightClassForVerse(verseNumber),
+    selected ? "selected" : "",
+    passageSelected ? "passage-selected" : "",
+    highlightClass,
+    highlightClass && (selected || passageSelected) ? "highlight-selected" : "",
   ].filter(Boolean).join(" ");
 }
 
@@ -4305,6 +4310,7 @@ function shortcutOverlay() {
     ["C", "Open cross references"],
     ["H", "Open highlight bar"],
     ["↑ / ↓", "Move verse by verse"],
+    ["Shift ↑ / ↓", "Select verse range"],
     ["← / →", "Move chapter by chapter"],
     ["Esc", "Close overlay or go back to Bible"],
   ];
@@ -7404,7 +7410,10 @@ function handleGlobalShortcuts(event) {
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
     event.preventDefault();
-    return moveVerse(event.key === "ArrowDown" ? 1 : -1, { followVerse: canUseReaderKeyboardNavigation() });
+    return moveVerse(event.key === "ArrowDown" ? 1 : -1, {
+      extendSelection: event.shiftKey && canUseReaderKeyboardNavigation(),
+      followVerse: canUseReaderKeyboardNavigation(),
+    });
   }
   if (event.key === "ArrowLeft" && state.mode === "big") {
     event.preventDefault();
@@ -7648,15 +7657,30 @@ function moveVerse(direction, options = {}) {
   const index = verses.indexOf(state.verse);
   const nextIndex = Math.max(0, Math.min(verses.length - 1, index + direction));
   if (nextIndex === index) return;
+  const previousVerse = state.verse;
   state.verse = verses[nextIndex];
   state.presentationPart = 0;
   if (state.mode === "big" && direction < 0) {
     state.presentationPart = Math.max(0, currentPresentationParts().length - 1);
   }
   state.isVerseOfDayActive = false;
+  if (options.extendSelection) extendKeyboardVerseSelection(previousVerse, state.verse);
+  else state.keyboardSelectionAnchor = null;
   recordHistory();
   if (options.followVerse) return renderFollowingSelectedVerse();
   render();
+}
+
+function extendKeyboardVerseSelection(anchorFallback, activeVerse) {
+  const available = currentChapter().verses.map((verse) => verse.n);
+  if (!state.selectedVerses.length || !available.includes(state.keyboardSelectionAnchor)) {
+    state.keyboardSelectionAnchor = anchorFallback;
+  }
+  const anchorIndex = available.indexOf(state.keyboardSelectionAnchor);
+  const activeIndex = available.indexOf(activeVerse);
+  if (anchorIndex === -1 || activeIndex === -1) return;
+  const [from, to] = [anchorIndex, activeIndex].sort((a, b) => a - b);
+  state.selectedVerses = available.slice(from, to + 1);
 }
 
 function moveChapter(direction) {
@@ -7666,6 +7690,7 @@ function moveChapter(direction) {
   state.verse = currentChapter().verses[0].n;
   state.presentationPart = 0;
   state.selectedVerses = [];
+  state.keyboardSelectionAnchor = null;
   state.isVerseOfDayActive = false;
   recordHistory();
   render();
@@ -7851,6 +7876,7 @@ function printSelectedPassage() {
 }
 
 function toggleVerseSelection(verseNumber, extendRange) {
+  state.keyboardSelectionAnchor = null;
   if (extendRange && state.selectedVerses.length) {
     const start = state.selectedVerses[state.selectedVerses.length - 1];
     const available = currentChapter().verses.map((verse) => verse.n);
@@ -7869,6 +7895,7 @@ function toggleVerseSelection(verseNumber, extendRange) {
 
 function clearSelection() {
   state.selectedVerses = [];
+  state.keyboardSelectionAnchor = null;
   renderPreservingReaderScroll();
 }
 

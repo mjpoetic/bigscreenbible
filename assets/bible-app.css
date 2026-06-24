@@ -3656,6 +3656,41 @@ select {
   );
 }
 
+.verse.highlight-selected,
+.parallel-row.highlight-selected {
+  box-shadow:
+    inset 3px 0 0 var(--teal),
+    0 0 0 1px color-mix(in srgb, var(--teal) 48%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--teal) 22%, transparent),
+    0 0 24px 6px color-mix(in srgb, var(--gold) 18%, transparent);
+  filter: saturate(1.16) contrast(1.04);
+}
+
+.paragraph-verse.highlight-selected {
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--teal) 48%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--teal) 22%, transparent),
+    0 0 20px 5px color-mix(in srgb, var(--gold) 18%, transparent);
+  filter: saturate(1.16) contrast(1.04);
+}
+
+[data-theme="dark"] .verse.highlight-selected,
+[data-theme="dark"] .parallel-row.highlight-selected {
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--teal) 82%, white 18%),
+    0 0 0 1px color-mix(in srgb, var(--teal) 42%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--teal) 20%, transparent),
+    0 0 24px 6px color-mix(in srgb, var(--gold) 14%, transparent);
+}
+
+[data-theme="dark"] .paragraph-verse.highlight-selected {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--teal) 42%, transparent),
+    0 0 12px 2px color-mix(in srgb, var(--teal) 20%, transparent),
+    0 0 20px 5px color-mix(in srgb, var(--gold) 14%, transparent);
+}
+
 .verse-num {
   min-height: 0;
   border: 0;
