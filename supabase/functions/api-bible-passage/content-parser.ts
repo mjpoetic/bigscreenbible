@@ -130,7 +130,7 @@ function isPsalm119VerseId(value: unknown) {
 }
 
 function cleanHeadingText(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+  return cleanProviderSmallCapsText(value).replace(/\s+/g, " ").trim();
 }
 
 function headingKey(value: string) {
@@ -138,13 +138,25 @@ function headingKey(value: string) {
 }
 
 function cleanVerseText(value: string) {
-  return value.replace(/\s*¶+\s*/g, " ");
+  return cleanProviderSmallCapsText(value).replace(/\s*¶+\s*/g, " ");
+}
+
+function cleanProviderSmallCapsText(value: string) {
+  return value.replace(/\bL\s+ord\b/g, "Lord");
+}
+
+function joinNodeText(parts: string[]) {
+  return parts.reduce((joined, part) => {
+    if (!part) return joined;
+    const separator = needsBoundarySpace(joined, part) ? " " : "";
+    return `${joined}${separator}${part}`;
+  }, "");
 }
 
 function collectNodeText(node: ApiBibleContentNode): string {
   if (!node || typeof node !== "object") return "";
   if (node.type === "text" && typeof node.text === "string") return node.text;
-  return (node.items || []).map(collectNodeText).join(" ");
+  return joinNodeText((node.items || []).map(collectNodeText));
 }
 
 function headingLevel(style: string) {

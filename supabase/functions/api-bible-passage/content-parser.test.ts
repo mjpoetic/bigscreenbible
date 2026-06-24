@@ -157,6 +157,44 @@ Deno.test("attaches API.Bible section headings to the next verse", () => {
   }]);
 });
 
+Deno.test("normalizes provider small-caps Lord spacing", () => {
+  const content: ApiBibleContentNode[] = [
+    {
+      name: "para",
+      type: "tag",
+      attrs: { style: "s1" },
+      items: [
+        { type: "text", text: "Security of One Who Trusts in the " },
+        { name: "char", type: "tag", items: [{ type: "text", text: "L" }] },
+        { name: "char", type: "tag", items: [{ type: "text", text: "ord" }] },
+        { type: "text", text: "." },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "2" } },
+        {
+          type: "text",
+          text: "I will say to the L ord, “My refuge and my fortress,”",
+          attrs: { verseId: "PSA.91.2" },
+        },
+      ],
+    },
+  ];
+
+  assertEquals(parseVerseContent(content), [{
+    n: 2,
+    text: "I will say to the Lord, “My refuge and my fortress,”",
+    paragraphStart: true,
+    sectionHeadings: [{
+      text: "Security of One Who Trusts in the Lord.",
+      level: 1,
+    }],
+  }]);
+});
+
 Deno.test("hides provider chapter headings and pilcrow paragraph markers", () => {
   const content: ApiBibleContentNode[] = [
     {
