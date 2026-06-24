@@ -233,6 +233,7 @@ const state = {
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
   redLetters: localStorage.getItem("lw_red_letters") === "true",
+  strongNumbers: localStorage.getItem("lw_strong_numbers") !== "false",
   focusMode: savedFocusMode(),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
@@ -869,6 +870,10 @@ function mobileSettingsPanel() {
           <input type="checkbox" id="mobileRedLettersToggle" ${state.redLetters ? "checked" : ""} />
           <span>Words of Jesus in red</span>
         </label>
+        <label class="setting-checkbox">
+          <input type="checkbox" id="mobileStrongNumbersToggle" ${state.strongNumbers ? "checked" : ""} />
+          <span>Strong's number lookups</span>
+        </label>
       </div>
       <div class="setting-group">
         <span class="setting-label">Startup</span>
@@ -1035,6 +1040,10 @@ function topbar() {
             <label class="setting-checkbox">
               <input type="checkbox" id="redLettersToggle" ${state.redLetters ? "checked" : ""} />
               <span>Words of Jesus in red</span>
+            </label>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="strongNumbersToggle" ${state.strongNumbers ? "checked" : ""} />
+              <span>Strong's number lookups</span>
             </label>
           </div>
           <div class="setting-group">
@@ -1630,10 +1639,12 @@ function closeMobileVerseNavMenu(options = {}) {
 
 function renderStrongText(verse, version) {
   const text = getVerseText(verse, version);
+  const redLetterRanges = wordsOfJesusRanges(verse, version);
+  if (!state.strongNumbers) return renderRedLetterText(text, redLetterRanges);
   return renderTextWithStrongNumbers(
     text,
     getStrongEntries(verse, version),
-    wordsOfJesusRanges(verse, version),
+    redLetterRanges,
   );
 }
 
@@ -1674,6 +1685,14 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = []) {
   });
   output += renderRedLetterText(text.slice(cursor), redLetterRanges, cursor);
   return output;
+}
+
+function setStrongNumbers(enabled, rerender = false) {
+  state.strongNumbers = enabled;
+  localStorage.setItem("lw_strong_numbers", enabled ? "true" : "false");
+  if (enabled) loadStrongLexicon();
+  scheduleCloudSync();
+  if (rerender) renderPreservingReaderScroll();
 }
 
 function wordsOfJesusRanges(verse, version) {
@@ -2157,6 +2176,7 @@ function captureCloudSnapshot() {
       textScale: state.textScale,
       paragraphLayout: state.paragraphLayout,
       redLetters: state.redLetters,
+      strongNumbers: state.strongNumbers,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
       presentationTheme: state.presentationTheme,
@@ -2253,6 +2273,7 @@ function applyCloudSnapshot(snapshot) {
     ? settings.paragraphLayout
     : savedParagraphLayout();
   state.redLetters = settings.redLetters === true;
+  state.strongNumbers = settings.strongNumbers !== false;
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
@@ -2287,6 +2308,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_red_letters", String(state.redLetters));
+  localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
@@ -4540,6 +4562,12 @@ function bindEvents() {
   });
   document.getElementById("mobileRedLettersToggle")?.addEventListener("change", (event) => {
     setRedLetters(event.target.checked, true);
+  });
+  document.getElementById("strongNumbersToggle")?.addEventListener("change", (event) => {
+    setStrongNumbers(event.target.checked, true);
+  });
+  document.getElementById("mobileStrongNumbersToggle")?.addEventListener("change", (event) => {
+    setStrongNumbers(event.target.checked, true);
   });
   document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
     state.startBigScreen = event.target.checked;
@@ -8101,7 +8129,7 @@ function normalizeAliasKey(value) {
 
 async function initializeBibleData() {
   render();
-  loadStrongLexicon();
+  if (state.strongNumbers) loadStrongLexicon();
   try {
     await loadBibleBundleScript("index");
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
