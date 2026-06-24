@@ -12,7 +12,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const parserVersion = "2026-06-24-psalm119-shared-normalized";
+const parserVersion = "2026-06-24-provider-heading-cleanup";
 
 type ApiBibleTranslationCode = "NIV" | "NLT" | "NASB2020";
 
@@ -105,6 +105,10 @@ const apiBookIds: Record<string, string> = {
   Jude: "JUD",
   Revelation: "REV",
 };
+
+const apiBookNamesById = new Map(
+  Object.entries(apiBookIds).map(([name, id]) => [id, name]),
+);
 
 function jsonResponse(body: unknown, status = 200, cacheControl = "no-store") {
   return new Response(JSON.stringify(body), {
@@ -225,6 +229,12 @@ function chapterIdFromReference(reference: string) {
   return `${bookId}.${chapter}`;
 }
 
+function chapterHeadingFromId(chapterId: string) {
+  const [bookId, chapter] = chapterId.split(".");
+  const bookName = apiBookNamesById.get(bookId);
+  return bookName && chapter ? `${bookName} ${chapter}` : "";
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -294,18 +304,22 @@ Deno.serve(async (request) => {
         ? payload.data.verses
         : [];
       const results = verses
-        .map((verse: { text?: unknown; reference?: unknown }, index: number) => {
-          const text = cleanPlainText(verse.text);
-          const ref = String(verse.reference || "").trim();
-          if (!text || !ref) return null;
-          if (exact && !normalizeSearchText(text).includes(phrase)) return null;
-          return {
-            ref,
-            reference: ref,
-            text,
-            score: maximumSearchResults - index,
-          };
-        })
+        .map(
+          (verse: { text?: unknown; reference?: unknown }, index: number) => {
+            const text = cleanPlainText(verse.text);
+            const ref = String(verse.reference || "").trim();
+            if (!text || !ref) return null;
+            if (exact && !normalizeSearchText(text).includes(phrase)) {
+              return null;
+            }
+            return {
+              ref,
+              reference: ref,
+              text,
+              score: maximumSearchResults - index,
+            };
+          },
+        )
         .filter(Boolean);
 
       return jsonResponse({
@@ -358,6 +372,7 @@ Deno.serve(async (request) => {
 
     const verses = parseVerseContent(
       Array.isArray(passage.content) ? passage.content : [],
+      { chapterHeading: chapterHeadingFromId(chapterId) },
     );
     if (!verses.length) {
       return jsonResponse({ error: `${version} returned no verse text` }, 502);

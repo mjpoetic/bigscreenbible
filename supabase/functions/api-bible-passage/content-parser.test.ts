@@ -157,6 +157,58 @@ Deno.test("attaches API.Bible section headings to the next verse", () => {
   }]);
 });
 
+Deno.test("hides provider chapter headings and pilcrow paragraph markers", () => {
+  const content: ApiBibleContentNode[] = [
+    {
+      name: "para",
+      type: "tag",
+      attrs: { style: "s1" },
+      items: [{ type: "text", text: "Psalm 91" }],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "1" } },
+        {
+          type: "text",
+          text:
+            "Whoever dwells in the shelter of the Most High will rest in the shadow of the Almighty.",
+          attrs: { verseId: "PSA.91.1" },
+        },
+      ],
+    },
+    {
+      name: "para",
+      type: "tag",
+      items: [
+        { name: "verse", type: "tag", attrs: { number: "3" } },
+        {
+          type: "text",
+          text:
+            "¶Surely he will save you from the fowler’s snare and from the deadly pestilence.",
+          attrs: { verseId: "PSA.91.3" },
+        },
+      ],
+    },
+  ];
+
+  assertEquals(parseVerseContent(content, { chapterHeading: "Psalm 91" }), [
+    {
+      n: 1,
+      text:
+        "Whoever dwells in the shelter of the Most High will rest in the shadow of the Almighty.",
+      paragraphStart: true,
+    },
+    {
+      n: 3,
+      text:
+        "Surely he will save you from the fowler’s snare and from the deadly pestilence.",
+      paragraphStart: true,
+    },
+  ]);
+});
+
 Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () => {
   const content: ApiBibleContentNode[] = [
     {

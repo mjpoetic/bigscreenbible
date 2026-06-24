@@ -18,6 +18,14 @@ type SectionHeading = {
   level: number;
 };
 
+type ParsedVerse = {
+  n: number;
+  text: string;
+  paragraphStart: boolean;
+  sectionHeadings?: SectionHeading[];
+  wordsOfJesus?: Array<{ start: number; end: number }>;
+};
+
 type ParagraphState = {
   firstVerse: number;
   currentVerse: number;
@@ -31,6 +39,10 @@ type Psalm119AcrosticStart = {
   label: string;
   hebrew: string;
   variants: string[];
+};
+
+type ParseVerseContentOptions = {
+  chapterHeading?: string;
 };
 
 const psalm119AcrosticLabels = new Set([
@@ -119,6 +131,14 @@ function isPsalm119VerseId(value: unknown) {
 
 function cleanHeadingText(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function headingKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function cleanVerseText(value: string) {
+  return value.replace(/\s*¶+\s*/g, " ");
 }
 
 function collectNodeText(node: ApiBibleContentNode): string {
@@ -211,7 +231,27 @@ function needsBoundarySpace(existing: string, incoming: string) {
   return true;
 }
 
-export function parseVerseContent(content: ApiBibleContentNode[]) {
+function removeDuplicateChapterHeadings(
+  verses: ParsedVerse[],
+  chapterHeading: string | undefined,
+) {
+  const duplicateKey = headingKey(chapterHeading || "");
+  if (!duplicateKey) return verses;
+  verses.forEach((verse) => {
+    if (!verse.sectionHeadings?.length) return;
+    const filtered = verse.sectionHeadings.filter((heading) =>
+      headingKey(heading.text) !== duplicateKey
+    );
+    if (filtered.length) verse.sectionHeadings = filtered;
+    else delete verse.sectionHeadings;
+  });
+  return verses;
+}
+
+export function parseVerseContent(
+  content: ApiBibleContentNode[],
+  options: ParseVerseContentOptions = {},
+) {
   const verseParts = new Map<
     number,
     Array<{ text: string; wordsOfJesus: boolean }>
@@ -226,11 +266,12 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     text: string,
     wordsOfJesus: boolean,
   ) => {
-    if (!verseNumber || !text) return;
+    const cleanedText = cleanVerseText(text);
+    if (!verseNumber || !cleanedText.trim()) return;
     const parts = verseParts.get(verseNumber) || [];
     const existing = parts.map((part) => part.text).join("");
-    const separator = needsBoundarySpace(existing, text) ? " " : "";
-    const incoming = `${separator}${text}`;
+    const separator = needsBoundarySpace(existing, cleanedText) ? " " : "";
+    const incoming = `${separator}${cleanedText}`;
     const previous = parts.at(-1);
     if (previous?.wordsOfJesus === wordsOfJesus) previous.text += incoming;
     else parts.push({ text: incoming, wordsOfJesus });
@@ -364,5 +405,12 @@ export function parseVerseContent(content: ApiBibleContentNode[]) {
     })
     .filter(({ text }) => text.length > 0);
 
-  return sawPsalm119Verse ? normalizePsalm119AcrosticVerses(verses) : verses;
+  const normalizedVerses = removeDuplicateChapterHeadings(
+    verses,
+    options.chapterHeading,
+  );
+
+  return sawPsalm119Verse
+    ? normalizePsalm119AcrosticVerses(normalizedVerses)
+    : normalizedVerses;
 }
