@@ -7684,10 +7684,6 @@ svg {
       transition: transform var(--motion-fast) var(--motion-ease);
     }
 
-    .rail-position-toggle-left svg {
-      transform: rotate(180deg);
-    }
-
     .rail-position-toggle:hover,
     .rail-position-toggle:focus-visible {
       opacity: 1;
@@ -7701,7 +7697,17 @@ svg {
 
     .rail-position-toggle-left:hover svg,
     .rail-position-toggle-left:focus-visible svg {
-      transform: rotate(180deg) translateX(2px);
+      transform: translateX(-2px);
+    }
+  }
+
+  @media (orientation: portrait) {
+    .rail {
+      padding-bottom: 8px;
+    }
+
+    .rail .rail-position-toggle {
+      display: none !important;
     }
   }
 
