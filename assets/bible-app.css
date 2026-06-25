@@ -3445,7 +3445,7 @@ select {
 .scripture-heading {
   margin: 0;
   color: color-mix(in srgb, var(--ink) 92%, var(--gold));
-  font: italic 650 calc(var(--verse-font) * 0.6) / 1.36 var(--scripture-font);
+  font: italic 650 calc(var(--verse-font) * 0.75) / 1.32 var(--scripture-font);
   letter-spacing: 0;
   text-wrap: balance;
 }
@@ -3453,7 +3453,7 @@ select {
 .scripture-heading + .scripture-heading {
   margin-top: 0.16rem;
   color: var(--muted);
-  font-size: calc(var(--verse-font) * 0.48);
+  font-size: calc(var(--verse-font) * 0.6);
   font-style: italic;
   font-weight: 500;
 }
