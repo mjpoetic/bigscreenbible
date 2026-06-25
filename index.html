@@ -11,6 +11,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="Big Screen Bible is a clean Bible reader, parallel study workspace, scripture display tool, and Bible game experience built for personal reading, teaching, worship, and family study."
@@ -49,14 +50,48 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./assets/icons/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
     <link rel="manifest" href="./site.webmanifest" />
-    <meta name="theme-color" content="#101a24" />
+    <meta name="theme-color" content="#102433" />
+    <script>
+      (function applyInitialTheme() {
+        const presets = {
+          light: ["paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire"],
+          dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
+        };
+        const defaults = { light: "sapphire", dark: "aurora" };
+        const chromeColors = {
+          paper: "#f8f7f3",
+          parchment: "#f3ecdd",
+          clarity: "#f5f7f8",
+          dawn: "#f7ead2",
+          meadow: "#e5f0d8",
+          blush: "#f8e5ee",
+          lavender: "#eae3fb",
+          sapphire: "#dbeafe",
+          midnight: "#111827",
+          chapel: "#12100d",
+          aurora: "#102433",
+          "rose-night": "#281323",
+          "violet-night": "#1d1735",
+          nocturne: "#07111f",
+          contrast: "#000000",
+        };
+        const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+        const savedMode = localStorage.getItem("lw_theme");
+        const theme = savedMode === "light" || savedMode === "dark" ? savedMode : systemQuery?.matches ? "dark" : "light";
+        const savedPreset = localStorage.getItem(`lw_theme_preset_${theme}`);
+        const preset = presets[theme].includes(savedPreset) ? savedPreset : defaults[theme];
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreset = preset;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", chromeColors[preset] || chromeColors[defaults[theme]]);
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./assets/bible-app.css?v=20260624-heading-links-toggle" />
+    <link rel="stylesheet" href="./assets/bible-app.css?v=20260624-mobile-safari-chrome" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -101,6 +136,6 @@
     <script src="./assets/crossrefs.js?v=20260531-history-smart-search"></script>
     <script src="./assets/verse-of-day.js?v=20260531-history-smart-search"></script>
     <script src="./assets/trivia.js?v=20260607-trivia-rebalance"></script>
-    <script src="./assets/bible-app.js?v=20260624-heading-links-toggle"></script>
+    <script src="./assets/bible-app.js?v=20260624-mobile-safari-chrome"></script>
   </body>
 </html>

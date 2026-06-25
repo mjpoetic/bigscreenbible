@@ -8,6 +8,7 @@
     <meta name="robots" content="index, follow" />
     <meta name="application-name" content="Big Screen Bible" />
     <meta name="apple-mobile-web-app-title" content="Big Screen Bible" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="Learn the story, vision, and purpose behind Big Screen Bible, a clean Bible reader and Scripture display app for worship, study, teaching, and family devotion."
@@ -36,7 +37,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./assets/icons/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
     <link rel="manifest" href="./site.webmanifest" />
-    <meta name="theme-color" content="#101a24" />
+    <meta name="theme-color" content="#102433" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -50,6 +51,23 @@
           dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
         };
         const defaults = { light: "sapphire", dark: "aurora" };
+        const chromeColors = {
+          paper: "#f8f7f3",
+          parchment: "#f3ecdd",
+          clarity: "#f5f7f8",
+          dawn: "#f7ead2",
+          meadow: "#e5f0d8",
+          blush: "#f8e5ee",
+          lavender: "#eae3fb",
+          sapphire: "#dbeafe",
+          midnight: "#111827",
+          chapel: "#12100d",
+          aurora: "#102433",
+          "rose-night": "#281323",
+          "violet-night": "#1d1735",
+          nocturne: "#07111f",
+          contrast: "#000000",
+        };
         const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
         function setThemeFromStorage() {
           const savedMode = localStorage.getItem("lw_theme");
@@ -58,6 +76,7 @@
           const preset = presets[theme].includes(savedPreset) ? savedPreset : defaults[theme];
           document.documentElement.dataset.theme = theme;
           document.documentElement.dataset.themePreset = preset;
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", chromeColors[preset] || chromeColors[defaults[theme]]);
         }
         setThemeFromStorage();
         systemQuery?.addEventListener("change", () => {
@@ -65,7 +84,7 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="./assets/bible-app.css?v=20260624-heading-links-toggle" />
+    <link rel="stylesheet" href="./assets/bible-app.css?v=20260624-mobile-safari-chrome" />
   </head>
   <body class="about-body">
     <main class="about-shell">

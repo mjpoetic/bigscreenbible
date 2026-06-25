@@ -112,6 +112,23 @@ const presentationThemeColors = {
   midnight: "#111827",
   contrast: "#000000",
 };
+const themeChromeColors = {
+  paper: "#f8f7f3",
+  parchment: "#f3ecdd",
+  clarity: "#f5f7f8",
+  dawn: "#f7ead2",
+  meadow: "#e5f0d8",
+  blush: "#f8e5ee",
+  lavender: "#eae3fb",
+  sapphire: "#dbeafe",
+  midnight: "#111827",
+  chapel: "#12100d",
+  aurora: "#102433",
+  "rose-night": "#281323",
+  "violet-night": "#1d1735",
+  nocturne: "#07111f",
+  contrast: "#000000",
+};
 const scriptureFonts = [
   { code: "libre", name: "Libre Baskerville" },
   { code: "lora", name: "Lora" },
@@ -650,7 +667,13 @@ function render() {
 
 function syncPresentationShell() {
   const isPresentationMode = state.mode === "big";
-  const themeColor = isPresentationMode ? presentationThemeColors[state.presentationTheme] || "#004f54" : (state.theme === "dark" ? "#101413" : "#f8f7f3");
+  const themeColor = isPresentationMode
+    ? presentationThemeColors[state.presentationTheme] || "#004f54"
+    : themeChromeColors[state.themePreset] || themeChromeColors[defaultThemePresets[state.theme]];
+  document.documentElement.dataset.theme = state.theme;
+  document.body.dataset.theme = state.theme;
+  document.documentElement.dataset.themePreset = state.themePreset;
+  document.body.dataset.themePreset = state.themePreset;
   document.documentElement.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.body.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.documentElement.dataset.presentationTheme = state.presentationTheme;
