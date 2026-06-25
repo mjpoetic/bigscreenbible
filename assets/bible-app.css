@@ -221,6 +221,27 @@
   --shadow: 0 18px 48px rgba(16, 49, 92, 0.1);
 }
 
+[data-theme-preset="opal"] {
+  --bg:
+    radial-gradient(circle at 12% 18%, rgba(112, 213, 187, 0.26), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(176, 136, 230, 0.3), transparent 34%),
+    radial-gradient(circle at 62% 88%, rgba(91, 148, 220, 0.22), transparent 38%),
+    linear-gradient(145deg, #f7fbff 0%, #dcecff 48%, #eadff7 100%);
+  --browser-chrome: #dcecff;
+  --paper: #fbfdff;
+  --panel: rgba(252, 254, 255, 0.95);
+  --ink: #0d1728;
+  --muted: #65738c;
+  --soft: #dce8f7;
+  --line: #c1cee4;
+  --teal: #2c7f96;
+  --teal-dark: #1f617a;
+  --gold: #7a6aa6;
+  --gold-soft: #e8def5;
+  --success: #347a63;
+  --shadow: 0 18px 48px rgba(34, 67, 117, 0.1);
+}
+
 [data-theme-preset="chapel"] {
   --bg: #12100d;
   --browser-chrome: #12100d;
@@ -241,22 +262,26 @@
 }
 
 [data-theme-preset="aurora"] {
-  --bg: linear-gradient(145deg, #071724 0%, #102433 50%, #221430 100%);
-  --browser-chrome: #102433;
-  --paper: #101c25;
-  --panel: rgba(16, 28, 37, 0.94);
-  --ink: #f4fbf8;
-  --muted: #b3c8cb;
-  --soft: #223546;
-  --line: #33495a;
-  --teal: #63d3bf;
-  --teal-dark: #3eaa9c;
-  --accent-ink: #082921;
-  --accent-hover: #82e0cf;
-  --gold: #b9fff0;
-  --gold-soft: #173b39;
-  --success: #7dd9a2;
-  --shadow: 0 22px 60px rgba(0, 0, 0, 0.46);
+  --bg:
+    radial-gradient(circle at 14% 18%, rgba(72, 213, 190, 0.18), transparent 28%),
+    radial-gradient(circle at 84% 8%, rgba(171, 110, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 64% 86%, rgba(65, 116, 224, 0.16), transparent 36%),
+    linear-gradient(145deg, #071724 0%, #111d37 48%, #27143a 100%);
+  --browser-chrome: #111d37;
+  --paper: #111827;
+  --panel: rgba(18, 27, 45, 0.94);
+  --ink: #f4f7ff;
+  --muted: #bac7dd;
+  --soft: #242d4b;
+  --line: #3b4567;
+  --teal: #78d9d1;
+  --teal-dark: #5bbbc4;
+  --accent-ink: #071f2d;
+  --accent-hover: #9be3e0;
+  --gold: #c6d4ff;
+  --gold-soft: #23284c;
+  --success: #82d9af;
+  --shadow: 0 22px 60px rgba(4, 7, 20, 0.54);
 }
 
 [data-theme-preset="rose-night"] {
