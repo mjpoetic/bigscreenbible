@@ -1960,8 +1960,8 @@ button {
     0 0 22px color-mix(in srgb, var(--teal) 38%, transparent);
 }
 
-.rail-position-toggle {
-  display: none;
+.rail .rail-position-toggle {
+  display: none !important;
 }
 
 .library-drawer {
@@ -7652,7 +7652,7 @@ svg {
     height: 22px;
   }
 
-  @media (orientation: landscape) {
+  @media (orientation: landscape) and (max-height: 560px) {
     .rail {
       padding-bottom: 60px;
     }
@@ -7663,7 +7663,7 @@ svg {
       bottom: 8px;
       left: 50%;
       z-index: 2;
-      display: grid;
+      display: grid !important;
       width: 38px;
       height: 38px;
       min-height: 38px;
