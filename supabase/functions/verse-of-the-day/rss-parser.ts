@@ -45,7 +45,13 @@ function sourceUrl(value: string) {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") return "";
-    if (url.hostname !== "verseoftheday.com" && url.hostname !== "www.verseoftheday.com") return "";
+    const approvedHosts = new Set([
+      "verseoftheday.com",
+      "www.verseoftheday.com",
+      "heartlight.org",
+      "www.heartlight.org",
+    ]);
+    if (!approvedHosts.has(url.hostname)) return "";
     return url.toString();
   } catch {
     return "";
@@ -55,7 +61,7 @@ function sourceUrl(value: string) {
 function parseItem(itemXml: string): VerseOfTheDayItem | null {
   const title = tagValue(itemXml, "title");
   const reference = title.match(/^Verse of the Day\s*[-–—]\s*(.+)$/i)?.[1]?.trim() || "";
-  const link = sourceUrl(tagValue(itemXml, "link"));
+  const link = sourceUrl(tagValue(itemXml, "link")) || sourceUrl(tagValue(itemXml, "guid"));
   const publishedDate = new Date(tagValue(itemXml, "pubDate"));
   const description = tagValue(itemXml, "description");
   const verseParagraph = description.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i)?.[1] || "";

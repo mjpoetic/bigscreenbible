@@ -179,6 +179,7 @@ const horizontalSwipeMinPx = 56;
 const horizontalSwipeDominance = 1.35;
 const cloudSyncTable = "bsb_user_sync";
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
+const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -2523,7 +2524,7 @@ function readerView() {
         ${verseCopyButton(verse.n)}
       </p>
     `).join("")}
-    ${apiBibleAttributionMarkup([version])}
+    ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup() : apiBibleAttributionMarkup([version])}
   `;
 }
 
@@ -4370,7 +4371,7 @@ function presentation() {
         <div class="presentation-passage">
           <span class="presentation-copy">${escapeHtml(text)}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
-          ${verseOfDayItem ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
+          ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
       </div>
       <div class="presentation-bottom">
@@ -8344,27 +8345,36 @@ function supabaseFunctionUrl(functionName, params = {}) {
   return `${baseUrl}/functions/v1/${functionName}?${searchParams}`;
 }
 
+function normalizeVerseOfDaySourceUrl(value, fallbackUrl = defaultVerseOfDaySourceUrl) {
+  try {
+    const parsedUrl = new URL(String(value || "").trim() || fallbackUrl);
+    const approvedHosts = new Set([
+      "verseoftheday.com",
+      "www.verseoftheday.com",
+      "heartlight.org",
+      "www.heartlight.org",
+    ]);
+    if (parsedUrl.protocol === "https:" && approvedHosts.has(parsedUrl.hostname)) {
+      return parsedUrl.toString();
+    }
+  } catch {
+    // Fall through to the direct VerseoftheDay link.
+  }
+  return fallbackUrl;
+}
+
 function normalizeVerseOfDayItem(payload) {
   const reference = String(payload?.reference || "").trim();
   const verseText = String(payload?.verseText || "").replace(/\s+/g, " ").trim();
-  const sourceUrl = String(payload?.sourceUrl || "").trim();
+  const sourceUrl = normalizeVerseOfDaySourceUrl(payload?.sourceUrl);
   const publishedAt = String(payload?.publishedAt || "").trim();
   const parsedReference = parsePassageReference(reference);
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(sourceUrl);
-  } catch {
-    return null;
-  }
-
-  const validSource = parsedUrl.protocol === "https:"
-    && ["verseoftheday.com", "www.verseoftheday.com"].includes(parsedUrl.hostname);
   if (
     !parsedReference || !bibleData[parsedReference.key] || !verseText ||
-    verseText.length > 2000 || !validSource || Number.isNaN(Date.parse(publishedAt))
+    verseText.length > 2000 || Number.isNaN(Date.parse(publishedAt))
   ) return null;
 
-  return { reference, verseText, sourceUrl: parsedUrl.toString(), publishedAt };
+  return { reference, verseText, sourceUrl, publishedAt };
 }
 
 async function fetchVerseOfDayItem() {
@@ -8477,11 +8487,15 @@ function apiBibleAttributionMarkup(versions, className = "") {
 
 function verseOfDayAttributionMarkup(className = "") {
   const item = state.isVerseOfDayActive ? state.verseOfDayItem : null;
-  if (!item?.sourceUrl) return "";
+  if (!state.isVerseOfDayActive && !item?.sourceUrl) return "";
+  const sourceUrl = normalizeVerseOfDaySourceUrl(item?.sourceUrl);
+  const attributionText = item?.sourceUrl
+    ? "Verse of the Day courtesy of VerseoftheDay.com / Heartlight."
+    : "Today's Verse on VerseoftheDay.com / Heartlight.";
   const classes = ["verse-of-day-attribution", className].filter(Boolean).join(" ");
   return `
     <aside class="${classes}" aria-label="Verse of the Day source">
-      <a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer">Verse of the Day courtesy of VerseoftheDay.com / Heartlight.</a>
+      <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${attributionText}</a>
     </aside>
   `;
 }
