@@ -284,6 +284,7 @@ const state = {
   tutorialActive: false,
   tutorialStep: 0,
   tutorialMode: "app",
+  tutorialRestoreState: null,
   searchQuery: "",
   searchResults: [],
   pendingPanelFocus: null,
@@ -468,59 +469,82 @@ const icons = {
 const tutorialSteps = [
   {
     target: ".brand, .presentation-brand",
+    spotlightTarget: ".brand-mark-image, .brand-divider, .brand-title, .brand-subtitle, .presentation-brand-mark, .presentation-brand-copy",
+    spotlightGroup: true,
+    spotlightPadding: 5,
     title: "Start with the logo",
     body: "Tap the Big Screen Bible logo any time you want to return to the verse of the day.",
   },
   {
-    target: "#referenceInput, #presentationSearchToggle",
+    target: ".search, #presentationSearchToggle",
+    spotlightPadding: 5,
     title: "Search by reference or phrase",
     body: "Type a passage like Ecc 9:5, or search a phrase when you remember the words but not the reference.",
   },
   {
     target: ".mode-tabs, .presentation-bible-toggle",
+    spotlightPadding: 5,
     title: "Switch reading spaces",
     body: "Move between Reader, Parallel Study, Big Screen display, and Games from this mode area.",
   },
   {
     target: ".chapter-tools",
+    spotlightTarget: ".mobile-verse-nav-selectors, .verse-nav-selectors",
+    revealVerseSelector: true,
+    spotlightPadding: 5,
     title: "Move around the Bible",
-    body: "Use the chapter and verse controls for precise navigation, or use the arrow buttons to step verse by verse.",
+    body: "Use the chapter and verse controls for precise navigation. The nearby arrow buttons step verse by verse.",
   },
   {
-    target: ".side-rail, #openStudy",
+    target: "#mobileControlsToggle, #mobileFloatingSettings, .scripture",
+    spotlightTarget: "#mobileControlsToggle, #mobileFloatingSettings",
+    spotlightRequired: true,
+    spotlightPadding: 5,
+    title: "Use touch controls on mobile",
+    body: "On phones and tablets, swipe the reading area to move through Scripture. Use the mobile controls and floating settings button for touch-friendly display options.",
+  },
+  {
+    target: ".rail, #openStudy",
+    spotlightPadding: 5,
     title: "Study tools live on the side",
     body: "Bookmarks, notes, highlights, cross references, history, and search open from the side tools.",
   },
   {
     target: ".selection-bar, .verse-card.selected, .verse-row.selected",
+    spotlightPadding: 5,
     title: "Select verses to act on them",
     body: "Tap a verse to copy, share, print, link, or highlight a passage without losing your place.",
   },
   {
     target: "#settingsToggle, #mobileFloatingSettings, #presentationSettingsToggle",
+    spotlightPadding: 5,
     title: "Tune the experience",
-    body: "Settings handle themes, fonts, text size, startup behavior, fullscreen, and your private reading streak.",
+    body: "Settings handle themes, fonts, text size, startup behavior, fullscreen, landscape toolbar side, and your private reading streak.",
   },
 ];
 
 const presentationTutorialSteps = [
   {
     target: ".presentation-ref",
+    spotlightPadding: 5,
     title: "Big Screen starts with the verse",
     body: "This mode keeps the reference, version, and Scripture clean for worship, teaching, or family reading.",
   },
   {
     target: "#presentationSearchToggle",
+    spotlightPadding: 5,
     title: "Jump to another passage",
     body: "Open search to type a reference quickly without leaving the display.",
   },
   {
     target: ".presentation-controls",
+    spotlightPadding: 5,
     title: "Move verse by verse",
     body: "Use Previous and Next, arrow keys, or swipe on touch devices to move through the chapter.",
   },
   {
     target: "#presentationSettingsToggle",
+    spotlightPadding: 5,
     title: "Change the display",
     body: "Theme, Bible version, font, and fullscreen controls live inside Big Screen settings.",
   },
@@ -7284,6 +7308,7 @@ function dismissTutorialIntro() {
 }
 
 function startTutorial() {
+  restoreTutorialTemporaryState();
   markTutorialSeen();
   state.shortcutsOpen = false;
   state.settingsOpen = false;
@@ -7293,11 +7318,13 @@ function startTutorial() {
   state.tutorialStep = 0;
   state.tutorialMode = state.mode === "big" ? "presentation" : "app";
   if (state.mode === "big") state.presentationControlsVisible = true;
+  prepareCurrentTutorialStep();
   renderPreservingReaderScroll();
 }
 
 function finishTutorial() {
   animateBeforeRemoval(".tutorial-card", () => {
+    restoreTutorialTemporaryState();
     state.tutorialActive = false;
     state.tutorialStep = 0;
     renderPreservingReaderScroll();
@@ -7307,6 +7334,7 @@ function finishTutorial() {
 function advanceTutorial() {
   if (state.tutorialStep >= activeTutorialSteps().length - 1) {
     animateBeforeRemoval(".tutorial-card", () => {
+      restoreTutorialTemporaryState();
       state.tutorialActive = false;
       state.tutorialStep = 0;
       renderPreservingReaderScroll();
@@ -7314,12 +7342,16 @@ function advanceTutorial() {
     }, { duration: 180 });
     return;
   }
+  restoreTutorialTemporaryState();
   state.tutorialStep += 1;
+  prepareCurrentTutorialStep();
   renderPreservingReaderScroll();
 }
 
 function retreatTutorial() {
+  restoreTutorialTemporaryState();
   state.tutorialStep = Math.max(0, state.tutorialStep - 1);
+  prepareCurrentTutorialStep();
   renderPreservingReaderScroll();
 }
 
@@ -7330,6 +7362,23 @@ function currentTutorialStep() {
 
 function activeTutorialSteps() {
   return state.tutorialMode === "presentation" ? presentationTutorialSteps : tutorialSteps;
+}
+
+function prepareCurrentTutorialStep() {
+  const step = currentTutorialStep();
+  if (!step?.revealVerseSelector || !state.verseNavCollapsed) return;
+  state.tutorialRestoreState = {
+    ...(state.tutorialRestoreState || {}),
+    verseNavCollapsed: true,
+  };
+  state.verseNavCollapsed = false;
+}
+
+function restoreTutorialTemporaryState() {
+  if (state.tutorialRestoreState?.verseNavCollapsed !== undefined) {
+    state.verseNavCollapsed = state.tutorialRestoreState.verseNavCollapsed;
+  }
+  state.tutorialRestoreState = null;
 }
 
 function resolveTutorialTarget(step = currentTutorialStep()) {
@@ -7344,13 +7393,60 @@ function resolveTutorialTarget(step = currentTutorialStep()) {
     });
 }
 
+function tutorialVisibleElementRect(element) {
+  if (!element) return null;
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (rect.bottom <= 0 || rect.right <= 0 || rect.top >= window.innerHeight || rect.left >= window.innerWidth) return null;
+  return rect;
+}
+
+function tutorialElementsForSelectors(selectors) {
+  return selectors
+    .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+    .filter((element, index, elements) => elements.indexOf(element) === index)
+    .filter((element) => tutorialVisibleElementRect(element));
+}
+
+function rectFromTutorialElements(elements) {
+  const rects = elements.map(tutorialVisibleElementRect).filter(Boolean);
+  if (!rects.length) return null;
+  return rects.reduce((union, rect) => ({
+    left: Math.min(union.left, rect.left),
+    top: Math.min(union.top, rect.top),
+    right: Math.max(union.right, rect.right),
+    bottom: Math.max(union.bottom, rect.bottom),
+  }), {
+    left: rects[0].left,
+    top: rects[0].top,
+    right: rects[0].right,
+    bottom: rects[0].bottom,
+  });
+}
+
+function resolveTutorialSpotlightRect(step = currentTutorialStep()) {
+  const spotlightSelectors = (step.spotlightTarget || step.target)
+    .split(",")
+    .map((selector) => selector.trim())
+    .filter(Boolean);
+  const elements = tutorialElementsForSelectors(spotlightSelectors);
+  if (elements.length) {
+    const spotlightElements = step.spotlightGroup ? elements : [elements[0]];
+    const rect = rectFromTutorialElements(spotlightElements);
+    if (rect) return rect;
+  }
+  if (step.spotlightRequired) return null;
+  const target = resolveTutorialTarget(step);
+  return tutorialVisibleElementRect(target);
+}
+
 function updateTutorialSpotlight() {
   if (!state.tutorialActive) return;
   const spotlight = document.getElementById("tutorialSpotlight");
   const card = document.getElementById("tutorialCard");
   if (!spotlight || !card) return;
-  const target = resolveTutorialTarget();
-  if (!target) {
+  const rect = resolveTutorialSpotlightRect();
+  if (!rect) {
     spotlight.classList.add("hidden");
     card.style.removeProperty("left");
     card.style.removeProperty("top");
@@ -7358,12 +7454,15 @@ function updateTutorialSpotlight() {
     card.style.removeProperty("bottom");
     return;
   }
-  const rect = target.getBoundingClientRect();
-  const pad = isCompactScreen() ? 7 : 9;
-  const left = Math.max(8, rect.left - pad);
-  const top = Math.max(8, rect.top - pad);
-  const width = Math.min(window.innerWidth - left - 8, rect.width + pad * 2);
-  const height = Math.min(window.innerHeight - top - 8, rect.height + pad * 2);
+  const step = currentTutorialStep();
+  const pad = Number.isFinite(step.spotlightPadding) ? step.spotlightPadding : (isCompactScreen() ? 7 : 9);
+  const viewportGutter = 3;
+  const left = Math.max(viewportGutter, rect.left - pad);
+  const top = Math.max(viewportGutter, rect.top - pad);
+  const rectWidth = rect.width ?? rect.right - rect.left;
+  const rectHeight = rect.height ?? rect.bottom - rect.top;
+  const width = Math.min(window.innerWidth - left - viewportGutter, rectWidth + pad * 2);
+  const height = Math.min(window.innerHeight - top - viewportGutter, rectHeight + pad * 2);
   spotlight.classList.remove("hidden");
   spotlight.style.left = `${left}px`;
   spotlight.style.top = `${top}px`;
@@ -7380,7 +7479,7 @@ function updateTutorialSpotlight() {
 
   const cardRect = card.getBoundingClientRect();
   const gap = 18;
-  const desiredLeft = rect.left + rect.width / 2 - cardRect.width / 2;
+  const desiredLeft = rect.left + rectWidth / 2 - cardRect.width / 2;
   const clampedLeft = Math.min(Math.max(18, desiredLeft), window.innerWidth - cardRect.width - 18);
   const canPlaceBelow = rect.bottom + gap + cardRect.height < window.innerHeight - 18;
   const desiredTop = canPlaceBelow ? rect.bottom + gap : rect.top - cardRect.height - gap;
