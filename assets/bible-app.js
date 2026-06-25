@@ -583,6 +583,10 @@ function isShortLandscapeScreen() {
   return window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)")?.matches || false;
 }
 
+function isSideToolbarToggleEnabled() {
+  return isShortLandscapeScreen();
+}
+
 function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240 } = {}) {
   const visibleElements = Array.from(document.querySelectorAll(selector))
     .filter((element) => element.getClientRects().length);
@@ -1335,11 +1339,13 @@ function rail() {
   const nextSide = state.sideToolbarPosition === "right" ? "left" : "right";
   const sideToggleLabel = `Move toolbar ${nextSide}`;
   const sideToggleIcon = nextSide === "left" ? icons.chevronLeft : icons.chevron;
+  const sideToggleEnabled = isSideToolbarToggleEnabled();
+  const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}
-    <button class="rail-position-toggle rail-position-toggle-${nextSide}" type="button" data-side-toolbar-position="${nextSide}" aria-label="${sideToggleLabel}" data-tooltip="${sideToggleLabel}">${sideToggleIcon}</button>
+    <button class="rail-position-toggle rail-position-toggle-${nextSide}" type="button" data-side-toolbar-position="${nextSide}" aria-label="${sideToggleLabel}" data-tooltip="${sideToggleLabel}"${sideToggleDisabledAttrs}>${sideToggleIcon}</button>
   </aside>`;
 }
 
@@ -1769,6 +1775,7 @@ function setSideToolbarPosition(position) {
 function handleSideToolbarPositionClick(event) {
   const button = event.target.closest?.("button[data-side-toolbar-position]");
   if (!button) return;
+  if (button.disabled) return;
   event.preventDefault();
   setSideToolbarPosition(button.dataset.sideToolbarPosition);
 }

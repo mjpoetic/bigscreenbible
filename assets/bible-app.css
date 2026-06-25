@@ -1961,7 +1961,46 @@ button {
 }
 
 .rail .rail-position-toggle {
-  display: none !important;
+  display: grid;
+  margin-top: auto;
+  color: color-mix(in srgb, var(--ink) 48%, var(--muted));
+  cursor: default;
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.rail .rail-position-toggle svg {
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+
+.rail .rail-position-toggle:disabled:hover,
+.rail .rail-position-toggle:disabled:focus-visible {
+  color: color-mix(in srgb, var(--ink) 48%, var(--muted));
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.rail .rail-position-toggle:not(:disabled) {
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0.82;
+  pointer-events: auto;
+}
+
+.rail .rail-position-toggle:not(:disabled):hover,
+.rail .rail-position-toggle:not(:disabled):focus-visible {
+  opacity: 1;
+}
+
+.rail .rail-position-toggle:not(:disabled):hover svg,
+.rail .rail-position-toggle:not(:disabled):focus-visible svg {
+  transform: translateX(2px);
+}
+
+.rail .rail-position-toggle-left:not(:disabled):hover svg,
+.rail .rail-position-toggle-left:not(:disabled):focus-visible svg {
+  transform: translateX(-2px);
 }
 
 .library-drawer {
@@ -7652,62 +7691,9 @@ svg {
     height: 22px;
   }
 
-  @media (orientation: landscape) and (max-height: 560px) {
-    .rail {
-      padding-bottom: 60px;
-    }
-
-    .rail .rail-position-toggle {
-      position: absolute;
-      right: auto;
-      bottom: 8px;
-      left: 50%;
-      z-index: 2;
-      display: grid !important;
-      width: 38px;
-      height: 38px;
-      min-height: 38px;
-      margin: 0;
-      border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--panel) 76%, transparent);
-      -webkit-backdrop-filter: blur(12px);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 12%, transparent);
-      opacity: 0.78;
-      transform: translateX(-50%);
-    }
-
-    .rail-position-toggle svg {
-      width: 20px;
-      height: 20px;
-      transition: transform var(--motion-fast) var(--motion-ease);
-    }
-
-    .rail-position-toggle:hover,
-    .rail-position-toggle:focus-visible {
-      opacity: 1;
-      transform: translateX(-50%) scale(1.04);
-    }
-
-    .rail-position-toggle:hover svg,
-    .rail-position-toggle:focus-visible svg {
-      transform: translateX(2px);
-    }
-
-    .rail-position-toggle-left:hover svg,
-    .rail-position-toggle-left:focus-visible svg {
-      transform: translateX(-2px);
-    }
-  }
-
   @media (orientation: portrait) {
     .rail {
       padding-bottom: 8px;
-    }
-
-    .rail .rail-position-toggle {
-      display: none !important;
     }
   }
 
@@ -8742,6 +8728,7 @@ svg {
   .main-grid {
     padding-right: 0;
     position: relative;
+    overflow-y: hidden;
   }
 
   .main-grid:not(.focus-mode) {
