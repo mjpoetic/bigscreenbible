@@ -1330,10 +1330,14 @@ function rail() {
     ["History", icons.history],
     ["Search", icons.search],
   ];
+  const nextSide = state.sideToolbarPosition === "right" ? "left" : "right";
+  const sideToggleLabel = `Move toolbar ${nextSide}`;
   return `<aside class="rail">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`;
-  }).join("")}</aside>`;
+  }).join("")}
+    <button class="rail-position-toggle rail-position-toggle-${nextSide}" type="button" data-side-toolbar-position="${nextSide}" aria-label="${sideToggleLabel}" data-tooltip="${sideToggleLabel}">${icons.chevron}</button>
+  </aside>`;
 }
 
 function library() {

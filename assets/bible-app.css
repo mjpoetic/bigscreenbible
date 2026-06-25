@@ -1960,6 +1960,10 @@ button {
     0 0 22px color-mix(in srgb, var(--teal) 38%, transparent);
 }
 
+.rail-position-toggle {
+  display: none;
+}
+
 .library-drawer {
   position: absolute;
   inset: 0 auto 0 var(--rail-width);
@@ -7646,6 +7650,59 @@ svg {
   .rail button svg {
     width: 22px;
     height: 22px;
+  }
+
+  @media (orientation: landscape) {
+    .rail {
+      padding-bottom: 60px;
+    }
+
+    .rail .rail-position-toggle {
+      position: absolute;
+      right: auto;
+      bottom: 8px;
+      left: 50%;
+      z-index: 2;
+      display: grid;
+      width: 38px;
+      height: 38px;
+      min-height: 38px;
+      margin: 0;
+      border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel) 76%, transparent);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 12%, transparent);
+      opacity: 0.78;
+      transform: translateX(-50%);
+    }
+
+    .rail-position-toggle svg {
+      width: 20px;
+      height: 20px;
+      transition: transform var(--motion-fast) var(--motion-ease);
+    }
+
+    .rail-position-toggle-left svg {
+      transform: rotate(180deg);
+    }
+
+    .rail-position-toggle:hover,
+    .rail-position-toggle:focus-visible {
+      opacity: 1;
+      transform: translateX(-50%) scale(1.04);
+    }
+
+    .rail-position-toggle:hover svg,
+    .rail-position-toggle:focus-visible svg {
+      transform: translateX(2px);
+    }
+
+    .rail-position-toggle-left:hover svg,
+    .rail-position-toggle-left:focus-visible svg {
+      transform: rotate(180deg) translateX(2px);
+    }
   }
 
   .library-drawer {
