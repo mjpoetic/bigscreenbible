@@ -6433,6 +6433,16 @@ kbd {
   }
 }
 
+@keyframes drawerInRight {
+  from {
+    transform: translateX(28px);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
 @keyframes drawerOut {
   from {
     transform: translateX(0);
@@ -6440,6 +6450,16 @@ kbd {
 
   to {
     transform: translateX(calc(-100% - 1px));
+  }
+}
+
+@keyframes drawerOutRight {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(100% + 1px));
   }
 }
 
@@ -7698,10 +7718,21 @@ svg {
         inset 1px 0 color-mix(in srgb, var(--paper) 30%, transparent);
     }
 
-    .app-shell[data-side-toolbar-position="right"] .mobile-floating-settings,
+    .app-shell[data-side-toolbar-position="right"] .library-drawer.drawer-enter {
+      animation-name: drawerInRight;
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .library-drawer.motion-exit {
+      animation-name: drawerOutRight !important;
+    }
+
     .app-shell[data-side-toolbar-position="right"] .reader-top-button {
       right: auto;
       left: max(12px, env(safe-area-inset-left, 0px));
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .scripture {
+      padding-left: max(72px, calc(env(safe-area-inset-left, 0px) + 60px));
     }
 
     .app-shell[data-side-toolbar-position="right"] .mobile-settings-popover {
@@ -8744,6 +8775,23 @@ svg {
     left: auto !important;
     border-right: 0;
     border-left: 1px solid var(--line);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .library-drawer.drawer-enter {
+    animation-name: drawerInRight;
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .library-drawer.motion-exit {
+    animation-name: drawerOutRight !important;
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .reader-top-button {
+    right: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .scripture {
+    padding-left: max(72px, calc(env(safe-area-inset-left, 0px) + 60px));
   }
 
   .app-shell[data-side-toolbar-position="right"] .mobile-settings-popover,

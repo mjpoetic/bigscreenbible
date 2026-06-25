@@ -913,7 +913,7 @@ function mobileSettingsPanel() {
         </label>
       </div>
       <div class="setting-group">
-        <span class="setting-label" id="mobileSideToolbarPositionLabel">Side toolbar position (landscape)</span>
+        <span class="setting-label" id="mobileSideToolbarPositionLabel">Landscape toolbar</span>
         <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="mobileSideToolbarPositionLabel">
           <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
           <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
@@ -1095,7 +1095,7 @@ function topbar() {
             </label>
           </div>
           <div class="setting-group">
-            <span class="setting-label" id="sideToolbarPositionLabel">Side toolbar position (landscape)</span>
+            <span class="setting-label" id="sideToolbarPositionLabel">Landscape toolbar</span>
             <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="sideToolbarPositionLabel">
               <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
               <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
