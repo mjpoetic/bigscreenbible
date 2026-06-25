@@ -7433,9 +7433,8 @@ svg {
     }
 
     .main-grid {
-      --mobile-rail-safe-space: max(12px, env(safe-area-inset-left, 0px));
-      padding-left: var(--mobile-rail-safe-space);
-      padding-right: max(12px, env(safe-area-inset-right, 0px));
+      padding-left: 0;
+      padding-right: 0;
     }
 
     .bottombar {
@@ -7453,7 +7452,7 @@ svg {
     }
 
     .mobile-settings-popover {
-      left: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
+      left: calc(var(--rail-width) + 10px);
       right: calc(env(safe-area-inset-right, 0px) + 12px);
     }
   }
@@ -7578,7 +7577,7 @@ svg {
   .main-grid::before {
     content: "";
     position: absolute;
-    inset: 0 auto 0 var(--mobile-rail-safe-space, 0px);
+    inset: 0 auto 0 0;
     width: var(--rail-width);
     border-right: 1px solid var(--line);
     background: var(--panel);
@@ -7633,7 +7632,7 @@ svg {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc(var(--mobile-rail-safe-space, 0px) + var(--rail-width));
+    left: var(--rail-width);
     z-index: 29;
     display: block;
     width: min(330px, calc(100vw - var(--rail-width)));
@@ -7657,15 +7656,14 @@ svg {
 
   @media (orientation: landscape) {
     .selection-bar {
-      left: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 8px);
+      left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px);
       right: calc(env(safe-area-inset-right, 0px) + 8px);
     }
 
     .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) {
-      --mobile-rail-safe-space: max(12px, env(safe-area-inset-right, 0px));
       grid-template-columns: minmax(0, 1fr) var(--rail-width);
-      padding-left: max(12px, env(safe-area-inset-left, 0px));
-      padding-right: var(--mobile-rail-safe-space);
+      padding-left: 0;
+      padding-right: 0;
     }
 
     .app-shell[data-side-toolbar-position="right"] .main-grid.library-closed:not(.focus-mode) {
@@ -7673,7 +7671,7 @@ svg {
     }
 
     .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode)::before {
-      inset: 0 var(--mobile-rail-safe-space) 0 auto;
+      inset: 0 0 0 auto;
       border-right: 0;
       border-left: 1px solid var(--line);
     }
@@ -7691,7 +7689,7 @@ svg {
     }
 
     .app-shell[data-side-toolbar-position="right"] .library-drawer {
-      right: calc(var(--mobile-rail-safe-space) + var(--rail-width));
+      right: var(--rail-width);
       left: auto;
       border-right: 0;
       border-left: 1px solid var(--line);
@@ -7707,12 +7705,12 @@ svg {
     }
 
     .app-shell[data-side-toolbar-position="right"] .mobile-settings-popover {
-      right: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
+      right: calc(var(--rail-width) + 10px);
       left: calc(env(safe-area-inset-left, 0px) + 12px);
     }
 
     .app-shell[data-side-toolbar-position="right"] .selection-bar {
-      right: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 8px);
+      right: calc(var(--rail-width) + env(safe-area-inset-right, 0px) + 8px);
       left: calc(env(safe-area-inset-left, 0px) + 8px);
     }
   }
@@ -8644,19 +8642,17 @@ svg {
 
 @media (orientation: landscape) and (max-height: 560px) {
   :root {
-    --phone-landscape-left-safe: max(env(safe-area-inset-left, 0px), 12px);
     --phone-landscape-right-safe: max(env(safe-area-inset-right, 0px), 14px);
   }
 
   .main-grid {
-    --mobile-rail-safe-space: var(--phone-landscape-left-safe);
-    padding-right: var(--phone-landscape-right-safe);
+    padding-right: 0;
     position: relative;
   }
 
   .main-grid:not(.focus-mode) {
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
-    padding-left: var(--mobile-rail-safe-space);
+    padding-left: 0;
   }
 
   .main-grid.library-closed:not(.focus-mode) {
@@ -8668,14 +8664,14 @@ svg {
   }
 
   .main-grid::before {
-    left: var(--mobile-rail-safe-space);
+    left: 0;
   }
 
   .library-drawer {
     position: absolute !important;
     top: 0 !important;
     bottom: 0;
-    left: calc(var(--mobile-rail-safe-space) + var(--rail-width)) !important;
+    left: var(--rail-width) !important;
     z-index: 36;
     width: min(300px, calc(100vw - var(--rail-width) - var(--phone-landscape-right-safe) - 12px));
     height: 100%;
@@ -8710,15 +8706,14 @@ svg {
 
   .mobile-settings-popover,
   .settings-popover.open {
-    left: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
+    left: calc(var(--rail-width) + 10px);
     right: calc(var(--phone-landscape-right-safe) + 12px);
   }
 
   .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) {
-    --mobile-rail-safe-space: var(--phone-landscape-right-safe);
     grid-template-columns: minmax(0, 1fr) var(--rail-width);
-    padding-left: var(--phone-landscape-left-safe);
-    padding-right: var(--mobile-rail-safe-space);
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .app-shell[data-side-toolbar-position="right"] .main-grid.library-closed:not(.focus-mode) {
@@ -8726,7 +8721,7 @@ svg {
   }
 
   .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode)::before {
-    right: var(--mobile-rail-safe-space);
+    right: 0;
     left: auto;
     border-right: 0;
     border-left: 1px solid var(--line);
@@ -8745,7 +8740,7 @@ svg {
   }
 
   .app-shell[data-side-toolbar-position="right"] .library-drawer {
-    right: calc(var(--mobile-rail-safe-space) + var(--rail-width)) !important;
+    right: var(--rail-width) !important;
     left: auto !important;
     border-right: 0;
     border-left: 1px solid var(--line);
@@ -8753,8 +8748,8 @@ svg {
 
   .app-shell[data-side-toolbar-position="right"] .mobile-settings-popover,
   .app-shell[data-side-toolbar-position="right"] .settings-popover.open {
-    right: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
-    left: calc(var(--phone-landscape-left-safe) + 12px);
+    right: calc(var(--rail-width) + 10px);
+    left: 12px;
   }
 
   .trivia-mode-tabs button {
@@ -8790,7 +8785,7 @@ svg {
   }
 
   .selection-bar {
-    left: calc(var(--mobile-rail-safe-space, env(safe-area-inset-left, 0px)) + var(--rail-width) + 8px) !important;
+    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
     right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
     width: auto !important;
     max-width: none !important;
@@ -8807,7 +8802,7 @@ svg {
   .app-shell.focus-shell .selection-bar,
   .focus-shell .selection-bar {
     top: auto !important;
-    left: calc(var(--mobile-rail-safe-space, env(safe-area-inset-left, 0px)) + var(--rail-width) + 8px) !important;
+    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
     right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
     bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
     display: grid;
@@ -8820,7 +8815,7 @@ svg {
   @media (orientation: landscape) {
     .app-shell[data-side-toolbar-position="right"] .selection-bar,
     .app-shell[data-side-toolbar-position="right"].focus-shell .selection-bar {
-      right: calc(var(--mobile-rail-safe-space, env(safe-area-inset-right, 0px)) + var(--rail-width) + 8px) !important;
+      right: calc(var(--rail-width) + env(safe-area-inset-right, 0px) + 8px) !important;
       left: calc(env(safe-area-inset-left, 0px) + 8px) !important;
     }
   }
