@@ -1758,6 +1758,10 @@ button {
   border-right: 0;
 }
 
+.side-toolbar-segment {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .theme-mode-button svg {
   width: 16px;
   height: 16px;
@@ -7429,12 +7433,9 @@ svg {
     }
 
     .main-grid {
-      padding-left: env(safe-area-inset-left, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
-    }
-
-    .main-grid::before {
-      left: env(safe-area-inset-left, 0px);
+      --mobile-rail-safe-space: max(12px, env(safe-area-inset-left, 0px));
+      padding-left: var(--mobile-rail-safe-space);
+      padding-right: max(12px, env(safe-area-inset-right, 0px));
     }
 
     .bottombar {
@@ -7452,7 +7453,7 @@ svg {
     }
 
     .mobile-settings-popover {
-      left: calc(env(safe-area-inset-left, 0px) + var(--rail-width) + 10px);
+      left: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
       right: calc(env(safe-area-inset-right, 0px) + 12px);
     }
   }
@@ -7577,7 +7578,7 @@ svg {
   .main-grid::before {
     content: "";
     position: absolute;
-    inset: 0 auto 0 0;
+    inset: 0 auto 0 var(--mobile-rail-safe-space, 0px);
     width: var(--rail-width);
     border-right: 1px solid var(--line);
     background: var(--panel);
@@ -7632,7 +7633,7 @@ svg {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: var(--rail-width);
+    left: calc(var(--mobile-rail-safe-space, 0px) + var(--rail-width));
     z-index: 29;
     display: block;
     width: min(330px, calc(100vw - var(--rail-width)));
@@ -7652,6 +7653,68 @@ svg {
     overscroll-behavior: contain;
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
+  }
+
+  @media (orientation: landscape) {
+    .selection-bar {
+      left: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 8px);
+      right: calc(env(safe-area-inset-right, 0px) + 8px);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) {
+      --mobile-rail-safe-space: max(12px, env(safe-area-inset-right, 0px));
+      grid-template-columns: minmax(0, 1fr) var(--rail-width);
+      padding-left: max(12px, env(safe-area-inset-left, 0px));
+      padding-right: var(--mobile-rail-safe-space);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .main-grid.library-closed:not(.focus-mode) {
+      grid-template-columns: minmax(0, 1fr) var(--rail-width);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode)::before {
+      inset: 0 var(--mobile-rail-safe-space) 0 auto;
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .rail {
+      grid-column: 2;
+      grid-row: 1;
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .reader {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .library-drawer {
+      right: calc(var(--mobile-rail-safe-space) + var(--rail-width));
+      left: auto;
+      border-right: 0;
+      border-left: 1px solid var(--line);
+      box-shadow:
+        -16px 0 36px color-mix(in srgb, var(--ink) 12%, transparent),
+        inset 1px 0 color-mix(in srgb, var(--paper) 30%, transparent);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .mobile-floating-settings,
+    .app-shell[data-side-toolbar-position="right"] .reader-top-button {
+      right: auto;
+      left: max(12px, env(safe-area-inset-left, 0px));
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .mobile-settings-popover {
+      right: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
+      left: calc(env(safe-area-inset-left, 0px) + 12px);
+    }
+
+    .app-shell[data-side-toolbar-position="right"] .selection-bar {
+      right: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 8px);
+      left: calc(env(safe-area-inset-left, 0px) + 8px);
+    }
   }
 
   .library .panel-minihead {
@@ -8581,18 +8644,19 @@ svg {
 
 @media (orientation: landscape) and (max-height: 560px) {
   :root {
-    --phone-landscape-left-safe: 0px;
+    --phone-landscape-left-safe: max(env(safe-area-inset-left, 0px), 12px);
     --phone-landscape-right-safe: max(env(safe-area-inset-right, 0px), 14px);
   }
 
   .main-grid {
-    padding-right: 0;
+    --mobile-rail-safe-space: var(--phone-landscape-left-safe);
+    padding-right: var(--phone-landscape-right-safe);
     position: relative;
   }
 
   .main-grid:not(.focus-mode) {
     grid-template-columns: var(--rail-width) minmax(0, 1fr);
-    padding-left: 0;
+    padding-left: var(--mobile-rail-safe-space);
   }
 
   .main-grid.library-closed:not(.focus-mode) {
@@ -8604,14 +8668,14 @@ svg {
   }
 
   .main-grid::before {
-    left: 0;
+    left: var(--mobile-rail-safe-space);
   }
 
   .library-drawer {
     position: absolute !important;
     top: 0 !important;
     bottom: 0;
-    left: var(--rail-width) !important;
+    left: calc(var(--mobile-rail-safe-space) + var(--rail-width)) !important;
     z-index: 36;
     width: min(300px, calc(100vw - var(--rail-width) - var(--phone-landscape-right-safe) - 12px));
     height: 100%;
@@ -8646,8 +8710,51 @@ svg {
 
   .mobile-settings-popover,
   .settings-popover.open {
-    left: calc(var(--rail-width) + 10px);
+    left: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
     right: calc(var(--phone-landscape-right-safe) + 12px);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) {
+    --mobile-rail-safe-space: var(--phone-landscape-right-safe);
+    grid-template-columns: minmax(0, 1fr) var(--rail-width);
+    padding-left: var(--phone-landscape-left-safe);
+    padding-right: var(--mobile-rail-safe-space);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .main-grid.library-closed:not(.focus-mode) {
+    grid-template-columns: minmax(0, 1fr) var(--rail-width);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode)::before {
+    right: var(--mobile-rail-safe-space);
+    left: auto;
+    border-right: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .rail {
+    grid-column: 2;
+    grid-row: 1;
+    border-right: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) > .reader {
+    grid-column: 1 !important;
+    grid-row: 1;
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .library-drawer {
+    right: calc(var(--mobile-rail-safe-space) + var(--rail-width)) !important;
+    left: auto !important;
+    border-right: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .mobile-settings-popover,
+  .app-shell[data-side-toolbar-position="right"] .settings-popover.open {
+    right: calc(var(--mobile-rail-safe-space) + var(--rail-width) + 10px);
+    left: calc(var(--phone-landscape-left-safe) + 12px);
   }
 
   .trivia-mode-tabs button {
@@ -8683,7 +8790,7 @@ svg {
   }
 
   .selection-bar {
-    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
+    left: calc(var(--mobile-rail-safe-space, env(safe-area-inset-left, 0px)) + var(--rail-width) + 8px) !important;
     right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
     width: auto !important;
     max-width: none !important;
@@ -8700,7 +8807,7 @@ svg {
   .app-shell.focus-shell .selection-bar,
   .focus-shell .selection-bar {
     top: auto !important;
-    left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
+    left: calc(var(--mobile-rail-safe-space, env(safe-area-inset-left, 0px)) + var(--rail-width) + 8px) !important;
     right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
     bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
     display: grid;
@@ -8708,6 +8815,14 @@ svg {
     gap: 6px;
     max-height: min(42vh, 240px);
     overflow-x: hidden;
+  }
+
+  @media (orientation: landscape) {
+    .app-shell[data-side-toolbar-position="right"] .selection-bar,
+    .app-shell[data-side-toolbar-position="right"].focus-shell .selection-bar {
+      right: calc(var(--mobile-rail-safe-space, env(safe-area-inset-right, 0px)) + var(--rail-width) + 8px) !important;
+      left: calc(env(safe-area-inset-left, 0px) + 8px) !important;
+    }
   }
 }
 

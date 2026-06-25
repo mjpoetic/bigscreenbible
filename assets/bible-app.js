@@ -255,6 +255,7 @@ const state = {
   sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
   redLetters: localStorage.getItem("lw_red_letters") === "true",
   strongNumbers: localStorage.getItem("lw_strong_numbers") !== "false",
+  sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
@@ -366,6 +367,10 @@ function savedParagraphLayout() {
   if (saved === "true") return true;
   if (saved === "false") return false;
   return true;
+}
+
+function savedSideToolbarPosition() {
+  return localStorage.getItem("lw_side_toolbar_position") === "right" ? "right" : "left";
 }
 
 function savedReadingStreak() {
@@ -618,7 +623,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -908,6 +913,13 @@ function mobileSettingsPanel() {
         </label>
       </div>
       <div class="setting-group">
+        <span class="setting-label" id="mobileSideToolbarPositionLabel">Side toolbar position</span>
+        <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="mobileSideToolbarPositionLabel">
+          <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
+          <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
+        </div>
+      </div>
+      <div class="setting-group">
         <span class="setting-label">Startup</span>
         <label class="setting-checkbox">
           <input type="checkbox" id="mobileStartBigScreenToggle" ${state.startBigScreen ? "checked" : ""} />
@@ -1081,6 +1093,13 @@ function topbar() {
               <input type="checkbox" id="strongNumbersToggle" ${state.strongNumbers ? "checked" : ""} />
               <span>Strong's number lookups</span>
             </label>
+          </div>
+          <div class="setting-group">
+            <span class="setting-label" id="sideToolbarPositionLabel">Side toolbar position</span>
+            <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="sideToolbarPositionLabel">
+              <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
+              <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
+            </div>
           </div>
           <div class="setting-group">
             <span class="setting-label">Startup</span>
@@ -1731,6 +1750,22 @@ function setStrongNumbers(enabled, rerender = false) {
   if (rerender) renderPreservingReaderScroll();
 }
 
+function setSideToolbarPosition(position) {
+  const nextPosition = position === "right" ? "right" : "left";
+  if (state.sideToolbarPosition === nextPosition) return;
+  state.sideToolbarPosition = nextPosition;
+  localStorage.setItem("lw_side_toolbar_position", nextPosition);
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
+function handleSideToolbarPositionClick(event) {
+  const button = event.target.closest?.("[data-side-toolbar-position]");
+  if (!button) return;
+  event.preventDefault();
+  setSideToolbarPosition(button.dataset.sideToolbarPosition);
+}
+
 function setSectionHeadings(enabled) {
   state.sectionHeadings = Boolean(enabled);
   localStorage.setItem("lw_section_headings", state.sectionHeadings ? "true" : "false");
@@ -2221,6 +2256,7 @@ function captureCloudSnapshot() {
       sectionHeadings: state.sectionHeadings,
       redLetters: state.redLetters,
       strongNumbers: state.strongNumbers,
+      sideToolbarPosition: state.sideToolbarPosition,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
       presentationTheme: state.presentationTheme,
@@ -2319,6 +2355,7 @@ function applyCloudSnapshot(snapshot) {
   state.sectionHeadings = settings.sectionHeadings !== false;
   state.redLetters = settings.redLetters === true;
   state.strongNumbers = settings.strongNumbers !== false;
+  state.sideToolbarPosition = settings.sideToolbarPosition === "right" ? "right" : "left";
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
@@ -2355,6 +2392,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_section_headings", String(state.sectionHeadings));
   localStorage.setItem("lw_red_letters", String(state.redLetters));
   localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
+  localStorage.setItem("lw_side_toolbar_position", state.sideToolbarPosition);
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
@@ -8746,6 +8784,7 @@ document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   closeHeaderVersionMenu();
 });
+document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
