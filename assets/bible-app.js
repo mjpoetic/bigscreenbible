@@ -233,6 +233,7 @@ const state = {
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
+  sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
   redLetters: localStorage.getItem("lw_red_letters") === "true",
   strongNumbers: localStorage.getItem("lw_strong_numbers") !== "false",
   focusMode: savedFocusMode(),
@@ -869,6 +870,10 @@ function mobileSettingsPanel() {
           <span>Paragraph layout when available</span>
         </label>
         <label class="setting-checkbox">
+          <input type="checkbox" id="mobileSectionHeadingsToggle" ${state.sectionHeadings ? "checked" : ""} />
+          <span>Section headings when available</span>
+        </label>
+        <label class="setting-checkbox">
           <input type="checkbox" id="mobileRedLettersToggle" ${state.redLetters ? "checked" : ""} />
           <span>Words of Jesus in red</span>
         </label>
@@ -1038,6 +1043,10 @@ function topbar() {
             <label class="setting-checkbox">
               <input type="checkbox" id="paragraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
               <span>Paragraph layout when available</span>
+            </label>
+            <label class="setting-checkbox">
+              <input type="checkbox" id="sectionHeadingsToggle" ${state.sectionHeadings ? "checked" : ""} />
+              <span>Section headings when available</span>
             </label>
             <label class="setting-checkbox">
               <input type="checkbox" id="redLettersToggle" ${state.redLetters ? "checked" : ""} />
@@ -1697,6 +1706,13 @@ function setStrongNumbers(enabled, rerender = false) {
   if (rerender) renderPreservingReaderScroll();
 }
 
+function setSectionHeadings(enabled) {
+  state.sectionHeadings = Boolean(enabled);
+  localStorage.setItem("lw_section_headings", state.sectionHeadings ? "true" : "false");
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
 function wordsOfJesusRanges(verse, version) {
   const ranges = verse?.wordsOfJesus?.[version];
   return Array.isArray(ranges) ? ranges : [];
@@ -2177,6 +2193,7 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       paragraphLayout: state.paragraphLayout,
+      sectionHeadings: state.sectionHeadings,
       redLetters: state.redLetters,
       strongNumbers: state.strongNumbers,
       focusMode: state.focusMode,
@@ -2274,6 +2291,7 @@ function applyCloudSnapshot(snapshot) {
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
+  state.sectionHeadings = settings.sectionHeadings !== false;
   state.redLetters = settings.redLetters === true;
   state.strongNumbers = settings.strongNumbers !== false;
   state.focusMode = Boolean(settings.focusMode);
@@ -2309,6 +2327,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
+  localStorage.setItem("lw_section_headings", String(state.sectionHeadings));
   localStorage.setItem("lw_red_letters", String(state.redLetters));
   localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
@@ -2468,6 +2487,7 @@ function paragraphStartForVerse(verse, version) {
 }
 
 function sectionHeadingsForVerse(verse, version) {
+  if (!state.sectionHeadings) return [];
   const headings = verse?.sectionHeadings?.[version];
   if (!Array.isArray(headings)) return [];
   return headings
@@ -2482,13 +2502,43 @@ function sectionHeadingsMarkup(verse, version, className = "") {
   const headings = sectionHeadingsForVerse(verse, version);
   if (!headings.length) return "";
   const classes = ["scripture-heading-group", className].filter(Boolean).join(" ");
+  const linkReferences = !className.split(/\s+/).includes("print-heading-group");
   return `
     <div class="${classes}" data-heading-verse="${verse.n}">
       ${headings.map((heading) => `
-        <h2 class="scripture-heading scripture-heading-level-${heading.level}">${escapeHtml(heading.text)}</h2>
+        <h2 class="scripture-heading scripture-heading-level-${heading.level}">${scriptureHeadingTextMarkup(heading.text, { linkReferences })}</h2>
       `).join("")}
     </div>
   `;
+}
+
+function scriptureHeadingTextMarkup(text, options = {}) {
+  const referenceParts = options.linkReferences === false ? null : scriptureHeadingReferenceParts(text);
+  if (!referenceParts) return escapeHtml(text);
+  return `(${referenceParts
+    .map((part) => `<button class="scripture-heading-reference-link" type="button" data-heading-reference="${escapeHtml(part.reference)}" aria-label="Open ${escapeHtml(part.display)}">${escapeHtml(part.display)}</button>`)
+    .join('<span class="scripture-heading-reference-separator">; </span>')})`;
+}
+
+function scriptureHeadingReferenceParts(text) {
+  const match = String(text || "").trim().match(/^\((.+)\)$/);
+  if (!match) return null;
+  const parts = match[1]
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((display) => {
+      const reference = normalizeHeadingReference(display);
+      return parsePassageReference(reference) ? { display, reference } : null;
+    });
+  return parts.length && parts.every(Boolean) ? parts : null;
+}
+
+function normalizeHeadingReference(value) {
+  return String(value || "")
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function verseCopyButton(verseNumber) {
@@ -4564,6 +4614,12 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  document.getElementById("sectionHeadingsToggle")?.addEventListener("change", (event) => {
+    setSectionHeadings(event.target.checked);
+  });
+  document.getElementById("mobileSectionHeadingsToggle")?.addEventListener("change", (event) => {
+    setSectionHeadings(event.target.checked);
+  });
   document.getElementById("redLettersToggle")?.addEventListener("change", (event) => {
     setRedLetters(event.target.checked, true);
   });
@@ -4808,6 +4864,12 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       openCrossReferencePopup(button);
+    });
+  });
+  document.querySelectorAll("[data-heading-reference]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      gotoReference(button.dataset.headingReference || "");
     });
   });
   document.querySelectorAll("[data-verse-actions]").forEach((button) => {
@@ -6874,7 +6936,7 @@ function firstVerseFromReference(value) {
 }
 
 function parsePassageReference(value) {
-  const cleaned = String(value || "").trim().replace(/\s+/g, " ");
+  const cleaned = String(value || "").trim().replace(/[–—]/g, "-").replace(/\s+/g, " ");
   const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::([0-9,\-\s]+))?$/);
   if (!match) return null;
   const book = normalizeBookName(match[1]);

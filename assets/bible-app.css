@@ -3458,6 +3458,34 @@ select {
   font-weight: 500;
 }
 
+.scripture-heading-reference-link {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold) 44%, transparent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+  cursor: pointer;
+}
+
+.scripture-heading-reference-link:hover,
+.scripture-heading-reference-link:focus-visible {
+  color: color-mix(in srgb, var(--gold) 72%, var(--ink));
+  text-decoration-color: currentColor;
+}
+
+.scripture-heading-reference-separator {
+  color: var(--muted);
+}
+
 .scripture-paragraph {
   margin: 0;
   font: 400 var(--verse-font) / 1.78 var(--scripture-font);
