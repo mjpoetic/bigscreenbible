@@ -278,6 +278,7 @@ const state = {
   startupApplied: false,
   settingsOpen: false,
   settingsAnchor: "header",
+  streakPopoverOpen: false,
   headerVersionMenuOpen: false,
   shortcutsOpen: false,
   tutorialIntroVisible: localStorage.getItem(tutorialStorageKey) !== "true",
@@ -384,11 +385,17 @@ function savedReadingStreak() {
 }
 
 function normalizeReadingStreak(value) {
+  const current = Math.max(0, Number(value?.current) || 0);
+  const lastVisit = isDateKey(value?.lastVisit) ? value.lastVisit : "";
   return {
-    current: Math.max(0, Number(value?.current) || 0),
+    current,
     best: Math.max(0, Number(value?.best) || 0),
     totalDays: Math.max(0, Number(value?.totalDays) || 0),
-    lastVisit: typeof value?.lastVisit === "string" ? value.lastVisit : "",
+    lastVisit,
+    days: normalizedStreakDays([
+      ...(Array.isArray(value?.days) ? value.days : []),
+      ...inferredStreakDays(current, lastVisit),
+    ]),
   };
 }
 
@@ -397,6 +404,32 @@ function localDateKey(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function isDateKey(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
+function dateFromKey(key) {
+  const [year, month, day] = String(key).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function dateKeyOffset(key, offset) {
+  const date = dateFromKey(key);
+  if (!date) return "";
+  date.setDate(date.getDate() + offset);
+  return localDateKey(date);
+}
+
+function normalizedStreakDays(days) {
+  return [...new Set((days || []).filter(isDateKey))].sort().slice(-180);
+}
+
+function inferredStreakDays(current, lastVisit) {
+  if (!current || !isDateKey(lastVisit)) return [];
+  return Array.from({ length: Math.min(current, 180) }, (_, index) => dateKeyOffset(lastVisit, -index)).filter(Boolean);
 }
 
 function daysBetweenDateKeys(fromKey, toKey) {
@@ -422,6 +455,7 @@ function recordReadingStreak(date = new Date()) {
     best: Math.max(streak.best, current),
     totalDays: streak.totalDays + 1,
     lastVisit: today,
+    days: normalizedStreakDays([...(streak.days || []), today]),
   };
   localStorage.setItem(streakStorageKey, JSON.stringify(state.streak));
   scheduleCloudSync();
@@ -1154,13 +1188,98 @@ function topbar() {
 
 function streakChip() {
   const streak = normalizeReadingStreak(state.streak);
+  const tooltip = streakTooltip(streak);
   return `
-    <div class="streak-chip" aria-label="Reading streak">
-      ${icons.flame}
-      <span>
-        <strong>${streak.current}</strong>
-        <span>day streak</span>
-      </span>
+    <div class="streak-menu ${state.streakPopoverOpen ? "open" : ""}">
+      <button class="streak-chip ${state.streakPopoverOpen ? "active" : ""}" id="streakChip" type="button" aria-label="Reading streak. ${escapeHtml(tooltip)}" aria-expanded="${state.streakPopoverOpen ? "true" : "false"}" aria-controls="streakPopover" data-tooltip="${escapeHtml(tooltip)}">
+        ${icons.flame}
+        <span>
+          <strong>${streak.current}</strong>
+          <span>day streak</span>
+        </span>
+      </button>
+      ${streakPopover(streak)}
+    </div>
+  `;
+}
+
+const streakEncouragements = [
+  { ref: "Galatians 6:9", title: "Keep going", body: "The slow, faithful rhythm matters." },
+  { ref: "2 Timothy 2:15", title: "Come prepared", body: "A few focused minutes can steady the whole day." },
+  { ref: "Psalm 119:105", title: "Find light", body: "Return to the words that make the next step clearer." },
+  { ref: "Joshua 1:8", title: "Stay near", body: "Let Scripture stay close enough to shape the day." },
+  { ref: "Colossians 3:16", title: "Let it dwell", body: "Make room for the word to settle in richly." },
+  { ref: "James 1:22", title: "Live it out", body: "Reading becomes fruitful as it turns into practice." },
+  { ref: "Hebrews 10:23", title: "Hold fast", body: "A steady hope is built by returning again." },
+];
+
+function streakCheckedToday(streak = normalizeReadingStreak(state.streak)) {
+  const today = localDateKey();
+  return streak.lastVisit === today || (streak.days || []).includes(today);
+}
+
+function streakTooltip(streak = normalizeReadingStreak(state.streak)) {
+  const today = localDateKey();
+  if (streakCheckedToday(streak)) return `Checked in today. Come back tomorrow for Day ${streak.current + 1}.`;
+  const gap = streak.lastVisit ? daysBetweenDateKeys(streak.lastVisit, today) : 0;
+  const nextDay = gap === 1 ? streak.current + 1 : 1;
+  return `Read today to reach Day ${nextDay}.`;
+}
+
+function currentWeekStreakDays(streak = normalizeReadingStreak(state.streak)) {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(today.getDate() - today.getDay());
+  const readDays = new Set(streak.days || []);
+  return ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((label, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+    const key = localDateKey(date);
+    return {
+      key,
+      label,
+      read: readDays.has(key),
+      today: key === localDateKey(today),
+    };
+  });
+}
+
+function currentStreakEncouragement(date = new Date()) {
+  const dayNumber = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+  return streakEncouragements[dayNumber % streakEncouragements.length];
+}
+
+function streakPopover(streak = normalizeReadingStreak(state.streak)) {
+  if (!state.streakPopoverOpen) return "";
+  const weekDays = currentWeekStreakDays(streak);
+  const encouragement = currentStreakEncouragement();
+  return `
+    <div class="streak-popover" id="streakPopover" role="dialog" aria-label="Reading streak details">
+      <div class="streak-popover-head">
+        <div class="streak-popover-icon">${icons.flame}</div>
+        <div>
+          <span class="setting-label">Daily streak</span>
+          <strong>${streak.current} ${streak.current === 1 ? "day" : "days"}</strong>
+        </div>
+      </div>
+      <div class="streak-popover-stats">
+        <span><strong>${streak.current}</strong><small>Current</small></span>
+        <span><strong>${streak.best}</strong><small>Best</small></span>
+      </div>
+      <div class="streak-week" aria-label="Current week reading activity">
+        ${weekDays.map((day) => `
+          <span class="streak-week-day ${day.read ? "read" : ""} ${day.today ? "today" : ""}" aria-label="${day.label}: ${day.read ? "read" : "not read"}${day.today ? ", today" : ""}">
+            <span>${day.label}</span>
+            <span class="streak-week-mark" aria-hidden="true">${day.read ? "&#10003;" : ""}</span>
+          </span>
+        `).join("")}
+      </div>
+      <div class="streak-encouragement">
+        <strong>${escapeHtml(encouragement.title)}</strong>
+        <p>${escapeHtml(encouragement.body)}</p>
+        <button type="button" data-streak-reference="${escapeHtml(encouragement.ref)}">Read ${escapeHtml(encouragement.ref)}</button>
+      </div>
     </div>
   `;
 }
@@ -2023,6 +2142,33 @@ function toggleAccountMenu(forceOpen = null) {
   });
 }
 
+function toggleStreakPopover(forceOpen = null) {
+  const nextOpen = forceOpen === null ? !state.streakPopoverOpen : Boolean(forceOpen);
+  if (state.streakPopoverOpen && !nextOpen) {
+    animateBeforeRemoval(".streak-popover", () => {
+      state.streakPopoverOpen = false;
+      renderPreservingReaderScroll();
+    }, { duration: 170 });
+    return;
+  }
+  state.streakPopoverOpen = nextOpen;
+  if (state.streakPopoverOpen) {
+    state.settingsOpen = false;
+    state.accountOpen = false;
+    state.headerVersionMenuOpen = false;
+  }
+  renderPreservingReaderScroll();
+}
+
+function openStreakEncouragement(reference) {
+  if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
+  if (state.mode === "trivia") state.mode = "reader";
+  state.streakPopoverOpen = false;
+  state.pendingVerseFocus = true;
+  recordHistory();
+  render();
+}
+
 function positionAccountPopover() {
   const popover = document.querySelector(".account-popover.open");
   const button = document.getElementById("accountQuickButton");
@@ -2375,6 +2521,7 @@ function mergeStreaks(cloudStreak, localStreak) {
     best: Math.max(cloud.best, local.best),
     totalDays: Math.max(cloud.totalDays, local.totalDays),
     lastVisit,
+    days: normalizedStreakDays([...(cloud.days || []), ...(local.days || [])]),
   };
 }
 
@@ -4629,6 +4776,10 @@ function bindEvents() {
   });
   document.getElementById("mobileSettingsPrimaryVersionSelect")?.addEventListener("change", async (event) => {
     await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
+  });
+  document.getElementById("streakChip")?.addEventListener("click", () => toggleStreakPopover());
+  document.querySelector("[data-streak-reference]")?.addEventListener("click", (event) => {
+    openStreakEncouragement(event.currentTarget.dataset.streakReference);
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
@@ -7622,6 +7773,10 @@ function handleGlobalShortcuts(event) {
       event.preventDefault();
       return toggleShortcuts(false);
     }
+    if (state.streakPopoverOpen) {
+      event.preventDefault();
+      return toggleStreakPopover(false);
+    }
     if (state.settingsOpen) {
       event.preventDefault();
       return closeSettingsPopover();
@@ -8909,6 +9064,10 @@ window.addEventListener("resize", () => {
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   closeHeaderVersionMenu();
+});
+document.addEventListener("click", (event) => {
+  if (!state.streakPopoverOpen || event.target.closest?.(".streak-menu")) return;
+  toggleStreakPopover(false);
 });
 document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
