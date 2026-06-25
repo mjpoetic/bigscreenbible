@@ -1767,7 +1767,7 @@ function setSideToolbarPosition(position) {
 }
 
 function handleSideToolbarPositionClick(event) {
-  const button = event.target.closest?.("[data-side-toolbar-position]");
+  const button = event.target.closest?.("button[data-side-toolbar-position]");
   if (!button) return;
   event.preventDefault();
   setSideToolbarPosition(button.dataset.sideToolbarPosition);
