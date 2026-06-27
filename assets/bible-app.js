@@ -156,6 +156,10 @@ let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let readerChapterTouchStart = null;
 let presentationResizeTimer = 0;
+let readerViewportRestoreTimer = 0;
+let lastReaderScrollAnchor = null;
+let lastReaderNonTopScrollAnchor = null;
+let lastReaderViewportSize = null;
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let bookSprintTimer = 0;
@@ -752,8 +756,8 @@ function syncPresentationShell() {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
 }
 
-function renderPreservingReaderScroll() {
-  const scrollState = captureReaderScroll();
+function renderPreservingReaderScroll(options = {}) {
+  const scrollState = captureReaderScroll(options);
   render();
   restoreReaderScroll(scrollState);
   requestAnimationFrame(() => {
@@ -803,16 +807,88 @@ function scrollTriviaAnswerActionsIntoView() {
   });
 }
 
-function captureReaderScroll() {
+function renderAfterViewportChangePreservingReaderScroll() {
+  renderPreservingReaderScroll({ preferLastReaderAnchor: true });
+}
+
+function captureReaderScroll(options = {}) {
   const scripture = document.querySelector(".scripture");
   const triviaReader = document.querySelector(".trivia-reader");
+  const readerAnchor = options.preferLastReaderAnchor
+    ? preferredViewportReaderScrollAnchor() || currentReaderScrollAnchor()
+    : currentReaderScrollAnchor();
   return {
+    mode: state.mode,
+    reference: state.reference,
     windowX: window.scrollX,
     windowY: window.scrollY,
     scriptureTop: scripture?.scrollTop ?? null,
     scriptureLeft: scripture?.scrollLeft ?? null,
     triviaTop: triviaReader?.scrollTop ?? null,
     triviaLeft: triviaReader?.scrollLeft ?? null,
+    readerAnchor,
+  };
+}
+
+function currentReaderScrollAnchor() {
+  const scripture = document.querySelector(".scripture");
+  if (!scripture || !["reader", "parallel"].includes(state.mode)) return null;
+  const rows = Array.from(scripture.querySelectorAll("[data-verse]"));
+  if (!rows.length) return null;
+
+  const scriptureBounds = scripture.getBoundingClientRect();
+  const targetLine = scriptureBounds.top + Math.min(Math.max(scripture.clientHeight * 0.22, 28), 96);
+  const anchor = rows.find((row) => {
+    const bounds = row.getBoundingClientRect();
+    return bounds.bottom >= targetLine && bounds.top <= scriptureBounds.bottom;
+  }) || rows.find((row) => row.getBoundingClientRect().top >= scriptureBounds.top) || rows[0];
+  const anchorBounds = anchor.getBoundingClientRect();
+  return {
+    mode: state.mode,
+    reference: state.reference,
+    verse: anchor.dataset.verse,
+    offset: anchorBounds.top - scriptureBounds.top,
+  };
+}
+
+function refreshLastReaderScrollAnchor() {
+  const anchor = currentReaderScrollAnchor();
+  if (!anchor) return;
+  const scripture = document.querySelector(".scripture");
+  const viewportSize = { width: window.innerWidth, height: window.innerHeight };
+  const viewportChanged = Boolean(
+    lastReaderViewportSize
+    && (lastReaderViewportSize.width !== viewportSize.width || lastReaderViewportSize.height !== viewportSize.height),
+  );
+  lastReaderScrollAnchor = anchor;
+  if ((scripture?.scrollTop || 0) > 8) {
+    lastReaderNonTopScrollAnchor = anchor;
+  } else if (!viewportChanged) {
+    lastReaderNonTopScrollAnchor = null;
+  }
+  lastReaderViewportSize = viewportSize;
+}
+
+function isMatchingReaderAnchor(anchor) {
+  return Boolean(
+    anchor
+    && anchor.mode === state.mode
+    && anchor.reference === state.reference,
+  );
+}
+
+function preferredViewportReaderScrollAnchor() {
+  if (isMatchingReaderAnchor(lastReaderNonTopScrollAnchor)) {
+    return viewportAdjustedReaderAnchor(lastReaderNonTopScrollAnchor);
+  }
+  if (isMatchingReaderAnchor(lastReaderScrollAnchor)) return viewportAdjustedReaderAnchor(lastReaderScrollAnchor);
+  return null;
+}
+
+function viewportAdjustedReaderAnchor(anchor) {
+  return {
+    ...anchor,
+    offset: Math.min(Math.max(anchor.offset || 0, 28), 96),
   };
 }
 
@@ -833,15 +909,32 @@ function restoreReaderScroll(scrollState) {
   if (!scrollState) return;
   const scripture = document.querySelector(".scripture");
   const triviaReader = document.querySelector(".trivia-reader");
+  const readerAnchor = scrollState.readerAnchor || lastReaderScrollAnchor;
   if (scripture && scrollState.scriptureTop !== null) {
     scripture.scrollTop = scrollState.scriptureTop;
     scripture.scrollLeft = scrollState.scriptureLeft || 0;
+  }
+  if (
+    scripture
+    && readerAnchor
+    && readerAnchor.mode === state.mode
+    && readerAnchor.reference === state.reference
+  ) {
+    const anchor = Array.from(scripture.querySelectorAll("[data-verse]"))
+      .find((row) => row.dataset.verse === String(readerAnchor.verse));
+    if (anchor) {
+      const scriptureBounds = scripture.getBoundingClientRect();
+      const anchorBounds = anchor.getBoundingClientRect();
+      const nextTop = scripture.scrollTop + anchorBounds.top - scriptureBounds.top - readerAnchor.offset;
+      scripture.scrollTop = Math.max(0, nextTop);
+    }
   }
   if (triviaReader && scrollState.triviaTop !== null) {
     triviaReader.scrollTop = scrollState.triviaTop;
     triviaReader.scrollLeft = scrollState.triviaLeft || 0;
   }
   window.scrollTo(scrollState.windowX, scrollState.windowY);
+  refreshLastReaderScrollAnchor();
 }
 
 function syncOpenStateList(stateKey, value, isOpen) {
@@ -1458,7 +1551,9 @@ function bindReaderTopButton() {
   const button = document.getElementById("readerTopButton");
   if (!scripture || !button) return;
   updateReaderTopButton();
+  refreshLastReaderScrollAnchor();
   scripture.addEventListener("scroll", updateReaderTopButton, { passive: true });
+  scripture.addEventListener("scroll", refreshLastReaderScrollAnchor, { passive: true });
   button.addEventListener("click", () => {
     button.classList.remove("reader-top-idle");
     const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
@@ -1468,6 +1563,28 @@ function bindReaderTopButton() {
       window.scrollTo({ top: 0, behavior });
     }
   });
+}
+
+function preserveReaderScrollAfterViewportChange() {
+  if (!["reader", "parallel"].includes(state.mode)) return;
+  const previousAnchor = preferredViewportReaderScrollAnchor();
+  const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
+  if (previousAnchor) {
+    scrollState.readerAnchor = previousAnchor;
+  } else if (scrollState.readerAnchor) {
+    lastReaderScrollAnchor = scrollState.readerAnchor;
+  }
+  clearTimeout(readerViewportRestoreTimer);
+
+  const restore = () => {
+    restoreReaderScroll(scrollState);
+    updateReaderTopButton();
+  };
+  requestAnimationFrame(() => {
+    restore();
+    requestAnimationFrame(restore);
+  });
+  readerViewportRestoreTimer = setTimeout(restore, 180);
 }
 
 function rail() {
@@ -8466,8 +8583,10 @@ window.addEventListener("resize", () => {
     presentationResizeTimer = setTimeout(render, 120);
   } else {
     fitPresentationText();
+    if (isCompactScreen() || isShortLandscapeScreen()) preserveReaderScrollAfterViewportChange();
   }
 });
+window.addEventListener("orientationchange", preserveReaderScrollAfterViewportChange);
 
 function buildBookAliases() {
   const aliases = {};
@@ -9043,13 +9162,13 @@ const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
-  renderPreservingReaderScroll();
+  renderAfterViewportChangePreservingReaderScroll();
 });
 const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)");
 shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
-  renderPreservingReaderScroll();
+  renderAfterViewportChangePreservingReaderScroll();
 });
 window.addEventListener("scroll", updateReaderTopButton, { passive: true });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });

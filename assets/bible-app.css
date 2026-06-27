@@ -2510,6 +2510,13 @@ select {
   transform: none;
 }
 
+@media (orientation: landscape) {
+  .app-shell[data-side-toolbar-position="right"] .footer-collapse-toggle {
+    left: 0;
+    right: var(--rail-width);
+  }
+}
+
 .footer-collapse-toggle svg {
   transform: rotate(90deg);
 }
