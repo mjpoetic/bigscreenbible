@@ -8991,6 +8991,15 @@ svg {
     -webkit-overflow-scrolling: touch;
   }
 
+  .scripture {
+    scrollbar-width: none;
+  }
+
+  .scripture::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
   .bottombar {
     padding-left: max(10px, env(safe-area-inset-left, 0px));
     padding-right: var(--phone-landscape-right-safe);
