@@ -496,9 +496,11 @@ html[data-presentation-mode="big"][data-presentation-theme="contrast"] {
 }
 
 .app-shell.loading-shell {
+  position: fixed;
+  inset: 0;
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   overflow: hidden;
 }
@@ -533,7 +535,18 @@ html[data-presentation-mode="big"][data-presentation-theme="contrast"] {
   height: auto;
   aspect-ratio: 21 / 11;
   object-fit: contain;
-  margin: 0 auto 16px;
+  margin: 0 auto 14px;
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  border: 3px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-top-color: var(--teal);
+  border-right-color: var(--gold);
+  border-radius: 50%;
+  animation: bsb-loading-spin 900ms linear infinite;
 }
 
 .loading-card h1 {
@@ -545,6 +558,18 @@ html[data-presentation-mode="big"][data-presentation-theme="contrast"] {
   margin: 0;
   color: var(--muted);
   line-height: 1.5;
+}
+
+@keyframes bsb-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+  }
 }
 
 button,

@@ -971,10 +971,11 @@ function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
     <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
-      <section class="reader loading-reader">
+      <section class="loading-reader">
         <div class="loading-card">
           <img class="loading-logo-mark" src="./assets/brand-mark.png" width="420" height="220" alt="" />
           <h1>Big Screen Bible</h1>
+          ${dataError ? "" : '<div class="loading-spinner" aria-hidden="true"></div>'}
           <p>${message}</p>
           ${dataError ? '<button class="primary-btn" onclick="location.reload()">Retry</button>' : ""}
         </div>
@@ -9195,5 +9196,10 @@ document.addEventListener("webkitfullscreenchange", render);
 const streakUpdatedToday = recordReadingStreak();
 state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
-initializeSupabaseAuth();
-initializeBibleData();
+const startupLoaderPreview = new URLSearchParams(window.location.search).has("loaderPreview");
+if (startupLoaderPreview) {
+  document.documentElement.dataset.loaderPreview = "true";
+} else {
+  initializeSupabaseAuth();
+  initializeBibleData();
+}

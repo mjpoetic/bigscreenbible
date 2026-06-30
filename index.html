@@ -92,7 +92,7 @@
       href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:wght@400;700&family=Noto+Sans:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./assets/bible-app.css?v=20260625-streak-badge-popover" />
+    <link rel="stylesheet" href="./assets/bible-app.css?v=20260630-startup-loader-preview" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -124,7 +124,18 @@
     </script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main class="app-shell focus-shell loading-shell initial-loading-shell" aria-busy="true" aria-label="Big Screen Bible is loading">
+        <section class="loading-reader">
+          <div class="loading-card">
+            <img class="loading-logo-mark" src="./assets/brand-mark.png" width="420" height="220" alt="" />
+            <h1>Big Screen Bible</h1>
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <p>Loading full Bible texts...</p>
+          </div>
+        </section>
+      </main>
+    </div>
     <script src="./assets/supabase-config.js?v=20260608-supabase-sync"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script async src="https://pkg.api.bible/fumsV3.min.js"></script>
@@ -137,6 +148,6 @@
     <script src="./assets/crossrefs.js?v=20260531-history-smart-search"></script>
     <script src="./assets/verse-of-day.js?v=20260531-history-smart-search"></script>
     <script src="./assets/trivia.js?v=20260607-trivia-rebalance"></script>
-    <script src="./assets/bible-app.js?v=20260625-streak-badge-popover"></script>
+    <script src="./assets/bible-app.js?v=20260630-startup-loader-preview"></script>
   </body>
 </html>
