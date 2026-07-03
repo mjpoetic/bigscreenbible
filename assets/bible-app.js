@@ -6345,6 +6345,21 @@ function splitVerseIntoSegments(text, requestedCount = 3) {
   return segments;
 }
 
+function normalizedVerseOrderAnswerText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function verseOrderSelectionText(puzzle, ids = puzzle?.selectedIds || []) {
+  const segmentsById = new Map((puzzle?.segments || []).map((segment) => [segment.id, segment]));
+  return ids.map((id) => segmentsById.get(id)?.text || "").join(" ");
+}
+
+function isVerseOrderSelectionCorrect(puzzle) {
+  const selectedText = normalizedVerseOrderAnswerText(verseOrderSelectionText(puzzle));
+  const correctText = normalizedVerseOrderAnswerText((puzzle?.segments || []).map((segment) => segment.text).join(" "));
+  return selectedText === correctText;
+}
+
 function answerTriviaQuestion(answer) {
   const game = state.triviaGame;
   if (!game || game.complete || game.selectedAnswer !== null) return;
@@ -6765,8 +6780,7 @@ function checkVerseOrder() {
   const game = state.triviaGame;
   const puzzle = currentVerseOrderPuzzle();
   if (!game || !puzzle || puzzle.answered || puzzle.selectedIds.length !== puzzle.segments.length) return;
-  const correctIds = puzzle.segments.map((segment) => segment.id);
-  puzzle.correct = puzzle.selectedIds.every((id, index) => id === correctIds[index]);
+  puzzle.correct = isVerseOrderSelectionCorrect(puzzle);
   puzzle.answered = true;
   if (puzzle.correct) game.score += 1;
   renderTriviaAnswerAndScroll();
