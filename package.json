@@ -1,0 +1,21 @@
+{
+  "name": "bigscreenbible",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A clean Bible reader, study workspace, scripture display tool, and Bible games experience.",
+  "scripts": {
+    "build": "node scripts/build-mobile.mjs",
+    "build:mobile": "node scripts/build-mobile.mjs",
+    "cap:sync": "npm run build:mobile && npx cap sync",
+    "cap:open:ios": "npm run cap:sync && npx cap open ios",
+    "cap:open:android": "npm run cap:sync && npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1"
+  }
+}

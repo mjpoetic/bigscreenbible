@@ -14,6 +14,26 @@ This project is a static site. To publish it with GitHub Pages:
 
 GitHub Pages will serve `index.html` from the repository root.
 
+## Mobile Apps
+
+This project is set up with Capacitor so the same static web app can be packaged for iOS and Android.
+
+The web source still lives at the repository root for GitHub Pages. Mobile builds copy the needed app files into the generated `www/` folder, then Capacitor syncs that bundle into the native projects.
+
+Common commands:
+
+```bash
+npm install
+npm run build:mobile
+npm run cap:sync
+npm run cap:open:ios
+npm run cap:open:android
+```
+
+The current bundle/application ID is `com.bigscreenbible.app`. Confirm this before App Store or Google Play submission, because store listings normally expect a stable reverse-domain identifier.
+
+Capacitor 8 expects Node.js 22 or newer. iOS builds require Xcode, and Android builds require Android Studio with an Android SDK installed.
+
 ## Bible Texts
 
 The bundled full-text translations live in `assets/bibles/` as JavaScript data bundles so the app works from GitHub Pages, a local preview server, or a direct `file://` browser open:

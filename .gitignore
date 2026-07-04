@@ -1,2 +1,6 @@
 .DS_Store
 sources/
+node_modules/
+www/
+android/app/src/main/assets/public/
+ios/App/App/public/
