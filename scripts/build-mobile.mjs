@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,18 @@ for (const entry of entries) {
     filter: (sourcePath) => path.basename(sourcePath) !== ".DS_Store",
     recursive: true,
   });
+}
+
+for (const htmlFile of ["index.html", "about.html"]) {
+  const htmlPath = path.join(outDir, htmlFile);
+  const html = readFileSync(htmlPath, "utf8");
+  writeFileSync(
+    htmlPath,
+    html.replace(
+      /content="width=device-width,\s*initial-scale=1(?:\.0)?,\s*viewport-fit=cover"/,
+      'content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"',
+    ),
+  );
 }
 
 console.log(`Mobile web assets copied to ${path.relative(rootDir, outDir)}/`);

@@ -4974,7 +4974,7 @@ select {
 .presentation.open {
   display: grid;
   grid-template-rows:
-    minmax(calc(64px + env(safe-area-inset-top, 0px)), auto)
+    minmax(calc(76px + env(safe-area-inset-top, 0px)), auto)
     minmax(0, 1fr)
     minmax(calc(72px + env(safe-area-inset-bottom, 0px)), auto);
   overflow: hidden;
@@ -4994,7 +4994,7 @@ select {
 .presentation-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 12px));
   padding-left: max(38px, calc(18px + env(safe-area-inset-left, 0px)));
   padding-right: max(38px, calc(18px + env(safe-area-inset-right, 0px)));
 }
@@ -5251,6 +5251,7 @@ select {
   border-radius: 6px;
   background: var(--presentation-button-bg);
   color: #fff;
+  font-size: 16px;
   padding: 0;
   outline: none;
 }
@@ -7220,7 +7221,7 @@ svg {
     position: relative;
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    padding: 8px;
+    padding: max(8px, calc(env(safe-area-inset-top, 0px) + 8px)) 8px 8px;
     gap: 8px;
     min-height: 0;
   }
