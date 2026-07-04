@@ -291,6 +291,7 @@ const state = {
   tutorialMode: "app",
   tutorialRestoreState: null,
   searchQuery: "",
+  searchResultsQuery: "",
   searchResults: [],
   pendingPanelFocus: null,
   pendingVerseFocus: false,
@@ -649,6 +650,39 @@ function isSideToolbarToggleEnabled() {
   return isShortLandscapeScreen();
 }
 
+function currentSafeAreaInsets() {
+  if (!document.body) return { left: 0, right: 0 };
+  const probe = document.createElement("div");
+  probe.style.cssText = [
+    "position:fixed",
+    "visibility:hidden",
+    "pointer-events:none",
+    "top:0",
+    "left:0",
+    "padding-left:env(safe-area-inset-left, 0px)",
+    "padding-right:env(safe-area-inset-right, 0px)",
+  ].join(";");
+  document.body.appendChild(probe);
+  const styles = getComputedStyle(probe);
+  const left = Number.parseFloat(styles.paddingLeft) || 0;
+  const right = Number.parseFloat(styles.paddingRight) || 0;
+  probe.remove();
+  return { left, right };
+}
+
+function effectiveSideToolbarPosition() {
+  if (!isSideToolbarToggleEnabled()) return state.sideToolbarPosition;
+  const { left, right } = currentSafeAreaInsets();
+  const sideDifference = 8;
+  if (left > right + sideDifference) return "right";
+  if (right > left + sideDifference) return "left";
+  return state.sideToolbarPosition;
+}
+
+function isSideToolbarAutoPositioned() {
+  return effectiveSideToolbarPosition() !== state.sideToolbarPosition;
+}
+
 function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240 } = {}) {
   const visibleElements = Array.from(document.querySelectorAll(selector))
     .filter((element) => element.getClientRects().length);
@@ -678,6 +712,7 @@ function render() {
   closeMobileVerseNavMenu();
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
+  const sideToolbarPosition = effectiveSideToolbarPosition();
   if (state.startupApplied) syncModeUrl();
   syncPresentationShell();
   if (dataLoading || dataError) {
@@ -691,7 +726,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -1597,10 +1632,12 @@ function rail() {
     ["History", icons.history],
     ["Search", icons.search],
   ];
-  const nextSide = state.sideToolbarPosition === "right" ? "left" : "right";
-  const sideToggleLabel = `Move toolbar ${nextSide}`;
+  const currentSide = effectiveSideToolbarPosition();
+  const nextSide = currentSide === "right" ? "left" : "right";
+  const autoPositioned = isSideToolbarAutoPositioned();
+  const sideToggleLabel = autoPositioned ? "Toolbar avoiding Dynamic Island" : `Move toolbar ${nextSide}`;
   const sideToggleIcon = nextSide === "left" ? icons.chevronLeft : icons.chevron;
-  const sideToggleEnabled = isSideToolbarToggleEnabled();
+  const sideToggleEnabled = isSideToolbarToggleEnabled() && !autoPositioned;
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
@@ -1692,11 +1729,14 @@ function crossReferencesPanel() {
 }
 
 function searchPanel() {
+  const searchInputValue = state.searchQuery || state.searchResultsQuery;
+  const canClearResults = state.searchResultsQuery || state.searchResults.length;
   return `
     <section class="study-section panel-section" id="searchSection">
-      <form class="study-search" id="studySearchForm">
-        <input id="studySearchInput" value="${escapeHtml(state.searchQuery)}" placeholder="Search words or phrases" aria-label="Search Bible words or phrases" />
+      <form class="study-search ${canClearResults ? "has-clear" : ""}" id="studySearchForm">
+        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="Search words or phrases" aria-label="Search Bible words or phrases" />
         <button class="ghost-btn" type="submit">Search</button>
+        ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>` : ""}
       </form>
       <div class="search-results">
         ${searchResultsMarkup()}
@@ -4374,16 +4414,17 @@ function closeStudyPopup(immediate = false) {
 }
 
 function searchResultsMarkup() {
-  if (!state.searchQuery) {
+  const query = state.searchResultsQuery;
+  if (!query) {
     return `<div class="empty-state">Search by phrase, word, or reference. Try “love one another” or "Son of Man".</div>`;
   }
   if (!state.searchResults.length) {
-    return `<div class="empty-state">No matches found for ${escapeHtml(state.searchQuery)}.</div>`;
+    return `<div class="empty-state">No matches found for ${escapeHtml(query)}.</div>`;
   }
   return state.searchResults.map((result) => `
-    <button class="search-result" data-goto="${escapeHtml(result.ref)}">
+    <button class="search-result" data-goto="${escapeHtml(result.ref)}" data-search-result="true">
       <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}${result.matchType ? ` · ${escapeHtml(result.matchType)}` : ""}</div>
-      <div class="ref-copy">${highlightSearchTerms(result.text, state.searchQuery)}</div>
+      <div class="ref-copy">${highlightSearchTerms(result.text, query)}</div>
     </button>
   `).join("");
 }
@@ -5278,11 +5319,13 @@ function bindEvents() {
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
       captureAnnotationOpenState();
-      const libraryScroll = captureLibraryScroll();
+      const isSearchResult = button.dataset.searchResult === "true";
+      const libraryScroll = isSearchResult ? null : captureLibraryScroll();
       const focusVerse = button.dataset.gotoVerse ? Number(button.dataset.gotoVerse) : NaN;
       gotoReference(button.dataset.goto, {
         focusVerse,
         libraryScroll,
+        closeLibrary: isSearchResult,
       });
     });
   });
@@ -5342,6 +5385,7 @@ function bindEvents() {
     event.preventDefault();
     runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "");
   });
+  document.getElementById("clearSearchResults")?.addEventListener("click", clearSearchResults);
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
   document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
@@ -6908,6 +6952,11 @@ function gotoReference(value, options = {}) {
   if (setReferenceFromString(cleaned)) {
     if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
     state.searchQuery = "";
+    if (options.closeLibrary) {
+      state.libraryOpen = false;
+      localStorage.setItem("lw_library_open", "false");
+      scheduleCloudSync();
+    }
     state.pendingVerseFocus = true;
     recordHistory();
     updateShareUrl();
@@ -6931,6 +6980,7 @@ async function runPhraseSearch(value) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
   state.searchQuery = query;
+  state.searchResultsQuery = query;
   await ensureAllSearchVersionsLoaded();
   state.searchResults = await searchBible(query);
   state.mode = state.mode === "big" ? "reader" : state.mode;
@@ -6942,6 +6992,13 @@ async function runPhraseSearch(value) {
   state.activeRail = "Search";
   state.pendingPanelFocus = "Search";
   localStorage.setItem("lw_library_open", "true");
+  render();
+}
+
+function clearSearchResults() {
+  state.searchQuery = "";
+  state.searchResultsQuery = "";
+  state.searchResults = [];
   render();
 }
 
@@ -8713,7 +8770,14 @@ window.addEventListener("resize", () => {
     if (isCompactScreen() || isShortLandscapeScreen()) preserveReaderScrollAfterViewportChange();
   }
 });
-window.addEventListener("orientationchange", preserveReaderScrollAfterViewportChange);
+window.addEventListener("orientationchange", () => {
+  if (state.mode === "big") {
+    clearTimeout(presentationResizeTimer);
+    presentationResizeTimer = setTimeout(render, 120);
+    return;
+  }
+  if (isCompactScreen() || isShortLandscapeScreen()) renderAfterViewportChangePreservingReaderScroll();
+});
 
 function buildBookAliases() {
   const aliases = {};
