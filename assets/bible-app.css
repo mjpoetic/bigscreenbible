@@ -8991,6 +8991,27 @@ svg {
     --phone-landscape-right-safe: max(env(safe-area-inset-right, 0px), 14px);
   }
 
+  .presentation.search-active .presentation-top {
+    grid-template-columns: max-content minmax(0, 1fr) auto;
+  }
+
+  .presentation.search-active .presentation-search-slot {
+    grid-column: 1;
+    max-width: min(56vw, 390px);
+  }
+
+  .presentation.search-active .presentation-ref {
+    display: none;
+  }
+
+  .presentation.search-active .presentation-actions {
+    grid-column: 3;
+  }
+
+  .presentation.search-active .presentation-search.search-open input {
+    width: min(30vw, 230px);
+  }
+
   .main-grid {
     padding-right: 0;
     position: relative;
