@@ -16,9 +16,15 @@ GitHub Pages will serve `index.html` from the repository root.
 
 ## Mobile Apps
 
-This project is set up with Capacitor so the same static web app can be packaged for iOS and Android.
+This project is set up with Capacitor so the same web app can be packaged for iOS and Android.
 
-The web source still lives at the repository root for GitHub Pages. Mobile builds copy the needed app files into the generated `www/` folder, then Capacitor syncs that bundle into the native projects.
+The production mobile apps use a hybrid/live-site shell. Capacitor loads `https://bigscreenbible.com` at runtime, while `webDir` remains configured as `www` so the generated bundle can stay in place as a fallback and for future offline work.
+
+Website updates deployed to `https://bigscreenbible.com` appear in the iOS and Android apps without requiring App Store or Play Store updates. Changes to the native shell, Capacitor configuration, native permissions, bundled fallback files, store metadata, or platform code still require new App Store / Play Store releases.
+
+Offline support is not automatic with this live-site setup. A future caching/service-worker strategy will be needed before the native apps can reliably open and navigate while disconnected.
+
+The web source still lives at the repository root for GitHub Pages. Mobile builds continue to copy the needed app files into the generated `www/` folder, then Capacitor syncs that bundle into the native projects. Do not remove this build/copy process until the fallback and offline strategy is intentionally replaced.
 
 Common commands:
 

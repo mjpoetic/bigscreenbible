@@ -2,5 +2,9 @@
   "appId": "com.bigscreenbible.app",
   "appName": "Big Screen Bible",
   "webDir": "www",
+  "server": {
+    "url": "https://bigscreenbible.com",
+    "cleartext": false
+  },
   "backgroundColor": "#111d37"
 }
