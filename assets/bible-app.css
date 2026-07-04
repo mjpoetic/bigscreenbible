@@ -4962,6 +4962,8 @@ select {
   --presentation-button-bg: rgba(255, 255, 255, 0.1);
   --presentation-button-border: rgba(255, 255, 255, 0.32);
   --presentation-muted: rgba(255, 255, 255, 0.74);
+  --presentation-stage-pad-x: clamp(28px, 4vw, 68px);
+  --presentation-stage-pad-y: clamp(14px, 2vh, 28px);
   background:
     linear-gradient(180deg, #004f54, #0d1211),
     radial-gradient(circle at 75% 12%, rgba(173, 116, 20, 0.28), transparent 34%);
@@ -4971,7 +4973,10 @@ select {
 
 .presentation.open {
   display: grid;
-  grid-template-rows: minmax(calc(64px + env(safe-area-inset-top, 0px)), auto) minmax(0, 1fr) minmax(72px, auto);
+  grid-template-rows:
+    minmax(calc(64px + env(safe-area-inset-top, 0px)), auto)
+    minmax(0, 1fr)
+    minmax(calc(72px + env(safe-area-inset-bottom, 0px)), auto);
   overflow: hidden;
 }
 
@@ -4997,6 +5002,9 @@ select {
 .presentation-bottom {
   display: flex;
   justify-content: space-between;
+  padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(38px, calc(18px + env(safe-area-inset-left, 0px)));
+  padding-right: max(38px, calc(18px + env(safe-area-inset-right, 0px)));
 }
 
 .presentation-bottom {
@@ -5271,7 +5279,11 @@ select {
   justify-self: center;
   width: min(100%, 1290px);
   min-height: 0;
-  padding: clamp(14px, 2vh, 28px) clamp(28px, 4vw, 68px);
+  padding:
+    max(var(--presentation-stage-pad-y), calc(env(safe-area-inset-top, 0px) + 8px))
+    max(var(--presentation-stage-pad-x), calc(env(safe-area-inset-right, 0px) + 24px))
+    max(var(--presentation-stage-pad-y), calc(env(safe-area-inset-bottom, 0px) + 8px))
+    max(var(--presentation-stage-pad-x), calc(env(safe-area-inset-left, 0px) + 24px));
   display: flex;
   align-items: center;
   justify-content: center;
