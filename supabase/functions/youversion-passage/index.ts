@@ -1,3 +1,5 @@
+import { cleanPlainText, cleanQuotedProviderText } from "./text-cleaner.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -11,7 +13,7 @@ const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 const verseFetchConcurrency = 8;
-const parserVersion = "2026-07-06-youversion-amp-safe-headings";
+const parserVersion = "2026-07-06-youversion-amp-pilcrow-cleanup";
 
 type YouVersionTranslationCode = "AMP";
 
@@ -138,36 +140,6 @@ function jsonResponse(body: unknown, status = 200, cacheControl = "no-store") {
 
 function normalizedLabel(value: unknown) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-function cleanQuotedProviderText(value: unknown) {
-  return String(value || "")
-    .trim()
-    .replace(/^"+|"+$/g, "")
-    .trim();
-}
-
-function cleanPlainText(value: unknown) {
-  return decodeHtmlEntities(String(value || ""))
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function decodeHtmlEntities(value: string) {
-  return value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x([0-9a-f]+);/gi, (_match, hex) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/g, (_match, decimal) =>
-      String.fromCodePoint(parseInt(decimal, 10))
-    );
 }
 
 function matchesTranslation(
