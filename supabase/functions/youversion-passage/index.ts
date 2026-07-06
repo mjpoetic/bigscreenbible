@@ -11,7 +11,7 @@ const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 const verseFetchConcurrency = 8;
-const parserVersion = "2026-07-06-youversion-amp-html-headings";
+const parserVersion = "2026-07-06-youversion-amp-safe-headings";
 
 type YouVersionTranslationCode = "AMP";
 
@@ -324,14 +324,25 @@ async function passageText(
 }
 
 function cleanSectionHeading(value: string) {
-  const heading = cleanPlainText(value)
+  const heading = normalizeYouVersionHeadingText(cleanPlainText(value))
     .replace(/^[\s:;,\-.]+/, "")
+    .replace(/\s+\d+$/, "")
     .replace(/[\s:;,\-.]+$/, "")
     .trim();
   if (!heading) return "";
   if (/^\d+$/.test(heading)) return "";
-  if (/^[1-3]?\s*[A-Za-z ]+\s+\d+$/.test(heading)) return "";
+  if (/^\d+\s+/.test(heading)) return "";
+  if (heading.length > 80) return "";
+  if (/[.!?]/.test(heading)) return "";
   return heading;
+}
+
+function normalizeYouVersionHeadingText(value: string) {
+  return String(value || "")
+    .replace(/\bL\s+ord(?=[A-Z])/g, "Lord ")
+    .replace(/\bL\s+ord\b/g, "Lord")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeRegExp(value: string) {
@@ -357,7 +368,7 @@ function sectionHeadingMapFromChapterText(
   verses: Array<{ n: number; text: string }>,
 ) {
   const headings = new Map<number, Array<{ text: string; level: number }>>();
-  let remaining = cleanPlainText(headedText);
+  let remaining = normalizeYouVersionHeadingText(cleanPlainText(headedText));
   if (!remaining) return headings;
 
   const chapterLabel = new RegExp(
@@ -366,7 +377,7 @@ function sectionHeadingMapFromChapterText(
   );
 
   verses.forEach((verse) => {
-    const verseText = cleanPlainText(verse.text);
+    const verseText = normalizeYouVersionHeadingText(cleanPlainText(verse.text));
     if (!verseText) return;
     const index = remaining.indexOf(verseText);
     if (index === -1) return;
