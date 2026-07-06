@@ -37,10 +37,18 @@ const bibleProviders = {
     type: "remote",
     edgeFunction: "api-bible-passage",
     tracksFums: true,
+    showsAttribution: true,
+  },
+  youVersion: {
+    type: "remote",
+    edgeFunction: "youversion-passage",
+    supportsSearch: false,
+    showsAttribution: true,
   },
 };
 
 const translations = [
+  { code: "AMP", name: "Amplified Bible", provider: "youVersion" },
   { code: "ASV", name: "American Standard Version", provider: "local" },
   { code: "BBE", name: "Bible in Basic English", provider: "local" },
   { code: "BSB", name: "Berean Standard Bible", provider: "local" },
@@ -7086,7 +7094,7 @@ function balanceResultGroup(results, versionOrder) {
 }
 
 async function searchRemoteVersions(query, criteria) {
-  const remoteVersions = translationCodes.filter(isRemoteTranslation);
+  const remoteVersions = translationCodes.filter((version) => isRemoteTranslation(version) && translationProvider(version).supportsSearch !== false);
   if (!remoteVersions.length) return [];
   const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria)));
   return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
@@ -8982,7 +8990,7 @@ async function fetchVerseOfDayItem() {
 function remoteFunctionUrl(version, chapterKey) {
   const provider = translationProvider(version);
   if (!provider.edgeFunction) return "";
-  const params = provider === bibleProviders.apiBible
+  const params = provider === bibleProviders.apiBible || provider === bibleProviders.youVersion
     ? { version, ref: chapterKey }
     : { ref: chapterKey };
   return supabaseFunctionUrl(provider.edgeFunction, params);
@@ -9040,7 +9048,7 @@ function apiBibleAttributionMarkup(versions, className = "") {
   const notices = [];
   const seen = new Set();
   versions.forEach((version) => {
-    if (translationProvider(version) !== bibleProviders.apiBible) return;
+    if (!translationProvider(version).showsAttribution) return;
     const payload = remoteVersionData.get(remoteVersionLoadKey(version, state.reference));
     const copyright = String(payload?.copyright || "").trim();
     if (!copyright || seen.has(copyright)) return;

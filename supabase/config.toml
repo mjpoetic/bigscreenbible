@@ -4,5 +4,8 @@ verify_jwt = false
 [functions.api-bible-passage]
 verify_jwt = false
 
+[functions.youversion-passage]
+verify_jwt = false
+
 [functions.verse-of-the-day]
 verify_jwt = false

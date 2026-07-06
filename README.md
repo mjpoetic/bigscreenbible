@@ -64,8 +64,9 @@ Licensed remote translations are provider-based:
 
 - ESV uses the Crossway ESV Supabase Edge Function.
 - NIV, NLT, and NASB 2020 use the API.Bible Supabase Edge Function.
+- AMP uses the YouVersion Platform Supabase Edge Function.
 - API keys remain Supabase secrets; the browser only calls the project Edge Functions.
-- API.Bible copyright notices and FUMS view tracking are included in the rendered experience.
+- Provider copyright notices and API.Bible FUMS view tracking are included in the rendered experience.
 
 Verse of the Day is fetched server-side from the VerseoftheDay.com / Heartlight RSS feed, cached once per Eastern calendar day in Supabase, and reduced to the item reference, verse text, and linked attribution. The bundled curated rotation remains the offline/failure fallback.
 

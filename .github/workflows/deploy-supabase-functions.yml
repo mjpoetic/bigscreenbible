@@ -38,5 +38,8 @@ jobs:
       - name: Deploy API.Bible Edge Function
         run: supabase functions deploy api-bible-passage --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
 
+      - name: Deploy YouVersion Edge Function
+        run: supabase functions deploy youversion-passage --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
       - name: Deploy Verse of the Day Edge Function
         run: supabase functions deploy verse-of-the-day --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

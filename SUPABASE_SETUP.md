@@ -77,8 +77,10 @@ Add these in Supabase Project Settings → Edge Functions → Secrets:
 
 - `ESV_API_KEY` for the Crossway ESV API.
 - `API_BIBLE_KEY` for API.Bible. Do not add this key to `assets/supabase-config.js` or any other browser file.
+- `YOUVERSION_APP_KEY` for YouVersion Platform. Do not add this key to `assets/supabase-config.js` or any other browser file.
 
 The API.Bible endpoint used by the function is `https://rest.api.bible`.
+The YouVersion Platform endpoint used by the function is `https://api.youversion.com`.
 
 Also add a GitHub repository secret named `SUPABASE_ACCESS_TOKEN`.
 
@@ -90,6 +92,7 @@ You can create the access token in Supabase from Account settings → Access Tok
 - `supabase/config.toml`
 - `supabase/functions/esv-passage/index.ts`
 - `supabase/functions/api-bible-passage/index.ts`
+- `supabase/functions/youversion-passage/index.ts`
 - `supabase/functions/verse-of-the-day/index.ts`
 
 The workflow deploys the Bible provider functions and the Verse of the Day RSS function to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
@@ -102,8 +105,10 @@ If you ever want to deploy from a machine where the Supabase CLI works, the equi
 supabase link --project-ref YOUR_PROJECT_REF
 supabase secrets set ESV_API_KEY=YOUR_CROSSWAY_ESV_API_KEY
 supabase secrets set API_BIBLE_KEY=YOUR_API_BIBLE_KEY
+supabase secrets set YOUVERSION_APP_KEY=YOUR_YOUVERSION_PLATFORM_APP_KEY
 supabase functions deploy esv-passage --no-verify-jwt
 supabase functions deploy api-bible-passage --no-verify-jwt
+supabase functions deploy youversion-passage --no-verify-jwt
 supabase functions deploy verse-of-the-day --no-verify-jwt
 ```
 
@@ -120,14 +125,19 @@ The included `supabase/config.toml` keeps JWT verification off for these read-on
 - API.Bible FUMS view tokens are forwarded to the browser and reported through the official FUMS web tracker.
 - Copyright text returned by API.Bible is displayed with the passage in Reader, Parallel Study, print, and Big Screen Mode.
 - API.Bible Scripture text must not be used for AI training, embeddings, LLM fine-tuning, generated paraphrases, or similar derivative model workflows.
+- YouVersion Platform requests use the `youversion-passage` Edge Function and the `X-YVP-App-Key` header server-side. The function discovers the authorized AMP Bible ID from `GET /v1/bibles?language_ranges[]=en` and caches only Bible metadata in Edge Function memory for up to 24 hours.
+- AMP chapter requests currently fetch the chapter's verse index and then fetch each verse through YouVersion's passage endpoint with notes disabled. Scripture responses use `Cache-Control: no-store`.
+- YouVersion's public REST docs do not currently list a Bible search endpoint, so AMP is not included in global remote-provider search yet.
+- Copyright text returned by YouVersion metadata is displayed with AMP passages in Reader, Parallel Study, print, and Big Screen Mode.
 
 To inspect which approved editions the function discovered after deployment:
 
 ```text
 https://YOUR_PROJECT.supabase.co/functions/v1/api-bible-passage?action=bibles
+https://YOUR_PROJECT.supabase.co/functions/v1/youversion-passage?action=bibles
 ```
 
-Send the public Supabase publishable/anon key in the `apikey` and bearer authorization headers, just as the website does. This response contains Bible IDs and metadata, never `API_BIBLE_KEY`.
+Send the public Supabase publishable/anon key in the `apikey` and bearer authorization headers, just as the website does. These responses contain Bible IDs and metadata, never `API_BIBLE_KEY` or `YOUVERSION_APP_KEY`.
 
 The website only contains the public Supabase publishable/anon key. Provider secrets stay in Supabase and are never committed to GitHub or exposed in browser code.
 
