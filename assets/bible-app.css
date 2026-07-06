@@ -3792,6 +3792,42 @@ select {
   color: var(--muted);
 }
 
+.scripture-inline-reference {
+  display: inline;
+  color: inherit;
+  white-space: normal;
+}
+
+.scripture-inline-reference-link {
+  appearance: none;
+  display: inline;
+  margin: 0;
+  padding: 0 0.08em;
+  border: 0;
+  border-radius: 0.14em;
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold) 42%, transparent);
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.14em;
+  cursor: pointer;
+}
+
+.scripture-inline-reference-link:hover,
+.scripture-inline-reference-link:focus-visible {
+  background: color-mix(in srgb, var(--gold) 20%, transparent);
+  color: color-mix(in srgb, var(--gold) 70%, var(--ink));
+  text-decoration-color: currentColor;
+}
+
+.scripture-inline-reference-separator {
+  color: inherit;
+}
+
 .scripture-paragraph {
   margin: 0;
   font: 400 var(--verse-font) / 1.78 var(--scripture-font);

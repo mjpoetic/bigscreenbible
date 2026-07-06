@@ -2017,11 +2017,12 @@ function closeMobileVerseNavMenu(options = {}) {
 function renderStrongText(verse, version) {
   const text = getVerseText(verse, version);
   const redLetterRanges = wordsOfJesusRanges(verse, version);
-  if (!state.strongNumbers) return renderRedLetterText(text, redLetterRanges);
+  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version);
   return renderTextWithStrongNumbers(
     text,
     getStrongEntries(verse, version),
     redLetterRanges,
+    version,
   );
 }
 
@@ -2045,8 +2046,8 @@ function getStrongEntries(verse, version) {
   return sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
 }
 
-function renderTextWithStrongNumbers(text, entries, redLetterRanges = []) {
-  if (!entries.length) return renderRedLetterText(text, redLetterRanges);
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "") {
+  if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version);
 
   let output = "";
   let cursor = 0;
@@ -2056,11 +2057,11 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = []) {
     if (!hasStrongEntry(normalizedCode)) return;
     const index = text.indexOf(word, cursor);
     if (index === -1) return;
-    output += renderRedLetterText(text.slice(cursor, index), redLetterRanges, cursor);
-    output += `<button class="strong-word" data-strong="${escapeHtml(normalizedCode)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(normalizedCode)} for ${escapeHtml(word)}">${renderRedLetterText(word, redLetterRanges, index)}</button>`;
+    output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version);
+    output += `<button class="strong-word" data-strong="${escapeHtml(normalizedCode)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(normalizedCode)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version)}</button>`;
     cursor = index + word.length;
   });
-  output += renderRedLetterText(text.slice(cursor), redLetterRanges, cursor);
+  output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version);
   return output;
 }
 
@@ -2099,6 +2100,63 @@ function setSectionHeadings(enabled) {
 function wordsOfJesusRanges(verse, version) {
   const ranges = verse?.wordsOfJesus?.[version];
   return Array.isArray(ranges) ? ranges : [];
+}
+
+function renderScriptureText(text, ranges = [], baseOffset = 0, version = "") {
+  if (version === "AMP") return renderAmpInlineReferences(text, ranges, baseOffset);
+  return renderRedLetterText(text, ranges, baseOffset);
+}
+
+function renderAmpInlineReferences(text, ranges = [], baseOffset = 0) {
+  const value = String(text || "");
+  const referencePattern = /\[([^\[\]]{1,160})\]/g;
+  let cursor = 0;
+  let output = "";
+  let match;
+
+  while ((match = referencePattern.exec(value))) {
+    const referenceMarkup = ampInlineReferenceMarkup(match[1]);
+    if (!referenceMarkup) continue;
+    output += renderRedLetterText(value.slice(cursor, match.index), ranges, baseOffset + cursor);
+    output += `<span class="scripture-inline-reference" aria-label="Scripture references">[${referenceMarkup}]</span>`;
+    cursor = match.index + match[0].length;
+  }
+
+  output += renderRedLetterText(value.slice(cursor), ranges, baseOffset + cursor);
+  return output;
+}
+
+function ampInlineReferenceMarkup(value) {
+  const tokens = String(value || "")
+    .split(";")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (!tokens.length) return "";
+
+  let previousBook = "";
+  const parts = tokens.map((token) => {
+    const part = ampInlineReferencePart(token, previousBook);
+    if (!part) return null;
+    previousBook = part.book;
+    return part;
+  });
+  if (!parts.length || parts.some((part) => !part)) return "";
+
+  return parts
+    .map((part) => `<button class="scripture-inline-reference-link" type="button" data-scripture-reference="${escapeHtml(part.reference)}" aria-label="Open ${escapeHtml(part.reference)}">${escapeHtml(part.display)}</button>`)
+    .join('<span class="scripture-inline-reference-separator">; </span>');
+}
+
+function ampInlineReferencePart(value, previousBook = "") {
+  const display = String(value || "").trim().replace(/[–—]/g, "-").replace(/\s+/g, " ");
+  if (!display) return null;
+  const reference = /^\d{1,3}(?::[0-9,\-\s]+)?$/.test(display) && previousBook
+    ? `${previousBook} ${display}`
+    : display;
+  const parsed = parsePassageReference(reference);
+  return parsed
+    ? { book: bookNameFromChapterKey(parsed.key), display, reference: normalizeHeadingReference(reference) }
+    : null;
 }
 
 function renderRedLetterText(text, ranges = [], baseOffset = 0) {
@@ -5289,6 +5347,12 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       gotoReference(button.dataset.headingReference || "");
+    });
+  });
+  document.querySelectorAll("[data-scripture-reference]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      gotoReference(button.dataset.scriptureReference || "");
     });
   });
   document.querySelectorAll("[data-verse-actions]").forEach((button) => {
