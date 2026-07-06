@@ -220,24 +220,29 @@ async function authorizedBibles(appKey: string) {
   const available = await allEnglishBibles(appKey);
   const bibles = new Map<YouVersionTranslationCode, AuthorizedBible>();
 
-  (["AMP"] as YouVersionTranslationCode[]).forEach((code) => {
+  for (const code of ["AMP"] as YouVersionTranslationCode[]) {
     const bible = available.find((candidate) =>
       matchesTranslation(candidate, code)
     );
     const id = Number(bible?.id);
-    if (!Number.isInteger(id)) return;
+    if (!Number.isInteger(id)) continue;
+    const details = await youVersionRequest(
+      `/v1/bibles/${encodeURIComponent(String(id))}`,
+      appKey,
+    ) as YouVersionBibleSummary;
+    const metadata = { ...bible, ...details };
     bibles.set(code, {
       code,
       id,
-      abbreviation: bible?.localized_abbreviation || bible?.abbreviation ||
+      abbreviation: metadata.localized_abbreviation || metadata.abbreviation ||
         code,
-      name: bible?.title || bible?.localized_title || "Amplified Bible",
-      copyright: cleanQuotedProviderText(bible?.copyright),
-      info: cleanQuotedProviderText(bible?.info),
-      publisherUrl: String(bible?.publisher_url || "").trim(),
-      deepLink: String(bible?.youversion_deep_link || "").trim(),
+      name: metadata.title || metadata.localized_title || "Amplified Bible",
+      copyright: cleanQuotedProviderText(metadata.copyright),
+      info: cleanQuotedProviderText(metadata.info),
+      publisherUrl: String(metadata.publisher_url || "").trim(),
+      deepLink: String(metadata.youversion_deep_link || "").trim(),
     });
-  });
+  }
 
   authorizedBibleCache = {
     expiresAt: Date.now() + authorizedBibleCacheTtlMs,
