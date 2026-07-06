@@ -648,17 +648,31 @@ button {
   height: var(--reader-chrome-height);
   transition:
     opacity var(--motion-base) ease,
-    transform var(--motion-slow) var(--motion-ease);
+    transform var(--motion-slow) var(--motion-ease),
+    height var(--motion-slow) var(--motion-ease),
+    padding-block var(--motion-slow) var(--motion-ease),
+    border-color var(--motion-slow) var(--motion-ease),
+    border-width var(--motion-slow) var(--motion-ease);
 }
 
 .footer-region.collapsed .bottombar {
+  height: 0;
+  min-height: 0;
+  padding-block: 0;
+  overflow: hidden;
+  border-top-width: 0;
+  border-top-color: transparent;
   opacity: 0;
-  transform: translateY(100%);
+  transform: translateY(14px);
   pointer-events: none;
   visibility: hidden;
   transition:
     opacity var(--motion-base) ease,
     transform var(--motion-slow) var(--motion-ease),
+    height var(--motion-slow) var(--motion-ease),
+    padding-block var(--motion-slow) var(--motion-ease),
+    border-color var(--motion-slow) var(--motion-ease),
+    border-width var(--motion-slow) var(--motion-ease),
     visibility 0s var(--motion-slow);
 }
 
@@ -2503,6 +2517,10 @@ select {
   content: "";
   position: absolute;
   inset: -15px -8px;
+}
+
+.footer-collapse-toggle::before {
+  inset: -15px -8px 0;
 }
 
 .bar-collapse-toggle svg {
