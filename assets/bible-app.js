@@ -8859,17 +8859,17 @@ function buildBookAliases() {
 
   books.forEach((book) => add(book, book, book.replace(/^\d\s+/, "$&"), book.replace(/\s+/g, "")));
   add("Genesis", "gen", "ge", "gn");
-  add("Exodus", "ex", "exo");
+  add("Exodus", "ex", "exo", "exod");
   add("Leviticus", "lev", "le");
-  add("Numbers", "num", "nu");
+  add("Numbers", "num", "numb", "nu", "nm");
   add("Deuteronomy", "deut", "dt", "deu");
   add("Joshua", "jos", "josh");
   add("Judges", "jdg", "judg");
   add("Ruth", "ru");
   add("1 Samuel", "1sam", "1sa", "1 sam", "1 sa");
   add("2 Samuel", "2sam", "2sa", "2 sam", "2 sa");
-  add("1 Kings", "1ki", "1kgs", "1 kings");
-  add("2 Kings", "2ki", "2kgs", "2 kings");
+  add("1 Kings", "1ki", "1kgs", "1 kin", "1kin", "1 kgs", "1 king", "1 kings");
+  add("2 Kings", "2ki", "2kgs", "2 kin", "2kin", "2 kgs", "2 king", "2 kings");
   add("1 Chronicles", "1chr", "1ch", "1 chron", "1 chronicles");
   add("2 Chronicles", "2chr", "2ch", "2 chron", "2 chronicles");
   add("Ezra", "ezr");
@@ -8897,11 +8897,11 @@ function buildBookAliases() {
   add("Zechariah", "zec", "zech");
   add("Malachi", "mal");
   add("Matthew", "matt", "mt", "mat");
-  add("Mark", "mrk", "mk");
+  add("Mark", "mrk", "mk", "mar");
   add("Luke", "luk", "lk");
   add("John", "jhn", "jn");
-  add("Acts", "act");
-  add("Romans", "rom", "ro");
+  add("Acts", "act", "ac");
+  add("Romans", "rom", "ro", "rm");
   add("1 Corinthians", "1cor", "1co", "1 cor", "1 corinthians");
   add("2 Corinthians", "2cor", "2co", "2 cor", "2 corinthians");
   add("Galatians", "gal");
@@ -8913,16 +8913,16 @@ function buildBookAliases() {
   add("1 Timothy", "1tim", "1ti", "1 tim", "1 timothy");
   add("2 Timothy", "2tim", "2ti", "2 tim", "2 timothy");
   add("Titus", "tit");
-  add("Philemon", "phm", "phile");
+  add("Philemon", "phm", "phile", "philem");
   add("Hebrews", "heb");
-  add("James", "jas", "jm");
+  add("James", "jas", "jam", "jm");
   add("1 Peter", "1pet", "1pe", "1 peter");
   add("2 Peter", "2pet", "2pe", "2 peter");
   add("1 John", "1jn", "1 jn", "1john", "1 john");
   add("2 John", "2jn", "2 jn", "2john", "2 john");
   add("3 John", "3jn", "3 jn", "3john", "3 john");
   add("Jude", "jud");
-  add("Revelation", "rev", "re");
+  add("Revelation", "rev", "re", "rv");
   return aliases;
 }
 
