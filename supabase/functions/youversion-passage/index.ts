@@ -11,7 +11,7 @@ const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 const verseFetchConcurrency = 8;
-const parserVersion = "2026-07-06-youversion-amp-headings";
+const parserVersion = "2026-07-06-youversion-amp-html-headings";
 
 type YouVersionTranslationCode = "AMP";
 
@@ -303,10 +303,10 @@ async function passageText(
   bible: AuthorizedBible,
   passageId: string,
   appKey: string,
-  options: { includeHeadings?: boolean } = {},
+  options: { format?: "html" | "text"; includeHeadings?: boolean } = {},
 ) {
   const query = new URLSearchParams({
-    format: "text",
+    format: options.format || "text",
     include_headings: options.includeHeadings ? "true" : "false",
     include_notes: "false",
   });
@@ -345,6 +345,7 @@ async function chapterSectionHeadingMap(
   verses: Array<{ n: number; text: string }>,
 ) {
   const headedPassage = await passageText(bible, chapter.chapterId, appKey, {
+    format: "html",
     includeHeadings: true,
   });
   return sectionHeadingMapFromChapterText(headedPassage.text, chapter, verses);
@@ -370,9 +371,11 @@ function sectionHeadingMapFromChapterText(
     const index = remaining.indexOf(verseText);
     if (index === -1) return;
 
+    const verseNumber = escapeRegExp(String(verse.n));
     const beforeVerse = remaining.slice(0, index)
       .replace(chapterLabel, "")
-      .replace(/^\d+\s+/, "");
+      .replace(new RegExp(`^${verseNumber}\\s+`), "")
+      .replace(new RegExp(`\\s+${verseNumber}$`), "");
     const heading = cleanSectionHeading(beforeVerse);
     if (heading) headings.set(verse.n, [{ text: heading, level: 1 }]);
     remaining = remaining.slice(index + verseText.length).trim();
