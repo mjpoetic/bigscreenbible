@@ -45,6 +45,13 @@ type ChapterReference = {
   chapterId: string;
 };
 
+type PassageVerse = {
+  n: number;
+  text: string;
+  paragraphStart: boolean;
+  sectionHeadings?: Array<{ text: string; level: number }>;
+};
+
 let authorizedBibleCache:
   | { expiresAt: number; bibles: Map<YouVersionTranslationCode, AuthorizedBible> }
   | null = null;
@@ -316,29 +323,6 @@ async function passageText(
   };
 }
 
-async function passageSectionHeadings(
-  bible: AuthorizedBible,
-  passageId: string,
-  appKey: string,
-  verseText: string,
-) {
-  const headedPassage = await passageText(bible, passageId, appKey, {
-    includeHeadings: true,
-  });
-  return sectionHeadingsFromHeadedText(headedPassage.text, verseText);
-}
-
-function sectionHeadingsFromHeadedText(headedText: string, verseText: string) {
-  const headed = cleanPlainText(headedText);
-  const verse = cleanPlainText(verseText);
-  if (!headed || !verse || headed === verse || !headed.endsWith(verse)) {
-    return [];
-  }
-
-  const heading = cleanSectionHeading(headed.slice(0, -verse.length));
-  return heading ? [{ text: heading, level: 1 }] : [];
-}
-
 function cleanSectionHeading(value: string) {
   const heading = cleanPlainText(value)
     .replace(/^[\s:;,\-.]+/, "")
@@ -348,6 +332,53 @@ function cleanSectionHeading(value: string) {
   if (/^\d+$/.test(heading)) return "";
   if (/^[1-3]?\s*[A-Za-z ]+\s+\d+$/.test(heading)) return "";
   return heading;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function chapterSectionHeadingMap(
+  bible: AuthorizedBible,
+  chapter: ChapterReference,
+  appKey: string,
+  verses: Array<{ n: number; text: string }>,
+) {
+  const headedPassage = await passageText(bible, chapter.chapterId, appKey, {
+    includeHeadings: true,
+  });
+  return sectionHeadingMapFromChapterText(headedPassage.text, chapter, verses);
+}
+
+function sectionHeadingMapFromChapterText(
+  headedText: string,
+  chapter: ChapterReference,
+  verses: Array<{ n: number; text: string }>,
+) {
+  const headings = new Map<number, Array<{ text: string; level: number }>>();
+  let remaining = cleanPlainText(headedText);
+  if (!remaining) return headings;
+
+  const chapterLabel = new RegExp(
+    `^${escapeRegExp(chapter.book)}\\s+${chapter.chapter}\\s+`,
+    "i",
+  );
+
+  verses.forEach((verse) => {
+    const verseText = cleanPlainText(verse.text);
+    if (!verseText) return;
+    const index = remaining.indexOf(verseText);
+    if (index === -1) return;
+
+    const beforeVerse = remaining.slice(0, index)
+      .replace(chapterLabel, "")
+      .replace(/^\d+\s+/, "");
+    const heading = cleanSectionHeading(beforeVerse);
+    if (heading) headings.set(verse.n, [{ text: heading, level: 1 }]);
+    remaining = remaining.slice(index + verseText.length).trim();
+  });
+
+  return headings;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -399,25 +430,28 @@ async function chapterVerses(
     async (verse) => {
       const passage = await passageText(bible, verse.passageId, appKey);
       if (!passage.text) return null;
-      const sectionHeadings = await passageSectionHeadings(
-        bible,
-        verse.passageId,
-        appKey,
-        passage.text,
-      ).catch(() => []);
       return {
         n: verse.number,
         text: passage.text,
         paragraphStart: verse.number === 1,
-        ...(sectionHeadings.length ? { sectionHeadings } : {}),
       };
     },
   );
 
-  const verses = settled.flatMap((result) =>
+  const verses: PassageVerse[] = settled.flatMap((result) =>
     result.status === "fulfilled" && result.value ? [result.value] : []
   );
   verses.sort((a, b) => a.n - b.n);
+  const headingMap = await chapterSectionHeadingMap(
+    bible,
+    chapter,
+    appKey,
+    verses,
+  ).catch(() => new Map());
+  verses.forEach((verse) => {
+    const sectionHeadings = headingMap.get(verse.n);
+    if (sectionHeadings?.length) verse.sectionHeadings = sectionHeadings;
+  });
   return dedupeRepeatedSectionHeadings(verses);
 }
 
