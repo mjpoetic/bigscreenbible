@@ -11,7 +11,7 @@ const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 const verseFetchConcurrency = 8;
-const parserVersion = "2026-07-06-youversion-amp-verse-fetch";
+const parserVersion = "2026-07-06-youversion-amp-headings";
 
 type YouVersionTranslationCode = "AMP";
 
@@ -296,10 +296,11 @@ async function passageText(
   bible: AuthorizedBible,
   passageId: string,
   appKey: string,
+  options: { includeHeadings?: boolean } = {},
 ) {
   const query = new URLSearchParams({
     format: "text",
-    include_headings: "false",
+    include_headings: options.includeHeadings ? "true" : "false",
     include_notes: "false",
   });
   const payload = await youVersionRequest(
@@ -313,6 +314,40 @@ async function passageText(
     reference: String(payload?.reference || "").trim(),
     text: cleanPlainText(payload?.content),
   };
+}
+
+async function passageSectionHeadings(
+  bible: AuthorizedBible,
+  passageId: string,
+  appKey: string,
+  verseText: string,
+) {
+  const headedPassage = await passageText(bible, passageId, appKey, {
+    includeHeadings: true,
+  });
+  return sectionHeadingsFromHeadedText(headedPassage.text, verseText);
+}
+
+function sectionHeadingsFromHeadedText(headedText: string, verseText: string) {
+  const headed = cleanPlainText(headedText);
+  const verse = cleanPlainText(verseText);
+  if (!headed || !verse || headed === verse || !headed.endsWith(verse)) {
+    return [];
+  }
+
+  const heading = cleanSectionHeading(headed.slice(0, -verse.length));
+  return heading ? [{ text: heading, level: 1 }] : [];
+}
+
+function cleanSectionHeading(value: string) {
+  const heading = cleanPlainText(value)
+    .replace(/^[\s:;,\-.]+/, "")
+    .replace(/[\s:;,\-.]+$/, "")
+    .trim();
+  if (!heading) return "";
+  if (/^\d+$/.test(heading)) return "";
+  if (/^[1-3]?\s*[A-Za-z ]+\s+\d+$/.test(heading)) return "";
+  return heading;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -364,10 +399,17 @@ async function chapterVerses(
     async (verse) => {
       const passage = await passageText(bible, verse.passageId, appKey);
       if (!passage.text) return null;
+      const sectionHeadings = await passageSectionHeadings(
+        bible,
+        verse.passageId,
+        appKey,
+        passage.text,
+      ).catch(() => []);
       return {
         n: verse.number,
         text: passage.text,
         paragraphStart: verse.number === 1,
+        ...(sectionHeadings.length ? { sectionHeadings } : {}),
       };
     },
   );
@@ -376,6 +418,28 @@ async function chapterVerses(
     result.status === "fulfilled" && result.value ? [result.value] : []
   );
   verses.sort((a, b) => a.n - b.n);
+  return dedupeRepeatedSectionHeadings(verses);
+}
+
+function dedupeRepeatedSectionHeadings<
+  T extends { sectionHeadings?: Array<{ text?: string; level?: number }> },
+>(verses: T[]) {
+  const seen = new Set<string>();
+  verses.forEach((verse) => {
+    if (!Array.isArray(verse.sectionHeadings)) return;
+    verse.sectionHeadings = verse.sectionHeadings.filter((heading) => {
+      const text = cleanSectionHeading(String(heading?.text || ""));
+      const level = Math.max(1, Math.min(4, Number(heading?.level) || 1));
+      if (!text) return false;
+      const key = `${level}:${text.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      heading.text = text;
+      heading.level = level;
+      return true;
+    });
+    if (!verse.sectionHeadings.length) delete verse.sectionHeadings;
+  });
   return verses;
 }
 
