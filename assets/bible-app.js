@@ -266,8 +266,8 @@ const state = {
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
   sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
-  redLetters: localStorage.getItem("lw_red_letters") === "true",
-  strongNumbers: localStorage.getItem("lw_strong_numbers") !== "false",
+  redLetters: savedRedLetters(),
+  strongNumbers: savedStrongNumbers(),
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
@@ -375,7 +375,21 @@ function savedFocusMode() {
   const saved = localStorage.getItem("lw_focus_mode");
   if (saved === "true") return true;
   if (saved === "false") return false;
+  return false;
+}
+
+function savedRedLetters() {
+  const saved = localStorage.getItem("lw_red_letters");
+  if (saved === "true") return true;
+  if (saved === "false") return false;
   return true;
+}
+
+function savedStrongNumbers() {
+  const saved = localStorage.getItem("lw_strong_numbers");
+  if (saved === "true") return true;
+  if (saved === "false") return false;
+  return false;
 }
 
 function savedParagraphLayout() {
@@ -2762,8 +2776,8 @@ function applyCloudSnapshot(snapshot) {
     ? settings.paragraphLayout
     : savedParagraphLayout();
   state.sectionHeadings = settings.sectionHeadings !== false;
-  state.redLetters = settings.redLetters === true;
-  state.strongNumbers = settings.strongNumbers !== false;
+  state.redLetters = typeof settings.redLetters === "boolean" ? settings.redLetters : savedRedLetters();
+  state.strongNumbers = typeof settings.strongNumbers === "boolean" ? settings.strongNumbers : savedStrongNumbers();
   state.sideToolbarPosition = settings.sideToolbarPosition === "right" ? "right" : "left";
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
