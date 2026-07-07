@@ -748,7 +748,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -4608,9 +4608,11 @@ function selectionBar() {
   const count = state.selectedVerses.length;
   if (!count) return "";
   const label = printReferenceLabel(state.selectedVerses);
+  const crossRefVerse = selectedCrossReferenceVerse();
+  const crossRefLabel = `${state.reference}:${crossRefVerse}`;
   return `
     <div class="selection-bar" role="status">
-      <span>${count} selected · ${label}</span>
+      <span class="selection-bar-summary">${count} selected · ${label}</span>
       <div class="highlight-palette" aria-label="Highlight selected verses">
         ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}"></button>`).join("")}
         <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" title="Custom highlight color">
@@ -4618,11 +4620,12 @@ function selectionBar() {
         </label>
         <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight">${icons.clear}</button>
       </div>
-      <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
-      <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
-      <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
-      <button class="text-btn selection-action" id="printSelection" aria-label="Print passage"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
-      <button class="text-btn selection-action" id="clearSelection" aria-label="Clear selected verses"><span class="selection-action-icon">${icons.clear}</span><span class="selection-action-label">Clear</span></button>
+      <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
+      <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
+      <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
+      <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
+      <button class="text-btn selection-action" id="printSelection" aria-label="Print passage" data-tooltip="Print"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
+      <button class="text-btn selection-action" id="clearSelection" aria-label="Clear selected verses" data-tooltip="Clear"><span class="selection-action-icon">${icons.clear}</span><span class="selection-action-label">Clear</span></button>
     </div>
   `;
 }
@@ -8704,6 +8707,10 @@ function applyHighlight(color) {
 
 function selectedVerseNumbers() {
   return state.selectedVerses.length ? state.selectedVerses : [state.verse];
+}
+
+function selectedCrossReferenceVerse() {
+  return selectedVerseNumbers()[0] || state.verse;
 }
 
 function dismissSelectionBarOnOutsideClick(event) {
