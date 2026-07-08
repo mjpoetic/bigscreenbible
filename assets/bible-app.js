@@ -186,6 +186,7 @@ const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
+const libraryScrollStorageKey = "lw_library_scroll_by_rail";
 const horizontalSwipeMaxMs = 850;
 const horizontalSwipeMinPx = 56;
 const horizontalSwipeDominance = 1.35;
@@ -303,11 +304,13 @@ const state = {
   searchResults: [],
   pendingPanelFocus: null,
   pendingVerseFocus: false,
+  pendingLibraryScrollRestore: false,
   readerReturnStack: [],
   returnSelectionToolsOpen: false,
   openAnnotationShelves: [],
   openAnnotationGroups: [],
   touchedAnnotationGroupCollections: [],
+  libraryScrollByRail: savedLibraryScrollByRail(),
   selectedVerses: [],
   keyboardSelectionAnchor: null,
   highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
@@ -410,6 +413,23 @@ function savedReadingStreak() {
     return normalizeReadingStreak(JSON.parse(localStorage.getItem(streakStorageKey) || "{}"));
   } catch {
     return normalizeReadingStreak({});
+  }
+}
+
+function savedLibraryScrollByRail() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(libraryScrollStorageKey) || "{}");
+    if (!saved || typeof saved !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(saved)
+        .filter(([, value]) => value && typeof value === "object")
+        .map(([key, value]) => [key, {
+          top: Math.max(0, Number(value.top) || 0),
+          left: Math.max(0, Number(value.left) || 0),
+        }]),
+    );
+  } catch {
+    return {};
   }
 }
 
@@ -792,6 +812,10 @@ function render() {
     state.pendingPanelFocus = null;
     requestAnimationFrame(() => focusWorkspaceTarget(target));
   }
+  if (state.pendingLibraryScrollRestore) {
+    state.pendingLibraryScrollRestore = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => restoreSavedLibraryScroll()));
+  }
   requestAnimationFrame(fitPresentationText);
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
@@ -967,6 +991,46 @@ function restoreLibraryScroll(scrollState) {
   libraryPanel.scrollLeft = scrollState.left || 0;
 }
 
+function libraryStateKey(rail = state.activeRail) {
+  return rail === "Notes" ? "Annotations" : (rail || "Verse");
+}
+
+function rememberLibraryScroll(rail = state.activeRail) {
+  const scrollState = captureLibraryScroll();
+  if (!scrollState) return null;
+  state.libraryScrollByRail = {
+    ...state.libraryScrollByRail,
+    [libraryStateKey(rail)]: scrollState,
+  };
+  return scrollState;
+}
+
+function persistLibraryScrollByRail() {
+  localStorage.setItem(libraryScrollStorageKey, JSON.stringify(state.libraryScrollByRail));
+}
+
+function savedLibraryScroll(rail = state.activeRail) {
+  return state.libraryScrollByRail?.[libraryStateKey(rail)] || null;
+}
+
+function restoreSavedLibraryScroll(rail = state.activeRail) {
+  restoreLibraryScroll(savedLibraryScroll(rail));
+}
+
+function rememberOpenLibraryState() {
+  captureAnnotationOpenState();
+  rememberLibraryScroll();
+}
+
+function dismissLibraryAfterAction() {
+  if (!state.libraryOpen) return;
+  rememberOpenLibraryState();
+  persistLibraryScrollByRail();
+  state.libraryOpen = false;
+  localStorage.setItem("lw_library_open", "false");
+  scheduleCloudSync();
+}
+
 function restoreReaderScroll(scrollState) {
   if (!scrollState) return;
   const scripture = document.querySelector(".scripture");
@@ -1085,15 +1149,21 @@ function markAnnotationGroupCollectionTouched(value) {
 }
 
 function captureAnnotationOpenState() {
-  state.openAnnotationShelves = Array.from(document.querySelectorAll("[data-annotation-shelf][open]"))
-    .map((details) => details.dataset.annotationShelf)
-    .filter(Boolean);
+  const annotationShelves = Array.from(document.querySelectorAll("[data-annotation-shelf]"));
+  if (annotationShelves.length) {
+    state.openAnnotationShelves = annotationShelves
+      .filter((details) => details.open)
+      .map((details) => details.dataset.annotationShelf)
+      .filter(Boolean);
+  }
   const annotationGroups = Array.from(document.querySelectorAll("[data-annotation-group]"));
-  state.openAnnotationGroups = annotationGroups
-    .filter((details) => details.open)
-    .map((details) => details.dataset.annotationGroup)
-    .filter(Boolean);
-  annotationGroups.forEach((details) => markAnnotationGroupCollectionTouched(details.dataset.annotationGroup));
+  if (annotationGroups.length) {
+    state.openAnnotationGroups = annotationGroups
+      .filter((details) => details.open)
+      .map((details) => details.dataset.annotationGroup)
+      .filter(Boolean);
+    annotationGroups.forEach((details) => markAnnotationGroupCollectionTouched(details.dataset.annotationGroup));
+  }
 }
 
 function loadingScreen() {
@@ -5330,6 +5400,7 @@ function bindEvents() {
   });
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
+  document.querySelector(".library")?.addEventListener("scroll", () => rememberLibraryScroll(), { passive: true });
   document.querySelectorAll("[data-trivia-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       cleanupTriviaCelebration();
@@ -5458,6 +5529,10 @@ function bindEvents() {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state.verse = Number(event.target.value);
       state.isVerseOfDayActive = false;
+      if (id === "verseSelect") {
+        state.pendingVerseFocus = true;
+        dismissLibraryAfterAction();
+      }
       render();
     });
   });
@@ -5526,14 +5601,13 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
-      captureAnnotationOpenState();
-      const isSearchResult = button.dataset.searchResult === "true";
-      const libraryScroll = isSearchResult ? null : captureLibraryScroll();
+      const closeLibraryAfterNavigation = button.dataset.keepLibraryOpen !== "true";
+      if (!closeLibraryAfterNavigation) rememberOpenLibraryState();
       const focusVerse = button.dataset.gotoVerse ? Number(button.dataset.gotoVerse) : NaN;
       gotoReference(button.dataset.goto, {
         focusVerse,
-        libraryScroll,
-        closeLibrary: isSearchResult,
+        libraryScroll: closeLibraryAfterNavigation ? null : captureLibraryScroll(),
+        closeLibrary: closeLibraryAfterNavigation,
         linkNavigation: button.dataset.linkNavigation === "true",
       });
     });
@@ -7169,9 +7243,7 @@ function gotoReference(value, options = {}) {
     if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
     state.searchQuery = "";
     if (options.closeLibrary) {
-      state.libraryOpen = false;
-      localStorage.setItem("lw_library_open", "false");
-      scheduleCloudSync();
+      dismissLibraryAfterAction();
     }
     state.pendingVerseFocus = true;
     recordHistory();
@@ -7796,17 +7868,24 @@ function recordHistory(ref = referenceLabel()) {
 }
 
 function activateWorkspace(target) {
+  if (state.libraryOpen && libraryStateKey(target) !== libraryStateKey(state.activeRail)) {
+    rememberOpenLibraryState();
+    persistLibraryScrollByRail();
+  }
   pendingLibraryEnter = !state.libraryOpen;
   state.activeRail = target;
   state.libraryOpen = true;
   localStorage.setItem("lw_library_open", "true");
   scheduleCloudSync();
   state.pendingPanelFocus = isCompactScreen() || isShortLandscapeScreen() ? null : target;
+  state.pendingLibraryScrollRestore = Boolean(savedLibraryScroll(target));
   renderPreservingReaderScroll();
 }
 
 function closeLibrary() {
   const readerScroll = captureReaderScroll();
+  rememberOpenLibraryState();
+  persistLibraryScrollByRail();
   animateBeforeRemoval(".library-drawer", () => {
     state.libraryOpen = false;
     localStorage.setItem("lw_library_open", "false");
