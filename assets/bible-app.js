@@ -303,6 +303,8 @@ const state = {
   searchResults: [],
   pendingPanelFocus: null,
   pendingVerseFocus: false,
+  readerReturnStack: [],
+  returnSelectionToolsOpen: false,
   openAnnotationShelves: [],
   openAnnotationGroups: [],
   touchedAnnotationGroupCollections: [],
@@ -509,6 +511,7 @@ const icons = {
   panels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M8 4v16M16 4v16"/></svg>',
   layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5-8 4.5-8-4.5z"/><path d="m4 12 8 4.5 8-4.5"/><path d="m4 16.5 8 4.5 8-4.5"/></svg>',
   link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.2-1.2"/></svg>',
+  highlighter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 5.6-1.4"/><path d="m14.7 4.3 5 5"/><path d="M13.5 3.1a2.1 2.1 0 0 1 3 0l4.4 4.4a2.1 2.1 0 0 1 0 3l-8.6 8.6-7.4-7.4z"/><path d="m5 12 7 7"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.6 6.8-4.2M8.6 13.4l6.8 4.2"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="11" height="13" rx="1.5"/><path d="M5 16H4a1.5 1.5 0 0 1-1.5-1.5v-10A1.5 1.5 0 0 1 4 3h9.5A1.5 1.5 0 0 1 15 4.5V5"/></svg>',
   print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M17 12h.01"/></svg>',
@@ -518,6 +521,7 @@ const icons = {
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="14.5" r="4.5"/><path d="M11 11l8-8"/><path d="M16 6l2 2"/><path d="M14 8l2 2"/></svg>',
   google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.2 3-7.2z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.6-2.5l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.8A6 6 0 0 1 6 12c0-.6.1-1.2.4-1.8V7.6H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.4l3.3-2.6z"/><path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2 10 10 0 0 0 3.1 7.6l3.3 2.6c.8-2.3 3-4.1 5.6-4.1z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+  arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   chevronLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>',
   chevronDouble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 18 6-6-6-6"/><path d="m13 18 6-6-6-6"/></svg>',
@@ -735,6 +739,7 @@ function render() {
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   const sideToolbarPosition = effectiveSideToolbarPosition();
+  const selectionToolsCollapsedClass = returnSelectionToolsCollapsed() ? "selection-tools-collapsed" : "";
   if (state.startupApplied) syncModeUrl();
   syncPresentationShell();
   if (dataLoading || dataError) {
@@ -748,7 +753,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar()}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -992,6 +997,73 @@ function restoreReaderScroll(scrollState) {
   }
   window.scrollTo(scrollState.windowX, scrollState.windowY);
   refreshLastReaderScrollAnchor();
+}
+
+function currentReaderReturnTarget() {
+  return state.readerReturnStack[state.readerReturnStack.length - 1] || null;
+}
+
+function returnSelectionToolsCollapsed() {
+  return Boolean(currentReaderReturnTarget() && state.selectedVerses.length && !state.returnSelectionToolsOpen);
+}
+
+function clearReaderReturnStack() {
+  if (!state.readerReturnStack.length) return;
+  state.readerReturnStack = [];
+  state.returnSelectionToolsOpen = false;
+}
+
+function captureReaderReturnTarget() {
+  if (!["reader", "parallel"].includes(state.mode)) return null;
+  return {
+    mode: state.mode,
+    focusMode: state.focusMode,
+    libraryOpen: state.libraryOpen,
+    activeRail: state.activeRail,
+    reference: state.reference,
+    verse: state.verse,
+    selectedVerses: [...state.selectedVerses],
+    keyboardSelectionAnchor: state.keyboardSelectionAnchor,
+    presentationPart: state.presentationPart,
+    isVerseOfDayActive: state.isVerseOfDayActive,
+    verseOfDayItem: state.verseOfDayItem,
+    label: activePassageLabel(),
+    scrollState: captureReaderScroll({ preferLastReaderAnchor: true }),
+  };
+}
+
+function pushReaderReturnTarget(target) {
+  if (!target?.reference) return;
+  const previous = currentReaderReturnTarget();
+  if (
+    previous
+    && previous.mode === target.mode
+    && previous.reference === target.reference
+    && previous.verse === target.verse
+    && previous.scrollState?.scriptureTop === target.scrollState?.scriptureTop
+  ) return;
+  state.readerReturnStack = [...state.readerReturnStack, target].slice(-12);
+}
+
+function restoreReaderReturnTarget() {
+  const target = state.readerReturnStack.pop();
+  if (!target?.reference || !bibleData[target.reference]) return render();
+  state.mode = ["reader", "parallel"].includes(target.mode) ? target.mode : "reader";
+  state.focusMode = Boolean(target.focusMode);
+  state.libraryOpen = Boolean(target.libraryOpen);
+  state.activeRail = target.activeRail || state.activeRail;
+  state.reference = target.reference;
+  state.verse = target.verse;
+  state.selectedVerses = Array.isArray(target.selectedVerses) ? [...target.selectedVerses] : [];
+  state.keyboardSelectionAnchor = target.keyboardSelectionAnchor || null;
+  state.presentationPart = target.presentationPart || 0;
+  state.isVerseOfDayActive = Boolean(target.isVerseOfDayActive && target.verseOfDayItem);
+  state.verseOfDayItem = target.verseOfDayItem || state.verseOfDayItem;
+  state.pendingVerseFocus = false;
+  state.returnSelectionToolsOpen = false;
+  updateShareUrl();
+  render();
+  requestAnimationFrame(() => requestAnimationFrame(() => restoreReaderScroll(target.scrollState)));
 }
 
 function syncOpenStateList(stateKey, value, isOpen) {
@@ -1623,6 +1695,25 @@ function bindReaderTopButton() {
   });
 }
 
+function bindReaderReturnButton() {
+  const button = document.getElementById("readerReturnButton");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    restoreReaderReturnTarget();
+  });
+}
+
+function bindReaderSelectionToolsButton() {
+  const button = document.getElementById("readerSelectionToolsButton");
+  if (!button) return;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    state.returnSelectionToolsOpen = true;
+    renderPreservingReaderScroll();
+  });
+}
+
 function preserveReaderScrollAfterViewportChange() {
   if (!["reader", "parallel"].includes(state.mode)) return;
   const previousAnchor = preferredViewportReaderScrollAnchor();
@@ -1740,7 +1831,7 @@ function crossReferencesPanel() {
       <div class="study-heading">${icons.layers} ${escapeHtml(referenceLabel())}</div>
       <div class="ref-list">
         ${refs.length
-          ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(ref.goto)}"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+          ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(ref.goto)}" data-link-navigation="true"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
           : `<div class="empty-state">No cross references are bundled for ${escapeHtml(referenceLabel())}.</div>`}
       </div>
       <div class="source-note">
@@ -1880,11 +1971,34 @@ function reader() {
         ${state.mode === "parallel" ? parallelView() : readerView()}
       </article>
       ${state.mode === "reader" || state.mode === "parallel" ? `
+        ${readerSelectionToolsButton()}
+        ${readerReturnButton()}
         <button class="reader-top-button" id="readerTopButton" type="button" aria-label="Back to top" title="Back to top">
           ${icons.arrowUp}
         </button>
       ` : ""}
     </section>
+  `;
+}
+
+function readerSelectionToolsButton() {
+  if (!returnSelectionToolsCollapsed()) return "";
+  const count = state.selectedVerses.length;
+  return `
+    <button class="reader-selection-tools-button" id="readerSelectionToolsButton" type="button" aria-label="Show selection tools for ${count} selected ${count === 1 ? "verse" : "verses"}" data-tooltip="Selection tools">
+      ${icons.highlighter}
+    </button>
+  `;
+}
+
+function readerReturnButton() {
+  const target = currentReaderReturnTarget();
+  if (!target) return "";
+  const label = target.label || `${target.reference}:${target.verse}`;
+  return `
+    <button class="reader-return-button" id="readerReturnButton" type="button" aria-label="Return to ${escapeHtml(label)}" data-tooltip="Return to ${escapeHtml(label)}">
+      ${icons.arrowLeft}
+    </button>
   `;
 }
 
@@ -1946,6 +2060,7 @@ function openMobileVerseNavMenu(trigger, type) {
       state.reference = value;
       state.verse = currentChapter().verses[0].n;
       state.selectedVerses = [];
+      clearReaderReturnStack();
     } else {
       state.verse = Number(value);
       state.pendingVerseFocus = true;
@@ -2402,6 +2517,7 @@ function openStreakEncouragement(reference) {
   if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
   if (state.mode === "trivia") state.mode = "reader";
   state.streakPopoverOpen = false;
+  clearReaderReturnStack();
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -4453,7 +4569,7 @@ function showStudyPopup(anchor, content, label) {
   popup.querySelectorAll("[data-popup-goto]").forEach((button) => {
     button.addEventListener("click", () => {
       closeStudyPopup();
-      gotoReference(button.dataset.popupGoto);
+      gotoReference(button.dataset.popupGoto, { linkNavigation: true });
     });
   });
   requestAnimationFrame(() => {
@@ -4936,6 +5052,8 @@ function tutorialOverlay() {
 
 function bindEvents() {
   bindReaderTopButton();
+  bindReaderReturnButton();
+  bindReaderSelectionToolsButton();
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.dataset.mode !== "trivia") cleanupTriviaCelebration();
@@ -5332,6 +5450,7 @@ function bindEvents() {
       state.verse = currentChapter().verses[0].n;
       state.selectedVerses = [];
       state.isVerseOfDayActive = false;
+      clearReaderReturnStack();
       render();
     });
   });
@@ -5363,13 +5482,13 @@ function bindEvents() {
   document.querySelectorAll("[data-heading-reference]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      gotoReference(button.dataset.headingReference || "");
+      gotoReference(button.dataset.headingReference || "", { linkNavigation: true });
     });
   });
   document.querySelectorAll("[data-scripture-reference]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      gotoReference(button.dataset.scriptureReference || "");
+      gotoReference(button.dataset.scriptureReference || "", { linkNavigation: true });
     });
   });
   document.querySelectorAll("[data-verse-actions]").forEach((button) => {
@@ -5415,6 +5534,7 @@ function bindEvents() {
         focusVerse,
         libraryScroll,
         closeLibrary: isSearchResult,
+        linkNavigation: button.dataset.linkNavigation === "true",
       });
     });
   });
@@ -7038,7 +7158,14 @@ async function exitFullscreen() {
 
 function gotoReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
+  const returnTarget = options.linkNavigation ? captureReaderReturnTarget() : null;
   if (setReferenceFromString(cleaned)) {
+    if (options.linkNavigation) {
+      pushReaderReturnTarget(returnTarget);
+      state.returnSelectionToolsOpen = false;
+    } else {
+      clearReaderReturnStack();
+    }
     if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
     state.searchQuery = "";
     if (options.closeLibrary) {
@@ -7329,6 +7456,7 @@ async function openVerseOfDay(options = {}) {
   const verseOfDay = await resolvedVerseOfDay();
   if (!verseOfDay.reference) return showToast("Verse of the day is not available yet");
   if (!setReferenceFromString(verseOfDay.reference)) return;
+  clearReaderReturnStack();
   state.verseOfDayItem = verseOfDay.item;
   state.isVerseOfDayActive = true;
   state.mode = options.mode || "reader";
@@ -7348,6 +7476,7 @@ async function resolvedVerseOfDay() {
 function openVerseOfDayInReader() {
   const reference = state.verseOfDayItem?.reference;
   if (!reference || !setReferenceFromString(reference)) return;
+  clearReaderReturnStack();
   state.mode = "reader";
   state.searchQuery = "";
   state.pendingVerseFocus = true;
@@ -8374,6 +8503,7 @@ function openBook(book) {
   state.presentationPart = 0;
   state.selectedVerses = [];
   state.isVerseOfDayActive = false;
+  clearReaderReturnStack();
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -8448,6 +8578,7 @@ function moveVerse(direction, options = {}) {
     state.presentationPart = Math.max(0, currentPresentationParts().length - 1);
   }
   state.isVerseOfDayActive = false;
+  clearReaderReturnStack();
   if (options.extendSelection) extendKeyboardVerseSelection(previousVerse, state.verse);
   else state.keyboardSelectionAnchor = null;
   recordHistory();
@@ -8476,6 +8607,7 @@ function moveChapter(direction) {
   state.selectedVerses = [];
   state.keyboardSelectionAnchor = null;
   state.isVerseOfDayActive = false;
+  clearReaderReturnStack();
   recordHistory();
   render();
 }
@@ -8548,6 +8680,7 @@ function deleteNote(ref) {
 
 function openHighlightNote(ref) {
   if (!setReferenceFromString(ref)) return;
+  clearReaderReturnStack();
   state.activeRail = "Annotations";
   state.libraryOpen = true;
   state.pendingPanelFocus = "Annotations";
@@ -8717,7 +8850,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest(".selection-bar, .cross-ref-popup, .strong-popup")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, .cross-ref-popup, .strong-popup")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }

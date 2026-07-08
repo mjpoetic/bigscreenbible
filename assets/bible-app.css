@@ -1824,7 +1824,12 @@ button {
   display: none;
 }
 
-.reader-top-button {
+.reader-selection-tools-button {
+  display: none;
+}
+
+.reader-top-button,
+.reader-return-button {
   position: fixed;
   right: max(24px, env(safe-area-inset-right, 0px));
   bottom: calc(72px + env(safe-area-inset-bottom, 0px));
@@ -1850,8 +1855,14 @@ button {
   transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease, box-shadow var(--motion-fast) ease, transform var(--motion-fast) ease;
 }
 
+.reader-return-button {
+  bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+}
+
 .reader-top-button:hover,
-.reader-top-button:focus-visible {
+.reader-top-button:focus-visible,
+.reader-return-button:hover,
+.reader-return-button:focus-visible {
   background: color-mix(in srgb, var(--soft) 82%, transparent);
   color: var(--teal);
   box-shadow:
@@ -1861,12 +1872,14 @@ button {
   transform: translateY(-3px);
 }
 
-.reader-top-button:focus-visible {
+.reader-top-button:focus-visible,
+.reader-return-button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--teal) 42%, transparent);
   outline-offset: 3px;
 }
 
-.reader-top-button svg {
+.reader-top-button svg,
+.reader-return-button svg {
   width: 21px;
   height: 21px;
 }
@@ -7460,7 +7473,9 @@ svg {
   }
 
   .mobile-floating-settings,
-  .reader-top-button {
+  .reader-selection-tools-button,
+  .reader-top-button,
+  .reader-return-button {
     position: fixed;
     right: max(12px, env(safe-area-inset-right, 0px));
     left: auto;
@@ -7498,6 +7513,24 @@ svg {
     transform: translateY(8px) scale(0.94);
   }
 
+  .reader-return-button {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(224px + env(safe-area-inset-bottom, 0px));
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .reader-selection-tools-button {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(278px + env(safe-area-inset-bottom, 0px));
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
   .reader-top-button:not(.available) {
     opacity: 0;
     pointer-events: none;
@@ -7527,15 +7560,13 @@ svg {
     transform: translateY(8px) scale(0.94);
   }
 
-  .app-shell.has-selection .reader-top-button.available {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(8px) scale(0.94);
-  }
-
   .mobile-floating-settings:hover,
   .mobile-floating-settings:focus-visible,
-  .mobile-floating-settings.active {
+  .mobile-floating-settings.active,
+  .reader-selection-tools-button:hover,
+  .reader-selection-tools-button:focus-visible,
+  .reader-return-button:hover,
+  .reader-return-button:focus-visible {
     background: color-mix(in srgb, var(--soft) 82%, transparent);
     color: var(--teal);
     box-shadow:
@@ -7552,7 +7583,9 @@ svg {
   }
 
   .mobile-floating-settings svg,
-  .reader-top-button svg {
+  .reader-selection-tools-button svg,
+  .reader-top-button svg,
+  .reader-return-button svg {
     width: 20px;
     height: 20px;
   }
@@ -7750,6 +7783,16 @@ svg {
       bottom: calc(118px + env(safe-area-inset-bottom, 0px));
     }
 
+    .reader-return-button {
+      right: max(7px, env(safe-area-inset-right, 0px));
+      bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .reader-selection-tools-button {
+      right: max(7px, env(safe-area-inset-right, 0px));
+      bottom: calc(222px + env(safe-area-inset-bottom, 0px));
+    }
+
     .selection-bar {
       left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px);
       right: calc(env(safe-area-inset-right, 0px) + 8px);
@@ -7840,6 +7883,21 @@ svg {
 
     .reader-top-button {
       bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .reader-return-button {
+      bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .reader-selection-tools-button {
+      bottom: calc(176px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .app-shell[data-side-toolbar-position="left"] .reader-top-button,
+    .app-shell[data-side-toolbar-position="left"] .reader-return-button,
+    .app-shell[data-side-toolbar-position="left"] .reader-selection-tools-button {
+      right: max(12px, env(safe-area-inset-right, 0px));
+      left: auto;
     }
 
     .mobile-settings-popover {
@@ -8103,9 +8161,18 @@ svg {
       animation-name: drawerOutRight !important;
     }
 
-    .app-shell[data-side-toolbar-position="right"] .reader-top-button {
+    .app-shell[data-side-toolbar-position="right"] .reader-top-button,
+    .app-shell[data-side-toolbar-position="right"] .reader-return-button,
+    .app-shell[data-side-toolbar-position="right"] .reader-selection-tools-button {
       right: auto;
       left: max(12px, env(safe-area-inset-left, 0px));
+    }
+
+    .app-shell[data-side-toolbar-position="left"] .reader-top-button,
+    .app-shell[data-side-toolbar-position="left"] .reader-return-button,
+    .app-shell[data-side-toolbar-position="left"] .reader-selection-tools-button {
+      right: max(12px, env(safe-area-inset-right, 0px));
+      left: auto;
     }
 
     .app-shell[data-side-toolbar-position="right"] .scripture {
@@ -9222,9 +9289,18 @@ svg {
     animation-name: drawerOutRight !important;
   }
 
-  .app-shell[data-side-toolbar-position="right"] .reader-top-button {
+  .app-shell[data-side-toolbar-position="right"] .reader-top-button,
+  .app-shell[data-side-toolbar-position="right"] .reader-return-button,
+  .app-shell[data-side-toolbar-position="right"] .reader-selection-tools-button {
     right: auto;
     left: max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  .app-shell[data-side-toolbar-position="left"] .reader-top-button,
+  .app-shell[data-side-toolbar-position="left"] .reader-return-button,
+  .app-shell[data-side-toolbar-position="left"] .reader-selection-tools-button {
+    right: max(24px, env(safe-area-inset-right, 0px));
+    left: auto;
   }
 
   .app-shell[data-side-toolbar-position="right"] .scripture {
@@ -9258,14 +9334,47 @@ svg {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   }
 
+  .app-shell.footer-collapsed .reader-return-button {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .reader-selection-tools-button {
+    bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+  }
+
   .app-shell.footer-collapsed .selection-bar,
   .app-shell.footer-collapsed.focus-shell .selection-bar {
     bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   @media (orientation: portrait) {
+    .app-shell.selection-tools-collapsed .selection-bar {
+      display: none !important;
+    }
+
+    .app-shell.selection-tools-collapsed .reader-top-button.available {
+      opacity: 0.72;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
     .app-shell.footer-collapsed .reader-top-button {
       bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .app-shell.footer-collapsed .reader-return-button {
+      bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .app-shell.footer-collapsed .reader-selection-tools-button {
+      bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+    }
+
+  }
+
+  @media (orientation: landscape) {
+    .reader-selection-tools-button {
+      display: none !important;
     }
   }
 
@@ -9303,6 +9412,36 @@ svg {
       right: calc(var(--rail-width) + env(safe-area-inset-right, 0px) + 8px) !important;
       left: calc(env(safe-area-inset-left, 0px) + 8px) !important;
     }
+  }
+}
+
+.reader-top-button,
+.reader-return-button,
+.reader-selection-tools-button {
+  position: fixed !important;
+  right: var(--reader-floating-stack-right, max(24px, env(safe-area-inset-right, 0px))) !important;
+  left: var(--reader-floating-stack-left, auto) !important;
+}
+
+@media (orientation: landscape) {
+  .app-shell[data-side-toolbar-position="right"] {
+    --reader-floating-stack-right: auto;
+    --reader-floating-stack-left: max(24px, env(safe-area-inset-left, 0px));
+  }
+
+  .app-shell[data-side-toolbar-position="left"] {
+    --reader-floating-stack-right: max(24px, env(safe-area-inset-right, 0px));
+    --reader-floating-stack-left: auto;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 840px) {
+  .app-shell[data-side-toolbar-position="right"] {
+    --reader-floating-stack-left: max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  .app-shell[data-side-toolbar-position="left"] {
+    --reader-floating-stack-right: max(12px, env(safe-area-inset-right, 0px));
   }
 }
 
