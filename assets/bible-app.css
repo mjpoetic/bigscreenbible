@@ -1857,6 +1857,7 @@ button {
 
 .reader-return-button {
   bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+  animation: readerFloatingButtonIn var(--motion-drawer) var(--motion-ease) backwards;
 }
 
 .reader-top-button:hover,
@@ -6853,6 +6854,18 @@ kbd {
   }
 }
 
+@keyframes readerFloatingButtonIn {
+  from {
+    opacity: 0;
+    transform: translateX(var(--reader-floating-enter-x, 18px)) scale(0.96);
+  }
+
+  to {
+    opacity: 0.72;
+    transform: translateX(0) scale(1);
+  }
+}
+
 @keyframes backdropIn {
   from {
     opacity: 0;
@@ -9427,11 +9440,13 @@ svg {
   .app-shell[data-side-toolbar-position="right"] {
     --reader-floating-stack-right: auto;
     --reader-floating-stack-left: max(24px, env(safe-area-inset-left, 0px));
+    --reader-floating-enter-x: -18px;
   }
 
   .app-shell[data-side-toolbar-position="left"] {
     --reader-floating-stack-right: max(24px, env(safe-area-inset-right, 0px));
     --reader-floating-stack-left: auto;
+    --reader-floating-enter-x: 18px;
   }
 }
 
