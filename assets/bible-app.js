@@ -1031,14 +1031,90 @@ function dismissLibraryAfterAction() {
   scheduleCloudSync();
 }
 
-function restoreReaderScroll(scrollState) {
+function scrollPosition(target) {
+  if (target === window) return { left: window.scrollX, top: window.scrollY };
+  return { left: target.scrollLeft || 0, top: target.scrollTop || 0 };
+}
+
+function applyScrollPosition(target, left, top) {
+  if (target === window) {
+    window.scrollTo(left, top);
+    return;
+  }
+  target.scrollLeft = left;
+  target.scrollTop = top;
+}
+
+function easeOutCubic(progress) {
+  return 1 - Math.pow(1 - progress, 3);
+}
+
+function animateScrollPosition(target, left, top, options = {}) {
+  const start = scrollPosition(target);
+  const nextLeft = Math.max(0, Number(left) || 0);
+  const nextTop = Math.max(0, Number(top) || 0);
+  const deltaLeft = nextLeft - start.left;
+  const deltaTop = nextTop - start.top;
+  if (Math.abs(deltaLeft) < 1 && Math.abs(deltaTop) < 1) {
+    applyScrollPosition(target, nextLeft, nextTop);
+    return;
+  }
+  const duration = options.duration || 440;
+  const token = Symbol("scroll-animation");
+  if (target === window) {
+    window.__bsbScrollAnimation = token;
+  } else {
+    target.__bsbScrollAnimation = token;
+  }
+  const startedAt = performance.now();
+  const step = (now) => {
+    const activeToken = target === window ? window.__bsbScrollAnimation : target.__bsbScrollAnimation;
+    if (activeToken !== token) return;
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = easeOutCubic(progress);
+    applyScrollPosition(target, start.left + (deltaLeft * eased), start.top + (deltaTop * eased));
+    if (progress < 1) {
+      requestAnimationFrame(step);
+      return;
+    }
+    applyScrollPosition(target, nextLeft, nextTop);
+  };
+  requestAnimationFrame(step);
+}
+
+function restoreScrollPosition(target, left, top, options = {}) {
+  if (options.smooth) {
+    animateScrollPosition(target, left, top, options);
+    return;
+  }
+  applyScrollPosition(target, left, top);
+}
+
+function stageSmoothReturnScroll(scrollState) {
+  if (!scrollState) return;
+  const scripture = document.querySelector(".scripture");
+  const triviaReader = document.querySelector(".trivia-reader");
+  if (scripture && scrollState.scriptureTop > 0) {
+    applyScrollPosition(scripture, scrollState.scriptureLeft || 0, 0);
+  }
+  if (triviaReader && scrollState.triviaTop > 0) {
+    applyScrollPosition(triviaReader, scrollState.triviaLeft || 0, 0);
+  }
+  if (scrollState.windowY > 0) {
+    applyScrollPosition(window, scrollState.windowX || 0, 0);
+  }
+}
+
+function restoreReaderScroll(scrollState, options = {}) {
   if (!scrollState) return;
   const scripture = document.querySelector(".scripture");
   const triviaReader = document.querySelector(".trivia-reader");
   const readerAnchor = scrollState.readerAnchor || lastReaderScrollAnchor;
+  const smooth = Boolean(options.smooth) && !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  let scriptureTop = scrollState.scriptureTop;
+  const scriptureLeft = scrollState.scriptureLeft || 0;
   if (scripture && scrollState.scriptureTop !== null) {
-    scripture.scrollTop = scrollState.scriptureTop;
-    scripture.scrollLeft = scrollState.scriptureLeft || 0;
+    restoreScrollPosition(scripture, scriptureLeft, scriptureTop, { smooth });
   }
   if (
     scripture
@@ -1052,14 +1128,14 @@ function restoreReaderScroll(scrollState) {
       const scriptureBounds = scripture.getBoundingClientRect();
       const anchorBounds = anchor.getBoundingClientRect();
       const nextTop = scripture.scrollTop + anchorBounds.top - scriptureBounds.top - readerAnchor.offset;
-      scripture.scrollTop = Math.max(0, nextTop);
+      scriptureTop = Math.max(0, nextTop);
+      restoreScrollPosition(scripture, scriptureLeft || scripture.scrollLeft || 0, scriptureTop, { smooth });
     }
   }
   if (triviaReader && scrollState.triviaTop !== null) {
-    triviaReader.scrollTop = scrollState.triviaTop;
-    triviaReader.scrollLeft = scrollState.triviaLeft || 0;
+    restoreScrollPosition(triviaReader, scrollState.triviaLeft || 0, scrollState.triviaTop, { smooth });
   }
-  window.scrollTo(scrollState.windowX, scrollState.windowY);
+  restoreScrollPosition(window, scrollState.windowX, scrollState.windowY, { smooth });
   refreshLastReaderScrollAnchor();
 }
 
@@ -1147,9 +1223,14 @@ function restoreReaderReturnTarget() {
   state.verseOfDayItem = target.verseOfDayItem || state.verseOfDayItem;
   state.pendingVerseFocus = false;
   state.returnSelectionToolsOpen = false;
+  pendingLibraryEnter = Boolean(target.libraryOpen);
   updateShareUrl();
   render();
-  requestAnimationFrame(() => requestAnimationFrame(() => restoreReaderScroll(target.scrollState)));
+  stageSmoothReturnScroll(target.scrollState);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    restoreReaderScroll(target.scrollState, { smooth: true });
+    updateReaderTopButton();
+  }));
 }
 
 function syncOpenStateList(stateKey, value, isOpen) {
