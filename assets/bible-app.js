@@ -1072,13 +1072,13 @@ function returnSelectionToolsCollapsed() {
 }
 
 function clearReaderReturnStack() {
-  if (!state.readerReturnStack.length) return;
+  if (!state.readerReturnStack.length && !state.returnSelectionToolsOpen) return;
   state.readerReturnStack = [];
   state.returnSelectionToolsOpen = false;
 }
 
 function captureReaderReturnTarget() {
-  if (!["reader", "parallel"].includes(state.mode)) return null;
+  if (!["reader", "parallel", "big"].includes(state.mode)) return null;
   return {
     mode: state.mode,
     focusMode: state.focusMode,
@@ -1109,10 +1109,32 @@ function pushReaderReturnTarget(target) {
   state.readerReturnStack = [...state.readerReturnStack, target].slice(-12);
 }
 
+function currentPassageMatchesReturnTarget(target) {
+  return Boolean(
+    target
+    && target.reference === state.reference
+    && target.verse === state.verse
+    && (!target.label || target.label === activePassageLabel())
+  );
+}
+
+function pushCurrentReturnTargetForNavigation(nextReference = null, nextVerse = null) {
+  const target = captureReaderReturnTarget();
+  if (!target?.reference) return null;
+  if (
+    nextReference
+    && target.reference === nextReference
+    && (!Number.isFinite(nextVerse) || target.verse === nextVerse)
+  ) return null;
+  pushReaderReturnTarget(target);
+  state.returnSelectionToolsOpen = false;
+  return target;
+}
+
 function restoreReaderReturnTarget() {
   const target = state.readerReturnStack.pop();
   if (!target?.reference || !bibleData[target.reference]) return render();
-  state.mode = ["reader", "parallel"].includes(target.mode) ? target.mode : "reader";
+  state.mode = ["reader", "parallel", "big"].includes(target.mode) ? target.mode : "reader";
   state.focusMode = Boolean(target.focusMode);
   state.libraryOpen = Boolean(target.libraryOpen);
   state.activeRail = target.activeRail || state.activeRail;
@@ -2064,12 +2086,23 @@ function readerSelectionToolsButton() {
 function readerReturnButton() {
   const target = currentReaderReturnTarget();
   if (!target) return "";
-  const label = target.label || `${target.reference}:${target.verse}`;
+  const label = readerReturnLabel(target);
   return `
     <button class="reader-return-button" id="readerReturnButton" type="button" aria-label="Return to ${escapeHtml(label)}" data-tooltip="Return to ${escapeHtml(label)}">
       ${icons.arrowLeft}
     </button>
   `;
+}
+
+function readerReturnLabel(target = currentReaderReturnTarget()) {
+  return target?.label || (target ? `${target.reference}:${target.verse}` : "previous passage");
+}
+
+function presentationReturnButton() {
+  const target = currentReaderReturnTarget();
+  if (!target) return "";
+  const label = readerReturnLabel(target);
+  return `<button class="ghost-btn presentation-nav-button presentation-return-button" id="readerReturnButton" aria-label="Return to ${escapeHtml(label)}" data-tooltip="Return to ${escapeHtml(label)}">${icons.arrowLeft}</button>`;
 }
 
 function compactChapterLabel(chapterKey) {
@@ -2127,12 +2160,14 @@ function openMobileVerseNavMenu(trigger, type) {
   const selectOption = (value) => {
     closeMobileVerseNavMenu();
     if (chapterMenu) {
+      pushCurrentReturnTargetForNavigation(value, bibleData[value]?.verses?.[0]?.n);
       state.reference = value;
       state.verse = currentChapter().verses[0].n;
       state.selectedVerses = [];
-      clearReaderReturnStack();
     } else {
-      state.verse = Number(value);
+      const nextVerse = Number(value);
+      pushCurrentReturnTargetForNavigation(state.reference, nextVerse);
+      state.verse = nextVerse;
       state.pendingVerseFocus = true;
     }
     state.isVerseOfDayActive = false;
@@ -2584,10 +2619,14 @@ function toggleStreakPopover(forceOpen = null) {
 }
 
 function openStreakEncouragement(reference) {
+  const returnTarget = captureReaderReturnTarget();
   if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
+  if (returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
+    pushReaderReturnTarget(returnTarget);
+    state.returnSelectionToolsOpen = false;
+  }
   if (state.mode === "trivia") state.mode = "reader";
   state.streakPopoverOpen = false;
-  clearReaderReturnStack();
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -4986,6 +5025,7 @@ function presentation() {
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
         </a>
         <div class="presentation-controls">
+          ${presentationReturnButton()}
           <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
           <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
@@ -5517,17 +5557,20 @@ function bindEvents() {
   document.getElementById("checkBookSprint")?.addEventListener("click", checkBookSprint);
   ["chapterSelect", "chapterSelectInline"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
-      state.reference = event.target.value;
+      const nextReference = event.target.value;
+      pushCurrentReturnTargetForNavigation(nextReference, bibleData[nextReference]?.verses?.[0]?.n);
+      state.reference = nextReference;
       state.verse = currentChapter().verses[0].n;
       state.selectedVerses = [];
       state.isVerseOfDayActive = false;
-      clearReaderReturnStack();
       render();
     });
   });
   ["verseSelect", "verseSelectInline"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
-      state.verse = Number(event.target.value);
+      const nextVerse = Number(event.target.value);
+      pushCurrentReturnTargetForNavigation(state.reference, nextVerse);
+      state.verse = nextVerse;
       state.isVerseOfDayActive = false;
       if (id === "verseSelect") {
         state.pendingVerseFocus = true;
@@ -7232,13 +7275,12 @@ async function exitFullscreen() {
 
 function gotoReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
-  const returnTarget = options.linkNavigation ? captureReaderReturnTarget() : null;
+  const shouldTrackReturn = options.returnNavigation !== false;
+  const returnTarget = shouldTrackReturn ? captureReaderReturnTarget() : null;
   if (setReferenceFromString(cleaned)) {
-    if (options.linkNavigation) {
+    if (shouldTrackReturn && returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
       pushReaderReturnTarget(returnTarget);
       state.returnSelectionToolsOpen = false;
-    } else {
-      clearReaderReturnStack();
     }
     if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
     state.searchQuery = "";
@@ -7526,9 +7568,13 @@ async function applyStartupExperience() {
 
 async function openVerseOfDay(options = {}) {
   const verseOfDay = await resolvedVerseOfDay();
+  const returnTarget = captureReaderReturnTarget();
   if (!verseOfDay.reference) return showToast("Verse of the day is not available yet");
   if (!setReferenceFromString(verseOfDay.reference)) return;
-  clearReaderReturnStack();
+  if (returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
+    pushReaderReturnTarget(returnTarget);
+    state.returnSelectionToolsOpen = false;
+  }
   state.verseOfDayItem = verseOfDay.item;
   state.isVerseOfDayActive = true;
   state.mode = options.mode || "reader";
@@ -7547,8 +7593,12 @@ async function resolvedVerseOfDay() {
 
 function openVerseOfDayInReader() {
   const reference = state.verseOfDayItem?.reference;
+  const returnTarget = captureReaderReturnTarget();
   if (!reference || !setReferenceFromString(reference)) return;
-  clearReaderReturnStack();
+  if (returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
+    pushReaderReturnTarget(returnTarget);
+    state.returnSelectionToolsOpen = false;
+  }
   state.mode = "reader";
   state.searchQuery = "";
   state.pendingVerseFocus = true;
@@ -8577,12 +8627,12 @@ function availableReferenceForBook(book) {
 function openBook(book) {
   const reference = availableReferenceForBook(book);
   if (!reference) return showToast(`${book} is not available in the bundled Bible data`);
+  pushCurrentReturnTargetForNavigation(reference, bibleData[reference]?.verses?.[0]?.n);
   state.reference = reference;
   state.verse = currentChapter().verses[0].n;
   state.presentationPart = 0;
   state.selectedVerses = [];
   state.isVerseOfDayActive = false;
-  clearReaderReturnStack();
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -8657,7 +8707,6 @@ function moveVerse(direction, options = {}) {
     state.presentationPart = Math.max(0, currentPresentationParts().length - 1);
   }
   state.isVerseOfDayActive = false;
-  clearReaderReturnStack();
   if (options.extendSelection) extendKeyboardVerseSelection(previousVerse, state.verse);
   else state.keyboardSelectionAnchor = null;
   recordHistory();
@@ -8686,7 +8735,6 @@ function moveChapter(direction) {
   state.selectedVerses = [];
   state.keyboardSelectionAnchor = null;
   state.isVerseOfDayActive = false;
-  clearReaderReturnStack();
   recordHistory();
   render();
 }
@@ -8758,8 +8806,12 @@ function deleteNote(ref) {
 }
 
 function openHighlightNote(ref) {
+  const returnTarget = captureReaderReturnTarget();
   if (!setReferenceFromString(ref)) return;
-  clearReaderReturnStack();
+  if (returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
+    pushReaderReturnTarget(returnTarget);
+    state.returnSelectionToolsOpen = false;
+  }
   state.activeRail = "Annotations";
   state.libraryOpen = true;
   state.pendingPanelFocus = "Annotations";
