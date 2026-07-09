@@ -922,7 +922,7 @@ function modeScrollStateKey(mode, reference) {
 }
 
 function supportsModeScrollRestore(mode) {
-  return ["reader", "parallel", "trivia"].includes(mode);
+  return ["reader", "trivia"].includes(mode);
 }
 
 function rememberModeScrollState(scrollState = captureReaderScroll({ preferLastReaderAnchor: true })) {
@@ -968,6 +968,16 @@ function restoreModeScrollAfterRender(scrollState) {
   });
 }
 
+function modeScrollStateForTarget(nextMode, previousScrollState) {
+  if (nextMode === "parallel") {
+    const readerScrollState = previousScrollState?.mode === "reader"
+      ? previousScrollState
+      : savedModeScrollState("reader");
+    return transferReaderScrollState(readerScrollState, "parallel");
+  }
+  return savedModeScrollState(nextMode) || transferReaderScrollState(previousScrollState, nextMode);
+}
+
 function switchMode(nextMode) {
   if (!["reader", "parallel", "big", "trivia"].includes(nextMode)) return;
   if (nextMode === state.mode) return;
@@ -976,7 +986,7 @@ function switchMode(nextMode) {
   const previousScrollState = rememberModeScrollState();
   state.mode = nextMode;
   state.headerVersionMenuOpen = false;
-  const targetScrollState = savedModeScrollState(nextMode) || transferReaderScrollState(previousScrollState, nextMode);
+  const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
   if (state.mode === "big") {
     state.presentationPart = 0;
     state.presentationControlsVisible = false;
