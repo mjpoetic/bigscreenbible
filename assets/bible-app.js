@@ -7651,6 +7651,7 @@ async function applyStartupExperience() {
     const selected = sharedVersesFromUrl();
     if (selected.length) state.selectedVerses = selected;
     if (requestedMode) state.mode = requestedMode;
+    if (state.mode === "reader" || state.mode === "parallel") state.pendingVerseFocus = true;
     if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
     return;
   }
