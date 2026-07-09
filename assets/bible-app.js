@@ -1871,6 +1871,7 @@ function bindReaderTopButton() {
 function bindReaderReturnButton() {
   const button = document.getElementById("readerReturnButton");
   if (!button) return;
+  applyReaderReturnButtonLabel(button);
   button.addEventListener("click", () => {
     restoreReaderReturnTarget();
   });
@@ -2146,7 +2147,7 @@ function reader() {
       ${state.mode === "reader" || state.mode === "parallel" ? `
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
-        <button class="reader-top-button" id="readerTopButton" type="button" aria-label="Back to top" title="Back to top">
+        <button class="reader-top-button" id="readerTopButton" type="button" aria-label="Back to top" data-tooltip="Back to top">
           ${icons.arrowUp}
         </button>
       ` : ""}
@@ -2167,8 +2168,7 @@ function readerSelectionToolsButton() {
 function readerReturnButton() {
   const target = currentReaderReturnTarget();
   if (!target) return "";
-  const label = readerReturnLabel(target);
-  const tooltip = `Back to ${label}`;
+  const tooltip = readerReturnTooltip(target);
   return `
     <button class="reader-return-button" id="readerReturnButton" type="button" aria-label="${escapeHtml(tooltip)}" data-tooltip="${escapeHtml(tooltip)}">
       ${icons.arrowLeft}
@@ -2181,11 +2181,21 @@ function readerReturnLabel(target = currentReaderReturnTarget()) {
   return compactPassageLabel(label);
 }
 
+function readerReturnTooltip(target = currentReaderReturnTarget()) {
+  return `Back to ${readerReturnLabel(target)}`;
+}
+
+function applyReaderReturnButtonLabel(button, target = currentReaderReturnTarget()) {
+  if (!button || !target) return;
+  const tooltip = readerReturnTooltip(target);
+  button.setAttribute("aria-label", tooltip);
+  button.dataset.tooltip = tooltip;
+}
+
 function presentationReturnButton() {
   const target = currentReaderReturnTarget();
   if (!target) return "";
-  const label = readerReturnLabel(target);
-  const tooltip = `Back to ${label}`;
+  const tooltip = readerReturnTooltip(target);
   return `<button class="ghost-btn presentation-nav-button presentation-return-button" id="readerReturnButton" aria-label="${escapeHtml(tooltip)}" data-tooltip="${escapeHtml(tooltip)}">${icons.arrowLeft}</button>`;
 }
 

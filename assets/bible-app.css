@@ -1885,6 +1885,26 @@ button {
   height: 21px;
 }
 
+.reader-top-button[data-tooltip]::after,
+.reader-return-button[data-tooltip]::after {
+  top: 50%;
+  right: calc(100% + 10px);
+  bottom: auto;
+  left: auto;
+  max-width: min(230px, calc(100vw - 96px));
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  transform: translate(-4px, -50%);
+}
+
+.reader-top-button[data-tooltip]:hover::after,
+.reader-top-button[data-tooltip]:focus-visible::after,
+.reader-return-button[data-tooltip]:hover::after,
+.reader-return-button[data-tooltip]:focus-visible::after {
+  transform: translate(0, -50%);
+}
+
 .mobile-settings-popover {
   display: none;
 }
@@ -9441,6 +9461,21 @@ svg {
     --reader-floating-stack-right: auto;
     --reader-floating-stack-left: max(24px, env(safe-area-inset-left, 0px));
     --reader-floating-enter-x: -18px;
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .reader-top-button[data-tooltip]::after,
+  .app-shell[data-side-toolbar-position="right"] .reader-return-button[data-tooltip]::after {
+    right: auto;
+    left: calc(100% + 10px);
+    text-align: left;
+    transform: translate(4px, -50%);
+  }
+
+  .app-shell[data-side-toolbar-position="right"] .reader-top-button[data-tooltip]:hover::after,
+  .app-shell[data-side-toolbar-position="right"] .reader-top-button[data-tooltip]:focus-visible::after,
+  .app-shell[data-side-toolbar-position="right"] .reader-return-button[data-tooltip]:hover::after,
+  .app-shell[data-side-toolbar-position="right"] .reader-return-button[data-tooltip]:focus-visible::after {
+    transform: translate(0, -50%);
   }
 
   .app-shell[data-side-toolbar-position="left"] {
