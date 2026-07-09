@@ -1300,7 +1300,9 @@ function pushCurrentReturnTargetForNavigation(nextReference = null, nextVerse = 
 function restoreReaderReturnTarget() {
   const target = state.readerReturnStack.pop();
   if (!target?.reference || !bibleData[target.reference]) return render();
-  state.mode = ["reader", "parallel", "big"].includes(target.mode) ? target.mode : "reader";
+  const targetMode = ["reader", "parallel", "big"].includes(target.mode) ? target.mode : "reader";
+  const restoreMode = state.mode === "big" ? "big" : targetMode;
+  state.mode = restoreMode;
   state.focusMode = Boolean(target.focusMode);
   state.libraryOpen = Boolean(target.libraryOpen);
   state.activeRail = target.activeRail || state.activeRail;
@@ -1308,7 +1310,7 @@ function restoreReaderReturnTarget() {
   state.verse = target.verse;
   state.selectedVerses = Array.isArray(target.selectedVerses) ? [...target.selectedVerses] : [];
   state.keyboardSelectionAnchor = target.keyboardSelectionAnchor || null;
-  state.presentationPart = target.presentationPart || 0;
+  state.presentationPart = state.mode === "big" && target.mode !== "big" ? 0 : target.presentationPart || 0;
   state.isVerseOfDayActive = Boolean(target.isVerseOfDayActive && target.verseOfDayItem);
   state.verseOfDayItem = target.verseOfDayItem || state.verseOfDayItem;
   state.pendingVerseFocus = false;
@@ -5999,7 +6001,17 @@ function bindEvents() {
 
 function returnFromPresentationToBible() {
   clearTimeout(presentationControlsTimer);
-  switchMode("reader");
+  if (state.mode !== "big") {
+    switchMode("reader");
+    return;
+  }
+  state.mode = "reader";
+  state.presentationSearchOpen = false;
+  state.presentationSettingsOpen = false;
+  state.presentationControlsVisible = false;
+  state.pendingVerseFocus = true;
+  updateShareUrl();
+  render();
 }
 
 async function setPrimaryVersion(version, options = {}) {
