@@ -2168,22 +2168,31 @@ function readerReturnButton() {
   const target = currentReaderReturnTarget();
   if (!target) return "";
   const label = readerReturnLabel(target);
+  const tooltip = `Back to ${label}`;
   return `
-    <button class="reader-return-button" id="readerReturnButton" type="button" aria-label="Return to ${escapeHtml(label)}" data-tooltip="Return to ${escapeHtml(label)}">
+    <button class="reader-return-button" id="readerReturnButton" type="button" aria-label="${escapeHtml(tooltip)}" data-tooltip="${escapeHtml(tooltip)}">
       ${icons.arrowLeft}
     </button>
   `;
 }
 
 function readerReturnLabel(target = currentReaderReturnTarget()) {
-  return target?.label || (target ? `${target.reference}:${target.verse}` : "previous passage");
+  const label = target?.label || (target ? `${target.reference}:${target.verse}` : "previous passage");
+  return compactPassageLabel(label);
 }
 
 function presentationReturnButton() {
   const target = currentReaderReturnTarget();
   if (!target) return "";
   const label = readerReturnLabel(target);
-  return `<button class="ghost-btn presentation-nav-button presentation-return-button" id="readerReturnButton" aria-label="Return to ${escapeHtml(label)}" data-tooltip="Return to ${escapeHtml(label)}">${icons.arrowLeft}</button>`;
+  const tooltip = `Back to ${label}`;
+  return `<button class="ghost-btn presentation-nav-button presentation-return-button" id="readerReturnButton" aria-label="${escapeHtml(tooltip)}" data-tooltip="${escapeHtml(tooltip)}">${icons.arrowLeft}</button>`;
+}
+
+function compactPassageLabel(label) {
+  const parsed = parsePassageReference(label);
+  if (!parsed) return label;
+  return formatReferenceLabel(compactChapterLabel(parsed.key), parsed.verses);
 }
 
 function compactChapterLabel(chapterKey) {
