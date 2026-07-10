@@ -4342,8 +4342,11 @@ function parallelView() {
   const versions = activeVersions();
   return `
     ${selectionBar()}
+    <div class="parallel-mobile-versions" style="--version-count: ${versions.length}" aria-label="Parallel Bible versions">
+      ${versions.map((version, index) => parallelVersionSelectorMarkup(version, index, { mobile: true })).join("")}
+    </div>
     <div class="parallel-table" style="--version-count: ${versions.length}">
-      <div class="parallel-head"><div>V</div>${versions.map((version) => `<div>${translationDisplayCode(version)}</div>`).join("")}</div>
+      <div class="parallel-head"><div>V</div>${versions.map((version, index) => parallelVersionSelectorMarkup(version, index)).join("")}</div>
       ${currentChapter().verses.map((verse) => `
         ${parallelSectionHeadingsMarkup(verse, versions)}
         <div class="parallel-row ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
@@ -4353,6 +4356,28 @@ function parallelView() {
       `).join("")}
     </div>
     ${apiBibleAttributionMarkup(versions)}
+  `;
+}
+
+function parallelVersionSelectorMarkup(version, index, { mobile = false } = {}) {
+  const selectedVersions = activeVersions();
+  const availableOptions = translationCodes
+    .map((option) => {
+      const current = option === version;
+      const alreadySelected = !current && selectedVersions.includes(option);
+      return `<option value="${option}" ${current ? "selected" : ""} ${alreadySelected ? "disabled" : ""}>${translationDisplayCode(option)} · ${escapeHtml(translationLookup[option]?.name || option)}</option>`;
+    })
+    .join("");
+  const removeButton = !mobile && index > 0
+    ? `<button class="parallel-version-remove" type="button" data-remove-parallel-version="${version}" aria-label="Remove ${translationDisplayCode(version)} from Parallel Study" data-tooltip="Remove ${translationDisplayCode(version)}">${icons.clear}</button>`
+    : "";
+  return `
+    <div class="parallel-version-selector">
+      <select class="parallel-version-select" data-parallel-version-select="${index}" aria-label="Change ${translationDisplayCode(version)} Bible version">
+        ${availableOptions}
+      </select>
+      ${removeButton}
+    </div>
   `;
 }
 
@@ -5370,6 +5395,16 @@ function bindEvents() {
       render();
     });
   });
+  document.querySelectorAll("[data-remove-parallel-version]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const version = button.dataset.removeParallelVersion;
+      if (!version || version === state.versions[0]) return;
+      state.versions = state.versions.filter((item) => item !== version);
+      localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
+  });
   document.getElementById("versionSelect")?.addEventListener("change", async (event) => {
     const version = event.target.value;
     if (!translationCodes.includes(version)) return;
@@ -5392,6 +5427,14 @@ function bindEvents() {
     if (state.headerVersionMenuOpen) return closeHeaderVersionMenu();
     state.headerVersionMenuOpen = true;
     renderPreservingReaderScroll();
+  });
+  document.querySelectorAll("[data-parallel-version-select]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const version = select.value;
+      const index = Number(select.dataset.parallelVersionSelect);
+      if (!translationCodes.includes(version) || !Number.isInteger(index)) return;
+      await setParallelVersionAt(index, version);
+    });
   });
   document.querySelectorAll("[data-primary-version-option]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -6031,6 +6074,21 @@ async function setPrimaryVersion(version, options = {}) {
   if (!options.keepPresentationSettings) state.presentationSettingsOpen = false;
   if (options.preserveScroll) renderPreservingReaderScroll();
   else render();
+}
+
+async function setParallelVersionAt(index, version) {
+  const versions = activeVersions();
+  if (!versions[index] || versions[index] === version) {
+    return renderPreservingReaderScroll();
+  }
+  if (versions.includes(version)) return showToast(`${translationDisplayCode(version)} is already selected`);
+  state.versions[index] = version;
+  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  scheduleCloudSync();
+  if (isRemoteTranslation(version)) await loadBibleVersion("BSB");
+  await loadBibleVersion(version);
+  rebuildBibleData();
+  renderPreservingReaderScroll();
 }
 
 function setThemePreset(preset) {
