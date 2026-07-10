@@ -8224,8 +8224,18 @@ function toggleMobileControls() {
 }
 
 function renderWithMobileTopbarResize() {
+  const scrollState = captureReaderScroll();
   const previousHeight = document.querySelector(".topbar")?.getBoundingClientRect().height || 0;
   render();
+  const restoreReaderPosition = () => {
+    restoreReaderScroll(scrollState);
+    updateReaderTopButton();
+  };
+  restoreReaderPosition();
+  requestAnimationFrame(() => {
+    restoreReaderPosition();
+    requestAnimationFrame(restoreReaderPosition);
+  });
   const topbar = document.querySelector(".topbar");
   if (!topbar || !previousHeight || !isCompactScreen()) return;
   const nextHeight = topbar.getBoundingClientRect().height;
@@ -8240,6 +8250,7 @@ function renderWithMobileTopbarResize() {
     .catch(() => {})
     .finally(() => {
       topbar.style.removeProperty("overflow");
+      restoreReaderPosition();
     });
 }
 
