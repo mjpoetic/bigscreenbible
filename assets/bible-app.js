@@ -2118,7 +2118,7 @@ function searchPanel() {
   return `
     <section class="study-section panel-section" id="searchSection">
       <form class="study-search ${canClearResults ? "has-clear" : ""}" id="studySearchForm">
-        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="Search words or phrases" aria-label="Search Bible words or phrases" />
+        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="Search words, phrases, or questions" aria-label="Search Bible words, phrases, or questions" />
         <button class="ghost-btn" type="submit">Search</button>
         ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>` : ""}
       </form>
@@ -4975,13 +4975,13 @@ function closeStudyPopup(immediate = false) {
 function searchResultsMarkup() {
   const query = state.searchResultsQuery;
   if (!query) {
-    return `<div class="empty-state">Search by phrase, word, or reference. Try “love one another” or "Son of Man".</div>`;
+    return `<div class="empty-state">Search by phrase, word, question, or reference. Try “love one another” or “Who built the ark?”</div>`;
   }
   if (!state.searchResults.length) {
     return `<div class="empty-state">No matches found for ${escapeHtml(query)}.</div>`;
   }
   return state.searchResults.map((result) => `
-    <button class="search-result" data-goto="${escapeHtml(result.ref)}" data-search-result="true">
+    <button class="search-result" data-goto="${escapeHtml(result.goto || result.ref)}" data-search-result="true">
       <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}${result.matchType ? ` · ${escapeHtml(result.matchType)}` : ""}</div>
       <div class="ref-copy">${highlightSearchTerms(result.text, query)}</div>
     </button>
@@ -4993,7 +4993,7 @@ function highlightSearchTerms(text, query) {
   const criteria = parseSearchQuery(query);
   const terms = [
     ...(criteria.exactPhrase ? [criteria.exactPhrase] : []),
-    ...criteria.tokens,
+    ...(criteria.highlightTerms || criteria.tokens),
   ].filter(Boolean);
   if (!terms.length) return safeText;
   const pattern = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi");
@@ -7655,6 +7655,14 @@ function searchVersion(version, criteria) {
   const versionData = loadedVersionData.get(version);
   if (!versionData?.chapters) return [];
   const results = [];
+  if (criteria.questionAnalysis?.isQuestion) {
+    Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
+      const result = searchQuestionInChapter(version, chapterKey, chapter, criteria);
+      if (result) results.push(result);
+      return results.length >= 80;
+    });
+    return results;
+  }
   Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
     chapter.verses.some((verse) => {
       const text = verse.text || "";
@@ -7675,6 +7683,27 @@ function searchVersion(version, criteria) {
   return results;
 }
 
+function searchQuestionInChapter(version, chapterKey, chapter, criteria) {
+  const verses = chapter.verses || [];
+  let bestResult = null;
+  verses.forEach((_verse, index) => {
+    const context = verses.slice(Math.max(0, index - 1), Math.min(verses.length, index + 2));
+    const text = context.map((item) => `${item.n} ${item.text || ""}`).join(" ");
+    const match = scoreSearchText(text, criteria, version);
+    if (!match || (bestResult && bestResult.score >= match.score)) return;
+    const contextNumbers = context.map((item) => item.n);
+    bestResult = {
+      ref: formatReferenceLabel(chapterKey, contextNumbers),
+      goto: `${chapterKey}:${contextNumbers[0]}`,
+      version,
+      text,
+      score: match.score,
+      matchType: match.matchType,
+    };
+  });
+  return bestResult;
+}
+
 function balancedSearchResults(results, primaryVersion) {
   const versionOrder = uniqueList([
     primaryVersion,
@@ -7682,7 +7711,7 @@ function balancedSearchResults(results, primaryVersion) {
     ...translationCodes.filter(isRemoteTranslation),
     ...translationCodes,
   ]);
-  const matchTypeOrder = ["Phrase", "Words", "Close match"];
+  const matchTypeOrder = ["Question match", "Phrase", "Words", "Close match"];
   const ordered = [];
   matchTypeOrder.forEach((matchType) => {
     ordered.push(...balanceResultGroup(results.filter((result) => result.matchType === matchType), versionOrder));
@@ -7758,6 +7787,15 @@ async function searchRemoteVersion(version, query, criteria) {
 }
 
 function scoreSearchText(text, criteria, version, providerScore = 0) {
+  if (criteria.questionAnalysis?.isQuestion && window.BigScreenBibleSearchQuery) {
+    const questionMatch = window.BigScreenBibleSearchQuery.scoreText(text, criteria.questionAnalysis);
+    if (!questionMatch) return null;
+    const primaryBoost = version === (state.versions[0] || "BSB") ? 4 : 0;
+    return {
+      score: questionMatch.score + providerScore + primaryBoost,
+      matchType: questionMatch.matchType,
+    };
+  }
   const normalizedText = normalizeSearchText(text);
   const phrase = criteria.exactPhrase || criteria.phrase;
   const hasPhrase = phrase.length > 2 && normalizedText.includes(phrase);
@@ -7786,11 +7824,17 @@ function parseSearchQuery(query) {
   });
   const exactPhrase = quotedPhrases[0] || "";
   const searchableText = exactPhrase || normalizedQuery;
+  const questionAnalysis = exactPhrase ? null : window.BigScreenBibleSearchQuery?.analyze(normalizedQuery);
+  const questionTokens = questionAnalysis?.isQuestion ? questionAnalysis.coreTokens : [];
   return {
     exactRequested: Boolean(exactPhrase),
     exactPhrase,
     phrase: normalizeSearchText(searchableText),
-    tokens: searchTokens(searchableText),
+    tokens: questionTokens.length ? questionTokens : searchTokens(searchableText),
+    highlightTerms: questionAnalysis?.isQuestion
+      ? questionAnalysis.concepts.flat()
+      : searchTokens(searchableText),
+    questionAnalysis,
   };
 }
 
