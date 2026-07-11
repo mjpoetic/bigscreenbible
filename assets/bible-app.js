@@ -294,6 +294,8 @@ const state = {
   settingsAnchor: "header",
   streakPopoverOpen: false,
   headerVersionMenuOpen: false,
+  parallelVersionMenuIndex: null,
+  parallelVersionMenuPosition: null,
   shortcutsOpen: false,
   tutorialIntroVisible: localStorage.getItem(tutorialStorageKey) !== "true",
   tutorialActive: false,
@@ -790,6 +792,7 @@ function render() {
       ${tutorialOverlay()}
       ${printSheet()}
       ${streakPopup()}
+      ${parallelVersionMenuMarkup()}
       <div class="status-toast" id="toast"></div>
     </main>
   `;
@@ -986,6 +989,8 @@ function switchMode(nextMode) {
   const previousScrollState = rememberModeScrollState();
   state.mode = nextMode;
   state.headerVersionMenuOpen = false;
+  state.parallelVersionMenuIndex = null;
+  state.parallelVersionMenuPosition = null;
   const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
   if (state.mode === "big") {
     state.presentationPart = 0;
@@ -2921,6 +2926,20 @@ function clearFixedPopoverPosition(popover) {
   });
 }
 
+function parallelVersionMenuPositionFor(trigger) {
+  const viewport = fixedPopoverViewport();
+  const triggerRect = trigger.getBoundingClientRect();
+  const gutter = 8;
+  const viewportLeft = viewport.offsetLeft || 0;
+  const viewportTop = viewport.offsetTop || 0;
+  const top = Math.round(viewportTop + triggerRect.bottom + gutter);
+  const menuWidth = Math.min(310, Math.max(0, viewport.width - gutter * 2));
+  const maxLeft = viewportLeft + viewport.width - menuWidth - gutter;
+  const left = Math.max(viewportLeft + gutter, Math.min(Math.round(viewportLeft + triggerRect.left), maxLeft));
+  const maxHeight = Math.max(96, Math.round(viewport.height - (top - viewportTop) - gutter));
+  return { top, left, maxHeight };
+}
+
 async function handleAccountSubmit(event, prefix = "") {
   event.preventDefault();
   const submitter = event.submitter;
@@ -4360,23 +4379,41 @@ function parallelView() {
 }
 
 function parallelVersionSelectorMarkup(version, index, { mobile = false } = {}) {
-  const selectedVersions = activeVersions();
-  const availableOptions = translationCodes
-    .map((option) => {
-      const current = option === version;
-      const alreadySelected = !current && selectedVersions.includes(option);
-      return `<option value="${option}" ${current ? "selected" : ""} ${alreadySelected ? "disabled" : ""}>${translationDisplayCode(option)} · ${escapeHtml(translationLookup[option]?.name || option)}</option>`;
-    })
-    .join("");
   const removeButton = !mobile && index > 0
     ? `<button class="parallel-version-remove" type="button" data-remove-parallel-version="${version}" aria-label="Remove ${translationDisplayCode(version)} from Parallel Study" data-tooltip="Remove ${translationDisplayCode(version)}">${icons.clear}</button>`
     : "";
   return `
     <div class="parallel-version-selector">
-      <select class="parallel-version-select" data-parallel-version-select="${index}" aria-label="Change ${translationDisplayCode(version)} Bible version">
-        ${availableOptions}
-      </select>
+      <button class="parallel-version-trigger" type="button" data-parallel-version-toggle="${index}" aria-label="Change ${translationDisplayCode(version)} Bible version" aria-haspopup="listbox" aria-expanded="${state.parallelVersionMenuIndex === index ? "true" : "false"}">
+        <span>${translationDisplayCode(version)}</span>
+        <span class="parallel-version-trigger-chevron" aria-hidden="true">⌄</span>
+      </button>
       ${removeButton}
+    </div>
+  `;
+}
+
+function parallelVersionMenuMarkup() {
+  const index = state.parallelVersionMenuIndex;
+  const versions = activeVersions();
+  const version = Number.isInteger(index) ? versions[index] : null;
+  const position = state.parallelVersionMenuPosition;
+  if (!version || !position) return "";
+  const options = translationCodes
+    .map((option) => {
+      const current = option === version;
+      const alreadySelected = !current && versions.includes(option);
+      return `
+        <button class="parallel-version-menu-option ${current ? "active" : ""}" type="button" data-parallel-version-option="${option}" data-parallel-version-index="${index}" role="option" aria-selected="${current ? "true" : "false"}" ${alreadySelected ? "disabled" : ""}>
+          <strong>${translationDisplayCode(option)}</strong>
+          <small>${escapeHtml(translationLookup[option]?.name || option)}</small>
+        </button>
+      `;
+    })
+    .join("");
+  return `
+    <div class="parallel-version-menu" role="listbox" aria-label="Choose replacement Bible version" style="--parallel-version-menu-top: ${position.top}px; --parallel-version-menu-left: ${position.left}px; --parallel-version-menu-max-height: ${position.maxHeight}px;">
+      ${options}
     </div>
   `;
 }
@@ -5428,11 +5465,23 @@ function bindEvents() {
     state.headerVersionMenuOpen = true;
     renderPreservingReaderScroll();
   });
-  document.querySelectorAll("[data-parallel-version-select]").forEach((select) => {
-    select.addEventListener("change", async () => {
-      const version = select.value;
-      const index = Number(select.dataset.parallelVersionSelect);
+  document.querySelectorAll("[data-parallel-version-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.parallelVersionToggle);
+      if (!Number.isInteger(index)) return;
+      const closing = state.parallelVersionMenuIndex === index;
+      state.parallelVersionMenuIndex = closing ? null : index;
+      state.parallelVersionMenuPosition = closing ? null : parallelVersionMenuPositionFor(button);
+      renderPreservingReaderScroll();
+    });
+  });
+  document.querySelectorAll("[data-parallel-version-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const version = button.dataset.parallelVersionOption;
+      const index = Number(button.dataset.parallelVersionIndex);
       if (!translationCodes.includes(version) || !Number.isInteger(index)) return;
+      state.parallelVersionMenuIndex = null;
+      state.parallelVersionMenuPosition = null;
       await setParallelVersionAt(index, version);
     });
   });
@@ -8688,6 +8737,12 @@ function handleGlobalShortcuts(event) {
       event.preventDefault();
       return closeHeaderVersionMenu();
     }
+    if (Number.isInteger(state.parallelVersionMenuIndex)) {
+      event.preventDefault();
+      state.parallelVersionMenuIndex = null;
+      state.parallelVersionMenuPosition = null;
+      return renderPreservingReaderScroll();
+    }
     if (state.presentationSearchOpen) {
       event.preventDefault();
       state.presentationSearchOpen = false;
@@ -9959,12 +10014,16 @@ const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
+  state.parallelVersionMenuIndex = null;
+  state.parallelVersionMenuPosition = null;
   renderAfterViewportChangePreservingReaderScroll();
 });
 const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)");
 shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
+  state.parallelVersionMenuIndex = null;
+  state.parallelVersionMenuPosition = null;
   renderAfterViewportChangePreservingReaderScroll();
 });
 window.addEventListener("scroll", updateReaderTopButton, { passive: true });
@@ -9980,6 +10039,12 @@ window.addEventListener("resize", () => {
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   closeHeaderVersionMenu();
+});
+document.addEventListener("click", (event) => {
+  if (!Number.isInteger(state.parallelVersionMenuIndex) || event.target.closest?.(".parallel-version-selector, .parallel-version-menu")) return;
+  state.parallelVersionMenuIndex = null;
+  state.parallelVersionMenuPosition = null;
+  renderPreservingReaderScroll();
 });
 document.addEventListener("click", (event) => {
   if (!state.streakPopoverOpen || event.target.closest?.(".streak-menu")) return;

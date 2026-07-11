@@ -4505,7 +4505,10 @@ select {
   min-width: 0;
 }
 
-.parallel-version-select {
+.parallel-version-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   width: auto;
   min-width: 70px;
   min-height: 30px;
@@ -4521,12 +4524,75 @@ select {
   cursor: pointer;
 }
 
-.parallel-version-select:hover,
-.parallel-version-select:focus-visible {
+.parallel-version-trigger:hover,
+.parallel-version-trigger:focus-visible {
   border-color: var(--line);
   background: var(--soft);
   color: var(--ink);
   outline: none;
+}
+
+.parallel-version-trigger-chevron {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.parallel-version-menu {
+  position: fixed;
+  top: var(--parallel-version-menu-top);
+  left: var(--parallel-version-menu-left);
+  z-index: 10000;
+  display: grid;
+  gap: 3px;
+  width: min(310px, calc(100vw - 16px));
+  max-height: var(--parallel-version-menu-max-height);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  animation: parallelVersionMenuIn var(--motion-base) var(--motion-ease) both;
+}
+
+.parallel-version-menu-option {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.parallel-version-menu-option:hover,
+.parallel-version-menu-option:focus-visible,
+.parallel-version-menu-option.active {
+  background: var(--soft);
+  outline: none;
+}
+
+.parallel-version-menu-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.parallel-version-menu-option strong {
+  font-weight: 850;
+}
+
+.parallel-version-menu-option small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .parallel-version-remove {
@@ -6866,6 +6932,18 @@ kbd {
   }
 }
 
+@keyframes parallelVersionMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes versionMenuOut {
   from {
     opacity: 1;
@@ -8401,7 +8479,9 @@ svg {
       min-width: 0;
     }
 
-    .parallel-mobile-versions .parallel-version-select {
+    .parallel-mobile-versions .parallel-version-trigger {
+      display: flex;
+      justify-content: space-between;
       width: 100%;
       min-height: 36px;
       margin: 0;
