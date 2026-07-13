@@ -821,13 +821,17 @@ button {
   line-height: 1;
   cursor: pointer;
   transition:
+    background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
     color var(--motion-fast) ease,
-    opacity var(--motion-fast) ease;
+    transform var(--motion-fast) var(--motion-ease);
 }
 
 .footer-version-toggle:hover,
 .footer-version-toggle:focus-visible {
   color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 7%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--teal) 20%, transparent);
 }
 
 .footer-version-toggle:focus-visible {
@@ -836,14 +840,8 @@ button {
   border-radius: 3px;
 }
 
-.footer-version-chevron {
-  font-size: 13px;
-  line-height: 1;
-  transition: transform var(--motion-fast) var(--motion-ease);
-}
-
-.footer-version-control.open .footer-version-chevron {
-  transform: rotate(180deg);
+.footer-version-toggle:active {
+  transform: scale(0.97);
 }
 
 .primary-version-menu.footer-version-menu {
@@ -871,6 +869,40 @@ button {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.footer-inline-picker {
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.footer-inline-picker:hover,
+.footer-inline-picker:focus-visible {
+  color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 7%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--teal) 20%, transparent);
+}
+
+.footer-inline-picker:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--teal) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.footer-inline-picker:active {
+  transform: scale(0.98);
 }
 
 .footer-legal-links,

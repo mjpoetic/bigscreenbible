@@ -5088,7 +5088,6 @@ function bottombar() {
               <div class="footer-version-control ${state.footerVersionMenuOpen ? "open" : ""}">
                 <button class="footer-version-toggle" id="footerVersionMenuToggle" type="button" aria-label="Bible version ${translationDisplayCode(footerPrimaryVersion)}" aria-haspopup="listbox" aria-expanded="${state.footerVersionMenuOpen ? "true" : "false"}" title="Change Bible version">
                   <span>${translationDisplayCode(footerPrimaryVersion)}</span>
-                  <span class="footer-version-chevron" aria-hidden="true">⌄</span>
                 </button>
                 <div class="primary-version-menu footer-version-menu" role="listbox" aria-label="Bible version options">
                   ${footerVersionOptions}
@@ -5096,7 +5095,9 @@ function bottombar() {
               </div>
               ${footerSecondaryVersions.length ? `<span class="footer-secondary-versions">/ ${footerSecondaryVersions.map(translationDisplayCode).join(" / ")}</span>` : ""}
               <span class="footer-reference-divider" aria-hidden="true">·</span>
-              <span class="footer-reference-label">${referenceLabel()}</span>
+              ${["reader", "parallel"].includes(state.mode)
+                ? `<button class="footer-reference-label footer-inline-picker" id="footerReferencePicker" type="button" aria-label="Choose Bible book or chapter, currently ${escapeHtml(referenceLabel())}" title="Choose book or chapter">${referenceLabel()}</button>`
+                : `<span class="footer-reference-label">${referenceLabel()}</span>`}
             </div>
             <nav class="footer-legal-links" aria-label="Legal information">
               <a href="./privacy/">Privacy</a>
@@ -5521,6 +5522,10 @@ function bindEvents() {
       state.footerVersionMenuOpen = false;
       await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
     });
+  });
+  document.getElementById("footerReferencePicker")?.addEventListener("click", () => {
+    state.footerVersionMenuOpen = false;
+    activateWorkspace("Verse");
   });
   document.getElementById("versionMenuToggle")?.addEventListener("click", () => {
     if (state.headerVersionMenuOpen) return closeHeaderVersionMenu();
