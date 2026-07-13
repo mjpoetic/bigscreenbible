@@ -294,6 +294,7 @@ const state = {
   settingsAnchor: "header",
   streakPopoverOpen: false,
   headerVersionMenuOpen: false,
+  footerVersionMenuOpen: false,
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
@@ -989,6 +990,7 @@ function switchMode(nextMode) {
   const previousScrollState = rememberModeScrollState();
   state.mode = nextMode;
   state.headerVersionMenuOpen = false;
+  state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
   state.parallelVersionMenuPosition = null;
   const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
@@ -5063,6 +5065,16 @@ function bottombar() {
   const footerVersions = state.mode === "parallel"
     ? activeVersions()
     : [state.versions[0] || activeVersions()[0] || "BSB"];
+  const footerPrimaryVersion = footerVersions[0] || "BSB";
+  const footerSecondaryVersions = footerVersions.slice(1);
+  const footerVersionOptions = translationCodes
+    .map((version) => `
+      <button class="primary-version-option ${version === footerPrimaryVersion ? "active" : ""}" type="button" data-footer-version-option="${version}" role="option" aria-selected="${version === footerPrimaryVersion ? "true" : "false"}">
+        <span>${translationDisplayCode(version)}</span>
+        <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+      </button>
+    `)
+    .join("");
   return `
     <div class="footer-region ${state.footerCollapsed ? "collapsed" : ""}">
       <footer class="bottombar" id="footerBar" ${state.footerCollapsed ? 'inert aria-hidden="true"' : ""}>
@@ -5072,7 +5084,20 @@ function bottombar() {
         </button>
         <div class="footer-center">
           <div class="fineprint">
-            <span class="footer-reference">${footerVersions.map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</span>
+            <div class="footer-reference">
+              <div class="footer-version-control ${state.footerVersionMenuOpen ? "open" : ""}">
+                <button class="footer-version-toggle" id="footerVersionMenuToggle" type="button" aria-label="Bible version ${translationDisplayCode(footerPrimaryVersion)}" aria-haspopup="listbox" aria-expanded="${state.footerVersionMenuOpen ? "true" : "false"}" title="Change Bible version">
+                  <span>${translationDisplayCode(footerPrimaryVersion)}</span>
+                  <span class="footer-version-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <div class="primary-version-menu footer-version-menu" role="listbox" aria-label="Bible version options">
+                  ${footerVersionOptions}
+                </div>
+              </div>
+              ${footerSecondaryVersions.length ? `<span class="footer-secondary-versions">/ ${footerSecondaryVersions.map(translationDisplayCode).join(" / ")}</span>` : ""}
+              <span class="footer-reference-divider" aria-hidden="true">·</span>
+              <span class="footer-reference-label">${referenceLabel()}</span>
+            </div>
             <nav class="footer-legal-links" aria-label="Legal information">
               <a href="./privacy/">Privacy</a>
               <span aria-hidden="true">·</span>
@@ -5483,8 +5508,23 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  document.getElementById("footerVersionMenuToggle")?.addEventListener("click", () => {
+    if (state.footerVersionMenuOpen) return closeFooterVersionMenu();
+    state.headerVersionMenuOpen = false;
+    state.footerVersionMenuOpen = true;
+    renderPreservingReaderScroll();
+  });
+  document.querySelectorAll("[data-footer-version-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const version = button.dataset.footerVersionOption;
+      if (!translationCodes.includes(version)) return;
+      state.footerVersionMenuOpen = false;
+      await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
+    });
+  });
   document.getElementById("versionMenuToggle")?.addEventListener("click", () => {
     if (state.headerVersionMenuOpen) return closeHeaderVersionMenu();
+    state.footerVersionMenuOpen = false;
     state.headerVersionMenuOpen = true;
     renderPreservingReaderScroll();
   });
@@ -8365,6 +8405,7 @@ function toggleVerseNavCollapsed() {
 
 function toggleFooterCollapsed() {
   state.footerCollapsed = !state.footerCollapsed;
+  state.footerVersionMenuOpen = false;
   localStorage.setItem("lw_footer_collapsed", String(state.footerCollapsed));
   const shell = document.querySelector(".app-shell");
   const region = document.querySelector(".footer-region");
@@ -8443,8 +8484,16 @@ function toggleShortcuts(forceOpen) {
 
 function closeHeaderVersionMenu() {
   if (!state.headerVersionMenuOpen) return;
-  animateBeforeRemoval(".primary-version-menu", () => {
+  animateBeforeRemoval(".topbar .primary-version-menu", () => {
     state.headerVersionMenuOpen = false;
+    renderPreservingReaderScroll();
+  }, { duration: 180 });
+}
+
+function closeFooterVersionMenu() {
+  if (!state.footerVersionMenuOpen) return;
+  animateBeforeRemoval(".footer-version-menu", () => {
+    state.footerVersionMenuOpen = false;
     renderPreservingReaderScroll();
   }, { duration: 180 });
 }
@@ -8803,6 +8852,10 @@ function handleGlobalShortcuts(event) {
     if (state.headerVersionMenuOpen) {
       event.preventDefault();
       return closeHeaderVersionMenu();
+    }
+    if (state.footerVersionMenuOpen) {
+      event.preventDefault();
+      return closeFooterVersionMenu();
     }
     if (Number.isInteger(state.parallelVersionMenuIndex)) {
       event.preventDefault();
@@ -10081,6 +10134,7 @@ const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
+  state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
   state.parallelVersionMenuPosition = null;
   renderAfterViewportChangePreservingReaderScroll();
@@ -10089,6 +10143,7 @@ const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (m
 shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.headerVersionMenuOpen = false;
+  state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
   state.parallelVersionMenuPosition = null;
   renderAfterViewportChangePreservingReaderScroll();
@@ -10106,6 +10161,10 @@ window.addEventListener("resize", () => {
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   closeHeaderVersionMenu();
+});
+document.addEventListener("click", (event) => {
+  if (!state.footerVersionMenuOpen || event.target.closest?.(".footer-version-control")) return;
+  closeFooterVersionMenu();
 });
 document.addEventListener("click", (event) => {
   if (!Number.isInteger(state.parallelVersionMenuIndex) || event.target.closest?.(".parallel-version-selector, .parallel-version-menu")) return;
