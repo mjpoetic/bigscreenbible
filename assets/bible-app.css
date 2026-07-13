@@ -905,7 +905,6 @@ button {
   transform: scale(0.98);
 }
 
-.footer-legal-links,
 .settings-legal-links,
 .account-legal-links {
   display: inline-flex;
@@ -914,14 +913,6 @@ button {
   gap: 7px;
 }
 
-.footer-legal-links {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-}
-
-.footer-legal-links a,
 .settings-legal-links a,
 .account-legal-links a,
 .account-legal-notice a {
@@ -930,8 +921,6 @@ button {
   text-underline-offset: 3px;
 }
 
-.footer-legal-links a:hover,
-.footer-legal-links a:focus-visible,
 .settings-legal-links a:hover,
 .settings-legal-links a:focus-visible,
 .account-legal-links a:hover,
@@ -5854,7 +5843,7 @@ select {
   justify-self: end;
 }
 
-.presentation-about-link {
+.presentation .presentation-about-link {
   align-self: center;
   display: inline-flex;
   align-items: center;
@@ -5871,8 +5860,8 @@ select {
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
 
-.presentation-about-link:hover,
-.presentation-about-link:focus-visible {
+.presentation .presentation-about-link:hover,
+.presentation .presentation-about-link:focus-visible {
   color: var(--presentation-accent);
   border-color: color-mix(in srgb, var(--presentation-accent) 52%, var(--presentation-button-border));
   outline: 0;
@@ -5929,7 +5918,8 @@ select {
   opacity: 0.42;
 }
 
-.shortcut-overlay {
+.shortcut-overlay,
+.about-menu-overlay {
   position: fixed;
   inset: 0;
   z-index: 130;
@@ -5941,13 +5931,94 @@ select {
   backdrop-filter: blur(8px);
 }
 
-.shortcut-overlay.open {
+.shortcut-overlay.open,
+.about-menu-overlay.open {
   display: flex;
   animation: backdropIn var(--motion-base) ease-out both;
 }
 
-.shortcut-overlay.open .shortcut-panel {
+.shortcut-overlay.open .shortcut-panel,
+.about-menu-overlay.open .about-menu-card {
   animation: dialogIn var(--motion-slow) var(--motion-ease) both;
+}
+
+.about-menu-card {
+  width: min(520px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.about-menu-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.about-menu-head h2 {
+  margin: 3px 0 0;
+  font: 700 24px/1.2 "Libre Baskerville", Georgia, serif;
+}
+
+.about-menu-intro {
+  margin: 0;
+  padding: 18px 22px 4px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.about-menu-links {
+  display: grid;
+  gap: 10px;
+  padding: 14px 22px 22px;
+}
+
+.about-menu-links a {
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  padding: 14px 15px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--soft) 72%, transparent);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.about-menu-links a:hover,
+.about-menu-links a:focus-visible {
+  border-color: color-mix(in srgb, var(--teal) 55%, var(--line));
+  background: color-mix(in srgb, var(--teal) 8%, var(--soft));
+  outline: 2px solid color-mix(in srgb, var(--teal) 38%, transparent);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+}
+
+.about-menu-links strong {
+  color: var(--teal);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.about-menu-links span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .shortcut-panel {
@@ -7169,11 +7240,13 @@ kbd {
 }
 
 .shortcut-overlay.motion-exit,
+.about-menu-overlay.motion-exit,
 .tutorial-welcome-overlay.motion-exit {
   animation: backdropOut var(--motion-base) ease-in both !important;
 }
 
 .shortcut-overlay.motion-exit .shortcut-panel,
+.about-menu-overlay.motion-exit .about-menu-card,
 .tutorial-welcome-overlay.motion-exit .tutorial-welcome-card,
 .tutorial-card.motion-exit {
   animation: dialogOut var(--motion-fast) ease-in both !important;
@@ -8348,11 +8421,6 @@ svg {
 
     .primary-version-menu.footer-version-menu.motion-exit {
       animation-name: footerVersionMenuMobileOut !important;
-    }
-
-    .footer-legal-links {
-      font-size: 10px;
-      letter-spacing: 0.08em;
     }
 
     .bottom-actions {
@@ -10274,6 +10342,7 @@ svg {
   }
 
   .shortcut-overlay,
+  .about-menu-overlay,
   .tutorial-welcome-overlay {
     align-items: flex-end;
     padding: 14px;
@@ -10281,6 +10350,7 @@ svg {
   }
 
   .shortcut-panel,
+  .about-menu-card,
   .tutorial-welcome-card {
     width: 100%;
     max-height: min(82vh, 720px);
@@ -10289,6 +10359,18 @@ svg {
 
   .shortcut-head {
     padding: 18px 18px 13px;
+  }
+
+  .about-menu-head {
+    padding: 18px 18px 13px;
+  }
+
+  .about-menu-intro {
+    padding: 16px 18px 2px;
+  }
+
+  .about-menu-links {
+    padding: 12px 18px 18px;
   }
 
   .shortcut-head h2,

@@ -298,6 +298,8 @@ const state = {
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
+  aboutMenuOpen: false,
+  aboutMenuAnchor: "aboutMenuButton",
   tutorialIntroVisible: localStorage.getItem(tutorialStorageKey) !== "true",
   tutorialActive: false,
   tutorialStep: 0,
@@ -789,6 +791,7 @@ function render() {
       ${mobileSettingsPanel()}
       ${presentation()}
       ${shortcutOverlay()}
+      ${aboutMenuOverlay()}
       ${tutorialIntro()}
       ${tutorialOverlay()}
       ${printSheet()}
@@ -5099,11 +5102,6 @@ function bottombar() {
                 ? `<button class="footer-reference-label footer-inline-picker" id="footerReferencePicker" type="button" aria-label="Choose Bible book or chapter, currently ${escapeHtml(referenceLabel())}" title="Choose book or chapter">${referenceLabel()}</button>`
                 : `<span class="footer-reference-label">${referenceLabel()}</span>`}
             </div>
-            <nav class="footer-legal-links" aria-label="Legal information">
-              <a href="./privacy/">Privacy</a>
-              <span aria-hidden="true">·</span>
-              <a href="./terms/">Terms</a>
-            </nav>
           </div>
           <div class="bottom-actions">
             <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse" data-tooltip="Copy verse">
@@ -5114,10 +5112,10 @@ function bottombar() {
               <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
               <span class="bottom-action-label">Print</span>
             </button>
-            <a class="ghost-btn bottom-action bottom-about-link" href="./about.html" aria-label="About Big Screen Bible" data-tooltip="About">
+            <button class="ghost-btn bottom-action bottom-about-link" id="aboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About">
               <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
               <span class="bottom-action-label">About</span>
-            </a>
+            </button>
           </div>
         </div>
         <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
@@ -5332,7 +5330,7 @@ function presentation() {
           <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
           <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
-        <a class="presentation-about-link" href="./about.html" aria-label="About Big Screen Bible" data-tooltip="About Big Screen Bible">About</a>
+        <button class="presentation-about-link" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About Big Screen Bible">About</button>
       </div>
     </section>
   `;
@@ -5419,8 +5417,40 @@ function shortcutOverlay() {
   `;
 }
 
+function aboutMenuOverlay() {
+  if (!state.aboutMenuOpen) return "";
+  return `
+    <section class="about-menu-overlay open">
+      <div class="about-menu-card" id="aboutMenuDialog" role="dialog" aria-modal="true" aria-labelledby="aboutMenuTitle" tabindex="-1">
+        <div class="about-menu-head">
+          <div>
+            <div class="shortcut-eyebrow">Big Screen Bible</div>
+            <h2 id="aboutMenuTitle">About &amp; legal</h2>
+          </div>
+          <button class="icon-btn" id="closeAboutMenu" type="button" aria-label="Close About and legal information" data-tooltip="Close">×</button>
+        </div>
+        <p class="about-menu-intro">Learn more about Big Screen Bible or review the policies that guide the service.</p>
+        <nav class="about-menu-links" aria-label="About and legal pages">
+          <a href="./about.html">
+            <strong>About Big Screen Bible</strong>
+            <span>The story, purpose, and vision behind the project.</span>
+          </a>
+          <a href="./privacy/">
+            <strong>Privacy Policy</strong>
+            <span>How account information and supported study data are handled.</span>
+          </a>
+          <a href="./terms/">
+            <strong>Terms of Service</strong>
+            <span>The terms for using Big Screen Bible and its content.</span>
+          </a>
+        </nav>
+      </div>
+    </section>
+  `;
+}
+
 function tutorialIntro() {
-  if (!state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen) return "";
+  if (!state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen || state.aboutMenuOpen) return "";
   return `
     <section class="tutorial-welcome-overlay open" role="dialog" aria-modal="true" aria-labelledby="tutorialWelcomeTitle">
       <div class="tutorial-welcome-card">
@@ -5760,6 +5790,13 @@ function bindEvents() {
   document.querySelector(".shortcut-overlay")?.addEventListener("click", (event) => {
     if (event.target.classList.contains("shortcut-overlay")) toggleShortcuts(false);
   });
+  document.getElementById("aboutMenuButton")?.addEventListener("click", () => toggleAboutMenu(true, "aboutMenuButton"));
+  document.getElementById("presentationAboutMenuButton")?.addEventListener("click", () => toggleAboutMenu(true, "presentationAboutMenuButton"));
+  document.getElementById("closeAboutMenu")?.addEventListener("click", () => toggleAboutMenu(false));
+  document.querySelector(".about-menu-overlay")?.addEventListener("click", (event) => {
+    if (event.target.classList.contains("about-menu-overlay")) toggleAboutMenu(false);
+  });
+  document.getElementById("aboutMenuDialog")?.addEventListener("keydown", trapAboutMenuFocus);
   document.getElementById("startTutorialPrompt")?.addEventListener("click", startTutorial);
   document.getElementById("dismissTutorialPrompt")?.addEventListener("click", dismissTutorialIntro);
   document.getElementById("tutorialNext")?.addEventListener("click", advanceTutorial);
@@ -8487,6 +8524,44 @@ function toggleShortcuts(forceOpen) {
   render();
 }
 
+function toggleAboutMenu(forceOpen, anchorId = state.aboutMenuAnchor) {
+  const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !state.aboutMenuOpen;
+  if (state.aboutMenuOpen && !nextOpen) {
+    const restoreAnchor = state.aboutMenuAnchor;
+    animateBeforeRemoval(".about-menu-overlay.open", () => {
+      state.aboutMenuOpen = false;
+      renderPreservingReaderScroll();
+      requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById(restoreAnchor)?.focus()));
+    }, { duration: 220 });
+    return;
+  }
+  state.aboutMenuAnchor = anchorId;
+  state.aboutMenuOpen = nextOpen;
+  state.shortcutsOpen = false;
+  state.settingsOpen = false;
+  state.accountOpen = false;
+  state.headerVersionMenuOpen = false;
+  state.footerVersionMenuOpen = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById("closeAboutMenu")?.focus()));
+}
+
+function trapAboutMenuFocus(event) {
+  if (event.key !== "Tab") return;
+  const dialog = event.currentTarget;
+  const focusable = Array.from(dialog.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === dialog || document.activeElement === first)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function closeHeaderVersionMenu() {
   if (!state.headerVersionMenuOpen) return;
   animateBeforeRemoval(".topbar .primary-version-menu", () => {
@@ -8842,6 +8917,10 @@ function handleGlobalShortcuts(event) {
       event.preventDefault();
       return closeStudyPopup();
     }
+    if (state.aboutMenuOpen) {
+      event.preventDefault();
+      return toggleAboutMenu(false);
+    }
     if (state.shortcutsOpen) {
       event.preventDefault();
       return toggleShortcuts(false);
@@ -8883,7 +8962,7 @@ function handleGlobalShortcuts(event) {
     }
   }
 
-  if (typing || state.shortcutsOpen || state.tutorialActive || state.tutorialIntroVisible) return;
+  if (typing || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
     event.preventDefault();
