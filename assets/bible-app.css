@@ -1420,8 +1420,8 @@ button {
   background: var(--panel);
 }
 
-@media (min-width: 841px) {
-  .topbar :is(#shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle) {
+@media (min-width: 841px), (max-width: 840px) and (orientation: portrait) and (hover: hover) and (pointer: fine) {
+  .topbar :is(#mobileControlsToggle, #shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle) {
     cursor: pointer;
     transition:
       color var(--motion-fast) ease,
@@ -1431,8 +1431,8 @@ button {
       transform var(--motion-fast) var(--motion-ease);
   }
 
-  .topbar :is(#shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle):hover,
-  .topbar :is(#shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle):focus-visible {
+  .topbar :is(#mobileControlsToggle, #shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle):hover,
+  .topbar :is(#mobileControlsToggle, #shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle):focus-visible {
     color: var(--teal);
     border-color: color-mix(in srgb, var(--teal) 25%, transparent);
     background: color-mix(in srgb, var(--teal) 9%, var(--panel));
@@ -1442,7 +1442,7 @@ button {
     transform: scale(1.04);
   }
 
-  .topbar :is(#shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle):focus-visible {
+  .topbar :is(#mobileControlsToggle, #shortcutsButton, #focusToggle, #accountQuickButton, #settingsToggle):focus-visible {
     outline: 2px solid color-mix(in srgb, var(--teal) 42%, transparent);
     outline-offset: 2px;
   }
@@ -8350,9 +8350,35 @@ svg {
     .bottom-action {
       width: 48px;
       min-width: 48px;
+      height: 48px;
       min-height: 48px;
       padding: 0;
-      border-radius: 999px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      cursor: pointer;
+      transition:
+        color var(--motion-fast) ease,
+        background var(--motion-fast) ease,
+        box-shadow var(--motion-fast) ease,
+        transform var(--motion-fast) var(--motion-ease);
+    }
+
+    .chapter-nav:focus-visible,
+    .bottom-action:focus-visible {
+      color: var(--teal);
+      background: color-mix(in srgb, var(--teal) 9%, var(--panel));
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--teal) 22%, transparent),
+        0 0 18px color-mix(in srgb, var(--teal) 30%, transparent);
+      outline: 2px solid color-mix(in srgb, var(--teal) 42%, transparent);
+      outline-offset: 2px;
+      transform: scale(1.04);
+    }
+
+    .chapter-nav:active,
+    .bottom-action:active {
+      transform: scale(0.97);
     }
 
     .chapter-nav {
@@ -8459,7 +8485,7 @@ svg {
       min-width: 48px;
       min-height: 48px;
       padding: 0;
-      border-radius: 999px;
+      border-radius: 12px;
     }
 
     .bottom-about-link .bottom-action-label {
@@ -9702,6 +9728,17 @@ svg {
 
   .topbar .primary-version-menu.motion-exit {
     animation-name: versionMenuMobileOut !important;
+  }
+}
+
+@media (max-width: 840px) and (orientation: portrait) and (hover: hover) and (pointer: fine) {
+  .bottombar :is(.chapter-nav, .bottom-action):hover {
+    color: var(--teal);
+    background: color-mix(in srgb, var(--teal) 9%, var(--panel));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--teal) 22%, transparent),
+      0 0 18px color-mix(in srgb, var(--teal) 30%, transparent);
+    transform: scale(1.04);
   }
 }
 
