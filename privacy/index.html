@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Privacy Policy | Big Screen Bible</title>
+    <link rel="canonical" href="https://bigscreenbible.com/privacy/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="application-name" content="Big Screen Bible" />
+    <meta name="apple-mobile-web-app-title" content="Big Screen Bible" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Read the Big Screen Bible Privacy Policy, including how account, study, browser-storage, and third-party service data is handled."
+    />
+    <meta property="og:site_name" content="Big Screen Bible" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bigscreenbible.com/privacy/" />
+    <meta property="og:title" content="Privacy Policy | Big Screen Bible" />
+    <meta property="og:description" content="How Big Screen Bible handles account information, saved study data, browser storage, and third-party services." />
+    <meta property="og:image" content="https://bigscreenbible.com/assets/icons/icon-512.png?v=20260713-refined" />
+    <meta property="og:image:alt" content="Big Screen Bible app icon" />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Privacy Policy | Big Screen Bible" />
+    <meta name="twitter:description" content="How Big Screen Bible handles account information, saved study data, browser storage, and third-party services." />
+    <meta name="twitter:image" content="https://bigscreenbible.com/assets/icons/icon-512.png?v=20260713-refined" />
+    <meta name="twitter:image:alt" content="Big Screen Bible app icon" />
+    <link rel="icon" href="../favicon.ico?v=20260713-refined" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png?v=20260713-refined" />
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/icons/favicon-16.png?v=20260713-refined" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/apple-touch-icon.png?v=20260713-refined" />
+    <link rel="manifest" href="../site.webmanifest?v=20260713-refined" />
+    <meta name="theme-color" content="#111d37" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&amp;family=IBM+Plex+Sans:wght@400;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&amp;family=Lora:ital,wght@0,400..700;1,400..700&amp;family=Merriweather:wght@400;700&amp;family=Noto+Sans:wght@400;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function applyStaticPageTheme() {
+        const presets = {
+          light: ["paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire", "opal"],
+          dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
+        };
+        const defaults = { light: "sapphire", dark: "aurora" };
+        const chromeColors = {
+          paper: "#f8f7f3", parchment: "#f3ecdd", clarity: "#f5f7f8", dawn: "#f7ead2", meadow: "#e5f0d8",
+          blush: "#f8e5ee", lavender: "#eae3fb", sapphire: "#dbeafe", opal: "#dcecff", midnight: "#111827",
+          chapel: "#12100d", aurora: "#111d37", "rose-night": "#281323", "violet-night": "#1d1735",
+          nocturne: "#07111f", contrast: "#000000",
+        };
+        const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+        function setThemeFromStorage() {
+          const savedMode = localStorage.getItem("lw_theme");
+          const theme = savedMode === "light" || savedMode === "dark" ? savedMode : systemQuery?.matches ? "dark" : "light";
+          const savedPreset = localStorage.getItem(`lw_theme_preset_${theme}`);
+          const preset = presets[theme].includes(savedPreset) ? savedPreset : defaults[theme];
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.dataset.themePreset = preset;
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", chromeColors[preset] || chromeColors[defaults[theme]]);
+        }
+        setThemeFromStorage();
+        systemQuery?.addEventListener("change", () => {
+          if (!localStorage.getItem("lw_theme")) setThemeFromStorage();
+        });
+      })();
+    </script>
+    <link rel="stylesheet" href="../assets/bible-app.css?v=20260713-legal-pages" />
+  </head>
+  <body class="about-body">
+    <a class="skip-link" href="#main-content">Skip to policy</a>
+    <main class="about-shell" id="main-content">
+      <header class="about-header">
+        <a class="about-brand" href="../" aria-label="Open Big Screen Bible">
+          <img class="about-brand-mark" src="../assets/brand-mark.png" alt="" />
+          <span class="about-brand-divider" aria-hidden="true"></span>
+          <span class="about-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
+        </a>
+        <nav class="static-page-nav" aria-label="Site navigation">
+          <a href="../about.html">About</a>
+          <a href="./" aria-current="page">Privacy</a>
+          <a href="../terms/">Terms</a>
+          <a class="about-open-link" href="../">Open Bible</a>
+        </nav>
+      </header>
+
+      <article class="about-article policy-article">
+        <header class="policy-header">
+          <p class="about-eyebrow">Big Screen Bible</p>
+          <h1>Privacy Policy</h1>
+          <p class="policy-dates"><span>Effective: July 13, 2026</span><span>Last updated: July 13, 2026</span></p>
+          <div class="policy-summary">
+            <p class="about-lead">Big Screen Bible is a Bible reader, study workspace, Scripture display tool, and Bible games experience. You can use its main reading features without creating an account.</p>
+            <p>This policy explains what information the application handles, why it is used, and the choices available to you.</p>
+          </div>
+        </header>
+
+        <nav class="policy-toc" aria-label="Privacy Policy sections">
+          <strong>On this page</strong>
+          <ol>
+            <li><a href="#philosophy">Our privacy philosophy</a></li>
+            <li><a href="#information">Information we handle</a></li>
+            <li><a href="#storage">Browser storage and cookies</a></li>
+            <li><a href="#uses">How information is used</a></li>
+            <li><a href="#services">Third-party services</a></li>
+            <li><a href="#sharing">Sharing, sales, and advertising</a></li>
+            <li><a href="#retention">Data retention</a></li>
+            <li><a href="#choices">Your choices and requests</a></li>
+            <li><a href="#security">Security</a></li>
+            <li><a href="#children">Children's privacy</a></li>
+            <li><a href="#changes">Changes and contact</a></li>
+          </ol>
+        </nav>
+
+        <section class="policy-section" id="philosophy">
+          <h2>1. Our privacy philosophy</h2>
+          <p>Big Screen Bible exists to help people engage deeply with Scripture. We believe Bible study should be accessible, distraction-free, and respectful of your privacy.</p>
+          <p>We aim to collect only the information reasonably needed to provide accounts, synchronize supported study data, maintain the service, and protect its security.</p>
+        </section>
+
+        <section class="policy-section" id="information">
+          <h2>2. Information we handle</h2>
+          <h3>Information stored on your device</h3>
+          <p>Big Screen Bible uses browser local storage so the app can remember your choices and study work. Depending on the features you use, this can include:</p>
+          <ul>
+            <li>Selected Bible translations, theme, font, text size, layout, display, startup, toolbar, and accessibility-related preferences.</li>
+            <li>Bookmarks, notes, highlights, recently opened Scripture references, and reading-streak dates and totals.</li>
+            <li>Game type, category, difficulty, round-length, sound, and timed-mode preferences, plus Book Sprint best times.</li>
+            <li>Interface state, such as whether a panel, tutorial, or navigation bar has been opened or collapsed.</li>
+          </ul>
+          <p>This device data exists even if you do not create an account. It stays in that browser or app web view unless it is cleared, overwritten, or synced to an account as described below.</p>
+
+          <h3>Account and sign-in information</h3>
+          <p>If you create an email-and-password account, your email address and password are sent to Supabase Auth for account creation and sign-in. Supabase assigns a user ID and records the sign-in provider. Big Screen Bible's sync table uses the Supabase user ID; it does not contain your password.</p>
+          <p>If you choose Google Sign-In, Google sends Supabase the information allowed by the Google sign-in flow. The resulting Supabase authentication record may include your email address, name or display name, avatar URL, Google or provider identifiers, provider name, and Supabase user ID. The current Big Screen Bible interface reads the user ID for data sync and the email address for the account display. It does not currently display or otherwise use your name or avatar.</p>
+          <p>Supabase also stores the authentication session needed to keep you signed in and refresh your session.</p>
+
+          <h3>Account-synced study data</h3>
+          <p>When you are signed in, Big Screen Bible syncs one private data record associated with your user ID. It can contain:</p>
+          <ul>
+            <li>App settings, including selected translations, appearance, reading, display, startup, and game preferences.</li>
+            <li>Bookmarks, notes, highlights, reading history, and reading-streak information.</li>
+            <li>The date and time when the sync record was last updated.</li>
+          </ul>
+          <p>Book Sprint best times and certain interface-only state are currently kept on the device and are not included in the cloud-sync record.</p>
+
+          <h3>Requests to remote Bible services</h3>
+          <p>When you use a remotely supplied Bible translation or remote search, the requested Scripture reference, translation, or search text is sent through a Supabase Edge Function to the relevant Bible provider. When an API.Bible translation is viewed, the app also sends the provider's FUMS usage token through API.Bible's required reporting script. If you are signed in, the current code configures that reporting script with your Supabase user ID.</p>
+          <p>Service providers that deliver the website or a requested feature may receive ordinary technical request information, such as an IP address, browser or device details, and request time. Big Screen Bible does not add its own general-purpose analytics tracker.</p>
+        </section>
+
+        <section class="policy-section" id="storage">
+          <h2>3. Browser storage and cookies</h2>
+          <p>Big Screen Bible uses local storage for saved study data and preferences. Supabase's browser client is configured to persist and refresh sign-in sessions, which means authentication session data is also kept in browser storage.</p>
+          <p>The Big Screen Bible application code does not directly set advertising or analytics cookies. Google, Supabase, GitHub, font or content-delivery services, and Bible providers may use their own cookies or similar technologies when you visit their pages, sign in, or load their resources. Those services control their own technologies and policies.</p>
+        </section>
+
+        <section class="policy-section" id="uses">
+          <h2>4. How information is used</h2>
+          <p>Information is used to:</p>
+          <ul>
+            <li>Create and authenticate accounts, send confirmation or password-reset messages, and keep sessions signed in.</li>
+            <li>Save your preferences and restore your reading and study workspace.</li>
+            <li>Sync settings, bookmarks, notes, highlights, history, and streaks across signed-in devices.</li>
+            <li>Load requested Scripture text, search results, Verse of the Day content, fonts, Strong's dictionaries, and optional game celebration code.</li>
+            <li>Meet Bible-provider licensing, attribution, and usage-reporting requirements.</li>
+            <li>Protect, maintain, troubleshoot, and improve the service.</li>
+            <li>Respond to support, privacy, and account requests.</li>
+          </ul>
+        </section>
+
+        <section class="policy-section" id="services">
+          <h2>5. Third-party services</h2>
+          <p>Big Screen Bible currently relies on the following types of third-party services:</p>
+          <ul>
+            <li><strong>Supabase:</strong> authentication, account sessions, the user-sync database, and server-side Edge Functions.</li>
+            <li><strong>Google:</strong> optional Google Sign-In and Google Fonts. Google Sign-In is only used if you choose it.</li>
+            <li><strong>GitHub Pages:</strong> static website hosting for bigscreenbible.com.</li>
+            <li><strong>Bible content providers:</strong> Crossway's ESV API, API.Bible for supported licensed translations, and YouVersion Platform for supported YouVersion content.</li>
+            <li><strong>API.Bible FUMS:</strong> provider-required Scripture usage reporting for API.Bible translations.</li>
+            <li><strong>VerseoftheDay.com and its FeedBurner feed:</strong> the Verse of the Day source and source links.</li>
+            <li><strong>jsDelivr:</strong> delivery of the Supabase browser library, optional game-confetti code, and optional Open Scriptures Strong's dictionaries.</li>
+          </ul>
+          <p>Some Bible text, reference data, and Strong's resources are bundled with the application and do not require a network request to their original source during ordinary use. Third-party services have their own terms, privacy policies, and retention practices.</p>
+        </section>
+
+        <section class="policy-section" id="sharing">
+          <h2>6. Sharing, sales, and advertising</h2>
+          <p>Big Screen Bible does not sell personal information and does not use personal information for targeted advertising.</p>
+          <p>Information is shared with service providers only as needed to provide the features described in this policy, comply with Bible-content licensing and usage-reporting requirements, respond to a valid legal obligation, protect the service or its users, or complete a change in who operates the service.</p>
+        </section>
+
+        <section class="policy-section" id="retention">
+          <h2>7. Data retention</h2>
+          <p>Data in local storage remains on your device until you clear the site's or app's stored data, remove or replace the saved item, or your browser or operating system clears it.</p>
+          <p>Account information and synchronized study data are retained until you request deletion, the account is deleted, or retention is otherwise needed for legitimate legal, security, or operational reasons. Big Screen Bible does not use a fixed retention schedule for this data.</p>
+        </section>
+
+        <section class="policy-section" id="choices">
+          <h2>8. Your choices and requests</h2>
+          <p>You can use the main Bible-reading features without an account. You can edit or remove individual notes, bookmarks, highlights, and history within the app, and you can clear local data through your browser or device settings. Signing out ends the active account session but does not by itself delete local or cloud data.</p>
+          <p>You may email <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> to request access to, correction of, or export of your information. You may also request deletion of your account and its associated synchronized study data.</p>
+          <p>Account deletion is currently handled by request because an automated deletion interface is not yet available. We may need to verify that you control the account before completing a request. Deleting an account does not automatically clear data stored locally in your browser or app; you can clear that data through your browser or device settings.</p>
+          <p>Requests are handled subject to applicable law and technical or provider limitations.</p>
+        </section>
+
+        <section class="policy-section" id="security">
+          <h2>9. Security</h2>
+          <p>The sync database is configured with Supabase Row Level Security rules intended to limit signed-in users to their own sync record. Provider secret keys are kept in server-side Supabase functions rather than in the website's public code.</p>
+          <p>No internet service, browser storage system, or database can be guaranteed completely secure. Please use a strong, unique password, protect access to your email and devices, and sign out on shared devices.</p>
+        </section>
+
+        <section class="policy-section" id="children">
+          <h2>10. Children's privacy</h2>
+          <p>Children should use Big Screen Bible with the permission and supervision of a parent, legal guardian, or teacher, especially when creating an account or saving study information.</p>
+          <p>A parent or legal guardian may contact <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> with questions or requests concerning a child's information.</p>
+        </section>
+
+        <section class="policy-section" id="changes">
+          <h2>11. Changes and contact</h2>
+          <p>This policy may change as Big Screen Bible adds or changes features, providers, or legal requirements. The effective and last-updated dates at the top will be revised when the policy changes. Material changes may also be announced in the service when practical.</p>
+          <p>Questions or privacy requests can be sent to <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a>.</p>
+        </section>
+      </article>
+
+      <footer class="static-site-footer">
+        <span>Big Screen Bible</span>
+        <nav aria-label="Legal information">
+          <a href="./" aria-current="page">Privacy Policy</a>
+          <span aria-hidden="true">·</span>
+          <a href="../terms/">Terms of Service</a>
+        </nav>
+      </footer>
+    </main>
+  </body>
+</html>

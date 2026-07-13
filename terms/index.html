@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Terms of Service | Big Screen Bible</title>
+    <link rel="canonical" href="https://bigscreenbible.com/terms/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="application-name" content="Big Screen Bible" />
+    <meta name="apple-mobile-web-app-title" content="Big Screen Bible" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Read the Big Screen Bible Terms of Service for using the Bible reader, study, display, account-sync, and games features." />
+    <meta property="og:site_name" content="Big Screen Bible" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bigscreenbible.com/terms/" />
+    <meta property="og:title" content="Terms of Service | Big Screen Bible" />
+    <meta property="og:description" content="Terms for using Big Screen Bible for personal reading, education, worship, church use, and Scripture study." />
+    <meta property="og:image" content="https://bigscreenbible.com/assets/icons/icon-512.png?v=20260713-refined" />
+    <meta property="og:image:alt" content="Big Screen Bible app icon" />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Terms of Service | Big Screen Bible" />
+    <meta name="twitter:description" content="Terms for using Big Screen Bible for reading, study, teaching, worship, and church use." />
+    <meta name="twitter:image" content="https://bigscreenbible.com/assets/icons/icon-512.png?v=20260713-refined" />
+    <meta name="twitter:image:alt" content="Big Screen Bible app icon" />
+    <link rel="icon" href="../favicon.ico?v=20260713-refined" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png?v=20260713-refined" />
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/icons/favicon-16.png?v=20260713-refined" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/apple-touch-icon.png?v=20260713-refined" />
+    <link rel="manifest" href="../site.webmanifest?v=20260713-refined" />
+    <meta name="theme-color" content="#111d37" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&amp;family=IBM+Plex+Sans:wght@400;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&amp;family=Lora:ital,wght@0,400..700;1,400..700&amp;family=Merriweather:wght@400;700&amp;family=Noto+Sans:wght@400;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function applyStaticPageTheme() {
+        const presets = {
+          light: ["paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire", "opal"],
+          dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
+        };
+        const defaults = { light: "sapphire", dark: "aurora" };
+        const chromeColors = {
+          paper: "#f8f7f3", parchment: "#f3ecdd", clarity: "#f5f7f8", dawn: "#f7ead2", meadow: "#e5f0d8",
+          blush: "#f8e5ee", lavender: "#eae3fb", sapphire: "#dbeafe", opal: "#dcecff", midnight: "#111827",
+          chapel: "#12100d", aurora: "#111d37", "rose-night": "#281323", "violet-night": "#1d1735",
+          nocturne: "#07111f", contrast: "#000000",
+        };
+        const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+        function setThemeFromStorage() {
+          const savedMode = localStorage.getItem("lw_theme");
+          const theme = savedMode === "light" || savedMode === "dark" ? savedMode : systemQuery?.matches ? "dark" : "light";
+          const savedPreset = localStorage.getItem(`lw_theme_preset_${theme}`);
+          const preset = presets[theme].includes(savedPreset) ? savedPreset : defaults[theme];
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.dataset.themePreset = preset;
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", chromeColors[preset] || chromeColors[defaults[theme]]);
+        }
+        setThemeFromStorage();
+        systemQuery?.addEventListener("change", () => {
+          if (!localStorage.getItem("lw_theme")) setThemeFromStorage();
+        });
+      })();
+    </script>
+    <link rel="stylesheet" href="../assets/bible-app.css?v=20260713-legal-pages" />
+  </head>
+  <body class="about-body">
+    <a class="skip-link" href="#main-content">Skip to terms</a>
+    <main class="about-shell" id="main-content">
+      <header class="about-header">
+        <a class="about-brand" href="../" aria-label="Open Big Screen Bible">
+          <img class="about-brand-mark" src="../assets/brand-mark.png" alt="" />
+          <span class="about-brand-divider" aria-hidden="true"></span>
+          <span class="about-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
+        </a>
+        <nav class="static-page-nav" aria-label="Site navigation">
+          <a href="../about.html">About</a>
+          <a href="../privacy/">Privacy</a>
+          <a href="./" aria-current="page">Terms</a>
+          <a class="about-open-link" href="../">Open Bible</a>
+        </nav>
+      </header>
+
+      <article class="about-article policy-article">
+        <header class="policy-header">
+          <p class="about-eyebrow">Big Screen Bible</p>
+          <h1>Terms of Service</h1>
+          <p class="policy-dates"><span>Effective: July 13, 2026</span><span>Last updated: July 13, 2026</span></p>
+          <div class="policy-summary">
+            <p class="about-lead">These terms explain the rules for using Big Screen Bible's Bible reading, study, display, account-sync, and games features.</p>
+            <p>Please read them before using the service or creating an account.</p>
+          </div>
+        </header>
+
+        <nav class="policy-toc" aria-label="Terms of Service sections">
+          <strong>On this page</strong>
+          <ol>
+            <li><a href="#acceptance">Acceptance</a></li>
+            <li><a href="#permitted-use">Permitted use</a></li>
+            <li><a href="#accounts">Accounts and security</a></li>
+            <li><a href="#user-content">Your notes and content</a></li>
+            <li><a href="#bible-rights">Bible copyrights and licenses</a></li>
+            <li><a href="#misuse">Prohibited misuse</a></li>
+            <li><a href="#third-parties">Third-party services</a></li>
+            <li><a href="#availability">Availability and changes</a></li>
+            <li><a href="#termination">Suspension and termination</a></li>
+            <li><a href="#disclaimers">Disclaimers and liability</a></li>
+            <li><a href="#law">Applicable law</a></li>
+            <li><a href="#changes">Changes and contact</a></li>
+          </ol>
+        </nav>
+
+        <section class="policy-section" id="acceptance">
+          <h2>1. Acceptance of these terms</h2>
+          <p>By accessing or using Big Screen Bible, you agree to these Terms of Service and acknowledge the <a href="../privacy/">Privacy Policy</a>. If you do not agree, do not use the service or create an account.</p>
+          <p>If you use Big Screen Bible for a church, school, ministry, or other organization, you confirm that you have authority to accept these terms for that organization when applicable.</p>
+        </section>
+
+        <section class="policy-section" id="permitted-use">
+          <h2>2. Permitted use</h2>
+          <p>You may use Big Screen Bible for lawful personal, family, educational, worship, ministry, teaching, and church purposes. This includes reading and studying Scripture, preparing lessons, using display modes during gatherings, and using Bible games for learning.</p>
+          <p>Your use must respect these terms, applicable law, and the copyright, quotation, attribution, and usage rules that apply to each Bible translation or other licensed resource. Permission to use the service does not give you ownership of the service, Bible texts, datasets, branding, or third-party materials.</p>
+          <h3>Accuracy and source-checking</h3>
+          <p>Big Screen Bible is provided as a ministry, educational, worship, and study resource. We strive for accuracy, but you should verify important quotations, references, wording, and licensing requirements using the applicable official Bible translation or publisher source.</p>
+        </section>
+
+        <section class="policy-section" id="accounts">
+          <h2>3. User accounts and account security</h2>
+          <p>You can use the main reading features without an account. An account is optional and is used to sync supported settings and study data across devices.</p>
+          <p>You are responsible for providing accurate account information, keeping your password and email account secure, and promptly notifying us if you believe your account has been accessed without permission. Do not share access in a way that compromises account or service security.</p>
+          <p>Google Sign-In and email/password authentication are provided through Supabase Auth. Additional terms from those providers may apply.</p>
+        </section>
+
+        <section class="policy-section" id="user-content">
+          <h2>4. User-created notes and other content</h2>
+          <p>You keep ownership of notes and other original content you enter into Big Screen Bible. You allow Big Screen Bible and its service providers to store, process, copy, transmit, and display that content only as reasonably needed to operate, sync, secure, support, and improve the service.</p>
+          <p>You are responsible for the content you add. Do not add content that is unlawful, infringes another person's rights, contains malware, or is intended to abuse the service. Avoid storing confidential or highly sensitive information in your notes.</p>
+          <p>The service does not currently provide public posting or sharing of account-synced notes. You should keep your own copy of any content you cannot afford to lose.</p>
+        </section>
+
+        <section class="policy-section" id="bible-rights">
+          <h2>5. Bible translation copyrights, licenses, and attribution</h2>
+          <p>Bible translations and related content remain the property of their respective copyright owners and publishers. Big Screen Bible displays this content according to the applicable permissions, licenses, APIs, or provider terms.</p>
+          <p>Do not assume that content displayed in Big Screen Bible is public domain or freely redistributable. Copyright notices and attribution shown with a translation are part of the service and must not be removed or obscured.</p>
+          <p>When copying, publishing, presenting, or redistributing Bible content, you are responsible for following the copyright and licensing terms of the applicable translation or publisher.</p>
+        </section>
+
+        <section class="policy-section" id="misuse">
+          <h2>6. Prohibited misuse</h2>
+          <p>You may not:</p>
+          <ul>
+            <li>Use the service for unlawful, fraudulent, abusive, harassing, or rights-infringing activity.</li>
+            <li>Attempt to bypass authentication, access another person's account or saved data, or defeat database or provider access controls.</li>
+            <li>Probe, scan, overload, disrupt, damage, or interfere with the service, its hosting, Supabase functions, or connected providers.</li>
+            <li>Use automated scraping, bulk downloading, or excessive requests that violate a provider's license, terms, or technical limits.</li>
+            <li>Extract, expose, or misuse API keys, credentials, provider tokens, or private configuration.</li>
+            <li>Remove copyright, license, source, or attribution notices.</li>
+            <li>Introduce malicious code or use the service to distribute harmful content.</li>
+            <li>Misrepresent your relationship with Big Screen Bible or use its branding in a confusing or deceptive way.</li>
+          </ul>
+        </section>
+
+        <section class="policy-section" id="third-parties">
+          <h2>7. Third-party services and links</h2>
+          <p>Big Screen Bible depends on third-party services for hosting, authentication, database sync, fonts, content delivery, Verse of the Day content, and licensed Bible text. These include GitHub Pages, Supabase, Google, Crossway, API.Bible, YouVersion, VerseoftheDay.com or FeedBurner, and jsDelivr.</p>
+          <p>Third-party services and external links are governed by their own terms and privacy policies. Big Screen Bible does not control their availability, content, security, or decisions. Your use of a third-party service may create a separate relationship between you and that provider.</p>
+        </section>
+
+        <section class="policy-section" id="availability">
+          <h2>8. Availability and future changes</h2>
+          <p>Big Screen Bible is an independently maintained project. Features, Bible translations, providers, account options, and supported devices may change over time. The service may be updated, interrupted, limited, or discontinued, and no particular feature or translation is promised to remain available.</p>
+          <p>We may change the service to improve it, comply with law or license terms, address security or technical issues, or respond to provider requirements. When practical, significant changes will be communicated through the service or its published pages.</p>
+        </section>
+
+        <section class="policy-section" id="termination">
+          <h2>9. Account suspension or termination</h2>
+          <p>We may suspend or terminate access when reasonably necessary to address a violation of these terms, protect users or providers, comply with law, prevent harm or disruption, or end the service. When appropriate and practical, we may provide notice or an opportunity to correct the issue.</p>
+          <p>You may stop using Big Screen Bible at any time. An automated deletion interface is not yet available, so account and associated synchronized-data deletion is currently handled by request. Email <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> from the address connected to your account.</p>
+        </section>
+
+        <section class="policy-section" id="disclaimers">
+          <h2>10. Disclaimer of warranties and limitation of liability</h2>
+          <p class="plain-language-note"><strong>Plain-language summary:</strong> Big Screen Bible is offered as a helpful resource, but it cannot promise uninterrupted access, error-free text or software, or that every feature will always meet your needs.</p>
+          <p>To the extent permitted by applicable law, Big Screen Bible is provided “as is” and “as available,” without a promise that it will always be available, accurate, or free from errors.</p>
+          <p>To the maximum extent permitted by applicable law, Big Screen Bible and its operator will not be liable for indirect, incidental, special, consequential, or punitive damages arising from use of or inability to use the service.</p>
+          <p>Nothing in these terms limits rights or responsibilities that cannot be limited under applicable law.</p>
+        </section>
+
+        <section class="policy-section" id="law">
+          <h2>11. Applicable law</h2>
+          <p>These terms are governed by the laws of the State of Florida, without regard to conflict-of-law principles, except where applicable law requires otherwise.</p>
+          <p>Before starting a formal dispute, please contact us so we can try to understand and resolve the concern informally.</p>
+        </section>
+
+        <section class="policy-section" id="changes">
+          <h2>12. Changes and contact</h2>
+          <p>These terms may be updated as the service, providers, licenses, or legal requirements change. The effective and last-updated dates at the top will be revised when changes are made. Continuing to use the service after updated terms take effect means you accept the updated terms, to the extent allowed by law.</p>
+          <p>Questions about these terms can be sent to <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a>.</p>
+        </section>
+      </article>
+
+      <footer class="static-site-footer">
+        <span>Big Screen Bible</span>
+        <nav aria-label="Legal information">
+          <a href="../privacy/">Privacy Policy</a>
+          <span aria-hidden="true">·</span>
+          <a href="./" aria-current="page">Terms of Service</a>
+        </nav>
+      </footer>
+    </main>
+  </body>
+</html>

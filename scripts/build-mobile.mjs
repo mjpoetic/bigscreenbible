@@ -9,6 +9,8 @@ const outDir = path.join(rootDir, "www");
 const entries = [
   "index.html",
   "about.html",
+  "privacy",
+  "terms",
   "favicon.ico",
   "site.webmanifest",
   "assets",

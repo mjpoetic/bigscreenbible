@@ -1491,6 +1491,11 @@ function mobileSettingsPanel() {
           <span>Show daily streak popup</span>
         </label>
       </div>
+      <nav class="settings-legal-links" aria-label="Legal information">
+        <a href="./privacy/">Privacy Policy</a>
+        <span aria-hidden="true">·</span>
+        <a href="./terms/">Terms of Service</a>
+      </nav>
     </div>
   `;
 }
@@ -1673,6 +1678,11 @@ function topbar() {
               <span>Show daily streak popup</span>
             </label>
           </div>
+          <nav class="settings-legal-links" aria-label="Legal information">
+            <a href="./privacy/">Privacy Policy</a>
+            <span aria-hidden="true">·</span>
+            <a href="./terms/">Terms of Service</a>
+          </nav>
         </div>
       </div>
     </header>
@@ -1847,6 +1857,11 @@ function accountPanel(prefix = "") {
           <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out</button>
         </div>
         ${passwordTools}
+        <nav class="account-legal-links" aria-label="Legal information">
+          <a href="./privacy/">Privacy Policy</a>
+          <span aria-hidden="true">·</span>
+          <a href="./terms/">Terms of Service</a>
+        </nav>
       </section>
     `;
   }
@@ -1870,6 +1885,7 @@ function accountPanel(prefix = "") {
       <div class="account-divider"><span>or</span></div>
       <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
       <p class="google-auth-note">Google may briefly show our Supabase sign-in address while we finish custom auth branding. It is the secure sign-in provider for Big Screen Bible.</p>
+      <p class="account-legal-notice">By creating an account, you agree to the <a href="./terms/">Terms of Service</a> and acknowledge the <a href="./privacy/">Privacy Policy</a>.</p>
       <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
     </section>
   `;
@@ -5055,7 +5071,14 @@ function bottombar() {
           <span class="chapter-nav-label">Previous Chapter</span>
         </button>
         <div class="footer-center">
-          <div class="fineprint">${footerVersions.map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</div>
+          <div class="fineprint">
+            <span class="footer-reference">${footerVersions.map(translationDisplayCode).join(" / ")} · ${referenceLabel()}</span>
+            <nav class="footer-legal-links" aria-label="Legal information">
+              <a href="./privacy/">Privacy</a>
+              <span aria-hidden="true">·</span>
+              <a href="./terms/">Terms</a>
+            </nav>
+          </div>
           <div class="bottom-actions">
             <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse" data-tooltip="Copy verse">
               <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
