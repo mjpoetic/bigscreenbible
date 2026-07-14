@@ -187,6 +187,7 @@ const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
+const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
 const libraryScrollStorageKey = "lw_library_scroll_by_rail";
 const horizontalSwipeMaxMs = 850;
 const horizontalSwipeMinPx = 56;
@@ -298,6 +299,7 @@ const state = {
   pushEveningTime: localStorage.getItem("lw_push_evening_time") || "18:00",
   pushStatus: "Checking notification support…",
   pushBusy: false,
+  pushPromptVisible: false,
   startupApplied: false,
   settingsOpen: false,
   settingsSectionsOpen: {
@@ -812,6 +814,7 @@ function render() {
       ${presentation()}
       ${shortcutOverlay()}
       ${aboutMenuOverlay()}
+      ${pushConsentPrompt()}
       ${tutorialIntro()}
       ${tutorialOverlay()}
       ${printSheet()}
@@ -827,6 +830,7 @@ function render() {
     positionAccountPopover();
     positionSettingsPopover();
     applyPopupPosition("help");
+    if (state.pushPromptVisible) document.getElementById("enablePushPrompt")?.focus();
   });
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
@@ -2877,6 +2881,48 @@ function clearLocalPushSubscription() {
   localStorage.removeItem(pushDeviceTokenStorageKey);
 }
 
+function pushPromptEligible() {
+  return Boolean(
+    state.authUser
+    && state.pushInitialized
+    && state.pushSupported
+    && !state.pushEnabled
+    && !state.pushPermissionDenied
+    && Notification.permission !== "denied"
+    && localStorage.getItem(pushPromptDismissedStorageKey) !== "true"
+    && !dataLoading
+    && !dataError
+    && !state.tutorialIntroVisible
+    && !state.tutorialActive
+    && !state.shortcutsOpen
+    && !state.aboutMenuOpen
+    && !state.passwordRecoveryMode
+    && !state.passwordChangeOpen
+  );
+}
+
+function maybeOfferPushNotifications() {
+  if (state.pushPromptVisible || !pushPromptEligible()) return;
+  state.pushPromptVisible = true;
+  state.accountOpen = false;
+  state.settingsOpen = false;
+  renderPreservingReaderScroll();
+}
+
+function acceptPushPermissionPrompt() {
+  state.pushPromptVisible = false;
+  localStorage.removeItem(pushPromptDismissedStorageKey);
+  enablePushNotifications();
+}
+
+function dismissPushPermissionPrompt() {
+  localStorage.setItem(pushPromptDismissedStorageKey, "true");
+  animateBeforeRemoval(".push-consent-overlay", () => {
+    state.pushPromptVisible = false;
+    renderPreservingReaderScroll();
+  }, { duration: 220 });
+}
+
 async function initializePushNotifications() {
   state.pushSupported = pushApiSupported();
   state.pushInitialized = true;
@@ -2952,6 +2998,7 @@ async function enablePushNotifications() {
     state.pushEnabled = true;
     state.pushPermissionDenied = false;
     state.pushStatus = "Daily reminders are enabled.";
+    localStorage.removeItem(pushPromptDismissedStorageKey);
     showToast("Daily reminders enabled");
   } catch (error) {
     clearLocalPushSubscription();
@@ -2966,6 +3013,7 @@ async function enablePushNotifications() {
 async function disablePushNotifications() {
   if (state.pushBusy) return;
   state.pushBusy = true;
+  localStorage.setItem(pushPromptDismissedStorageKey, "true");
   state.pushStatus = "Turning off reminders…";
   renderPreservingReaderScroll();
   const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
@@ -3071,7 +3119,10 @@ async function initializeSupabaseAuth() {
     const session = await authenticatedSupabaseSession(client);
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
-    if (session?.user) await loadCloudSync();
+    if (session?.user) {
+      await loadCloudSync();
+      maybeOfferPushNotifications();
+    }
     client.auth.onAuthStateChange((event, session) => {
       state.authUser = session?.user || null;
       state.authBusy = false;
@@ -3085,13 +3136,16 @@ async function initializeSupabaseAuth() {
       if (state.authUser) {
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
-        loadCloudSync().catch((error) => {
-          console.warn("Cloud sync load failed", error);
-          state.syncStatus = "error";
-          state.syncMessage = "Signed in, but sync could not load yet.";
-          renderPreservingReaderScroll();
-        });
+        loadCloudSync()
+          .then(() => maybeOfferPushNotifications())
+          .catch((error) => {
+            console.warn("Cloud sync load failed", error);
+            state.syncStatus = "error";
+            state.syncMessage = "Signed in, but sync could not load yet.";
+            renderPreservingReaderScroll();
+          });
       } else {
+        state.pushPromptVisible = false;
         state.syncStatus = "local";
         state.syncMessage = "Signed out. Changes are saved on this device.";
         renderPreservingReaderScroll();
@@ -3457,7 +3511,10 @@ async function handleAccountSubmit(event, prefix = "") {
     state.authMessage = action === "signup" && !session
       ? "Account created. Check your email if Supabase asks you to confirm it."
       : "Signed in.";
-    if (session?.user) await loadCloudSync();
+    if (session?.user) {
+      await loadCloudSync();
+      maybeOfferPushNotifications();
+    }
     else renderPreservingReaderScroll();
   } catch (error) {
     console.warn("Account action failed", error);
@@ -3576,6 +3633,7 @@ async function signOutAccount() {
   try {
     await client.auth.signOut();
     state.authUser = null;
+    state.pushPromptVisible = false;
     state.accountOpen = false;
     state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
@@ -5924,6 +5982,29 @@ function aboutMenuOverlay() {
   `;
 }
 
+function pushConsentPrompt() {
+  if (!state.pushPromptVisible) return "";
+  return `
+    <section class="tutorial-welcome-overlay push-consent-overlay open" role="dialog" aria-modal="true" aria-labelledby="pushConsentTitle">
+      <div class="tutorial-welcome-card push-consent-card">
+        <img class="tutorial-welcome-logo" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
+        <div class="shortcut-eyebrow">Daily Scripture reminders</div>
+        <h2 id="pushConsentTitle">Start each day in Scripture?</h2>
+        <p>Receive the Verse of the Day at 7:00 AM, plus a gentle 6:00 PM reminder only when you have not opened Big Screen Bible that day.</p>
+        <div class="push-consent-schedule" aria-label="Default reminder schedule">
+          <span><strong>7:00 AM</strong> Verse of the Day</span>
+          <span><strong>6:00 PM</strong> Unread reminder</span>
+        </div>
+        <p class="push-consent-note">Times use this device’s local timezone. You can change either time or turn reminders off in Settings.</p>
+        <div class="tutorial-actions">
+          <button class="primary-btn" id="enablePushPrompt" type="button">Enable reminders</button>
+          <button class="ghost-btn" id="dismissPushPrompt" type="button">Not now</button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function tutorialIntro() {
   if (!state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen || state.aboutMenuOpen) return "";
   return `
@@ -6314,6 +6395,8 @@ function bindEvents() {
     if (event.target.classList.contains("about-menu-overlay")) toggleAboutMenu(false);
   });
   document.getElementById("aboutMenuDialog")?.addEventListener("keydown", trapAboutMenuFocus);
+  document.getElementById("enablePushPrompt")?.addEventListener("click", acceptPushPermissionPrompt);
+  document.getElementById("dismissPushPrompt")?.addEventListener("click", dismissPushPermissionPrompt);
   document.getElementById("startTutorialPrompt")?.addEventListener("click", startTutorial);
   document.getElementById("dismissTutorialPrompt")?.addEventListener("click", dismissTutorialIntro);
   document.getElementById("tutorialNext")?.addEventListener("click", advanceTutorial);
@@ -9134,6 +9217,7 @@ function dismissTutorialIntro() {
   animateBeforeRemoval(".tutorial-welcome-overlay", () => {
     markTutorialSeen();
     renderPreservingReaderScroll();
+    maybeOfferPushNotifications();
   }, { duration: 220 });
 }
 
@@ -9158,6 +9242,7 @@ function finishTutorial() {
     state.tutorialActive = false;
     state.tutorialStep = 0;
     renderPreservingReaderScroll();
+    maybeOfferPushNotifications();
   }, { duration: 180 });
 }
 
@@ -9169,6 +9254,7 @@ function advanceTutorial() {
       state.tutorialStep = 0;
       renderPreservingReaderScroll();
       showToast("Tour complete");
+      maybeOfferPushNotifications();
     }, { duration: 180 });
     return;
   }
@@ -9436,6 +9522,10 @@ function handleGlobalShortcuts(event) {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
 
   if (event.key === "Escape") {
+    if (state.pushPromptVisible) {
+      event.preventDefault();
+      return dismissPushPermissionPrompt();
+    }
     if (state.tutorialActive) {
       event.preventDefault();
       return finishTutorial();
@@ -9493,7 +9583,7 @@ function handleGlobalShortcuts(event) {
     }
   }
 
-  if (typing || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
+  if (typing || state.pushPromptVisible || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
     event.preventDefault();
@@ -10272,6 +10362,7 @@ async function initializeBibleData() {
     await applyStartupExperience();
     dataLoading = false;
     render();
+    maybeOfferPushNotifications();
   } catch (error) {
     console.error(error);
     dataError = "The full Bible text files could not be loaded.";
@@ -10815,6 +10906,7 @@ if (startupLoaderPreview) {
 } else {
   initializePushNotifications().finally(() => {
     if (!dataLoading && !dataError) renderPreservingReaderScroll();
+    maybeOfferPushNotifications();
   });
   initializeSupabaseAuth();
   initializeBibleData();
