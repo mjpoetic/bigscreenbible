@@ -1452,6 +1452,71 @@ function pushReminderSettings(prefix = "") {
   `;
 }
 
+function rememberDisclosureState(details, open = details.open) {
+  const settingsKey = details.dataset.settingsSection;
+  const helpKey = details.dataset.helpSection;
+  if (settingsKey) state.settingsSectionsOpen[settingsKey] = open;
+  if (helpKey) state.helpSectionsOpen[helpKey] = open;
+}
+
+function bindDisclosureAnimation(details) {
+  const summary = details.querySelector(":scope > summary");
+  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list");
+  if (!summary || !content) return;
+
+  summary.addEventListener("click", (event) => {
+    if (details.dataset.disclosureAnimating === "true") {
+      event.preventDefault();
+      return;
+    }
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reducedMotion || typeof content.animate !== "function") return;
+
+    event.preventDefault();
+    const opening = !details.open;
+    const startHeight = opening ? 0 : content.getBoundingClientRect().height;
+    rememberDisclosureState(details, opening);
+    details.dataset.disclosureAnimating = "true";
+    content.style.overflow = "hidden";
+    content.style.willChange = "height, opacity, transform";
+
+    if (opening) {
+      content.style.height = "0px";
+      content.style.opacity = "0";
+      details.open = true;
+    }
+
+    const endHeight = opening ? content.scrollHeight : 0;
+    const animation = content.animate([
+      {
+        height: `${startHeight}px`,
+        opacity: opening ? 0 : 1,
+        transform: opening ? "translateY(-5px)" : "translateY(0)",
+      },
+      {
+        height: `${endHeight}px`,
+        opacity: opening ? 1 : 0,
+        transform: opening ? "translateY(0)" : "translateY(-5px)",
+      },
+    ], {
+      duration: opening ? 280 : 220,
+      easing: opening ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.32, 0.72, 0, 1)",
+      fill: "forwards",
+    });
+
+    animation.addEventListener("finish", () => {
+      if (!opening) details.open = false;
+      content.style.removeProperty("height");
+      content.style.removeProperty("opacity");
+      content.style.removeProperty("overflow");
+      content.style.removeProperty("will-change");
+      animation.cancel();
+      delete details.dataset.disclosureAnimating;
+    }, { once: true });
+  });
+}
+
 function settingsDisclosure(key, label, content) {
   return `
     <details class="settings-section" data-settings-section="${key}" ${state.settingsSectionsOpen[key] ? "open" : ""}>
@@ -6051,14 +6116,12 @@ function bindEvents() {
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
   document.querySelectorAll("[data-settings-section]").forEach((section) => {
-    section.addEventListener("toggle", () => {
-      state.settingsSectionsOpen[section.dataset.settingsSection] = section.open;
-    });
+    section.addEventListener("toggle", () => rememberDisclosureState(section));
+    bindDisclosureAnimation(section);
   });
   document.querySelectorAll("[data-help-section]").forEach((section) => {
-    section.addEventListener("toggle", () => {
-      state.helpSectionsOpen[section.dataset.helpSection] = section.open;
-    });
+    section.addEventListener("toggle", () => rememberDisclosureState(section));
+    bindDisclosureAnimation(section);
   });
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));

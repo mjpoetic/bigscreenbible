@@ -1663,6 +1663,7 @@ button {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2141,6 +2142,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--soft) 55%, transparent);
+  transition: background var(--motion-slow) ease, border-color var(--motion-slow) ease;
 }
 
 .settings-section summary,
@@ -2158,7 +2160,7 @@ button {
   line-height: 1.2;
   list-style: none;
   cursor: pointer;
-  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+  transition: background var(--motion-slow) ease, color var(--motion-fast) ease;
 }
 
 .settings-section summary::-webkit-details-marker,
@@ -2176,7 +2178,7 @@ button {
   border-bottom: 2px solid currentColor;
   color: var(--muted);
   transform: rotate(45deg) translate(-1px, -1px);
-  transition: transform var(--motion-fast) var(--motion-ease), color var(--motion-fast) ease;
+  transition: transform var(--motion-slow) var(--motion-ease), color var(--motion-fast) ease;
   flex-shrink: 0;
 }
 
@@ -2208,11 +2210,23 @@ button {
   gap: 12px;
   padding: 12px;
   background: color-mix(in srgb, var(--panel) 72%, transparent);
+  transform-origin: top;
 }
 
 .settings-section-subgroup {
   padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-section,
+  .help-section,
+  .settings-section summary,
+  .help-section summary,
+  .settings-section summary::after,
+  .help-section summary::after {
+    transition: none;
+  }
 }
 
 .push-reminder-settings {
@@ -6159,6 +6173,7 @@ select {
   color: var(--ink);
   box-shadow: var(--shadow);
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -6276,6 +6291,7 @@ select {
   display: grid;
   gap: 1px;
   padding: 12px 22px 22px;
+  transform-origin: top;
 }
 
 .help-tour-card {
@@ -8523,6 +8539,7 @@ svg {
     width: auto;
     max-height: calc(100dvh - var(--settings-popover-top, 10px) - env(safe-area-inset-bottom, 0px) - 12px);
     overflow: auto;
+    scrollbar-gutter: stable;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel);
