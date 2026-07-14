@@ -1377,7 +1377,7 @@ function loadingScreen() {
     <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
       <section class="loading-reader">
         <div class="loading-card">
-          <img class="loading-logo-mark" src="./assets/brand-mark.png" width="420" height="220" alt="" />
+          <img class="loading-logo-mark" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
           <h1>Big Screen Bible</h1>
           ${dataError ? "" : '<div class="loading-spinner" aria-hidden="true"></div>'}
           <p>${message}</p>
@@ -1579,7 +1579,7 @@ function topbar() {
   return `
     <header class="topbar">
       <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day">
-        <img class="brand-mark-image" src="./assets/brand-mark.png" width="420" height="220" alt="" />
+        <img class="brand-mark-image" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
         <div>
           <div class="brand-title">Big Screen</div>
@@ -5322,7 +5322,7 @@ function presentation() {
       </div>
       <div class="presentation-bottom">
         <a class="presentation-brand" id="presentationBrandVerseOfDay" href="#verse-of-the-day" aria-label="Open verse of the day">
-          <img class="presentation-brand-mark" src="./assets/brand-mark.png" alt="" />
+          <img class="presentation-brand-mark" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
         </a>
         <div class="presentation-controls">
@@ -5454,7 +5454,7 @@ function tutorialIntro() {
   return `
     <section class="tutorial-welcome-overlay open" role="dialog" aria-modal="true" aria-labelledby="tutorialWelcomeTitle">
       <div class="tutorial-welcome-card">
-        <img class="tutorial-welcome-logo" src="./assets/brand-mark.png" alt="" />
+        <img class="tutorial-welcome-logo" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
         <div class="shortcut-eyebrow">First visit</div>
         <h2 id="tutorialWelcomeTitle">Want a quick tour?</h2>
         <p>Big Screen Bible has a few lovely corners: reading, study tools, display mode, games, themes, sharing, and highlights. The tour takes about a minute.</p>
