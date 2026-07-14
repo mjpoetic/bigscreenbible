@@ -1476,10 +1476,13 @@ function bindDisclosureAnimation(details) {
     event.preventDefault();
     const opening = !details.open;
     const startHeight = opening ? 0 : content.getBoundingClientRect().height;
+    const contentStyles = getComputedStyle(content);
+    const expandedPaddingTop = contentStyles.paddingTop;
+    const expandedPaddingBottom = contentStyles.paddingBottom;
     rememberDisclosureState(details, opening);
     details.dataset.disclosureAnimating = "true";
     content.style.overflow = "hidden";
-    content.style.willChange = "height, opacity, transform";
+    content.style.willChange = "height, opacity";
 
     if (opening) {
       content.style.height = "0px";
@@ -1488,20 +1491,23 @@ function bindDisclosureAnimation(details) {
     }
 
     const endHeight = opening ? content.scrollHeight : 0;
-    const animation = content.animate([
-      {
-        height: `${startHeight}px`,
-        opacity: opening ? 0 : 1,
-        transform: opening ? "translateY(-5px)" : "translateY(0)",
-      },
-      {
-        height: `${endHeight}px`,
-        opacity: opening ? 1 : 0,
-        transform: opening ? "translateY(0)" : "translateY(-5px)",
-      },
-    ], {
-      duration: opening ? 280 : 220,
-      easing: opening ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.32, 0.72, 0, 1)",
+    const expandedFrame = {
+      height: `${opening ? endHeight : startHeight}px`,
+      paddingTop: expandedPaddingTop,
+      paddingBottom: expandedPaddingBottom,
+      opacity: 1,
+    };
+    const collapsedFrame = {
+      height: "0px",
+      paddingTop: "0px",
+      paddingBottom: "0px",
+      opacity: 0,
+    };
+    const animation = content.animate(opening
+      ? [collapsedFrame, expandedFrame]
+      : [expandedFrame, collapsedFrame], {
+      duration: opening ? 320 : 300,
+      easing: "cubic-bezier(0.4, 0, 0.2, 1)",
       fill: "forwards",
     });
 
