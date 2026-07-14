@@ -300,6 +300,10 @@ const state = {
   pushBusy: false,
   startupApplied: false,
   settingsOpen: false,
+  settingsSectionsOpen: {
+    reading: true,
+    startup: false,
+  },
   settingsAnchor: "header",
   settingsPopupPosition: null,
   streakPopoverOpen: false,
@@ -308,6 +312,9 @@ const state = {
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
+  helpSectionsOpen: {
+    keyboard: false,
+  },
   shortcutsPopupPosition: null,
   aboutMenuOpen: false,
   aboutMenuAnchor: "aboutMenuButton",
@@ -1445,6 +1452,81 @@ function pushReminderSettings(prefix = "") {
   `;
 }
 
+function settingsDisclosure(key, label, content) {
+  return `
+    <details class="settings-section" data-settings-section="${key}" ${state.settingsSectionsOpen[key] ? "open" : ""}>
+      <summary>${label}</summary>
+      <div class="settings-section-content">
+        ${content}
+      </div>
+    </details>
+  `;
+}
+
+function readingDisplaySettings(prefix = "") {
+  const fullscreenActive = isFullscreenActive();
+  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
+  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
+  const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  return settingsDisclosure("reading", "Reading & display", `
+    <div class="setting-group">
+      <div class="settings-control-row">
+        <div class="text-size-control" aria-label="Text size controls">
+          <button class="icon-btn" id="${controlId("DecreaseText")}" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
+          <button class="text-size-reset" id="${controlId("ResetText")}" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
+          <button class="icon-btn" id="${controlId("IncreaseText")}" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+        </div>
+        <button class="ghost-btn fullscreen-btn" id="${controlId("FullscreenButton")}" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+      </div>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("ParagraphLayoutToggle")}" ${state.paragraphLayout ? "checked" : ""} />
+        <span>Paragraph layout when available</span>
+      </label>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("SectionHeadingsToggle")}" ${state.sectionHeadings ? "checked" : ""} />
+        <span>Section headings when available</span>
+      </label>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("RedLettersToggle")}" ${state.redLetters ? "checked" : ""} />
+        <span>Words of Jesus in red</span>
+      </label>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("StrongNumbersToggle")}" ${state.strongNumbers ? "checked" : ""} />
+        <span>Strong's number lookups</span>
+      </label>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <span class="setting-label" id="${controlId("SideToolbarPositionLabel")}">Landscape toolbar</span>
+      <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="${controlId("SideToolbarPositionLabel")}">
+        <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
+        <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
+      </div>
+    </div>
+  `);
+}
+
+function startupReminderSettings(prefix = "") {
+  const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  return settingsDisclosure("startup", "Startup & reminders", `
+    <div class="setting-group">
+      <span class="setting-label">Startup</span>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("StartBigScreenToggle")}" ${state.startBigScreen ? "checked" : ""} />
+        <span>Start in Big Screen Mode</span>
+      </label>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("StartVerseOfDayToggle")}" ${state.startVerseOfDay ? "checked" : ""} />
+        <span>Start with Verse of the Day</span>
+      </label>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("ShowStreakPopupToggle")}" ${state.showStreakPopup ? "checked" : ""} />
+        <span>Show daily streak popup</span>
+      </label>
+    </div>
+    ${pushReminderSettings(prefix)}
+  `);
+}
+
 function mobileSettingsPanel() {
   if (state.mode === "big" || !state.settingsOpen) return "";
   const primaryVersion = state.versions[0] || "BSB";
@@ -1452,9 +1534,6 @@ function mobileSettingsPanel() {
     .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}</option>`)
     .join("");
   const followsSystemTheme = !localStorage.getItem("lw_theme");
-  const fullscreenActive = isFullscreenActive();
-  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
-  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const themePresetOptions = themePresets
     .filter((preset) => preset.mode === state.theme)
     .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
@@ -1498,56 +1577,8 @@ function mobileSettingsPanel() {
           <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
         </div>
       </div>
-      <div class="setting-group">
-        <span class="setting-label">Display</span>
-        <div class="settings-control-row">
-          <div class="text-size-control" aria-label="Text size controls">
-            <button class="icon-btn" id="mobileDecreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
-            <button class="text-size-reset" id="mobileResetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
-            <button class="icon-btn" id="mobileIncreaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
-          </div>
-          <button class="ghost-btn fullscreen-btn" id="mobileFullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
-        </div>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileParagraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
-          <span>Paragraph layout when available</span>
-        </label>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileSectionHeadingsToggle" ${state.sectionHeadings ? "checked" : ""} />
-          <span>Section headings when available</span>
-        </label>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileRedLettersToggle" ${state.redLetters ? "checked" : ""} />
-          <span>Words of Jesus in red</span>
-        </label>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileStrongNumbersToggle" ${state.strongNumbers ? "checked" : ""} />
-          <span>Strong's number lookups</span>
-        </label>
-      </div>
-      <div class="setting-group">
-        <span class="setting-label" id="mobileSideToolbarPositionLabel">Landscape toolbar</span>
-        <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="mobileSideToolbarPositionLabel">
-          <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
-          <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
-        </div>
-      </div>
-      <div class="setting-group">
-        <span class="setting-label">Startup</span>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileStartBigScreenToggle" ${state.startBigScreen ? "checked" : ""} />
-          <span>Start in Big Screen Mode</span>
-        </label>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileStartVerseOfDayToggle" ${state.startVerseOfDay ? "checked" : ""} />
-          <span>Start with Verse of the Day</span>
-        </label>
-        <label class="setting-checkbox">
-          <input type="checkbox" id="mobileShowStreakPopupToggle" ${state.showStreakPopup ? "checked" : ""} />
-          <span>Show daily streak popup</span>
-        </label>
-      </div>
-      ${pushReminderSettings("mobile")}
+      ${readingDisplaySettings("mobile")}
+      ${startupReminderSettings("mobile")}
       <nav class="settings-legal-links" aria-label="Legal information">
         <a href="./privacy/">Privacy Policy</a>
         <span aria-hidden="true">·</span>
@@ -1607,9 +1638,6 @@ function topbar() {
         </div>
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
-  const fullscreenActive = isFullscreenActive();
-  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
-  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const accountLabel = state.authUser ? "Account" : "Sign in";
   const modeOptions = [
     ["reader", "Reader", icons.book],
@@ -1689,56 +1717,8 @@ function topbar() {
               <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
             </div>
           </div>
-          <div class="setting-group">
-            <span class="setting-label">Display</span>
-            <div class="settings-control-row">
-              <div class="text-size-control" aria-label="Text size controls">
-                <button class="icon-btn" id="decreaseText" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
-                <button class="text-size-reset" id="resetText" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
-                <button class="icon-btn" id="increaseText" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
-              </div>
-              <button class="ghost-btn fullscreen-btn" id="fullscreenButton" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
-            </div>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="paragraphLayoutToggle" ${state.paragraphLayout ? "checked" : ""} />
-              <span>Paragraph layout when available</span>
-            </label>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="sectionHeadingsToggle" ${state.sectionHeadings ? "checked" : ""} />
-              <span>Section headings when available</span>
-            </label>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="redLettersToggle" ${state.redLetters ? "checked" : ""} />
-              <span>Words of Jesus in red</span>
-            </label>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="strongNumbersToggle" ${state.strongNumbers ? "checked" : ""} />
-              <span>Strong's number lookups</span>
-            </label>
-          </div>
-          <div class="setting-group">
-            <span class="setting-label" id="sideToolbarPositionLabel">Landscape toolbar</span>
-            <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="sideToolbarPositionLabel">
-              <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
-              <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
-            </div>
-          </div>
-          <div class="setting-group">
-            <span class="setting-label">Startup</span>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="startBigScreenToggle" ${state.startBigScreen ? "checked" : ""} />
-              <span>Start in Big Screen Mode</span>
-            </label>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="startVerseOfDayToggle" ${state.startVerseOfDay ? "checked" : ""} />
-              <span>Start with Verse of the Day</span>
-            </label>
-            <label class="setting-checkbox">
-              <input type="checkbox" id="showStreakPopupToggle" ${state.showStreakPopup ? "checked" : ""} />
-              <span>Show daily streak popup</span>
-            </label>
-          </div>
-          ${pushReminderSettings()}
+          ${readingDisplaySettings()}
+          ${startupReminderSettings()}
           <nav class="settings-legal-links" aria-label="Legal information">
             <a href="./privacy/">Privacy Policy</a>
             <span aria-hidden="true">·</span>
@@ -5830,12 +5810,12 @@ function shortcutOverlay() {
           <div><strong>Games</strong><span>Practice Bible knowledge with trivia, verse order, and quick-reference games.</span></div>
         </div>
         <a class="help-about-link" href="./about.html">About Big Screen Bible</a>
-        <div class="shortcut-keyboard-section">
-          <div class="shortcut-section-title">Keyboard shortcuts</div>
+        <details class="shortcut-keyboard-section help-section" data-help-section="keyboard" ${state.helpSectionsOpen.keyboard ? "open" : ""}>
+          <summary>Keyboard shortcuts</summary>
           <div class="shortcut-list">
             ${shortcuts.map(([keys, label]) => `<div class="shortcut-row"><kbd>${keys}</kbd><span>${label}</span></div>`).join("")}
           </div>
-        </div>
+        </details>
       </div>
     </section>
   `;
@@ -6070,6 +6050,16 @@ function bindEvents() {
     requestAnimationFrame(() => positionSettingsPopover("floating"));
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
+  document.querySelectorAll("[data-settings-section]").forEach((section) => {
+    section.addEventListener("toggle", () => {
+      state.settingsSectionsOpen[section.dataset.settingsSection] = section.open;
+    });
+  });
+  document.querySelectorAll("[data-help-section]").forEach((section) => {
+    section.addEventListener("toggle", () => {
+      state.helpSectionsOpen[section.dataset.helpSection] = section.open;
+    });
+  });
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
   document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));

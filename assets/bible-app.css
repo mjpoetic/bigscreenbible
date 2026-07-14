@@ -1659,6 +1659,11 @@ button {
   background: var(--panel);
   box-shadow: var(--shadow);
   padding: 14px;
+  max-height: calc(100dvh - var(--topbar-height) - env(safe-area-inset-bottom, 0px) - 22px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .settings-popover.open {
@@ -2128,6 +2133,86 @@ button {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.settings-section,
+.help-section {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--soft) 55%, transparent);
+}
+
+.settings-section summary,
+.help-section summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  list-style: none;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.settings-section summary::-webkit-details-marker,
+.help-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-section summary::after,
+.help-section summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-right: 3px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--muted);
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform var(--motion-fast) var(--motion-ease), color var(--motion-fast) ease;
+  flex-shrink: 0;
+}
+
+.settings-section summary:hover,
+.help-section summary:hover {
+  background: color-mix(in srgb, var(--teal) 9%, transparent);
+  color: var(--teal);
+}
+
+.settings-section summary:focus-visible,
+.help-section summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--teal) 52%, transparent);
+  outline-offset: -2px;
+}
+
+.settings-section[open] summary,
+.help-section[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-section[open] summary::after,
+.help-section[open] summary::after {
+  color: var(--teal);
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.settings-section-content {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+
+.settings-section-subgroup {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .push-reminder-settings {
@@ -6073,6 +6158,8 @@ select {
   background: var(--panel);
   color: var(--ink);
   box-shadow: var(--shadow);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .shortcut-head {
@@ -6907,13 +6994,20 @@ select {
   border-radius: 4px;
 }
 
-.shortcut-section-title {
-  padding: 18px 22px 0;
+.shortcut-keyboard-section {
+  margin: 16px 22px 22px;
+}
+
+.shortcut-keyboard-section summary {
+  min-height: 48px;
+  padding-inline: 16px;
   color: var(--gold);
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.shortcut-keyboard-section[open] .shortcut-list {
+  border-top: 0;
 }
 
 .shortcut-row {
@@ -10576,10 +10670,6 @@ svg {
 
   .shortcut-list {
     padding: 10px 18px 18px;
-  }
-
-  .shortcut-section-title {
-    padding: 16px 18px 0;
   }
 
   .shortcut-row {
