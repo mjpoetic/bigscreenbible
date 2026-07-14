@@ -301,12 +301,14 @@ const state = {
   startupApplied: false,
   settingsOpen: false,
   settingsAnchor: "header",
+  settingsPopupPosition: null,
   streakPopoverOpen: false,
   headerVersionMenuOpen: false,
   footerVersionMenuOpen: false,
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
+  shortcutsPopupPosition: null,
   aboutMenuOpen: false,
   aboutMenuAnchor: "aboutMenuButton",
   tutorialIntroVisible: localStorage.getItem(tutorialStorageKey) !== "true",
@@ -355,6 +357,8 @@ const state = {
   syncMessage: "",
   lastCloudSyncAt: "",
 };
+
+let activePopupDrag = null;
 
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
 state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
@@ -815,6 +819,7 @@ function render() {
   requestAnimationFrame(() => {
     positionAccountPopover();
     positionSettingsPopover();
+    applyPopupPosition("help");
   });
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
@@ -1461,8 +1466,11 @@ function mobileSettingsPanel() {
     ? `<input class="custom-font-input" id="mobileCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
     : "";
   return `
-    <div class="mobile-settings-popover" id="mobileSettingsPopover" role="dialog" aria-label="Settings">
-      <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+    <div class="mobile-settings-popover draggable-popup ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
+      <div class="settings-popover-head popup-drag-handle" data-popup-drag-handle="settings">
+        <span class="popup-drag-grip" aria-hidden="true" title="Drag to move settings"></span>
+        <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+      </div>
       <div class="setting-group">
         <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
         <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
@@ -1649,8 +1657,11 @@ function topbar() {
       </div>
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
-        <div class="settings-popover ${state.settingsOpen ? "open" : ""}" aria-hidden="${state.settingsOpen ? "false" : "true"}">
-          <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+        <div class="settings-popover draggable-popup ${state.settingsOpen ? "open" : ""} ${popupPositionClass("settings")}" role="dialog" aria-label="Settings" aria-hidden="${state.settingsOpen ? "false" : "true"}" ${popupPositionStyle("settings")}>
+          <div class="settings-popover-head popup-drag-handle" data-popup-drag-handle="settings">
+            <span class="popup-drag-grip" aria-hidden="true" title="Drag to move settings"></span>
+            <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+          </div>
           <div class="setting-group">
             <label class="setting-label" for="themePresetSelect">Color theme</label>
             <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
@@ -3120,6 +3131,10 @@ function positionAccountPopover() {
 }
 
 function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
+  if (state.settingsPopupPosition && popupDraggingEnabled()) {
+    applyPopupPosition("settings");
+    return;
+  }
   const compact = isCompactScreen();
   const mobilePopover = document.querySelector(".mobile-settings-popover");
   const headerPopover = document.querySelector(".settings-popover.open");
@@ -3162,6 +3177,154 @@ function compactRailWidth() {
 
 function fixedPopoverViewport() {
   return window.visualViewport || { width: window.innerWidth, height: window.innerHeight, offsetLeft: 0, offsetTop: 0 };
+}
+
+function popupDraggingEnabled() {
+  return window.matchMedia?.("(min-width: 641px)")?.matches && !isShortLandscapeScreen();
+}
+
+function popupPositionState(kind) {
+  return kind === "settings" ? state.settingsPopupPosition : state.shortcutsPopupPosition;
+}
+
+function setPopupPositionState(kind, position) {
+  if (kind === "settings") state.settingsPopupPosition = position;
+  else state.shortcutsPopupPosition = position;
+}
+
+function popupPositionClass(kind) {
+  return popupPositionState(kind) ? "is-drag-positioned" : "";
+}
+
+function popupPositionStyle(kind) {
+  const position = popupPositionState(kind);
+  if (!position) return "";
+  const sizeStyles = [
+    Number.isFinite(position.width) ? `--popup-width: ${Math.round(position.width)}px;` : "",
+    Number.isFinite(position.maxHeight) ? `--popup-max-height: ${Math.round(position.maxHeight)}px;` : "",
+  ].filter(Boolean).join(" ");
+  return `style="--popup-left: ${Math.round(position.left)}px; --popup-top: ${Math.round(position.top)}px; ${sizeStyles}"`;
+}
+
+function draggablePopupElement(kind) {
+  if (kind === "help") return document.querySelector(".shortcut-panel.draggable-popup");
+  const candidates = [
+    document.querySelector(".mobile-settings-popover.draggable-popup"),
+    document.querySelector(".settings-popover.open.draggable-popup"),
+  ].filter(Boolean);
+  return candidates.find(isElementVisible) || candidates[0] || null;
+}
+
+function clampPopupPosition(element, position) {
+  const viewport = fixedPopoverViewport();
+  const gutter = 12;
+  const viewportLeft = viewport.offsetLeft || 0;
+  const viewportTop = viewport.offsetTop || 0;
+  const minLeft = viewportLeft + gutter;
+  const minTop = viewportTop + gutter;
+  const maxLeft = Math.max(minLeft, viewportLeft + viewport.width - element.offsetWidth - gutter);
+  const maxTop = Math.max(minTop, viewportTop + viewport.height - element.offsetHeight - gutter);
+  return {
+    ...position,
+    left: Math.round(Math.min(maxLeft, Math.max(minLeft, position.left))),
+    top: Math.round(Math.min(maxTop, Math.max(minTop, position.top))),
+  };
+}
+
+function applyPopupPosition(kind) {
+  const position = popupPositionState(kind);
+  const element = draggablePopupElement(kind);
+  if (!position || !element || !popupDraggingEnabled()) return;
+  element.classList.add("is-drag-positioned");
+  element.style.setProperty("--popup-left", `${Math.round(position.left)}px`);
+  element.style.setProperty("--popup-top", `${Math.round(position.top)}px`);
+  if (Number.isFinite(position.width)) element.style.setProperty("--popup-width", `${Math.round(position.width)}px`);
+  if (Number.isFinite(position.maxHeight)) element.style.setProperty("--popup-max-height", `${Math.round(position.maxHeight)}px`);
+  const clamped = clampPopupPosition(element, position);
+  setPopupPositionState(kind, clamped);
+  element.style.setProperty("--popup-left", `${clamped.left}px`);
+  element.style.setProperty("--popup-top", `${clamped.top}px`);
+}
+
+function clearRenderedPopupPosition(kind) {
+  const element = draggablePopupElement(kind);
+  if (!element) return;
+  element.classList.remove("is-drag-positioned", "is-popup-dragging");
+  element.style.removeProperty("--popup-left");
+  element.style.removeProperty("--popup-top");
+  element.style.removeProperty("--popup-width");
+  element.style.removeProperty("--popup-max-height");
+}
+
+function refreshDraggedPopupPositions() {
+  if (!popupDraggingEnabled()) {
+    if (activePopupDrag) finishPopupDrag();
+    setPopupPositionState("settings", null);
+    setPopupPositionState("help", null);
+    clearRenderedPopupPosition("settings");
+    clearRenderedPopupPosition("help");
+    return;
+  }
+  applyPopupPosition("settings");
+  applyPopupPosition("help");
+}
+
+function beginPopupDrag(event) {
+  if (!popupDraggingEnabled() || event.button !== 0) return;
+  if (event.target.closest?.("button, a, input, select, textarea, label")) return;
+  const handle = event.currentTarget;
+  const kind = handle.dataset.popupDragHandle;
+  const element = draggablePopupElement(kind);
+  if (!element) return;
+  const rect = element.getBoundingClientRect();
+  const viewport = fixedPopoverViewport();
+  const position = {
+    left: (viewport.offsetLeft || 0) + rect.left,
+    top: (viewport.offsetTop || 0) + rect.top,
+    width: rect.width,
+    maxHeight: Math.min(rect.height, Math.max(180, viewport.height - 24)),
+  };
+  setPopupPositionState(kind, position);
+  applyPopupPosition(kind);
+  activePopupDrag = {
+    kind,
+    element,
+    handle,
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+  };
+  element.classList.add("is-popup-dragging");
+  handle.setPointerCapture?.(event.pointerId);
+  window.addEventListener("pointermove", movePopupDrag, { passive: false });
+  window.addEventListener("pointerup", finishPopupDrag);
+  window.addEventListener("pointercancel", finishPopupDrag);
+  event.preventDefault();
+}
+
+function movePopupDrag(event) {
+  if (!activePopupDrag || event.pointerId !== activePopupDrag.pointerId) return;
+  const viewport = fixedPopoverViewport();
+  const nextPosition = clampPopupPosition(activePopupDrag.element, {
+    ...popupPositionState(activePopupDrag.kind),
+    left: (viewport.offsetLeft || 0) + event.clientX - activePopupDrag.offsetX,
+    top: (viewport.offsetTop || 0) + event.clientY - activePopupDrag.offsetY,
+  });
+  setPopupPositionState(activePopupDrag.kind, nextPosition);
+  activePopupDrag.element.style.setProperty("--popup-left", `${nextPosition.left}px`);
+  activePopupDrag.element.style.setProperty("--popup-top", `${nextPosition.top}px`);
+  event.preventDefault();
+}
+
+function finishPopupDrag(event) {
+  if (!activePopupDrag || (event?.pointerId != null && event.pointerId !== activePopupDrag.pointerId)) return;
+  const { element, handle, pointerId } = activePopupDrag;
+  element.classList.remove("is-popup-dragging");
+  if (handle.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+  activePopupDrag = null;
+  window.removeEventListener("pointermove", movePopupDrag);
+  window.removeEventListener("pointerup", finishPopupDrag);
+  window.removeEventListener("pointercancel", finishPopupDrag);
 }
 
 function positionFixedPopoverBelowButton(popover, button, { coverRail = false, preferAbove = false } = {}) {
@@ -5644,12 +5807,13 @@ function shortcutOverlay() {
   ];
   return `
     <section class="shortcut-overlay ${state.shortcutsOpen ? "open" : ""}" aria-hidden="${state.shortcutsOpen ? "false" : "true"}">
-      <div class="shortcut-panel" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle">
-        <div class="shortcut-head">
+      <div class="shortcut-panel draggable-popup ${popupPositionClass("help")}" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle" ${popupPositionStyle("help")}>
+        <div class="shortcut-head popup-drag-handle" data-popup-drag-handle="help">
           <div>
             <div class="shortcut-eyebrow">Help center</div>
             <h2 id="shortcutTitle">Big Screen Bible Help</h2>
           </div>
+          <span class="popup-drag-grip" aria-hidden="true" title="Drag to move help"></span>
           <button class="icon-btn" id="closeShortcuts" aria-label="Close help" data-tooltip="Close">×</button>
         </div>
         <div class="help-tour-card">
@@ -5886,6 +6050,7 @@ function bindEvents() {
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
+    state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "header";
     if (state.settingsOpen) state.accountOpen = false;
@@ -5897,6 +6062,7 @@ function bindEvents() {
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
+    state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "floating";
     if (state.settingsOpen) state.accountOpen = false;
@@ -6076,6 +6242,9 @@ function bindEvents() {
   document.getElementById("shortcutsButton")?.addEventListener("click", () => toggleShortcuts(true));
   document.getElementById("closeShortcuts")?.addEventListener("click", () => toggleShortcuts(false));
   document.getElementById("startHelpTour")?.addEventListener("click", startTutorial);
+  document.querySelectorAll("[data-popup-drag-handle]").forEach((handle) => {
+    handle.addEventListener("pointerdown", beginPopupDrag);
+  });
   document.querySelector(".shortcut-overlay")?.addEventListener("click", (event) => {
     if (event.target.classList.contains("shortcut-overlay")) toggleShortcuts(false);
   });
@@ -8816,10 +8985,12 @@ function toggleShortcuts(forceOpen) {
   if (state.shortcutsOpen && !nextOpen) {
     animateBeforeRemoval(".shortcut-overlay.open", () => {
       state.shortcutsOpen = false;
+      state.shortcutsPopupPosition = null;
       render();
     }, { duration: 220 });
     return;
   }
+  if (!state.shortcutsOpen && nextOpen) state.shortcutsPopupPosition = null;
   state.shortcutsOpen = nextOpen;
   render();
 }
@@ -8882,6 +9053,7 @@ function closeSettingsPopover() {
   if (!state.settingsOpen) return;
   animateBeforeRemoval(".settings-popover.open, .mobile-settings-popover", () => {
     state.settingsOpen = false;
+    state.settingsPopupPosition = null;
     renderPreservingReaderScroll();
   }, { duration: 190 });
 }
@@ -10538,10 +10710,16 @@ window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
 window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
 window.addEventListener("resize", () => {
+  refreshDraggedPopupPositions();
   updateTutorialSpotlight();
   positionAccountPopover();
   positionSettingsPopover();
 });
+window.visualViewport?.addEventListener("resize", () => {
+  refreshDraggedPopupPositions();
+  positionSettingsPopover();
+});
+window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   closeHeaderVersionMenu();
