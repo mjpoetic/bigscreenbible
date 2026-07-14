@@ -1878,13 +1878,6 @@ button {
   flex-shrink: 0;
 }
 
-.google-auth-note {
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--soft) 62%, transparent);
-}
-
 .account-card .account-legal-notice {
   color: var(--ink);
   font-size: 10px;

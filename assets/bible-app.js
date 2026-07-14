@@ -1934,7 +1934,6 @@ function accountPanel(prefix = "") {
       </form>
       <div class="account-divider"><span>or</span></div>
       <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
-      <p class="google-auth-note">Google may briefly show our Supabase sign-in address while we finish custom auth branding. It is the secure sign-in provider for Big Screen Bible.</p>
       <p class="account-legal-notice">By creating an account, you agree to the <a href="./terms/">Terms of Service</a> and acknowledge the <a href="./privacy/">Privacy Policy</a>.</p>
       <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
     </section>
