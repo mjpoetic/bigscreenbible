@@ -42,8 +42,8 @@ function morningPayload(verse: VerseRow | null) {
     title: reference ? `Verse of the Day · ${reference}` : "Your Verse of the Day",
     body: body || "Begin the day with a quiet moment in Scripture.",
     url: reference
-      ? `${siteUrl}/?ref=${encodeURIComponent(reference)}&mode=reader`
-      : `${siteUrl}/?mode=reader`,
+      ? `${siteUrl}/?ref=${encodeURIComponent(reference)}&mode=big`
+      : `${siteUrl}/?mode=big`,
     tag: "bsb-verse-of-the-day",
     kind: "morning",
   };
