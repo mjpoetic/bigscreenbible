@@ -5065,6 +5065,9 @@ function strongLookupCard(entry, selectedWord) {
 }
 
 function bottombar() {
+  const hasPassageSelection = state.selectedVerses.length > 0;
+  const copyActionLabel = hasPassageSelection ? "Copy passage" : "Copy verse";
+  const printActionLabel = hasPassageSelection ? "Print passage" : "Print";
   const footerVersions = state.mode === "parallel"
     ? activeVersions()
     : [state.versions[0] || activeVersions()[0] || "BSB"];
@@ -5104,13 +5107,13 @@ function bottombar() {
             </div>
           </div>
           <div class="bottom-actions">
-            <button class="ghost-btn bottom-action" id="copyVerse" aria-label="Copy verse" data-tooltip="Copy verse">
+            <button class="ghost-btn bottom-action" id="copyVerse" aria-label="${copyActionLabel}" data-tooltip="${copyActionLabel}" data-selection-action>
               <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
-              <span class="bottom-action-label">Copy Verse</span>
+              <span class="bottom-action-label">${copyActionLabel}</span>
             </button>
-            <button class="ghost-btn bottom-action" id="printPage" aria-label="Print" data-tooltip="Print">
+            <button class="ghost-btn bottom-action" id="printPage" aria-label="${printActionLabel}" data-tooltip="${printActionLabel}" data-selection-action>
               <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
-              <span class="bottom-action-label">Print</span>
+              <span class="bottom-action-label">${printActionLabel}</span>
             </button>
             <button class="ghost-btn bottom-action bottom-about-link" id="aboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About">
               <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
@@ -9502,7 +9505,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest(".selection-bar, .reader-selection-tools-button, .cross-ref-popup, .strong-popup")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .cross-ref-popup, .strong-popup")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }
