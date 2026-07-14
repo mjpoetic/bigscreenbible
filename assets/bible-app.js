@@ -5541,6 +5541,7 @@ function bindEvents() {
   });
   document.getElementById("footerVersionMenuToggle")?.addEventListener("click", () => {
     if (state.footerVersionMenuOpen) return closeFooterVersionMenu();
+    dismissLibraryForFooterMenu();
     state.headerVersionMenuOpen = false;
     state.footerVersionMenuOpen = true;
     renderPreservingReaderScroll();
@@ -5555,6 +5556,7 @@ function bindEvents() {
   });
   document.getElementById("footerReferencePicker")?.addEventListener("click", () => {
     state.footerVersionMenuOpen = false;
+    state.headerVersionMenuOpen = false;
     activateWorkspace("Verse");
   });
   document.getElementById("versionMenuToggle")?.addEventListener("click", () => {
@@ -8372,6 +8374,17 @@ function activateWorkspace(target) {
   state.pendingPanelFocus = isCompactScreen() || isShortLandscapeScreen() ? null : target;
   state.pendingLibraryScrollRestore = Boolean(savedLibraryScroll(target));
   renderPreservingReaderScroll();
+}
+
+function dismissLibraryForFooterMenu() {
+  if (!state.libraryOpen) return;
+  rememberOpenLibraryState();
+  persistLibraryScrollByRail();
+  state.libraryOpen = false;
+  state.pendingPanelFocus = null;
+  state.pendingLibraryScrollRestore = false;
+  localStorage.setItem("lw_library_open", "false");
+  scheduleCloudSync();
 }
 
 function closeLibrary() {
