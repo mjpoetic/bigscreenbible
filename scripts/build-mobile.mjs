@@ -13,6 +13,7 @@ const entries = [
   "terms",
   "favicon.ico",
   "site.webmanifest",
+  "push-sw.js",
   "assets",
 ];
 

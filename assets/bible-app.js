@@ -289,6 +289,15 @@ const state = {
   isVerseOfDayActive: false,
   verseOfDayItem: null,
   showStreakPopup: localStorage.getItem("lw_show_streak_popup") !== "false",
+  pushSupported: false,
+  pushPermissionDenied: false,
+  pushInitialized: false,
+  pushEnabled: localStorage.getItem("lw_push_enabled") === "true",
+  pushMorningTime: localStorage.getItem("lw_push_morning_time") || "07:00",
+  pushEveningEnabled: localStorage.getItem("lw_push_evening_enabled") !== "false",
+  pushEveningTime: localStorage.getItem("lw_push_evening_time") || "18:00",
+  pushStatus: "Checking notification support…",
+  pushBusy: false,
   startupApplied: false,
   settingsOpen: false,
   settingsAnchor: "header",
@@ -1397,6 +1406,40 @@ function mobileFloatingSettings() {
   `;
 }
 
+function pushReminderSettings(prefix = "") {
+  const idPrefix = prefix ? `${prefix}` : "";
+  const enabledId = `${idPrefix}PushNotificationsToggle`;
+  const morningId = `${idPrefix}PushMorningTime`;
+  const eveningEnabledId = `${idPrefix}PushEveningToggle`;
+  const eveningId = `${idPrefix}PushEveningTime`;
+  const controlsDisabled = !state.pushSupported || state.pushPermissionDenied || !state.pushEnabled || state.pushBusy;
+  const timezone = escapeHtml(Intl.DateTimeFormat().resolvedOptions().timeZone || "local time");
+  const status = state.pushEnabled && state.pushSupported && !state.pushBusy
+    ? `Scheduled in ${timezone} and adjusted automatically for daylight saving time.`
+    : state.pushStatus;
+  return `
+    <div class="setting-group push-reminder-settings">
+      <span class="setting-label">Daily reminders</span>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${enabledId}" ${state.pushEnabled ? "checked" : ""} ${!state.pushSupported || state.pushPermissionDenied || state.pushBusy ? "disabled" : ""} />
+        <span>Verse of the Day notifications</span>
+      </label>
+      <div class="push-reminder-row">
+        <label for="${morningId}">Morning reading</label>
+        <input type="time" id="${morningId}" value="${state.pushMorningTime}" ${controlsDisabled ? "disabled" : ""} />
+      </div>
+      <div class="push-reminder-row push-evening-row">
+        <label class="setting-checkbox" for="${eveningEnabledId}">
+          <input type="checkbox" id="${eveningEnabledId}" ${state.pushEveningEnabled ? "checked" : ""} ${controlsDisabled ? "disabled" : ""} />
+          <span>Evening nudge if unopened</span>
+        </label>
+        <input type="time" id="${eveningId}" value="${state.pushEveningTime}" ${controlsDisabled || !state.pushEveningEnabled ? "disabled" : ""} aria-label="Evening reminder time" />
+      </div>
+      <p class="setting-help" aria-live="polite">${escapeHtml(status)}</p>
+    </div>
+  `;
+}
+
 function mobileSettingsPanel() {
   if (state.mode === "big" || !state.settingsOpen) return "";
   const primaryVersion = state.versions[0] || "BSB";
@@ -1496,6 +1539,7 @@ function mobileSettingsPanel() {
           <span>Show daily streak popup</span>
         </label>
       </div>
+      ${pushReminderSettings("mobile")}
       <nav class="settings-legal-links" aria-label="Legal information">
         <a href="./privacy/">Privacy Policy</a>
         <span aria-hidden="true">·</span>
@@ -1683,6 +1727,7 @@ function topbar() {
               <span>Show daily streak popup</span>
             </label>
           </div>
+          ${pushReminderSettings()}
           <nav class="settings-legal-links" aria-label="Legal information">
             <a href="./privacy/">Privacy Policy</a>
             <span aria-hidden="true">·</span>
@@ -2710,6 +2755,219 @@ function supabaseCredentials() {
 function isSupabaseConfigured() {
   const { url, anonKey } = supabaseCredentials();
   return Boolean(url && anonKey && !url.includes("YOUR_") && !anonKey.includes("YOUR_"));
+}
+
+const pushDeviceTokenStorageKey = "lw_push_device_token";
+let lastPushVisitSentAt = 0;
+
+function validPushTime(value) {
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
+}
+
+function pushApiSupported() {
+  return Boolean(
+    window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window,
+  );
+}
+
+function pushPreferences() {
+  return {
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    morningTime: state.pushMorningTime,
+    eveningEnabled: state.pushEveningEnabled,
+    eveningTime: state.pushEveningTime,
+  };
+}
+
+async function pushFunctionRequest(method = "POST", body = null) {
+  const config = window.BigScreenBibleSupabase || {};
+  const url = supabaseFunctionUrl("push-subscriptions");
+  if (!url || !config.anonKey) throw new Error("Notification service is not configured");
+  const response = await fetch(url, {
+    method,
+    cache: "no-store",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.anonKey}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Notification service request failed");
+  return payload;
+}
+
+function applicationServerKey(value) {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const bytes = atob(base64);
+  return Uint8Array.from(bytes, (character) => character.charCodeAt(0));
+}
+
+async function pushServiceWorkerRegistration() {
+  await navigator.serviceWorker.register("./push-sw.js", { scope: "./" });
+  return navigator.serviceWorker.ready;
+}
+
+function clearLocalPushSubscription() {
+  state.pushEnabled = false;
+  localStorage.setItem("lw_push_enabled", "false");
+  localStorage.removeItem(pushDeviceTokenStorageKey);
+}
+
+async function initializePushNotifications() {
+  state.pushSupported = pushApiSupported();
+  state.pushInitialized = true;
+  if (!validPushTime(state.pushMorningTime)) state.pushMorningTime = "07:00";
+  if (!validPushTime(state.pushEveningTime)) state.pushEveningTime = "18:00";
+  if (!state.pushSupported) {
+    clearLocalPushSubscription();
+    state.pushStatus = "This browser does not support site notifications. On iPhone or iPad, add the site to the Home Screen first.";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    state.pushPermissionDenied = true;
+    clearLocalPushSubscription();
+    state.pushStatus = "Notifications are blocked in this browser’s site settings.";
+    return;
+  }
+
+  const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
+  if (!state.pushEnabled || !deviceToken || Notification.permission !== "granted") {
+    if (state.pushEnabled && (!deviceToken || Notification.permission !== "granted")) clearLocalPushSubscription();
+    state.pushStatus = "Enable reminders to choose a morning reading time and an optional evening nudge.";
+    return;
+  }
+
+  try {
+    const registration = await pushServiceWorkerRegistration();
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      clearLocalPushSubscription();
+      state.pushStatus = "This device’s notification subscription expired. Enable reminders again to reconnect it.";
+      return;
+    }
+    state.pushEnabled = true;
+    state.pushStatus = "Daily reminders are enabled.";
+    notePushVisit(true);
+  } catch (error) {
+    state.pushStatus = error?.message || "Notifications could not be initialized.";
+  }
+}
+
+async function enablePushNotifications() {
+  if (!pushApiSupported() || state.pushBusy) return;
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    state.pushPermissionDenied = permission === "denied";
+    clearLocalPushSubscription();
+    state.pushStatus = permission === "denied"
+      ? "Notifications are blocked in this browser’s site settings."
+      : "Notification permission was not granted.";
+    return renderPreservingReaderScroll();
+  }
+
+  state.pushBusy = true;
+  state.pushStatus = "Connecting this device…";
+  renderPreservingReaderScroll();
+  try {
+    const config = await pushFunctionRequest("GET");
+    if (!config.enabled || !config.publicKey) throw new Error("Push notifications are not configured on the server yet");
+    const registration = await pushServiceWorkerRegistration();
+    const existing = await registration.pushManager.getSubscription();
+    const subscription = existing || await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey(config.publicKey),
+    });
+    const result = await pushFunctionRequest("POST", {
+      action: "subscribe",
+      subscription: subscription.toJSON(),
+      preferences: pushPreferences(),
+    });
+    if (!result.deviceToken) throw new Error("The notification service did not return a device token");
+    localStorage.setItem(pushDeviceTokenStorageKey, result.deviceToken);
+    localStorage.setItem("lw_push_enabled", "true");
+    state.pushEnabled = true;
+    state.pushPermissionDenied = false;
+    state.pushStatus = "Daily reminders are enabled.";
+    showToast("Daily reminders enabled");
+  } catch (error) {
+    clearLocalPushSubscription();
+    state.pushStatus = error?.message || "Notifications could not be enabled.";
+    showToast("Could not enable reminders");
+  } finally {
+    state.pushBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+async function disablePushNotifications() {
+  if (state.pushBusy) return;
+  state.pushBusy = true;
+  state.pushStatus = "Turning off reminders…";
+  renderPreservingReaderScroll();
+  const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
+  let serverUnsubscribeFailed = false;
+  try {
+    if (deviceToken) {
+      await pushFunctionRequest("POST", { action: "unsubscribe", deviceToken });
+    }
+  } catch (error) {
+    serverUnsubscribeFailed = true;
+    console.warn("Push server unsubscribe failed", error);
+  }
+  try {
+    const registration = await navigator.serviceWorker.getRegistration("./");
+    const subscription = await registration?.pushManager.getSubscription();
+    await subscription?.unsubscribe();
+    state.pushStatus = serverUnsubscribeFailed
+      ? "Reminders are off on this device. The expired server subscription will be cleaned up automatically."
+      : "Daily reminders are off.";
+    showToast("Daily reminders off");
+  } catch (error) {
+    state.pushStatus = "Reminders are off on this device. The expired server subscription will be cleaned up automatically.";
+    console.warn("Browser push unsubscribe failed", error);
+  } finally {
+    clearLocalPushSubscription();
+    state.pushBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+async function savePushPreferences() {
+  localStorage.setItem("lw_push_morning_time", state.pushMorningTime);
+  localStorage.setItem("lw_push_evening_enabled", String(state.pushEveningEnabled));
+  localStorage.setItem("lw_push_evening_time", state.pushEveningTime);
+  const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
+  if (!state.pushEnabled || !deviceToken) return;
+  try {
+    await pushFunctionRequest("POST", {
+      action: "update",
+      deviceToken,
+      preferences: pushPreferences(),
+    });
+  } catch (error) {
+    state.pushStatus = error?.message || "The reminder schedule could not be saved.";
+    showToast("Could not save reminder time");
+  }
+}
+
+async function notePushVisit(force = false) {
+  const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
+  if (!state.pushEnabled || !deviceToken || document.visibilityState === "hidden") return;
+  const now = Date.now();
+  if (!force && now - lastPushVisitSentAt < 15 * 60 * 1000) return;
+  lastPushVisitSentAt = now;
+  try {
+    await pushFunctionRequest("POST", {
+      action: "opened",
+      deviceToken,
+      timezone: pushPreferences().timezone,
+    });
+  } catch (error) {
+    console.warn("Push visit update failed", error);
+  }
 }
 
 function createSupabaseClient() {
@@ -5761,6 +6019,33 @@ function bindEvents() {
     localStorage.setItem("lw_show_streak_popup", state.showStreakPopup ? "true" : "false");
     scheduleCloudSync();
     if (!state.showStreakPopup) dismissStreakPopup();
+  });
+  ["PushNotificationsToggle", "mobilePushNotificationsToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      if (event.target.checked) enablePushNotifications();
+      else disablePushNotifications();
+    });
+  });
+  ["PushMorningTime", "mobilePushMorningTime"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      if (!validPushTime(event.target.value)) return;
+      state.pushMorningTime = event.target.value;
+      savePushPreferences();
+    });
+  });
+  ["PushEveningToggle", "mobilePushEveningToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state.pushEveningEnabled = event.target.checked;
+      savePushPreferences();
+      renderPreservingReaderScroll();
+    });
+  });
+  ["PushEveningTime", "mobilePushEveningTime"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      if (!validPushTime(event.target.value)) return;
+      state.pushEveningTime = event.target.value;
+      savePushPreferences();
+    });
   });
   const streakPopupElement = document.getElementById("streakPopup");
   if (streakPopupElement) {
@@ -10280,6 +10565,11 @@ document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") notePushVisit();
+});
+window.addEventListener("pageshow", () => notePushVisit());
+window.setInterval(() => notePushVisit(), 15 * 60 * 1000);
 const streakUpdatedToday = recordReadingStreak();
 state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
@@ -10287,6 +10577,9 @@ const startupLoaderPreview = new URLSearchParams(window.location.search).has("lo
 if (startupLoaderPreview) {
   document.documentElement.dataset.loaderPreview = "true";
 } else {
+  initializePushNotifications().finally(() => {
+    if (!dataLoading && !dataError) renderPreservingReaderScroll();
+  });
   initializeSupabaseAuth();
   initializeBibleData();
 }

@@ -94,8 +94,10 @@ You can create the access token in Supabase from Account settings → Access Tok
 - `supabase/functions/api-bible-passage/index.ts`
 - `supabase/functions/youversion-passage/index.ts`
 - `supabase/functions/verse-of-the-day/index.ts`
+- `supabase/functions/push-subscriptions/index.ts`
+- `supabase/functions/send-push-notifications/index.ts`
 
-The workflow deploys the Bible provider functions and the Verse of the Day RSS function to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
+The workflow deploys the Bible provider, Verse of the Day, and push-notification functions to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
 
 5. In GitHub, open Actions → Deploy Supabase Edge Functions → Run workflow.
 
@@ -110,6 +112,8 @@ supabase functions deploy esv-passage --no-verify-jwt
 supabase functions deploy api-bible-passage --no-verify-jwt
 supabase functions deploy youversion-passage --no-verify-jwt
 supabase functions deploy verse-of-the-day --no-verify-jwt
+supabase functions deploy push-subscriptions --no-verify-jwt
+supabase functions deploy send-push-notifications --no-verify-jwt
 ```
 
 The included `supabase/config.toml` keeps JWT verification off for these read-only functions so visitors can read licensed translations without signing in. The provider API keys remain in Supabase and are never returned to the browser.
@@ -149,3 +153,70 @@ The website only contains the public Supabase publishable/anon key. Provider sec
 - The cache table has Row Level Security enabled with no public policies. Only the Edge Function service role reads or writes it.
 - A failed daily refresh is cached as a failure for that date, and the website uses its existing local curated verse rotation instead.
 - The website never requests or scrapes the linked VerseoftheDay.com webpage.
+
+## 8. Daily push notifications
+
+Daily reminders use the browser Push API, the root `push-sw.js` service worker, two Supabase Edge Functions, and the private `public.bsb_push_subscriptions` table created by `supabase/schema.sql`.
+
+Each subscribed browser can choose its own morning time and optional evening time. The browser sends its IANA timezone, so reminders follow local time and daylight-saving changes. The sender suppresses the evening notification when that subscription has recorded an app open during the same local day. The defaults are 7:00 a.m. and 6:00 p.m.
+
+### Generate and store Web Push secrets
+
+Generate one VAPID key pair. Keep the private key secret and reuse this pair; replacing it invalidates existing browser subscriptions.
+
+```bash
+npx web-push generate-vapid-keys --json
+openssl rand -hex 32
+```
+
+The first command prints a public and private VAPID key. The second command prints a separate random value for `PUSH_CRON_SECRET`. Store them as Supabase Edge Function secrets:
+
+```bash
+supabase secrets set \
+  WEB_PUSH_VAPID_PUBLIC_KEY=YOUR_PUBLIC_VAPID_KEY \
+  WEB_PUSH_VAPID_PRIVATE_KEY=YOUR_PRIVATE_VAPID_KEY \
+  WEB_PUSH_SUBJECT=mailto:support@bigscreenbible.com \
+  PUSH_CRON_SECRET=YOUR_RANDOM_CRON_SECRET
+```
+
+Never place the VAPID private key or cron secret in `assets/supabase-config.js`, GitHub Actions variables, or committed files. The public VAPID key is returned to supported browsers by `push-subscriptions` only when the user opts in.
+
+### Schedule the sender
+
+Enable Supabase Cron and `pg_net`, then store the sender URL and the same cron secret in Vault. Replace the placeholder before running this SQL in the Supabase SQL Editor:
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;
+
+select vault.create_secret(
+  'https://yyldnatfhzobyeqnvqjv.supabase.co/functions/v1/send-push-notifications',
+  'bsb_push_sender_url'
+);
+
+select vault.create_secret(
+  'YOUR_RANDOM_CRON_SECRET',
+  'bsb_push_cron_secret'
+);
+
+select cron.schedule(
+  'bsb-send-daily-push',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'bsb_push_sender_url'),
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-push-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'bsb_push_cron_secret')
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+The cron only wakes the sender. Each subscription’s user-selected local times determine whether anything is sent. The sender claims each local delivery date before sending so overlapping cron calls do not duplicate a reminder, and expired browser subscriptions are removed after a `404` or `410` response from the push service.
+
+### Platform boundary
+
+This implementation covers supported desktop browsers, Android browsers, and installed web apps. On iPhone and iPad, Web Push requires the website to be added to the Home Screen before notification permission can be granted. The Capacitor App Store wrappers need a separate native APNs/FCM integration; unsupported web views show an explanatory message instead of an enable control.

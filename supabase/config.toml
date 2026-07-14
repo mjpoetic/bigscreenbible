@@ -9,3 +9,9 @@ verify_jwt = false
 
 [functions.verse-of-the-day]
 verify_jwt = false
+
+[functions.push-subscriptions]
+verify_jwt = false
+
+[functions.send-push-notifications]
+verify_jwt = false

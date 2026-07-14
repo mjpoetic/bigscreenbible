@@ -2129,6 +2129,48 @@ button {
   text-transform: uppercase;
 }
 
+.push-reminder-settings {
+  padding-top: 2px;
+}
+
+.push-reminder-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.push-reminder-row input[type="time"] {
+  min-width: 104px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  color-scheme: light dark;
+}
+
+.push-reminder-row input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.push-evening-row .setting-checkbox {
+  font-size: 13px;
+}
+
+.setting-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .settings-popover .text-size-control {
   width: 100%;
   justify-content: space-between;

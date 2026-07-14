@@ -43,3 +43,9 @@ jobs:
 
       - name: Deploy Verse of the Day Edge Function
         run: supabase functions deploy verse-of-the-day --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Deploy Push Subscription Edge Function
+        run: supabase functions deploy push-subscriptions --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Deploy Push Sender Edge Function
+        run: supabase functions deploy send-push-notifications --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
