@@ -142,13 +142,25 @@ const themeChromeColors = {
 const scriptureFonts = [
   { code: "libre", name: "Libre Baskerville" },
   { code: "lora", name: "Lora" },
-  { code: "merriweather", name: "Merriweather" },
+  { code: "literata", name: "Literata" },
   { code: "crimson", name: "Crimson Text" },
   { code: "noto-sans", name: "Noto Sans" },
-  { code: "ibm-plex-sans", name: "IBM Plex Sans" },
+  { code: "figtree", name: "Figtree" },
+  { code: "source-sans", name: "Source Sans 3" },
+  { code: "manrope", name: "Manrope" },
+  { code: "atkinson-hyperlegible-next", name: "Atkinson Hyperlegible Next" },
   { code: "custom", name: "Custom device font" },
 ];
 const scriptureFontCodes = scriptureFonts.map((font) => font.code);
+const legacyScriptureFontCodes = {
+  merriweather: "literata",
+  "ibm-plex-sans": "manrope",
+};
+
+function normalizedScriptureFont(font) {
+  const normalized = legacyScriptureFontCodes[font] || font;
+  return scriptureFontCodes.includes(normalized) ? normalized : "libre";
+}
 
 let bibleData = {};
 let bibleIndex = null;
@@ -379,7 +391,7 @@ if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
 if (!state.versions.some(isBundledTranslation)) state.versions.unshift("BSB");
 state.themePreset = savedThemePreset(state.theme);
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = defaultPresentationTheme;
-if (!scriptureFontCodes.includes(state.scriptureFont)) state.scriptureFont = "libre";
+state.scriptureFont = normalizedScriptureFont(state.scriptureFont);
 
 function savedTheme() {
   const theme = localStorage.getItem("lw_theme");
@@ -3765,7 +3777,7 @@ function applyCloudSnapshot(snapshot) {
   state.versions = mergeVersions(settings.versions, ["BSB", "KJV"]);
   state.theme = settings.themeMode === "dark" || settings.themeMode === "light" ? settings.themeMode : savedTheme();
   state.themePreset = settings[`themePreset${state.theme === "dark" ? "Dark" : "Light"}`] || savedThemePreset(state.theme);
-  state.scriptureFont = scriptureFontCodes.includes(settings.scriptureFont) ? settings.scriptureFont : "libre";
+  state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.textScale = clampTextScale(Number(settings.textScale) || 1);

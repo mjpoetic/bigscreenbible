@@ -46,8 +46,8 @@
   --scripture-font: "Lora", Georgia, serif;
 }
 
-[data-scripture-font="merriweather"] {
-  --scripture-font: "Merriweather", Georgia, serif;
+[data-scripture-font="literata"] {
+  --scripture-font: "Literata", Georgia, serif;
 }
 
 [data-scripture-font="crimson"] {
@@ -58,8 +58,20 @@
   --scripture-font: "Noto Sans", Arial, sans-serif;
 }
 
-[data-scripture-font="ibm-plex-sans"] {
-  --scripture-font: "IBM Plex Sans", Arial, sans-serif;
+[data-scripture-font="figtree"] {
+  --scripture-font: "Figtree", Arial, sans-serif;
+}
+
+[data-scripture-font="source-sans"] {
+  --scripture-font: "Source Sans 3", Arial, sans-serif;
+}
+
+[data-scripture-font="manrope"] {
+  --scripture-font: "Manrope", Arial, sans-serif;
+}
+
+[data-scripture-font="atkinson-hyperlegible-next"] {
+  --scripture-font: "Atkinson Hyperlegible Next", Arial, sans-serif;
 }
 
 [data-scripture-font="custom"] {
