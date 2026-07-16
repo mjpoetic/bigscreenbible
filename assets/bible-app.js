@@ -757,7 +757,7 @@ function isSideToolbarAutoPositioned() {
   return effectiveSideToolbarPosition() !== state.sideToolbarPosition;
 }
 
-function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240 } = {}) {
+function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240, settleFrames = 0 } = {}) {
   const visibleElements = Array.from(document.querySelectorAll(selector))
     .filter((element) => element.getClientRects().length);
   if (visibleElements.some((element) => element.classList.contains(className))) return;
@@ -768,7 +768,18 @@ function animateBeforeRemoval(selector, callback, { className = "motion-exit", d
     return;
   }
   elements.forEach((element) => element.classList.add(className));
-  window.setTimeout(callback, duration);
+  window.setTimeout(() => {
+    let remainingFrames = Math.max(0, Math.floor(settleFrames));
+    const finish = () => {
+      if (!remainingFrames) {
+        callback();
+        return;
+      }
+      remainingFrames -= 1;
+      requestAnimationFrame(finish);
+    };
+    finish();
+  }, duration);
 }
 
 function enforceVersionLimit() {
@@ -8999,7 +9010,7 @@ function closeLibrary() {
       restoreReaderScroll(readerScroll);
       requestAnimationFrame(() => restoreReaderScroll(readerScroll));
     });
-  }, { duration: 220 });
+  }, { duration: 260, settleFrames: 1 });
 }
 
 function adjustTextScale(delta) {
