@@ -49,3 +49,6 @@ jobs:
 
       - name: Deploy Push Sender Edge Function
         run: supabase functions deploy send-push-notifications --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Deploy Semantic Bible Search Edge Function
+        run: supabase functions deploy semantic-bible-search --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

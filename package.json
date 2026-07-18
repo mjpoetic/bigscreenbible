@@ -6,6 +6,11 @@
   "scripts": {
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
+    "test:search": "node scripts/search-query.test.mjs && node scripts/semantic-search-corpus.test.mjs && node scripts/semantic-search-quality.test.mjs",
+    "semantic:corpus": "node scripts/semantic-search-corpus.mjs",
+    "semantic:index:genesis": "node scripts/index-semantic-search.mjs --book Genesis",
+    "semantic:index:all": "node scripts/index-semantic-search.mjs",
+    "semantic:evaluate": "node scripts/evaluate-semantic-search.mjs",
     "version:app": "node scripts/version-app.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:open:ios": "npm run cap:sync && npx cap open ios",

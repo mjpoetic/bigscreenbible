@@ -96,8 +96,9 @@ You can create the access token in Supabase from Account settings → Access Tok
 - `supabase/functions/verse-of-the-day/index.ts`
 - `supabase/functions/push-subscriptions/index.ts`
 - `supabase/functions/send-push-notifications/index.ts`
+- `supabase/functions/semantic-bible-search/index.ts`
 
-The workflow deploys the Bible provider, Verse of the Day, and push-notification functions to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
+The workflow deploys the Bible provider, Verse of the Day, push-notification, and semantic-search functions to project `yyldnatfhzobyeqnvqjv` without requiring the Supabase CLI on your Mac.
 
 5. In GitHub, open Actions → Deploy Supabase Edge Functions → Run workflow.
 
@@ -114,6 +115,7 @@ supabase functions deploy youversion-passage --no-verify-jwt
 supabase functions deploy verse-of-the-day --no-verify-jwt
 supabase functions deploy push-subscriptions --no-verify-jwt
 supabase functions deploy send-push-notifications --no-verify-jwt
+supabase functions deploy semantic-bible-search --no-verify-jwt
 ```
 
 The included `supabase/config.toml` keeps JWT verification off for these read-only functions so visitors can read licensed translations without signing in. The provider API keys remain in Supabase and are never returned to the browser.
@@ -144,6 +146,40 @@ https://YOUR_PROJECT.supabase.co/functions/v1/youversion-passage?action=bibles
 Send the public Supabase publishable/anon key in the `apikey` and bearer authorization headers, just as the website does. These responses contain Bible IDs and metadata, never `API_BIBLE_KEY` or `YOUVERSION_APP_KEY`.
 
 The website only contains the public Supabase publishable/anon key. Provider secrets stay in Supabase and are never committed to GitHub or exposed in browser code.
+
+### Semantic Bible search
+
+Natural questions use a hybrid search path: the existing local/provider search continues to run, while `semantic-bible-search` generates a query embedding with Supabase Edge Runtime's built-in English `gte-small` model and retrieves related passages from `public.bsb_semantic_passages` through pgvector.
+
+The semantic corpus is deliberately limited to the bundled World English Bible (WEB). Never index, embed, upload, paraphrase, or otherwise send API.Bible, ESV API, or YouVersion provider text through this semantic pipeline. Once a reference is found, the normal reader may display that reference in the user's selected licensed translation through its existing provider.
+
+`supabase/schema.sql` enables the `vector` extension, creates the 384-dimensional HNSW-backed passage table, and creates the service-role-only similarity RPC. The table has Row Level Security enabled and grants no direct access to browser roles. The public Edge Function returns only bounded search results and uses `Cache-Control: no-store`; indexing operations additionally require a Supabase server secret.
+
+Generate and check the deterministic corpus without contacting Supabase:
+
+```bash
+npm run semantic:corpus -- --book Genesis
+npm run test:search
+```
+
+For the Genesis pilot, create or copy a secret key from **Supabase Dashboard → Settings → API Keys → Publishable and secret API keys**. Put it in the current shell only, run the importer, and then unset it. The legacy service-role key also remains supported. Never put either credential in `assets/supabase-config.js`, a committed `.env` file, terminal output, or GitHub Actions.
+
+```bash
+export SUPABASE_SECRET_KEY=YOUR_SECRET_KEY
+npm run semantic:index:genesis
+unset SUPABASE_SECRET_KEY
+```
+
+After the Genesis pilot is verified, populate the complete WEB corpus and rerun the quality evaluation:
+
+```bash
+export SUPABASE_SECRET_KEY=YOUR_SECRET_KEY
+npm run semantic:index:all
+unset SUPABASE_SECRET_KEY
+npm run semantic:evaluate
+```
+
+The importer uploads at most eight chunks per request, records a deterministic corpus version, and prunes stale chunks only after a complete scoped run succeeds. If semantic search is unavailable or has not yet been populated, the website silently retains the existing local question-aware results.
 
 ### Verse of the Day RSS behavior
 

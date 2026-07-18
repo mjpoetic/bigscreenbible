@@ -8633,10 +8633,15 @@ async function searchBible(query) {
   if (!criteria.tokens.length && !criteria.exactPhrase) return [];
   const searchableVersions = translationCodes.filter(isBundledTranslation);
   const primarySearchVersion = searchableVersions.includes(primaryVersion) ? primaryVersion : "BSB";
-  const versionOrder = [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
+  const versionOrder = criteria.questionAnalysis?.isQuestion
+    ? [primarySearchVersion]
+    : [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
   const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria));
-  const remoteResults = await searchRemoteVersions(query, criteria);
-  const results = [...localResults, ...remoteResults];
+  const [remoteResults, semanticResults] = await Promise.all([
+    searchRemoteVersions(query, criteria),
+    searchSemanticBible(query, criteria),
+  ]);
+  const results = [...localResults, ...remoteResults, ...semanticResults];
   const seen = new Set();
   const ranked = results
     .sort((a, b) => b.score - a.score)
@@ -8646,7 +8651,35 @@ async function searchBible(query) {
       seen.add(key);
       return true;
     });
-  return balancedSearchResults(ranked, primaryVersion).slice(0, 40);
+  return removeRedundantSemanticResults(balancedSearchResults(ranked, primaryVersion)).slice(0, 40);
+}
+
+function searchReferenceParts(value) {
+  const match = String(value || "").match(/^(.+?)\s(\d+):(\d+)(?:\s*-\s*(\d+))?/);
+  if (!match) return null;
+  return {
+    book: match[1],
+    chapter: Number(match[2]),
+    start: Number(match[3]),
+    end: Number(match[4] || match[3]),
+  };
+}
+
+function searchReferencesOverlap(left, right) {
+  const a = searchReferenceParts(left);
+  const b = searchReferenceParts(right);
+  return Boolean(a && b && a.book === b.book && a.chapter === b.chapter && a.start <= b.end && b.start <= a.end);
+}
+
+function removeRedundantSemanticResults(results) {
+  const kept = [];
+  results.forEach((result) => {
+    const duplicatesEvidence = result.matchType === "Meaning match" && kept.some((candidate) => (
+      candidate.matchType !== "Meaning match" && searchReferencesOverlap(candidate.ref, result.ref)
+    ));
+    if (!duplicatesEvidence) kept.push(result);
+  });
+  return kept;
 }
 
 function searchVersion(version, criteria) {
@@ -8709,7 +8742,7 @@ function balancedSearchResults(results, primaryVersion) {
     ...translationCodes.filter(isRemoteTranslation),
     ...translationCodes,
   ]);
-  const matchTypeOrder = ["Question match", "Phrase", "Words", "Close match"];
+  const matchTypeOrder = ["Question match", "Meaning match", "Phrase", "Words", "Close match"];
   const ordered = [];
   matchTypeOrder.forEach((matchType) => {
     ordered.push(...balanceResultGroup(results.filter((result) => result.matchType === matchType), versionOrder));
@@ -8735,10 +8768,56 @@ function balanceResultGroup(results, versionOrder) {
 }
 
 async function searchRemoteVersions(query, criteria) {
-  const remoteVersions = translationCodes.filter((version) => isRemoteTranslation(version) && translationProvider(version).supportsSearch !== false);
+  const candidates = criteria.questionAnalysis?.isQuestion
+    ? uniqueList(state.versions.filter(isRemoteTranslation))
+    : translationCodes.filter(isRemoteTranslation);
+  const remoteVersions = candidates.filter((version) => translationProvider(version).supportsSearch !== false);
   if (!remoteVersions.length) return [];
   const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria)));
   return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+}
+
+async function searchSemanticBible(query, criteria) {
+  if (!criteria.questionAnalysis?.isQuestion) return [];
+  const config = window.BigScreenBibleSupabase || {};
+  const url = supabaseFunctionUrl("semantic-bible-search");
+  if (!url || !config.anonKey) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.anonKey,
+        Authorization: `Bearer ${config.anonKey}`,
+      },
+      body: JSON.stringify({ query, limit: 12, threshold: 0.55 }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return [];
+    return (Array.isArray(payload.results) ? payload.results : []).map((result) => {
+      const ref = String(result?.ref || "").trim();
+      const goto = String(result?.goto || ref).trim();
+      const text = String(result?.text || "").replace(/\s+/g, " ").trim();
+      const similarity = Math.max(0, Math.min(1, Number(result?.score) || 0));
+      if (!ref || !goto || !text) return null;
+      return {
+        ref,
+        goto,
+        version: "WEB",
+        text,
+        score: 150 + similarity * 40,
+        matchType: "Meaning match",
+      };
+    }).filter(Boolean);
+  } catch (_error) {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function searchRemoteVersion(version, query, criteria) {
