@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
+    "version:app": "node scripts/version-app.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:open:ios": "npm run cap:sync && npx cap open ios",
     "cap:open:android": "npm run cap:sync && npx cap open android"

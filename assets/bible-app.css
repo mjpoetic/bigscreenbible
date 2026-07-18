@@ -2283,6 +2283,40 @@ button {
   line-height: 1.4;
 }
 
+.app-update-settings {
+  gap: 10px;
+}
+
+.app-update-version-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-update-version {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.app-update-button {
+  width: 100%;
+  min-height: 40px;
+}
+
+.app-update-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.app-update-settings.update-available .setting-help {
+  color: var(--teal);
+  font-weight: 700;
+}
+
 .settings-popover .text-size-control {
   width: 100%;
   justify-content: space-between;

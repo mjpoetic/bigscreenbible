@@ -14,6 +14,14 @@ This project is a static site. To publish it with GitHub Pages:
 
 GitHub Pages will serve `index.html` from the repository root.
 
+Before publishing an app-shell update, assign one release version so the in-app update checker and every first-party CSS/JavaScript URL move together:
+
+```bash
+npm run version:app -- 2026.07.18.2
+```
+
+Commit the resulting `app-version.json` and HTML changes with the release. Home Screen users can then check Settings → App updates, and a newly published version can refresh in place while preserving the active mode, passage, selected verses, and reading position.
+
 ## Mobile Apps
 
 This project is set up with Capacitor so the same web app can be packaged for iOS and Android.

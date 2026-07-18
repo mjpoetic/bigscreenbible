@@ -201,12 +201,24 @@ const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
 const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
 const libraryScrollStorageKey = "lw_library_scroll_by_rail";
+const appUpdateRestoreStorageKey = "lw_app_update_restore";
+const appUpdateQueryKey = "appUpdate";
+const appUpdateScrollVerseQueryKey = "appUpdateVerse";
+const appUpdateScrollOffsetQueryKey = "appUpdateOffset";
+const appUpdateScrollTopQueryKey = "appUpdateScroll";
+const appUpdateCheckIntervalMs = 15 * 60 * 1000;
+const appVersion = document.querySelector('meta[name="app-version"]')?.content || "unknown";
 const horizontalSwipeMaxMs = 850;
 const horizontalSwipeMinPx = 56;
 const horizontalSwipeDominance = 1.35;
 const cloudSyncTable = "bsb_user_sync";
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
+let lastAppUpdateCheckAt = 0;
+let announcedAppUpdateVersion = "";
+let pendingAppUpdateRestore = null;
+let appUpdateRestoreAnnouncementTimer = 0;
+let appUpdateRestoreCleanupTimer = 0;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -312,11 +324,16 @@ const state = {
   pushStatus: "Checking notification support…",
   pushBusy: false,
   pushPromptVisible: false,
+  appUpdateBusy: false,
+  appUpdateAvailable: false,
+  appUpdateVersion: "",
+  appUpdateStatus: "Check for a newly published version without closing the app.",
   startupApplied: false,
   settingsOpen: false,
   settingsSectionsOpen: {
     reading: true,
     startup: false,
+    updates: false,
   },
   settingsAnchor: "header",
   settingsPopupPosition: null,
@@ -877,6 +894,7 @@ function render() {
   requestAnimationFrame(bindMobileSettingsVisibility);
   requestAnimationFrame(updateTutorialSpotlight);
   requestAnimationFrame(runPendingTriviaCelebration);
+  requestAnimationFrame(() => requestAnimationFrame(restorePendingAppUpdatePosition));
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
   scheduleReferenceRushTimer();
@@ -1625,6 +1643,250 @@ function startupReminderSettings(prefix = "") {
   `);
 }
 
+function appUpdateSettings(prefix = "") {
+  const buttonId = prefix ? `${prefix}AppUpdateButton` : "appUpdateButton";
+  const buttonLabel = state.appUpdateBusy
+    ? "Checking…"
+    : state.appUpdateAvailable
+      ? "Update now"
+      : "Check for updates";
+  const buttonClass = state.appUpdateAvailable ? "primary-btn" : "ghost-btn";
+  return settingsDisclosure("updates", "App updates", `
+    <div class="setting-group app-update-settings ${state.appUpdateAvailable ? "update-available" : ""}">
+      <div class="app-update-version-row">
+        <span class="setting-label">Installed version</span>
+        <span class="app-update-version">${escapeHtml(appVersion)}</span>
+      </div>
+      <button class="${buttonClass} app-update-button" id="${buttonId}" type="button" ${state.appUpdateBusy ? "disabled" : ""}>${buttonLabel}</button>
+      <p class="setting-help" aria-live="polite">${escapeHtml(state.appUpdateStatus)}</p>
+    </div>
+  `);
+}
+
+function appUpdateMetadataUrl() {
+  const url = new URL("./app-version.json", window.location.href);
+  url.searchParams.set("check", String(Date.now()));
+  return url;
+}
+
+function renderAppUpdateStatus() {
+  if (!state.settingsOpen || dataLoading || dataError) return;
+  renderPreservingReaderScroll({ preferLastReaderAnchor: true });
+}
+
+function isPublishedAppVersionNewer(publishedVersion, installedVersion) {
+  const numericVersion = /^\d+(?:\.\d+)+$/;
+  if (!numericVersion.test(publishedVersion) || !numericVersion.test(installedVersion)) {
+    return publishedVersion !== installedVersion;
+  }
+  const publishedParts = publishedVersion.split(".").map(Number);
+  const installedParts = installedVersion.split(".").map(Number);
+  const length = Math.max(publishedParts.length, installedParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const publishedPart = publishedParts[index] || 0;
+    const installedPart = installedParts[index] || 0;
+    if (publishedPart !== installedPart) return publishedPart > installedPart;
+  }
+  return false;
+}
+
+async function checkForAppUpdate(options = {}) {
+  if (state.appUpdateBusy) return;
+  const manual = Boolean(options.manual);
+  lastAppUpdateCheckAt = Date.now();
+  state.appUpdateBusy = true;
+  if (manual) {
+    state.appUpdateStatus = "Checking the published site…";
+    renderAppUpdateStatus();
+  }
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  let availableVersion = "";
+  try {
+    const response = await fetch(appUpdateMetadataUrl(), {
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Update check failed with ${response.status}`);
+    const payload = await response.json();
+    const publishedVersion = String(payload?.version || "").trim();
+    if (!/^[a-z0-9._-]{1,80}$/i.test(publishedVersion)) {
+      throw new Error("Published app version is missing or invalid");
+    }
+    state.appUpdateVersion = publishedVersion;
+    state.appUpdateAvailable = isPublishedAppVersionNewer(publishedVersion, appVersion);
+    state.appUpdateStatus = state.appUpdateAvailable
+      ? `Version ${publishedVersion} is ready. Update now to load it.`
+      : "Big Screen Bible is up to date.";
+    if (state.appUpdateAvailable) availableVersion = publishedVersion;
+  } catch (error) {
+    console.warn("Big Screen Bible update check failed", error);
+    if (manual) state.appUpdateStatus = "Unable to check right now. Confirm that this device is online and try again.";
+  } finally {
+    window.clearTimeout(timeout);
+    state.appUpdateBusy = false;
+    renderAppUpdateStatus();
+  }
+
+  if (availableVersion && announcedAppUpdateVersion !== availableVersion) {
+    announcedAppUpdateVersion = availableVersion;
+    showToast("A Big Screen Bible update is available in Settings");
+  }
+}
+
+function maybeCheckForAppUpdate() {
+  if (document.visibilityState !== "visible" || dataLoading || dataError || state.appUpdateBusy) return;
+  if (Date.now() - lastAppUpdateCheckAt < appUpdateCheckIntervalMs) return;
+  checkForAppUpdate();
+}
+
+function currentAppUpdateRestoreState(targetVersion) {
+  return {
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    targetVersion,
+    mode: state.mode,
+    reference: state.reference,
+    verse: state.verse,
+    selectedVerses: [...state.selectedVerses],
+    focusMode: state.focusMode,
+    libraryOpen: state.libraryOpen,
+    activeRail: state.activeRail,
+    presentationPart: state.presentationPart,
+    isVerseOfDayActive: state.isVerseOfDayActive,
+    verseOfDayItem: state.verseOfDayItem,
+    scrollState: captureReaderScroll({ preferLastReaderAnchor: true }),
+  };
+}
+
+function applyAppUpdate() {
+  const targetVersion = state.appUpdateVersion || appVersion;
+  const restoreState = currentAppUpdateRestoreState(targetVersion);
+  try {
+    sessionStorage.setItem(appUpdateRestoreStorageKey, JSON.stringify(restoreState));
+  } catch (error) {
+    console.warn("Reading position could not be saved for the app update", error);
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("mode", state.mode);
+  url.searchParams.set("ref", `${state.reference}:${state.verse}`);
+  if (state.selectedVerses.length) url.searchParams.set("verses", verseRangeParam(state.selectedVerses));
+  else url.searchParams.delete("verses");
+  url.searchParams.set(appUpdateQueryKey, targetVersion);
+  const readerAnchor = restoreState.scrollState?.readerAnchor;
+  if (readerAnchor?.verse) {
+    url.searchParams.set(appUpdateScrollVerseQueryKey, String(readerAnchor.verse));
+    url.searchParams.set(appUpdateScrollOffsetQueryKey, String(Math.round(Number(readerAnchor.offset) || 0)));
+  }
+  if (Number.isFinite(restoreState.scrollState?.scriptureTop)) {
+    url.searchParams.set(appUpdateScrollTopQueryKey, String(Math.round(restoreState.scrollState.scriptureTop)));
+  }
+  url.searchParams.delete("loaderPreview");
+  window.location.replace(url.toString());
+}
+
+function consumeAppUpdateRestoreState() {
+  let restoreState = null;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(appUpdateRestoreStorageKey) || "null");
+    sessionStorage.removeItem(appUpdateRestoreStorageKey);
+    if (saved && Number(saved.expiresAt) > Date.now()) restoreState = saved;
+  } catch (error) {
+    console.warn("Saved app update position could not be read", error);
+  }
+
+  const url = new URL(window.location.href);
+  const targetVersion = url.searchParams.get(appUpdateQueryKey) || "";
+  const scrollVerse = url.searchParams.get(appUpdateScrollVerseQueryKey) || "";
+  const scrollOffset = Number(url.searchParams.get(appUpdateScrollOffsetQueryKey));
+  const scriptureTop = Number(url.searchParams.get(appUpdateScrollTopQueryKey));
+  if (!restoreState && targetVersion) {
+    restoreState = {
+      expiresAt: Date.now() + 60 * 1000,
+      targetVersion,
+      mode: state.mode,
+      reference: state.reference,
+      verse: state.verse,
+      selectedVerses: [...state.selectedVerses],
+      focusMode: state.focusMode,
+      libraryOpen: state.libraryOpen,
+      activeRail: state.activeRail,
+      presentationPart: state.presentationPart,
+      isVerseOfDayActive: state.isVerseOfDayActive,
+      verseOfDayItem: state.verseOfDayItem,
+      scrollState: {
+        mode: state.mode,
+        reference: state.reference,
+        windowX: 0,
+        windowY: 0,
+        scriptureTop: Number.isFinite(scriptureTop) ? scriptureTop : 0,
+        scriptureLeft: 0,
+        triviaTop: null,
+        triviaLeft: null,
+        readerAnchor: scrollVerse ? {
+          mode: state.mode,
+          reference: state.reference,
+          verse: scrollVerse,
+          offset: Number.isFinite(scrollOffset) ? scrollOffset : 40,
+        } : null,
+      },
+    };
+  }
+  if (targetVersion) {
+    url.searchParams.delete(appUpdateQueryKey);
+    url.searchParams.delete(appUpdateScrollVerseQueryKey);
+    url.searchParams.delete(appUpdateScrollOffsetQueryKey);
+    url.searchParams.delete(appUpdateScrollTopQueryKey);
+    window.history?.replaceState?.(null, "", url);
+  }
+  return restoreState;
+}
+
+function applyAppUpdateRestoreState(restoreState) {
+  if (!restoreState) return null;
+  if (restoreState.reference && bibleData[restoreState.reference]) {
+    state.reference = restoreState.reference;
+    const verses = bibleData[state.reference].verses || [];
+    const restoredVerse = Number(restoreState.verse);
+    if (verses.some((verse) => verse.n === restoredVerse)) state.verse = restoredVerse;
+  }
+  if (["reader", "parallel", "big", "trivia"].includes(restoreState.mode)) state.mode = restoreState.mode;
+  state.selectedVerses = Array.isArray(restoreState.selectedVerses)
+    ? restoreState.selectedVerses.map(Number).filter(Number.isFinite)
+    : [];
+  state.focusMode = Boolean(restoreState.focusMode);
+  state.libraryOpen = Boolean(restoreState.libraryOpen);
+  state.activeRail = restoreState.activeRail || state.activeRail;
+  state.presentationPart = Number(restoreState.presentationPart) || 0;
+  state.isVerseOfDayActive = Boolean(restoreState.isVerseOfDayActive && restoreState.verseOfDayItem);
+  state.verseOfDayItem = restoreState.verseOfDayItem || null;
+  state.pendingVerseFocus = false;
+  return restoreState.scrollState || null;
+}
+
+function restorePendingAppUpdatePosition() {
+  if (!pendingAppUpdateRestore?.scrollState) return;
+  restoreReaderScroll(pendingAppUpdateRestore.scrollState);
+}
+
+function stageAppUpdatePositionRestore(scrollState, restoredVersion) {
+  if (!restoredVersion) return;
+  pendingAppUpdateRestore = { scrollState, restoredVersion };
+  window.clearTimeout(appUpdateRestoreAnnouncementTimer);
+  window.clearTimeout(appUpdateRestoreCleanupTimer);
+  appUpdateRestoreAnnouncementTimer = window.setTimeout(() => {
+    restorePendingAppUpdatePosition();
+    showToast(restoredVersion === appVersion ? `Updated to version ${appVersion}` : "Big Screen Bible refreshed");
+  }, 1400);
+  appUpdateRestoreCleanupTimer = window.setTimeout(() => {
+    restorePendingAppUpdatePosition();
+    pendingAppUpdateRestore = null;
+  }, 5000);
+}
+
 function mobileSettingsPanel() {
   if (state.mode === "big" || !state.settingsOpen) return "";
   const primaryVersion = state.versions[0] || "BSB";
@@ -1677,6 +1939,7 @@ function mobileSettingsPanel() {
       </div>
       ${readingDisplaySettings("mobile")}
       ${startupReminderSettings("mobile")}
+      ${appUpdateSettings("mobile")}
       <nav class="settings-legal-links" aria-label="Legal information">
         <a href="./privacy/">Privacy Policy</a>
         <span aria-hidden="true">·</span>
@@ -1817,6 +2080,7 @@ function topbar() {
           </div>
           ${readingDisplaySettings()}
           ${startupReminderSettings()}
+          ${appUpdateSettings()}
           <nav class="settings-legal-links" aria-label="Legal information">
             <a href="./privacy/">Privacy Policy</a>
             <span aria-hidden="true">·</span>
@@ -6225,6 +6489,12 @@ function bindEvents() {
     requestAnimationFrame(() => positionSettingsPopover("floating"));
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
+  ["appUpdateButton", "mobileAppUpdateButton"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      if (state.appUpdateAvailable) applyAppUpdate();
+      else checkForAppUpdate({ manual: true });
+    });
+  });
   document.querySelectorAll("[data-settings-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
@@ -10392,9 +10662,13 @@ async function initializeBibleData() {
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
     await applyStartupExperience();
+    const updateRestoreState = consumeAppUpdateRestoreState();
+    const updateScrollState = applyAppUpdateRestoreState(updateRestoreState);
+    stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
     dataLoading = false;
     render();
     maybeOfferPushNotifications();
+    window.setTimeout(maybeCheckForAppUpdate, 1200);
   } catch (error) {
     console.error(error);
     dataError = "The full Bible text files could not be loaded.";
@@ -10925,10 +11199,19 @@ document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") notePushVisit();
+  if (document.visibilityState === "visible") {
+    notePushVisit();
+    maybeCheckForAppUpdate();
+  }
 });
-window.addEventListener("pageshow", () => notePushVisit());
-window.setInterval(() => notePushVisit(), 15 * 60 * 1000);
+window.addEventListener("pageshow", () => {
+  notePushVisit();
+  maybeCheckForAppUpdate();
+});
+window.setInterval(() => {
+  notePushVisit();
+  maybeCheckForAppUpdate();
+}, appUpdateCheckIntervalMs);
 const streakUpdatedToday = recordReadingStreak();
 state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
