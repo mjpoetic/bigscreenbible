@@ -9797,7 +9797,16 @@ function normalizeBookName(value) {
     .replace(/\./g, "")
     .replace(/\s+/g, " ");
   const compact = cleaned.replace(/\s+/g, "");
-  return bookAliases[cleaned] || bookAliases[compact] || books.find((book) => book.toLowerCase() === cleaned) || null;
+  const exactMatch = bookAliases[cleaned] || bookAliases[compact];
+  if (exactMatch) return exactMatch;
+
+  // Keep very short or ambiguous prefixes from silently opening the wrong book.
+  if (cleaned.replace(/[^a-z]/g, "").length < 3) return null;
+  const prefixMatches = books.filter((book) => {
+    const normalizedBook = book.toLowerCase();
+    return normalizedBook.startsWith(cleaned) || normalizedBook.replace(/\s+/g, "").startsWith(compact);
+  });
+  return prefixMatches.length === 1 ? prefixMatches[0] : null;
 }
 
 function scrollSelectedVerseIntoView(options = {}) {
@@ -10343,7 +10352,7 @@ function buildBookAliases() {
   add("2 Corinthians", "2cor", "2co", "2 cor", "2 corinthians");
   add("Galatians", "gal");
   add("Ephesians", "eph");
-  add("Philippians", "phil", "php");
+  add("Philippians", "phi", "phil", "php");
   add("Colossians", "col");
   add("1 Thessalonians", "1th", "1thess", "1 thess", "1 thessalonians");
   add("2 Thessalonians", "2th", "2thess", "2 thess", "2 thessalonians");
