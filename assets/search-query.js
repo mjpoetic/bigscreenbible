@@ -2,7 +2,7 @@
   const questionStarts = /^(?:who|whom|whose|what|where|when|why|how|which)\b/i;
   const questionFrames = /^(?:can|could|did|do|does|is|are|was|were|will|would)\b/i;
   const stopWords = new Set([
-    "a", "about", "an", "and", "are", "bible", "can", "could", "did", "do", "does",
+    "a", "about", "an", "and", "are", "before", "bible", "can", "could", "did", "do", "does",
     "for", "from", "how", "i", "in", "is", "it", "me", "name", "of", "on", "person",
     "scripture", "tell", "that", "the", "this", "to", "verse", "was", "were", "what", "whats",
     "when", "where", "which", "who", "whom", "whose", "why", "will", "with", "would",
@@ -21,6 +21,36 @@
   ];
   const familyByTerm = new Map();
   conceptFamilies.forEach((family) => family.forEach((term) => familyByTerm.set(term, family)));
+  const excludedAnswerCategories = new Set(["Bible Library", "Bible Survey"]);
+  const answerOverrides = new Map([
+    ["who built the ark before the flood", {
+      reference: "Genesis 6:13-22",
+      variants: [
+        "Who built the ark?",
+        "What was the name of the person who built the ark?",
+        "Who made the ark?",
+      ],
+    }],
+    ["who received the ten commandments from god on mount sinai", {
+      variants: [
+        "Who received the Ten Commandments?",
+        "Who got the Ten Commandments?",
+        "What was the name of the person who received the Ten Commandments?",
+      ],
+    }],
+  ]);
+  const supplementalAnswers = [
+    {
+      category: "New Testament",
+      question: "What happened on the road to Damascus?",
+      variants: ["What happened to Saul on the road to Damascus?", "What happened to Paul on the road to Damascus?"],
+      answer: "Jesus appeared to Saul, who was blinded for three days.",
+      reference: "Acts 9:3-9",
+      explanation: "Saul encountered the risen Jesus and was led into Damascus without his sight.",
+    },
+  ];
+  let cachedAnswerSource = null;
+  let cachedAnswerEntries = [];
 
   function normalize(value) {
     return String(value || "")
@@ -112,5 +142,87 @@
     };
   }
 
-  global.BigScreenBibleSearchQuery = { analyze, normalize, scoreText };
+  function conceptsOverlap(left, right) {
+    return left.some((term) => right.includes(term));
+  }
+
+  function answerSimilarity(queryAnalysis, candidateAnalysis) {
+    if (!queryAnalysis?.isQuestion || !candidateAnalysis?.isQuestion) return 0;
+    if (queryAnalysis.normalized === candidateAnalysis.normalized) return 1;
+    if (queryAnalysis.concepts.length < 2 || candidateAnalysis.concepts.length < 2) return 0;
+    const matchedQuery = queryAnalysis.concepts.filter((queryConcept) => (
+      candidateAnalysis.concepts.some((candidateConcept) => conceptsOverlap(queryConcept, candidateConcept))
+    )).length;
+    const matchedCandidate = candidateAnalysis.concepts.filter((candidateConcept) => (
+      queryAnalysis.concepts.some((queryConcept) => conceptsOverlap(queryConcept, candidateConcept))
+    )).length;
+    const queryCoverage = matchedQuery / queryAnalysis.concepts.length;
+    const candidateCoverage = matchedCandidate / candidateAnalysis.concepts.length;
+    if (matchedQuery < 2 || queryCoverage < 0.75 || candidateCoverage < 0.6) return 0;
+    return queryCoverage * 0.55 + candidateCoverage * 0.45;
+  }
+
+  function eligibleAnswerQuestion(item) {
+    const question = String(item?.question || "").trim();
+    return Boolean(
+      question
+      && item?.answer
+      && item?.reference
+      && !excludedAnswerCategories.has(item.category)
+      && !/^which reference fits this clue:/i.test(question)
+      && !/^at .+,\s*what answer fits this clue:/i.test(question)
+    );
+  }
+
+  function verifiedAnswerEntries(items) {
+    if (items === cachedAnswerSource) return cachedAnswerEntries;
+    const gameAnswers = (Array.isArray(items) ? items : [])
+      .filter(eligibleAnswerQuestion)
+      .map((item) => {
+        const override = answerOverrides.get(normalize(item.question)) || {};
+        return {
+          category: item.category,
+          question: item.question,
+          variants: override.variants || [],
+          answer: override.answer || item.answer,
+          reference: override.reference || item.reference,
+          explanation: override.explanation || item.explanation || "",
+        };
+      });
+    cachedAnswerSource = items;
+    cachedAnswerEntries = [...supplementalAnswers, ...gameAnswers].map((entry) => ({
+      ...entry,
+      analyses: [entry.question, ...(entry.variants || [])].map(analyze),
+    }));
+    return cachedAnswerEntries;
+  }
+
+  function matchVerifiedAnswer(value, items) {
+    const queryAnalysis = analyze(value);
+    if (!queryAnalysis.isQuestion) return null;
+    const matches = verifiedAnswerEntries(items)
+      .map((entry) => {
+        const confidence = Math.max(...entry.analyses.map((analysis) => answerSimilarity(queryAnalysis, analysis)));
+        return { entry, confidence };
+      })
+      .filter((match) => match.confidence >= 0.82)
+      .sort((left, right) => right.confidence - left.confidence);
+    if (!matches.length) return null;
+    const best = matches[0];
+    if (best.confidence < 1) {
+      const competing = matches.find((match) => (
+        match.entry.answer !== best.entry.answer || match.entry.reference !== best.entry.reference
+      ));
+      if (competing && best.confidence - competing.confidence < 0.08) return null;
+    }
+    return {
+      answer: best.entry.answer,
+      reference: best.entry.reference,
+      explanation: best.entry.explanation,
+      question: best.entry.question,
+      confidence: best.confidence,
+    };
+  }
+
+  global.BigScreenBibleSearchQuery = { analyze, matchVerifiedAnswer, normalize, scoreText };
 })(typeof window === "undefined" ? globalThis : window);

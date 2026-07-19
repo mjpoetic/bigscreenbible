@@ -5479,6 +5479,63 @@ select {
   padding: 0 2px;
 }
 
+.verified-answer {
+  display: grid;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--success) 44%, var(--line));
+  border-left: 4px solid var(--success);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--success) 10%, var(--paper));
+  padding: 16px;
+}
+
+.verified-answer-label,
+.search-passages-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.verified-answer-text {
+  color: var(--ink);
+  font-size: clamp(22px, 2vw, 28px);
+  line-height: 1.15;
+}
+
+.verified-answer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.verified-answer-reference {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--success) 28%, var(--line));
+  background: transparent;
+  color: var(--gold);
+  padding: 11px 0 0;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.verified-answer-reference:hover,
+.verified-answer-reference:focus-visible {
+  color: var(--teal);
+}
+
+.search-passages-label {
+  margin-top: 4px;
+}
+
 .muted,
 .ref-copy,
 .note-copy {

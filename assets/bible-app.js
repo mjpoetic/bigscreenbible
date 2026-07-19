@@ -281,6 +281,8 @@ const strongs = {
   G26: ["agape", "Love, goodwill, affection, benevolence, or self-giving devotion."],
 };
 
+let searchRequestId = 0;
+
 const state = {
   mode: "reader",
   reference: "John 3",
@@ -357,6 +359,7 @@ const state = {
   searchQuery: "",
   searchResultsQuery: "",
   searchResults: [],
+  searchPending: false,
   pendingPanelFocus: null,
   pendingVerseFocus: false,
   pendingLibraryScrollRestore: false,
@@ -5814,15 +5817,33 @@ function searchResultsMarkup() {
   if (!query) {
     return `<div class="empty-state">Search by phrase, word, question, or reference. Try “love one another” or “Who built the ark?”</div>`;
   }
-  if (!state.searchResults.length) {
+  const verifiedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, window.bibleTriviaQuestions);
+  if (!state.searchResults.length && !verifiedAnswer && !state.searchPending) {
     return `<div class="empty-state">No matches found for ${escapeHtml(query)}.</div>`;
   }
-  return state.searchResults.map((result) => `
+  const answerMarkup = verifiedAnswer ? `
+    <article class="verified-answer" aria-label="Verified answer">
+      <div class="verified-answer-label">Verified answer</div>
+      <strong class="verified-answer-text">${escapeHtml(verifiedAnswer.answer)}</strong>
+      ${verifiedAnswer.explanation ? `<p>${escapeHtml(verifiedAnswer.explanation)}</p>` : ""}
+      <button class="verified-answer-reference" type="button" data-goto="${escapeHtml(verifiedAnswer.reference)}" data-search-result="true">
+        <span>${escapeHtml(verifiedAnswer.reference)}</span>
+        <span>Read passage <span aria-hidden="true">→</span></span>
+      </button>
+    </article>
+  ` : "";
+  const passageMarkup = state.searchResults.map((result) => `
     <button class="search-result" data-goto="${escapeHtml(result.goto || result.ref)}" data-search-result="true">
       <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}${result.matchType ? ` · ${escapeHtml(result.matchType)}` : ""}</div>
       <div class="ref-copy">${highlightSearchTerms(result.text, query)}</div>
     </button>
   `).join("");
+  return `
+    ${answerMarkup}
+    ${verifiedAnswer && passageMarkup ? `<div class="search-passages-label">Related passages</div>` : ""}
+    ${passageMarkup}
+    ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages…</div>` : ""}
+  `;
 }
 
 function highlightSearchTerms(text, query) {
@@ -8573,7 +8594,9 @@ function gotoReference(value, options = {}) {
       state.returnSelectionToolsOpen = false;
     }
     if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
+    searchRequestId += 1;
     state.searchQuery = "";
+    state.searchPending = false;
     if (options.closeLibrary) {
       dismissLibraryAfterAction();
     }
@@ -8599,10 +8622,11 @@ async function runReferenceOrPhraseSearch(value) {
 async function runPhraseSearch(value) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
+  const requestId = ++searchRequestId;
   state.searchQuery = query;
   state.searchResultsQuery = query;
-  await ensureAllSearchVersionsLoaded();
-  state.searchResults = await searchBible(query);
+  state.searchResults = [];
+  state.searchPending = true;
   state.mode = state.mode === "big" ? "reader" : state.mode;
   if (state.focusMode) {
     state.focusMode = false;
@@ -8613,12 +8637,27 @@ async function runPhraseSearch(value) {
   state.pendingPanelFocus = "Search";
   localStorage.setItem("lw_library_open", "true");
   render();
+  try {
+    await ensureAllSearchVersionsLoaded();
+    const results = await searchBible(query);
+    if (requestId !== searchRequestId || state.searchResultsQuery !== query) return;
+    state.searchResults = results;
+  } catch (error) {
+    if (requestId === searchRequestId) console.warn("Bible search failed", error);
+  } finally {
+    if (requestId === searchRequestId && state.searchResultsQuery === query) {
+      state.searchPending = false;
+      render();
+    }
+  }
 }
 
 function clearSearchResults() {
+  searchRequestId += 1;
   state.searchQuery = "";
   state.searchResultsQuery = "";
   state.searchResults = [];
+  state.searchPending = false;
   render();
 }
 
