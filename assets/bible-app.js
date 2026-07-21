@@ -6310,11 +6310,93 @@ function shortcutOverlay() {
           </div>
           <button class="primary-btn" id="startHelpTour" type="button">Take tour</button>
         </div>
+        <section class="gesture-guide" aria-labelledby="gestureGuideTitle">
+          <div class="gesture-guide-head">
+            <div>
+              <div class="shortcut-eyebrow">On touch devices</div>
+              <h3 id="gestureGuideTitle">Touch gestures</h3>
+            </div>
+            <p>Quick ways to adjust your reading space.</p>
+          </div>
+          <div class="gesture-guide-grid">
+            <figure class="gesture-guide-card" aria-labelledby="pinchGestureTitle">
+              <div class="gesture-demo-frame">
+                <svg class="gesture-demo gesture-demo-pinch" viewBox="0 0 180 96" aria-hidden="true" focusable="false">
+                  <rect class="gesture-demo-surface" x="8" y="8" width="164" height="80" rx="13" />
+                  <g class="gesture-demo-lines">
+                    <path d="M24 27h132M24 39h96M24 61h132M24 73h108" />
+                  </g>
+                  <g class="gesture-pinch-arrows">
+                    <path d="M69 49H43m0 0 7-7m-7 7 7 7M111 49h26m0 0-7-7m7 7-7 7" />
+                  </g>
+                  <g class="gesture-touch gesture-touch-left">
+                    <circle class="gesture-touch-halo" cx="78" cy="49" r="12" />
+                    <circle class="gesture-touch-dot" cx="78" cy="49" r="5" />
+                  </g>
+                  <g class="gesture-touch gesture-touch-right">
+                    <circle class="gesture-touch-halo" cx="102" cy="49" r="12" />
+                    <circle class="gesture-touch-dot" cx="102" cy="49" r="5" />
+                  </g>
+                </svg>
+              </div>
+              <figcaption>
+                <strong id="pinchGestureTitle">Pinch</strong>
+                <span>Resize Scripture text</span>
+              </figcaption>
+            </figure>
+            <figure class="gesture-guide-card" aria-labelledby="twoFingerGestureTitle">
+              <div class="gesture-demo-frame">
+                <svg class="gesture-demo gesture-demo-two-tap" viewBox="0 0 180 96" aria-hidden="true" focusable="false">
+                  <rect class="gesture-demo-surface" x="8" y="8" width="164" height="80" rx="13" />
+                  <g class="gesture-demo-lines">
+                    <path d="M24 27h132M24 39h105M24 61h132M24 73h116" />
+                  </g>
+                  <g class="gesture-tap-pair">
+                    <circle class="gesture-tap-ripple gesture-tap-ripple-left" cx="72" cy="49" r="15" />
+                    <circle class="gesture-tap-ripple gesture-tap-ripple-right" cx="108" cy="49" r="15" />
+                    <g class="gesture-touch gesture-touch-left">
+                      <circle class="gesture-touch-halo" cx="72" cy="49" r="12" />
+                      <circle class="gesture-touch-dot" cx="72" cy="49" r="5" />
+                    </g>
+                    <g class="gesture-touch gesture-touch-right">
+                      <circle class="gesture-touch-halo" cx="108" cy="49" r="12" />
+                      <circle class="gesture-touch-dot" cx="108" cy="49" r="5" />
+                    </g>
+                  </g>
+                </svg>
+              </div>
+              <figcaption>
+                <strong id="twoFingerGestureTitle">Two-finger tap</strong>
+                <span>Toggle Focus Mode</span>
+              </figcaption>
+            </figure>
+            <figure class="gesture-guide-card" aria-labelledby="doubleTapGestureTitle">
+              <div class="gesture-demo-frame">
+                <svg class="gesture-demo gesture-demo-double-tap" viewBox="0 0 180 96" aria-hidden="true" focusable="false">
+                  <rect class="gesture-demo-surface" x="8" y="8" width="164" height="80" rx="13" />
+                  <g class="gesture-demo-lines gesture-demo-lines-short">
+                    <path d="M24 27h79M24 39h66M24 61h79M24 73h72" />
+                  </g>
+                  <path class="gesture-blank-divider" d="M118 20v56" />
+                  <circle class="gesture-tap-ripple gesture-double-ripple-one" cx="142" cy="49" r="15" />
+                  <circle class="gesture-tap-ripple gesture-double-ripple-two" cx="142" cy="49" r="15" />
+                  <g class="gesture-touch gesture-double-touch">
+                    <circle class="gesture-touch-halo" cx="142" cy="49" r="12" />
+                    <circle class="gesture-touch-dot" cx="142" cy="49" r="5" />
+                  </g>
+                </svg>
+              </div>
+              <figcaption>
+                <strong id="doubleTapGestureTitle">Double-tap blank space</strong>
+                <span>Toggle Focus Mode</span>
+              </figcaption>
+            </figure>
+          </div>
+        </section>
         <div class="help-grid">
           <div><strong>Search</strong><span>Find a verse by reference or by remembered words.</span></div>
           <div><strong>Study</strong><span>Use notes, highlights, bookmarks, cross references, and history from the side tools.</span></div>
           <div><strong>Display</strong><span>Big Screen Mode is built for clean, full-screen Scripture display.</span></div>
-          <div><strong>Touch</strong><span>Swipe to change chapters, pinch to resize text, or toggle Focus Mode with a two-finger tap or a double-tap on blank reading space.</span></div>
           <div><strong>Games</strong><span>Practice Bible knowledge with trivia, verse order, and quick-reference games.</span></div>
         </div>
         <a class="help-about-link" href="./about.html">About Big Screen Bible</a>

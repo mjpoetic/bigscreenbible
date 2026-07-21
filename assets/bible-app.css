@@ -6467,6 +6467,221 @@ select {
   line-height: 1.35;
 }
 
+.gesture-guide {
+  margin: 14px 22px 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--soft) 70%, transparent);
+}
+
+.gesture-guide-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.gesture-guide-head h3 {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font: 700 18px/1.2 "Libre Baskerville", Georgia, serif;
+}
+
+.gesture-guide-head p {
+  max-width: 28ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.gesture-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.gesture-guide-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.gesture-demo-frame {
+  padding: 7px 7px 0;
+}
+
+.gesture-demo {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--teal);
+}
+
+.gesture-demo-surface {
+  fill: color-mix(in srgb, var(--panel) 82%, var(--soft));
+  stroke: color-mix(in srgb, var(--line) 86%, transparent);
+  stroke-width: 1.5;
+}
+
+.gesture-demo-lines {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 23%, transparent);
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.gesture-demo-lines-short {
+  stroke: color-mix(in srgb, var(--ink) 29%, transparent);
+}
+
+.gesture-touch,
+.gesture-tap-pair,
+.gesture-pinch-arrows,
+.gesture-tap-ripple,
+.gesture-double-touch {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.gesture-touch-halo {
+  fill: color-mix(in srgb, var(--teal) 16%, var(--panel));
+  stroke: color-mix(in srgb, var(--teal) 72%, var(--line));
+  stroke-width: 1.8;
+}
+
+.gesture-touch-dot {
+  fill: var(--teal);
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--teal) 28%, transparent));
+}
+
+.gesture-pinch-arrows {
+  fill: none;
+  stroke: var(--gold);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+  animation: gestureArrows 3.2s ease-in-out infinite;
+}
+
+.gesture-demo-pinch .gesture-touch-left {
+  animation: gesturePinchLeft 3.2s ease-in-out infinite;
+}
+
+.gesture-demo-pinch .gesture-touch-right {
+  animation: gesturePinchRight 3.2s ease-in-out infinite;
+}
+
+.gesture-tap-ripple {
+  fill: none;
+  stroke: color-mix(in srgb, var(--teal) 72%, transparent);
+  stroke-width: 2;
+  opacity: 0;
+}
+
+.gesture-demo-two-tap .gesture-touch {
+  animation: gestureTapFinger 2.8s var(--motion-ease) infinite;
+}
+
+.gesture-demo-two-tap .gesture-tap-ripple {
+  animation: gestureTapRipple 2.8s var(--motion-ease) infinite;
+}
+
+.gesture-blank-divider {
+  fill: none;
+  stroke: color-mix(in srgb, var(--gold) 62%, var(--line));
+  stroke-dasharray: 3 5;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.gesture-double-touch {
+  animation: gestureDoubleTapFinger 3.2s var(--motion-ease) infinite;
+}
+
+.gesture-double-ripple-one {
+  animation: gestureDoubleRippleOne 3.2s var(--motion-ease) infinite;
+}
+
+.gesture-double-ripple-two {
+  animation: gestureDoubleRippleTwo 3.2s var(--motion-ease) infinite;
+}
+
+.gesture-guide-card figcaption {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-height: 60px;
+  padding: 9px 10px 11px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.gesture-guide-card figcaption strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.gesture-guide-card figcaption span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+@keyframes gesturePinchLeft {
+  0%, 12%, 88%, 100% { transform: translateX(6px); }
+  38%, 62% { transform: translateX(-9px); }
+}
+
+@keyframes gesturePinchRight {
+  0%, 12%, 88%, 100% { transform: translateX(-6px); }
+  38%, 62% { transform: translateX(9px); }
+}
+
+@keyframes gestureArrows {
+  0%, 12%, 88%, 100% { opacity: 0.18; }
+  32%, 68% { opacity: 1; }
+}
+
+@keyframes gestureTapFinger {
+  0%, 10%, 38%, 100% { transform: translateY(-6px); }
+  18%, 27% { transform: translateY(0); }
+}
+
+@keyframes gestureTapRipple {
+  0%, 16% { opacity: 0; transform: scale(0.72); }
+  26% { opacity: 0.8; }
+  42%, 100% { opacity: 0; transform: scale(1.45); }
+}
+
+@keyframes gestureDoubleTapFinger {
+  0%, 8%, 25%, 42%, 100% { transform: translateY(-6px); }
+  14%, 19%, 31%, 36% { transform: translateY(0); }
+}
+
+@keyframes gestureDoubleRippleOne {
+  0%, 12% { opacity: 0; transform: scale(0.72); }
+  20% { opacity: 0.8; }
+  30%, 100% { opacity: 0; transform: scale(1.45); }
+}
+
+@keyframes gestureDoubleRippleTwo {
+  0%, 29% { opacity: 0; transform: scale(0.72); }
+  37% { opacity: 0.8; }
+  47%, 100% { opacity: 0; transform: scale(1.45); }
+}
+
 .help-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11067,6 +11282,45 @@ svg {
     margin: 14px 18px 0;
   }
 
+  .gesture-guide {
+    margin: 12px 18px 0;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .gesture-guide-head {
+    align-items: start;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .gesture-guide-head p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .gesture-guide-grid {
+    display: flex;
+    gap: 9px;
+    overflow-x: auto;
+    margin-inline: -3px;
+    padding: 0 3px 6px;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gesture-guide-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gesture-guide-card {
+    flex: 0 0 min(210px, 70vw);
+    scroll-snap-align: start;
+  }
+
   .help-grid {
     grid-template-columns: 1fr;
     padding: 12px 18px 2px;
@@ -11138,6 +11392,15 @@ svg {
     animation-name: chapter-change-indicator-reduced !important;
     animation-duration: 320ms !important;
     animation-timing-function: linear !important;
+  }
+
+  .gesture-guide :is(
+    .gesture-pinch-arrows,
+    .gesture-touch,
+    .gesture-tap-ripple,
+    .gesture-double-touch
+  ) {
+    animation: none !important;
   }
 }
 
