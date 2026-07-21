@@ -67,6 +67,13 @@ const translationProvider = (version) => bibleProviders[translationLookup[versio
 const isRemoteTranslation = (version) => translationProvider(version).type === "remote";
 const isBundledTranslation = (version) => translationProvider(version).type === "bundled";
 
+const printLayouts = [
+  { code: "standard", name: "Standard", description: "One verse per line, matching the current print layout." },
+  { code: "paragraph", name: "Paragraph", description: "Natural paragraph flow when paragraph breaks are available for the selected Bible version." },
+  { code: "big-screen", name: "Big Screen", description: "Large quotation-style Scripture with the reference above it." },
+];
+const printLayoutCodes = printLayouts.map((layout) => layout.code);
+
 const themePresets = [
   { code: "paper", name: "Paper", mode: "light" },
   { code: "parchment", name: "Parchment", mode: "light" },
@@ -304,6 +311,9 @@ const state = {
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
+  printLayout: savedPrintLayout(),
+  printVerseNumbers: localStorage.getItem("lw_print_verse_numbers") !== "false",
+  printFullVersionName: localStorage.getItem("lw_print_full_version_name") === "true",
   sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
   redLetters: savedRedLetters(),
   strongNumbers: savedStrongNumbers(),
@@ -347,6 +357,7 @@ const state = {
   settingsSectionsOpen: {
     reading: true,
     startup: false,
+    printing: false,
     updates: false,
   },
   settingsAnchor: "header",
@@ -474,6 +485,11 @@ function savedParagraphLayout() {
   if (saved === "true") return true;
   if (saved === "false") return false;
   return true;
+}
+
+function savedPrintLayout() {
+  const saved = localStorage.getItem("lw_print_layout");
+  return printLayoutCodes.includes(saved) ? saved : "standard";
 }
 
 function savedSideToolbarPosition() {
@@ -1657,6 +1673,32 @@ function readingDisplaySettings(prefix = "") {
   `);
 }
 
+function printingSettings(prefix = "") {
+  const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  const selectedLayout = printLayouts.find((layout) => layout.code === state.printLayout) || printLayouts[0];
+  return settingsDisclosure("printing", "Printing", `
+    <div class="setting-group">
+      <span class="setting-label" id="${controlId("PrintLayoutLabel")}">Print layout</span>
+      <div class="theme-mode-segment print-layout-segment" role="group" aria-labelledby="${controlId("PrintLayoutLabel")}">
+        ${printLayouts.map((layout) => `
+          <button class="theme-mode-button ${layout.code === state.printLayout ? "active" : ""}" type="button" data-print-layout="${layout.code}" aria-pressed="${layout.code === state.printLayout ? "true" : "false"}">${layout.name}</button>
+        `).join("")}
+      </div>
+      <p class="setting-help">${escapeHtml(selectedLayout.description)}</p>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("PrintVerseNumbersToggle")}" ${state.printVerseNumbers ? "checked" : ""} />
+        <span>Show verse numbers</span>
+      </label>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("PrintFullVersionNameToggle")}" ${state.printFullVersionName ? "checked" : ""} />
+        <span>Use full Bible version name</span>
+      </label>
+    </div>
+  `);
+}
+
 function startupReminderSettings(prefix = "") {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("startup", "Startup & reminders", `
@@ -2010,6 +2052,7 @@ function mobileSettingsPanel() {
         </div>
       </div>
       ${readingDisplaySettings("mobile")}
+      ${printingSettings("mobile")}
       ${startupReminderSettings("mobile")}
       ${appUpdateSettings("mobile")}
       <nav class="settings-legal-links" aria-label="Legal information">
@@ -2151,6 +2194,7 @@ function topbar() {
             </div>
           </div>
           ${readingDisplaySettings()}
+          ${printingSettings()}
           ${startupReminderSettings()}
           ${appUpdateSettings()}
           <nav class="settings-legal-links" aria-label="Legal information">
@@ -4021,6 +4065,9 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       paragraphLayout: state.paragraphLayout,
+      printLayout: state.printLayout,
+      printVerseNumbers: state.printVerseNumbers,
+      printFullVersionName: state.printFullVersionName,
       sectionHeadings: state.sectionHeadings,
       redLetters: state.redLetters,
       strongNumbers: state.strongNumbers,
@@ -4121,6 +4168,13 @@ function applyCloudSnapshot(snapshot) {
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
+  state.printLayout = printLayoutCodes.includes(settings.printLayout) ? settings.printLayout : savedPrintLayout();
+  state.printVerseNumbers = typeof settings.printVerseNumbers === "boolean"
+    ? settings.printVerseNumbers
+    : localStorage.getItem("lw_print_verse_numbers") !== "false";
+  state.printFullVersionName = typeof settings.printFullVersionName === "boolean"
+    ? settings.printFullVersionName
+    : localStorage.getItem("lw_print_full_version_name") === "true";
   state.sectionHeadings = settings.sectionHeadings !== false;
   state.redLetters = typeof settings.redLetters === "boolean" ? settings.redLetters : savedRedLetters();
   state.strongNumbers = typeof settings.strongNumbers === "boolean" ? settings.strongNumbers : savedStrongNumbers();
@@ -4158,6 +4212,9 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
+  localStorage.setItem("lw_print_layout", state.printLayout);
+  localStorage.setItem("lw_print_verse_numbers", String(state.printVerseNumbers));
+  localStorage.setItem("lw_print_full_version_name", String(state.printFullVersionName));
   localStorage.setItem("lw_section_headings", String(state.sectionHeadings));
   localStorage.setItem("lw_red_letters", String(state.redLetters));
   localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
@@ -5975,6 +6032,7 @@ function bottombar() {
   const hasPassageSelection = state.selectedVerses.length > 0;
   const copyActionLabel = hasPassageSelection ? "Copy passage" : "Copy verse";
   const printActionLabel = hasPassageSelection ? "Print passage" : "Print";
+  const printTooltipLabel = `${printActionLabel} · ${activePrintLayoutName()} layout`;
   const footerVersions = state.mode === "parallel"
     ? activeVersions()
     : [state.versions[0] || activeVersions()[0] || "BSB"];
@@ -6018,7 +6076,7 @@ function bottombar() {
               <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
               <span class="bottom-action-label">${copyActionLabel}</span>
             </button>
-            <button class="ghost-btn bottom-action" id="printPage" aria-label="${printActionLabel}" data-tooltip="${printActionLabel}" data-selection-action>
+            <button class="ghost-btn bottom-action" id="printPage" aria-label="${printTooltipLabel}" data-tooltip="${printTooltipLabel}" data-selection-action>
               <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
               <span class="bottom-action-label">${printActionLabel}</span>
             </button>
@@ -6060,7 +6118,7 @@ function selectionBar() {
       <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
       <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
       <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
-      <button class="text-btn selection-action" id="printSelection" aria-label="Print passage" data-tooltip="Print"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
+      <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
       <button class="text-btn selection-action" id="clearSelection" aria-label="Clear selected verses" data-tooltip="Clear"><span class="selection-action-icon">${icons.clear}</span><span class="selection-action-label">Clear</span></button>
     </div>
   `;
@@ -6246,28 +6304,101 @@ function presentation() {
   `;
 }
 
+function printVersionLabel(version = state.versions[0]) {
+  return state.printFullVersionName
+    ? translationLookup[version]?.name || translationDisplayCode(version)
+    : translationDisplayCode(version);
+}
+
+function activePrintLayoutName() {
+  return printLayouts.find((layout) => layout.code === state.printLayout)?.name || printLayouts[0].name;
+}
+
+function printVerseNumberMarkup(verseNumber) {
+  return state.printVerseNumbers ? `<sup>${verseNumber}</sup>` : "";
+}
+
+function printVerseTextMarkup({ n, text, verse }, version) {
+  return `${printVerseNumberMarkup(n)}${renderRedLetterText(text, wordsOfJesusRanges(verse, version))}`;
+}
+
+function standardPrintPassageMarkup(lines, version) {
+  return lines.map((line) => `
+    ${sectionHeadingsMarkup(line.verse, version, "print-heading-group")}
+    <p class="print-standard-verse">${printVerseTextMarkup(line, version)}</p>
+  `).join("");
+}
+
+function paragraphPrintPassageMarkup(lines, version) {
+  const chapter = currentChapter();
+  const paragraphStarts = chapter?.verses?.filter((verse) => paragraphStartForVerse(verse, version)) || [];
+  if (paragraphStarts.length <= 1 && chapter?.verses?.length > 1) {
+    return standardPrintPassageMarkup(lines, version);
+  }
+  const blocks = [];
+  let paragraph = [];
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    blocks.push(`
+      <p class="print-paragraph">
+        ${paragraph.map((line) => `<span class="print-verse">${printVerseTextMarkup(line, version)}</span>`).join("")}
+      </p>
+    `);
+    paragraph = [];
+  };
+
+  lines.forEach((line) => {
+    const headings = sectionHeadingsMarkup(line.verse, version, "print-heading-group");
+    if (headings) {
+      flushParagraph();
+      blocks.push(headings);
+    }
+    if (paragraph.length && paragraphStartForVerse(line.verse, version)) flushParagraph();
+    paragraph.push(line);
+  });
+  flushParagraph();
+  return blocks.join("");
+}
+
+function bigScreenPrintPassageMarkup(lines, version) {
+  return `
+    <blockquote class="print-big-screen-quote">
+      ${lines.map((line) => `<span class="print-verse">${printVerseTextMarkup(line, version)}</span>`).join("")}
+    </blockquote>
+  `;
+}
+
+function printPassageMarkup(lines, version) {
+  if (state.printLayout === "paragraph") return paragraphPrintPassageMarkup(lines, version);
+  if (state.printLayout === "big-screen") return bigScreenPrintPassageMarkup(lines, version);
+  return standardPrintPassageMarkup(lines, version);
+}
+
 function printSheet() {
+  const layoutClass = `print-layout-${state.printLayout}`;
   if (state.isVerseOfDayActive && state.verseOfDayItem) {
+    const verseCopy = `${printVerseNumberMarkup(state.verse)}${escapeHtml(state.verseOfDayItem.verseText)}`;
+    const passageMarkup = state.printLayout === "big-screen"
+      ? `<blockquote class="print-big-screen-quote"><span class="print-verse">${verseCopy}</span></blockquote>`
+      : `<p class="${state.printLayout === "paragraph" ? "print-paragraph" : "print-standard-verse"}">${verseCopy}</p>`;
     return `
-      <section class="print-sheet" aria-hidden="true">
+      <section class="print-sheet ${layoutClass}" aria-hidden="true">
         <div class="print-brand">Big Screen Bible</div>
         <h1>${escapeHtml(state.verseOfDayItem.reference)}</h1>
-        <p>${escapeHtml(state.verseOfDayItem.verseText)}</p>
+        ${passageMarkup}
         ${verseOfDayAttributionMarkup("print-attribution")}
       </section>
     `;
   }
+  const version = state.versions[0];
   const lines = passageLines();
   return `
-    <section class="print-sheet" aria-hidden="true">
+    <section class="print-sheet ${layoutClass}" aria-hidden="true">
       <div class="print-brand">Big Screen Bible</div>
       <h1>${printReferenceLabel()}</h1>
-      <div class="print-version">${translationDisplayCode(state.versions[0])}</div>
-      ${lines.map(({ n, text, verse }) => `
-        ${sectionHeadingsMarkup(verse, state.versions[0], "print-heading-group")}
-        <p><sup>${n}</sup>${renderRedLetterText(text, wordsOfJesusRanges(verse, state.versions[0]))}</p>
-      `).join("")}
-      ${apiBibleAttributionMarkup([state.versions[0]], "print-attribution")}
+      <div class="print-version">${escapeHtml(printVersionLabel(version))}</div>
+      ${printPassageMarkup(lines, version)}
+      ${apiBibleAttributionMarkup([version], "print-attribution")}
     </section>
   `;
 }
@@ -6741,6 +6872,32 @@ function bindEvents() {
     localStorage.setItem("lw_paragraph_layout", state.paragraphLayout ? "true" : "false");
     scheduleCloudSync();
     renderPreservingReaderScroll();
+  });
+  document.querySelectorAll("[data-print-layout]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const layout = button.dataset.printLayout;
+      if (!printLayoutCodes.includes(layout) || layout === state.printLayout) return;
+      state.printLayout = layout;
+      localStorage.setItem("lw_print_layout", layout);
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
+  });
+  ["printVerseNumbersToggle", "mobilePrintVerseNumbersToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state.printVerseNumbers = event.target.checked;
+      localStorage.setItem("lw_print_verse_numbers", state.printVerseNumbers ? "true" : "false");
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
+  });
+  ["printFullVersionNameToggle", "mobilePrintFullVersionNameToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state.printFullVersionName = event.target.checked;
+      localStorage.setItem("lw_print_full_version_name", state.printFullVersionName ? "true" : "false");
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
   });
   document.getElementById("sectionHeadingsToggle")?.addEventListener("change", (event) => {
     setSectionHeadings(event.target.checked);

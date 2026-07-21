@@ -2403,6 +2403,13 @@ button {
   color: var(--accent-ink);
 }
 
+.print-layout-segment .theme-mode-button {
+  min-height: 42px;
+  padding: 6px;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
 .settings-popover .theme-toggle,
 .settings-popover .fullscreen-btn,
 .settings-popover .system-theme-btn {
@@ -11498,6 +11505,66 @@ svg {
     margin: 0 0 18px;
     font-size: 20px;
     line-height: 1.62;
+  }
+
+  .print-paragraph .print-verse + .print-verse::before,
+  .print-big-screen-quote .print-verse + .print-verse::before {
+    content: " ";
+  }
+
+  .print-layout-big-screen {
+    text-align: center;
+  }
+
+  .print-layout-big-screen .print-brand {
+    margin-bottom: 34px;
+  }
+
+  .print-layout-big-screen h1 {
+    font-size: 26px;
+  }
+
+  .print-layout-big-screen .print-version {
+    margin-bottom: 42px;
+  }
+
+  .print-big-screen-quote {
+    position: relative;
+    max-width: 6.4in;
+    margin: 0 auto 42px;
+    padding: 28px 48px;
+    border: 0;
+    color: #151515;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.42;
+    text-align: center;
+  }
+
+  .print-big-screen-quote::before,
+  .print-big-screen-quote::after {
+    position: absolute;
+    color: #b17a25;
+    font-family: Georgia, serif;
+    font-size: 76px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .print-big-screen-quote::before {
+    content: "“";
+    top: 0;
+    left: 0;
+  }
+
+  .print-big-screen-quote::after {
+    content: "”";
+    right: 0;
+    bottom: -10px;
+  }
+
+  .print-big-screen-quote sup {
+    vertical-align: super;
   }
 
   .print-sheet sup {
