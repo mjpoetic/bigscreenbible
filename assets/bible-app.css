@@ -2324,15 +2324,19 @@ button {
 
 .settings-control-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(136px, 1fr) 122px;
   align-items: stretch;
   gap: 8px;
 }
 
 .settings-control-row .text-size-control {
+  display: grid;
+  grid-template-columns: 32px minmax(54px, 1fr) 32px;
   width: 100%;
   min-height: 38px;
   min-width: 0;
+  gap: 2px;
+  padding-inline: 6px;
 }
 
 .settings-control-row .fullscreen-btn {
@@ -2342,11 +2346,14 @@ button {
 }
 
 .settings-control-row .text-size-reset {
+  width: 100%;
+  min-width: 0;
   min-height: 30px;
 }
 
 .settings-control-row .text-size-control .icon-btn {
-  width: 34px;
+  width: 32px;
+  min-width: 32px;
   min-height: 30px;
 }
 
