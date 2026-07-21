@@ -4345,36 +4345,43 @@ select {
 
 [data-theme="dark"] .verse.highlight-yellow,
 [data-theme="dark"] .parallel-row.highlight-yellow {
+  --verse-highlight-color: #ffe600;
   background: linear-gradient(90deg, rgba(255, 247, 64, 0.38), rgba(255, 247, 64, 0.16));
 }
 
 [data-theme="dark"] .verse.highlight-blue,
 [data-theme="dark"] .parallel-row.highlight-blue {
+  --verse-highlight-color: #21c7ff;
   background: linear-gradient(90deg, rgba(60, 210, 255, 0.34), rgba(60, 210, 255, 0.14));
 }
 
 [data-theme="dark"] .verse.highlight-pink,
 [data-theme="dark"] .parallel-row.highlight-pink {
+  --verse-highlight-color: #ff4bd1;
   background: linear-gradient(90deg, rgba(255, 88, 214, 0.34), rgba(255, 88, 214, 0.14));
 }
 
 [data-theme="dark"] .verse.highlight-green,
 [data-theme="dark"] .parallel-row.highlight-green {
+  --verse-highlight-color: #32f26f;
   background: linear-gradient(90deg, rgba(78, 255, 128, 0.32), rgba(78, 255, 128, 0.13));
 }
 
 [data-theme="dark"] .verse.highlight-orange,
 [data-theme="dark"] .parallel-row.highlight-orange {
+  --verse-highlight-color: #ff9f1a;
   background: linear-gradient(90deg, rgba(255, 164, 45, 0.36), rgba(255, 164, 45, 0.15));
 }
 
 [data-theme="dark"] .verse.highlight-purple,
 [data-theme="dark"] .parallel-row.highlight-purple {
+  --verse-highlight-color: #c084fc;
   background: linear-gradient(90deg, rgba(192, 132, 252, 0.36), rgba(192, 132, 252, 0.15));
 }
 
 [data-theme="dark"] .verse.highlight-custom,
 [data-theme="dark"] .parallel-row.highlight-custom {
+  --verse-highlight-color: var(--custom-highlight-color, #c084fc);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--custom-highlight-color, #c084fc) 34%, transparent),
@@ -4422,30 +4429,37 @@ select {
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-yellow {
+  --verse-highlight-color: #ffe600;
   background: linear-gradient(90deg, rgba(255, 247, 64, 0.38), rgba(255, 247, 64, 0.16));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-blue {
+  --verse-highlight-color: #21c7ff;
   background: linear-gradient(90deg, rgba(60, 210, 255, 0.34), rgba(60, 210, 255, 0.14));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-pink {
+  --verse-highlight-color: #ff4bd1;
   background: linear-gradient(90deg, rgba(255, 88, 214, 0.34), rgba(255, 88, 214, 0.14));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-green {
+  --verse-highlight-color: #32f26f;
   background: linear-gradient(90deg, rgba(78, 255, 128, 0.32), rgba(78, 255, 128, 0.13));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-orange {
+  --verse-highlight-color: #ff9f1a;
   background: linear-gradient(90deg, rgba(255, 164, 45, 0.36), rgba(255, 164, 45, 0.15));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-purple {
+  --verse-highlight-color: #c084fc;
   background: linear-gradient(90deg, rgba(192, 132, 252, 0.36), rgba(192, 132, 252, 0.15));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-custom {
+  --verse-highlight-color: var(--custom-highlight-color, #c084fc);
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--custom-highlight-color, #c084fc) 34%, transparent),
@@ -4474,18 +4488,27 @@ select {
 
 [data-theme="dark"] .verse.highlight-selected,
 [data-theme="dark"] .parallel-row.highlight-selected {
-  box-shadow:
-    inset 3px 0 0 color-mix(in srgb, var(--teal) 82%, white 18%),
-    0 0 0 1px color-mix(in srgb, var(--teal) 42%, transparent),
-    0 0 14px 2px color-mix(in srgb, var(--teal) 20%, transparent),
-    0 0 24px 6px color-mix(in srgb, var(--gold) 14%, transparent);
+  box-shadow: inset 0 -4px 0 var(--verse-highlight-color, var(--teal));
 }
 
 [data-theme="dark"] .paragraph-verse.highlight-selected {
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--teal) 42%, transparent),
-    0 0 12px 2px color-mix(in srgb, var(--teal) 20%, transparent),
-    0 0 20px 5px color-mix(in srgb, var(--gold) 14%, transparent);
+  box-shadow: inset 0 -0.16em 0 var(--verse-highlight-color, var(--teal));
+}
+
+[data-theme="dark"] :is(
+  .verse,
+  .parallel-row,
+  .paragraph-verse
+):is(
+  .highlight-yellow,
+  .highlight-blue,
+  .highlight-pink,
+  .highlight-green,
+  .highlight-orange,
+  .highlight-purple,
+  .highlight-custom
+):not(.highlight-selected) {
+  box-shadow: none;
 }
 
 .verse-num {
