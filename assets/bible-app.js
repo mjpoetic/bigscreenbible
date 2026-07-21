@@ -219,6 +219,7 @@ let announcedAppUpdateVersion = "";
 let pendingAppUpdateRestore = null;
 let appUpdateRestoreAnnouncementTimer = 0;
 let appUpdateRestoreCleanupTimer = 0;
+let pendingChapterChange = null;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -843,6 +844,8 @@ function render() {
     app.innerHTML = loadingScreen();
     return;
   }
+  const chapterChange = pendingChapterChange;
+  pendingChapterChange = null;
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
@@ -851,7 +854,7 @@ function render() {
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
         ${state.focusMode || state.mode === "trivia" || !state.libraryOpen ? "" : library()}
-        ${reader()}
+        ${reader(chapterChange)}
       </section>
       ${bottombar()}
       ${mobileFloatingSettings()}
@@ -903,6 +906,21 @@ function render() {
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
   scheduleReferenceRushTimer();
+}
+
+function chapterChangeIndicator(change) {
+  if (!change) return "";
+  const movingForward = change.direction > 0;
+  const directionLabel = movingForward ? "forward" : "back";
+  return `
+    <div class="chapter-change-indicator chapter-change-indicator-${directionLabel}" role="status" aria-atomic="true">
+      <span class="sr-only">Moved ${directionLabel} to ${escapeHtml(change.reference)}</span>
+      <span class="chapter-change-halo" aria-hidden="true">
+        <span class="chapter-change-icon">${movingForward ? icons.chevron : icons.chevronLeft}</span>
+      </span>
+      <span class="chapter-change-label" aria-hidden="true">${escapeHtml(change.reference)}</span>
+    </div>
+  `;
 }
 
 function syncPresentationShell() {
@@ -2641,7 +2659,7 @@ function historyPanel() {
   `;
 }
 
-function reader() {
+function reader(chapterChange = null) {
   if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
   const chapterKeys = currentBookChapterKeys();
@@ -2700,6 +2718,7 @@ function reader() {
       <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""}">
         ${state.mode === "parallel" ? parallelView() : readerView()}
       </article>
+      ${chapterChangeIndicator(chapterChange)}
       ${state.mode === "reader" || state.mode === "parallel" ? `
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
@@ -10316,7 +10335,14 @@ function extendKeyboardVerseSelection(anchorFallback, activeVerse) {
 function moveChapter(direction) {
   const keys = Object.keys(bibleData);
   const index = keys.indexOf(state.reference);
-  state.reference = keys[Math.max(0, Math.min(keys.length - 1, index + direction))];
+  const nextIndex = Math.max(0, Math.min(keys.length - 1, index + direction));
+  const nextReference = keys[nextIndex];
+  if (!nextReference || nextReference === state.reference) return;
+  pendingChapterChange = {
+    direction: direction > 0 ? 1 : -1,
+    reference: nextReference,
+  };
+  state.reference = nextReference;
   state.verse = currentChapter().verses[0].n;
   state.presentationPart = 0;
   state.selectedVerses = [];
