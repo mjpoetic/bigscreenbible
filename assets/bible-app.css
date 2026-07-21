@@ -9190,6 +9190,10 @@ svg {
   }
 
   @media (orientation: portrait) {
+    .app-shell.focus-shell {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
     :root {
       --mobile-portrait-footer-height: 77px;
     }
