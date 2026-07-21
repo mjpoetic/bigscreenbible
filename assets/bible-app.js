@@ -327,7 +327,9 @@ const state = {
   pushBusy: false,
   pushPromptVisible: false,
   appUpdateBusy: false,
+  appUpdateRefreshing: false,
   appUpdateAvailable: false,
+  appUpdateRefreshOffered: false,
   appUpdateVersion: "",
   appUpdateStatus: "Check for a newly published version without closing the app.",
   startupApplied: false,
@@ -1649,10 +1651,10 @@ function startupReminderSettings(prefix = "") {
 function appUpdateSettings(prefix = "") {
   const buttonId = prefix ? `${prefix}AppUpdateButton` : "appUpdateButton";
   const buttonLabel = state.appUpdateBusy
-    ? "Checking…"
+    ? state.appUpdateRefreshing ? "Refreshing…" : "Checking…"
     : state.appUpdateAvailable
       ? "Update now"
-      : "Check for updates";
+      : state.appUpdateRefreshOffered ? "Refresh app" : "Check for updates";
   const buttonClass = state.appUpdateAvailable ? "primary-btn" : "ghost-btn";
   return settingsDisclosure("updates", "App updates", `
     <div class="setting-group app-update-settings ${state.appUpdateAvailable ? "update-available" : ""}">
@@ -1721,9 +1723,12 @@ async function checkForAppUpdate(options = {}) {
     }
     state.appUpdateVersion = publishedVersion;
     state.appUpdateAvailable = isPublishedAppVersionNewer(publishedVersion, appVersion);
+    state.appUpdateRefreshOffered = manual && !state.appUpdateAvailable;
     state.appUpdateStatus = state.appUpdateAvailable
       ? `Version ${publishedVersion} is ready. Update now to load it.`
-      : "Big Screen Bible is up to date.";
+      : manual
+        ? "You have the latest version. If anything still looks outdated, refresh the app here."
+        : "Big Screen Bible is up to date.";
     if (state.appUpdateAvailable) availableVersion = publishedVersion;
   } catch (error) {
     console.warn("Big Screen Bible update check failed", error);
@@ -1764,7 +1769,33 @@ function currentAppUpdateRestoreState(targetVersion) {
   };
 }
 
-function applyAppUpdate() {
+function currentAppAssetUrls() {
+  const urls = [...document.querySelectorAll('link[rel~="stylesheet"][href], script[src]')]
+    .map((element) => element.href || element.src)
+    .filter(Boolean)
+    .map((value) => new URL(value, window.location.href))
+    .filter((url) => url.origin === window.location.origin && url.pathname.includes("/assets/"))
+    .map((url) => url.toString());
+  return [...new Set(urls)];
+}
+
+async function refreshCurrentAppAssets() {
+  const assetUrls = currentAppAssetUrls();
+  if (!assetUrls.length) return;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    await Promise.allSettled(assetUrls.map((url) => fetch(url, {
+      cache: "reload",
+      credentials: "same-origin",
+      signal: controller.signal,
+    })));
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function applyAppUpdate() {
   const targetVersion = state.appUpdateVersion || appVersion;
   const restoreState = currentAppUpdateRestoreState(targetVersion);
   try {
@@ -1788,6 +1819,13 @@ function applyAppUpdate() {
     url.searchParams.set(appUpdateScrollTopQueryKey, String(Math.round(restoreState.scrollState.scriptureTop)));
   }
   url.searchParams.delete("loaderPreview");
+  state.appUpdateBusy = true;
+  state.appUpdateRefreshing = true;
+  state.appUpdateStatus = state.appUpdateAvailable
+    ? `Loading version ${targetVersion}…`
+    : "Refreshing the app…";
+  renderAppUpdateStatus();
+  await refreshCurrentAppAssets();
   window.location.replace(url.toString());
 }
 
@@ -6512,7 +6550,7 @@ function bindEvents() {
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
   ["appUpdateButton", "mobileAppUpdateButton"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
-      if (state.appUpdateAvailable) applyAppUpdate();
+      if (state.appUpdateAvailable || state.appUpdateRefreshOffered) applyAppUpdate();
       else checkForAppUpdate({ manual: true });
     });
   });

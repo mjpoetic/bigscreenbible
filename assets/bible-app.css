@@ -4486,6 +4486,14 @@ select {
   filter: saturate(1.16) contrast(1.04);
 }
 
+[data-theme="dark"] :is(.verse, .parallel-row):is(.selected, .passage-selected):not(.highlight-selected) {
+  box-shadow: inset 0 -4px 0 var(--teal);
+}
+
+[data-theme="dark"] .paragraph-verse:is(.selected, .passage-selected):not(.highlight-selected) {
+  box-shadow: inset 0 -0.16em 0 var(--teal);
+}
+
 [data-theme="dark"] .verse.highlight-selected,
 [data-theme="dark"] .parallel-row.highlight-selected {
   box-shadow: inset 0 -4px 0 var(--verse-highlight-color, var(--teal));

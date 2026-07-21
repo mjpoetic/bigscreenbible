@@ -22,6 +22,8 @@ npm run version:app -- 2026.07.18.2
 
 Commit the resulting `app-version.json` and HTML changes with the release. Home Screen users can then check Settings → App updates, and a newly published version can refresh in place while preserving the active mode, passage, selected verses, and reading position.
 
+Run `npm run check:app-version` before committing. GitHub Actions runs the same consistency check for pull requests and pushes to `main`, and fails when app-shell changes have no matching release version. If a device still shows older assets after a successful check, Settings → App updates offers a context-preserving **Refresh app** fallback.
+
 ## Mobile Apps
 
 This project is set up with Capacitor so the same web app can be packaged for iOS and Android.
