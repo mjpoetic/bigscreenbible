@@ -3371,6 +3371,7 @@ select {
   padding: var(--reader-pad-y) var(--reader-pad-x) 90px;
   overflow: auto;
   overflow-x: hidden;
+  touch-action: pan-y;
 }
 
 .trivia-reader {
@@ -7372,6 +7373,82 @@ kbd {
 
 .hidden {
   display: none !important;
+}
+
+.reader-gesture-feedback {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 125;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -46%) scale(0.94);
+  transition:
+    opacity 150ms var(--motion-ease),
+    transform 180ms var(--motion-ease);
+}
+
+.reader-gesture-feedback.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.reader-gesture-feedback::before {
+  content: "";
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  z-index: -1;
+  width: 166px;
+  height: 166px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--panel) 42%, transparent) 0%,
+    color-mix(in srgb, var(--panel) 20%, transparent) 52%,
+    transparent 78%
+  );
+  backdrop-filter: blur(14px) saturate(108%);
+  -webkit-backdrop-filter: blur(14px) saturate(108%);
+  transform: translate(-50%, -50%);
+}
+
+.reader-gesture-feedback-mark {
+  display: grid;
+  width: 84px;
+  height: 84px;
+  place-items: center;
+  color: var(--teal);
+  border: 2px solid color-mix(in srgb, var(--teal) 48%, var(--line));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow:
+    0 18px 48px color-mix(in srgb, var(--ink) 18%, transparent),
+    0 0 0 11px color-mix(in srgb, var(--teal) 13%, transparent);
+  font-family: var(--scripture-font);
+  font-size: 29px;
+  font-weight: 800;
+}
+
+.reader-gesture-feedback-label {
+  min-width: 64px;
+  padding: 7px 13px;
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 10%, transparent);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .chapter-change-indicator {

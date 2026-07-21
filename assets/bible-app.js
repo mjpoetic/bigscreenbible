@@ -175,6 +175,10 @@ let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let readerChapterTouchStart = null;
+let readerTouchGesture = null;
+let readerBlankTapStart = null;
+let lastReaderBlankTap = null;
+let readerGestureFeedbackTimer = 0;
 let presentationResizeTimer = 0;
 let readerViewportRestoreTimer = 0;
 let lastReaderScrollAnchor = null;
@@ -211,6 +215,11 @@ const appVersion = document.querySelector('meta[name="app-version"]')?.content |
 const horizontalSwipeMaxMs = 850;
 const horizontalSwipeMinPx = 56;
 const horizontalSwipeDominance = 1.35;
+const readerPinchStartPx = 10;
+const readerGestureMoveTolerancePx = 18;
+const readerTwoFingerTapMaxMs = 360;
+const readerDoubleTapMaxMs = 380;
+const readerDoubleTapDistancePx = 44;
 const cloudSyncTable = "bsb_user_sync";
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
@@ -649,7 +658,7 @@ const tutorialSteps = [
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "On phones and tablets, swipe the reading area to move through Scripture. Use the mobile controls and floating settings button for touch-friendly display options.",
+    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. In Reader or Parallel, a two-finger tap or a double-tap on blank reading space toggles Focus Mode.",
   },
   {
     target: ".rail, #openStudy",
@@ -868,6 +877,10 @@ function render() {
       ${printSheet()}
       ${streakPopup()}
       ${parallelVersionMenuMarkup()}
+      <div class="reader-gesture-feedback" id="readerGestureFeedback" role="status" aria-live="polite" aria-atomic="true">
+        <span class="reader-gesture-feedback-mark" aria-hidden="true">Aa</span>
+        <span class="reader-gesture-feedback-label"></span>
+      </div>
       <div class="status-toast" id="toast"></div>
     </main>
   `;
@@ -6301,6 +6314,7 @@ function shortcutOverlay() {
           <div><strong>Search</strong><span>Find a verse by reference or by remembered words.</span></div>
           <div><strong>Study</strong><span>Use notes, highlights, bookmarks, cross references, and history from the side tools.</span></div>
           <div><strong>Display</strong><span>Big Screen Mode is built for clean, full-screen Scripture display.</span></div>
+          <div><strong>Touch</strong><span>Swipe to change chapters, pinch to resize text, or toggle Focus Mode with a two-finger tap or a double-tap on blank reading space.</span></div>
           <div><strong>Games</strong><span>Practice Bible knowledge with trivia, verse order, and quick-reference games.</span></div>
         </div>
         <a class="help-about-link" href="./about.html">About Big Screen Bible</a>
@@ -7118,8 +7132,13 @@ function bindEvents() {
     presentationTouchStart = touchStartPoint(event);
   }, { passive: true });
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
-  document.querySelector(".scripture")?.addEventListener("touchstart", handleReaderChapterSwipeStart, { passive: true });
-  document.querySelector(".scripture")?.addEventListener("touchend", handleReaderChapterSwipeEnd, { passive: true });
+  const scriptureTouchSurface = document.querySelector(".scripture");
+  scriptureTouchSurface?.addEventListener("touchstart", handleReaderChapterSwipeStart, { passive: true });
+  scriptureTouchSurface?.addEventListener("touchend", handleReaderChapterSwipeEnd, { passive: true });
+  scriptureTouchSurface?.addEventListener("touchstart", handleReaderGestureStart, { passive: true });
+  scriptureTouchSurface?.addEventListener("touchmove", handleReaderGestureMove, { passive: false });
+  scriptureTouchSurface?.addEventListener("touchend", handleReaderGestureEnd, { passive: false });
+  scriptureTouchSurface?.addEventListener("touchcancel", cancelReaderTouchGesture, { passive: true });
   document.getElementById("prevChapter")?.addEventListener("click", () => moveChapter(-1));
   document.getElementById("nextChapter")?.addEventListener("click", () => moveChapter(1));
   document.getElementById("prevChapterInline")?.addEventListener("click", () => moveChapter(-1));
@@ -9889,6 +9908,7 @@ function revealPresentationControls(duration = 3200) {
 }
 
 function touchStartPoint(event) {
+  if (event.touches?.length !== 1) return null;
   const touch = event.touches?.[0];
   if (!touch) return null;
   return {
@@ -9962,6 +9982,10 @@ function handleReaderChapterSwipeStart(event) {
 
 function handleReaderChapterSwipeEnd(event) {
   if (!canUseReaderChapterSwipe() || !readerChapterTouchStart) return;
+  if (event.touches?.length) {
+    readerChapterTouchStart = null;
+    return;
+  }
   if (isReaderChapterSwipeIgnored(event.target)) {
     readerChapterTouchStart = null;
     return;
@@ -9972,6 +9996,227 @@ function handleReaderChapterSwipeEnd(event) {
   readerChapterTouchStart = null;
   if (!direction) return;
   moveChapter(direction);
+}
+
+function touchDistance(first, second) {
+  if (!first || !second) return 0;
+  return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+}
+
+function touchPoint(touch) {
+  return {
+    x: touch.clientX,
+    y: touch.clientY,
+  };
+}
+
+function touchMovedBeyond(start, touch, tolerance = readerGestureMoveTolerancePx) {
+  if (!start || !touch) return true;
+  return Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > tolerance;
+}
+
+function readerGestureTouchesAllowed(touches, surface) {
+  return Array.from(touches || []).every((touch) => (
+    surface.contains(touch.target)
+    && !isReaderChapterSwipeIgnored(touch.target)
+  ));
+}
+
+function isUnusedReaderTapTarget(target, surface) {
+  if (!target || !surface?.contains(target)) return false;
+  return !target.closest?.([
+    "[data-verse]",
+    "button",
+    "a",
+    "input",
+    "select",
+    "textarea",
+    "[contenteditable='true']",
+    "[role='button']",
+    ".section-title",
+    ".scripture-heading",
+    ".scripture-attribution",
+    ".verse-of-day-reader",
+  ].join(", "));
+}
+
+function updateReaderGestureMovement(gesture, touches) {
+  if (!gesture) return;
+  Array.from(touches || []).forEach((touch) => {
+    const start = gesture.startPoints.get(touch.identifier);
+    if (touchMovedBeyond(start, touch)) gesture.moved = true;
+  });
+}
+
+function showReaderTextScaleFeedback({ settle = false } = {}) {
+  const feedback = document.getElementById("readerGestureFeedback");
+  const label = feedback?.querySelector(".reader-gesture-feedback-label");
+  if (!feedback || !label) return;
+  const percent = Math.round(state.textScale * 100);
+  if (label.textContent !== `${percent}%`) label.textContent = `${percent}%`;
+  feedback.classList.add("show");
+  clearTimeout(readerGestureFeedbackTimer);
+  if (!settle) return;
+  readerGestureFeedbackTimer = setTimeout(() => feedback.classList.remove("show"), 900);
+}
+
+function restoreReaderAfterTextScale(scrollState) {
+  if (!scrollState) return;
+  restoreReaderScroll(scrollState);
+  requestAnimationFrame(() => {
+    restoreReaderScroll(scrollState);
+    requestAnimationFrame(() => restoreReaderScroll(scrollState));
+  });
+}
+
+function finishReaderPinch(gesture) {
+  state.textScale = clampTextScale(state.textScale);
+  localStorage.setItem("lw_text_scale", String(state.textScale));
+  applyTextScaleVars();
+  scheduleCloudSync();
+  restoreReaderAfterTextScale(gesture?.scrollState);
+  showReaderTextScaleFeedback({ settle: true });
+}
+
+function toggleReaderFocusFromGesture() {
+  if (!canUseReaderChapterSwipe()) return;
+  const enteringFocus = !state.focusMode;
+  toggleFocusMode();
+  setTimeout(() => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"), enteringFocus ? 280 : 0);
+}
+
+function beginReaderTwoFingerGesture(event, surface) {
+  const touches = Array.from(event.touches || []);
+  if (touches.length !== 2 || !readerGestureTouchesAllowed(touches, surface)) {
+    readerTouchGesture = null;
+    return;
+  }
+  readerChapterTouchStart = null;
+  readerBlankTapStart = null;
+  lastReaderBlankTap = null;
+  readerTouchGesture = {
+    startedAt: Date.now(),
+    startDistance: touchDistance(touches[0], touches[1]),
+    startScale: state.textScale,
+    startPoints: new Map(touches.map((touch) => [touch.identifier, touchPoint(touch)])),
+    moved: false,
+    pinchActive: false,
+    scrollState: captureReaderScroll(),
+  };
+}
+
+function beginReaderBlankTap(event, surface) {
+  const touch = event.touches?.[0];
+  if (!touch || !isUnusedReaderTapTarget(event.target, surface)) {
+    readerBlankTapStart = null;
+    lastReaderBlankTap = null;
+    return;
+  }
+  readerBlankTapStart = {
+    x: touch.clientX,
+    y: touch.clientY,
+    time: Date.now(),
+    mode: state.mode,
+    reference: state.reference,
+  };
+}
+
+function handleReaderGestureStart(event) {
+  if (!canUseReaderChapterSwipe()) return;
+  const surface = event.currentTarget;
+  if (event.touches?.length === 1) {
+    readerTouchGesture = null;
+    beginReaderBlankTap(event, surface);
+    return;
+  }
+  if (event.touches?.length === 2) {
+    beginReaderTwoFingerGesture(event, surface);
+    return;
+  }
+  cancelReaderTouchGesture();
+}
+
+function handleReaderGestureMove(event) {
+  if (readerBlankTapStart && touchMovedBeyond(readerBlankTapStart, event.touches?.[0])) {
+    readerBlankTapStart = null;
+  }
+  const gesture = readerTouchGesture;
+  if (!gesture) return;
+  updateReaderGestureMovement(gesture, event.touches);
+  if (event.touches?.length !== 2) return;
+  const distance = touchDistance(event.touches[0], event.touches[1]);
+  if (!gesture.pinchActive && Math.abs(distance - gesture.startDistance) >= readerPinchStartPx) {
+    gesture.pinchActive = true;
+  }
+  if (!gesture.pinchActive || !gesture.startDistance) return;
+  if (event.cancelable) event.preventDefault();
+  state.textScale = clamp(gesture.startScale * (distance / gesture.startDistance), 0.8, 1.6);
+  applyTextScaleVars();
+  showReaderTextScaleFeedback();
+}
+
+function finishReaderBlankTap(event) {
+  const tap = readerBlankTapStart;
+  readerBlankTapStart = null;
+  const touch = event.changedTouches?.[0];
+  if (
+    !tap
+    || !touch
+    || Date.now() - tap.time > readerTwoFingerTapMaxMs
+    || touchMovedBeyond(tap, touch)
+  ) return;
+  const previous = lastReaderBlankTap;
+  const current = {
+    x: touch.clientX,
+    y: touch.clientY,
+    time: Date.now(),
+    mode: tap.mode,
+    reference: tap.reference,
+  };
+  const isDoubleTap = Boolean(
+    previous
+    && current.time - previous.time <= readerDoubleTapMaxMs
+    && previous.mode === current.mode
+    && previous.reference === current.reference
+    && Math.hypot(current.x - previous.x, current.y - previous.y) <= readerDoubleTapDistancePx
+  );
+  if (!isDoubleTap) {
+    lastReaderBlankTap = current;
+    return;
+  }
+  lastReaderBlankTap = null;
+  if (event.cancelable) event.preventDefault();
+  toggleReaderFocusFromGesture();
+}
+
+function handleReaderGestureEnd(event) {
+  const gesture = readerTouchGesture;
+  if (gesture?.pinchActive) {
+    readerTouchGesture = null;
+    readerBlankTapStart = null;
+    if (event.cancelable) event.preventDefault();
+    finishReaderPinch(gesture);
+    return;
+  }
+  if (gesture) {
+    updateReaderGestureMovement(gesture, event.changedTouches);
+    if (event.touches?.length) return;
+    readerTouchGesture = null;
+    readerBlankTapStart = null;
+    if (!gesture.moved && Date.now() - gesture.startedAt <= readerTwoFingerTapMaxMs) {
+      if (event.cancelable) event.preventDefault();
+      toggleReaderFocusFromGesture();
+    }
+    return;
+  }
+  if (!event.touches?.length) finishReaderBlankTap(event);
+}
+
+function cancelReaderTouchGesture() {
+  if (readerTouchGesture?.pinchActive) finishReaderPinch(readerTouchGesture);
+  readerTouchGesture = null;
+  readerBlankTapStart = null;
+  readerChapterTouchStart = null;
 }
 
 function handleGlobalShortcuts(event) {
