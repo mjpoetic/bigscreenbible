@@ -7786,11 +7786,11 @@ kbd {
 }
 
 @media (min-width: 841px) {
-  .app-shell[data-side-toolbar-position="left"] .main-grid:not(.library-closed) .chapter-change-indicator {
+  .app-shell[data-side-toolbar-position="left"] .main-grid:not(.focus-mode):not(.library-closed) .chapter-change-indicator {
     margin-left: clamp(160px, 10vw, 230px);
   }
 
-  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.library-closed) .chapter-change-indicator {
+  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode):not(.library-closed) .chapter-change-indicator {
     margin-left: clamp(-230px, -10vw, -160px);
   }
 }
