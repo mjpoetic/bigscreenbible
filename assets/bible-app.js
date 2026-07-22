@@ -881,6 +881,7 @@ function restoreSettingsPanelScroll(scrollState) {
 
 function render() {
   const settingsScrollState = captureSettingsPanelScroll();
+  const settingsPanelRerender = Boolean(settingsScrollState);
   closeMobileVerseNavMenu();
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
@@ -902,7 +903,7 @@ function render() {
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
     <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
-      ${topbar()}
+      ${topbar(settingsPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
         ${state.focusMode || state.mode === "trivia" || !state.libraryOpen ? "" : library()}
@@ -910,7 +911,7 @@ function render() {
       </section>
       ${bottombar()}
       ${mobileFloatingSettings()}
-      ${mobileSettingsPanel()}
+      ${mobileSettingsPanel(settingsPanelRerender)}
       ${presentation()}
       ${shortcutOverlay()}
       ${aboutMenuOverlay()}
@@ -2030,7 +2031,7 @@ function stageAppUpdatePositionRestore(scrollState, restoredVersion) {
   }, 5000);
 }
 
-function mobileSettingsPanel() {
+function mobileSettingsPanel(settingsPanelRerender = false) {
   if (state.mode === "big" || !state.settingsOpen) return "";
   const primaryVersion = state.versions[0] || "BSB";
   const primaryVersionOptions = translationCodes
@@ -2048,7 +2049,7 @@ function mobileSettingsPanel() {
     ? `<input class="custom-font-input" id="mobileCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
     : "";
   return `
-    <div class="mobile-settings-popover draggable-popup ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
+    <div class="mobile-settings-popover draggable-popup ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
       <div class="settings-popover-head popup-drag-handle" data-popup-drag-handle="settings">
         <span class="popup-drag-grip" aria-hidden="true" title="Drag to move settings"></span>
         <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
@@ -2093,7 +2094,7 @@ function mobileSettingsPanel() {
   `;
 }
 
-function topbar() {
+function topbar(settingsPanelRerender = false) {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
   const primaryVersion = state.versions[0] || "BSB";
@@ -2190,7 +2191,7 @@ function topbar() {
       </div>
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
-        <div class="settings-popover draggable-popup ${state.settingsOpen ? "open" : ""} ${popupPositionClass("settings")}" role="dialog" aria-label="Settings" aria-hidden="${state.settingsOpen ? "false" : "true"}" ${popupPositionStyle("settings")}>
+        <div class="settings-popover draggable-popup ${state.settingsOpen ? "open" : ""} ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" role="dialog" aria-label="Settings" aria-hidden="${state.settingsOpen ? "false" : "true"}" ${popupPositionStyle("settings")}>
           <div class="settings-popover-head popup-drag-handle" data-popup-drag-handle="settings">
             <span class="popup-drag-grip" aria-hidden="true" title="Drag to move settings"></span>
             <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>

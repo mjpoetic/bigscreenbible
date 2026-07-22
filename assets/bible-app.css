@@ -11381,6 +11381,11 @@ svg {
   }
 }
 
+.settings-popover.open.settings-panel-rerender,
+.mobile-settings-popover.settings-panel-rerender {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-fast: 1ms;
