@@ -6437,7 +6437,7 @@ function shortcutOverlay() {
   const platformKey = navigator.platform?.toLowerCase().includes("mac") ? "Cmd" : "Ctrl";
   const shortcuts = [
     [`${platformKey} /`, "Open Help"],
-    ["?", "Open Help"],
+    ["Shift + ?", "Open keyboard shortcuts"],
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
     ["/", "Jump to reference search"],
@@ -9893,6 +9893,19 @@ function toggleShortcuts(forceOpen) {
   render();
 }
 
+function openKeyboardShortcutsHelp() {
+  state.helpSectionsOpen.keyboard = true;
+  if (!state.shortcutsOpen) state.shortcutsPopupPosition = null;
+  state.shortcutsOpen = true;
+  render();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const section = document.querySelector('[data-help-section="keyboard"]');
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    section?.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+    section?.querySelector("summary")?.focus({ preventScroll: true });
+  }));
+}
+
 function toggleAboutMenu(forceOpen, anchorId = state.aboutMenuAnchor) {
   const nextOpen = typeof forceOpen === "boolean" ? forceOpen : !state.aboutMenuOpen;
   if (state.aboutMenuOpen && !nextOpen) {
@@ -10493,9 +10506,15 @@ function handleGlobalShortcuts(event) {
   const modifiedSlash = (event.metaKey || event.ctrlKey) && event.key === "/";
   const typing = isTypingTarget(event.target);
 
-  if (modifiedSlash || (!typing && event.key === "?")) {
+  if (modifiedSlash) {
     event.preventDefault();
     toggleShortcuts();
+    return;
+  }
+
+  if (!typing && event.key === "?") {
+    event.preventDefault();
+    openKeyboardShortcutsHelp();
     return;
   }
 
