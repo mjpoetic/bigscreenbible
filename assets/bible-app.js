@@ -853,7 +853,34 @@ function activeVersions() {
   return state.versions.slice(0, versionLimit());
 }
 
+function visibleSettingsPanel() {
+  const panels = [
+    document.getElementById("mobileSettingsPopover"),
+    document.querySelector(".settings-popover.open"),
+  ].filter(Boolean);
+  return panels.find((panel) => panel.getClientRects().length) || panels[0] || null;
+}
+
+function captureSettingsPanelScroll() {
+  if (!state.settingsOpen) return null;
+  const panel = visibleSettingsPanel();
+  if (!panel) return null;
+  return {
+    top: panel.scrollTop,
+    left: panel.scrollLeft,
+  };
+}
+
+function restoreSettingsPanelScroll(scrollState) {
+  if (!scrollState || !state.settingsOpen) return;
+  const panel = visibleSettingsPanel();
+  if (!panel) return;
+  panel.scrollTop = scrollState.top;
+  panel.scrollLeft = scrollState.left;
+}
+
 function render() {
+  const settingsScrollState = captureSettingsPanelScroll();
   closeMobileVerseNavMenu();
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
@@ -903,9 +930,11 @@ function render() {
   pendingFocusChromeEnter = false;
   pendingLibraryEnter = false;
   bindEvents();
+  restoreSettingsPanelScroll(settingsScrollState);
   requestAnimationFrame(() => {
     positionAccountPopover();
     positionSettingsPopover();
+    restoreSettingsPanelScroll(settingsScrollState);
     applyPopupPosition("help");
     if (state.pushPromptVisible) document.getElementById("enablePushPrompt")?.focus();
   });
