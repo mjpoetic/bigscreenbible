@@ -305,6 +305,7 @@ const state = {
   reference: "John 3",
   verse: 16,
   versions: JSON.parse(localStorage.getItem("lw_versions") || '["BSB","KJV"]'),
+  versionsUpdatedAt: normalizedVersionsUpdatedAt(localStorage.getItem("lw_versions_updated_at")),
   theme: savedTheme(),
   themePreset: "",
   scriptureFont: localStorage.getItem("lw_scripture_font") || "libre",
@@ -846,7 +847,7 @@ function enforceVersionLimit() {
   const limit = versionLimit();
   if (state.versions.length <= limit) return;
   state.versions = state.versions.slice(0, limit);
-  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  persistVersions({ changed: true });
 }
 
 function activeVersions() {
@@ -4087,6 +4088,7 @@ function captureCloudSnapshot() {
   return {
     settings: {
       versions: state.versions,
+      versionsUpdatedAt: state.versionsUpdatedAt,
       themeMode: localStorage.getItem("lw_theme") || "system",
       themePresetLight: localStorage.getItem("lw_theme_preset_light") || defaultThemePresets.light,
       themePresetDark: localStorage.getItem("lw_theme_preset_dark") || defaultThemePresets.dark,
@@ -4136,11 +4138,12 @@ function normalizeCloudRow(row = {}) {
 
 function mergeCloudSnapshots(cloudRow, localSnapshot) {
   const cloud = normalizeCloudRow(cloudRow);
+  const versionSettings = latestVersionSettings(cloud.settings, localSnapshot.settings);
   return {
     settings: {
       ...localSnapshot.settings,
       ...cloud.settings,
-      versions: mergeVersions(cloud.settings.versions, localSnapshot.settings.versions),
+      ...versionSettings,
     },
     bookmarks: uniqueList([...cloud.bookmarks, ...localSnapshot.bookmarks]).slice(0, 200),
     notes: { ...cloud.notes, ...localSnapshot.notes },
@@ -4157,6 +4160,45 @@ function uniqueList(items) {
 function mergeVersions(cloudVersions = [], localVersions = []) {
   const merged = uniqueList([...(cloudVersions || []), ...(localVersions || [])]).filter((version) => translationCodes.includes(version));
   return merged.length ? merged : ["BSB", "KJV"];
+}
+
+function normalizedVersions(versions = [], fallback = ["BSB", "KJV"]) {
+  const normalized = uniqueList(Array.isArray(versions) ? versions : [])
+    .filter((version) => translationCodes.includes(version));
+  const selected = normalized.length
+    ? normalized
+    : uniqueList(fallback).filter((version) => translationCodes.includes(version));
+  if (selected.length && !selected.some(isBundledTranslation)) selected.unshift("BSB");
+  return selected.length ? selected : ["BSB", "KJV"];
+}
+
+function normalizedVersionsUpdatedAt(value) {
+  const timestamp = Date.parse(value || "");
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : "";
+}
+
+function latestVersionSettings(cloudSettings = {}, localSettings = {}) {
+  const cloudUpdatedAt = normalizedVersionsUpdatedAt(cloudSettings.versionsUpdatedAt);
+  const localUpdatedAt = normalizedVersionsUpdatedAt(localSettings.versionsUpdatedAt);
+  if (!cloudUpdatedAt && !localUpdatedAt) {
+    return {
+      versions: mergeVersions(cloudSettings.versions, localSettings.versions),
+      versionsUpdatedAt: "",
+    };
+  }
+  const useLocal = !cloudUpdatedAt || (localUpdatedAt && localUpdatedAt >= cloudUpdatedAt);
+  const selectedSettings = useLocal ? localSettings : cloudSettings;
+  return {
+    versions: normalizedVersions(selectedSettings.versions),
+    versionsUpdatedAt: useLocal ? localUpdatedAt : cloudUpdatedAt,
+  };
+}
+
+function persistVersions({ changed = false } = {}) {
+  if (changed) state.versionsUpdatedAt = new Date().toISOString();
+  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  if (state.versionsUpdatedAt) localStorage.setItem("lw_versions_updated_at", state.versionsUpdatedAt);
+  else localStorage.removeItem("lw_versions_updated_at");
 }
 
 function mergeHistory(cloudHistory = [], localHistory = []) {
@@ -4188,7 +4230,8 @@ function mergeStreaks(cloudStreak, localStreak) {
 
 function applyCloudSnapshot(snapshot) {
   const settings = snapshot.settings || {};
-  state.versions = mergeVersions(settings.versions, ["BSB", "KJV"]);
+  state.versions = normalizedVersions(settings.versions);
+  state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
   state.theme = settings.themeMode === "dark" || settings.themeMode === "light" ? settings.themeMode : savedTheme();
   state.themePreset = settings[`themePreset${state.theme === "dark" ? "Dark" : "Light"}`] || savedThemePreset(state.theme);
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
@@ -4232,7 +4275,7 @@ function applyCloudSnapshot(snapshot) {
 
 function persistCloudSnapshotLocally(snapshot) {
   const settings = snapshot.settings || {};
-  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  persistVersions();
   if (settings.themeMode === "dark" || settings.themeMode === "light") localStorage.setItem("lw_theme", settings.themeMode);
   else localStorage.removeItem("lw_theme");
   localStorage.setItem("lw_theme_preset_light", settings.themePresetLight || defaultThemePresets.light);
@@ -6684,7 +6727,7 @@ function bindEvents() {
     button.addEventListener("click", () => {
       if (state.versions.length === 1) return showToast("Keep at least one version selected");
       state.versions = state.versions.filter((version) => version !== button.dataset.removeVersion);
-      localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+      persistVersions({ changed: true });
       scheduleCloudSync();
       render();
     });
@@ -6694,7 +6737,7 @@ function bindEvents() {
       const version = button.dataset.removeParallelVersion;
       if (!version || version === state.versions[0]) return;
       state.versions = state.versions.filter((item) => item !== version);
-      localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+      persistVersions({ changed: true });
       scheduleCloudSync();
       renderPreservingReaderScroll();
     });
@@ -6713,7 +6756,7 @@ function bindEvents() {
     state.versions.push(version);
     await loadBibleVersion(version);
     rebuildBibleData();
-    localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+    persistVersions({ changed: true });
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
@@ -6787,7 +6830,7 @@ function bindEvents() {
         rebuildBibleData();
       }
       state.headerVersionMenuOpen = true;
-      localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+      persistVersions({ changed: true });
       scheduleCloudSync();
       renderPreservingReaderScroll();
     });
@@ -7474,7 +7517,7 @@ async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   state.presentationPart = 0;
-  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  persistVersions({ changed: true });
   scheduleCloudSync();
   if (isRemoteTranslation(version)) {
     await loadBibleVersion("BSB");
@@ -7496,7 +7539,7 @@ async function setParallelVersionAt(index, version) {
   }
   if (versions.includes(version)) return showToast(`${translationDisplayCode(version)} is already selected`);
   state.versions[index] = version;
-  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  persistVersions({ changed: true });
   scheduleCloudSync();
   if (isRemoteTranslation(version)) await loadBibleVersion("BSB");
   await loadBibleVersion(version);
