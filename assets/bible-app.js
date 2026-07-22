@@ -6483,6 +6483,7 @@ function shortcutOverlay() {
     ["Shift + ?", "Open keyboard shortcuts"],
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
+    ["Shift + F", "Toggle fullscreen"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
     ["T", "Open games"],
@@ -10658,6 +10659,7 @@ function handleGlobalShortcuts(event) {
   }
   if (key === "f") {
     event.preventDefault();
+    if (event.shiftKey) return toggleFullscreen();
     return toggleFocusMode();
   }
   if (key === "t") {
