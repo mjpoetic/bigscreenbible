@@ -9859,7 +9859,7 @@ function adjustTextScale(delta, { feedback = false } = {}) {
   localStorage.setItem("lw_text_scale", String(state.textScale));
   scheduleCloudSync();
   render();
-  if (feedback) showReaderTextScaleFeedback({ settle: true });
+  if (feedback) requestAnimationFrame(() => showReaderTextScaleFeedback({ settle: true }));
 }
 
 function resetTextScale({ feedback = false } = {}) {
@@ -9867,7 +9867,7 @@ function resetTextScale({ feedback = false } = {}) {
   localStorage.setItem("lw_text_scale", "1");
   scheduleCloudSync();
   render();
-  if (feedback) showReaderTextScaleFeedback({ settle: true });
+  if (feedback) requestAnimationFrame(() => showReaderTextScaleFeedback({ settle: true }));
 }
 
 let pendingFocusChromeEnter = false;
