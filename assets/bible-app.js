@@ -2511,6 +2511,19 @@ function updateReaderTopButton() {
   }
 }
 
+function scrollReaderToTop() {
+  if (!["reader", "parallel"].includes(state.mode)) return false;
+  const scripture = document.querySelector(".scripture");
+  if (!scripture) return false;
+  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+  if (scripture.scrollHeight > scripture.clientHeight + 1) {
+    scripture.scrollTo({ top: 0, behavior });
+  } else {
+    window.scrollTo({ top: 0, behavior });
+  }
+  return true;
+}
+
 function bindReaderTopButton() {
   const scripture = document.querySelector(".scripture");
   const button = document.getElementById("readerTopButton");
@@ -2521,12 +2534,7 @@ function bindReaderTopButton() {
   scripture.addEventListener("scroll", refreshLastReaderScrollAnchor, { passive: true });
   button.addEventListener("click", () => {
     button.classList.remove("reader-top-idle");
-    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
-    if (scripture.scrollHeight > scripture.clientHeight + 1) {
-      scripture.scrollTo({ top: 0, behavior });
-    } else {
-      window.scrollTo({ top: 0, behavior });
-    }
+    scrollReaderToTop();
   });
 }
 
@@ -11925,6 +11933,7 @@ window.addEventListener("scroll", revealMobileSettingsButton, { passive: true })
 window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
 window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
+window.addEventListener("statusTap", scrollReaderToTop);
 window.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
   updateTutorialSpotlight();
