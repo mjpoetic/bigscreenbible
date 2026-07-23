@@ -6511,9 +6511,9 @@ function shortcutOverlay() {
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
     ["Shift + F", "Toggle fullscreen"],
-    ["Shift + +", "Increase Scripture text size"],
-    ["Shift + −", "Decrease Scripture text size"],
-    ["Shift + 0", "Reset Scripture text size"],
+    ["Shift + +", "Increase Reader / Parallel text size"],
+    ["Shift + −", "Decrease Reader / Parallel text size"],
+    ["Shift + 0", "Reset Reader / Parallel text size"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
     ["T", "Open games"],
@@ -10683,6 +10683,12 @@ function handleGlobalShortcuts(event) {
   }
 
   if (typing || state.pushPromptVisible || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
+
+  const readerTextScaleShortcut = event.shiftKey && ["Equal", "Minus", "Digit0"].includes(event.code);
+  if (readerTextScaleShortcut && state.mode === "big") {
+    event.preventDefault();
+    return;
+  }
 
   if (event.shiftKey && event.code === "Equal") {
     event.preventDefault();
