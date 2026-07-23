@@ -6508,7 +6508,7 @@ select {
 
 .gesture-guide-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 9px;
 }
 
@@ -6622,6 +6622,28 @@ select {
 
 .gesture-double-ripple-two {
   animation: gestureDoubleRippleTwo 3.2s var(--motion-ease) infinite;
+}
+
+.gesture-demo-header {
+  fill: color-mix(in srgb, var(--teal) 13%, var(--paper));
+  stroke: color-mix(in srgb, var(--teal) 34%, var(--line));
+  stroke-width: 1.4;
+}
+
+.gesture-demo-up-arrow {
+  fill: none;
+  stroke: var(--gold);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+}
+
+.gesture-demo-header-tap .gesture-touch {
+  animation: gestureTapFinger 2.8s var(--motion-ease) infinite;
+}
+
+.gesture-demo-header-tap .gesture-tap-ripple {
+  animation: gestureTapRipple 2.8s var(--motion-ease) infinite;
 }
 
 .gesture-guide-card figcaption {

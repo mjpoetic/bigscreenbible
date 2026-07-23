@@ -675,7 +675,7 @@ const tutorialSteps = [
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. In Reader or Parallel, a two-finger tap or a double-tap on blank reading space toggles Focus Mode.",
+    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. Tap empty header space to return to the top, or use a two-finger tap or double-tap on blank reading space to toggle Focus Mode.",
   },
   {
     target: ".rail, #openStudy",
@@ -2522,6 +2522,24 @@ function scrollReaderToTop() {
     window.scrollTo({ top: 0, behavior });
   }
   return true;
+}
+
+function handleTopbarScrollTap(event) {
+  const interactiveTarget = event.target.closest?.([
+    "button",
+    "a",
+    "input",
+    "select",
+    "textarea",
+    "label",
+    "[role='button']",
+    "[role='dialog']",
+    "[contenteditable='true']",
+    ".primary-version-menu",
+    ".account-popover",
+  ].join(", "));
+  if (interactiveTarget) return;
+  scrollReaderToTop();
 }
 
 function bindReaderTopButton() {
@@ -6607,6 +6625,27 @@ function shortcutOverlay() {
                 <span>Toggle Focus Mode</span>
               </figcaption>
             </figure>
+            <figure class="gesture-guide-card" aria-labelledby="headerTapGestureTitle">
+              <div class="gesture-demo-frame">
+                <svg class="gesture-demo gesture-demo-header-tap" viewBox="0 0 180 96" aria-hidden="true" focusable="false">
+                  <rect class="gesture-demo-surface" x="8" y="8" width="164" height="80" rx="13" />
+                  <path class="gesture-demo-header" d="M8 21c0-7.2 5.8-13 13-13h138c7.2 0 13 5.8 13 13v10H8Z" />
+                  <g class="gesture-demo-lines gesture-demo-lines-short">
+                    <path d="M24 48h132M24 60h96M24 72h122" />
+                  </g>
+                  <path class="gesture-demo-up-arrow" d="m82 24 8-8 8 8M90 16v11" />
+                  <circle class="gesture-tap-ripple" cx="90" cy="20" r="14" />
+                  <g class="gesture-touch">
+                    <circle class="gesture-touch-halo" cx="90" cy="20" r="10" />
+                    <circle class="gesture-touch-dot" cx="90" cy="20" r="4.5" />
+                  </g>
+                </svg>
+              </div>
+              <figcaption>
+                <strong id="headerTapGestureTitle">Tap empty header space</strong>
+                <span>Return to the chapter top</span>
+              </figcaption>
+            </figure>
           </div>
         </section>
         <div class="help-grid">
@@ -6730,6 +6769,7 @@ function bindEvents() {
   bindReaderTopButton();
   bindReaderReturnButton();
   bindReaderSelectionToolsButton();
+  document.querySelector(".topbar")?.addEventListener("click", handleTopbarScrollTap);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       switchMode(button.dataset.mode);
