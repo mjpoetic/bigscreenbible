@@ -146,10 +146,11 @@ const themeChromeColors = {
   nocturne: "#07111f",
   contrast: "#000000",
 };
+const defaultScriptureFont = "literata";
 const scriptureFonts = [
+  { code: "literata", name: "Literata" },
   { code: "libre", name: "Libre Baskerville" },
   { code: "lora", name: "Lora" },
-  { code: "literata", name: "Literata" },
   { code: "crimson", name: "Crimson Text" },
   { code: "noto-sans", name: "Noto Sans" },
   { code: "figtree", name: "Figtree" },
@@ -166,7 +167,7 @@ const legacyScriptureFontCodes = {
 
 function normalizedScriptureFont(font) {
   const normalized = legacyScriptureFontCodes[font] || font;
-  return scriptureFontCodes.includes(normalized) ? normalized : "libre";
+  return scriptureFontCodes.includes(normalized) ? normalized : defaultScriptureFont;
 }
 
 let bibleData = {};
@@ -308,7 +309,7 @@ const state = {
   versionsUpdatedAt: normalizedVersionsUpdatedAt(localStorage.getItem("lw_versions_updated_at")),
   theme: savedTheme(),
   themePreset: "",
-  scriptureFont: localStorage.getItem("lw_scripture_font") || "libre",
+  scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   paragraphLayout: savedParagraphLayout(),
@@ -9853,18 +9854,20 @@ function closeLibrary() {
   }, { duration: 260, settleFrames: 1 });
 }
 
-function adjustTextScale(delta) {
+function adjustTextScale(delta, { feedback = false } = {}) {
   state.textScale = clampTextScale(state.textScale + delta);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   scheduleCloudSync();
   render();
+  if (feedback) showReaderTextScaleFeedback({ settle: true });
 }
 
-function resetTextScale() {
+function resetTextScale({ feedback = false } = {}) {
   state.textScale = 1;
   localStorage.setItem("lw_text_scale", "1");
   scheduleCloudSync();
   render();
+  if (feedback) showReaderTextScaleFeedback({ settle: true });
 }
 
 let pendingFocusChromeEnter = false;
@@ -10683,15 +10686,15 @@ function handleGlobalShortcuts(event) {
 
   if (event.shiftKey && event.code === "Equal") {
     event.preventDefault();
-    return adjustTextScale(0.1);
+    return adjustTextScale(0.1, { feedback: true });
   }
   if (event.shiftKey && event.code === "Minus") {
     event.preventDefault();
-    return adjustTextScale(-0.1);
+    return adjustTextScale(-0.1, { feedback: true });
   }
   if (event.shiftKey && event.code === "Digit0") {
     event.preventDefault();
-    return resetTextScale();
+    return resetTextScale({ feedback: true });
   }
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
