@@ -164,10 +164,21 @@ const legacyScriptureFontCodes = {
   merriweather: "literata",
   "ibm-plex-sans": "manrope",
 };
+const defaultInterfaceTextSize = "default";
+const interfaceTextSizes = [
+  { code: "default", name: "Default", percent: 100 },
+  { code: "large", name: "Large", percent: 112 },
+  { code: "larger", name: "Larger", percent: 125 },
+];
+const interfaceTextSizeCodes = interfaceTextSizes.map((size) => size.code);
 
 function normalizedScriptureFont(font) {
   const normalized = legacyScriptureFontCodes[font] || font;
   return scriptureFontCodes.includes(normalized) ? normalized : defaultScriptureFont;
+}
+
+function normalizedInterfaceTextSize(size) {
+  return interfaceTextSizeCodes.includes(size) ? size : defaultInterfaceTextSize;
 }
 
 let bibleData = {};
@@ -312,6 +323,7 @@ const state = {
   scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
+  interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
   printVerseNumbers: localStorage.getItem("lw_print_verse_numbers") !== "false",
@@ -357,6 +369,7 @@ const state = {
   startupApplied: false,
   settingsOpen: false,
   settingsSectionsOpen: {
+    accessibility: false,
     reading: true,
     startup: false,
     printing: false,
@@ -904,7 +917,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -1705,6 +1718,22 @@ function readingDisplaySettings(prefix = "") {
   `);
 }
 
+function accessibilitySettings(prefix = "") {
+  const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  const selectedSize = interfaceTextSizes.find((size) => size.code === state.interfaceTextSize) || interfaceTextSizes[0];
+  return settingsDisclosure("accessibility", "Accessibility", `
+    <div class="setting-group accessibility-settings">
+      <span class="setting-label" id="${controlId("InterfaceTextSizeLabel")}">Interface text</span>
+      <div class="theme-mode-segment accessibility-size-segment" role="group" aria-labelledby="${controlId("InterfaceTextSizeLabel")}">
+        ${interfaceTextSizes.map((size) => `
+          <button class="theme-mode-button ${size.code === state.interfaceTextSize ? "active" : ""}" type="button" data-interface-text-size-choice="${size.code}" aria-label="${size.name}, ${size.percent} percent interface text" aria-pressed="${size.code === state.interfaceTextSize ? "true" : "false"}">${size.name}</button>
+        `).join("")}
+      </div>
+      <p class="setting-help" aria-live="polite">${selectedSize.name} (${selectedSize.percent}%). Enlarges navigation, Bible picker, Settings, and study-panel text. Scripture size stays separate.</p>
+    </div>
+  `);
+}
+
 function printingSettings(prefix = "") {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedLayout = printLayouts.find((layout) => layout.code === state.printLayout) || printLayouts[0];
@@ -2083,6 +2112,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
           <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
         </div>
       </div>
+      ${accessibilitySettings("mobile")}
       ${readingDisplaySettings("mobile")}
       ${printingSettings("mobile")}
       ${startupReminderSettings("mobile")}
@@ -2225,6 +2255,7 @@ function topbar(settingsPanelRerender = false) {
               <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
             </div>
           </div>
+          ${accessibilitySettings()}
           ${readingDisplaySettings()}
           ${printingSettings()}
           ${startupReminderSettings()}
@@ -4123,6 +4154,7 @@ function captureCloudSnapshot() {
       customScriptureFont: state.customScriptureFont,
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
+      interfaceTextSize: state.interfaceTextSize,
       paragraphLayout: state.paragraphLayout,
       printLayout: state.printLayout,
       printVerseNumbers: state.printVerseNumbers,
@@ -4265,6 +4297,9 @@ function applyCloudSnapshot(snapshot) {
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.textScale = clampTextScale(Number(settings.textScale) || 1);
+  state.interfaceTextSize = normalizedInterfaceTextSize(
+    settings.interfaceTextSize || localStorage.getItem("lw_interface_text_size"),
+  );
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
@@ -4311,6 +4346,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
+  localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_print_layout", state.printLayout);
   localStorage.setItem("lw_print_verse_numbers", String(state.printVerseNumbers));
@@ -6985,6 +7021,9 @@ function bindEvents() {
   document.getElementById("mobileCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
   });
+  document.querySelectorAll("[data-interface-text-size-choice]").forEach((button) => {
+    button.addEventListener("click", () => setInterfaceTextSize(button.dataset.interfaceTextSizeChoice));
+  });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("mobileFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("paragraphLayoutToggle")?.addEventListener("change", (event) => {
@@ -8954,6 +8993,15 @@ function setScriptureFont(font) {
   if (!scriptureFontCodes.includes(font)) return;
   state.scriptureFont = font;
   localStorage.setItem("lw_scripture_font", font);
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
+function setInterfaceTextSize(size) {
+  const normalized = normalizedInterfaceTextSize(size);
+  if (normalized === state.interfaceTextSize) return;
+  state.interfaceTextSize = normalized;
+  localStorage.setItem("lw_interface_text_size", normalized);
   scheduleCloudSync();
   renderPreservingReaderScroll();
 }

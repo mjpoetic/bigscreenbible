@@ -42,6 +42,36 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+.app-shell {
+  --interface-text-10: 10px;
+  --interface-text-11: 11px;
+  --interface-text-12: 12px;
+  --interface-text-13: 13px;
+  --interface-text-14: 14px;
+  --interface-text-15: 15px;
+  --interface-text-16: 16px;
+}
+
+.app-shell[data-interface-text-size="large"] {
+  --interface-text-10: 11.2px;
+  --interface-text-11: 12.3px;
+  --interface-text-12: 13.4px;
+  --interface-text-13: 14.6px;
+  --interface-text-14: 15.7px;
+  --interface-text-15: 16.8px;
+  --interface-text-16: 17.9px;
+}
+
+.app-shell[data-interface-text-size="larger"] {
+  --interface-text-10: 12.5px;
+  --interface-text-11: 13.8px;
+  --interface-text-12: 15px;
+  --interface-text-13: 16.3px;
+  --interface-text-14: 17.5px;
+  --interface-text-15: 18.8px;
+  --interface-text-16: 20px;
+}
+
 [data-scripture-font="lora"] {
   --scripture-font: "Lora", Georgia, serif;
 }
@@ -11400,6 +11430,122 @@ svg {
   .tutorial-actions .ghost-btn,
   .tutorial-actions .primary-btn {
     flex: 1;
+  }
+}
+
+.accessibility-size-segment .theme-mode-button {
+  min-height: 42px;
+}
+
+:is(.settings-popover, .mobile-settings-popover) .setting-checkbox {
+  font-size: var(--interface-text-14);
+}
+
+:is(.settings-popover, .mobile-settings-popover) :is(
+  select,
+  .custom-font-input,
+  .theme-mode-button
+) {
+  font-size: var(--interface-text-13);
+}
+
+:is(.settings-popover, .mobile-settings-popover) :is(
+  .setting-label,
+  .setting-help,
+  .app-update-version
+) {
+  font-size: var(--interface-text-12);
+}
+
+:is(.settings-popover, .mobile-settings-popover) .settings-section summary {
+  font-size: var(--interface-text-13);
+}
+
+:is(.settings-popover, .mobile-settings-popover) .settings-legal-links {
+  font-size: var(--interface-text-10);
+}
+
+.topbar .search input,
+.primary-version-menu .primary-version-option,
+.library :is(
+  .ref-item,
+  .note-item,
+  .highlight-item,
+  .bookmark-item,
+  .history-item,
+  .strong-card,
+  .search-result,
+  .study-search input,
+  .panel-action
+) {
+  font-size: var(--interface-text-14);
+}
+
+.topbar .primary-version-toggle,
+.library :is(
+  .panel-subheading,
+  .muted,
+  .ref-copy,
+  .note-copy
+) {
+  font-size: var(--interface-text-13);
+}
+
+.primary-version-menu .primary-version-option small {
+  font-size: var(--interface-text-12);
+}
+
+.library .study-heading {
+  font-size: var(--interface-text-16);
+}
+
+.library :is(
+  .history-group summary,
+  .history-group-heading,
+  .annotation-group summary,
+  .strong-meta,
+  .source-note
+) {
+  font-size: var(--interface-text-12);
+}
+
+.panel-minihead,
+.footer-version-toggle {
+  font-size: var(--interface-text-12);
+}
+
+.fineprint {
+  font-size: var(--interface-text-13);
+}
+
+.testament-group summary,
+.select-row select {
+  font-size: var(--interface-text-13);
+}
+
+.book-row {
+  font-size: var(--interface-text-14);
+}
+
+@media (max-width: 840px) {
+  .mobile-controls-toggle {
+    font-size: var(--interface-text-15);
+  }
+
+  .panel-minihead {
+    font-size: var(--interface-text-14);
+  }
+
+  .select-row select,
+  .testament-group summary {
+    min-height: 42px;
+    font-size: var(--interface-text-15);
+  }
+
+  .book-row {
+    min-height: 36px;
+    font-size: var(--interface-text-16);
+    line-height: 1.25;
   }
 }
 
