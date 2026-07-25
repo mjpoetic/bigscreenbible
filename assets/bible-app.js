@@ -368,6 +368,7 @@ const state = {
   appUpdateStatus: "Check for a newly published version without closing the app.",
   startupApplied: false,
   settingsOpen: false,
+  focusReferenceOpen: false,
   settingsSectionsOpen: {
     accessibility: false,
     reading: true,
@@ -1553,7 +1554,39 @@ function loadingScreen() {
 
 function mobileFloatingSettings() {
   if (state.mode === "big") return "";
+  const focusReferenceSwitcher = state.focusMode
+    ? `
+      <div class="mobile-focus-passage-control">
+        <button
+          class="mobile-floating-passage ${state.focusReferenceOpen ? "active" : ""}"
+          id="mobileFocusPassageToggle"
+          type="button"
+          aria-label="Go to another passage"
+          aria-controls="mobileFocusPassagePopover"
+          aria-expanded="${state.focusReferenceOpen ? "true" : "false"}"
+          data-tooltip="Go to passage"
+        >
+          ${icons.search}
+        </button>
+        ${state.focusReferenceOpen ? `
+          <form class="mobile-focus-passage-popover" id="mobileFocusPassagePopover" role="search" aria-label="Go to another passage">
+            <input
+              id="mobileFocusPassageInput"
+              type="text"
+              aria-label="Bible passage"
+              placeholder="John 3:16"
+              autocomplete="off"
+              autocapitalize="words"
+              enterkeyhint="go"
+            />
+            <button type="submit">Go</button>
+          </form>
+        ` : ""}
+      </div>
+    `
+    : "";
   return `
+    ${focusReferenceSwitcher}
     <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" aria-label="Settings" data-tooltip="Settings">
       ${icons.settings}
     </button>
@@ -2509,15 +2542,18 @@ function scheduleStreakPopupDismiss() {
 
 function revealMobileSettingsButton() {
   const settingsButton = document.getElementById("mobileFloatingSettings");
+  const passageButton = document.getElementById("mobileFocusPassageToggle");
   const topButton = document.getElementById("readerTopButton");
-  if (!settingsButton && !topButton) return;
+  if (!settingsButton && !passageButton && !topButton) return;
   settingsButton?.classList.remove("mobile-settings-idle");
+  passageButton?.classList.remove("mobile-settings-idle");
   topButton?.classList.remove("reader-top-idle");
   clearTimeout(mobileSettingsIdleTimer);
-  if (state.settingsOpen || state.mode === "big" || !isCompactScreen()) return;
+  if (state.settingsOpen || state.focusReferenceOpen || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
-    if (state.settingsOpen) return;
+    if (state.settingsOpen || state.focusReferenceOpen) return;
     document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
+    document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     const currentTopButton = document.getElementById("readerTopButton");
     if (currentTopButton?.classList.contains("available")) {
       currentTopButton.classList.add("reader-top-idle");
@@ -6936,6 +6972,7 @@ function bindEvents() {
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
+    state.focusReferenceOpen = false;
     state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "header";
@@ -6948,6 +6985,7 @@ function bindEvents() {
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
+    state.focusReferenceOpen = false;
     state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "floating";
@@ -6956,6 +6994,28 @@ function bindEvents() {
     requestAnimationFrame(() => positionSettingsPopover("floating"));
   });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
+  document.getElementById("mobileFocusPassageToggle")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    state.focusReferenceOpen = !state.focusReferenceOpen;
+    if (state.focusReferenceOpen) {
+      state.settingsOpen = false;
+      state.settingsPopupPosition = null;
+      state.accountOpen = false;
+    }
+    renderPreservingReaderScroll();
+    if (state.focusReferenceOpen) {
+      requestAnimationFrame(() => document.getElementById("mobileFocusPassageInput")?.focus());
+    }
+  });
+  document.getElementById("mobileFocusPassagePopover")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitFocusReference(document.getElementById("mobileFocusPassageInput")?.value || "");
+  });
+  document.getElementById("mobileFocusPassageInput")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    submitFocusReference(event.currentTarget.value);
+  });
   ["appUpdateButton", "mobileAppUpdateButton"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       if (state.appUpdateAvailable || state.appUpdateRefreshOffered) applyAppUpdate();
@@ -9077,24 +9137,31 @@ function gotoReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   const shouldTrackReturn = options.returnNavigation !== false;
   const returnTarget = shouldTrackReturn ? captureReaderReturnTarget() : null;
-  if (setReferenceFromString(cleaned)) {
-    if (shouldTrackReturn && returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
-      pushReaderReturnTarget(returnTarget);
-      state.returnSelectionToolsOpen = false;
-    }
-    if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
-    searchRequestId += 1;
-    state.searchQuery = "";
-    state.searchPending = false;
-    if (options.closeLibrary) {
-      dismissLibraryAfterAction();
-    }
-    state.pendingVerseFocus = true;
-    recordHistory();
-    updateShareUrl();
-    render();
-    if (options.libraryScroll) requestAnimationFrame(() => restoreLibraryScroll(options.libraryScroll));
+  if (!setReferenceFromString(cleaned)) return false;
+  if (shouldTrackReturn && returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
+    pushReaderReturnTarget(returnTarget);
+    state.returnSelectionToolsOpen = false;
   }
+  if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
+  searchRequestId += 1;
+  state.searchQuery = "";
+  state.searchPending = false;
+  if (options.closeLibrary) {
+    dismissLibraryAfterAction();
+  }
+  state.pendingVerseFocus = true;
+  recordHistory();
+  updateShareUrl();
+  render();
+  if (options.libraryScroll) requestAnimationFrame(() => restoreLibraryScroll(options.libraryScroll));
+  return true;
+}
+
+function submitFocusReference(value) {
+  const wasOpen = state.focusReferenceOpen;
+  state.focusReferenceOpen = false;
+  if (gotoReference(value)) return;
+  state.focusReferenceOpen = wasOpen;
 }
 
 async function runReferenceOrPhraseSearch(value) {
@@ -9924,6 +9991,7 @@ let pendingLibraryEnter = false;
 function toggleFocusMode() {
   const enteringFocus = !state.focusMode;
   const applyFocusMode = () => {
+    state.focusReferenceOpen = false;
     state.focusMode = enteringFocus;
     if (state.focusMode) state.mobileControlsOpen = false;
     else pendingFocusChromeEnter = true;
@@ -10700,6 +10768,11 @@ function handleGlobalShortcuts(event) {
     if (state.settingsOpen) {
       event.preventDefault();
       return closeSettingsPopover();
+    }
+    if (state.focusReferenceOpen) {
+      event.preventDefault();
+      state.focusReferenceOpen = false;
+      return renderPreservingReaderScroll();
     }
     if (state.headerVersionMenuOpen) {
       event.preventDefault();
@@ -12026,6 +12099,7 @@ function chapterKeys() {
 const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
+  state.focusReferenceOpen = false;
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
@@ -12035,6 +12109,7 @@ compactWidthQuery?.addEventListener("change", () => {
 const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)");
 shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
+  state.focusReferenceOpen = false;
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
@@ -12075,6 +12150,11 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!state.streakPopoverOpen || event.target.closest?.(".streak-menu")) return;
   toggleStreakPopover(false);
+});
+document.addEventListener("click", (event) => {
+  if (!state.focusReferenceOpen || event.target.closest?.(".mobile-focus-passage-control")) return;
+  state.focusReferenceOpen = false;
+  renderPreservingReaderScroll();
 });
 document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);

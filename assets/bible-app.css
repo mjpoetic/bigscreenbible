@@ -2053,6 +2053,12 @@ button {
   display: none;
 }
 
+.mobile-focus-passage-control,
+.mobile-floating-passage,
+.mobile-focus-passage-popover {
+  display: none;
+}
+
 .reader-selection-tools-button {
   display: none;
 }
@@ -9068,6 +9074,7 @@ svg {
   }
 
   .mobile-floating-settings,
+  .mobile-floating-passage,
   .reader-selection-tools-button,
   .reader-top-button,
   .reader-return-button {
@@ -9158,6 +9165,9 @@ svg {
   .mobile-floating-settings:hover,
   .mobile-floating-settings:focus-visible,
   .mobile-floating-settings.active,
+  .mobile-floating-passage:hover,
+  .mobile-floating-passage:focus-visible,
+  .mobile-floating-passage.active,
   .reader-selection-tools-button:hover,
   .reader-selection-tools-button:focus-visible,
   .reader-return-button:hover,
@@ -9171,13 +9181,15 @@ svg {
     transform: translateY(-2px);
   }
 
-  .mobile-floating-settings.mobile-settings-idle:not(.active) {
+  .mobile-floating-settings.mobile-settings-idle:not(.active),
+  .mobile-floating-passage.mobile-settings-idle:not(.active) {
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px) scale(0.94);
   }
 
   .mobile-floating-settings svg,
+  .mobile-floating-passage svg,
   .reader-selection-tools-button svg,
   .reader-top-button svg,
   .reader-return-button svg {
@@ -9435,6 +9447,65 @@ svg {
       min-width: 42px;
       min-height: 42px;
       padding: 0;
+    }
+
+    .app-shell.focus-shell .mobile-focus-passage-control {
+      display: contents;
+    }
+
+    .app-shell.focus-shell .mobile-floating-passage {
+      right: auto;
+      left: max(7px, env(safe-area-inset-left, 0px));
+      bottom: calc(var(--mobile-portrait-footer-height) + 66px + env(safe-area-inset-bottom, 0px));
+      display: inline-flex;
+    }
+
+    .app-shell.focus-shell .mobile-focus-passage-popover {
+      position: fixed;
+      left: max(59px, calc(env(safe-area-inset-left, 0px) + 59px));
+      bottom: calc(var(--mobile-portrait-footer-height) + 66px + env(safe-area-inset-bottom, 0px));
+      z-index: 141;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px;
+      width: min(286px, calc(100vw - 72px - env(safe-area-inset-right, 0px)));
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      box-shadow:
+        0 0 22px color-mix(in srgb, var(--teal) 15%, transparent),
+        0 12px 30px color-mix(in srgb, var(--ink) 16%, transparent);
+      -webkit-backdrop-filter: blur(16px) saturate(120%);
+      backdrop-filter: blur(16px) saturate(120%);
+      animation: surfaceIn var(--motion-base) var(--motion-ease) both;
+    }
+
+    .mobile-focus-passage-popover input {
+      min-width: 0;
+      height: 40px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--paper);
+      color: var(--ink);
+      outline: 0;
+    }
+
+    .mobile-focus-passage-popover input:focus {
+      border-color: color-mix(in srgb, var(--teal) 65%, var(--line));
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent);
+    }
+
+    .mobile-focus-passage-popover button {
+      min-width: 48px;
+      height: 40px;
+      padding: 0 12px;
+      border-radius: 7px;
+      background: var(--teal);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
     }
 
     .reader-top-button {
