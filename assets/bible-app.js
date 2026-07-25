@@ -1680,7 +1680,7 @@ function mobileFloatingSettings() {
               value="${escapeHtml(activePassageLabel())}"
               placeholder="John 3:16"
               autocomplete="off"
-              autocapitalize="words"
+              autocapitalize="sentences"
               enterkeyhint="go"
             />
             <button type="submit">Go</button>
@@ -4802,18 +4802,29 @@ function sectionHeadingsForVerse(verse, version) {
     .filter((heading) => heading.text);
 }
 
+function groupSectionHeadings(headings) {
+  return headings.reduce((groups, heading) => {
+    const startsNumberedSaying = /^Saying\s+\d+$/i.test(heading.text);
+    if (!groups.length || startsNumberedSaying) groups.push([]);
+    groups[groups.length - 1].push(heading);
+    return groups;
+  }, []);
+}
+
 function sectionHeadingsMarkup(verse, version, className = "") {
   const headings = sectionHeadingsForVerse(verse, version);
   if (!headings.length) return "";
   const classes = ["scripture-heading-group", className].filter(Boolean).join(" ");
   const linkReferences = !className.split(/\s+/).includes("print-heading-group");
-  return `
-    <div class="${classes}" data-heading-verse="${verse.n}">
-      ${headings.map((heading) => `
-        <h2 class="scripture-heading scripture-heading-level-${heading.level}">${scriptureHeadingTextMarkup(heading.text, { linkReferences })}</h2>
-      `).join("")}
-    </div>
-  `;
+  return groupSectionHeadings(headings)
+    .map((group) => `
+      <div class="${classes}" data-heading-verse="${verse.n}">
+        ${group.map((heading) => `
+          <h2 class="scripture-heading scripture-heading-level-${heading.level}">${scriptureHeadingTextMarkup(heading.text, { linkReferences })}</h2>
+        `).join("")}
+      </div>
+    `)
+    .join("");
 }
 
 function scriptureHeadingTextMarkup(text, options = {}) {
