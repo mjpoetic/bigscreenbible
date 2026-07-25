@@ -11757,21 +11757,16 @@ async function copySpecificVerses(verseNumbers) {
 
 async function shareSelectedPassage() {
   const verseNumbers = selectedVerseNumbers();
-  const text = passageText(verseNumbers);
-  const url = passageShareUrl(verseNumbers);
+  const text = passageShareText(verseNumbers);
   if (navigator.share) {
     try {
-      await navigator.share({
-        title: printReferenceLabel(verseNumbers),
-        text,
-        url,
-      });
+      await navigator.share({ text });
       return;
     } catch (error) {
       if (error?.name === "AbortError") return;
     }
   }
-  await copyText(`${text}\n\n${url}`);
+  await copyText(text);
   showToast("Share text copied");
 }
 
@@ -11894,11 +11889,26 @@ function passageText(verseNumbers = selectedVerseNumbers()) {
   return `${reference} ${translationDisplayCode(state.versions[0])}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
 }
 
+function passageShareText(verseNumbers = selectedVerseNumbers()) {
+  const lines = passageLines(verseNumbers);
+  const quote = lines
+    .map(({ n, text }) => verseNumbers.length > 1 ? `${n}. ${String(text || "").trim()}` : String(text || "").trim())
+    .filter(Boolean)
+    .join("\n");
+  const reference = state.isVerseOfDayActive && state.verseOfDayItem
+    ? state.verseOfDayItem.reference
+    : formatReferenceLabel(state.reference, verseNumbers);
+  const version = translationDisplayCode(state.versions[0]);
+  return `“${quote}”\n— ${reference} (${version})\n\n${passageShareUrl(verseNumbers)}`;
+}
+
 function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
-  const url = new URL(window.location.href);
+  const canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || "https://bigscreenbible.com/";
+  const url = new URL(canonicalUrl);
   url.searchParams.set("ref", `${state.reference}:${verseNumbers[0]}`);
   if (verseNumbers.length > 1) url.searchParams.set("verses", verseRangeParam(verseNumbers));
   else url.searchParams.delete("verses");
+  if (["reader", "parallel", "big"].includes(state.mode)) url.searchParams.set("mode", state.mode);
   return url.toString();
 }
 
