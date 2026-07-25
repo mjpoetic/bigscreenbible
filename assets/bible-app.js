@@ -7418,13 +7418,6 @@ function bindEvents() {
       state.accountOpen = false;
     }
     renderPreservingReaderScroll();
-    if (state.focusReferenceOpen) {
-      requestAnimationFrame(() => {
-        const input = document.getElementById("mobileFocusPassageInput");
-        input?.focus();
-        input?.select();
-      });
-    }
   });
   document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
     state.focusSearchResultsOpen = false;
