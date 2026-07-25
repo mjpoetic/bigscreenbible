@@ -1676,6 +1676,7 @@ function mobileFloatingSettings() {
               id="mobileFocusPassageInput"
               type="text"
               aria-label="Bible passage"
+              value="${escapeHtml(activePassageLabel())}"
               placeholder="John 3:16"
               autocomplete="off"
               autocapitalize="words"
@@ -7224,7 +7225,11 @@ function bindEvents() {
     }
     renderPreservingReaderScroll();
     if (state.focusReferenceOpen) {
-      requestAnimationFrame(() => document.getElementById("mobileFocusPassageInput")?.focus());
+      requestAnimationFrame(() => {
+        const input = document.getElementById("mobileFocusPassageInput");
+        input?.focus();
+        input?.select();
+      });
     }
   });
   document.getElementById("mobileFocusPassagePopover")?.addEventListener("submit", (event) => {
