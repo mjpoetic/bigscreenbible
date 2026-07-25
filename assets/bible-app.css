@@ -2055,7 +2055,8 @@ button {
 
 .mobile-focus-passage-control,
 .mobile-floating-passage,
-.mobile-focus-passage-popover {
+.mobile-focus-passage-popover,
+.mobile-focus-search-results {
   display: none;
 }
 
@@ -9514,6 +9515,134 @@ svg {
       cursor: pointer;
     }
 
+    .app-shell.focus-shell .mobile-focus-search-results {
+      position: fixed;
+      left: max(7px, env(safe-area-inset-left, 0px));
+      bottom: calc(var(--mobile-portrait-footer-height) + 118px + env(safe-area-inset-bottom, 0px));
+      z-index: 140;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      width: min(340px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+      max-height: min(50dvh, 420px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      box-shadow:
+        0 0 24px color-mix(in srgb, var(--teal) 14%, transparent),
+        0 16px 38px color-mix(in srgb, var(--ink) 18%, transparent);
+      -webkit-backdrop-filter: blur(18px) saturate(120%);
+      backdrop-filter: blur(18px) saturate(120%);
+      animation: surfaceIn var(--motion-base) var(--motion-ease) both;
+    }
+
+    .mobile-focus-search-results-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 11px 10px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mobile-focus-search-results-head > div {
+      display: grid;
+      min-width: 0;
+      gap: 2px;
+    }
+
+    .mobile-focus-search-results-head span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .mobile-focus-search-results-head strong {
+      overflow: hidden;
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mobile-focus-search-results-head button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--paper) 82%, transparent);
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .mobile-focus-search-results-head button svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .mobile-focus-search-results-body {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 11px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-focus-search-results .search-results {
+      gap: 9px;
+    }
+
+    .mobile-focus-search-results .search-result {
+      padding: 11px;
+      border-radius: 8px;
+    }
+
+    .mobile-focus-search-results .ref-title {
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .mobile-focus-search-results .ref-copy {
+      display: -webkit-box;
+      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.4;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+
+    .mobile-focus-search-results .verified-answer {
+      gap: 7px;
+      padding: 12px;
+    }
+
+    .mobile-focus-search-results .verified-answer-text {
+      font-size: 20px;
+    }
+
+    .mobile-focus-search-results .verified-answer p {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .mobile-focus-search-results .verified-answer-reference {
+      gap: 8px;
+      padding-top: 9px;
+      font-size: 12px;
+    }
+
+    .mobile-focus-search-results .empty-state {
+      padding: 14px 10px;
+    }
+
     .reader-top-button {
       right: max(7px, env(safe-area-inset-right, 0px));
       bottom: calc(var(--mobile-portrait-footer-height) + 14px + env(safe-area-inset-bottom, 0px));
@@ -11100,6 +11229,10 @@ svg {
 
   .app-shell.footer-collapsed .mobile-focus-passage-control {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .mobile-focus-search-results {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
   }
 
   .app-shell.footer-collapsed .reader-top-button {

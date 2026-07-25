@@ -380,6 +380,7 @@ const state = {
   startupApplied: false,
   settingsOpen: false,
   focusReferenceOpen: false,
+  focusSearchResultsOpen: false,
   settingsSectionsOpen: {
     accessibility: false,
     reading: true,
@@ -1693,6 +1694,27 @@ function mobileFloatingSettings() {
     <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" aria-label="Settings" data-tooltip="Settings">
       ${icons.settings}
     </button>
+    ${mobileFocusSearchResults()}
+  `;
+}
+
+function mobileFocusSearchResults() {
+  if (!state.focusMode || !state.focusSearchResultsOpen || !state.searchResultsQuery) return "";
+  return `
+    <section class="mobile-focus-search-results" id="mobileFocusSearchResults" role="dialog" aria-label="Focus Mode search results" aria-busy="${state.searchPending ? "true" : "false"}">
+      <header class="mobile-focus-search-results-head">
+        <div>
+          <span>Search results</span>
+          <strong>${escapeHtml(state.searchResultsQuery)}</strong>
+        </div>
+        <button id="mobileFocusSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
+      </header>
+      <div class="mobile-focus-search-results-body">
+        <div class="search-results">
+          ${searchResultsMarkup()}
+        </div>
+      </div>
+    </section>
   `;
 }
 
@@ -2652,9 +2674,9 @@ function revealMobileSettingsButton() {
   passageButton?.classList.remove("mobile-settings-idle");
   topButton?.classList.remove("reader-top-idle");
   clearTimeout(mobileSettingsIdleTimer);
-  if (state.settingsOpen || state.focusReferenceOpen || state.mode === "big" || !isCompactScreen()) return;
+  if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
-    if (state.settingsOpen || state.focusReferenceOpen) return;
+    if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen) return;
     document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     const currentTopButton = document.getElementById("readerTopButton");
@@ -7194,6 +7216,7 @@ function bindEvents() {
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
     state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = false;
     state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "header";
@@ -7207,6 +7230,7 @@ function bindEvents() {
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
     state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = false;
     state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "floating";
@@ -7218,6 +7242,7 @@ function bindEvents() {
   document.getElementById("mobileFocusPassageToggle")?.addEventListener("click", (event) => {
     event.stopPropagation();
     state.focusReferenceOpen = !state.focusReferenceOpen;
+    state.focusSearchResultsOpen = false;
     if (state.focusReferenceOpen) {
       state.settingsOpen = false;
       state.settingsPopupPosition = null;
@@ -7231,6 +7256,10 @@ function bindEvents() {
         input?.select();
       });
     }
+  });
+  document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
+    state.focusSearchResultsOpen = false;
+    renderPreservingReaderScroll();
   });
   document.getElementById("mobileFocusPassagePopover")?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -9371,6 +9400,7 @@ function gotoReference(value, options = {}) {
   searchRequestId += 1;
   state.searchQuery = "";
   state.searchPending = false;
+  state.focusSearchResultsOpen = false;
   if (options.closeLibrary) {
     dismissLibraryAfterAction();
   }
@@ -9383,10 +9413,15 @@ function gotoReference(value, options = {}) {
 }
 
 function submitFocusReference(value) {
-  const wasOpen = state.focusReferenceOpen;
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  if (!cleaned) return;
   state.focusReferenceOpen = false;
-  if (gotoReference(value)) return;
-  state.focusReferenceOpen = wasOpen;
+  state.isVerseOfDayActive = false;
+  if (parseReference(cleaned)) {
+    gotoReference(cleaned);
+    return;
+  }
+  runPhraseSearch(cleaned, { focusResults: true });
 }
 
 async function runReferenceOrPhraseSearch(value) {
@@ -9400,24 +9435,31 @@ async function runReferenceOrPhraseSearch(value) {
   await runPhraseSearch(cleaned);
 }
 
-async function runPhraseSearch(value) {
+async function runPhraseSearch(value, options = {}) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
+  const focusResults = Boolean(options.focusResults && state.focusMode && state.mode !== "big");
   const requestId = ++searchRequestId;
   state.searchQuery = query;
   state.searchResultsQuery = query;
   state.searchResults = [];
   state.searchPending = true;
-  state.mode = state.mode === "big" ? "reader" : state.mode;
-  if (state.focusMode) {
-    state.focusMode = false;
-    localStorage.setItem("lw_focus_mode", "false");
+  if (focusResults) {
+    state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = true;
+    renderPreservingReaderScroll();
+  } else {
+    state.mode = state.mode === "big" ? "reader" : state.mode;
+    if (state.focusMode) {
+      state.focusMode = false;
+      localStorage.setItem("lw_focus_mode", "false");
+    }
+    state.libraryOpen = true;
+    state.activeRail = "Search";
+    state.pendingPanelFocus = "Search";
+    localStorage.setItem("lw_library_open", "true");
+    render();
   }
-  state.libraryOpen = true;
-  state.activeRail = "Search";
-  state.pendingPanelFocus = "Search";
-  localStorage.setItem("lw_library_open", "true");
-  render();
   try {
     await ensureAllSearchVersionsLoaded();
     const results = await searchBible(query);
@@ -9428,7 +9470,8 @@ async function runPhraseSearch(value) {
   } finally {
     if (requestId === searchRequestId && state.searchResultsQuery === query) {
       state.searchPending = false;
-      render();
+      if (focusResults) renderPreservingReaderScroll();
+      else render();
     }
   }
 }
@@ -9439,6 +9482,7 @@ function clearSearchResults() {
   state.searchResultsQuery = "";
   state.searchResults = [];
   state.searchPending = false;
+  state.focusSearchResultsOpen = false;
   render();
 }
 
@@ -10217,6 +10261,7 @@ function toggleFocusMode() {
   const enteringFocus = !state.focusMode;
   const applyFocusMode = () => {
     state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = false;
     state.focusMode = enteringFocus;
     if (state.focusMode) state.mobileControlsOpen = false;
     else pendingFocusChromeEnter = true;
@@ -10997,6 +11042,11 @@ function handleGlobalShortcuts(event) {
     if (state.focusReferenceOpen) {
       event.preventDefault();
       state.focusReferenceOpen = false;
+      return renderPreservingReaderScroll();
+    }
+    if (state.focusSearchResultsOpen) {
+      event.preventDefault();
+      state.focusSearchResultsOpen = false;
       return renderPreservingReaderScroll();
     }
     if (state.headerVersionMenuOpen) {
@@ -12326,6 +12376,7 @@ const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.focusReferenceOpen = false;
+  state.focusSearchResultsOpen = false;
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
@@ -12336,6 +12387,7 @@ const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (m
 shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.focusReferenceOpen = false;
+  state.focusSearchResultsOpen = false;
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
@@ -12386,6 +12438,11 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!state.focusReferenceOpen || event.target.closest?.(".mobile-focus-passage-control")) return;
   state.focusReferenceOpen = false;
+  renderPreservingReaderScroll();
+});
+document.addEventListener("click", (event) => {
+  if (!state.focusSearchResultsOpen || event.target.closest?.(".mobile-focus-search-results, .mobile-focus-passage-control")) return;
+  state.focusSearchResultsOpen = false;
   renderPreservingReaderScroll();
 });
 document.addEventListener("click", handleSideToolbarPositionClick);
