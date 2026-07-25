@@ -202,6 +202,11 @@ let presentationResizeTimer = 0;
 let readerViewportRestoreTimer = 0;
 let readerAppVisibilityRestoreTimer = 0;
 let readerAppVisibilityScrollState = null;
+let readerPositionPersistTimer = 0;
+let pendingReaderPositionPersistState = null;
+let readerAppResumeRestoreDeadline = 0;
+let readerUserScrollIntentUntil = 0;
+let readerLifecycleHeartbeatAt = Date.now();
 let lastReaderScrollAnchor = null;
 let lastReaderNonTopScrollAnchor = null;
 let lastReaderViewportSize = null;
@@ -226,12 +231,16 @@ const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
 const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
 const libraryScrollStorageKey = "lw_library_scroll_by_rail";
+const readerPositionStorageKey = "lw_reader_position";
 const appUpdateRestoreStorageKey = "lw_app_update_restore";
 const appUpdateQueryKey = "appUpdate";
 const appUpdateScrollVerseQueryKey = "appUpdateVerse";
 const appUpdateScrollOffsetQueryKey = "appUpdateOffset";
 const appUpdateScrollTopQueryKey = "appUpdateScroll";
 const appUpdateCheckIntervalMs = 15 * 60 * 1000;
+const readerAppResumeRestoreWindowMs = 1600;
+const readerLifecycleHeartbeatIntervalMs = 300;
+const readerLifecycleResumeGapMs = 1200;
 const appVersion = document.querySelector('meta[name="app-version"]')?.content || "unknown";
 const horizontalSwipeMaxMs = 850;
 const horizontalSwipeMinPx = 56;
@@ -1247,6 +1256,92 @@ function viewportAdjustedReaderAnchor(anchor) {
     ...anchor,
     offset: Math.min(Math.max(anchor.offset || 0, 28), 96),
   };
+}
+
+function normalizedStoredReaderPosition(value) {
+  const mode = String(value?.mode || "");
+  const reference = String(value?.reference || "");
+  const verse = String(value?.readerAnchor?.verse || "");
+  const offset = Number(value?.readerAnchor?.offset);
+  const scriptureTop = Number(value?.scriptureTop);
+  if (
+    !["reader", "parallel"].includes(mode)
+    || !reference
+    || !/^\d+$/.test(verse)
+    || !Number.isFinite(offset)
+    || !Number.isFinite(scriptureTop)
+  ) return null;
+  return {
+    mode,
+    reference,
+    windowX: 0,
+    windowY: 0,
+    scriptureTop: Math.max(0, scriptureTop),
+    scriptureLeft: 0,
+    triviaTop: null,
+    triviaLeft: null,
+    activeVerse: Math.max(1, Number(value.activeVerse) || Number(verse)),
+    savedAt: Math.max(0, Number(value.savedAt) || 0),
+    readerAnchor: {
+      mode,
+      reference,
+      verse,
+      offset: Math.min(Math.max(offset, -160), 160),
+    },
+  };
+}
+
+function savedReaderPosition() {
+  try {
+    return normalizedStoredReaderPosition(JSON.parse(localStorage.getItem(readerPositionStorageKey) || "null"));
+  } catch {
+    return null;
+  }
+}
+
+function persistReaderPosition(scrollState) {
+  if (
+    !scrollState?.readerAnchor
+    || !["reader", "parallel"].includes(scrollState.mode)
+  ) return;
+  const stored = normalizedStoredReaderPosition({
+    ...scrollState,
+    activeVerse: state.verse,
+    savedAt: Date.now(),
+  });
+  if (!stored) return;
+  try {
+    localStorage.setItem(readerPositionStorageKey, JSON.stringify(stored));
+  } catch {
+    // Reading position persistence is best-effort when storage is unavailable.
+  }
+}
+
+function scheduleReaderPositionPersistence() {
+  const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
+  if (!scrollState.readerAnchor) return;
+  pendingReaderPositionPersistState = scrollState;
+  clearTimeout(readerPositionPersistTimer);
+  readerPositionPersistTimer = setTimeout(() => {
+    const pending = pendingReaderPositionPersistState;
+    pendingReaderPositionPersistState = null;
+    persistReaderPosition(pending);
+  }, 120);
+}
+
+function flushReaderPositionPersistence() {
+  clearTimeout(readerPositionPersistTimer);
+  pendingReaderPositionPersistState = null;
+  const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
+  persistReaderPosition(scrollState);
+  return scrollState;
+}
+
+function isStandaloneWebApp() {
+  return Boolean(
+    window.navigator?.standalone
+    || window.matchMedia?.("(display-mode: standalone)")?.matches,
+  );
 }
 
 function captureLibraryScroll() {
@@ -2590,6 +2685,7 @@ function scrollReaderToTop() {
   if (!["reader", "parallel"].includes(state.mode)) return false;
   const scripture = document.querySelector(".scripture");
   if (!scripture) return false;
+  noteReaderScrollIntent();
   const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
   if (scripture.scrollHeight > scripture.clientHeight + 1) {
     scripture.scrollTo({ top: 0, behavior });
@@ -2624,7 +2720,10 @@ function bindReaderTopButton() {
   updateReaderTopButton();
   refreshLastReaderScrollAnchor();
   scripture.addEventListener("scroll", updateReaderTopButton, { passive: true });
-  scripture.addEventListener("scroll", refreshLastReaderScrollAnchor, { passive: true });
+  scripture.addEventListener("scroll", handleReaderScrollPositionChange, { passive: true });
+  scripture.addEventListener("touchstart", noteReaderScrollIntent, { passive: true });
+  scripture.addEventListener("pointerdown", noteReaderScrollIntent, { passive: true });
+  scripture.addEventListener("wheel", noteReaderScrollIntent, { passive: true });
   button.addEventListener("click", () => {
     button.classList.remove("reader-top-idle");
     scrollReaderToTop();
@@ -2678,16 +2777,19 @@ function preserveReaderScrollAfterViewportChange() {
 
 function rememberReaderScrollBeforeAppSwitch() {
   if (!["reader", "parallel"].includes(state.mode)) return;
-  const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
+  const scrollState = flushReaderPositionPersistence();
   const previousAnchor = preferredViewportReaderScrollAnchor();
   if (previousAnchor) scrollState.readerAnchor = previousAnchor;
+  persistReaderPosition(scrollState);
   readerAppVisibilityScrollState = scrollState;
   clearTimeout(readerViewportRestoreTimer);
   clearTimeout(readerAppVisibilityRestoreTimer);
+  readerAppResumeRestoreDeadline = 0;
 }
 
-function restoreReaderScrollAfterAppSwitch() {
-  const scrollState = readerAppVisibilityScrollState;
+function restoreReaderScrollAfterAppSwitch(options = {}) {
+  const scrollState = readerAppVisibilityScrollState
+    || (options.allowStored ? savedReaderPosition() : null);
   if (
     !scrollState
     || scrollState.mode !== state.mode
@@ -2696,24 +2798,92 @@ function restoreReaderScrollAfterAppSwitch() {
     readerAppVisibilityScrollState = null;
     return;
   }
+  readerAppVisibilityScrollState = scrollState;
   clearTimeout(readerViewportRestoreTimer);
   clearTimeout(readerAppVisibilityRestoreTimer);
+  readerAppResumeRestoreDeadline = Date.now() + readerAppResumeRestoreWindowMs;
 
   const restore = () => {
     if (document.visibilityState === "hidden") return;
     restoreReaderScroll(scrollState);
     updateReaderTopButton();
   };
+  const restoreUntilSettled = () => {
+    restore();
+    if (Date.now() < readerAppResumeRestoreDeadline) {
+      readerAppVisibilityRestoreTimer = setTimeout(restoreUntilSettled, 180);
+      return;
+    }
+    if (readerAppVisibilityScrollState === scrollState) {
+      readerAppVisibilityScrollState = null;
+    }
+  };
   requestAnimationFrame(() => {
     restore();
     requestAnimationFrame(restore);
   });
-  readerAppVisibilityRestoreTimer = setTimeout(() => {
-    restore();
-    if (readerAppVisibilityScrollState === scrollState) {
-      readerAppVisibilityScrollState = null;
-    }
-  }, 240);
+  readerAppVisibilityRestoreTimer = setTimeout(restoreUntilSettled, 180);
+}
+
+function cancelReaderAppResumeRestore() {
+  readerAppResumeRestoreDeadline = 0;
+  clearTimeout(readerAppVisibilityRestoreTimer);
+  readerAppVisibilityScrollState = null;
+}
+
+function noteReaderScrollIntent() {
+  readerUserScrollIntentUntil = Date.now() + 2400;
+  cancelReaderAppResumeRestore();
+}
+
+function protectedReaderPosition() {
+  const scrollState = readerAppVisibilityScrollState || savedReaderPosition();
+  if (
+    !scrollState
+    || scrollState.mode !== state.mode
+    || scrollState.reference !== state.reference
+  ) return null;
+  return scrollState;
+}
+
+function handleReaderScrollPositionChange() {
+  const scripture = document.querySelector(".scripture");
+  const protectedPosition = scripture?.scrollTop <= 8 ? protectedReaderPosition() : null;
+  const unexpectedTopReset = Boolean(
+    scripture
+    && scripture.scrollTop <= 8
+    && (protectedPosition?.scriptureTop || 0) > 8
+    && Date.now() > readerUserScrollIntentUntil
+  );
+  if (unexpectedTopReset) {
+    readerAppVisibilityScrollState = protectedPosition;
+    restoreReaderScrollAfterAppSwitch();
+    return;
+  }
+  refreshLastReaderScrollAnchor();
+  scheduleReaderPositionPersistence();
+}
+
+function readerLifecycleHeartbeatTick() {
+  const now = Date.now();
+  const elapsed = now - readerLifecycleHeartbeatAt;
+  readerLifecycleHeartbeatAt = now;
+  if (
+    isStandaloneWebApp()
+    && elapsed > readerLifecycleResumeGapMs
+    && !dataLoading
+    && !dataError
+    && ["reader", "parallel"].includes(state.mode)
+  ) {
+    restoreReaderScrollAfterAppSwitch({ allowStored: true });
+  }
+}
+
+function restoreSavedReaderPositionAfterStartup() {
+  if (!isStandaloneWebApp()) return;
+  const navigation = window.performance?.getEntriesByType?.("navigation")?.[0];
+  if (!document.wasDiscarded && navigation?.type !== "reload") return;
+  restoreReaderScrollAfterAppSwitch({ allowStored: true });
 }
 
 function rail() {
@@ -11671,6 +11841,7 @@ async function initializeBibleData() {
     stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
     dataLoading = false;
     render();
+    if (!updateScrollState) restoreSavedReaderPositionAfterStartup();
     maybeOfferPushNotifications();
     window.setTimeout(maybeCheckForAppUpdate, 1200);
   } catch (error) {
@@ -12172,6 +12343,12 @@ window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
 window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
 window.addEventListener("statusTap", scrollReaderToTop);
+window.addEventListener("blur", () => {
+  if (isStandaloneWebApp()) rememberReaderScrollBeforeAppSwitch();
+});
+window.addEventListener("focus", () => {
+  if (isStandaloneWebApp()) restoreReaderScrollAfterAppSwitch({ allowStored: true });
+});
 window.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
   updateTutorialSpotlight();
@@ -12215,16 +12392,17 @@ document.addEventListener("visibilitychange", () => {
     rememberReaderScrollBeforeAppSwitch();
     return;
   }
-  restoreReaderScrollAfterAppSwitch();
+  restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   notePushVisit();
   maybeCheckForAppUpdate();
 });
 window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);
 window.addEventListener("pageshow", () => {
-  restoreReaderScrollAfterAppSwitch();
+  restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   notePushVisit();
   maybeCheckForAppUpdate();
 });
+window.setInterval(readerLifecycleHeartbeatTick, readerLifecycleHeartbeatIntervalMs);
 window.setInterval(() => {
   notePushVisit();
   maybeCheckForAppUpdate();
