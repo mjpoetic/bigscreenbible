@@ -2060,6 +2060,139 @@ button {
   display: none;
 }
 
+.mobile-focus-search-results {
+  position: fixed;
+  z-index: 140;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--teal) 14%, transparent),
+    0 16px 38px color-mix(in srgb, var(--ink) 18%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  backdrop-filter: blur(18px) saturate(120%);
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
+}
+
+.mobile-focus-search-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 11px 10px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobile-focus-search-results-head > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.mobile-focus-search-results-head span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.mobile-focus-search-results-head strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-focus-search-results-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mobile-focus-search-results-head button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.mobile-focus-search-results-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 11px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-focus-search-results .search-results {
+  gap: 9px;
+}
+
+.mobile-focus-search-results .search-result {
+  padding: 11px;
+  border-radius: 8px;
+}
+
+.mobile-focus-search-results .ref-title {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.mobile-focus-search-results .ref-copy {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.mobile-focus-search-results .verified-answer {
+  gap: 7px;
+  padding: 12px;
+}
+
+.mobile-focus-search-results .verified-answer-text {
+  font-size: 20px;
+}
+
+.mobile-focus-search-results .verified-answer p {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mobile-focus-search-results .verified-answer-reference {
+  gap: 8px;
+  padding-top: 9px;
+  font-size: 12px;
+}
+
+.mobile-focus-search-results .empty-state {
+  padding: 14px 10px;
+}
+
+@media (min-width: 841px) {
+  .app-shell.focus-shell .mobile-focus-search-results {
+    top: calc(var(--topbar-height) + 10px);
+    left: 14px;
+    display: grid;
+    width: min(440px, calc(100vw - 28px));
+    max-height: min(62dvh, 560px);
+  }
+}
+
 .reader-selection-tools-button {
   display: none;
 }
@@ -4196,6 +4329,61 @@ select {
   background: color-mix(in srgb, var(--gold-soft) 62%, transparent);
 }
 
+.verse-marker {
+  grid-column: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.verse-marker > .verse-num {
+  width: 100%;
+}
+
+.verse-note-indicators {
+  display: inline-flex;
+  max-width: 30px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.verse-note-indicator {
+  display: inline-grid;
+  width: 17px;
+  min-width: 17px;
+  height: 17px;
+  min-height: 17px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--gold-soft) 72%, var(--panel));
+  color: color-mix(in srgb, var(--gold) 72%, var(--ink));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.verse-note-indicator:hover,
+.verse-note-indicator:focus-visible {
+  background: color-mix(in srgb, var(--gold-soft) 88%, var(--panel));
+  color: var(--teal);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.verse-note-indicator svg {
+  width: 11px;
+  height: 11px;
+}
+
 .scripture-paragraphs {
   display: grid;
   gap: 1.15em;
@@ -4329,6 +4517,30 @@ select {
   font-size: 0.38em;
   line-height: 0;
   vertical-align: super;
+}
+
+.paragraph-verse-marker {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.14em;
+  margin-right: 0.16em;
+  vertical-align: super;
+}
+
+.paragraph-verse-marker .verse-num {
+  margin-right: 0;
+}
+
+.paragraph-verse-marker .verse-note-indicators {
+  max-width: none;
+  flex-wrap: nowrap;
+}
+
+.paragraph-verse-marker .verse-note-indicator {
+  width: 15px;
+  min-width: 15px;
+  height: 15px;
+  min-height: 15px;
 }
 
 .verse.selected,
@@ -4919,6 +5131,12 @@ select {
   transform: translateY(-1px);
 }
 
+.selection-bar .selection-action.has-note {
+  border-color: color-mix(in srgb, var(--gold) 28%, transparent);
+  background: color-mix(in srgb, var(--gold-soft) 58%, transparent);
+  color: color-mix(in srgb, var(--gold) 72%, var(--ink));
+}
+
 .selection-bar .selection-action-icon {
   display: inline-flex;
   align-items: center;
@@ -5105,6 +5323,22 @@ select {
 .parallel-row > .verse-num {
   padding: 16px;
   border-right: 1px solid var(--line);
+}
+
+.parallel-row > .parallel-verse-marker {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 16px 10px;
+  border-right: 1px solid var(--line);
+}
+
+.parallel-verse-marker > .verse-num {
+  text-align: center;
+}
+
+.parallel-verse-marker .verse-note-indicators {
+  max-width: 32px;
+  justify-content: center;
 }
 
 .parallel-head {
@@ -5728,6 +5962,151 @@ select {
   resize: vertical;
   padding: 12px;
   line-height: 1.5;
+}
+
+.note-composer {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 180;
+  display: grid;
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(560px, calc(100dvh - 28px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 96%, transparent);
+  color: var(--ink);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--paper) 45%, transparent),
+    0 20px 54px color-mix(in srgb, var(--ink) 24%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(118%);
+  backdrop-filter: blur(18px) saturate(118%);
+  font-family: var(--ui-font);
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
+}
+
+.note-composer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.note-composer-head > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.note-composer-eyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.note-composer-head h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-composer-close {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+}
+
+.note-composer-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+.note-composer-passage {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  padding: 13px 16px 0;
+  color: var(--muted);
+  font: italic 500 13px/1.5 var(--scripture-font);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.note-composer-form {
+  display: grid;
+  min-height: 0;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.note-composer textarea {
+  width: 100%;
+  min-height: 148px;
+  max-height: 280px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 14px/1.55 var(--ui-font);
+}
+
+.note-composer textarea:focus {
+  border-color: color-mix(in srgb, var(--teal) 58%, var(--line));
+  outline: 2px solid color-mix(in srgb, var(--teal) 18%, transparent);
+  outline-offset: 1px;
+}
+
+.note-composer-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.note-composer-actions .text-btn {
+  min-height: 36px;
+}
+
+.note-composer-cancel {
+  color: var(--muted);
+}
+
+.note-composer-save {
+  min-height: 38px;
+  padding: 0 14px;
+  border-color: var(--teal);
+  background: var(--teal);
+  color: white;
+  font-weight: 800;
+}
+
+@media (max-width: 840px) {
+  .note-composer {
+    top: auto !important;
+    right: max(10px, env(safe-area-inset-right, 0px));
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    width: auto;
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    border-radius: 14px;
+  }
+
+  .note-composer textarea {
+    min-height: 132px;
+  }
 }
 
 .presentation {
@@ -9516,131 +9895,11 @@ svg {
     }
 
     .app-shell.focus-shell .mobile-focus-search-results {
-      position: fixed;
       left: max(7px, env(safe-area-inset-left, 0px));
       bottom: calc(var(--mobile-portrait-footer-height) + 118px + env(safe-area-inset-bottom, 0px));
-      z-index: 140;
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
       width: min(340px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
       max-height: min(50dvh, 420px);
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: color-mix(in srgb, var(--panel) 94%, transparent);
-      box-shadow:
-        0 0 24px color-mix(in srgb, var(--teal) 14%, transparent),
-        0 16px 38px color-mix(in srgb, var(--ink) 18%, transparent);
-      -webkit-backdrop-filter: blur(18px) saturate(120%);
-      backdrop-filter: blur(18px) saturate(120%);
-      animation: surfaceIn var(--motion-base) var(--motion-ease) both;
-    }
-
-    .mobile-focus-search-results-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 11px 11px 10px 13px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .mobile-focus-search-results-head > div {
-      display: grid;
-      min-width: 0;
-      gap: 2px;
-    }
-
-    .mobile-focus-search-results-head span {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 900;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
-    }
-
-    .mobile-focus-search-results-head strong {
-      overflow: hidden;
-      color: var(--ink);
-      font-size: 15px;
-      line-height: 1.25;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .mobile-focus-search-results-head button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
-      padding: 0;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--paper) 82%, transparent);
-      color: var(--muted);
-      cursor: pointer;
-    }
-
-    .mobile-focus-search-results-head button svg {
-      width: 17px;
-      height: 17px;
-    }
-
-    .mobile-focus-search-results-body {
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding: 11px;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .mobile-focus-search-results .search-results {
-      gap: 9px;
-    }
-
-    .mobile-focus-search-results .search-result {
-      padding: 11px;
-      border-radius: 8px;
-    }
-
-    .mobile-focus-search-results .ref-title {
-      margin-bottom: 4px;
-      font-size: 13px;
-    }
-
-    .mobile-focus-search-results .ref-copy {
-      display: -webkit-box;
-      overflow: hidden;
-      font-size: 13px;
-      line-height: 1.4;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 3;
-    }
-
-    .mobile-focus-search-results .verified-answer {
-      gap: 7px;
-      padding: 12px;
-    }
-
-    .mobile-focus-search-results .verified-answer-text {
-      font-size: 20px;
-    }
-
-    .mobile-focus-search-results .verified-answer p {
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .mobile-focus-search-results .verified-answer-reference {
-      gap: 8px;
-      padding-top: 9px;
-      font-size: 12px;
-    }
-
-    .mobile-focus-search-results .empty-state {
-      padding: 14px 10px;
     }
 
     .reader-top-button {
@@ -10188,7 +10447,8 @@ svg {
       scroll-margin-block: 120px;
     }
 
-    .parallel-row > .verse-num {
+    .parallel-row > .verse-num,
+    .parallel-row > .parallel-verse-marker {
       grid-column: 1;
       grid-row: 1 / span var(--version-count);
       align-self: stretch;

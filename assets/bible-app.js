@@ -422,6 +422,8 @@ const state = {
   libraryScrollByRail: savedLibraryScrollByRail(),
   selectedVerses: [],
   keyboardSelectionAnchor: null,
+  noteComposerRef: "",
+  noteComposerAnchor: null,
   highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
   customHighlightColor: normalizeHighlightColor(localStorage.getItem("lw_custom_highlight_color")) || "#c084fc",
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
@@ -451,6 +453,7 @@ const state = {
 };
 
 let activePopupDrag = null;
+let pendingNoteComposerFocus = false;
 
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
 state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
@@ -943,6 +946,7 @@ function render() {
       ${presentation()}
       ${shortcutOverlay()}
       ${aboutMenuOverlay()}
+      ${noteComposerMarkup()}
       ${pushConsentPrompt()}
       ${tutorialIntro()}
       ${tutorialOverlay()}
@@ -963,9 +967,17 @@ function render() {
   requestAnimationFrame(() => {
     positionAccountPopover();
     positionSettingsPopover();
+    positionFocusSearchResults();
+    positionNoteComposer();
     restoreSettingsPanelScroll(settingsScrollState);
     applyPopupPosition("help");
     if (state.pushPromptVisible) document.getElementById("enablePushPrompt")?.focus();
+    if (pendingNoteComposerFocus) {
+      pendingNoteComposerFocus = false;
+      const textarea = document.getElementById("noteComposerTextarea");
+      textarea?.focus({ preventScroll: true });
+      textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
   });
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
@@ -1716,6 +1728,25 @@ function mobileFocusSearchResults() {
       </div>
     </section>
   `;
+}
+
+function positionFocusSearchResults() {
+  const panel = document.getElementById("mobileFocusSearchResults");
+  if (!panel) return;
+  panel.style.removeProperty("left");
+  panel.style.removeProperty("top");
+  panel.style.removeProperty("width");
+  if (isCompactScreen()) return;
+  const anchor = document.querySelector(".topbar .search");
+  if (!anchor) return;
+  const anchorRect = anchor.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const margin = 14;
+  const width = Math.min(440, Math.max(360, anchorRect.width), viewportWidth - margin * 2);
+  const left = Math.min(Math.max(margin, anchorRect.left), viewportWidth - width - margin);
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(anchorRect.bottom + 10)}px`;
+  panel.style.width = `${Math.round(width)}px`;
 }
 
 function pushReminderSettings(prefix = "") {
@@ -3046,6 +3077,85 @@ function notesPanel() {
       </div>
     </section>
   `;
+}
+
+function noteComposerMarkup() {
+  const ref = state.noteComposerRef;
+  if (!ref) return "";
+  const note = String(state.notes[ref] || "");
+  const preview = truncatePreview(passagePreviewForReference(ref));
+  return `
+    <section class="note-composer" id="noteComposer" role="dialog" aria-modal="false" aria-labelledby="noteComposerTitle">
+      <header class="note-composer-head">
+        <div>
+          <span class="note-composer-eyebrow">Passage note</span>
+          <h2 id="noteComposerTitle">${escapeHtml(ref)}</h2>
+        </div>
+        <button class="icon-btn note-composer-close" id="closeNoteComposer" type="button" aria-label="Close note">${icons.clear}</button>
+      </header>
+      ${preview ? `<p class="note-composer-passage">${escapeHtml(preview)}</p>` : ""}
+      <form class="note-composer-form" id="noteComposerForm">
+        <label class="sr-only" for="noteComposerTextarea">Note for ${escapeHtml(ref)}</label>
+        <textarea id="noteComposerTextarea" placeholder="Write a note about this passage…">${escapeHtml(note)}</textarea>
+        <div class="note-composer-actions">
+          ${note.trim() ? `<button class="text-btn danger-text note-composer-delete" id="deleteNoteComposer" type="button">Delete</button>` : `<span></span>`}
+          <button class="text-btn note-composer-cancel" id="cancelNoteComposer" type="button">Cancel</button>
+          <button class="ghost-btn note-composer-save" type="submit">${note.trim() ? "Update note" : "Save note"}</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function noteComposerAnchor(element) {
+  if (!(element instanceof Element)) return null;
+  const rect = element.getBoundingClientRect();
+  return {
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    left: rect.left,
+  };
+}
+
+function openNoteComposer(ref = activePassageLabel(), anchor = null) {
+  const parsed = parsePassageReference(ref);
+  if (!parsed) return showToast("Choose a verse or passage before adding a note");
+  state.noteComposerRef = String(ref).trim();
+  state.noteComposerAnchor = noteComposerAnchor(anchor);
+  pendingNoteComposerFocus = true;
+  renderPreservingReaderScroll();
+}
+
+function closeNoteComposer() {
+  state.noteComposerRef = "";
+  state.noteComposerAnchor = null;
+  pendingNoteComposerFocus = false;
+  renderPreservingReaderScroll();
+}
+
+function positionNoteComposer() {
+  const composer = document.getElementById("noteComposer");
+  if (!composer || isCompactScreen()) return;
+  const margin = 14;
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+  const anchor = state.noteComposerAnchor || {
+    top: viewportHeight / 2,
+    right: viewportWidth / 2,
+    bottom: viewportHeight / 2,
+    left: viewportWidth / 2,
+  };
+  const width = composer.offsetWidth;
+  const height = composer.offsetHeight;
+  const left = Math.min(Math.max(margin, anchor.left), Math.max(margin, viewportWidth - width - margin));
+  const below = anchor.bottom + 10;
+  const above = anchor.top - height - 10;
+  const top = below + height <= viewportHeight - margin
+    ? below
+    : Math.max(margin, above);
+  composer.style.left = `${Math.round(left)}px`;
+  composer.style.top = `${Math.round(top)}px`;
 }
 
 function annotationShelfMarkup(label, count, listClass, content, shelfKey) {
@@ -4750,10 +4860,13 @@ function readerView() {
   return `
     <h1 class="section-title">${chapter.title}</h1>
     ${selectionBar()}
-    ${useParagraphs ? paragraphReaderView(chapter.verses, version) : chapter.verses.map((verse) => `
+      ${useParagraphs ? paragraphReaderView(chapter.verses, version) : chapter.verses.map((verse) => `
       ${sectionHeadingsMarkup(verse, version)}
       <p class="verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
-        <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+        <span class="verse-marker">
+          <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+          ${verseNoteIndicatorsMarkup(verse.n)}
+        </span>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
         ${verseCopyButton(verse.n)}
       </p>
@@ -4874,7 +4987,10 @@ function paragraphReaderView(verses, version) {
       <p class="scripture-paragraph">
         ${group.map((verse) => `
           <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
-            <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}" aria-expanded="false">${verse.n}</button>
+            <span class="paragraph-verse-marker">
+              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}" aria-expanded="false">${verse.n}</button>
+              ${verseNoteIndicatorsMarkup(verse.n)}
+            </span>
             <span class="verse-text">${renderStrongText(verse, version)}</span>
           </span>
         `).join(" ")}
@@ -5762,7 +5878,10 @@ function parallelView() {
       ${currentChapter().verses.map((verse) => `
         ${parallelSectionHeadingsMarkup(verse, versions)}
         <div class="parallel-row ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
-          <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+          <div class="verse-marker parallel-verse-marker">
+            <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+            ${verseNoteIndicatorsMarkup(verse.n)}
+          </div>
           ${versions.map((version) => `<div class="parallel-copy" data-version="${escapeHtml(version)}">${renderStrongText(verse, version)}</div>`).join("")}
         </div>
       `).join("")}
@@ -5836,6 +5955,29 @@ function verseStateClasses(verseNumber) {
     highlightClass,
     highlightClass && (selected || passageSelected) ? "highlight-selected" : "",
   ].filter(Boolean).join(" ");
+}
+
+function noteReferencesStartingAtVerse(verseNumber) {
+  return Object.entries(state.notes)
+    .filter(([, note]) => String(note || "").trim())
+    .map(([ref]) => ({ ref, parsed: parsePassageReference(ref) }))
+    .filter(({ parsed }) => parsed?.key === state.reference && parsed.verse === Number(verseNumber))
+    .sort((left, right) => left.parsed.verses.length - right.parsed.verses.length || left.ref.localeCompare(right.ref))
+    .map(({ ref }) => ref);
+}
+
+function verseNoteIndicatorsMarkup(verseNumber) {
+  const references = noteReferencesStartingAtVerse(verseNumber);
+  if (!references.length) return "";
+  return `
+    <span class="verse-note-indicators" aria-label="${references.length === 1 ? "Passage note" : `${references.length} passage notes`}">
+      ${references.map((ref) => `
+        <button class="verse-note-indicator" type="button" data-note-reference="${escapeHtml(ref)}" aria-label="Open note for ${escapeHtml(ref)}" data-tooltip="Note · ${escapeHtml(ref)}">
+          ${icons.note}
+        </button>
+      `).join("")}
+    </span>
+  `;
 }
 
 function highlightClassForVerse(verseNumber) {
@@ -6528,6 +6670,7 @@ function selectionBar() {
   const count = state.selectedVerses.length;
   if (!count) return "";
   const label = printReferenceLabel(state.selectedVerses);
+  const hasNote = Boolean(String(state.notes[label] || "").trim());
   const crossRefVerse = selectedCrossReferenceVerse();
   const crossRefLabel = `${state.reference}:${crossRefVerse}`;
   return `
@@ -6544,6 +6687,7 @@ function selectionBar() {
       <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
       <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
       <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
+      <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
       <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
       <button class="text-btn selection-action" id="clearSelection" aria-label="Clear selected verses" data-tooltip="Clear"><span class="selection-action-icon">${icons.clear}</span><span class="selection-action-label">Clear</span></button>
     </div>
@@ -7713,6 +7857,12 @@ function bindEvents() {
       copySpecificVerses([Number(button.dataset.copyVerse)]);
     });
   });
+  document.querySelectorAll("[data-note-reference]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openNoteComposer(button.dataset.noteReference, button);
+    });
+  });
   document.querySelectorAll("[data-verse]").forEach((row) => {
     row.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -7762,7 +7912,7 @@ function bindEvents() {
   document.querySelectorAll("[data-edit-note]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      editNote(button.dataset.editNote);
+      editNote(button.dataset.editNote, button);
     });
   });
   document.querySelectorAll("[data-delete-note]").forEach((button) => {
@@ -7883,6 +8033,15 @@ function bindEvents() {
     renderPreservingReaderScroll();
   });
   document.getElementById("saveNote")?.addEventListener("click", saveNote);
+  document.getElementById("noteComposerForm")?.addEventListener("submit", saveNoteComposer);
+  document.getElementById("closeNoteComposer")?.addEventListener("click", closeNoteComposer);
+  document.getElementById("cancelNoteComposer")?.addEventListener("click", closeNoteComposer);
+  document.getElementById("deleteNoteComposer")?.addEventListener("click", deleteNoteComposer);
+  document.getElementById("noteComposer")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    closeNoteComposer();
+  });
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
   document.getElementById("shareSelection")?.addEventListener("click", shareSelectedPassage);
@@ -9443,7 +9602,7 @@ async function runReferenceOrPhraseSearch(value) {
     gotoReference(cleaned);
     return;
   }
-  await runPhraseSearch(cleaned);
+  await runPhraseSearch(cleaned, { focusResults: state.focusMode && state.mode !== "big" });
 }
 
 async function runPhraseSearch(value, options = {}) {
@@ -11170,12 +11329,31 @@ function handleGlobalShortcuts(event) {
 }
 
 function shortcutWorkspace(target) {
+  if (target === "Search" && state.focusMode && state.mode !== "big") {
+    return focusFocusModeSearch();
+  }
   if (state.mode === "big") state.mode = "reader";
   if (state.focusMode) {
     state.focusMode = false;
     localStorage.setItem("lw_focus_mode", "false");
   }
   activateWorkspace(target);
+}
+
+function focusFocusModeSearch() {
+  const focusInput = () => {
+    const input = document.getElementById("referenceInput");
+    input?.focus({ preventScroll: true });
+    input?.select();
+  };
+  if (state.focusReferenceOpen || state.focusSearchResultsOpen) {
+    state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = false;
+    renderPreservingReaderScroll();
+    requestAnimationFrame(focusInput);
+    return;
+  }
+  focusInput();
 }
 
 function invokeHighlightBar() {
@@ -11427,12 +11605,40 @@ function toggleBookmark() {
 function saveNote() {
   const note = document.getElementById("noteBox").value.trim();
   const ref = activePassageLabel();
-  if (note) state.notes[ref] = note;
+  persistNote(ref, note);
+  render();
+  requestAnimationFrame(() => showToast(note ? "Note saved" : "Note deleted"));
+}
+
+function persistNote(ref, note) {
+  const cleaned = String(note || "").trim();
+  if (cleaned) state.notes[ref] = cleaned;
   else delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   scheduleCloudSync();
-  showToast(note ? "Note saved" : "Note deleted");
-  render();
+  return cleaned;
+}
+
+function saveNoteComposer(event) {
+  event.preventDefault();
+  const ref = state.noteComposerRef;
+  const note = persistNote(ref, document.getElementById("noteComposerTextarea")?.value);
+  state.noteComposerRef = "";
+  state.noteComposerAnchor = null;
+  pendingNoteComposerFocus = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => showToast(note ? "Note saved" : "Note deleted"));
+}
+
+function deleteNoteComposer() {
+  const ref = state.noteComposerRef;
+  if (!ref) return;
+  persistNote(ref, "");
+  state.noteComposerRef = "";
+  state.noteComposerAnchor = null;
+  pendingNoteComposerFocus = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => showToast("Note deleted"));
 }
 
 function editBookmark(ref) {
@@ -11456,24 +11662,18 @@ function deleteBookmark(ref) {
   render();
 }
 
-function editNote(ref) {
-  const nextNote = window.prompt(`Edit note for ${ref}`, state.notes[ref] || "");
-  if (nextNote === null) return;
-  const note = nextNote.trim();
-  if (note) state.notes[ref] = note;
-  else delete state.notes[ref];
-  localStorage.setItem("lw_notes", JSON.stringify(state.notes));
-  scheduleCloudSync();
-  showToast(note ? "Note updated" : "Note deleted");
-  render();
+function editNote(ref, anchor = null) {
+  openNoteComposer(ref, anchor);
 }
 
 function deleteNote(ref) {
-  delete state.notes[ref];
-  localStorage.setItem("lw_notes", JSON.stringify(state.notes));
-  scheduleCloudSync();
-  showToast("Note deleted");
-  render();
+  persistNote(ref, "");
+  if (state.noteComposerRef === ref) {
+    state.noteComposerRef = "";
+    state.noteComposerAnchor = null;
+  }
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => showToast("Note deleted"));
 }
 
 function openHighlightNote(ref) {
@@ -11652,7 +11852,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .cross-ref-popup, .strong-popup")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .cross-ref-popup, .strong-popup, .note-composer")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }
@@ -12422,10 +12622,13 @@ window.addEventListener("resize", () => {
   updateTutorialSpotlight();
   positionAccountPopover();
   positionSettingsPopover();
+  positionFocusSearchResults();
+  positionNoteComposer();
 });
 window.visualViewport?.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
   positionSettingsPopover();
+  positionNoteComposer();
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 document.addEventListener("click", (event) => {
@@ -12452,7 +12655,7 @@ document.addEventListener("click", (event) => {
   renderPreservingReaderScroll();
 });
 document.addEventListener("click", (event) => {
-  if (!state.focusSearchResultsOpen || event.target.closest?.(".mobile-focus-search-results, .mobile-focus-passage-control")) return;
+  if (!state.focusSearchResultsOpen || event.target.closest?.(".mobile-focus-search-results, .mobile-focus-passage-control, .topbar .search")) return;
   state.focusSearchResultsOpen = false;
   renderPreservingReaderScroll();
 });
