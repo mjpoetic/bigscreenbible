@@ -6352,6 +6352,8 @@ function openCrossReferencePopup(anchor) {
 function openVerseActionMenu(anchor) {
   const verseNumber = Number(anchor.dataset.verseActions);
   if (!verseNumber) return;
+  const noteRef = `${state.reference}:${verseNumber}`;
+  const hasNote = Boolean(String(state.notes[noteRef] || "").trim());
   const existingMenu = document.getElementById("verseActionMenu");
   if (existingMenu?.dataset.verse === String(verseNumber)) {
     closeVerseActionMenu();
@@ -6369,6 +6371,8 @@ function openVerseActionMenu(anchor) {
     <button type="button" data-menu-select aria-label="Select ${state.reference}:${verseNumber}">${icons.plus}</button>
     <button type="button" data-menu-copy aria-label="Copy ${state.reference}:${verseNumber}">${icons.copy}</button>
     <button type="button" data-menu-cross-ref data-cross-ref-verse="${verseNumber}" aria-label="Cross references for ${state.reference}:${verseNumber}">${icons.layers}</button>
+    <button type="button" data-menu-note aria-label="${hasNote ? "Edit" : "Add"} note for ${state.reference}:${verseNumber}">${hasNote ? icons.note : icons.noteAdd}</button>
+    <button type="button" data-menu-highlight aria-label="Highlight ${state.reference}:${verseNumber}">${icons.highlighter}</button>
   `;
   (document.querySelector(".app-shell") || document.body).appendChild(menu);
   anchor.setAttribute("aria-expanded", "true");
@@ -6392,6 +6396,16 @@ function openVerseActionMenu(anchor) {
     const button = event.currentTarget;
     openCrossReferencePopup(button);
     closeVerseActionMenu();
+  });
+  menu.querySelector("[data-menu-note]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeVerseActionMenu(true);
+    openNoteComposer(noteRef, anchor);
+  });
+  menu.querySelector("[data-menu-highlight]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    closeVerseActionMenu(true);
+    openHighlightToolsForVerse(verseNumber);
   });
 
   requestAnimationFrame(() => {
@@ -11358,14 +11372,25 @@ function focusFocusModeSearch() {
 
 function invokeHighlightBar() {
   if (!canUseReaderKeyboardNavigation()) return;
-  const focusHighlightPalette = () => {
-    document.querySelector("[data-highlight-color]")?.focus({ preventScroll: true });
-  };
   if (state.selectedVerses.length) {
     focusHighlightPalette();
     return;
   }
   state.selectedVerses = [state.verse];
+  state.isVerseOfDayActive = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(focusHighlightPalette);
+}
+
+function focusHighlightPalette() {
+  document.querySelector("[data-highlight-color]")?.focus({ preventScroll: true });
+}
+
+function openHighlightToolsForVerse(verseNumber) {
+  if (!canUseReaderKeyboardNavigation()) return;
+  state.verse = verseNumber;
+  state.selectedVerses = [verseNumber];
+  state.keyboardSelectionAnchor = null;
   state.isVerseOfDayActive = false;
   renderPreservingReaderScroll();
   requestAnimationFrame(focusHighlightPalette);

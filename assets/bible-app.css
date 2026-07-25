@@ -4317,7 +4317,7 @@ select {
 .verse {
   position: relative;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 46px minmax(0, 1fr);
   gap: 8px;
   padding: 8px 48px 8px 0;
   border-radius: 6px;
@@ -4333,19 +4333,22 @@ select {
   grid-column: 1;
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
   gap: 3px;
 }
 
 .verse-marker > .verse-num {
-  width: 100%;
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .verse-note-indicators {
   display: inline-flex;
-  max-width: 30px;
-  flex-wrap: wrap;
+  max-width: none;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
@@ -4521,14 +4524,18 @@ select {
 
 .paragraph-verse-marker {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.14em;
   margin-right: 0.16em;
   vertical-align: super;
 }
 
 .paragraph-verse-marker .verse-num {
+  display: inline-grid;
+  place-items: center;
   margin-right: 0;
+  line-height: 1;
+  vertical-align: baseline;
 }
 
 .paragraph-verse-marker .verse-note-indicators {
@@ -9922,7 +9929,7 @@ svg {
       right: calc(env(safe-area-inset-right, 0px) + 8px);
       bottom: calc(var(--mobile-portrait-footer-height) + 14px + env(safe-area-inset-bottom, 0px));
       display: grid;
-      grid-template-columns: repeat(6, minmax(32px, 1fr));
+      grid-template-columns: repeat(7, minmax(32px, 1fr));
       align-items: center;
       gap: 6px;
       max-width: none;
@@ -10370,7 +10377,7 @@ svg {
   }
 
   .verse {
-    grid-template-columns: 24px 1fr;
+    grid-template-columns: 42px 1fr;
     padding-right: 0;
   }
 
@@ -11565,7 +11572,7 @@ svg {
     right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
     bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
     display: grid;
-    grid-template-columns: repeat(6, minmax(32px, 1fr));
+    grid-template-columns: repeat(7, minmax(32px, 1fr));
     gap: 6px;
     max-height: min(42vh, 240px);
     overflow-x: hidden;

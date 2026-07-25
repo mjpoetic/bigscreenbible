@@ -60,8 +60,12 @@ assert.match(source, /function noteComposerMarkup\(\)/);
 assert.match(source, /function saveNoteComposer\(event\)/);
 assert.match(source, /function deleteNoteComposer\(\)/);
 assert.match(source, /verseNoteIndicatorsMarkup\(verse\.n\)/);
+assert.match(source, /data-menu-note/);
+assert.match(source, /data-menu-highlight/);
+assert.match(source, /function openHighlightToolsForVerse\(verseNumber\)/);
 assert.match(styles, /\.verse-note-indicator/);
 assert.match(styles, /\.note-composer/);
+assert.match(styles, /grid-template-columns: repeat\(7, minmax\(32px, 1fr\)\)/);
 assert.match(styles, /@media \(max-width: 840px\)[\s\S]*?\.note-composer/);
 
 console.log("Note composer tests passed");
