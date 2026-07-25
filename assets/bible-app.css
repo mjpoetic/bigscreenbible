@@ -9450,20 +9450,26 @@ svg {
     }
 
     .app-shell.focus-shell .mobile-focus-passage-control {
-      display: contents;
-    }
-
-    .app-shell.focus-shell .mobile-floating-passage {
+      position: fixed;
       right: auto;
       left: max(7px, env(safe-area-inset-left, 0px));
       bottom: calc(var(--mobile-portrait-footer-height) + 66px + env(safe-area-inset-bottom, 0px));
+      z-index: 42;
+      display: block;
+    }
+
+    .app-shell.focus-shell .mobile-floating-passage {
+      position: static;
+      right: auto;
+      left: auto;
+      bottom: auto;
       display: inline-flex;
     }
 
     .app-shell.focus-shell .mobile-focus-passage-popover {
-      position: fixed;
-      left: max(59px, calc(env(safe-area-inset-left, 0px) + 59px));
-      bottom: calc(var(--mobile-portrait-footer-height) + 66px + env(safe-area-inset-bottom, 0px));
+      position: absolute;
+      left: 52px;
+      bottom: 0;
       z-index: 141;
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -11090,6 +11096,10 @@ svg {
 @media (max-width: 840px) {
   .app-shell.footer-collapsed .mobile-floating-settings {
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .mobile-focus-passage-control {
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   }
 
   .app-shell.footer-collapsed .reader-top-button {
