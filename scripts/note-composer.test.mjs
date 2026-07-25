@@ -66,6 +66,8 @@ assert.match(source, /function openHighlightToolsForVerse\(verseNumber\)/);
 assert.match(styles, /\.verse-note-indicator/);
 assert.match(styles, /\.note-composer/);
 assert.match(styles, /grid-template-columns: repeat\(7, minmax\(32px, 1fr\)\)/);
+assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\)[\s\S]*?\.app-shell \.reader \.selection-bar[\s\S]*?position: absolute/);
+assert.match(styles, /\.app-shell \.main-grid\.focus-mode \.reader \.selection-bar,[\s\S]*?\.app-shell \.chapter-tools-region\.collapsed \+ \.scripture \.selection-bar[\s\S]*?top: 8px !important/);
 assert.match(styles, /@media \(max-width: 840px\)[\s\S]*?\.note-composer/);
 
 console.log("Note composer tests passed");
