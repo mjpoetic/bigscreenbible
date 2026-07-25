@@ -200,6 +200,8 @@ let lastReaderBlankTap = null;
 let readerGestureFeedbackTimer = 0;
 let presentationResizeTimer = 0;
 let readerViewportRestoreTimer = 0;
+let readerAppVisibilityRestoreTimer = 0;
+let readerAppVisibilityScrollState = null;
 let lastReaderScrollAnchor = null;
 let lastReaderNonTopScrollAnchor = null;
 let lastReaderViewportSize = null;
@@ -1066,6 +1068,7 @@ function scrollTriviaAnswerActionsIntoView() {
 }
 
 function renderAfterViewportChangePreservingReaderScroll() {
+  if (document.visibilityState === "hidden") return;
   renderPreservingReaderScroll({ preferLastReaderAnchor: true });
 }
 
@@ -1182,7 +1185,11 @@ function switchMode(nextMode) {
 
 function currentReaderScrollAnchor() {
   const scripture = document.querySelector(".scripture");
-  if (!scripture || !["reader", "parallel"].includes(state.mode)) return null;
+  if (
+    document.visibilityState === "hidden"
+    || !scripture
+    || !["reader", "parallel"].includes(state.mode)
+  ) return null;
   const rows = Array.from(scripture.querySelectorAll("[data-verse]"));
   if (!rows.length) return null;
 
@@ -2645,7 +2652,10 @@ function bindReaderSelectionToolsButton() {
 }
 
 function preserveReaderScrollAfterViewportChange() {
-  if (!["reader", "parallel"].includes(state.mode)) return;
+  if (
+    document.visibilityState === "hidden"
+    || !["reader", "parallel"].includes(state.mode)
+  ) return;
   const previousAnchor = preferredViewportReaderScrollAnchor();
   const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
   if (previousAnchor) {
@@ -2664,6 +2674,46 @@ function preserveReaderScrollAfterViewportChange() {
     requestAnimationFrame(restore);
   });
   readerViewportRestoreTimer = setTimeout(restore, 180);
+}
+
+function rememberReaderScrollBeforeAppSwitch() {
+  if (!["reader", "parallel"].includes(state.mode)) return;
+  const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
+  const previousAnchor = preferredViewportReaderScrollAnchor();
+  if (previousAnchor) scrollState.readerAnchor = previousAnchor;
+  readerAppVisibilityScrollState = scrollState;
+  clearTimeout(readerViewportRestoreTimer);
+  clearTimeout(readerAppVisibilityRestoreTimer);
+}
+
+function restoreReaderScrollAfterAppSwitch() {
+  const scrollState = readerAppVisibilityScrollState;
+  if (
+    !scrollState
+    || scrollState.mode !== state.mode
+    || scrollState.reference !== state.reference
+  ) {
+    readerAppVisibilityScrollState = null;
+    return;
+  }
+  clearTimeout(readerViewportRestoreTimer);
+  clearTimeout(readerAppVisibilityRestoreTimer);
+
+  const restore = () => {
+    if (document.visibilityState === "hidden") return;
+    restoreReaderScroll(scrollState);
+    updateReaderTopButton();
+  };
+  requestAnimationFrame(() => {
+    restore();
+    requestAnimationFrame(restore);
+  });
+  readerAppVisibilityRestoreTimer = setTimeout(() => {
+    restore();
+    if (readerAppVisibilityScrollState === scrollState) {
+      readerAppVisibilityScrollState = null;
+    }
+  }, 240);
 }
 
 function rail() {
@@ -12161,12 +12211,17 @@ document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    notePushVisit();
-    maybeCheckForAppUpdate();
+  if (document.visibilityState === "hidden") {
+    rememberReaderScrollBeforeAppSwitch();
+    return;
   }
+  restoreReaderScrollAfterAppSwitch();
+  notePushVisit();
+  maybeCheckForAppUpdate();
 });
+window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);
 window.addEventListener("pageshow", () => {
+  restoreReaderScrollAfterAppSwitch();
   notePushVisit();
   maybeCheckForAppUpdate();
 });

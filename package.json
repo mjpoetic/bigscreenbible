@@ -7,6 +7,7 @@
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
     "test:accessibility": "node scripts/interface-text-size.test.mjs",
+    "test:reader-lifecycle": "node scripts/reader-lifecycle-scroll.test.mjs",
     "test:search": "node scripts/search-query.test.mjs && node scripts/semantic-search-corpus.test.mjs && node scripts/semantic-search-quality.test.mjs",
     "test:version-sync": "node scripts/version-sync.test.mjs",
     "check:app-version": "node scripts/check-app-version.mjs",
