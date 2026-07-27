@@ -62,7 +62,7 @@ The bundled full-text translations live in `assets/bibles/` as JavaScript data b
 
 The data bundles were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). BBE was generated from the public-domain [eng-bbe.usfx.xml](https://github.com/seven1m/open-bibles/blob/master/eng-bbe.usfx.xml) file in the seven1m/open-bibles collection.
 
-The bundled data also includes word-level Strong's number tags where the USFX source provides them.
+The bundled data also includes Strong's number mappings. KJV, WEB, and ASV retain the word-level tags supplied by their source packages. BSB uses phrase-level Hebrew/Greek alignments generated from the official BSB Translation Tables so multi-word renderings, multiple source words, and proper names remain connected accurately.
 
 Paragraph layout support is data-driven. ESV paragraphing comes from the ESV passage API. The bundled public-domain/open translations can also use paragraph metadata when source files with paragraph markers are available.
 
@@ -119,6 +119,18 @@ node scripts/build-red-letter-metadata.mjs WEB=./sources/engwebp_usfm KJV=./sour
 ```
 
 The generated `assets/bibles/red-letters.js` contains character ranges only; it does not duplicate Scripture text.
+
+To rebuild BSB Strong's mappings from the official translation tables:
+
+1. Download `bsb_tables.tsv` from the [official BSB downloads page](https://berean.bible/downloads.htm) into the ignored `sources/` folder.
+2. Run:
+
+   ```bash
+   node scripts/build-bsb-strong-metadata.mjs ./sources/bsb_tables.tsv
+   npm run test:strongs
+   ```
+
+The builder replaces the older BSB USFM Strong's arrays with phrase-level mappings in `assets/bibles/BSB.js`. It combines continuation rows into multi-number phrases, aligns only exact ordered English tokens, rejects low-coverage output, and verifies known mappings for ordinary words, compound phrases, and proper names.
 
 Cross references are bundled in `assets/crossrefs.js` from the [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/) dataset, credited under CC-BY.
 

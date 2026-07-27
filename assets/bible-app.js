@@ -3485,9 +3485,30 @@ function getVerseText(verse, version, chapterKey = state.reference) {
 }
 
 function getStrongEntries(verse, version) {
-  if (Array.isArray(verse.strong?.[version])) return verse.strong[version].map(([word, code]) => ({ word, code }));
-  if (Array.isArray(verse.strong)) return verse.strong.map((entry) => Array.isArray(entry) ? { word: entry[0], code: entry[1] } : entry);
-  return sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
+  const entries = Array.isArray(verse.strong?.[version])
+    ? verse.strong[version]
+    : Array.isArray(verse.strong)
+      ? verse.strong
+      : sampleStrongRefs[`${state.reference}:${verse.n}`] || [];
+  return entries.map(normalizeStrongEntry).filter(({ word, codes }) => word && codes.length);
+}
+
+function normalizeStrongEntry(entry) {
+  const word = Array.isArray(entry) ? entry[0] : entry?.word;
+  const codes = Array.isArray(entry)
+    ? entry[1]
+    : entry?.codes || entry?.code;
+  return {
+    word: String(word || ""),
+    codes: normalizeStrongCodes(codes),
+  };
+}
+
+function normalizeStrongCodes(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return [...new Set(values
+    .map(normalizeStrongCode)
+    .filter((code) => /^[HG]\d+$/.test(code)))];
 }
 
 function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "") {
@@ -3495,14 +3516,16 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
 
   let output = "";
   let cursor = 0;
-  entries.forEach(({ word, code }) => {
-    if (!word || !code) return;
-    const normalizedCode = normalizeStrongCode(code);
-    if (!hasStrongEntry(normalizedCode)) return;
+  entries.forEach(({ word, codes }) => {
+    if (!word || !codes.length) return;
+    const availableCodes = codes.filter(hasStrongEntry);
+    if (!availableCodes.length) return;
     const index = text.indexOf(word, cursor);
     if (index === -1) return;
+    const primaryCode = availableCodes[0];
+    const codesLabel = availableCodes.join(", ");
     output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version);
-    output += `<button class="strong-word" data-strong="${escapeHtml(normalizedCode)}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(normalizedCode)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version)}</button>`;
+    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version)}</button>`;
     cursor = index + word.length;
   });
   output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version);
@@ -6318,16 +6341,21 @@ function compareReferenceParts(a, b) {
 }
 
 function openStrongPopup(anchor) {
-  const code = anchor.dataset.strong;
+  const codes = normalizeStrongCodes(
+    String(anchor.dataset.strongCodes || anchor.dataset.strong || "").split(","),
+  );
+  const code = codes[0] || "";
   const word = anchor.dataset.strongWord || "";
-  const lookup = strongEntry(code);
+  const lookups = codes
+    .map((strongCode) => strongEntry(strongCode))
+    .filter(Boolean);
   state.selectedStrong = code;
   state.selectedStrongWord = word;
   const status = strongLexiconStatus === "loading"
     ? "Open Scriptures lexicon is still loading. Try this word again in a moment."
     : "No dictionary entry was found for this word yet.";
-  const content = lookup
-    ? strongLookupCard(lookup, word ? `${word} · ` : "")
+  const content = lookups.length
+    ? `<div class="strong-list">${lookups.map((lookup) => strongLookupCard(lookup, word ? `${word} · ` : "")).join("")}</div>`
     : `<div class="ref-title">${escapeHtml(word || code)}</div><div class="ref-copy">${escapeHtml(status)}</div>`;
   showStudyPopup(anchor, content, "Strong's");
 }
@@ -6601,13 +6629,15 @@ function truncatePreview(value) {
 
 function strongLookupCard(entry, selectedWord) {
   return `
-    <div class="ref-title">${selectedWord}${entry.code} · ${escapeHtml(entry.lemma)}</div>
-    ${entry.transliteration ? `<div class="strong-meta">Transliteration: ${escapeHtml(entry.transliteration)}</div>` : ""}
-    ${entry.pronunciation ? `<div class="strong-meta">Pronunciation: ${escapeHtml(entry.pronunciation)}</div>` : ""}
-    ${entry.derivation ? `<div class="ref-copy"><strong>Derivation:</strong> ${escapeHtml(entry.derivation)}</div>` : ""}
-    ${entry.definition ? `<div class="ref-copy"><strong>Definition:</strong> ${escapeHtml(entry.definition)}</div>` : ""}
-    ${entry.kjv ? `<div class="ref-copy"><strong>KJV usage:</strong> ${escapeHtml(entry.kjv)}</div>` : ""}
-    <div class="source-note">${escapeHtml(entry.source)}</div>
+    <div class="strong-card">
+      <div class="ref-title">${escapeHtml(selectedWord)}${entry.code} · ${escapeHtml(entry.lemma)}</div>
+      ${entry.transliteration ? `<div class="strong-meta">Transliteration: ${escapeHtml(entry.transliteration)}</div>` : ""}
+      ${entry.pronunciation ? `<div class="strong-meta">Pronunciation: ${escapeHtml(entry.pronunciation)}</div>` : ""}
+      ${entry.derivation ? `<div class="ref-copy"><strong>Derivation:</strong> ${escapeHtml(entry.derivation)}</div>` : ""}
+      ${entry.definition ? `<div class="ref-copy"><strong>Definition:</strong> ${escapeHtml(entry.definition)}</div>` : ""}
+      ${entry.kjv ? `<div class="ref-copy"><strong>KJV usage:</strong> ${escapeHtml(entry.kjv)}</div>` : ""}
+      <div class="source-note">${escapeHtml(entry.source)}</div>
+    </div>
   `;
 }
 
@@ -12432,7 +12462,8 @@ function loadBibleBundleScript(name, options = {}) {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.id = scriptId;
-    script.src = `./assets/bibles/${name}.js${options.version ? `?v=${encodeURIComponent(options.version)}` : ""}`;
+    const bundleVersion = options.version || appVersion;
+    script.src = `./assets/bibles/${name}.js?v=${encodeURIComponent(bundleVersion)}`;
     script.async = true;
     script.addEventListener("load", () => resolve(), { once: true });
     script.addEventListener("error", () => {
