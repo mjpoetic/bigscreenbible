@@ -3512,9 +3512,10 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
 function setStrongNumbers(enabled, rerender = false) {
   state.strongNumbers = enabled;
   localStorage.setItem("lw_strong_numbers", enabled ? "true" : "false");
-  if (enabled) loadStrongLexicon();
+  const lexiconLoad = enabled ? loadStrongLexicon() : null;
   scheduleCloudSync();
   if (rerender) renderPreservingReaderScroll();
+  return lexiconLoad;
 }
 
 function setSideToolbarPosition(position) {
@@ -6998,6 +6999,7 @@ function shortcutOverlay() {
     ["Shift + +", "Increase Reader / Parallel text size"],
     ["Shift + −", "Decrease Reader / Parallel text size"],
     ["Shift + 0", "Reset Reader / Parallel text size"],
+    ["Shift + S", "Toggle Strong's lookups"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
     ["T", "Open games"],
@@ -11274,6 +11276,15 @@ function handleGlobalShortcuts(event) {
   if (event.shiftKey && event.code === "Digit0") {
     event.preventDefault();
     return resetTextScale({ feedback: true });
+  }
+  if (event.shiftKey && key === "s") {
+    event.preventDefault();
+    const enabled = !state.strongNumbers;
+    const lexiconLoad = setStrongNumbers(enabled, true);
+    const showFeedback = () => requestAnimationFrame(() => showToast(`Strong's lookups ${enabled ? "on" : "off"}`));
+    if (lexiconLoad) lexiconLoad.finally(showFeedback);
+    else showFeedback();
+    return;
   }
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
