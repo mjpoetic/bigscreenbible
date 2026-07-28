@@ -1118,8 +1118,10 @@ function accountSwitchNotification() {
   `;
 }
 
-function showAccountSwitchNotification(user) {
-  const account = rememberedAccounts().find((item) => item.userId === user?.id);
+function showAccountSwitchNotification(user, destinationAccount = null) {
+  const account = destinationAccount?.userId === user?.id
+    ? destinationAccount
+    : rememberedAccounts().find((item) => item.userId === user?.id);
   const identity = account?.username
     ? `@${account.username}`
     : String(account?.email || user?.email || "your account").trim();
@@ -2913,7 +2915,7 @@ function authProviderForUser(user = state.authUser) {
   return provider === "google" ? "google" : "email";
 }
 
-function rememberAuthenticatedAccount(user = state.authUser, profile = state.socialProfile) {
+function rememberAuthenticatedAccount(user = state.authUser, profile = null) {
   const existingAccount = rememberedAccounts().find((item) => item.userId === user?.id);
   const account = normalizedRememberedAccount({
     userId: user?.id,
@@ -5972,7 +5974,7 @@ async function activateRememberedAccount(account, savedSession = rememberedAccou
     state.authMessage = "";
     state.syncStatus = "loading";
     state.syncMessage = "Loading your saved settings…";
-    showAccountSwitchNotification(session.user);
+    showAccountSwitchNotification(session.user, account);
   } catch (error) {
     console.warn("Saved account switch failed", error);
     removeRememberedAccountSession(account.userId);

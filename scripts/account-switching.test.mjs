@@ -225,8 +225,8 @@ const switchContext = {
   rememberAuthenticatedAccount() {},
   removeRememberedAccountSession() {},
   renderPreservingReaderScroll() {},
-  showAccountSwitchNotification(user) {
-    accountSwitchNotices.push(user);
+  showAccountSwitchNotification(user, destinationAccount) {
+    accountSwitchNotices.push({ user, destinationAccount });
   },
   showToast() {},
   console,
@@ -241,7 +241,9 @@ assert.deepEqual(activatedSessions, [{ access_token: "access-b", refresh_token: 
 assert.equal(switchContext.state.authUser.id, "account-b");
 assert.equal(switchContext.state.accountSwitching, false);
 assert.equal(cachedSessions.at(-1).user.id, "account-b");
-assert.equal(accountSwitchNotices.at(-1).id, "account-b");
+assert.equal(accountSwitchNotices.at(-1).user.id, "account-b");
+assert.equal(accountSwitchNotices.at(-1).destinationAccount.userId, "account-b");
+assert.equal(accountSwitchNotices.at(-1).destinationAccount.email, "b@example.com");
 
 const accountSwitchNotificationSource = extractFunction("accountSwitchNotification");
 const showAccountSwitchNotificationSource = extractFunction("showAccountSwitchNotification");
@@ -266,7 +268,7 @@ const notificationContext = {
   accountSwitchNoticeDurationMs: 2000,
   state: { accountOpen: true },
   rememberedAccounts() {
-    return [{ userId: "account-b", email: "b@example.com", username: "study" }];
+    return [{ userId: "account-b", email: "b@example.com", username: "outgoing-profile" }];
   },
   clearTimeout() {},
   setTimeout(callback, delay) {
@@ -292,9 +294,16 @@ vm.runInContext(`
   globalThis.showSwitchNotice = showAccountSwitchNotification;
   globalThis.currentSwitchNotice = () => accountSwitchNotice;
 `, notificationContext);
-notificationContext.showSwitchNotice({ id: "account-b", email: "b@example.com" });
+notificationContext.showSwitchNotice(
+  { id: "account-b", email: "b@example.com" },
+  { userId: "account-b", email: "b@example.com", username: "destination-profile" },
+);
 assert.equal(notificationContext.state.accountOpen, false);
-assert.equal(notificationContext.currentSwitchNotice().identity, "@study");
+assert.equal(
+  notificationContext.currentSwitchNotice().identity,
+  "@destination-profile",
+  "The switch notice must use the account the user selected, not stale remembered profile state",
+);
 assert.equal(accountSwitchTimeoutDelay, 2000);
 assert.equal(typeof accountSwitchTimeout, "function");
 accountSwitchTimeout();
@@ -317,6 +326,51 @@ assert.doesNotMatch(loadCloudSyncSource, /const localSnapshot = captureCloudSnap
 
 const rememberAccountSource = extractFunction("rememberAuthenticatedAccount");
 assert.doesNotMatch(rememberAccountSource, /password/i, "Remembered account metadata must never include a password");
+assert.match(rememberAccountSource, /profile = null/);
+assert.doesNotMatch(
+  rememberAccountSource,
+  /profile = state\.socialProfile/,
+  "A new auth user must not inherit the outgoing account's profile",
+);
+let rememberedAccountWrite = null;
+const rememberedProfileContext = {
+  state: {
+    authUser: { id: "account-a", email: "a@example.com" },
+    socialProfile: { username: "outgoing-profile", displayName: "Outgoing" },
+  },
+  rememberedAccountLimit: 6,
+  rememberedAccounts() {
+    return [{
+      userId: "account-b",
+      email: "b@example.com",
+      provider: "email",
+      username: "destination-profile",
+      displayName: "Destination",
+      avatarKey: "initials",
+      lastUsedAt: "2026-07-28T12:00:00.000Z",
+    }];
+  },
+  normalizedRememberedAccount(account) {
+    return account;
+  },
+  authProviderForUser() {
+    return "email";
+  },
+  rememberedAccountsStorageKey: "lw_remembered_accounts",
+  localStorage: {
+    setItem(_key, value) {
+      rememberedAccountWrite = JSON.parse(value);
+    },
+  },
+};
+vm.createContext(rememberedProfileContext);
+vm.runInContext(`
+  ${rememberAccountSource}
+  globalThis.rememberAccount = rememberAuthenticatedAccount;
+`, rememberedProfileContext);
+rememberedProfileContext.rememberAccount({ id: "account-b", email: "b@example.com" });
+assert.equal(rememberedAccountWrite[0].username, "destination-profile");
+assert.equal(rememberedAccountWrite[0].displayName, "Destination");
 const rememberSessionSource = extractFunction("rememberAuthenticatedSession");
 assert.doesNotMatch(rememberSessionSource, /password/i, "Remembered sessions must never include a password");
 assert.match(source, /id="\$\{suffix\}switchAccountButton"/);

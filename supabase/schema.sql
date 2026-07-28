@@ -145,6 +145,33 @@ create index if not exists bsb_profiles_discoverable_username_pattern_idx
   on public.bsb_profiles (username text_pattern_ops)
   where is_discoverable;
 
+create schema if not exists private;
+
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated;
+
+create or replace function private.bsb_profile_accepts_friend_requests(target_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    (select auth.uid()) is not null
+    and target_user_id <> (select auth.uid())
+    and exists (
+      select 1
+      from public.bsb_profiles as target_profile
+      where target_profile.user_id = target_user_id
+        and target_profile.is_discoverable
+        and target_profile.allow_friend_requests
+    );
+$$;
+
+revoke all on function private.bsb_profile_accepts_friend_requests(uuid) from public, anon;
+grant execute on function private.bsb_profile_accepts_friend_requests(uuid) to authenticated;
+
 create table if not exists public.bsb_friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references auth.users(id) on delete cascade,
@@ -216,13 +243,7 @@ create policy "Users can send permitted friend requests"
     and requester_id <> addressee_id
     and status = 'pending'
     and responded_at is null
-    and exists (
-      select 1
-      from public.bsb_profiles as target_profile
-      where target_profile.user_id = addressee_id
-        and target_profile.is_discoverable
-        and target_profile.allow_friend_requests
-    )
+    and (select private.bsb_profile_accepts_friend_requests(addressee_id))
   );
 
 drop policy if exists "Recipients can accept pending requests" on public.bsb_friendships;

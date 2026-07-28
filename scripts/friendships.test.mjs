@@ -158,6 +158,14 @@ const friendshipSchema = schema.slice(
   schema.indexOf("create table if not exists public.bsb_friendships"),
   schema.indexOf("create table if not exists public.bsb_verse_of_day_cache"),
 );
+const friendshipSecuritySchema = schema.slice(
+  schema.indexOf("create schema if not exists private"),
+  schema.indexOf("create table if not exists public.bsb_verse_of_day_cache"),
+);
+const friendRequestInsertPolicy = friendshipSecuritySchema.slice(
+  friendshipSecuritySchema.indexOf('drop policy if exists "Users can send permitted friend requests"'),
+  friendshipSecuritySchema.indexOf('drop policy if exists "Recipients can accept pending requests"'),
+);
 assert.match(friendshipSchema, /alter table public\.bsb_friendships enable row level security/);
 assert.match(friendshipSchema, /grant select, delete on table public\.bsb_friendships to authenticated/);
 assert.match(friendshipSchema, /grant insert \(requester_id, addressee_id\)/);
@@ -165,8 +173,15 @@ assert.match(friendshipSchema, /grant update \(status, responded_at\)/);
 assert.match(friendshipSchema, /least\(requester_id, addressee_id\)/);
 assert.match(friendshipSchema, /greatest\(requester_id, addressee_id\)/);
 assert.match(friendshipSchema, /requester_id <> addressee_id/);
-assert.match(friendshipSchema, /target_profile\.is_discoverable/);
-assert.match(friendshipSchema, /target_profile\.allow_friend_requests/);
+assert.match(friendshipSecuritySchema, /function private\.bsb_profile_accepts_friend_requests\(target_user_id uuid\)/);
+assert.match(friendshipSecuritySchema, /security definer/);
+assert.match(friendshipSecuritySchema, /\(select auth\.uid\(\)\) is not null/);
+assert.match(friendshipSecuritySchema, /target_profile\.is_discoverable/);
+assert.match(friendshipSecuritySchema, /target_profile\.allow_friend_requests/);
+assert.match(friendshipSecuritySchema, /revoke all on function private\.bsb_profile_accepts_friend_requests\(uuid\) from public, anon/);
+assert.match(friendshipSecuritySchema, /grant execute on function private\.bsb_profile_accepts_friend_requests\(uuid\) to authenticated/);
+assert.match(friendRequestInsertPolicy, /select private\.bsb_profile_accepts_friend_requests\(addressee_id\)/);
+assert.doesNotMatch(friendRequestInsertPolicy, /from public\.bsb_profiles/);
 assert.match(friendshipSchema, /"Recipients can accept pending requests"/);
 assert.match(friendshipSchema, /and status = 'pending'/);
 assert.match(friendshipSchema, /and status = 'accepted'/);
