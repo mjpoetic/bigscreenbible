@@ -172,6 +172,7 @@ assert.doesNotMatch(activateAccountSource, /signInWithPassword|signInWithOAuth|s
 
 const activatedSessions = [];
 const cachedSessions = [];
+const accountSwitchNotices = [];
 const switchContext = {
   state: {
     authUser: { id: "account-a", email: "a@example.com" },
@@ -224,6 +225,9 @@ const switchContext = {
   rememberAuthenticatedAccount() {},
   removeRememberedAccountSession() {},
   renderPreservingReaderScroll() {},
+  showAccountSwitchNotification(user) {
+    accountSwitchNotices.push(user);
+  },
   showToast() {},
   console,
 };
@@ -237,6 +241,65 @@ assert.deepEqual(activatedSessions, [{ access_token: "access-b", refresh_token: 
 assert.equal(switchContext.state.authUser.id, "account-b");
 assert.equal(switchContext.state.accountSwitching, false);
 assert.equal(cachedSessions.at(-1).user.id, "account-b");
+assert.equal(accountSwitchNotices.at(-1).id, "account-b");
+
+const accountSwitchNotificationSource = extractFunction("accountSwitchNotification");
+const showAccountSwitchNotificationSource = extractFunction("showAccountSwitchNotification");
+assert.match(source, /const accountSwitchNoticeDurationMs = 2000/);
+assert.match(accountSwitchNotificationSource, /role="status"/);
+assert.match(accountSwitchNotificationSource, /aria-live="polite"/);
+assert.match(accountSwitchNotificationSource, /Switched to/);
+assert.match(showAccountSwitchNotificationSource, /state\.accountOpen = false/);
+assert.match(showAccountSwitchNotificationSource, /setTimeout\(\(\) =>/);
+assert.match(showAccountSwitchNotificationSource, /accountSwitchNoticeDurationMs/);
+assert.match(showAccountSwitchNotificationSource, /account-switch-indicator/);
+assert.match(styles, /\.account-switch-indicator/);
+assert.match(styles, /animation: account-switch-indicator 2000ms/);
+assert.match(styles, /account-switch-indicator-reduced/);
+
+let accountSwitchTimeout = null;
+let accountSwitchTimeoutDelay = 0;
+let accountSwitchIndicatorRemoved = false;
+const notificationContext = {
+  accountSwitchNotice: null,
+  accountSwitchNoticeTimer: 0,
+  accountSwitchNoticeDurationMs: 2000,
+  state: { accountOpen: true },
+  rememberedAccounts() {
+    return [{ userId: "account-b", email: "b@example.com", username: "study" }];
+  },
+  clearTimeout() {},
+  setTimeout(callback, delay) {
+    accountSwitchTimeout = callback;
+    accountSwitchTimeoutDelay = delay;
+    return 17;
+  },
+  renderPreservingReaderScroll() {},
+  document: {
+    querySelector(selector) {
+      assert.equal(selector, ".account-switch-indicator");
+      return {
+        remove() {
+          accountSwitchIndicatorRemoved = true;
+        },
+      };
+    },
+  },
+};
+vm.createContext(notificationContext);
+vm.runInContext(`
+  ${showAccountSwitchNotificationSource}
+  globalThis.showSwitchNotice = showAccountSwitchNotification;
+  globalThis.currentSwitchNotice = () => accountSwitchNotice;
+`, notificationContext);
+notificationContext.showSwitchNotice({ id: "account-b", email: "b@example.com" });
+assert.equal(notificationContext.state.accountOpen, false);
+assert.equal(notificationContext.currentSwitchNotice().identity, "@study");
+assert.equal(accountSwitchTimeoutDelay, 2000);
+assert.equal(typeof accountSwitchTimeout, "function");
+accountSwitchTimeout();
+assert.equal(notificationContext.currentSwitchNotice(), null);
+assert.equal(accountSwitchIndicatorRemoved, true);
 
 const signOutSource = extractFunction("signOutAccount");
 assert.match(signOutSource, /upsertCloudSnapshot\(snapshot/);

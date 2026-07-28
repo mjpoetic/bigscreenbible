@@ -253,6 +253,7 @@ const appUpdateScrollVerseQueryKey = "appUpdateVerse";
 const appUpdateScrollOffsetQueryKey = "appUpdateOffset";
 const appUpdateScrollTopQueryKey = "appUpdateScroll";
 const appUpdateCheckIntervalMs = 15 * 60 * 1000;
+const accountSwitchNoticeDurationMs = 2000;
 const readerAppResumeRestoreWindowMs = 1600;
 const readerLifecycleHeartbeatIntervalMs = 300;
 const readerLifecycleResumeGapMs = 1200;
@@ -293,6 +294,8 @@ let pendingAppUpdateRestore = null;
 let appUpdateRestoreAnnouncementTimer = 0;
 let appUpdateRestoreCleanupTimer = 0;
 let pendingChapterChange = null;
+let accountSwitchNotice = null;
+let accountSwitchNoticeTimer = 0;
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -1016,6 +1019,7 @@ function render() {
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
         ${state.focusMode || state.mode === "trivia" || !state.libraryOpen ? "" : library()}
         ${reader(chapterChange)}
+        ${accountSwitchNotification()}
       </section>
       ${bottombar()}
       ${mobileFloatingSettings()}
@@ -1099,6 +1103,37 @@ function chapterChangeIndicator(change) {
       <span class="chapter-change-label" aria-hidden="true">${escapeHtml(change.reference)}</span>
     </div>
   `;
+}
+
+function accountSwitchNotification() {
+  if (!accountSwitchNotice) return "";
+  return `
+    <div class="account-switch-indicator" role="status" aria-live="polite" aria-atomic="true">
+      <span class="sr-only">Switched account to ${escapeHtml(accountSwitchNotice.identity)}</span>
+      <span class="chapter-change-halo account-switch-halo" aria-hidden="true">
+        <span class="chapter-change-icon">${icons.user}</span>
+      </span>
+      <span class="chapter-change-label" aria-hidden="true">Switched to ${escapeHtml(accountSwitchNotice.identity)}</span>
+    </div>
+  `;
+}
+
+function showAccountSwitchNotification(user) {
+  const account = rememberedAccounts().find((item) => item.userId === user?.id);
+  const identity = account?.username
+    ? `@${account.username}`
+    : String(account?.email || user?.email || "your account").trim();
+  accountSwitchNotice = {
+    userId: String(user?.id || "").trim(),
+    identity,
+  };
+  clearTimeout(accountSwitchNoticeTimer);
+  state.accountOpen = false;
+  renderPreservingReaderScroll();
+  accountSwitchNoticeTimer = setTimeout(() => {
+    accountSwitchNotice = null;
+    document.querySelector(".account-switch-indicator")?.remove();
+  }, accountSwitchNoticeDurationMs);
 }
 
 function syncPresentationShell() {
@@ -5015,6 +5050,13 @@ async function initializeSupabaseAuth() {
   try {
     const session = await authenticatedSupabaseSession(client);
     const existingOwner = accountDataOwner();
+    const showInitialAccountSwitch = Boolean(
+      session?.user
+      && pendingAccountSwitch()
+      && existingOwner
+      && existingOwner !== guestDataOwner
+      && existingOwner !== session.user.id
+    );
     if (session?.user) {
       if (!existingOwner) {
         setAccountDataOwner(session.user.id);
@@ -5033,6 +5075,7 @@ async function initializeSupabaseAuth() {
     if (session?.user) {
       await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()]);
       maybeOfferPushNotifications();
+      if (showInitialAccountSwitch) showAccountSwitchNotification(session.user);
     }
     client.auth.onAuthStateChange((event, session) => {
       const previousUserId = state.authUser?.id || "";
@@ -5770,12 +5813,12 @@ async function handleAccountSubmit(event, prefix = "") {
   if (!email || !password) return;
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
+  const outgoingUserId = state.authUser?.id || "";
   state.authBusy = true;
   state.authMessage = action === "signup" ? "Creating your account..." : "Signing you in...";
   renderPreservingReaderScroll();
   try {
     if (state.authUser) {
-      const outgoingUserId = state.authUser.id;
       const outgoingSnapshot = captureCloudSnapshot();
       await rememberCurrentAccountSession(client);
       saveSnapshotForOwner(outgoingUserId, outgoingSnapshot);
@@ -5805,6 +5848,9 @@ async function handleAccountSubmit(event, prefix = "") {
       state.accountAddOpen = false;
       await Promise.all([loadCloudSync(), loadSocialProfile()]);
       maybeOfferPushNotifications();
+      if (outgoingUserId && outgoingUserId !== session.user.id) {
+        showAccountSwitchNotification(session.user);
+      }
     }
     else renderPreservingReaderScroll();
   } catch (error) {
@@ -5926,7 +5972,7 @@ async function activateRememberedAccount(account, savedSession = rememberedAccou
     state.authMessage = "";
     state.syncStatus = "loading";
     state.syncMessage = "Loading your saved settings…";
-    showToast(`Switched to ${account.email}`);
+    showAccountSwitchNotification(session.user);
   } catch (error) {
     console.warn("Saved account switch failed", error);
     removeRememberedAccountSession(account.userId);

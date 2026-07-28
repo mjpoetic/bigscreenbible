@@ -8864,7 +8864,8 @@ kbd {
   -webkit-backdrop-filter: blur(10px);
 }
 
-.chapter-change-indicator {
+.chapter-change-indicator,
+.account-switch-indicator {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -8874,10 +8875,18 @@ kbd {
   align-items: center;
   pointer-events: none;
   opacity: 0;
+}
+
+.chapter-change-indicator {
   animation: chapter-change-indicator 440ms var(--motion-ease) both;
 }
 
-.chapter-change-indicator::before {
+.account-switch-indicator {
+  animation: account-switch-indicator 2000ms var(--motion-ease) both;
+}
+
+.chapter-change-indicator::before,
+.account-switch-indicator::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -8897,6 +8906,10 @@ kbd {
   -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.82) 52%, transparent 82%);
   mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.82) 52%, transparent 82%);
   transform: translate(-50%, -50%);
+}
+
+.account-switch-halo {
+  color: var(--teal-dark);
 }
 
 .chapter-change-halo {
@@ -8971,6 +8984,32 @@ kbd {
   }
 }
 
+@keyframes account-switch-indicator {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -44%) scale(0.92);
+  }
+  12%, 78% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -56%) scale(0.98);
+  }
+}
+
+@keyframes account-switch-indicator-reduced {
+  0%, 86% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+}
+
 @media (max-width: 640px) {
   .chapter-change-halo {
     width: 87px;
@@ -8984,11 +9023,11 @@ kbd {
 }
 
 @media (min-width: 841px) {
-  .app-shell[data-side-toolbar-position="left"] .main-grid:not(.focus-mode):not(.library-closed) .chapter-change-indicator {
+  .app-shell[data-side-toolbar-position="left"] .main-grid:not(.focus-mode):not(.library-closed) :is(.chapter-change-indicator, .account-switch-indicator) {
     margin-left: clamp(160px, 10vw, 230px);
   }
 
-  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode):not(.library-closed) .chapter-change-indicator {
+  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode):not(.library-closed) :is(.chapter-change-indicator, .account-switch-indicator) {
     margin-left: clamp(-230px, -10vw, -160px);
   }
 }
@@ -12824,6 +12863,12 @@ svg {
   .chapter-change-indicator {
     animation-name: chapter-change-indicator-reduced !important;
     animation-duration: 320ms !important;
+    animation-timing-function: linear !important;
+  }
+
+  .account-switch-indicator {
+    animation-name: account-switch-indicator-reduced !important;
+    animation-duration: 2000ms !important;
     animation-timing-function: linear !important;
   }
 
