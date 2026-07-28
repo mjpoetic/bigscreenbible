@@ -141,6 +141,155 @@ create trigger bsb_profile_set_updated_at
   for each row
   execute function public.set_bsb_profile_updated_at();
 
+create index if not exists bsb_profiles_discoverable_username_pattern_idx
+  on public.bsb_profiles (username text_pattern_ops)
+  where is_discoverable;
+
+create table if not exists public.bsb_friendships (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references auth.users(id) on delete cascade,
+  addressee_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending', 'accepted')),
+  responded_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (requester_id <> addressee_id),
+  check (
+    (status = 'pending' and responded_at is null)
+    or (status = 'accepted' and responded_at is not null)
+  )
+);
+
+comment on table public.bsb_friendships is
+  'Pending friend requests and accepted friendships. Only the two participating users can read each row.';
+
+alter table public.bsb_friendships enable row level security;
+
+revoke all on table public.bsb_friendships from anon, authenticated;
+grant select, delete on table public.bsb_friendships to authenticated;
+grant insert (requester_id, addressee_id) on table public.bsb_friendships to authenticated;
+grant update (status, responded_at) on table public.bsb_friendships to authenticated;
+grant select, insert, update, delete on table public.bsb_friendships to service_role;
+
+create unique index if not exists bsb_friendships_user_pair_idx
+  on public.bsb_friendships (
+    least(requester_id, addressee_id),
+    greatest(requester_id, addressee_id)
+  );
+
+create index if not exists bsb_friendships_requester_id_idx
+  on public.bsb_friendships (requester_id);
+
+create index if not exists bsb_friendships_addressee_id_idx
+  on public.bsb_friendships (addressee_id);
+
+create index if not exists bsb_friendships_incoming_pending_idx
+  on public.bsb_friendships (addressee_id, created_at desc)
+  where status = 'pending';
+
+create index if not exists bsb_friendships_requester_accepted_idx
+  on public.bsb_friendships (requester_id, updated_at desc)
+  where status = 'accepted';
+
+create index if not exists bsb_friendships_addressee_accepted_idx
+  on public.bsb_friendships (addressee_id, updated_at desc)
+  where status = 'accepted';
+
+drop policy if exists "Participants can read friendships" on public.bsb_friendships;
+create policy "Participants can read friendships"
+  on public.bsb_friendships
+  for select
+  to authenticated
+  using (
+    (select auth.uid()) = requester_id
+    or (select auth.uid()) = addressee_id
+  );
+
+drop policy if exists "Users can send permitted friend requests" on public.bsb_friendships;
+create policy "Users can send permitted friend requests"
+  on public.bsb_friendships
+  for insert
+  to authenticated
+  with check (
+    (select auth.uid()) = requester_id
+    and requester_id <> addressee_id
+    and status = 'pending'
+    and responded_at is null
+    and exists (
+      select 1
+      from public.bsb_profiles as target_profile
+      where target_profile.user_id = addressee_id
+        and target_profile.is_discoverable
+        and target_profile.allow_friend_requests
+    )
+  );
+
+drop policy if exists "Recipients can accept pending requests" on public.bsb_friendships;
+create policy "Recipients can accept pending requests"
+  on public.bsb_friendships
+  for update
+  to authenticated
+  using (
+    (select auth.uid()) = addressee_id
+    and status = 'pending'
+  )
+  with check (
+    (select auth.uid()) = addressee_id
+    and status = 'accepted'
+    and responded_at is not null
+  );
+
+drop policy if exists "Participants can remove friendships" on public.bsb_friendships;
+create policy "Participants can remove friendships"
+  on public.bsb_friendships
+  for delete
+  to authenticated
+  using (
+    (select auth.uid()) = requester_id
+    or (select auth.uid()) = addressee_id
+  );
+
+create or replace function public.set_bsb_friendship_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+revoke execute on function public.set_bsb_friendship_updated_at() from public, anon, authenticated;
+
+drop trigger if exists bsb_friendship_set_updated_at on public.bsb_friendships;
+create trigger bsb_friendship_set_updated_at
+  before update on public.bsb_friendships
+  for each row
+  execute function public.set_bsb_friendship_updated_at();
+
+drop policy if exists "Users can read permitted profiles" on public.bsb_profiles;
+create policy "Users can read permitted profiles"
+  on public.bsb_profiles
+  for select
+  to authenticated
+  using (
+    (select auth.uid()) = user_id
+    or is_discoverable
+    or exists (
+      select 1
+      from public.bsb_friendships as relationship
+      where (
+        relationship.requester_id = (select auth.uid())
+        and relationship.addressee_id = bsb_profiles.user_id
+      ) or (
+        relationship.addressee_id = (select auth.uid())
+        and relationship.requester_id = bsb_profiles.user_id
+      )
+    )
+  );
+
 create table if not exists public.bsb_verse_of_day_cache (
   cache_date date primary key,
   status text not null default 'pending' check (status in ('pending', 'ready', 'failed')),

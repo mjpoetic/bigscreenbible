@@ -1,6 +1,6 @@
 # Supabase setup for Big Screen Bible
 
-Use this when you are ready to turn on account sync and signed-in social profiles.
+Use this when you are ready to turn on account sync, signed-in social profiles, and friendships.
 
 ## 1. Create or open your Supabase project
 
@@ -14,10 +14,19 @@ This creates:
 
 - One private sync row per signed-in user for settings and study data.
 - One optional social-profile row per signed-in user with a unique username, optional display name, selected avatar, and privacy preferences.
+- One relationship row for each pending friend request or accepted friendship.
 
-Row Level Security keeps sync rows private. A social profile is always readable by its owner; other signed-in users can read it only when the owner enables discovery. Anonymous visitors cannot read profile rows, and email addresses are never stored in the profile table.
+Row Level Security keeps sync rows private. A social profile is always readable by its owner; other signed-in users can read it when the owner enables discovery or when a friend-request relationship exists between the two users. Anonymous visitors cannot read profile or friendship rows, and email addresses are never stored in either table.
 
-The schema includes explicit Data API grants for `bsb_profiles`. This is required by Supabase's 2026 secure-by-default table-exposure model and is separate from the row-level policies.
+The schema includes explicit, least-privilege Data API grants for `bsb_profiles` and `bsb_friendships`. This is required by Supabase's 2026 secure-by-default table-exposure model and is separate from the row-level policies.
+
+Friendship policies enforce that:
+
+- Only the requester and recipient can read a relationship.
+- A request can be created only by its requester and only when the recipient is discoverable and accepts requests.
+- Only the recipient can accept a pending request.
+- Either participant can cancel, decline, or remove their relationship.
+- Crossed or duplicate relationships for the same pair are rejected.
 
 ## 3. Configure authentication URLs
 
@@ -75,7 +84,15 @@ The same Account panel lets a signed-in user create a social profile. Usernames:
 - Use lowercase letters, numbers, and underscores.
 - Are unique across all accounts, including profiles that have disabled discovery.
 
-The user can separately decide whether the profile appears in signed-in people searches and whether it will accept friend requests when the Friends phase is enabled.
+The user can separately decide whether the profile appears in signed-in people searches and whether it accepts friend requests. The Friends card supports username search, sending and cancelling requests, accepting or declining incoming requests, viewing friends, and removing a friendship.
+
+Test the full loop with two signed-in accounts:
+
+1. Make both profiles discoverable and enable friend requests.
+2. From the first account, find the second username and send a request.
+3. From the second account, open Account → Friends → Requests and accept or decline it.
+4. Confirm accepted requests appear in both Friends lists.
+5. Confirm either account can remove the friendship.
 
 If you see a Row Level Security insert error, confirm that the app is signed in with an active Supabase session. The sync code writes `user_id` from `session.user.id`; it never uses the email address as the user id.
 

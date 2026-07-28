@@ -67,7 +67,7 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.3" />
+    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.4" />
   </head>
   <body class="about-body">
     <a class="skip-link" href="#main-content">Skip to policy</a>
@@ -140,7 +140,11 @@
 
           <h3>Optional social-profile information</h3>
           <p>If you create a social profile, Big Screen Bible stores your unique username, optional display name, selected built-in avatar style, discovery preference, friend-request preference, Supabase user ID, and profile creation and update times. Your profile does not contain your email address, password, notes, bookmarks, highlights, reading history, or reading streak.</p>
-          <p>Your own profile remains available to you while signed in. If you enable discovery, other signed-in users can read the profile identity and preferences needed to find and interact with you as social features become available. Anonymous visitors cannot read the profile table. Turning discovery off removes the profile from signed-in discovery results but does not delete it or release its username.</p>
+          <p>Your own profile remains available to you while signed in. If you enable discovery, other signed-in users can read the profile identity and preferences needed to find you. A user connected to you by a pending request or accepted friendship can continue to see the profile identity needed to identify that relationship even if discovery is later turned off. Anonymous visitors cannot read the profile table. Turning discovery off removes the profile from new signed-in discovery results but does not delete it or release its username.</p>
+
+          <h3>Friend requests and friendships</h3>
+          <p>If you use Friends, Big Screen Bible stores the Supabase user IDs of the requester and recipient, whether the relationship is pending or accepted, and its creation, response, and update times. Declining or cancelling a pending request, or removing an accepted friend, deletes that relationship row.</p>
+          <p>Only the two participating signed-in users can read a friend-request or friendship row. Friends can see each other's social-profile identity, but friendship records do not include email addresses or private study data.</p>
 
           <h3>Optional push-notification information</h3>
           <p>If you enable daily reminders, Big Screen Bible stores a push-subscription endpoint and its browser-generated encryption keys, a one-way hash of the device-management token, your browser-reported timezone, your chosen reminder times, whether the evening reminder is enabled, the last time that device opened Big Screen Bible, and the local dates on which reminders were sent. A Big Screen Bible account is not required for this device-specific subscription.</p>
@@ -172,6 +176,7 @@
           <ul>
             <li>Create and authenticate accounts, send confirmation or password-reset messages, and keep sessions signed in.</li>
             <li>Create and display an optional social identity and apply your discovery and friend-request choices.</li>
+            <li>Find discoverable profiles, send and respond to friend requests, and maintain your friends list.</li>
             <li>Save your preferences and restore your reading and study workspace.</li>
             <li>Sync settings, bookmarks, notes, highlights, history, and streaks across signed-in devices.</li>
             <li>Load requested Scripture text, search results, Verse of the Day content, fonts, Strong's dictionaries, and optional game celebration code.</li>
@@ -201,14 +206,14 @@
         <section class="policy-section" id="sharing">
           <h2>6. Sharing, sales, and advertising</h2>
           <p>Big Screen Bible does not sell personal information and does not use personal information for targeted advertising.</p>
-          <p>If you make a social profile discoverable, its username, optional display name, selected avatar, and relevant social preferences may be shown to other signed-in Big Screen Bible users. Your email address and private study data are not included in the social profile.</p>
+          <p>If you make a social profile discoverable, its username, optional display name, selected avatar, and relevant social preferences may be shown to other signed-in Big Screen Bible users. The same profile identity remains visible to a user with whom you have a pending request or accepted friendship. Your email address and private study data are not included in the social profile or friendship record.</p>
           <p>Information is shared with service providers only as needed to provide the features described in this policy, comply with Bible-content licensing and usage-reporting requirements, respond to a valid legal obligation, protect the service or its users, or complete a change in who operates the service.</p>
         </section>
 
         <section class="policy-section" id="retention">
           <h2>7. Data retention</h2>
           <p>Data in local storage remains on your device until you clear the site's or app's stored data, remove or replace the saved item, or your browser or operating system clears it.</p>
-          <p>Account information, social-profile information, and synchronized study data are retained until you request deletion, the account is deleted, or retention is otherwise needed for legitimate legal, security, or operational reasons. Big Screen Bible does not use a fixed retention schedule for this data.</p>
+          <p>Account information, social-profile information, friendship information, and synchronized study data are retained until you remove the item where the app provides that control, request deletion, the account is deleted, or retention is otherwise needed for legitimate legal, security, or operational reasons. Big Screen Bible does not use a fixed retention schedule for this data.</p>
           <p>An optional push subscription is deleted when you turn reminders off and the unsubscribe request reaches the service. Invalid or expired push subscriptions are also removed when the push service reports that they can no longer receive notifications.</p>
         </section>
 
@@ -216,6 +221,7 @@
           <h2>8. Your choices and requests</h2>
           <p>You can use the main Bible-reading features without an account. You can edit or remove individual notes, bookmarks, highlights, and history within the app, and you can clear local data through your browser or device settings. Signing out ends the active account session but does not by itself delete local or cloud data.</p>
           <p>You can edit your username, display name, avatar, discovery setting, and friend-request preference in the Account panel. You can turn discovery off at any time. Profile deletion is currently handled through the account-deletion request process.</p>
+          <p>You can cancel a request you sent, accept or decline a request you received, and remove an accepted friendship in the Friends panel. Removing a friendship does not delete either user's profile or account.</p>
           <p>You can turn daily reminders off in Big Screen Bible Settings or revoke notification permission in your browser or operating-system settings. Reminder times and subscriptions are device-specific.</p>
           <p>You may email <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> to request access to, correction of, or export of your information. You may also request deletion of your account and its associated synchronized study data.</p>
           <p>Account deletion is currently handled by request because an automated deletion interface is not yet available. We may need to verify that you control the account before completing a request. Deleting an account does not automatically clear data stored locally in your browser or app; you can clear that data through your browser or device settings.</p>
@@ -224,13 +230,13 @@
 
         <section class="policy-section" id="security">
           <h2>9. Security</h2>
-          <p>The sync database is configured with Supabase Row Level Security rules intended to limit signed-in users to their own sync record. The social-profile table uses separate Row Level Security rules: owners can read and update their own profile, other signed-in users can read profiles whose owners enabled discovery, and anonymous visitors have no profile-table access. The push-subscription table also has Row Level Security enabled and is not granted to anonymous or signed-in browser roles; only server-side functions manage it. Provider and push-sender secret keys are kept in server-side Supabase functions rather than in the website's public code.</p>
+          <p>The sync database is configured with Supabase Row Level Security rules intended to limit signed-in users to their own sync record. The social-profile table uses separate Row Level Security rules: owners can read and update their own profile, other signed-in users can read discoverable profiles and profiles connected to their own friend relationships, and anonymous visitors have no profile-table access. Friendship rules limit each row to its two participants, restrict request creation to eligible recipients, and allow only the recipient to accept a pending request. The push-subscription table also has Row Level Security enabled and is not granted to anonymous or signed-in browser roles; only server-side functions manage it. Provider and push-sender secret keys are kept in server-side Supabase functions rather than in the website's public code.</p>
           <p>No internet service, browser storage system, or database can be guaranteed completely secure. Please use a strong, unique password, protect access to your email and devices, and sign out on shared devices.</p>
         </section>
 
         <section class="policy-section" id="children">
           <h2>10. Children's privacy</h2>
-          <p>Children should use Big Screen Bible with the permission and supervision of a parent, legal guardian, or teacher, especially when creating an account, creating a discoverable social profile, or saving study information.</p>
+          <p>Children should use Big Screen Bible with the permission and supervision of a parent, legal guardian, or teacher, especially when creating an account, creating a discoverable social profile, connecting with other users, or saving study information.</p>
           <p>A parent or legal guardian may contact <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> with questions or requests concerning a child's information.</p>
         </section>
 

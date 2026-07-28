@@ -267,6 +267,7 @@ const readerDoubleTapMaxMs = 380;
 const readerDoubleTapDistancePx = 44;
 const cloudSyncTable = "bsb_user_sync";
 const socialProfileTable = "bsb_profiles";
+const friendshipTable = "bsb_friendships";
 const socialAvatarOptions = [
   { key: "initials", label: "Initials", icon: "user" },
   { key: "book", label: "Open Bible", icon: "book" },
@@ -479,6 +480,16 @@ const state = {
   socialProfileMessage: "",
   socialProfileBusy: false,
   socialProfileOpen: false,
+  friendships: [],
+  friendshipProfiles: {},
+  friendshipStatus: "idle",
+  friendshipMessage: "",
+  friendshipActionBusyId: "",
+  friendsPanelTab: "friends",
+  friendSearchQuery: "",
+  friendSearchResults: [],
+  friendSearchStatus: "idle",
+  friendSearchMessage: "",
   passwordChangeOpen: false,
   passwordRecoveryMode: false,
   syncStatus: "local",
@@ -946,9 +957,28 @@ function restoreSettingsPanelScroll(scrollState) {
   panel.scrollLeft = scrollState.left;
 }
 
+function captureAccountPanelScroll() {
+  if (!state.accountOpen) return null;
+  const panel = document.querySelector(".account-popover.open");
+  if (!panel) return null;
+  return {
+    top: panel.scrollTop,
+    left: panel.scrollLeft,
+  };
+}
+
+function restoreAccountPanelScroll(scrollState) {
+  if (!scrollState || !state.accountOpen) return;
+  const panel = document.querySelector(".account-popover.open");
+  if (!panel) return;
+  panel.scrollTop = scrollState.top;
+  panel.scrollLeft = scrollState.left;
+}
+
 function render() {
   pauseReaderAutoScroll({ updateControl: false });
   const settingsScrollState = captureSettingsPanelScroll();
+  const accountScrollState = captureAccountPanelScroll();
   const settingsPanelRerender = Boolean(settingsScrollState);
   closeMobileVerseNavMenu();
   const app = document.querySelector("#app");
@@ -1001,12 +1031,14 @@ function render() {
   pendingLibraryEnter = false;
   bindEvents();
   restoreSettingsPanelScroll(settingsScrollState);
+  restoreAccountPanelScroll(accountScrollState);
   requestAnimationFrame(() => {
     positionAccountPopover();
     positionSettingsPopover();
     positionFocusSearchResults();
     positionNoteComposer();
     restoreSettingsPanelScroll(settingsScrollState);
+    restoreAccountPanelScroll(accountScrollState);
     applyPopupPosition("help");
     if (state.pushPromptVisible) document.getElementById("enablePushPrompt")?.focus();
     if (pendingNoteComposerFocus) {
@@ -2417,12 +2449,19 @@ function topbar(settingsPanelRerender = false) {
         </div>
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
-  const accountLabel = state.socialProfile?.username
+  const incomingFriendRequestCount = state.authUser ? friendshipCollections().incoming.length : 0;
+  const accountLabelBase = state.socialProfile?.username
     ? `Account for @${state.socialProfile.username}`
     : state.authUser ? "Account" : "Sign in";
+  const accountLabel = incomingFriendRequestCount
+    ? `${accountLabelBase}, ${incomingFriendRequestCount} incoming friend ${incomingFriendRequestCount === 1 ? "request" : "requests"}`
+    : accountLabelBase;
   const accountIcon = state.socialProfile?.username
     ? socialProfileAvatarMarkup(state.socialProfile, "social-profile-avatar-button")
     : icons.user;
+  const accountFriendBadge = incomingFriendRequestCount
+    ? `<span class="account-friend-request-badge" aria-hidden="true">${incomingFriendRequestCount > 9 ? "9+" : incomingFriendRequestCount}</span>`
+    : "";
   const modeOptions = [
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
@@ -2461,7 +2500,7 @@ function topbar(settingsPanelRerender = false) {
       <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${state.accountOpen ? "open" : ""}">
-        <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountLabel)}" data-tooltip="${escapeHtml(accountLabel)}">${accountIcon}</button>
+        <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountLabel)}" data-tooltip="${escapeHtml(accountLabel)}">${accountIcon}${accountFriendBadge}</button>
         <div class="account-popover ${state.accountOpen ? "open" : ""}" aria-hidden="${state.accountOpen ? "false" : "true"}">
           <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
           ${accountPanel("quick")}
@@ -2812,7 +2851,7 @@ function socialProfileCard(prefix = "") {
             </label>
             <label>
               <input id="${suffix}profileFriendRequests" type="checkbox" ${draft.allowFriendRequests ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
-              <span><strong>Allow friend requests</strong><small>This preference is ready for the Friends phase.</small></span>
+              <span><strong>Allow friend requests</strong><small>Discoverable profiles can send you a request when this is on.</small></span>
             </label>
           </div>
           <button class="primary-btn compact-account-btn social-profile-save" type="submit" ${state.socialProfileBusy ? "disabled" : ""}>
@@ -2821,6 +2860,236 @@ function socialProfileCard(prefix = "") {
         </form>
       </div>
     </details>
+  `;
+}
+
+function normalizedFriendship(row = {}) {
+  return {
+    id: String(row.id || ""),
+    requesterId: String(row.requester_id || row.requesterId || ""),
+    addresseeId: String(row.addressee_id || row.addresseeId || ""),
+    status: row.status === "accepted" ? "accepted" : "pending",
+    respondedAt: row.responded_at || row.respondedAt || "",
+    createdAt: row.created_at || row.createdAt || "",
+    updatedAt: row.updated_at || row.updatedAt || "",
+  };
+}
+
+function friendshipOtherUserId(friendship, userId = state.authUser?.id || "") {
+  if (!friendship || !userId) return "";
+  return friendship.requesterId === userId ? friendship.addresseeId : friendship.requesterId;
+}
+
+function friendshipCollections(userId = state.authUser?.id || "") {
+  const relationships = Array.isArray(state.friendships) ? state.friendships : [];
+  return {
+    friends: relationships.filter((item) => item.status === "accepted"),
+    incoming: relationships.filter((item) => item.status === "pending" && item.addresseeId === userId),
+    outgoing: relationships.filter((item) => item.status === "pending" && item.requesterId === userId),
+  };
+}
+
+function friendshipForUser(profileUserId, userId = state.authUser?.id || "") {
+  return state.friendships.find((item) => friendshipOtherUserId(item, userId) === profileUserId) || null;
+}
+
+function friendshipProfile(userId) {
+  return state.friendshipProfiles[userId] || null;
+}
+
+function friendshipPersonRow(profile, actions = "", note = "") {
+  const person = profile || {
+    username: "",
+    displayName: "Profile unavailable",
+    avatarKey: "initials",
+  };
+  const username = person.username ? `@${escapeHtml(person.username)}` : "Profile unavailable";
+  const displayName = person.displayName ? `<strong>${escapeHtml(person.displayName)}</strong>` : "";
+  return `
+    <article class="friend-person-row">
+      ${socialProfileAvatarMarkup(person, "friend-person-avatar")}
+      <div class="friend-person-copy">
+        ${displayName}
+        <span>${username}</span>
+        ${note ? `<small>${escapeHtml(note)}</small>` : ""}
+      </div>
+      ${actions ? `<div class="friend-person-actions">${actions}</div>` : ""}
+    </article>
+  `;
+}
+
+function friendshipActionButton(action, label, { friendshipId = "", profileId = "", primary = false, danger = false } = {}) {
+  const busyKey = friendshipId || (profileId ? `profile:${profileId}` : "");
+  const isBusy = Boolean(state.friendshipActionBusyId);
+  const classNames = [
+    primary ? "primary-btn" : "ghost-btn",
+    "friend-action-button",
+    danger ? "friend-action-danger" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <button
+      class="${classNames}"
+      type="button"
+      data-friend-action="${action}"
+      ${friendshipId ? `data-friendship-id="${escapeHtml(friendshipId)}"` : ""}
+      ${profileId ? `data-friend-profile-id="${escapeHtml(profileId)}"` : ""}
+      ${isBusy ? "disabled" : ""}
+    >${state.friendshipActionBusyId === busyKey ? "Working…" : escapeHtml(label)}</button>
+  `;
+}
+
+function friendshipSearchResultRow(profile) {
+  const relationship = friendshipForUser(profile.userId);
+  if (!relationship) {
+    if (!profile.allowFriendRequests) {
+      return friendshipPersonRow(profile, '<span class="friend-state-label">Requests off</span>', "Not accepting friend requests");
+    }
+    return friendshipPersonRow(
+      profile,
+      friendshipActionButton("send", "Add friend", { profileId: profile.userId, primary: true }),
+    );
+  }
+  if (relationship.status === "accepted") {
+    return friendshipPersonRow(profile, '<span class="friend-state-label friend-state-success">Friends</span>');
+  }
+  if (relationship.requesterId === state.authUser?.id) {
+    return friendshipPersonRow(
+      profile,
+      friendshipActionButton("cancel", "Cancel", { friendshipId: relationship.id }),
+      "Request sent",
+    );
+  }
+  return friendshipPersonRow(
+    profile,
+    `
+      ${friendshipActionButton("accept", "Accept", { friendshipId: relationship.id, primary: true })}
+      ${friendshipActionButton("decline", "Decline", { friendshipId: relationship.id })}
+    `,
+    "Sent you a request",
+  );
+}
+
+function friendsPanelContent(prefix = "") {
+  const suffix = prefix ? `${prefix}-` : "";
+  const collections = friendshipCollections();
+  if (state.friendsPanelTab === "requests") {
+    const incomingRows = collections.incoming.map((friendship) => {
+      const profile = friendshipProfile(friendshipOtherUserId(friendship));
+      return friendshipPersonRow(
+        profile,
+        `
+          ${friendshipActionButton("accept", "Accept", { friendshipId: friendship.id, primary: true })}
+          ${friendshipActionButton("decline", "Decline", { friendshipId: friendship.id })}
+        `,
+        "Sent you a request",
+      );
+    }).join("");
+    const outgoingRows = collections.outgoing.map((friendship) => {
+      const profile = friendshipProfile(friendshipOtherUserId(friendship));
+      return friendshipPersonRow(
+        profile,
+        friendshipActionButton("cancel", "Cancel", { friendshipId: friendship.id }),
+        "Waiting for a response",
+      );
+    }).join("");
+    return `
+      <div class="friend-list-group">
+        <div class="friend-list-heading"><strong>Incoming</strong><span>${collections.incoming.length}</span></div>
+        ${incomingRows || '<p class="friend-empty-state">No incoming requests.</p>'}
+      </div>
+      <div class="friend-list-group">
+        <div class="friend-list-heading"><strong>Sent</strong><span>${collections.outgoing.length}</span></div>
+        ${outgoingRows || '<p class="friend-empty-state">No sent requests.</p>'}
+      </div>
+    `;
+  }
+  if (state.friendsPanelTab === "find") {
+    const searchRows = state.friendSearchResults.map(friendshipSearchResultRow).join("");
+    const searchStatus = state.friendSearchStatus === "loading"
+      ? "Searching…"
+      : state.friendSearchMessage || "Search by username. Enter at least two characters.";
+    return `
+      <form class="friend-search-form" id="${suffix}friendSearchForm" role="search">
+        <label for="${suffix}friendSearchInput">Find people</label>
+        <div>
+          <input
+            id="${suffix}friendSearchInput"
+            value="${escapeHtml(state.friendSearchQuery)}"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            maxlength="20"
+            placeholder="@username"
+            aria-describedby="${suffix}friendSearchHelp"
+          />
+          <button class="primary-btn friend-search-button" type="submit" ${state.friendSearchStatus === "loading" ? "disabled" : ""}>Search</button>
+        </div>
+        <small id="${suffix}friendSearchHelp">${escapeHtml(searchStatus)}</small>
+      </form>
+      <div class="friend-search-results" aria-live="polite">
+        ${searchRows}
+      </div>
+    `;
+  }
+  const friendRows = collections.friends.map((friendship) => {
+    const profile = friendshipProfile(friendshipOtherUserId(friendship));
+    return friendshipPersonRow(
+      profile,
+      friendshipActionButton("remove", "Remove", { friendshipId: friendship.id, danger: true }),
+    );
+  }).join("");
+  return friendRows || '<p class="friend-empty-state">No friends yet. Use Find people to send your first request.</p>';
+}
+
+function friendsCard(prefix = "") {
+  if (!state.authUser) return "";
+  if (!state.socialProfile) {
+    return `
+      <section class="account-card friends-card">
+        <div class="account-card-head">
+          <span class="setting-label">Friends</span>
+          <strong>Create your social profile first</strong>
+        </div>
+        <p>Choose a username above before finding people or receiving friend requests.</p>
+      </section>
+    `;
+  }
+  const collections = friendshipCollections();
+  const requestCount = collections.incoming.length;
+  const tabs = [
+    ["friends", `Friends · ${collections.friends.length}`],
+    ["requests", requestCount ? `Requests · ${requestCount}` : "Requests"],
+    ["find", "Find people"],
+  ];
+  return `
+    <section class="account-card friends-card" aria-busy="${state.friendshipStatus === "loading"}">
+      <div class="friends-card-heading">
+        <div class="account-card-head">
+          <span class="setting-label">Friends</span>
+          <strong>${collections.friends.length} ${collections.friends.length === 1 ? "connection" : "connections"}</strong>
+        </div>
+        ${requestCount ? `<span class="friend-request-count" aria-label="${requestCount} incoming friend ${requestCount === 1 ? "request" : "requests"}">${requestCount}</span>` : ""}
+      </div>
+      <div class="friends-tabs" role="tablist" aria-label="Friends">
+        ${tabs.map(([tab, label]) => `
+          <button
+            type="button"
+            role="tab"
+            aria-selected="${state.friendsPanelTab === tab}"
+            class="${state.friendsPanelTab === tab ? "active" : ""}"
+            data-friends-tab="${tab}"
+          >${escapeHtml(label)}</button>
+        `).join("")}
+      </div>
+      <p class="friends-status" role="status" aria-live="polite">${escapeHtml(
+        state.friendshipStatus === "loading" ? "Loading friends…" : state.friendshipMessage,
+      )}</p>
+      <div class="friends-panel-content">
+        ${state.friendshipStatus === "loading"
+          ? '<p class="friend-empty-state">Loading your connections…</p>'
+          : friendsPanelContent(prefix)}
+      </div>
+    </section>
   `;
 }
 
@@ -2861,6 +3130,7 @@ function accountPanel(prefix = "") {
     return `
       ${streakCard()}
       ${socialProfileCard(prefix)}
+      ${friendsCard(prefix)}
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -4405,7 +4675,7 @@ async function initializeSupabaseAuth() {
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
     if (session?.user) {
-      await Promise.all([loadCloudSync(), loadSocialProfile()]);
+      await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()]);
       maybeOfferPushNotifications();
     }
     client.auth.onAuthStateChange((event, session) => {
@@ -4421,7 +4691,7 @@ async function initializeSupabaseAuth() {
       if (state.authUser) {
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
-        Promise.all([loadCloudSync(), loadSocialProfile()])
+        Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()])
           .then(() => maybeOfferPushNotifications())
           .catch((error) => {
             console.warn("Signed-in account data load failed", error);
@@ -4432,6 +4702,7 @@ async function initializeSupabaseAuth() {
       } else {
         state.pushPromptVisible = false;
         resetSocialProfileState();
+        resetFriendshipState();
         state.syncStatus = "local";
         state.syncMessage = "Signed out. Changes are saved on this device.";
         renderPreservingReaderScroll();
@@ -4461,6 +4732,19 @@ function resetSocialProfileState() {
   state.socialProfileMessage = "";
   state.socialProfileBusy = false;
   state.socialProfileOpen = false;
+}
+
+function resetFriendshipState() {
+  state.friendships = [];
+  state.friendshipProfiles = {};
+  state.friendshipStatus = "idle";
+  state.friendshipMessage = "";
+  state.friendshipActionBusyId = "";
+  state.friendsPanelTab = "friends";
+  state.friendSearchQuery = "";
+  state.friendSearchResults = [];
+  state.friendSearchStatus = "idle";
+  state.friendSearchMessage = "";
 }
 
 function captureSocialProfileDraft(prefix = "") {
@@ -4519,6 +4803,212 @@ async function loadSocialProfile() {
   } finally {
     renderPreservingReaderScroll();
   }
+}
+
+function friendshipErrorMessage(error) {
+  if (error?.code === "23505") return "A friend request or friendship already exists with that person.";
+  if (error?.code === "23514") return "That friend request is not valid.";
+  if (error?.code === "42501") return "That profile is not accepting friend requests.";
+  return error?.message || "Friends could not be updated. Please try again.";
+}
+
+async function loadFriendships({ render = true } = {}) {
+  const client = createSupabaseClient();
+  if (!client) return;
+  const session = await authenticatedSupabaseSession(client);
+  const userId = session?.user?.id;
+  if (!userId) {
+    resetFriendshipState();
+    return;
+  }
+  state.friendshipStatus = "loading";
+  if (render) renderPreservingReaderScroll();
+  try {
+    const { data, error } = await client
+      .from(friendshipTable)
+      .select("id, requester_id, addressee_id, status, responded_at, created_at, updated_at")
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+      .order("updated_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    const friendships = (data || []).map(normalizedFriendship);
+    const profileIds = [...new Set(friendships.map((item) => friendshipOtherUserId(item, userId)).filter(Boolean))];
+    let profileRows = [];
+    if (profileIds.length) {
+      const { data: profiles, error: profilesError } = await client
+        .from(socialProfileTable)
+        .select("user_id, username, display_name, avatar_key, is_discoverable, allow_friend_requests, created_at, updated_at")
+        .in("user_id", profileIds);
+      if (profilesError) throw profilesError;
+      profileRows = profiles || [];
+    }
+    state.friendships = friendships;
+    state.friendshipProfiles = Object.fromEntries(
+      profileRows.map((row) => {
+        const profile = normalizedSocialProfile(row);
+        return [profile.userId, profile];
+      }),
+    );
+    state.friendshipStatus = "ready";
+  } catch (error) {
+    console.warn("Friendships load failed", error);
+    state.friendshipStatus = "error";
+    state.friendshipMessage = friendshipErrorMessage(error);
+  } finally {
+    if (render) renderPreservingReaderScroll();
+  }
+}
+
+async function searchFriends(event, prefix = "") {
+  event.preventDefault();
+  if (!state.socialProfile) return showToast("Create your social profile first");
+  const suffix = prefix ? `${prefix}-` : "";
+  const input = document.getElementById(`${suffix}friendSearchInput`);
+  const query = normalizeProfileUsername(input?.value || "").replace(/[^a-z0-9_]/g, "").slice(0, 20);
+  state.friendSearchQuery = query;
+  state.friendSearchResults = [];
+  if (query.length < 2) {
+    state.friendSearchStatus = "idle";
+    state.friendSearchMessage = "Enter at least two username characters.";
+    renderPreservingReaderScroll();
+    return;
+  }
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.friendSearchStatus = "loading";
+  state.friendSearchMessage = "";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in again before searching for people.");
+    const { data, error } = await client
+      .from(socialProfileTable)
+      .select("user_id, username, display_name, avatar_key, is_discoverable, allow_friend_requests, created_at, updated_at")
+      .gte("username", query)
+      .lt("username", `${query}\uffff`)
+      .eq("is_discoverable", true)
+      .neq("user_id", userId)
+      .order("username", { ascending: true })
+      .limit(20);
+    if (error) throw error;
+    state.friendSearchResults = (data || []).map(normalizedSocialProfile);
+    state.friendSearchStatus = "ready";
+    state.friendSearchMessage = state.friendSearchResults.length
+      ? `${state.friendSearchResults.length} ${state.friendSearchResults.length === 1 ? "profile" : "profiles"} found.`
+      : `No discoverable profiles begin with @${query}.`;
+  } catch (error) {
+    console.warn("Friend search failed", error);
+    state.friendSearchStatus = "error";
+    state.friendSearchMessage = friendshipErrorMessage(error);
+  } finally {
+    renderPreservingReaderScroll();
+  }
+}
+
+async function finishFriendshipAction(message) {
+  await loadFriendships({ render: false });
+  if (state.friendshipStatus !== "ready") {
+    state.friendshipActionBusyId = "";
+    throw new Error(state.friendshipMessage || "Friends could not be refreshed.");
+  }
+  state.friendshipMessage = message;
+  state.friendshipActionBusyId = "";
+  renderPreservingReaderScroll();
+}
+
+async function sendFriendRequest(profileId) {
+  const client = createSupabaseClient();
+  if (!client || !profileId || profileId === state.authUser?.id || state.friendshipActionBusyId) return;
+  state.friendshipActionBusyId = `profile:${profileId}`;
+  state.friendshipMessage = "Sending friend request…";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    const requesterId = session?.user?.id;
+    if (!requesterId) throw new Error("Sign in again before sending a friend request.");
+    const { error } = await client
+      .from(friendshipTable)
+      .insert({ requester_id: requesterId, addressee_id: profileId });
+    if (error) throw error;
+    await finishFriendshipAction("Friend request sent.");
+    showToast("Friend request sent");
+  } catch (error) {
+    console.warn("Friend request send failed", error);
+    state.friendshipActionBusyId = "";
+    state.friendshipMessage = friendshipErrorMessage(error);
+    showToast("Request not sent");
+    renderPreservingReaderScroll();
+  }
+}
+
+async function acceptFriendRequest(friendshipId) {
+  const client = createSupabaseClient();
+  if (!client || !friendshipId || state.friendshipActionBusyId) return;
+  state.friendshipActionBusyId = friendshipId;
+  state.friendshipMessage = "Accepting friend request…";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in again before accepting a friend request.");
+    const { data, error } = await client
+      .from(friendshipTable)
+      .update({ status: "accepted", responded_at: new Date().toISOString() })
+      .eq("id", friendshipId)
+      .eq("addressee_id", userId)
+      .eq("status", "pending")
+      .select("id")
+      .single();
+    if (error) throw error;
+    if (!data?.id) throw new Error("That request is no longer pending.");
+    await finishFriendshipAction("Friend request accepted.");
+    showToast("Friend added");
+  } catch (error) {
+    console.warn("Friend request accept failed", error);
+    state.friendshipActionBusyId = "";
+    state.friendshipMessage = friendshipErrorMessage(error);
+    showToast("Request not accepted");
+    renderPreservingReaderScroll();
+  }
+}
+
+async function deleteFriendship(friendshipId, action = "remove") {
+  const client = createSupabaseClient();
+  if (!client || !friendshipId || state.friendshipActionBusyId) return;
+  const messages = {
+    cancel: ["Friend request cancelled.", "Request cancelled"],
+    decline: ["Friend request declined.", "Request declined"],
+    remove: ["Friend removed.", "Friend removed"],
+  };
+  const [statusMessage, toastMessage] = messages[action] || messages.remove;
+  state.friendshipActionBusyId = friendshipId;
+  state.friendshipMessage = action === "remove" ? "Removing friend…" : "Updating request…";
+  renderPreservingReaderScroll();
+  try {
+    const { error } = await client
+      .from(friendshipTable)
+      .delete()
+      .eq("id", friendshipId);
+    if (error) throw error;
+    await finishFriendshipAction(statusMessage);
+    showToast(toastMessage);
+  } catch (error) {
+    console.warn("Friendship delete failed", error);
+    state.friendshipActionBusyId = "";
+    state.friendshipMessage = friendshipErrorMessage(error);
+    showToast("Friends not updated");
+    renderPreservingReaderScroll();
+  }
+}
+
+function handleFriendAction(button) {
+  const action = button.dataset.friendAction;
+  const friendshipId = button.dataset.friendshipId || "";
+  const profileId = button.dataset.friendProfileId || "";
+  if (action === "send") return sendFriendRequest(profileId);
+  if (action === "accept") return acceptFriendRequest(friendshipId);
+  if (["cancel", "decline", "remove"].includes(action)) return deleteFriendship(friendshipId, action);
 }
 
 async function saveSocialProfile(event, prefix = "") {
@@ -4592,6 +5082,13 @@ function toggleAccountMenu(forceOpen = null) {
   state.accountOpen = nextOpen;
   if (state.accountOpen) state.settingsOpen = false;
   renderPreservingReaderScroll();
+  if (
+    state.accountOpen
+    && state.authUser
+    && state.friendshipStatus !== "loading"
+  ) {
+    loadFriendships().catch((error) => console.warn("Friendship refresh failed", error));
+  }
   requestAnimationFrame(() => {
     if (!state.accountOpen) return;
     positionAccountPopover();
@@ -5046,6 +5543,7 @@ async function signOutAccount() {
     await client.auth.signOut();
     state.authUser = null;
     resetSocialProfileState();
+    resetFriendshipState();
     state.pushPromptVisible = false;
     state.accountOpen = false;
     state.passwordChangeOpen = false;
@@ -8015,6 +8513,18 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-profile-avatar]").forEach((button) => {
     button.addEventListener("click", () => selectSocialProfileAvatar(button.dataset.profileAvatar, "quick"));
+  });
+  document.getElementById("quick-friendSearchForm")?.addEventListener("submit", (event) => searchFriends(event, "quick"));
+  document.querySelectorAll("[data-friends-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!["friends", "requests", "find"].includes(button.dataset.friendsTab)) return;
+      state.friendsPanelTab = button.dataset.friendsTab;
+      state.friendshipMessage = "";
+      renderPreservingReaderScroll();
+    });
+  });
+  document.querySelectorAll("[data-friend-action]").forEach((button) => {
+    button.addEventListener("click", () => handleFriendAction(button));
   });
   document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
   document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
