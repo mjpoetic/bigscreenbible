@@ -94,7 +94,9 @@ Test the full loop with two signed-in accounts:
 4. Confirm accepted requests appear in both Friends lists.
 5. Confirm either account can remove the friendship.
 
-The signed-in Account panel also includes **Switch account**. Before switching, the app saves the active account, closes only this browser session, and restores the browser's separate guest data. Previously used accounts may be listed by email, username, avatar, and sign-in provider, but passwords and reusable account sessions are never stored by the account chooser.
+The signed-in Account panel also includes **Switch account**. The browser keeps a separate local Supabase session for each account the person signs into, so a remembered account marked **Ready to switch** can be opened without entering its password again. The outgoing account is saved before the selected session is activated. Supabase refreshes an expired access token from its refresh token; if a saved session has been revoked or is otherwise invalid, the chooser removes that session and asks the person to sign in once to reconnect it.
+
+Passwords are never stored by the account chooser. **Sign out on this device** removes the active account's reusable local session but leaves other remembered accounts available. **Forget** removes that account's remembered identity, local study snapshot, and reusable session from the browser.
 
 Browser study data is isolated in one snapshot per Supabase user. On a person's first sign-in, existing guest data follows the account as before. During later account switches, bookmarks, notes, highlights, history, streaks, and version-selection timestamps from the outgoing account are not merged into a newly selected account.
 

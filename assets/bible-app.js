@@ -272,6 +272,7 @@ const accountDataOwnerStorageKey = "lw_account_data_owner";
 const guestSnapshotStorageKey = "lw_guest_snapshot";
 const accountSnapshotStoragePrefix = "lw_account_snapshot:";
 const rememberedAccountsStorageKey = "lw_remembered_accounts";
+const accountSessionStoragePrefix = "lw_account_session:";
 const pendingAccountSwitchStorageKey = "lw_pending_account_switch";
 const guestDataOwner = "guest";
 const rememberedAccountLimit = 6;
@@ -481,6 +482,7 @@ const state = {
   authMessage: "",
   authBusy: false,
   accountSwitching: false,
+  accountAddOpen: false,
   accountOpen: false,
   socialProfile: null,
   socialProfileDraft: null,
@@ -2811,6 +2813,62 @@ function rememberedAccounts() {
   }
 }
 
+function accountSessionStorageKey(userId) {
+  return `${accountSessionStoragePrefix}${encodeURIComponent(String(userId || "").trim())}`;
+}
+
+function rememberedAccountSession(userId) {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(accountSessionStorageKey(normalizedUserId)) || "null");
+    if (
+      !saved
+      || saved.userId !== normalizedUserId
+      || typeof saved.access_token !== "string"
+      || !saved.access_token
+      || typeof saved.refresh_token !== "string"
+      || !saved.refresh_token
+    ) return null;
+    return {
+      userId: normalizedUserId,
+      access_token: saved.access_token,
+      refresh_token: saved.refresh_token,
+      expires_at: Number(saved.expires_at) || null,
+      updatedAt: normalizedVersionsUpdatedAt(saved.updatedAt) || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function rememberAuthenticatedSession(session) {
+  const userId = String(session?.user?.id || "").trim();
+  if (!userId || !session?.access_token || !session?.refresh_token) return;
+  localStorage.setItem(accountSessionStorageKey(userId), JSON.stringify({
+    userId,
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: Number(session.expires_at) || null,
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+function removeRememberedAccountSession(userId) {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return;
+  localStorage.removeItem(accountSessionStorageKey(normalizedUserId));
+}
+
+async function rememberCurrentAccountSession(client = createSupabaseClient()) {
+  if (!client) return null;
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  const session = data?.session || null;
+  rememberAuthenticatedSession(session);
+  return session;
+}
+
 function authProviderForUser(user = state.authUser) {
   const provider = String(
     user?.app_metadata?.provider
@@ -2845,12 +2903,14 @@ function forgetRememberedAccount(userId) {
   const nextAccounts = rememberedAccounts().filter((item) => item.userId !== normalizedUserId);
   localStorage.setItem(rememberedAccountsStorageKey, JSON.stringify(nextAccounts));
   localStorage.removeItem(accountSnapshotStorageKey(normalizedUserId));
+  removeRememberedAccountSession(normalizedUserId);
   showToast("Account forgotten on this browser");
   renderPreservingReaderScroll();
 }
 
-function rememberedAccountsCard(prefix = "") {
-  const accounts = rememberedAccounts();
+function rememberedAccountsCard(prefix = "", options = {}) {
+  const excludedUserId = String(options.excludeUserId || "").trim();
+  const accounts = rememberedAccounts().filter((account) => account.userId !== excludedUserId);
   if (!accounts.length) return "";
   const suffix = prefix ? `${prefix}-` : "";
   return `
@@ -2859,7 +2919,7 @@ function rememberedAccountsCard(prefix = "") {
         <span class="setting-label">Previously used</span>
         <strong id="${suffix}rememberedAccountsTitle">Choose an account</strong>
       </div>
-      <p>You’ll authenticate again before any account data is opened.</p>
+      <p>Accounts marked “Ready to switch” open without asking you to sign in again.</p>
       <div class="remembered-account-list">
         ${accounts.map((account) => {
           const accountProfile = {
@@ -2869,6 +2929,7 @@ function rememberedAccountsCard(prefix = "") {
           };
           const identity = account.username ? `@${account.username}` : account.email;
           const providerLabel = account.provider === "google" ? "Google account" : "Email account";
+          const sessionReady = Boolean(rememberedAccountSession(account.userId));
           return `
             <div class="remembered-account-row">
               <button
@@ -2881,7 +2942,7 @@ function rememberedAccountsCard(prefix = "") {
                 ${socialProfileAvatarMarkup(accountProfile, "remembered-account-avatar")}
                 <span>
                   <strong>${escapeHtml(identity)}</strong>
-                  <small>${escapeHtml(providerLabel)}</small>
+                  <small>${escapeHtml(providerLabel)} · ${sessionReady ? "Ready to switch" : "Sign in required"}</small>
                 </span>
                 ${icons.chevron}
               </button>
@@ -2899,18 +2960,29 @@ function rememberedAccountsCard(prefix = "") {
   `;
 }
 
-function useRememberedAccount(userId, prefix = "") {
+async function useRememberedAccount(userId, prefix = "") {
   const account = rememberedAccounts().find((item) => item.userId === userId);
   if (!account) return;
+  const savedSession = rememberedAccountSession(account.userId);
+  if (savedSession) {
+    await activateRememberedAccount(account, savedSession);
+    return;
+  }
+  state.accountAddOpen = true;
+  state.accountSwitching = Boolean(state.authUser);
+  state.authMessage = "This saved session has expired. Sign in once to reconnect this account.";
+  renderPreservingReaderScroll();
   if (account.provider === "google") {
-    signInWithGoogle();
+    await signInWithGoogle();
     return;
   }
   const suffix = prefix ? `${prefix}-` : "";
-  const emailInput = document.getElementById(`${suffix}accountEmail`);
-  const passwordInput = document.getElementById(`${suffix}accountPassword`);
-  if (emailInput) emailInput.value = account.email;
-  passwordInput?.focus?.();
+  requestAnimationFrame(() => {
+    const emailInput = document.getElementById(`${suffix}accountEmail`);
+    const passwordInput = document.getElementById(`${suffix}accountPassword`);
+    if (emailInput) emailInput.value = account.email;
+    passwordInput?.focus?.();
+  });
 }
 
 function normalizeProfileUsername(value = "") {
@@ -3329,6 +3401,37 @@ function friendsCard(prefix = "") {
   `;
 }
 
+function accountSignInCard(prefix = "", options = {}) {
+  const suffix = prefix ? `${prefix}-` : "";
+  const addingAccount = options.addingAccount === true;
+  const status = state.authMessage || (
+    addingAccount
+      ? "Sign in once to add another account to this browser."
+      : "Sign in or create an account to carry your settings, bookmarks, notes, highlights, and streak across devices."
+  );
+  return `
+    <section class="account-card">
+      <div class="account-card-head">
+        <span class="setting-label">Account sync</span>
+        <strong>${addingAccount ? "Add another account" : "Sign in or create account"}</strong>
+      </div>
+      <p>${escapeHtml(status)}</p>
+      <form class="account-form" id="${suffix}accountForm">
+        <input id="${suffix}accountEmail" type="email" autocomplete="email" placeholder="Email" aria-label="Email" required />
+        <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
+        <div class="account-actions">
+          <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
+          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create account</button>
+        </div>
+      </form>
+      <div class="account-divider"><span>or</span></div>
+      <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
+      <p class="account-legal-notice">By creating an account, you agree to the <a href="./terms/">Terms of Service</a> and acknowledge the <a href="./privacy/">Privacy Policy</a>.</p>
+      <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
+    </section>
+  `;
+}
+
 function accountPanel(prefix = "") {
   const suffix = prefix ? `${prefix}-` : "";
   const email = state.authUser?.email || "";
@@ -3348,6 +3451,24 @@ function accountPanel(prefix = "") {
   }
 
   if (state.authUser) {
+    if (state.accountSwitching) {
+      return `
+        ${streakCard()}
+        <section class="account-card account-switcher-card">
+          <div class="account-card-head">
+            <span class="setting-label">Current account</span>
+            <strong>${escapeHtml(email)}</strong>
+          </div>
+          <p>Your current account stays signed in while you choose another one.</p>
+          <div class="account-actions">
+            <button class="primary-btn compact-account-btn" id="${suffix}addAccountButton" type="button" ${state.authBusy ? "disabled" : ""}>${state.accountAddOpen ? "Hide sign in" : "Add another account"}</button>
+            <button class="ghost-btn compact-account-btn" id="${suffix}cancelAccountSwitchButton" type="button" ${state.authBusy ? "disabled" : ""}>Back</button>
+          </div>
+        </section>
+        ${rememberedAccountsCard(prefix, { excludeUserId: state.authUser.id })}
+        ${state.accountAddOpen ? accountSignInCard(prefix, { addingAccount: true }) : ""}
+      `;
+    }
     const recoveryText = state.passwordRecoveryMode
       ? "Choose a new password to finish account recovery."
       : "Change your password whenever you need to.";
@@ -3391,25 +3512,7 @@ function accountPanel(prefix = "") {
   return `
     ${streakCard()}
     ${rememberedAccountsCard(prefix)}
-    <section class="account-card">
-      <div class="account-card-head">
-        <span class="setting-label">Account sync</span>
-        <strong>Sign in or create account</strong>
-      </div>
-      <p>${escapeHtml(state.authMessage || status)}</p>
-      <form class="account-form" id="${suffix}accountForm">
-        <input id="${suffix}accountEmail" type="email" autocomplete="email" placeholder="Email" aria-label="Email" required />
-        <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
-        <div class="account-actions">
-          <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
-          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create account</button>
-        </div>
-      </form>
-      <div class="account-divider"><span>or</span></div>
-      <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
-      <p class="account-legal-notice">By creating an account, you agree to the <a href="./terms/">Terms of Service</a> and acknowledge the <a href="./privacy/">Privacy Policy</a>.</p>
-      <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
-    </section>
+    ${accountSignInCard(prefix)}
   `;
 }
 
@@ -4896,6 +4999,7 @@ async function authenticatedSupabaseSession(client = createSupabaseClient()) {
   if (error) throw error;
   const session = data?.session || null;
   state.authUser = session?.user || null;
+  rememberAuthenticatedSession(session);
   return session;
 }
 
@@ -4917,6 +5021,7 @@ async function initializeSupabaseAuth() {
         saveSnapshotForOwner(session.user.id, captureCloudSnapshot());
       }
       rememberAuthenticatedAccount(session.user);
+      rememberAuthenticatedSession(session);
     } else if (existingOwner && existingOwner !== guestDataOwner) {
       activateGuestBrowserData();
     } else {
@@ -4930,6 +5035,7 @@ async function initializeSupabaseAuth() {
       maybeOfferPushNotifications();
     }
     client.auth.onAuthStateChange((event, session) => {
+      const previousUserId = state.authUser?.id || "";
       state.authUser = session?.user || null;
       state.authBusy = false;
       if (event === "PASSWORD_RECOVERY") {
@@ -4941,6 +5047,9 @@ async function initializeSupabaseAuth() {
       }
       if (state.authUser) {
         rememberAuthenticatedAccount(state.authUser);
+        rememberAuthenticatedSession(session);
+        state.accountSwitching = false;
+        state.accountAddOpen = false;
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
         Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()])
@@ -4952,6 +5061,7 @@ async function initializeSupabaseAuth() {
             renderPreservingReaderScroll();
           });
       } else {
+        if (event === "SIGNED_OUT" && previousUserId) removeRememberedAccountSession(previousUserId);
         state.pushPromptVisible = false;
         resetSocialProfileState();
         resetFriendshipState();
@@ -5664,6 +5774,19 @@ async function handleAccountSubmit(event, prefix = "") {
   state.authMessage = action === "signup" ? "Creating your account..." : "Signing you in...";
   renderPreservingReaderScroll();
   try {
+    if (state.authUser) {
+      const outgoingUserId = state.authUser.id;
+      const outgoingSnapshot = captureCloudSnapshot();
+      await rememberCurrentAccountSession(client);
+      saveSnapshotForOwner(outgoingUserId, outgoingSnapshot);
+      setPendingAccountSwitch(true);
+      clearTimeout(cloudSyncTimer);
+      try {
+        await upsertCloudSnapshot(outgoingSnapshot, { quiet: true });
+      } catch (error) {
+        console.warn("Final account sync before adding an account failed", error);
+      }
+    }
     const response = action === "signup"
       ? await client.auth.signUp({ email, password })
       : await client.auth.signInWithPassword({ email, password });
@@ -5677,6 +5800,9 @@ async function handleAccountSubmit(event, prefix = "") {
       : "Signed in.";
     if (session?.user) {
       rememberAuthenticatedAccount(session.user);
+      rememberAuthenticatedSession(session);
+      state.accountSwitching = false;
+      state.accountAddOpen = false;
       await Promise.all([loadCloudSync(), loadSocialProfile()]);
       maybeOfferPushNotifications();
     }
@@ -5727,6 +5853,19 @@ async function signInWithGoogle() {
   state.authMessage = "Opening Google sign in...";
   renderPreservingReaderScroll();
   try {
+    if (state.authUser) {
+      const outgoingUserId = state.authUser.id;
+      const outgoingSnapshot = captureCloudSnapshot();
+      await rememberCurrentAccountSession(client);
+      saveSnapshotForOwner(outgoingUserId, outgoingSnapshot);
+      setPendingAccountSwitch(true);
+      clearTimeout(cloudSyncTimer);
+      try {
+        await upsertCloudSnapshot(outgoingSnapshot, { quiet: true });
+      } catch (error) {
+        console.warn("Final account sync before Google sign in failed", error);
+      }
+    }
     const { error } = await client.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -5742,6 +5881,77 @@ async function signInWithGoogle() {
     state.authBusy = false;
     state.authMessage = error?.message || "Google sign in could not start. Please try again.";
     showToast("Google sign in failed");
+    renderPreservingReaderScroll();
+  }
+}
+
+async function activateRememberedAccount(account, savedSession = rememberedAccountSession(account?.userId)) {
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  if (!account?.userId || !savedSession) return;
+  let previousSession = null;
+  let previousUserId = state.authUser?.id || "";
+  const snapshot = captureCloudSnapshot();
+  state.authBusy = true;
+  state.authMessage = `Switching to ${account.email}…`;
+  state.syncMessage = "Opening the selected account…";
+  renderPreservingReaderScroll();
+  try {
+    previousSession = await rememberCurrentAccountSession(client);
+    previousUserId = previousSession?.user?.id || previousUserId;
+    if (previousUserId) saveSnapshotForOwner(previousUserId, snapshot);
+    setPendingAccountSwitch(true);
+    clearTimeout(cloudSyncTimer);
+    if (previousUserId && previousUserId !== account.userId) {
+      try {
+        await upsertCloudSnapshot(snapshot, { quiet: true });
+      } catch (error) {
+        console.warn("Final account sync before switching failed", error);
+      }
+    }
+    const { data, error } = await client.auth.setSession({
+      access_token: savedSession.access_token,
+      refresh_token: savedSession.refresh_token,
+    });
+    if (error) throw error;
+    const session = data?.session || null;
+    if (!session?.user || session.user.id !== account.userId) {
+      throw new Error("The saved session did not match the selected account.");
+    }
+    rememberAuthenticatedSession(session);
+    rememberAuthenticatedAccount(session.user);
+    state.authUser = session.user;
+    state.accountSwitching = false;
+    state.accountAddOpen = false;
+    state.authMessage = "";
+    state.syncStatus = "loading";
+    state.syncMessage = "Loading your saved settings…";
+    showToast(`Switched to ${account.email}`);
+  } catch (error) {
+    console.warn("Saved account switch failed", error);
+    removeRememberedAccountSession(account.userId);
+    if (previousSession?.access_token && previousSession?.refresh_token) {
+      try {
+        const { data: restoredData, error: restoreError } = await client.auth.setSession({
+          access_token: previousSession.access_token,
+          refresh_token: previousSession.refresh_token,
+        });
+        if (restoreError) throw restoreError;
+        rememberAuthenticatedSession(restoredData?.session);
+        state.authUser = restoredData?.session?.user || null;
+      } catch (restoreError) {
+        console.warn("Previous account session could not be restored", restoreError);
+      }
+    }
+    state.accountSwitching = Boolean(state.authUser);
+    state.accountAddOpen = true;
+    state.authMessage = "That saved session is no longer valid. Sign in once to reconnect the account.";
+    state.syncMessage = state.authUser
+      ? "Your current account is still active."
+      : "Sign in to reconnect this account.";
+    showToast("Sign in required for this account");
+  } finally {
+    state.authBusy = false;
     renderPreservingReaderScroll();
   }
 }
@@ -5793,17 +6003,15 @@ async function updateAccountPassword(event, prefix = "") {
   }
 }
 
-async function signOutAccount(options = {}) {
+async function signOutAccount() {
   const client = createSupabaseClient();
   if (!client) return;
-  const switching = options?.switching === true;
   const user = state.authUser;
   const snapshot = captureCloudSnapshot();
   if (user?.id) saveSnapshotForOwner(user.id, snapshot);
-  setPendingAccountSwitch(true);
+  setPendingAccountSwitch(false);
   state.authBusy = true;
-  state.accountSwitching = switching;
-  state.syncMessage = switching ? "Saving this account before switching…" : "Saving this account before sign out…";
+  state.syncMessage = "Saving this account before sign out…";
   renderPreservingReaderScroll();
   try {
     clearTimeout(cloudSyncTimer);
@@ -5814,6 +6022,7 @@ async function signOutAccount(options = {}) {
         console.warn("Final account sync before sign out failed", error);
       }
     }
+    if (user?.id) removeRememberedAccountSession(user.id);
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw error;
     state.authUser = null;
@@ -5821,32 +6030,59 @@ async function signOutAccount(options = {}) {
     resetFriendshipState();
     activateGuestBrowserData();
     state.pushPromptVisible = false;
-    state.accountOpen = switching;
+    state.accountOpen = true;
+    state.accountSwitching = false;
+    state.accountAddOpen = false;
     state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
-    state.authMessage = switching ? "Choose another account." : "";
+    state.authMessage = "";
     state.syncStatus = "local";
-    state.syncMessage = switching
-      ? "Choose another account. Your previous account data is closed."
-      : "Signed out. Guest data is active on this browser.";
+    state.syncMessage = "Signed out. Guest data is active on this browser.";
   } catch (error) {
     console.warn("Sign out failed", error);
-    setPendingAccountSwitch(false);
+    try {
+      await rememberCurrentAccountSession(client);
+    } catch (sessionError) {
+      console.warn("Signed-in session could not be re-cached", sessionError);
+    }
     state.authMessage = "Could not sign out yet. Please try again.";
   } finally {
     state.authBusy = false;
-    state.accountSwitching = false;
     renderPreservingReaderScroll();
-    if (switching && !state.authUser) {
-      requestAnimationFrame(() => {
-        document.querySelector(".remembered-account-use")?.focus?.();
-      });
-    }
   }
 }
 
 function switchAccount() {
-  return signOutAccount({ switching: true });
+  if (!state.authUser) return;
+  rememberCurrentAccountSession().catch((error) => {
+    console.warn("Current account session could not be cached", error);
+  });
+  saveSnapshotForOwner(state.authUser.id, captureCloudSnapshot());
+  setPendingAccountSwitch(true);
+  state.accountSwitching = true;
+  state.accountAddOpen = rememberedAccounts().every((account) => account.userId === state.authUser.id);
+  state.authMessage = "";
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => {
+    document.querySelector(".remembered-account-use, [id$='addAccountButton']")?.focus?.();
+  });
+}
+
+function toggleAddAccount() {
+  state.accountAddOpen = !state.accountAddOpen;
+  state.authMessage = "";
+  renderPreservingReaderScroll();
+  if (state.accountAddOpen) {
+    requestAnimationFrame(() => document.querySelector("[id$='accountEmail']")?.focus?.());
+  }
+}
+
+function cancelAccountSwitch() {
+  state.accountSwitching = false;
+  state.accountAddOpen = false;
+  state.authMessage = "";
+  setPendingAccountSwitch(false);
+  renderPreservingReaderScroll();
 }
 
 function captureCloudSnapshot() {
@@ -8801,6 +9037,12 @@ function bindEvents() {
   document.querySelectorAll("[data-forget-account]").forEach((button) => {
     button.addEventListener("click", () => forgetRememberedAccount(button.dataset.forgetAccount));
   });
+  document.getElementById("addAccountButton")?.addEventListener("click", toggleAddAccount);
+  document.getElementById("mobile-addAccountButton")?.addEventListener("click", toggleAddAccount);
+  document.getElementById("quick-addAccountButton")?.addEventListener("click", toggleAddAccount);
+  document.getElementById("cancelAccountSwitchButton")?.addEventListener("click", cancelAccountSwitch);
+  document.getElementById("mobile-cancelAccountSwitchButton")?.addEventListener("click", cancelAccountSwitch);
+  document.getElementById("quick-cancelAccountSwitchButton")?.addEventListener("click", cancelAccountSwitch);
   document.getElementById("quick-socialProfileForm")?.addEventListener("submit", (event) => saveSocialProfile(event, "quick"));
   document.querySelectorAll("[data-social-profile-disclosure]").forEach((disclosure) => {
     disclosure.addEventListener("toggle", () => {

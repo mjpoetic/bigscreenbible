@@ -44,6 +44,7 @@ const context = {
   accountDataOwnerStorageKey: "lw_account_data_owner",
   guestSnapshotStorageKey: "lw_guest_snapshot",
   accountSnapshotStoragePrefix: "lw_account_snapshot:",
+  accountSessionStoragePrefix: "lw_account_session:",
   pendingAccountSwitchStorageKey: "lw_pending_account_switch",
   guestDataOwner: "guest",
   localStorage: {
@@ -70,6 +71,9 @@ const context = {
   normalizeReadingStreak() {
     return { current: 0, best: 0, totalDays: 0, lastVisit: "", days: [] };
   },
+  normalizedVersionsUpdatedAt(value) {
+    return typeof value === "string" ? value : "";
+  },
   captureCloudSnapshot() {
     return JSON.parse(JSON.stringify(liveSnapshot));
   },
@@ -88,7 +92,14 @@ vm.runInContext(`
   ${extractFunction("blankLocalSnapshot")}
   ${extractFunction("pendingAccountSwitch")}
   ${extractFunction("localSnapshotForAuthenticatedUser")}
+  ${extractFunction("accountSessionStorageKey")}
+  ${extractFunction("rememberedAccountSession")}
+  ${extractFunction("rememberAuthenticatedSession")}
+  ${extractFunction("removeRememberedAccountSession")}
   globalThis.snapshotForUser = localSnapshotForAuthenticatedUser;
+  globalThis.savedSession = rememberedAccountSession;
+  globalThis.rememberSession = rememberAuthenticatedSession;
+  globalThis.removeSession = removeRememberedAccountSession;
 `, context);
 
 storage.set("lw_account_data_owner", "account-a");
@@ -125,8 +136,111 @@ storage.set("lw_pending_account_switch", "true");
 const newAccountAfterSwitch = context.snapshotForUser("new-account");
 assert.deepEqual([...newAccountAfterSwitch.bookmarks], [], "Guest data must not leak into a newly switched account");
 
+context.rememberSession({
+  access_token: "access-b",
+  refresh_token: "refresh-b",
+  expires_at: 1785254400,
+  user: { id: "account-b", email: "b@example.com" },
+});
+assert.deepEqual(
+  { ...context.savedSession("account-b") },
+  {
+    userId: "account-b",
+    access_token: "access-b",
+    refresh_token: "refresh-b",
+    expires_at: 1785254400,
+    updatedAt: JSON.parse(storage.get("lw_account_session:account-b")).updatedAt,
+  },
+  "A remembered account should retain the token pair needed for one-click switching",
+);
+assert.doesNotMatch(storage.get("lw_account_session:account-b"), /password/i);
+context.removeSession("account-b");
+assert.equal(context.savedSession("account-b"), null);
+
+const switchAccountSource = extractFunction("switchAccount");
+assert.doesNotMatch(switchAccountSource, /signOutAccount|auth\.signOut/);
+assert.match(switchAccountSource, /rememberCurrentAccountSession/);
+assert.match(switchAccountSource, /state\.accountSwitching = true/);
+
+const activateAccountSource = extractFunction("activateRememberedAccount");
+assert.match(activateAccountSource, /auth\.setSession\(\{/);
+assert.match(activateAccountSource, /savedSession\.access_token/);
+assert.match(activateAccountSource, /savedSession\.refresh_token/);
+assert.match(activateAccountSource, /previousSession\.access_token/);
+assert.match(activateAccountSource, /removeRememberedAccountSession\(account\.userId\)/);
+assert.doesNotMatch(activateAccountSource, /signInWithPassword|signInWithOAuth|signOut/);
+
+const activatedSessions = [];
+const cachedSessions = [];
+const switchContext = {
+  state: {
+    authUser: { id: "account-a", email: "a@example.com" },
+    authBusy: false,
+    authMessage: "",
+    syncMessage: "",
+    syncStatus: "",
+    accountSwitching: true,
+    accountAddOpen: false,
+  },
+  createSupabaseClient() {
+    return {
+      auth: {
+        async setSession(session) {
+          activatedSessions.push({ ...session });
+          return {
+            data: {
+              session: {
+                ...session,
+                user: { id: "account-b", email: "b@example.com" },
+              },
+            },
+            error: null,
+          };
+        },
+      },
+    };
+  },
+  rememberedAccountSession() {
+    return null;
+  },
+  async rememberCurrentAccountSession() {
+    return {
+      access_token: "access-a",
+      refresh_token: "refresh-a",
+      user: { id: "account-a", email: "a@example.com" },
+    };
+  },
+  captureCloudSnapshot() {
+    return snapshot("account-a");
+  },
+  saveSnapshotForOwner() {},
+  setPendingAccountSwitch() {},
+  clearTimeout() {},
+  cloudSyncTimer: 0,
+  async upsertCloudSnapshot() {},
+  rememberAuthenticatedSession(session) {
+    cachedSessions.push(session);
+  },
+  rememberAuthenticatedAccount() {},
+  removeRememberedAccountSession() {},
+  renderPreservingReaderScroll() {},
+  showToast() {},
+  console,
+};
+vm.createContext(switchContext);
+vm.runInContext(`${activateAccountSource}; globalThis.activate = activateRememberedAccount;`, switchContext);
+await switchContext.activate(
+  { userId: "account-b", email: "b@example.com" },
+  { access_token: "access-b", refresh_token: "refresh-b" },
+);
+assert.deepEqual(activatedSessions, [{ access_token: "access-b", refresh_token: "refresh-b" }]);
+assert.equal(switchContext.state.authUser.id, "account-b");
+assert.equal(switchContext.state.accountSwitching, false);
+assert.equal(cachedSessions.at(-1).user.id, "account-b");
+
 const signOutSource = extractFunction("signOutAccount");
 assert.match(signOutSource, /upsertCloudSnapshot\(snapshot/);
+assert.match(signOutSource, /removeRememberedAccountSession\(user\.id\)/);
 assert.match(signOutSource, /auth\.signOut\(\{ scope: "local" \}\)/);
 assert.ok(
   signOutSource.indexOf("upsertCloudSnapshot(snapshot") < signOutSource.indexOf('auth.signOut({ scope: "local" })'),
@@ -140,8 +254,12 @@ assert.doesNotMatch(loadCloudSyncSource, /const localSnapshot = captureCloudSnap
 
 const rememberAccountSource = extractFunction("rememberAuthenticatedAccount");
 assert.doesNotMatch(rememberAccountSource, /password/i, "Remembered account metadata must never include a password");
+const rememberSessionSource = extractFunction("rememberAuthenticatedSession");
+assert.doesNotMatch(rememberSessionSource, /password/i, "Remembered sessions must never include a password");
 assert.match(source, /id="\$\{suffix\}switchAccountButton"/);
 assert.match(source, /rememberedAccountsCard\(prefix\)/);
+assert.match(source, /Ready to switch/);
+assert.match(source, /Your current account stays signed in while you choose another one/);
 assert.match(source, /queryParams: \{ prompt: "select_account" \}/);
 assert.match(styles, /\.remembered-account-use/);
 assert.match(styles, /min-height: 44px/);

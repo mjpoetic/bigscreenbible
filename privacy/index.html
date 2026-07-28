@@ -67,7 +67,7 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.5" />
+    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.6" />
   </head>
   <body class="about-body">
     <a class="skip-link" href="#main-content">Skip to policy</a>
@@ -129,6 +129,7 @@
             <li>Bookmarks, notes, highlights, recently opened Scripture references, and reading-streak dates and totals.</li>
             <li>Game type, category, difficulty, round-length, sound, and timed-mode preferences, plus Book Sprint best times.</li>
             <li>Interface state, such as whether a panel, tutorial, or navigation bar has been opened or collapsed.</li>
+            <li>Previously used account identifiers and separate Supabase authentication sessions when you choose to keep multiple accounts ready for switching.</li>
             <li>Optional notification status, morning and evening reminder times, timezone, and a device token used to manage that browser’s push subscription.</li>
           </ul>
           <p>This device data exists even if you do not create an account. It stays in that browser or app web view unless it is cleared, overwritten, or synced to an account as described below.</p>
@@ -136,7 +137,7 @@
           <h3>Account and sign-in information</h3>
           <p>If you create an email-and-password account, your email address and password are sent to Supabase Auth for account creation and sign-in. Supabase assigns a user ID and records the sign-in provider. Big Screen Bible's sync table uses the Supabase user ID; it does not contain your password.</p>
           <p>If you choose Google Sign-In, Google sends Supabase the information allowed by the Google sign-in flow. The resulting Supabase authentication record may include your email address, name or display name, avatar URL, Google or provider identifiers, provider name, and Supabase user ID. Big Screen Bible reads the user ID for account data, the email address for the private account display, and may use the provider name as an editable suggestion when you create a social profile. It does not use the provider avatar URL as your Big Screen Bible social avatar.</p>
-          <p>Supabase also stores the authentication session needed to keep you signed in and refresh your session.</p>
+          <p>Supabase also stores the authentication session needed to keep you signed in and refresh your session. To support account switching without repeated sign-in, Big Screen Bible keeps a separate Supabase access-and-refresh-token session in browser storage for each remembered account. It does not store account passwords.</p>
 
           <h3>Optional social-profile information</h3>
           <p>If you create a social profile, Big Screen Bible stores your unique username, optional display name, selected built-in avatar style, discovery preference, friend-request preference, Supabase user ID, and profile creation and update times. Your profile does not contain your email address, password, notes, bookmarks, highlights, reading history, or reading streak.</p>
@@ -166,7 +167,7 @@
 
         <section class="policy-section" id="storage">
           <h2>3. Browser storage and cookies</h2>
-          <p>Big Screen Bible uses local storage for saved study data and preferences. If you enable notifications, local storage also keeps that device’s reminder choices and management token. Supabase's browser client is configured to persist and refresh sign-in sessions, which means authentication session data is also kept in browser storage.</p>
+          <p>Big Screen Bible uses local storage for saved study data and preferences. If you enable notifications, local storage also keeps that device’s reminder choices and management token. Supabase's browser client is configured to persist and refresh sign-in sessions, and Big Screen Bible keeps separate sessions for remembered accounts, which means authentication session data is also kept in browser storage.</p>
           <p>The Big Screen Bible application code does not directly set advertising or analytics cookies. Google, Supabase, GitHub, font or content-delivery services, and Bible providers may use their own cookies or similar technologies when you visit their pages, sign in, or load their resources. Those services control their own technologies and policies.</p>
         </section>
 
@@ -219,7 +220,7 @@
 
         <section class="policy-section" id="choices">
           <h2>8. Your choices and requests</h2>
-          <p>You can use the main Bible-reading features without an account. You can edit or remove individual notes, bookmarks, highlights, and history within the app, and you can clear local data through your browser or device settings. Signing out ends the active account session but does not by itself delete local or cloud data.</p>
+          <p>You can use the main Bible-reading features without an account. You can edit or remove individual notes, bookmarks, highlights, and history within the app, and you can clear local data through your browser or device settings. Signing out ends and removes the active account's reusable browser session but does not by itself delete local or cloud data. Forgetting a remembered account removes its saved identity, browser session, and local study snapshot from that browser.</p>
           <p>You can edit your username, display name, avatar, discovery setting, and friend-request preference in the Account panel. You can turn discovery off at any time. Profile deletion is currently handled through the account-deletion request process.</p>
           <p>You can cancel a request you sent, accept or decline a request you received, and remove an accepted friendship in the Friends panel. Removing a friendship does not delete either user's profile or account.</p>
           <p>You can turn daily reminders off in Big Screen Bible Settings or revoke notification permission in your browser or operating-system settings. Reminder times and subscriptions are device-specific.</p>
