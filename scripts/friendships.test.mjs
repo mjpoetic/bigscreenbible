@@ -120,6 +120,7 @@ const actionContext = {
     messages.push(message);
     actionState.friendshipActionBusyId = "";
   },
+  queueSocialPushDelivery() {},
   friendshipErrorMessage(error) {
     return error?.message || "Friends could not be updated.";
   },

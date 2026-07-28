@@ -168,6 +168,7 @@ assert.match(activateAccountSource, /savedSession\.access_token/);
 assert.match(activateAccountSource, /savedSession\.refresh_token/);
 assert.match(activateAccountSource, /previousSession\.access_token/);
 assert.match(activateAccountSource, /removeRememberedAccountSession\(account\.userId\)/);
+assert.match(activateAccountSource, /unlinkPushSubscriptionFromCurrentAccount/);
 assert.doesNotMatch(activateAccountSource, /signInWithPassword|signInWithOAuth|signOut/);
 
 const activatedSessions = [];
@@ -219,6 +220,9 @@ const switchContext = {
   clearTimeout() {},
   cloudSyncTimer: 0,
   async upsertCloudSnapshot() {},
+  async unlinkPushSubscriptionFromCurrentAccount() {
+    return true;
+  },
   rememberAuthenticatedSession(session) {
     cachedSessions.push(session);
   },

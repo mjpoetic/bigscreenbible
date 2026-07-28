@@ -67,7 +67,7 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.11" />
+    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.12" />
   </head>
   <body class="about-body">
     <a class="skip-link" href="#main-content">Skip to policy</a>
@@ -130,7 +130,7 @@
             <li>Game type, category, difficulty, round-length, sound, and timed-mode preferences, plus Book Sprint best times.</li>
             <li>Interface state, such as whether a panel, tutorial, or navigation bar has been opened or collapsed.</li>
             <li>Previously used account identifiers and separate Supabase authentication sessions when you choose to keep multiple accounts ready for switching.</li>
-            <li>Optional notification status, morning and evening reminder times, timezone, and a device token used to manage that browser’s push subscription.</li>
+            <li>Optional notification status, daily reminder times, social-notification choices, timezone, account link while signed in, and a device token used to manage that browser’s push subscription.</li>
           </ul>
           <p>This device data exists even if you do not create an account. It stays in that browser or app web view unless it is cleared, overwritten, or synced to an account as described below.</p>
 
@@ -152,8 +152,9 @@
           <p>Only the two participating signed-in users can read a challenge or its player records. Supabase Realtime delivers authorized database changes to both players so invitations, ready state, scores, progress, and results can update while they play. Challenge records do not include email addresses, messages, notes, bookmarks, highlights, reading history, or reading streaks.</p>
 
           <h3>Optional push-notification information</h3>
-          <p>If you enable daily reminders, Big Screen Bible stores a push-subscription endpoint and its browser-generated encryption keys, a one-way hash of the device-management token, your browser-reported timezone, your chosen reminder times, whether the evening reminder is enabled, the last time that device opened Big Screen Bible, and the local dates on which reminders were sent. A Big Screen Bible account is not required for this device-specific subscription.</p>
-          <p>The last-opened time is used only to suppress the optional evening reminder when that device has already opened Big Screen Bible during its local day. The push endpoint is treated as sensitive and is not exposed through the public database API.</p>
+          <p>If you enable notifications, Big Screen Bible stores a push-subscription endpoint and its browser-generated encryption keys, a one-way hash of the device-management token, your browser-reported timezone, your chosen reminder times, whether the evening reminder and each type of social notification are enabled, the last time that device opened Big Screen Bible, and the local dates on which reminders were sent. A Big Screen Bible account is not required for daily reminders.</p>
+          <p>While you are signed in, the subscription is associated with your Supabase user ID so it can receive optional friend-request and game-challenge notifications. Private delivery events temporarily store the recipient and initiating user IDs, event type, related friendship or challenge ID, delivery status, retry count, and delivery timestamps. The app unlinks the device from the outgoing account when switching accounts or signing out. Successfully processed delivery events are removed after 30 days.</p>
+          <p>The last-opened time is used only to suppress the optional evening reminder when that device has already opened Big Screen Bible during its local day. Push endpoints and delivery events are treated as sensitive and are not exposed through the public database API.</p>
 
           <h3>Account-synced study data</h3>
           <p>When you are signed in, Big Screen Bible syncs one private data record associated with your user ID. It can contain:</p>
@@ -220,7 +221,7 @@
           <h2>7. Data retention</h2>
           <p>Data in local storage remains on your device until you clear the site's or app's stored data, remove or replace the saved item, or your browser or operating system clears it.</p>
           <p>Account information, social-profile information, friendship information, game-challenge information, and synchronized study data are retained until you remove the item where the app provides that control, request deletion, the account is deleted, or retention is otherwise needed for legitimate legal, security, or operational reasons. Big Screen Bible does not use a fixed retention schedule for this data.</p>
-          <p>An optional push subscription is deleted when you turn reminders off and the unsubscribe request reaches the service. Invalid or expired push subscriptions are also removed when the push service reports that they can no longer receive notifications.</p>
+          <p>An optional push subscription is deleted when you turn notifications off and the unsubscribe request reaches the service. Invalid or expired push subscriptions are also removed when the push service reports that they can no longer receive notifications. Successfully processed social-notification delivery events are removed after 30 days, and events tied to a deleted request, challenge, or account are removed with that source record.</p>
         </section>
 
         <section class="policy-section" id="choices">
@@ -229,7 +230,7 @@
           <p>You can edit your username, display name, avatar, discovery setting, and friend-request preference in the Account panel. You can turn discovery off at any time. Profile deletion is currently handled through the account-deletion request process.</p>
           <p>You can cancel a request you sent, accept or decline a request you received, and remove an accepted friendship in the Friends panel. Removing a friendship does not delete either user's profile or account.</p>
           <p>You can cancel a pending game challenge you sent, decline one you received, or end an accepted challenge for both participants. Completed challenge history is currently retained with the participating accounts and does not have an individual deletion control.</p>
-          <p>You can turn daily reminders off in Big Screen Bible Settings or revoke notification permission in your browser or operating-system settings. Reminder times and subscriptions are device-specific.</p>
+          <p>You can turn all notifications off in Big Screen Bible Settings, independently turn off friend-request or game-challenge notifications, or revoke notification permission in your browser or operating-system settings. Reminder times, social-notification choices, and subscriptions are device-specific.</p>
           <p>You may email <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> to request access to, correction of, or export of your information. You may also request deletion of your account and its associated synchronized study data.</p>
           <p>Account deletion is currently handled by request because an automated deletion interface is not yet available. We may need to verify that you control the account before completing a request. Deleting an account does not automatically clear data stored locally in your browser or app; you can clear that data through your browser or device settings.</p>
           <p>Requests are handled subject to applicable law and technical or provider limitations.</p>

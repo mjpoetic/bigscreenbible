@@ -7,6 +7,9 @@ type PushPreferences = {
   morningTime: string;
   eveningEnabled: boolean;
   eveningTime: string;
+  friendRequestNotifications: boolean;
+  gameChallengeNotifications: boolean;
+  challengeAcceptedNotifications: boolean;
 };
 
 type PushSubscriptionInput = {
@@ -80,6 +83,9 @@ function normalizePreferences(value: unknown): PushPreferences | null {
     morningTime: input.morningTime as string,
     eveningEnabled: input.eveningEnabled !== false,
     eveningTime: input.eveningTime as string,
+    friendRequestNotifications: input.friendRequestNotifications !== false,
+    gameChallengeNotifications: input.gameChallengeNotifications !== false,
+    challengeAcceptedNotifications: input.challengeAcceptedNotifications !== false,
   };
 }
 
@@ -125,6 +131,23 @@ function validDeviceToken(value: unknown) {
   return typeof value === "string" && /^[A-Za-z0-9_-]{40,100}$/.test(value);
 }
 
+class AuthenticationError extends Error {}
+
+async function authenticatedUserId(request: Request, supabase: ReturnType<typeof databaseClient>) {
+  const authorization = request.headers.get("authorization") || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const token = match[1].trim();
+  if (
+    !token
+    || token === Deno.env.get("SUPABASE_ANON_KEY")
+    || token.startsWith("sb_publishable_")
+  ) return null;
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user?.id) throw new AuthenticationError("Invalid authentication session");
+  return data.user.id;
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(request) });
   if (!allowedOrigin(request.headers.get("origin") || "")) {
@@ -143,6 +166,7 @@ Deno.serve(async (request) => {
     const body = JSON.parse(rawBody || "{}") as Record<string, unknown>;
     const action = String(body.action || "");
     const supabase = databaseClient();
+    const userId = await authenticatedUserId(request, supabase);
 
     if (action === "subscribe") {
       const subscription = normalizeSubscription(body.subscription);
@@ -163,6 +187,10 @@ Deno.serve(async (request) => {
         morning_time: preferences.morningTime,
         evening_enabled: preferences.eveningEnabled,
         evening_time: preferences.eveningTime,
+        friend_request_notifications: preferences.friendRequestNotifications,
+        game_challenge_notifications: preferences.gameChallengeNotifications,
+        challenge_accepted_notifications: preferences.challengeAcceptedNotifications,
+        user_id: userId,
         enabled: true,
         last_opened_at: new Date().toISOString(),
       }, { onConflict: "endpoint" });
@@ -175,8 +203,13 @@ Deno.serve(async (request) => {
 
     if (action === "opened") {
       if (!validTimezone(body.timezone)) return jsonResponse(request, { error: "Invalid device timezone" }, 400);
+      const openedUpdate: Record<string, unknown> = {
+        last_opened_at: new Date().toISOString(),
+        timezone: body.timezone,
+      };
+      if (userId) openedUpdate.user_id = userId;
       const { error } = await supabase.from(tableName)
-        .update({ last_opened_at: new Date().toISOString(), timezone: body.timezone })
+        .update(openedUpdate)
         .eq("device_token_hash", deviceTokenHash)
         .eq("enabled", true);
       if (error) throw error;
@@ -186,13 +219,18 @@ Deno.serve(async (request) => {
     if (action === "update") {
       const preferences = normalizePreferences(body.preferences);
       if (!preferences) return jsonResponse(request, { error: "Invalid reminder schedule" }, 400);
+      const preferenceUpdate: Record<string, unknown> = {
+        timezone: preferences.timezone,
+        morning_time: preferences.morningTime,
+        evening_enabled: preferences.eveningEnabled,
+        evening_time: preferences.eveningTime,
+        friend_request_notifications: preferences.friendRequestNotifications,
+        game_challenge_notifications: preferences.gameChallengeNotifications,
+        challenge_accepted_notifications: preferences.challengeAcceptedNotifications,
+      };
+      if (userId) preferenceUpdate.user_id = userId;
       const { data, error } = await supabase.from(tableName)
-        .update({
-          timezone: preferences.timezone,
-          morning_time: preferences.morningTime,
-          evening_enabled: preferences.eveningEnabled,
-          evening_time: preferences.eveningTime,
-        })
+        .update(preferenceUpdate)
         .eq("device_token_hash", deviceTokenHash)
         .eq("enabled", true)
         .select("id")
@@ -208,8 +246,21 @@ Deno.serve(async (request) => {
       return jsonResponse(request, { unsubscribed: true });
     }
 
+    if (action === "unlink-user") {
+      if (!userId) return jsonResponse(request, { error: "Authentication required" }, 401);
+      const { error } = await supabase.from(tableName)
+        .update({ user_id: null })
+        .eq("device_token_hash", deviceTokenHash)
+        .eq("user_id", userId);
+      if (error) throw error;
+      return jsonResponse(request, { unlinked: true });
+    }
+
     return jsonResponse(request, { error: "Unknown action" }, 400);
   } catch (error) {
+    if (error instanceof AuthenticationError) {
+      return jsonResponse(request, { error: error.message }, 401);
+    }
     const message = error instanceof Error ? error.message : "Push subscription request failed";
     console.error("[Push subscriptions]", message);
     return jsonResponse(request, { error: "Push subscription request failed" }, 500);

@@ -301,6 +301,7 @@ let appUpdateRestoreCleanupTimer = 0;
 let pendingChapterChange = null;
 let accountSwitchNotice = null;
 let accountSwitchNoticeTimer = 0;
+let handledSocialNotificationDeepLink = "";
 
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
@@ -413,6 +414,9 @@ const state = {
   pushMorningTime: localStorage.getItem("lw_push_morning_time") || "07:00",
   pushEveningEnabled: localStorage.getItem("lw_push_evening_enabled") !== "false",
   pushEveningTime: localStorage.getItem("lw_push_evening_time") || "18:00",
+  pushFriendRequestNotifications: localStorage.getItem("lw_push_friend_requests") !== "false",
+  pushGameChallengeNotifications: localStorage.getItem("lw_push_game_challenges") !== "false",
+  pushChallengeAcceptedNotifications: localStorage.getItem("lw_push_challenge_accepted") !== "false",
   pushStatus: "Checking notification support…",
   pushBusy: false,
   pushPromptVisible: false,
@@ -1886,6 +1890,9 @@ function pushReminderSettings(prefix = "") {
   const morningId = `${idPrefix}PushMorningTime`;
   const eveningEnabledId = `${idPrefix}PushEveningToggle`;
   const eveningId = `${idPrefix}PushEveningTime`;
+  const friendRequestId = `${idPrefix}PushFriendRequestToggle`;
+  const gameChallengeId = `${idPrefix}PushGameChallengeToggle`;
+  const challengeAcceptedId = `${idPrefix}PushChallengeAcceptedToggle`;
   const controlsDisabled = !state.pushSupported || state.pushPermissionDenied || !state.pushEnabled || state.pushBusy;
   const timezone = escapeHtml(Intl.DateTimeFormat().resolvedOptions().timeZone || "local time");
   const status = state.pushEnabled && state.pushSupported && !state.pushBusy
@@ -1893,11 +1900,12 @@ function pushReminderSettings(prefix = "") {
     : state.pushStatus;
   return `
     <div class="setting-group push-reminder-settings">
-      <span class="setting-label">Daily reminders</span>
+      <span class="setting-label">Notifications</span>
       <label class="setting-checkbox">
         <input type="checkbox" id="${enabledId}" ${state.pushEnabled ? "checked" : ""} ${!state.pushSupported || state.pushPermissionDenied || state.pushBusy ? "disabled" : ""} />
-        <span>Verse of the Day notifications</span>
+        <span>Allow notifications on this device</span>
       </label>
+      <span class="setting-label push-setting-subhead">Daily reminders</span>
       <div class="push-reminder-row">
         <label for="${morningId}">Morning reading</label>
         <input type="time" id="${morningId}" value="${state.pushMorningTime}" ${controlsDisabled ? "disabled" : ""} />
@@ -1909,6 +1917,23 @@ function pushReminderSettings(prefix = "") {
         </label>
         <input type="time" id="${eveningId}" value="${state.pushEveningTime}" ${controlsDisabled || !state.pushEveningEnabled ? "disabled" : ""} aria-label="Evening reminder time" />
       </div>
+      <span class="setting-label push-setting-subhead">Friend activity</span>
+      ${state.authUser ? `
+        <div class="push-social-options">
+          <label class="setting-checkbox">
+            <input type="checkbox" id="${friendRequestId}" ${state.pushFriendRequestNotifications ? "checked" : ""} ${controlsDisabled ? "disabled" : ""} />
+            <span>Friend requests</span>
+          </label>
+          <label class="setting-checkbox">
+            <input type="checkbox" id="${gameChallengeId}" ${state.pushGameChallengeNotifications ? "checked" : ""} ${controlsDisabled ? "disabled" : ""} />
+            <span>Game challenges</span>
+          </label>
+          <label class="setting-checkbox">
+            <input type="checkbox" id="${challengeAcceptedId}" ${state.pushChallengeAcceptedNotifications ? "checked" : ""} ${controlsDisabled ? "disabled" : ""} />
+            <span>Accepted challenges</span>
+          </label>
+        </div>
+      ` : '<p class="setting-help">Sign in to receive friend-request and game-challenge notifications.</p>'}
       <p class="setting-help" aria-live="polite">${escapeHtml(status)}</p>
     </div>
   `;
@@ -4992,6 +5017,9 @@ function pushPreferences() {
     morningTime: state.pushMorningTime,
     eveningEnabled: state.pushEveningEnabled,
     eveningTime: state.pushEveningTime,
+    friendRequestNotifications: state.pushFriendRequestNotifications,
+    gameChallengeNotifications: state.pushGameChallengeNotifications,
+    challengeAcceptedNotifications: state.pushChallengeAcceptedNotifications,
   };
 }
 
@@ -4999,12 +5027,18 @@ async function pushFunctionRequest(method = "POST", body = null) {
   const config = window.BigScreenBibleSupabase || {};
   const url = supabaseFunctionUrl("push-subscriptions");
   if (!url || !config.anonKey) throw new Error("Notification service is not configured");
+  let accessToken = "";
+  const client = createSupabaseClient();
+  if (client) {
+    const { data } = await client.auth.getSession();
+    accessToken = data?.session?.access_token || "";
+  }
   const response = await fetch(url, {
     method,
     cache: "no-store",
     headers: {
       apikey: config.anonKey,
-      Authorization: `Bearer ${config.anonKey}`,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -5012,6 +5046,36 @@ async function pushFunctionRequest(method = "POST", body = null) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "Notification service request failed");
   return payload;
+}
+
+async function requestSocialPushDelivery() {
+  const config = window.BigScreenBibleSupabase || {};
+  const url = supabaseFunctionUrl("send-push-notifications");
+  const client = createSupabaseClient();
+  if (!url || !config.anonKey || !client) return;
+  const { data } = await client.auth.getSession();
+  const accessToken = data?.session?.access_token || "";
+  if (!accessToken) return;
+  const response = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action: "deliver-social" }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Social notification delivery could not start");
+  }
+}
+
+function queueSocialPushDelivery() {
+  requestSocialPushDelivery().catch((error) => {
+    console.warn("Immediate social notification delivery failed; scheduled retry remains active", error);
+  });
 }
 
 function applicationServerKey(value) {
@@ -5094,7 +5158,7 @@ async function initializePushNotifications() {
   const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
   if (!state.pushEnabled || !deviceToken || Notification.permission !== "granted") {
     if (state.pushEnabled && (!deviceToken || Notification.permission !== "granted")) clearLocalPushSubscription();
-    state.pushStatus = "Enable reminders to choose a morning reading time and an optional evening nudge.";
+    state.pushStatus = "Enable notifications for daily reminders and signed-in friend activity.";
     return;
   }
 
@@ -5107,7 +5171,7 @@ async function initializePushNotifications() {
       return;
     }
     state.pushEnabled = true;
-    state.pushStatus = "Daily reminders are enabled.";
+    state.pushStatus = "Notifications are enabled on this device.";
     notePushVisit(true);
   } catch (error) {
     state.pushStatus = error?.message || "Notifications could not be initialized.";
@@ -5148,13 +5212,13 @@ async function enablePushNotifications() {
     localStorage.setItem("lw_push_enabled", "true");
     state.pushEnabled = true;
     state.pushPermissionDenied = false;
-    state.pushStatus = "Daily reminders are enabled.";
+    state.pushStatus = "Notifications are enabled on this device.";
     localStorage.removeItem(pushPromptDismissedStorageKey);
-    showToast("Daily reminders enabled");
+    showToast("Notifications enabled");
   } catch (error) {
     clearLocalPushSubscription();
     state.pushStatus = error?.message || "Notifications could not be enabled.";
-    showToast("Could not enable reminders");
+    showToast("Could not enable notifications");
   } finally {
     state.pushBusy = false;
     renderPreservingReaderScroll();
@@ -5183,8 +5247,8 @@ async function disablePushNotifications() {
     await subscription?.unsubscribe();
     state.pushStatus = serverUnsubscribeFailed
       ? "Reminders are off on this device. The expired server subscription will be cleaned up automatically."
-      : "Daily reminders are off.";
-    showToast("Daily reminders off");
+      : "Notifications are off.";
+    showToast("Notifications off");
   } catch (error) {
     state.pushStatus = "Reminders are off on this device. The expired server subscription will be cleaned up automatically.";
     console.warn("Browser push unsubscribe failed", error);
@@ -5199,6 +5263,9 @@ async function savePushPreferences() {
   localStorage.setItem("lw_push_morning_time", state.pushMorningTime);
   localStorage.setItem("lw_push_evening_enabled", String(state.pushEveningEnabled));
   localStorage.setItem("lw_push_evening_time", state.pushEveningTime);
+  localStorage.setItem("lw_push_friend_requests", String(state.pushFriendRequestNotifications));
+  localStorage.setItem("lw_push_game_challenges", String(state.pushGameChallengeNotifications));
+  localStorage.setItem("lw_push_challenge_accepted", String(state.pushChallengeAcceptedNotifications));
   const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
   if (!state.pushEnabled || !deviceToken) return;
   try {
@@ -5208,8 +5275,29 @@ async function savePushPreferences() {
       preferences: pushPreferences(),
     });
   } catch (error) {
-    state.pushStatus = error?.message || "The reminder schedule could not be saved.";
-    showToast("Could not save reminder time");
+    state.pushStatus = error?.message || "Notification preferences could not be saved.";
+    showToast("Could not save notification settings");
+  }
+}
+
+async function unlinkPushSubscriptionFromCurrentAccount() {
+  const deviceToken = localStorage.getItem(pushDeviceTokenStorageKey) || "";
+  if (!state.pushEnabled || !deviceToken || !state.authUser) return true;
+  try {
+    await pushFunctionRequest("POST", { action: "unlink-user", deviceToken });
+    return true;
+  } catch (error) {
+    console.warn("Push subscription account unlink failed", error);
+    try {
+      const registration = await navigator.serviceWorker.getRegistration("./");
+      const subscription = await registration?.pushManager.getSubscription();
+      await subscription?.unsubscribe();
+    } catch (unsubscribeError) {
+      console.warn("Browser push fallback unsubscribe failed", unsubscribeError);
+    }
+    clearLocalPushSubscription();
+    state.pushStatus = "Notifications were turned off to protect this account on the signed-out device.";
+    return false;
   }
 }
 
@@ -5295,6 +5383,8 @@ async function initializeSupabaseAuth() {
     if (session?.user) {
       await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships(), loadGameChallenges()]);
       subscribeToGameChallenges();
+      notePushVisit(true);
+      applySocialNotificationDeepLink();
       maybeOfferPushNotifications();
       if (showInitialAccountSwitch) showAccountSwitchNotification(session.user);
     }
@@ -5319,6 +5409,8 @@ async function initializeSupabaseAuth() {
         Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships(), loadGameChallenges()])
           .then(() => {
             subscribeToGameChallenges();
+            notePushVisit(true);
+            applySocialNotificationDeepLink();
             maybeOfferPushNotifications();
           })
           .catch((error) => {
@@ -5540,6 +5632,7 @@ async function sendGameChallenge(opponentId = state.challengeOpponentId) {
     };
     const { error } = await client.from(gameChallengeTable).insert(payload);
     if (error) throw error;
+    queueSocialPushDelivery();
     state.gameChallengeActionBusyId = "";
     await loadGameChallenges({ render: false });
     state.gameChallengeMessage = "Challenge sent. It expires in 24 hours.";
@@ -5584,6 +5677,7 @@ async function updateGameChallengeResponse(challengeId, action) {
     const { data, error } = await request.select("id").single();
     if (error) throw error;
     if (!data?.id) throw new Error("That challenge is no longer available.");
+    if (action === "accept") queueSocialPushDelivery();
     state.gameChallengeActionBusyId = "";
     if (action === "leave") {
       state.activeGameChallengeId = "";
@@ -5961,6 +6055,7 @@ async function sendFriendRequest(profileId) {
       .from(friendshipTable)
       .insert({ requester_id: requesterId, addressee_id: profileId });
     if (error) throw error;
+    queueSocialPushDelivery();
     await finishFriendshipAction("Friend request sent.");
     showToast("Friend request sent");
   } catch (error) {
@@ -6463,6 +6558,7 @@ async function handleAccountSubmit(event, prefix = "") {
       } catch (error) {
         console.warn("Final account sync before adding an account failed", error);
       }
+      await unlinkPushSubscriptionFromCurrentAccount();
     }
     const response = action === "signup"
       ? await client.auth.signUp({ email, password })
@@ -6545,6 +6641,7 @@ async function signInWithGoogle() {
       } catch (error) {
         console.warn("Final account sync before Google sign in failed", error);
       }
+      await unlinkPushSubscriptionFromCurrentAccount();
     }
     const { error } = await client.auth.signInWithOAuth({
       provider: "google",
@@ -6588,6 +6685,7 @@ async function activateRememberedAccount(account, savedSession = rememberedAccou
       } catch (error) {
         console.warn("Final account sync before switching failed", error);
       }
+      await unlinkPushSubscriptionFromCurrentAccount();
     }
     const { data, error } = await client.auth.setSession({
       access_token: savedSession.access_token,
@@ -6703,6 +6801,7 @@ async function signOutAccount() {
       }
     }
     if (user?.id) removeRememberedAccountSession(user.id);
+    await unlinkPushSubscriptionFromCurrentAccount();
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw error;
     state.authUser = null;
@@ -9587,16 +9686,17 @@ function pushConsentPrompt() {
     <section class="tutorial-welcome-overlay push-consent-overlay open" role="dialog" aria-modal="true" aria-labelledby="pushConsentTitle">
       <div class="tutorial-welcome-card push-consent-card">
         <img class="tutorial-welcome-logo" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
-        <div class="shortcut-eyebrow">Daily Scripture reminders</div>
-        <h2 id="pushConsentTitle">Start each day in Scripture?</h2>
-        <p>Receive the Verse of the Day at 7:00 AM, plus a gentle 6:00 PM reminder only when you have not opened Big Screen Bible that day.</p>
-        <div class="push-consent-schedule" aria-label="Default reminder schedule">
+        <div class="shortcut-eyebrow">Stay connected</div>
+        <h2 id="pushConsentTitle">Turn on notifications?</h2>
+        <p>Receive daily Scripture reminders plus timely friend requests and game challenges while you are signed in.</p>
+        <div class="push-consent-schedule" aria-label="Default notification choices">
           <span><strong>7:00 AM</strong> Verse of the Day</span>
           <span><strong>6:00 PM</strong> Unread reminder</span>
+          <span><strong>Friend activity</strong> Requests and challenges</span>
         </div>
-        <p class="push-consent-note">Times use this device’s local timezone. You can change either time or turn reminders off in Settings.</p>
+        <p class="push-consent-note">Times use this device’s local timezone. You can change each notification choice or turn everything off in Settings.</p>
         <div class="tutorial-actions">
-          <button class="primary-btn" id="enablePushPrompt" type="button">Enable reminders</button>
+          <button class="primary-btn" id="enablePushPrompt" type="button">Enable notifications</button>
           <button class="ghost-btn" id="dismissPushPrompt" type="button">Not now</button>
         </div>
       </div>
@@ -10069,6 +10169,19 @@ function bindEvents() {
     document.getElementById(id)?.addEventListener("change", (event) => {
       if (!validPushTime(event.target.value)) return;
       state.pushEveningTime = event.target.value;
+      savePushPreferences();
+    });
+  });
+  [
+    ["PushFriendRequestToggle", "pushFriendRequestNotifications"],
+    ["mobilePushFriendRequestToggle", "pushFriendRequestNotifications"],
+    ["PushGameChallengeToggle", "pushGameChallengeNotifications"],
+    ["mobilePushGameChallengeToggle", "pushGameChallengeNotifications"],
+    ["PushChallengeAcceptedToggle", "pushChallengeAcceptedNotifications"],
+    ["mobilePushChallengeAcceptedToggle", "pushChallengeAcceptedNotifications"],
+  ].forEach(([id, stateKey]) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state[stateKey] = event.target.checked;
       savePushPreferences();
     });
   });
@@ -12603,6 +12716,69 @@ function requestedModeFromUrl() {
   if (["parallel", "study", "parallel-study"].includes(requestedMode)) return "parallel";
   if (["trivia", "games", "game"].includes(requestedMode)) return "trivia";
   return "";
+}
+
+function applySocialNotificationDeepLink() {
+  if (!state.authUser) return false;
+  const params = new URLSearchParams(window.location.search);
+  const socialTarget = String(params.get("social") || "");
+  const challengeId = String(params.get("challenge") || "");
+  if (!socialTarget && !challengeId) return false;
+  const deepLinkKey = `${state.authUser.id}:${socialTarget}:${challengeId}:${params.get("tab") || ""}`;
+  if (handledSocialNotificationDeepLink === deepLinkKey) return false;
+  handledSocialNotificationDeepLink = deepLinkKey;
+  state.focusMode = false;
+  state.settingsOpen = false;
+
+  if (socialTarget === "friends") {
+    state.friendsPanelTab = params.get("tab") === "requests" ? "requests" : "friends";
+    state.accountOpen = true;
+    state.friendshipMessage = state.friendsPanelTab === "requests"
+      ? "Friend requests"
+      : state.friendshipMessage;
+    renderPreservingReaderScroll();
+    requestAnimationFrame(() => document.querySelector(".friends-card")?.scrollIntoView?.({ block: "nearest" }));
+    return true;
+  }
+
+  if (socialTarget === "challenges" || challengeId) {
+    const challenge = state.gameChallenges.find((item) => item.id === challengeId);
+    if (!challenge) {
+      state.accountOpen = true;
+      state.gameChallengeMessage = "That challenge is no longer available for this account.";
+      renderPreservingReaderScroll();
+      return true;
+    }
+    if (challenge.status === "pending") {
+      state.accountOpen = true;
+      state.gameChallengeMessage = challenge.challengedId === state.authUser.id
+        ? "New game challenge"
+        : "Challenge awaiting a response";
+      renderPreservingReaderScroll();
+      requestAnimationFrame(() => document.querySelector(".game-challenges-card")?.scrollIntoView?.({ block: "nearest" }));
+      return true;
+    }
+    if (["accepted", "completed"].includes(challenge.status)) {
+      state.activeGameChallengeId = challenge.id;
+      state.accountOpen = false;
+      state.mode = "trivia";
+      state.triviaGame = null;
+      state.triviaGameType = challenge.gameType;
+      state.triviaCategory = challenge.category;
+      state.triviaDifficulty = challenge.difficulty;
+      state.triviaCount = challenge.roundCount;
+      state.referenceRushTimed = challenge.timed;
+      if (challenge.startedAt || challenge.status === "completed") startLoadedGameChallenge(challenge);
+      else renderPreservingReaderScroll();
+      return true;
+    }
+    state.accountOpen = true;
+    state.gameChallengeMessage = "That challenge has ended.";
+    renderPreservingReaderScroll();
+    return true;
+  }
+
+  return false;
 }
 
 function verseOfDayReference(date = new Date()) {

@@ -257,11 +257,15 @@ The importer uploads at most eight chunks per request, records a deterministic c
 - A failed daily refresh is cached as a failure for that date, and the website uses its existing local curated verse rotation instead.
 - The website never requests or scrapes the linked VerseoftheDay.com webpage.
 
-## 8. Daily push notifications
+## 8. Daily and social push notifications
 
-Daily reminders use the browser Push API, the root `push-sw.js` service worker, two Supabase Edge Functions, and the private `public.bsb_push_subscriptions` table created by `supabase/schema.sql`.
+Notifications use the browser Push API, the root `push-sw.js` service worker, two Supabase Edge Functions, and the private `public.bsb_push_subscriptions` and `public.bsb_push_events` tables created by `supabase/schema.sql`.
 
 Each subscribed browser can choose its own morning time and optional evening time. The browser sends its IANA timezone, so reminders follow local time and daylight-saving changes. The sender suppresses the evening notification when that subscription has recorded an app open during the same local day. The defaults are 7:00 a.m. and 6:00 p.m.
+
+When a subscribed person is signed in, the device subscription is linked to that Supabase user ID. The person can independently turn off notifications for friend requests, incoming game challenges, and accepted challenges. Database triggers create private delivery events for those actions. The initiating signed-in browser asks the sender to deliver immediately, while the existing cron invocation retries pending events if that request is interrupted. Social notification links open the relevant Friend Requests or Game Challenges area after authentication and data loading.
+
+On account switching or sign-out, the app unlinks the device from the outgoing account before changing the active session. The daily reminder subscription can remain enabled without an account. If the secure unlink request fails, the browser subscription is turned off locally rather than leaving social notifications connected to the outgoing account.
 
 ### Generate and store Web Push secrets
 
@@ -318,7 +322,7 @@ select cron.schedule(
 );
 ```
 
-The cron only wakes the sender. Each subscription’s user-selected local times determine whether anything is sent. The sender claims each local delivery date before sending so overlapping cron calls do not duplicate a reminder, and expired browser subscriptions are removed after a `404` or `410` response from the push service.
+The cron wakes the sender for both daily schedules and retryable social events. Each subscription’s user-selected local times determine whether a daily reminder is sent. The sender claims each local delivery date or social event before sending so overlapping calls do not duplicate a notification, and expired browser subscriptions are removed after a `404` or `410` response from the push service. Completed social delivery events are removed after 30 days.
 
 ### Platform boundary
 
