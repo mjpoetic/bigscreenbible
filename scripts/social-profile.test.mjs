@@ -33,6 +33,7 @@ const state = {
   socialProfileStatus: "ready",
   socialProfileMessage: "",
   socialProfileBusy: false,
+  socialProfileOpen: true,
 };
 
 const profileRow = {
@@ -146,8 +147,14 @@ assert.doesNotMatch(profileTableDefinition, /\bemail\b/i);
 assert.match(profileSchema, /username ~ '\^\[a-z\]\[a-z0-9_\]\{2,19\}\$'/);
 
 assert.match(source, /id="\$\{suffix\}socialProfileForm"/);
+assert.match(source, /<details class="account-card social-profile-card"/);
+assert.match(source, /data-social-profile-disclosure/);
+assert.match(source, /state\.socialProfileOpen = !data/);
+assert.match(source, /if \(creatingProfile\) state\.socialProfileOpen = false/);
 assert.match(source, /Your email is never shown/);
 assert.match(styles, /\.social-profile-card/);
+assert.match(styles, /\.social-profile-summary/);
+assert.match(styles, /details\.social-profile-card\[open\] \.social-profile-disclosure-icon/);
 assert.match(styles, /\.social-avatar-options/);
 assert.match(styles, /\.social-profile-privacy/);
 

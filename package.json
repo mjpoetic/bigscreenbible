@@ -7,6 +7,7 @@
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
     "test:accessibility": "node scripts/interface-text-size.test.mjs",
+    "test:auto-scroll": "node scripts/auto-scroll.test.mjs",
     "test:headings": "node scripts/section-heading-groups.test.mjs",
     "test:notes": "node scripts/note-composer.test.mjs",
     "test:reader-lifecycle": "node scripts/reader-lifecycle-scroll.test.mjs",

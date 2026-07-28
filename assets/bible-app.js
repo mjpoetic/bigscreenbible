@@ -171,6 +171,13 @@ const interfaceTextSizes = [
   { code: "larger", name: "Larger", percent: 125 },
 ];
 const interfaceTextSizeCodes = interfaceTextSizes.map((size) => size.code);
+const defaultAutoScrollSpeed = "normal";
+const autoScrollSpeeds = [
+  { code: "slow", name: "Slow", pixelsPerSecond: 10 },
+  { code: "normal", name: "Normal", pixelsPerSecond: 16 },
+  { code: "fast", name: "Fast", pixelsPerSecond: 24 },
+];
+const autoScrollSpeedCodes = autoScrollSpeeds.map((speed) => speed.code);
 
 function normalizedScriptureFont(font) {
   const normalized = legacyScriptureFontCodes[font] || font;
@@ -179,6 +186,10 @@ function normalizedScriptureFont(font) {
 
 function normalizedInterfaceTextSize(size) {
   return interfaceTextSizeCodes.includes(size) ? size : defaultInterfaceTextSize;
+}
+
+function normalizedAutoScrollSpeed(speed) {
+  return autoScrollSpeedCodes.includes(speed) ? speed : defaultAutoScrollSpeed;
 }
 
 let bibleData = {};
@@ -198,6 +209,8 @@ let readerTouchGesture = null;
 let readerBlankTapStart = null;
 let lastReaderBlankTap = null;
 let readerGestureFeedbackTimer = 0;
+let readerAutoScrollFrame = 0;
+let readerAutoScrollLastTime = 0;
 let presentationResizeTimer = 0;
 let readerViewportRestoreTimer = 0;
 let readerAppVisibilityRestoreTimer = 0;
@@ -345,6 +358,8 @@ const state = {
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
+  autoScrollActive: false,
+  autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
   printVerseNumbers: localStorage.getItem("lw_print_verse_numbers") !== "false",
@@ -460,6 +475,7 @@ const state = {
   socialProfileStatus: "idle",
   socialProfileMessage: "",
   socialProfileBusy: false,
+  socialProfileOpen: false,
   passwordChangeOpen: false,
   passwordRecoveryMode: false,
   syncStatus: "local",
@@ -683,6 +699,8 @@ const icons = {
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
   arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 10 6-6 6 6"/><path d="M12 4v16"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.55.83l9.6-6.4a1 1 0 0 0 0-1.66l-9.6-6.4A1 1 0 0 0 8 5.6z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>',
 };
 
 const tutorialSteps = [
@@ -720,7 +738,7 @@ const tutorialSteps = [
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. Tap empty header space to return to the top, or use a two-finger tap or double-tap on blank reading space to toggle Focus Mode.",
+    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. Two-finger tap starts or pauses auto-scroll, double-tap blank reading space toggles Focus Mode, and tapping empty header space returns to the top.",
   },
   {
     target: ".rail, #openStudy",
@@ -926,6 +944,7 @@ function restoreSettingsPanelScroll(scrollState) {
 }
 
 function render() {
+  pauseReaderAutoScroll({ updateControl: false });
   const settingsScrollState = captureSettingsPanelScroll();
   const settingsPanelRerender = Boolean(settingsScrollState);
   closeMobileVerseNavMenu();
@@ -1885,6 +1904,7 @@ function readingDisplaySettings(prefix = "") {
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  const selectedAutoScrollSpeed = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
   return settingsDisclosure("reading", "Reading & display", `
     <div class="setting-group">
       <div class="settings-control-row">
@@ -1911,6 +1931,15 @@ function readingDisplaySettings(prefix = "") {
         <input type="checkbox" id="${controlId("StrongNumbersToggle")}" ${state.strongNumbers ? "checked" : ""} />
         <span>Strong's number lookups</span>
       </label>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <span class="setting-label" id="${controlId("AutoScrollSpeedLabel")}">Auto-scroll speed</span>
+      <div class="theme-mode-segment auto-scroll-speed-segment" role="group" aria-labelledby="${controlId("AutoScrollSpeedLabel")}">
+        ${autoScrollSpeeds.map((speed) => `
+          <button class="theme-mode-button ${speed.code === state.autoScrollSpeed ? "active" : ""}" type="button" data-auto-scroll-speed="${speed.code}" aria-pressed="${speed.code === state.autoScrollSpeed ? "true" : "false"}">${speed.name}</button>
+        `).join("")}
+      </div>
+      <p class="setting-help">${selectedAutoScrollSpeed.name} speed. Use the floating play button, two-finger tap, or the A key to start and pause.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
       <span class="setting-label" id="${controlId("SideToolbarPositionLabel")}">Landscape toolbar</span>
@@ -2714,71 +2743,76 @@ function socialProfileCard(prefix = "") {
     ? `Your profile is saved as @${state.socialProfile.username}.`
     : "Create the identity friends will see. Your email is never shown.");
   return `
-    <section class="account-card social-profile-card">
-      <div class="social-profile-heading">
-        ${socialProfileAvatarMarkup(profileForAvatar, "social-profile-avatar-preview")}
-        <div class="account-card-head">
-          <span class="setting-label">Social profile</span>
-          <strong>${hasProfile ? `@${escapeHtml(state.socialProfile.username)}` : "Choose your identity"}</strong>
-        </div>
-      </div>
-      <p id="${suffix}socialProfileStatus" role="status" aria-live="polite">${escapeHtml(profileStatus)}</p>
-      <form class="account-form social-profile-form" id="${suffix}socialProfileForm">
-        <label class="social-profile-field" for="${suffix}profileUsername">
-          <span>Username</span>
-          <span class="social-username-input">
-            <span aria-hidden="true">@</span>
-            <input
-              id="${suffix}profileUsername"
-              name="username"
-              value="${escapeHtml(draft.username)}"
-              inputmode="text"
-              autocomplete="off"
-              autocapitalize="none"
-              spellcheck="false"
-              minlength="3"
-              maxlength="20"
-              pattern="[a-z][a-z0-9_]{2,19}"
-              aria-describedby="${suffix}profileUsernameHelp"
-              ${state.socialProfileBusy ? "disabled" : ""}
-              required
-            />
+    <details class="account-card social-profile-card" data-social-profile-disclosure ${state.socialProfileOpen ? "open" : ""}>
+      <summary class="social-profile-summary">
+        <span class="social-profile-heading">
+          ${socialProfileAvatarMarkup(profileForAvatar, "social-profile-avatar-preview")}
+          <span class="account-card-head">
+            <span class="setting-label">Social profile</span>
+            <strong>${hasProfile ? `@${escapeHtml(state.socialProfile.username)}` : "Choose your identity"}</strong>
           </span>
-          <small id="${suffix}profileUsernameHelp">3–20 characters. Start with a letter; use lowercase letters, numbers, or underscores.</small>
-        </label>
-        <label class="social-profile-field" for="${suffix}profileDisplayName">
-          <span>Display name <small>optional</small></span>
-          <input
-            id="${suffix}profileDisplayName"
-            name="displayName"
-            value="${escapeHtml(draft.displayName)}"
-            autocomplete="name"
-            maxlength="40"
-            placeholder="Name shown to friends"
-            ${state.socialProfileBusy ? "disabled" : ""}
-          />
-        </label>
-        <fieldset class="social-avatar-field">
-          <legend>Avatar</legend>
-          <div class="social-avatar-options" role="radiogroup" aria-label="Choose profile avatar">
-            ${avatarChoices}
+        </span>
+        <span class="social-profile-disclosure-icon" aria-hidden="true">${icons.chevron}</span>
+      </summary>
+      <div class="social-profile-content">
+        <p id="${suffix}socialProfileStatus" role="status" aria-live="polite">${escapeHtml(profileStatus)}</p>
+        <form class="account-form social-profile-form" id="${suffix}socialProfileForm">
+          <label class="social-profile-field" for="${suffix}profileUsername">
+            <span>Username</span>
+            <span class="social-username-input">
+              <span aria-hidden="true">@</span>
+              <input
+                id="${suffix}profileUsername"
+                name="username"
+                value="${escapeHtml(draft.username)}"
+                inputmode="text"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                minlength="3"
+                maxlength="20"
+                pattern="[a-z][a-z0-9_]{2,19}"
+                aria-describedby="${suffix}profileUsernameHelp"
+                ${state.socialProfileBusy ? "disabled" : ""}
+                required
+              />
+            </span>
+            <small id="${suffix}profileUsernameHelp">3–20 characters. Start with a letter; use lowercase letters, numbers, or underscores.</small>
+          </label>
+          <label class="social-profile-field" for="${suffix}profileDisplayName">
+            <span>Display name <small>optional</small></span>
+            <input
+              id="${suffix}profileDisplayName"
+              name="displayName"
+              value="${escapeHtml(draft.displayName)}"
+              autocomplete="name"
+              maxlength="40"
+              placeholder="Name shown to friends"
+              ${state.socialProfileBusy ? "disabled" : ""}
+            />
+          </label>
+          <fieldset class="social-avatar-field">
+            <legend>Avatar</legend>
+            <div class="social-avatar-options" role="radiogroup" aria-label="Choose profile avatar">
+              ${avatarChoices}
+            </div>
+          </fieldset>
+          <div class="social-profile-privacy">
+            <label>
+              <input id="${suffix}profileDiscoverable" type="checkbox" ${draft.isDiscoverable ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
+              <span><strong>Appear in people search</strong><small>Only signed-in people will be able to find this profile.</small></span>
+            </label>
+            <label>
+              <input id="${suffix}profileFriendRequests" type="checkbox" ${draft.allowFriendRequests ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
+              <span><strong>Allow friend requests</strong><small>This preference is ready for the Friends phase.</small></span>
+            </label>
           </div>
-        </fieldset>
-        <div class="social-profile-privacy">
-          <label>
-            <input id="${suffix}profileDiscoverable" type="checkbox" ${draft.isDiscoverable ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
-            <span><strong>Appear in people search</strong><small>Only signed-in people will be able to find this profile.</small></span>
-          </label>
-          <label>
-            <input id="${suffix}profileFriendRequests" type="checkbox" ${draft.allowFriendRequests ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
-            <span><strong>Allow friend requests</strong><small>This preference is ready for the Friends phase.</small></span>
-          </label>
-        </div>
-        <button class="primary-btn compact-account-btn social-profile-save" type="submit" ${state.socialProfileBusy ? "disabled" : ""}>
-          ${state.socialProfileBusy ? "Saving…" : hasProfile ? "Save profile" : "Create profile"}
-        </button>
-      </form>
-    </section>
+          <button class="primary-btn compact-account-btn social-profile-save" type="submit" ${state.socialProfileBusy ? "disabled" : ""}>
+            ${state.socialProfileBusy ? "Saving…" : hasProfile ? "Save profile" : "Create profile"}
+          </button>
+        </form>
+      </div>
+    </details>
   `;
 }
 
@@ -2924,6 +2958,103 @@ function bindMobileSettingsVisibility() {
   document.querySelector(".scripture")?.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 }
 
+function activeAutoScrollSpeed() {
+  return autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+}
+
+function readerAutoScrollSurface() {
+  if (!["reader", "parallel"].includes(state.mode)) return null;
+  return document.querySelector(".scripture");
+}
+
+function updateReaderAutoScrollControl() {
+  const button = document.getElementById("readerAutoScrollButton");
+  if (!button) return;
+  const speed = activeAutoScrollSpeed();
+  const action = state.autoScrollActive ? "Pause" : "Start";
+  button.classList.toggle("active", state.autoScrollActive);
+  button.setAttribute("aria-pressed", state.autoScrollActive ? "true" : "false");
+  button.setAttribute("aria-label", `${action} auto-scroll at ${speed.name.toLowerCase()} speed`);
+  button.dataset.tooltip = `${action} auto-scroll (A)`;
+  button.innerHTML = state.autoScrollActive ? icons.pause : icons.play;
+}
+
+function pauseReaderAutoScroll({ announce = false, updateControl = true } = {}) {
+  const wasActive = state.autoScrollActive;
+  state.autoScrollActive = false;
+  readerAutoScrollLastTime = 0;
+  if (readerAutoScrollFrame) cancelAnimationFrame(readerAutoScrollFrame);
+  readerAutoScrollFrame = 0;
+  if (updateControl) updateReaderAutoScrollControl();
+  if (announce && wasActive) showToast("Auto-scroll paused");
+  return wasActive;
+}
+
+function readerAutoScrollStep(timestamp) {
+  if (!state.autoScrollActive) return;
+  const scripture = readerAutoScrollSurface();
+  if (!scripture || document.visibilityState === "hidden") {
+    pauseReaderAutoScroll();
+    return;
+  }
+  const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
+  if (maxScrollTop <= 1 || scripture.scrollTop >= maxScrollTop - 1) {
+    pauseReaderAutoScroll();
+    showToast("End of chapter");
+    return;
+  }
+  if (!readerAutoScrollLastTime) readerAutoScrollLastTime = timestamp;
+  const elapsedMs = Math.min(100, Math.max(0, timestamp - readerAutoScrollLastTime));
+  readerAutoScrollLastTime = timestamp;
+  scripture.scrollTop = Math.min(
+    maxScrollTop,
+    scripture.scrollTop + (activeAutoScrollSpeed().pixelsPerSecond * elapsedMs) / 1000,
+  );
+  if (scripture.scrollTop >= maxScrollTop - 1) {
+    pauseReaderAutoScroll();
+    showToast("End of chapter");
+    return;
+  }
+  readerAutoScrollFrame = requestAnimationFrame(readerAutoScrollStep);
+}
+
+function startReaderAutoScroll({ announce = true } = {}) {
+  const scripture = readerAutoScrollSurface();
+  if (!scripture) return false;
+  const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
+  if (maxScrollTop <= 1) {
+    if (announce) showToast("This passage does not need auto-scroll");
+    return false;
+  }
+  if (scripture.scrollTop >= maxScrollTop - 1) {
+    if (announce) showToast("End of chapter");
+    return false;
+  }
+  state.autoScrollActive = true;
+  readerAutoScrollLastTime = 0;
+  updateReaderAutoScrollControl();
+  readerAutoScrollFrame = requestAnimationFrame(readerAutoScrollStep);
+  if (announce) showToast(`Auto-scroll started · ${activeAutoScrollSpeed().name}`);
+  return true;
+}
+
+function toggleReaderAutoScroll({ announce = true } = {}) {
+  if (state.autoScrollActive) {
+    pauseReaderAutoScroll({ announce });
+    return false;
+  }
+  return startReaderAutoScroll({ announce });
+}
+
+function setReaderAutoScrollSpeed(speed) {
+  const normalized = normalizedAutoScrollSpeed(speed);
+  if (normalized === state.autoScrollSpeed) return;
+  state.autoScrollSpeed = normalized;
+  localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
 function updateReaderTopButton() {
   const scripture = document.querySelector(".scripture");
   const button = document.getElementById("readerTopButton");
@@ -2941,6 +3072,7 @@ function scrollReaderToTop() {
   if (!["reader", "parallel"].includes(state.mode)) return false;
   const scripture = document.querySelector(".scripture");
   if (!scripture) return false;
+  pauseReaderAutoScroll();
   noteReaderScrollIntent();
   const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
   if (scripture.scrollHeight > scripture.clientHeight + 1) {
@@ -3457,6 +3589,7 @@ function reader(chapterChange = null) {
       </article>
       ${chapterChangeIndicator(chapterChange)}
       ${state.mode === "reader" || state.mode === "parallel" ? `
+        ${readerAutoScrollButton()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
         <button class="reader-top-button" id="readerTopButton" type="button" aria-label="Back to top" data-tooltip="Back to top">
@@ -3464,6 +3597,24 @@ function reader(chapterChange = null) {
         </button>
       ` : ""}
     </section>
+  `;
+}
+
+function readerAutoScrollButton() {
+  const speed = autoScrollSpeeds.find((option) => option.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+  const active = state.autoScrollActive;
+  const action = active ? "Pause" : "Start";
+  return `
+    <button
+      class="reader-auto-scroll-button ${active ? "active" : ""}"
+      id="readerAutoScrollButton"
+      type="button"
+      aria-label="${action} auto-scroll at ${speed.name.toLowerCase()} speed"
+      aria-pressed="${active ? "true" : "false"}"
+      data-tooltip="${action} auto-scroll (A)"
+    >
+      ${active ? icons.pause : icons.play}
+    </button>
   `;
 }
 
@@ -4283,6 +4434,7 @@ function resetSocialProfileState() {
   state.socialProfileStatus = "idle";
   state.socialProfileMessage = "";
   state.socialProfileBusy = false;
+  state.socialProfileOpen = false;
 }
 
 function captureSocialProfileDraft(prefix = "") {
@@ -4333,6 +4485,7 @@ async function loadSocialProfile() {
     state.socialProfileDraft = socialProfileDraft(state.socialProfile);
     state.socialProfileStatus = "ready";
     state.socialProfileMessage = data ? "" : "Choose a unique username to create your social profile.";
+    state.socialProfileOpen = !data;
   } catch (error) {
     console.warn("Social profile load failed", error);
     state.socialProfileStatus = "error";
@@ -4354,6 +4507,7 @@ async function saveSocialProfile(event, prefix = "") {
   }
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
+  const creatingProfile = !state.socialProfile;
   state.socialProfileBusy = true;
   state.socialProfileMessage = state.socialProfile ? "Saving your profile…" : "Creating your profile…";
   renderPreservingReaderScroll();
@@ -4379,6 +4533,7 @@ async function saveSocialProfile(event, prefix = "") {
     state.socialProfileDraft = socialProfileDraft(state.socialProfile);
     state.socialProfileStatus = "ready";
     state.socialProfileMessage = `Profile saved as @${state.socialProfile.username}.`;
+    if (creatingProfile) state.socialProfileOpen = false;
     showToast("Social profile saved");
   } catch (error) {
     console.warn("Social profile save failed", error);
@@ -4894,6 +5049,7 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       interfaceTextSize: state.interfaceTextSize,
+      autoScrollSpeed: state.autoScrollSpeed,
       paragraphLayout: state.paragraphLayout,
       printLayout: state.printLayout,
       printVerseNumbers: state.printVerseNumbers,
@@ -5039,6 +5195,9 @@ function applyCloudSnapshot(snapshot) {
   state.interfaceTextSize = normalizedInterfaceTextSize(
     settings.interfaceTextSize || localStorage.getItem("lw_interface_text_size"),
   );
+  state.autoScrollSpeed = normalizedAutoScrollSpeed(
+    settings.autoScrollSpeed || localStorage.getItem("lw_auto_scroll_speed"),
+  );
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
@@ -5086,6 +5245,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
+  localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_print_layout", state.printLayout);
   localStorage.setItem("lw_print_verse_numbers", String(state.printVerseNumbers));
@@ -7352,6 +7512,7 @@ function shortcutOverlay() {
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
     ["Shift + F", "Toggle fullscreen"],
+    ["A", "Start or pause Reader / Parallel auto-scroll"],
     ["Shift + +", "Increase Reader / Parallel text size"],
     ["Shift + −", "Decrease Reader / Parallel text size"],
     ["Shift + 0", "Reset Reader / Parallel text size"],
@@ -7444,7 +7605,7 @@ function shortcutOverlay() {
               </div>
               <figcaption>
                 <strong id="twoFingerGestureTitle">Two-finger tap</strong>
-                <span>Toggle Focus Mode</span>
+                <span>Start or pause auto-scroll</span>
               </figcaption>
             </figure>
             <figure class="gesture-guide-card" aria-labelledby="doubleTapGestureTitle">
@@ -7808,6 +7969,16 @@ function bindEvents() {
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
   document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
   document.getElementById("quick-socialProfileForm")?.addEventListener("submit", (event) => saveSocialProfile(event, "quick"));
+  document.querySelectorAll("[data-social-profile-disclosure]").forEach((disclosure) => {
+    disclosure.addEventListener("toggle", () => {
+      state.socialProfileOpen = disclosure.open;
+    });
+    disclosure.querySelector("summary")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      disclosure.open = !disclosure.open;
+    });
+  });
   document.getElementById("quick-profileUsername")?.addEventListener("blur", (event) => {
     event.currentTarget.value = normalizeProfileUsername(event.currentTarget.value);
   });
@@ -7864,6 +8035,9 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-interface-text-size-choice]").forEach((button) => {
     button.addEventListener("click", () => setInterfaceTextSize(button.dataset.interfaceTextSizeChoice));
+  });
+  document.querySelectorAll("[data-auto-scroll-speed]").forEach((button) => {
+    button.addEventListener("click", () => setReaderAutoScrollSpeed(button.dataset.autoScrollSpeed));
   });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("mobileFullscreenButton")?.addEventListener("click", toggleFullscreen);
@@ -8384,6 +8558,13 @@ function bindEvents() {
   }, { passive: true });
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
   const scriptureTouchSurface = document.querySelector(".scripture");
+  document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
+    toggleReaderAutoScroll();
+  });
+  scriptureTouchSurface?.addEventListener("wheel", () => pauseReaderAutoScroll(), { passive: true });
+  scriptureTouchSurface?.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") pauseReaderAutoScroll();
+  }, { passive: true });
   scriptureTouchSurface?.addEventListener("touchstart", handleReaderChapterSwipeStart, { passive: true });
   scriptureTouchSurface?.addEventListener("touchend", handleReaderChapterSwipeEnd, { passive: true });
   scriptureTouchSurface?.addEventListener("touchstart", handleReaderGestureStart, { passive: true });
@@ -11393,6 +11574,11 @@ function toggleReaderFocusFromGesture() {
   setTimeout(() => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"), enteringFocus ? 280 : 0);
 }
 
+function toggleReaderAutoScrollFromGesture() {
+  if (!canUseReaderChapterSwipe()) return;
+  toggleReaderAutoScroll();
+}
+
 function beginReaderTwoFingerGesture(event, surface) {
   const touches = Array.from(event.touches || []);
   if (touches.length !== 2 || !readerGestureTouchesAllowed(touches, surface)) {
@@ -11433,6 +11619,7 @@ function handleReaderGestureStart(event) {
   if (!canUseReaderChapterSwipe()) return;
   const surface = event.currentTarget;
   if (event.touches?.length === 1) {
+    pauseReaderAutoScroll();
     readerTouchGesture = null;
     beginReaderBlankTap(event, surface);
     return;
@@ -11455,6 +11642,7 @@ function handleReaderGestureMove(event) {
   const distance = touchDistance(event.touches[0], event.touches[1]);
   if (!gesture.pinchActive && Math.abs(distance - gesture.startDistance) >= readerPinchStartPx) {
     gesture.pinchActive = true;
+    pauseReaderAutoScroll();
   }
   if (!gesture.pinchActive || !gesture.startDistance) return;
   if (event.cancelable) event.preventDefault();
@@ -11513,7 +11701,7 @@ function handleReaderGestureEnd(event) {
     readerBlankTapStart = null;
     if (!gesture.moved && Date.now() - gesture.startedAt <= readerTwoFingerTapMaxMs) {
       if (event.cancelable) event.preventDefault();
-      toggleReaderFocusFromGesture();
+      toggleReaderAutoScrollFromGesture();
     }
     return;
   }
@@ -11648,6 +11836,10 @@ function handleGlobalShortcuts(event) {
     if (lexiconLoad) lexiconLoad.finally(showFeedback);
     else showFeedback();
     return;
+  }
+  if (!event.shiftKey && key === "a" && canUseReaderKeyboardNavigation()) {
+    event.preventDefault();
+    return toggleReaderAutoScroll();
   }
 
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") && canUseVerseKeyboardNavigation()) {
@@ -13015,6 +13207,7 @@ window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
 window.addEventListener("statusTap", scrollReaderToTop);
 window.addEventListener("blur", () => {
+  pauseReaderAutoScroll();
   if (isStandaloneWebApp()) rememberReaderScrollBeforeAppSwitch();
 });
 window.addEventListener("focus", () => {
@@ -13068,6 +13261,7 @@ document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
+    pauseReaderAutoScroll();
     rememberReaderScrollBeforeAppSwitch();
     return;
   }
