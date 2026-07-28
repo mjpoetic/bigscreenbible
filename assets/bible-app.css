@@ -2526,6 +2526,12 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   position: fixed;
 }
 
+.app-shell.toast-visible .reader-auto-scroll-button[data-tooltip]::after {
+  opacity: 0 !important;
+  pointer-events: none;
+  transform: translate(-50%, 4px) !important;
+}
+
 .reader-auto-scroll-button:hover,
 .reader-auto-scroll-button:focus-visible {
   background: color-mix(in srgb, var(--soft) 82%, transparent);

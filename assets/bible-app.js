@@ -211,6 +211,7 @@ let lastReaderBlankTap = null;
 let readerGestureFeedbackTimer = 0;
 let readerAutoScrollFrame = 0;
 let readerAutoScrollLastTime = 0;
+let readerAutoScrollPosition = 0;
 let presentationResizeTimer = 0;
 let readerViewportRestoreTimer = 0;
 let readerAppVisibilityRestoreTimer = 0;
@@ -234,6 +235,7 @@ let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
 let activeMobileVerseNavMenu = null;
 let cloudSyncTimer = 0;
+let statusToastTimer = 0;
 let verseOfDayRequest = null;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
@@ -359,6 +361,7 @@ const state = {
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
   autoScrollActive: false,
+  autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
@@ -738,7 +741,7 @@ const tutorialSteps = [
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. Two-finger tap starts or pauses auto-scroll, double-tap blank reading space toggles Focus Mode, and tapping empty header space returns to the top.",
+    body: "On phones and tablets, swipe to change chapters and pinch to resize Scripture. When auto-scroll is enabled in Settings, two-finger tap starts or pauses it. Double-tap blank reading space toggles Focus Mode, and tapping empty header space returns to the top.",
   },
   {
     target: ".rail, #openStudy",
@@ -1933,13 +1936,18 @@ function readingDisplaySettings(prefix = "") {
       </label>
     </div>
     <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("AutoScrollEnabledToggle")}" ${state.autoScrollEnabled ? "checked" : ""} />
+        <span>Enable auto-scroll controls</span>
+      </label>
+      <p class="setting-help">Shows the floating Play/Pause button in Reader and Parallel. You can also use the A key or a two-finger tap.</p>
       <span class="setting-label" id="${controlId("AutoScrollSpeedLabel")}">Auto-scroll speed</span>
-      <div class="theme-mode-segment auto-scroll-speed-segment" role="group" aria-labelledby="${controlId("AutoScrollSpeedLabel")}">
+      <div class="theme-mode-segment auto-scroll-speed-segment" role="group" aria-labelledby="${controlId("AutoScrollSpeedLabel")}" aria-disabled="${state.autoScrollEnabled ? "false" : "true"}">
         ${autoScrollSpeeds.map((speed) => `
-          <button class="theme-mode-button ${speed.code === state.autoScrollSpeed ? "active" : ""}" type="button" data-auto-scroll-speed="${speed.code}" aria-pressed="${speed.code === state.autoScrollSpeed ? "true" : "false"}">${speed.name}</button>
+          <button class="theme-mode-button ${speed.code === state.autoScrollSpeed ? "active" : ""}" type="button" data-auto-scroll-speed="${speed.code}" aria-pressed="${speed.code === state.autoScrollSpeed ? "true" : "false"}" ${state.autoScrollEnabled ? "" : "disabled"}>${speed.name}</button>
         `).join("")}
       </div>
-      <p class="setting-help">${selectedAutoScrollSpeed.name} speed. Use the floating play button, two-finger tap, or the A key to start and pause.</p>
+      <p class="setting-help">${selectedAutoScrollSpeed.name} speed.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
       <span class="setting-label" id="${controlId("SideToolbarPositionLabel")}">Landscape toolbar</span>
@@ -2983,6 +2991,7 @@ function pauseReaderAutoScroll({ announce = false, updateControl = true } = {}) 
   const wasActive = state.autoScrollActive;
   state.autoScrollActive = false;
   readerAutoScrollLastTime = 0;
+  readerAutoScrollPosition = 0;
   if (readerAutoScrollFrame) cancelAnimationFrame(readerAutoScrollFrame);
   readerAutoScrollFrame = 0;
   if (updateControl) updateReaderAutoScrollControl();
@@ -2998,7 +3007,7 @@ function readerAutoScrollStep(timestamp) {
     return;
   }
   const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
-  if (maxScrollTop <= 1 || scripture.scrollTop >= maxScrollTop - 1) {
+  if (maxScrollTop <= 1 || readerAutoScrollPosition >= maxScrollTop - 0.5) {
     pauseReaderAutoScroll();
     showToast("End of chapter");
     return;
@@ -3006,11 +3015,12 @@ function readerAutoScrollStep(timestamp) {
   if (!readerAutoScrollLastTime) readerAutoScrollLastTime = timestamp;
   const elapsedMs = Math.min(100, Math.max(0, timestamp - readerAutoScrollLastTime));
   readerAutoScrollLastTime = timestamp;
-  scripture.scrollTop = Math.min(
+  readerAutoScrollPosition = Math.min(
     maxScrollTop,
-    scripture.scrollTop + (activeAutoScrollSpeed().pixelsPerSecond * elapsedMs) / 1000,
+    readerAutoScrollPosition + (activeAutoScrollSpeed().pixelsPerSecond * elapsedMs) / 1000,
   );
-  if (scripture.scrollTop >= maxScrollTop - 1) {
+  scripture.scrollTop = readerAutoScrollPosition;
+  if (readerAutoScrollPosition >= maxScrollTop - 0.5) {
     pauseReaderAutoScroll();
     showToast("End of chapter");
     return;
@@ -3019,6 +3029,10 @@ function readerAutoScrollStep(timestamp) {
 }
 
 function startReaderAutoScroll({ announce = true } = {}) {
+  if (!state.autoScrollEnabled) {
+    if (announce) showToast("Enable auto-scroll in Settings first");
+    return false;
+  }
   const scripture = readerAutoScrollSurface();
   if (!scripture) return false;
   const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
@@ -3032,6 +3046,7 @@ function startReaderAutoScroll({ announce = true } = {}) {
   }
   state.autoScrollActive = true;
   readerAutoScrollLastTime = 0;
+  readerAutoScrollPosition = scripture.scrollTop;
   updateReaderAutoScrollControl();
   readerAutoScrollFrame = requestAnimationFrame(readerAutoScrollStep);
   if (announce) showToast(`Auto-scroll started · ${activeAutoScrollSpeed().name}`);
@@ -3052,6 +3067,16 @@ function setReaderAutoScrollSpeed(speed) {
   state.autoScrollSpeed = normalized;
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
   scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
+function setReaderAutoScrollEnabled(enabled) {
+  const nextEnabled = Boolean(enabled);
+  if (nextEnabled === state.autoScrollEnabled) return;
+  state.autoScrollEnabled = nextEnabled;
+  localStorage.setItem("lw_auto_scroll_enabled", String(state.autoScrollEnabled));
+  scheduleCloudSync();
+  if (!state.autoScrollEnabled) pauseReaderAutoScroll({ updateControl: false });
   renderPreservingReaderScroll();
 }
 
@@ -3601,6 +3626,7 @@ function reader(chapterChange = null) {
 }
 
 function readerAutoScrollButton() {
+  if (!state.autoScrollEnabled) return "";
   const speed = autoScrollSpeeds.find((option) => option.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
   const active = state.autoScrollActive;
   const action = active ? "Pause" : "Start";
@@ -5049,6 +5075,7 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       interfaceTextSize: state.interfaceTextSize,
+      autoScrollEnabled: state.autoScrollEnabled,
       autoScrollSpeed: state.autoScrollSpeed,
       paragraphLayout: state.paragraphLayout,
       printLayout: state.printLayout,
@@ -5195,6 +5222,9 @@ function applyCloudSnapshot(snapshot) {
   state.interfaceTextSize = normalizedInterfaceTextSize(
     settings.interfaceTextSize || localStorage.getItem("lw_interface_text_size"),
   );
+  state.autoScrollEnabled = typeof settings.autoScrollEnabled === "boolean"
+    ? settings.autoScrollEnabled
+    : localStorage.getItem("lw_auto_scroll_enabled") === "true";
   state.autoScrollSpeed = normalizedAutoScrollSpeed(
     settings.autoScrollSpeed || localStorage.getItem("lw_auto_scroll_speed"),
   );
@@ -5245,6 +5275,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
+  localStorage.setItem("lw_auto_scroll_enabled", String(state.autoScrollEnabled));
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_print_layout", state.printLayout);
@@ -7605,7 +7636,7 @@ function shortcutOverlay() {
               </div>
               <figcaption>
                 <strong id="twoFingerGestureTitle">Two-finger tap</strong>
-                <span>Start or pause auto-scroll</span>
+                <span>Start or pause auto-scroll when enabled</span>
               </figcaption>
             </figure>
             <figure class="gesture-guide-card" aria-labelledby="doubleTapGestureTitle">
@@ -8038,6 +8069,11 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-auto-scroll-speed]").forEach((button) => {
     button.addEventListener("click", () => setReaderAutoScrollSpeed(button.dataset.autoScrollSpeed));
+  });
+  ["autoScrollEnabledToggle", "mobileAutoScrollEnabledToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      setReaderAutoScrollEnabled(event.target.checked);
+    });
   });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("mobileFullscreenButton")?.addEventListener("click", toggleFullscreen);
@@ -8559,7 +8595,7 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
   const scriptureTouchSurface = document.querySelector(".scripture");
   document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
-    toggleReaderAutoScroll();
+    toggleReaderAutoScroll({ announce: false });
   });
   scriptureTouchSurface?.addEventListener("wheel", () => pauseReaderAutoScroll(), { passive: true });
   scriptureTouchSurface?.addEventListener("pointerdown", (event) => {
@@ -12531,9 +12567,15 @@ function formatReferenceLabel(chapterKey, verseNumbers = selectedVerseNumbers())
 function showToast(message) {
   const toast = document.getElementById("toast");
   if (!toast) return;
+  const shell = toast.closest(".app-shell");
+  clearTimeout(statusToastTimer);
   toast.textContent = message;
   toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 1600);
+  shell?.classList.add("toast-visible");
+  statusToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+    shell?.classList.remove("toast-visible");
+  }, 1600);
 }
 
 function fitPresentationText() {
