@@ -197,9 +197,12 @@ assert.match(source, /friendshipActionButton\("accept"/);
 assert.match(source, /friendshipActionButton\("decline"/);
 assert.match(source, /friendshipActionButton\("cancel"/);
 assert.match(source, /friendshipActionButton\("remove"/);
+assert.match(source, /const accountPanelRerender = Boolean\(accountScrollState\)/);
+assert.match(source, /accountPanelRerender \? "account-panel-rerender" : ""/);
 assert.match(styles, /\.friends-tabs/);
 assert.match(styles, /\.friend-person-row/);
 assert.match(styles, /\.friend-search-form/);
 assert.match(styles, /\.account-friend-request-badge/);
+assert.match(styles, /\.account-popover\.open\.account-panel-rerender/);
 
 console.log("Friendship tests passed");

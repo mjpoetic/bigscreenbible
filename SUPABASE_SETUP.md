@@ -1,6 +1,6 @@
 # Supabase setup for Big Screen Bible
 
-Use this when you are ready to turn on account sync, signed-in social profiles, and friendships.
+Use this when you are ready to turn on account sync, signed-in social profiles, friendships, and live friend game challenges.
 
 ## 1. Create or open your Supabase project
 
@@ -15,10 +15,11 @@ This creates:
 - One private sync row per signed-in user for settings and study data.
 - One optional social-profile row per signed-in user with a unique username, optional display name, selected avatar, and privacy preferences.
 - One relationship row for each pending friend request or accepted friendship.
+- One challenge row for each friend game invitation, plus two participant rows for ready state, live score, progress, and completion.
 
-Row Level Security keeps sync rows private. A social profile is always readable by its owner; other signed-in users can read it when the owner enables discovery or when a friend-request relationship exists between the two users. Anonymous visitors cannot read profile or friendship rows, and email addresses are never stored in either table.
+Row Level Security keeps sync rows private. A social profile is always readable by its owner; other signed-in users can read it when the owner enables discovery or when a friend-request relationship exists between the two users. Anonymous visitors cannot read profile, friendship, or challenge rows, and email addresses are never stored in those tables.
 
-The schema includes explicit, least-privilege Data API grants for `bsb_profiles` and `bsb_friendships`. This is required by Supabase's 2026 secure-by-default table-exposure model and is separate from the row-level policies.
+The schema includes explicit, least-privilege Data API grants for `bsb_profiles`, `bsb_friendships`, `bsb_game_challenges`, and `bsb_game_challenge_players`. These grants are separate from the row-level policies.
 
 Friendship policies enforce that:
 
@@ -27,6 +28,16 @@ Friendship policies enforce that:
 - Only the recipient can accept a pending request.
 - Either participant can cancel, decline, or remove their relationship.
 - Crossed or duplicate relationships for the same pair are rejected.
+
+Game-challenge policies enforce that:
+
+- Only accepted friends can create a challenge.
+- Only the two participants can read its invitation, setup, score, progress, or result.
+- Only the recipient can accept or decline a pending invitation. The challenger can cancel a pending invitation, and either participant can end an accepted challenge.
+- Each participant can update only their own ready state, score, progress, and completion.
+- Only one pending or accepted challenge can exist between the same two people at a time.
+
+The schema also adds both challenge tables to the `supabase_realtime` publication. The app listens for authorized Postgres changes so invitations, ready state, progress, scores, and final results update without a manual refresh.
 
 ## 3. Configure authentication URLs
 
@@ -93,6 +104,17 @@ Test the full loop with two signed-in accounts:
 3. From the second account, open Account → Friends → Requests and accept or decline it.
 4. Confirm accepted requests appear in both Friends lists.
 5. Confirm either account can remove the friendship.
+
+Then test a live challenge:
+
+1. Keep the two accounts connected as friends.
+2. From Games, choose a mode and setup, select the friend, and send the challenge.
+3. From the other account, open Account → Game challenges and accept it.
+4. Mark both players ready and confirm the same seeded game begins for both.
+5. Answer on each account and confirm the live score and progress update on the other device.
+6. Finish on both accounts and confirm the same final result appears for each player.
+
+Invitations expire after 24 hours; an expired invitation is cleared automatically when the pair starts a new one. Either player can end an accepted challenge for both participants. Phase 3 uses client-reported casual-game scores; it is designed for friendly play, not prize competitions or anti-cheat enforcement.
 
 The signed-in Account panel also includes **Switch account**. The browser keeps a separate local Supabase session for each account the person signs into, so a remembered account marked **Ready to switch** can be opened without entering its password again. The outgoing account is saved before the selected session is activated. Supabase refreshes an expired access token from its refresh token; if a saved session has been revoked or is otherwise invalid, the chooser removes that session and asks the person to sign in once to reconnect it.
 

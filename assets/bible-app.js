@@ -239,6 +239,9 @@ let statusToastTimer = 0;
 let verseOfDayRequest = null;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
+let gameChallengeRealtimeChannel = null;
+let gameChallengeRefreshTimer = 0;
+let triviaRandomSource = Math.random;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const triviaRoundLengths = [5, 10, 15, 20];
@@ -269,6 +272,8 @@ const readerDoubleTapDistancePx = 44;
 const cloudSyncTable = "bsb_user_sync";
 const socialProfileTable = "bsb_profiles";
 const friendshipTable = "bsb_friendships";
+const gameChallengeTable = "bsb_game_challenges";
+const gameChallengePlayerTable = "bsb_game_challenge_players";
 const accountDataOwnerStorageKey = "lw_account_data_owner";
 const guestSnapshotStorageKey = "lw_guest_snapshot";
 const accountSnapshotStoragePrefix = "lw_account_snapshot:";
@@ -503,6 +508,14 @@ const state = {
   friendSearchResults: [],
   friendSearchStatus: "idle",
   friendSearchMessage: "",
+  gameChallenges: [],
+  gameChallengePlayers: {},
+  gameChallengeStatus: "idle",
+  gameChallengeMessage: "",
+  gameChallengeActionBusyId: "",
+  gameChallengeRealtimeStatus: "idle",
+  challengeOpponentId: "",
+  activeGameChallengeId: "",
   passwordChangeOpen: false,
   passwordRecoveryMode: false,
   syncStatus: "local",
@@ -993,6 +1006,7 @@ function render() {
   const settingsScrollState = captureSettingsPanelScroll();
   const accountScrollState = captureAccountPanelScroll();
   const settingsPanelRerender = Boolean(settingsScrollState);
+  const accountPanelRerender = Boolean(accountScrollState);
   closeMobileVerseNavMenu();
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
@@ -1014,7 +1028,7 @@ function render() {
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
     <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
-      ${topbar(settingsPanelRerender)}
+      ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
         ${state.focusMode || state.mode === "trivia" || !state.libraryOpen ? "" : library()}
@@ -1175,6 +1189,7 @@ function renderFollowingSelectedVerse() {
 
 function renderTriviaAnswerAndScroll() {
   renderPreservingReaderScroll();
+  syncActiveChallengeProgress().catch((error) => console.warn("Challenge score update failed", error));
   requestAnimationFrame(() => requestAnimationFrame(scrollTriviaAnswerActionsIntoView));
 }
 
@@ -2446,7 +2461,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
   `;
 }
 
-function topbar(settingsPanelRerender = false) {
+function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
   const primaryVersion = state.versions[0] || "BSB";
@@ -2497,17 +2512,27 @@ function topbar(settingsPanelRerender = false) {
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
   const incomingFriendRequestCount = state.authUser ? friendshipCollections().incoming.length : 0;
+  const incomingGameChallengeCount = state.authUser ? gameChallengeCollections().incoming.length : 0;
+  const incomingSocialCount = incomingFriendRequestCount + incomingGameChallengeCount;
   const accountLabelBase = state.socialProfile?.username
     ? `Account for @${state.socialProfile.username}`
     : state.authUser ? "Account" : "Sign in";
-  const accountLabel = incomingFriendRequestCount
-    ? `${accountLabelBase}, ${incomingFriendRequestCount} incoming friend ${incomingFriendRequestCount === 1 ? "request" : "requests"}`
+  const incomingParts = [
+    incomingFriendRequestCount
+      ? `${incomingFriendRequestCount} friend ${incomingFriendRequestCount === 1 ? "request" : "requests"}`
+      : "",
+    incomingGameChallengeCount
+      ? `${incomingGameChallengeCount} game ${incomingGameChallengeCount === 1 ? "challenge" : "challenges"}`
+      : "",
+  ].filter(Boolean);
+  const accountLabel = incomingParts.length
+    ? `${accountLabelBase}, incoming ${incomingParts.join(" and ")}`
     : accountLabelBase;
   const accountIcon = state.socialProfile?.username
     ? socialProfileAvatarMarkup(state.socialProfile, "social-profile-avatar-button")
     : icons.user;
-  const accountFriendBadge = incomingFriendRequestCount
-    ? `<span class="account-friend-request-badge" aria-hidden="true">${incomingFriendRequestCount > 9 ? "9+" : incomingFriendRequestCount}</span>`
+  const accountFriendBadge = incomingSocialCount
+    ? `<span class="account-friend-request-badge" aria-hidden="true">${incomingSocialCount > 9 ? "9+" : incomingSocialCount}</span>`
     : "";
   const modeOptions = [
     ["reader", "Reader", icons.book],
@@ -2548,7 +2573,7 @@ function topbar(settingsPanelRerender = false) {
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${state.accountOpen ? "open" : ""}">
         <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountLabel)}" data-tooltip="${escapeHtml(accountLabel)}">${accountIcon}${accountFriendBadge}</button>
-        <div class="account-popover ${state.accountOpen ? "open" : ""}" aria-hidden="${state.accountOpen ? "false" : "true"}">
+        <div class="account-popover ${state.accountOpen ? "open" : ""} ${accountPanelRerender ? "account-panel-rerender" : ""}" aria-hidden="${state.accountOpen ? "false" : "true"}">
           <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
           ${accountPanel("quick")}
         </div>
@@ -3242,6 +3267,194 @@ function friendshipProfile(userId) {
   return state.friendshipProfiles[userId] || null;
 }
 
+function gameChallengeTitle(gameType) {
+  return {
+    trivia: "Bible Trivia",
+    "verse-order": "Verse Order",
+    "reference-rush": "Reference Rush",
+    "book-sprint": "Book Sprint",
+    "who-said-it": "Who Said It?",
+  }[gameType] || "Bible game";
+}
+
+function normalizedGameChallenge(row = {}) {
+  return {
+    id: String(row.id || ""),
+    challengerId: String(row.challenger_id || row.challengerId || ""),
+    challengedId: String(row.challenged_id || row.challengedId || ""),
+    gameType: String(row.game_type || row.gameType || "trivia"),
+    category: String(row.category || "Mixed"),
+    difficulty: String(row.difficulty || "All"),
+    roundCount: Number(row.round_count || row.roundCount || 10),
+    version: String(row.version || "BSB"),
+    timed: Boolean(row.timed),
+    seed: Number(row.seed || 1),
+    status: String(row.status || "pending"),
+    respondedAt: row.responded_at || row.respondedAt || "",
+    startedAt: row.started_at || row.startedAt || "",
+    completedAt: row.completed_at || row.completedAt || "",
+    expiresAt: row.expires_at || row.expiresAt || "",
+    createdAt: row.created_at || row.createdAt || "",
+    updatedAt: row.updated_at || row.updatedAt || "",
+  };
+}
+
+function normalizedGameChallengePlayer(row = {}) {
+  return {
+    challengeId: String(row.challenge_id || row.challengeId || ""),
+    userId: String(row.user_id || row.userId || ""),
+    score: Math.max(0, Number(row.score) || 0),
+    progress: Math.max(0, Number(row.progress) || 0),
+    ready: Boolean(row.ready),
+    completedAt: row.completed_at || row.completedAt || "",
+    elapsedMs: row.elapsed_ms === null || row.elapsed_ms === undefined
+      ? null
+      : Math.max(0, Number(row.elapsed_ms) || 0),
+    updatedAt: row.updated_at || row.updatedAt || "",
+  };
+}
+
+function gameChallengeOtherUserId(challenge, userId = state.authUser?.id || "") {
+  if (!challenge || !userId) return "";
+  return challenge.challengerId === userId ? challenge.challengedId : challenge.challengerId;
+}
+
+function gameChallengePlayer(challengeId, userId = state.authUser?.id || "") {
+  return state.gameChallengePlayers[challengeId]?.find((player) => player.userId === userId) || null;
+}
+
+function gameChallengeIsExpired(challenge) {
+  const expiresAt = Date.parse(challenge?.expiresAt || "");
+  return challenge?.status === "pending" && Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
+function gameChallengeCollections(userId = state.authUser?.id || "") {
+  const challenges = Array.isArray(state.gameChallenges) ? state.gameChallenges : [];
+  return {
+    incoming: challenges.filter((challenge) => (
+      challenge.status === "pending"
+      && challenge.challengedId === userId
+      && !gameChallengeIsExpired(challenge)
+    )),
+    outgoing: challenges.filter((challenge) => (
+      challenge.status === "pending"
+      && challenge.challengerId === userId
+      && !gameChallengeIsExpired(challenge)
+    )),
+    live: challenges.filter((challenge) => challenge.status === "accepted"),
+    completed: challenges.filter((challenge) => challenge.status === "completed"),
+  };
+}
+
+function gameChallengeSummary(challenge) {
+  const parts = [gameChallengeTitle(challenge.gameType)];
+  if (challenge.gameType === "trivia" && challenge.category) parts.push(challenge.category);
+  if (challenge.gameType !== "verse-order" && challenge.difficulty) parts.push(challenge.difficulty);
+  const roundLabel = {
+    "verse-order": "verses",
+    "reference-rush": "verses",
+    "book-sprint": "rounds",
+    "who-said-it": "quotes",
+  }[challenge.gameType] || "questions";
+  parts.push(`${challenge.roundCount} ${roundLabel}`);
+  return parts.join(" · ");
+}
+
+function gameChallengeActionButton(action, label, challenge, { primary = false, danger = false } = {}) {
+  const busy = Boolean(state.gameChallengeActionBusyId);
+  const classNames = [
+    primary ? "primary-btn" : "ghost-btn",
+    "friend-action-button",
+    danger ? "friend-action-danger" : "",
+  ].filter(Boolean).join(" ");
+  return `
+    <button
+      class="${classNames}"
+      type="button"
+      data-game-challenge-action="${action}"
+      data-game-challenge-id="${escapeHtml(challenge.id)}"
+      ${busy ? "disabled" : ""}
+    >${state.gameChallengeActionBusyId === challenge.id ? "Working…" : escapeHtml(label)}</button>
+  `;
+}
+
+function gameChallengeRow(challenge, kind) {
+  const opponentId = gameChallengeOtherUserId(challenge);
+  const profile = friendshipProfile(opponentId);
+  const selfPlayer = gameChallengePlayer(challenge.id);
+  const opponentPlayer = gameChallengePlayer(challenge.id, opponentId);
+  let actions = "";
+  let note = gameChallengeSummary(challenge);
+  if (kind === "incoming") {
+    actions = `
+      ${gameChallengeActionButton("accept", "Accept", challenge, { primary: true })}
+      ${gameChallengeActionButton("decline", "Decline", challenge)}
+    `;
+    note = `${note} · Invited you`;
+  } else if (kind === "outgoing") {
+    actions = gameChallengeActionButton("cancel", "Cancel", challenge);
+    note = `${note} · Waiting for a response`;
+  } else if (kind === "live") {
+    if (challenge.startedAt) {
+      actions = `
+        ${gameChallengeActionButton("join", state.activeGameChallengeId === challenge.id ? "In game" : "Join game", challenge, { primary: true })}
+        ${gameChallengeActionButton("leave", "End", challenge, { danger: true })}
+      `;
+      note = `${note} · Live now`;
+    } else if (selfPlayer?.ready) {
+      actions = `
+        <span class="friend-state-label">Ready</span>
+        ${gameChallengeActionButton("leave", "End", challenge, { danger: true })}
+      `;
+      note = `${note} · Waiting for your friend`;
+    } else {
+      actions = `
+        ${gameChallengeActionButton("join", "I’m ready", challenge, { primary: true })}
+        ${gameChallengeActionButton("leave", "End", challenge, { danger: true })}
+      `;
+      note = `${note} · Accepted`;
+    }
+  } else {
+    const selfScore = selfPlayer?.score ?? 0;
+    const opponentScore = opponentPlayer?.score ?? 0;
+    actions = gameChallengeActionButton("view", "Results", challenge);
+    note = `${gameChallengeSummary(challenge)} · ${selfScore}–${opponentScore}`;
+  }
+  return friendshipPersonRow(profile, actions, note);
+}
+
+function gameChallengesCard() {
+  if (!state.authUser || !state.socialProfile) return "";
+  const collections = gameChallengeCollections();
+  const incomingRows = collections.incoming.map((challenge) => gameChallengeRow(challenge, "incoming")).join("");
+  const outgoingRows = collections.outgoing.map((challenge) => gameChallengeRow(challenge, "outgoing")).join("");
+  const liveRows = collections.live.map((challenge) => gameChallengeRow(challenge, "live")).join("");
+  const completedRows = collections.completed.slice(0, 3).map((challenge) => gameChallengeRow(challenge, "completed")).join("");
+  const empty = !incomingRows && !outgoingRows && !liveRows && !completedRows;
+  const liveLabel = state.gameChallengeRealtimeStatus === "subscribed" ? "Live updates on" : "Connecting live updates…";
+  return `
+    <section class="account-card game-challenges-card" aria-busy="${state.gameChallengeStatus === "loading"}">
+      <div class="game-challenges-heading">
+        <div class="account-card-head">
+          <span class="setting-label">Challenges</span>
+          <strong>${collections.live.length ? `${collections.live.length} active` : liveLabel}</strong>
+        </div>
+        ${collections.incoming.length
+          ? `<span class="friend-request-count" aria-label="${collections.incoming.length} incoming game ${collections.incoming.length === 1 ? "challenge" : "challenges"}">${collections.incoming.length}</span>`
+          : ""}
+      </div>
+      <p class="friends-status" role="status" aria-live="polite">${escapeHtml(
+        state.gameChallengeStatus === "loading" ? "Loading challenges…" : state.gameChallengeMessage,
+      )}</p>
+      ${incomingRows ? `<div class="friend-list-group"><div class="friend-list-heading"><strong>Incoming</strong><span>${collections.incoming.length}</span></div>${incomingRows}</div>` : ""}
+      ${outgoingRows ? `<div class="friend-list-group"><div class="friend-list-heading"><strong>Sent</strong><span>${collections.outgoing.length}</span></div>${outgoingRows}</div>` : ""}
+      ${liveRows ? `<div class="friend-list-group"><div class="friend-list-heading"><strong>Ready to play</strong><span>${collections.live.length}</span></div>${liveRows}</div>` : ""}
+      ${completedRows ? `<details class="challenge-history"><summary>Recent results</summary>${completedRows}</details>` : ""}
+      ${empty ? '<p class="friend-empty-state">Challenge a friend from the Friends list or Games setup.</p>' : ""}
+    </section>
+  `;
+}
+
 function friendshipPersonRow(profile, actions = "", note = "") {
   const person = profile || {
     username: "",
@@ -3377,10 +3590,14 @@ function friendsPanelContent(prefix = "") {
     `;
   }
   const friendRows = collections.friends.map((friendship) => {
-    const profile = friendshipProfile(friendshipOtherUserId(friendship));
+    const profileId = friendshipOtherUserId(friendship);
+    const profile = friendshipProfile(profileId);
     return friendshipPersonRow(
       profile,
-      friendshipActionButton("remove", "Remove", { friendshipId: friendship.id, danger: true }),
+      `
+        ${friendshipActionButton("challenge", "Challenge", { profileId, primary: true })}
+        ${friendshipActionButton("remove", "Remove", { friendshipId: friendship.id, danger: true })}
+      `,
     );
   }).join("");
   return friendRows || '<p class="friend-empty-state">No friends yet. Use Find people to send your first request.</p>';
@@ -3525,6 +3742,7 @@ function accountPanel(prefix = "") {
       ${streakCard()}
       ${socialProfileCard(prefix)}
       ${friendsCard(prefix)}
+      ${gameChallengesCard()}
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -5075,7 +5293,8 @@ async function initializeSupabaseAuth() {
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
     if (session?.user) {
-      await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()]);
+      await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships(), loadGameChallenges()]);
+      subscribeToGameChallenges();
       maybeOfferPushNotifications();
       if (showInitialAccountSwitch) showAccountSwitchNotification(session.user);
     }
@@ -5097,8 +5316,11 @@ async function initializeSupabaseAuth() {
         state.accountAddOpen = false;
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
-        Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()])
-          .then(() => maybeOfferPushNotifications())
+        Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships(), loadGameChallenges()])
+          .then(() => {
+            subscribeToGameChallenges();
+            maybeOfferPushNotifications();
+          })
           .catch((error) => {
             console.warn("Signed-in account data load failed", error);
             state.syncStatus = "error";
@@ -5110,6 +5332,7 @@ async function initializeSupabaseAuth() {
         state.pushPromptVisible = false;
         resetSocialProfileState();
         resetFriendshipState();
+        resetGameChallengeState();
         activateGuestBrowserData();
         state.syncStatus = "local";
         state.syncMessage = "Signed out. Guest data is active on this browser.";
@@ -5153,6 +5376,404 @@ function resetFriendshipState() {
   state.friendSearchResults = [];
   state.friendSearchStatus = "idle";
   state.friendSearchMessage = "";
+}
+
+function teardownGameChallengeRealtime() {
+  clearTimeout(gameChallengeRefreshTimer);
+  gameChallengeRefreshTimer = 0;
+  const client = state.authClient;
+  const channel = gameChallengeRealtimeChannel;
+  gameChallengeRealtimeChannel = null;
+  state.gameChallengeRealtimeStatus = "idle";
+  if (client && channel) client.removeChannel(channel).catch(() => {});
+}
+
+function resetGameChallengeState() {
+  teardownGameChallengeRealtime();
+  state.gameChallenges = [];
+  state.gameChallengePlayers = {};
+  state.gameChallengeStatus = "idle";
+  state.gameChallengeMessage = "";
+  state.gameChallengeActionBusyId = "";
+  state.challengeOpponentId = "";
+  state.activeGameChallengeId = "";
+}
+
+function gameChallengeErrorMessage(error) {
+  if (error?.code === "23505") return "You already have a pending or active challenge with that friend.";
+  if (error?.code === "23514") return "That challenge setup is not valid.";
+  if (error?.code === "42501") return "Only accepted friends can create or update this challenge.";
+  return error?.message || "Game challenges could not be updated. Please try again.";
+}
+
+async function loadGameChallenges({ render = true, announce = false } = {}) {
+  const client = createSupabaseClient();
+  if (!client) return;
+  const session = await authenticatedSupabaseSession(client);
+  const userId = session?.user?.id;
+  if (!userId) {
+    resetGameChallengeState();
+    return;
+  }
+  const previousIncomingIds = new Set(gameChallengeCollections(userId).incoming.map((challenge) => challenge.id));
+  state.gameChallengeStatus = "loading";
+  if (render) renderPreservingReaderScroll();
+  try {
+    const { data, error } = await client
+      .from(gameChallengeTable)
+      .select("id, challenger_id, challenged_id, game_type, category, difficulty, round_count, version, timed, seed, status, responded_at, started_at, completed_at, expires_at, created_at, updated_at")
+      .or(`challenger_id.eq.${userId},challenged_id.eq.${userId}`)
+      .order("updated_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const challenges = (data || []).map(normalizedGameChallenge);
+    const challengeIds = challenges.map((challenge) => challenge.id);
+    let playerRows = [];
+    if (challengeIds.length) {
+      const { data: players, error: playersError } = await client
+        .from(gameChallengePlayerTable)
+        .select("challenge_id, user_id, score, progress, ready, completed_at, elapsed_ms, updated_at")
+        .in("challenge_id", challengeIds);
+      if (playersError) throw playersError;
+      playerRows = players || [];
+    }
+    state.gameChallenges = challenges;
+    state.gameChallengePlayers = playerRows
+      .map(normalizedGameChallengePlayer)
+      .reduce((groups, player) => {
+        if (!groups[player.challengeId]) groups[player.challengeId] = [];
+        groups[player.challengeId].push(player);
+        return groups;
+      }, {});
+    const previousActiveChallengeId = state.activeGameChallengeId;
+    const refreshedActiveChallenge = activeGameChallenge();
+    if (
+      previousActiveChallengeId
+      && (!refreshedActiveChallenge || !["accepted", "completed"].includes(refreshedActiveChallenge.status))
+    ) {
+      state.activeGameChallengeId = "";
+      if (state.triviaGame?.challengeId === previousActiveChallengeId) state.triviaGame = null;
+      showToast("The live challenge ended");
+    }
+    state.gameChallengeStatus = "ready";
+    state.gameChallengeMessage = "";
+    if (announce) {
+      const incoming = gameChallengeCollections(userId).incoming;
+      const newest = incoming.find((challenge) => !previousIncomingIds.has(challenge.id));
+      if (newest) {
+        const profile = friendshipProfile(gameChallengeOtherUserId(newest, userId));
+        showToast(`${profile?.displayName || profile?.username || "A friend"} challenged you to ${gameChallengeTitle(newest.gameType)}`);
+      }
+    }
+    maybeStartActiveGameChallenge();
+  } catch (error) {
+    console.warn("Game challenge load failed", error);
+    state.gameChallengeStatus = "error";
+    state.gameChallengeMessage = gameChallengeErrorMessage(error);
+  } finally {
+    if (render) renderPreservingReaderScroll();
+  }
+}
+
+function scheduleGameChallengeRefresh() {
+  clearTimeout(gameChallengeRefreshTimer);
+  gameChallengeRefreshTimer = setTimeout(() => {
+    gameChallengeRefreshTimer = 0;
+    loadGameChallenges({ announce: true }).catch((error) => console.warn("Live challenge refresh failed", error));
+  }, 90);
+}
+
+function subscribeToGameChallenges() {
+  teardownGameChallengeRealtime();
+  const client = createSupabaseClient();
+  const userId = state.authUser?.id;
+  if (!client || !userId) return;
+  state.gameChallengeRealtimeStatus = "connecting";
+  gameChallengeRealtimeChannel = client
+    .channel(`bsb-game-challenges-${userId}`)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: gameChallengeTable,
+    }, scheduleGameChallengeRefresh)
+    .on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: gameChallengePlayerTable,
+    }, scheduleGameChallengeRefresh)
+    .subscribe((status) => {
+      state.gameChallengeRealtimeStatus = status === "SUBSCRIBED" ? "subscribed" : status.toLowerCase();
+      if (state.accountOpen || state.mode === "trivia") renderPreservingReaderScroll();
+    });
+}
+
+function activeGameChallenge() {
+  return state.gameChallenges.find((challenge) => challenge.id === state.activeGameChallengeId) || null;
+}
+
+function challengeGameConfigFromState() {
+  const version = state.versions.find(isBundledTranslation) || "BSB";
+  return {
+    game_type: state.triviaGameType,
+    category: state.triviaGameType === "trivia" ? state.triviaCategory : "Mixed",
+    difficulty: state.triviaGameType === "verse-order" ? "All" : state.triviaDifficulty,
+    round_count: normalizedTriviaCount(state.triviaGameType, state.triviaCount),
+    version,
+    timed: state.triviaGameType === "reference-rush" && state.referenceRushTimed,
+  };
+}
+
+async function sendGameChallenge(opponentId = state.challengeOpponentId) {
+  const client = createSupabaseClient();
+  if (!client || !opponentId || state.gameChallengeActionBusyId) return;
+  state.gameChallengeActionBusyId = `opponent:${opponentId}`;
+  state.gameChallengeMessage = "Sending game challenge…";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    const challengerId = session?.user?.id;
+    if (!challengerId) throw new Error("Sign in again before challenging a friend.");
+    const payload = {
+      challenger_id: challengerId,
+      challenged_id: opponentId,
+      ...challengeGameConfigFromState(),
+    };
+    const { error } = await client.from(gameChallengeTable).insert(payload);
+    if (error) throw error;
+    state.gameChallengeActionBusyId = "";
+    await loadGameChallenges({ render: false });
+    state.gameChallengeMessage = "Challenge sent. It expires in 24 hours.";
+    showToast("Game challenge sent");
+  } catch (error) {
+    console.warn("Game challenge send failed", error);
+    state.gameChallengeActionBusyId = "";
+    state.gameChallengeMessage = gameChallengeErrorMessage(error);
+    showToast("Challenge not sent");
+  } finally {
+    renderPreservingReaderScroll();
+  }
+}
+
+async function updateGameChallengeResponse(challengeId, action) {
+  const client = createSupabaseClient();
+  if (!client || !challengeId || state.gameChallengeActionBusyId) return;
+  const statuses = { accept: "accepted", decline: "declined", cancel: "cancelled", leave: "cancelled" };
+  const status = statuses[action];
+  if (!status) return;
+  state.gameChallengeActionBusyId = challengeId;
+  state.gameChallengeMessage = action === "accept" ? "Accepting challenge…" : "Updating challenge…";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in again before updating this challenge.");
+    let request = client
+      .from(gameChallengeTable)
+      .update({ status, responded_at: new Date().toISOString() })
+      .eq("id", challengeId);
+    if (action === "leave") {
+      request = request
+        .in("status", ["pending", "accepted"])
+        .or(`challenger_id.eq.${userId},challenged_id.eq.${userId}`);
+    } else {
+      request = request.eq("status", "pending");
+      request = action === "cancel"
+        ? request.eq("challenger_id", userId)
+        : request.eq("challenged_id", userId);
+    }
+    const { data, error } = await request.select("id").single();
+    if (error) throw error;
+    if (!data?.id) throw new Error("That challenge is no longer available.");
+    state.gameChallengeActionBusyId = "";
+    if (action === "leave") {
+      state.activeGameChallengeId = "";
+      if (state.triviaGame?.challengeId === challengeId) state.triviaGame = null;
+    }
+    await loadGameChallenges({ render: false });
+    if (action === "accept") {
+      state.activeGameChallengeId = challengeId;
+      await joinGameChallenge(challengeId);
+      showToast("Challenge accepted");
+    } else if (action === "leave") {
+      state.gameChallengeMessage = "Challenge ended.";
+      showToast("Live challenge ended");
+    } else {
+      state.gameChallengeMessage = action === "cancel" ? "Challenge cancelled." : "Challenge declined.";
+      showToast(action === "cancel" ? "Challenge cancelled" : "Challenge declined");
+    }
+  } catch (error) {
+    console.warn("Game challenge response failed", error);
+    state.gameChallengeActionBusyId = "";
+    state.gameChallengeMessage = gameChallengeErrorMessage(error);
+    showToast("Challenge not updated");
+  } finally {
+    renderPreservingReaderScroll();
+  }
+}
+
+async function joinGameChallenge(challengeId) {
+  const challenge = state.gameChallenges.find((item) => item.id === challengeId);
+  if (!challenge) return;
+  state.activeGameChallengeId = challengeId;
+  state.mode = "trivia";
+  state.focusMode = false;
+  state.accountOpen = false;
+  state.triviaGameType = challenge.gameType;
+  state.triviaCategory = challenge.category;
+  state.triviaDifficulty = challenge.difficulty;
+  state.triviaCount = challenge.roundCount;
+  state.referenceRushTimed = challenge.timed;
+  const player = gameChallengePlayer(challengeId);
+  if (challenge.status === "completed" || challenge.startedAt) {
+    startLoadedGameChallenge(challenge);
+    return;
+  }
+  if (challenge.status !== "accepted") return;
+  if (!player?.ready) {
+    const client = createSupabaseClient();
+    if (!client) return;
+    state.gameChallengeActionBusyId = challengeId;
+    const { error } = await client
+      .from(gameChallengePlayerTable)
+      .update({ ready: true })
+      .eq("challenge_id", challengeId)
+      .eq("user_id", state.authUser?.id);
+    state.gameChallengeActionBusyId = "";
+    if (error) {
+      state.gameChallengeMessage = gameChallengeErrorMessage(error);
+      renderPreservingReaderScroll();
+      return;
+    }
+    await loadGameChallenges({ render: false });
+  }
+  maybeStartActiveGameChallenge();
+  renderPreservingReaderScroll();
+}
+
+function seededTriviaRandom(seed) {
+  let value = (Number(seed) || 1) >>> 0;
+  return () => {
+    value += 0x6D2B79F5;
+    let result = value;
+    result = Math.imul(result ^ (result >>> 15), result | 1);
+    result ^= result + Math.imul(result ^ (result >>> 7), result | 61);
+    return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function withTriviaRandomSeed(seed, callback) {
+  const previous = triviaRandomSource;
+  triviaRandomSource = seededTriviaRandom(seed);
+  try {
+    return callback();
+  } finally {
+    triviaRandomSource = previous;
+  }
+}
+
+function challengeCurrentRoundAnswered(game) {
+  if (!game || game.complete) return false;
+  if (game.type === "trivia") return game.selectedAnswer !== null;
+  if (game.type === "who-said-it") return game.questions?.[game.index]?.selectedAnswer !== null;
+  if (game.type === "reference-rush") return game.puzzles?.[game.index]?.selectedReference !== null;
+  return Boolean(game.puzzles?.[game.index]?.answered);
+}
+
+function challengeGameProgress(game = state.triviaGame) {
+  if (!game) return 0;
+  const roundLength = triviaRoundLength(game);
+  if (game.complete) return roundLength;
+  return Math.min(roundLength, game.index + (challengeCurrentRoundAnswered(game) ? 1 : 0));
+}
+
+function challengeGameElapsedMs(game = state.triviaGame) {
+  if (!game?.challengeId) return null;
+  const challenge = activeGameChallenge();
+  const startedAt = Date.parse(challenge?.startedAt || "");
+  if (!Number.isFinite(startedAt)) return null;
+  const finishedAt = game.complete ? Date.now() : null;
+  return finishedAt ? Math.max(0, finishedAt - startedAt) : null;
+}
+
+async function syncActiveChallengeProgress({ completed = false } = {}) {
+  const game = state.triviaGame;
+  const challengeId = game?.challengeId;
+  const userId = state.authUser?.id;
+  if (!challengeId || !userId) return;
+  const client = createSupabaseClient();
+  if (!client) return;
+  const payload = {
+    score: Math.max(0, Number(game.score) || 0),
+    progress: challengeGameProgress(game),
+  };
+  if (completed || game.complete) {
+    payload.completed_at = new Date().toISOString();
+    payload.elapsed_ms = challengeGameElapsedMs(game);
+  }
+  const { error } = await client
+    .from(gameChallengePlayerTable)
+    .update(payload)
+    .eq("challenge_id", challengeId)
+    .eq("user_id", userId);
+  if (error) {
+    console.warn("Live challenge progress sync failed", error);
+    state.gameChallengeMessage = "Your score could not sync yet.";
+  }
+}
+
+function restoreChallengeGameProgress(game, player) {
+  if (!game || !player) return;
+  const roundLength = triviaRoundLength(game);
+  game.score = player.score;
+  if (player.completedAt) {
+    game.index = Math.max(0, roundLength - 1);
+    game.complete = true;
+    game.celebrationPending = false;
+    return;
+  }
+  game.index = Math.min(Math.max(0, player.progress), Math.max(0, roundLength - 1));
+}
+
+function startLoadedGameChallenge(challenge) {
+  if (!challenge || !["accepted", "completed"].includes(challenge.status)) return;
+  state.activeGameChallengeId = challenge.id;
+  state.mode = "trivia";
+  state.focusMode = false;
+  state.triviaGameType = challenge.gameType;
+  state.triviaCategory = challenge.category;
+  state.triviaDifficulty = challenge.difficulty;
+  state.triviaCount = challenge.roundCount;
+  state.referenceRushTimed = challenge.timed;
+  withTriviaRandomSeed(challenge.seed, startTriviaGame);
+  if (!state.triviaGame) return;
+  state.triviaGame.challengeId = challenge.id;
+  const startedAt = Date.parse(challenge.startedAt || "");
+  if (Number.isFinite(startedAt)) {
+    if (state.triviaGame.type === "reference-rush" && state.triviaGame.timed) {
+      state.triviaGame.startedAt = startedAt;
+      state.triviaGame.deadlineAt = startedAt + state.triviaGame.durationMs;
+    }
+    if (state.triviaGame.type === "book-sprint") state.triviaGame.startedAt = startedAt;
+  }
+  restoreChallengeGameProgress(state.triviaGame, gameChallengePlayer(challenge.id));
+  renderPreservingReaderScroll();
+}
+
+function maybeStartActiveGameChallenge() {
+  const challenge = activeGameChallenge();
+  if (!challenge || !challenge.startedAt) return;
+  if (state.triviaGame?.challengeId === challenge.id) return;
+  startLoadedGameChallenge(challenge);
+}
+
+function handleGameChallengeAction(button) {
+  const action = button.dataset.gameChallengeAction;
+  const challengeId = button.dataset.gameChallengeId || "";
+  if (["accept", "decline", "cancel", "leave"].includes(action)) {
+    if (action === "leave" && !window.confirm("End this live challenge for both players?")) return;
+    return updateGameChallengeResponse(challengeId, action);
+  }
+  if (["join", "view"].includes(action)) return joinGameChallenge(challengeId);
 }
 
 function captureSocialProfileDraft(prefix = "") {
@@ -5415,6 +6036,16 @@ function handleFriendAction(button) {
   const action = button.dataset.friendAction;
   const friendshipId = button.dataset.friendshipId || "";
   const profileId = button.dataset.friendProfileId || "";
+  if (action === "challenge" && profileId) {
+    state.challengeOpponentId = profileId;
+    state.accountOpen = false;
+    state.mode = "trivia";
+    state.focusMode = false;
+    state.triviaGame = null;
+    renderPreservingReaderScroll();
+    requestAnimationFrame(() => document.getElementById("challengeFriendSelect")?.focus());
+    return;
+  }
   if (action === "send") return sendFriendRequest(profileId);
   if (action === "accept") return acceptFriendRequest(friendshipId);
   if (["cancel", "decline", "remove"].includes(action)) return deleteFriendship(friendshipId, action);
@@ -5498,6 +6129,7 @@ function toggleAccountMenu(forceOpen = null) {
     && state.friendshipStatus !== "loading"
   ) {
     loadFriendships().catch((error) => console.warn("Friendship refresh failed", error));
+    loadGameChallenges().catch((error) => console.warn("Game challenge refresh failed", error));
   }
   requestAnimationFrame(() => {
     if (!state.accountOpen) return;
@@ -6076,6 +6708,7 @@ async function signOutAccount() {
     state.authUser = null;
     resetSocialProfileState();
     resetFriendshipState();
+    resetGameChallengeState();
     activateGuestBrowserData();
     state.pushPromptVisible = false;
     state.accountOpen = true;
@@ -6837,8 +7470,140 @@ function updateReferenceRushTimerDisplay() {
   renderPreservingReaderScroll();
 }
 
+function gameChallengeResultLabel(challenge, selfPlayer, opponentPlayer) {
+  if (!selfPlayer?.completedAt || !opponentPlayer?.completedAt) return "Waiting for both players to finish";
+  if (selfPlayer.score > opponentPlayer.score) return "You won";
+  if (selfPlayer.score < opponentPlayer.score) return "Your friend won";
+  const selfElapsedMs = Number(selfPlayer.elapsedMs);
+  const opponentElapsedMs = Number(opponentPlayer.elapsedMs);
+  if (
+    challenge?.gameType === "book-sprint"
+    && selfPlayer.elapsedMs !== null
+    && opponentPlayer.elapsedMs !== null
+    && Number.isFinite(selfElapsedMs)
+    && Number.isFinite(opponentElapsedMs)
+    && selfElapsedMs !== opponentElapsedMs
+  ) {
+    return selfElapsedMs < opponentElapsedMs ? "You won the tiebreak" : "Your friend won the tiebreak";
+  }
+  return "Tie game";
+}
+
+function liveGameChallengeScoreboard() {
+  const challenge = activeGameChallenge();
+  if (!challenge || (challenge.status === "accepted" && !challenge.startedAt)) return "";
+  const opponentId = gameChallengeOtherUserId(challenge);
+  const opponent = friendshipProfile(opponentId);
+  const selfPlayer = gameChallengePlayer(challenge.id);
+  const opponentPlayer = gameChallengePlayer(challenge.id, opponentId);
+  const roundCount = challenge.roundCount || 0;
+  const result = gameChallengeResultLabel(challenge, selfPlayer, opponentPlayer);
+  return `
+    <section class="live-challenge-scoreboard" aria-label="Live challenge score">
+      <div class="live-challenge-scoreboard-head">
+        <span><span class="live-status-dot" aria-hidden="true"></span>${challenge.status === "completed" ? "Final result" : "Live challenge"}</span>
+        <strong>${escapeHtml(gameChallengeTitle(challenge.gameType))}</strong>
+      </div>
+      <div class="live-challenge-players">
+        <div class="${selfPlayer?.completedAt ? "complete" : ""}">
+          <span>You</span>
+          <strong>${selfPlayer?.score ?? 0}</strong>
+          <small>${Math.min(roundCount, selfPlayer?.progress ?? 0)} / ${roundCount}</small>
+        </div>
+        <span aria-hidden="true">vs</span>
+        <div class="${opponentPlayer?.completedAt ? "complete" : ""}">
+          <span>${escapeHtml(opponent?.displayName || opponent?.username || "Friend")}</span>
+          <strong>${opponentPlayer?.score ?? 0}</strong>
+          <small>${Math.min(roundCount, opponentPlayer?.progress ?? 0)} / ${roundCount}</small>
+        </div>
+      </div>
+      <p role="status" aria-live="polite">${escapeHtml(result)}</p>
+    </section>
+  `;
+}
+
+function gameChallengeSetupCard() {
+  if (!state.authUser || !state.socialProfile) {
+    return `
+      <section class="challenge-setup-card">
+        <div>
+          <span>Play with friends</span>
+          <strong>Sign in to send live challenges</strong>
+        </div>
+        <small>Create a social profile and add a friend first.</small>
+      </section>
+    `;
+  }
+  const challenge = activeGameChallenge();
+  if (challenge?.status === "accepted" && !challenge.startedAt) {
+    const opponentId = gameChallengeOtherUserId(challenge);
+    const opponent = friendshipProfile(opponentId);
+    const selfPlayer = gameChallengePlayer(challenge.id);
+    const opponentPlayer = gameChallengePlayer(challenge.id, opponentId);
+    return `
+      <section class="challenge-setup-card challenge-waiting-card" role="status">
+        <div>
+          <span>${escapeHtml(gameChallengeTitle(challenge.gameType))} challenge</span>
+          <strong>${selfPlayer?.ready ? "You’re ready" : "Ready to join?"}</strong>
+        </div>
+        <p>${opponentPlayer?.ready
+          ? `${escapeHtml(opponent?.displayName || opponent?.username || "Your friend")} is ready.`
+          : `Waiting for ${escapeHtml(opponent?.displayName || opponent?.username || "your friend")}.`} The game begins when both players are ready.</p>
+        ${selfPlayer?.ready
+          ? '<span class="challenge-ready-state"><span class="live-status-dot" aria-hidden="true"></span>Ready</span>'
+          : gameChallengeActionButton("join", "I’m ready", challenge, { primary: true })}
+        ${gameChallengeActionButton("leave", "End challenge", challenge, { danger: true })}
+      </section>
+    `;
+  }
+  const friends = friendshipCollections().friends.map((friendship) => {
+    const userId = friendshipOtherUserId(friendship);
+    return { userId, profile: friendshipProfile(userId) };
+  }).filter((item) => item.profile);
+  if (!friends.length) {
+    return `
+      <section class="challenge-setup-card">
+        <div>
+          <span>Play with friends</span>
+          <strong>Add a friend to unlock live challenges</strong>
+        </div>
+      </section>
+    `;
+  }
+  if (!friends.some((item) => item.userId === state.challengeOpponentId)) {
+    state.challengeOpponentId = friends[0].userId;
+  }
+  const selectedProfile = friendshipProfile(state.challengeOpponentId);
+  const busy = Boolean(state.gameChallengeActionBusyId);
+  return `
+    <section class="challenge-setup-card">
+      <div>
+        <span>Play with a friend</span>
+        <strong>Send this game setup as a live challenge</strong>
+      </div>
+      <label for="challengeFriendSelect">Challenge</label>
+      <div class="challenge-setup-actions">
+        <select id="challengeFriendSelect" ${busy ? "disabled" : ""}>
+          ${friends.map(({ userId, profile }) => `
+            <option value="${escapeHtml(userId)}" ${userId === state.challengeOpponentId ? "selected" : ""}>
+              ${escapeHtml(profile.displayName || `@${profile.username}`)}
+            </option>
+          `).join("")}
+        </select>
+        <button class="primary-btn" id="sendGameChallenge" type="button" ${busy ? "disabled" : ""}>
+          ${state.gameChallengeActionBusyId === `opponent:${state.challengeOpponentId}` ? "Sending…" : "Challenge"}
+        </button>
+      </div>
+      <small>${escapeHtml(gameChallengeTitle(state.triviaGameType))} · ${escapeHtml(selectedProfile?.username ? `@${selectedProfile.username}` : "Friend")} · Invitation expires in 24 hours.</small>
+    </section>
+  `;
+}
+
 function triviaView() {
   const questions = triviaQuestions();
+  const currentChallenge = activeGameChallenge();
+  const waitingForLiveChallenge = currentChallenge?.status === "accepted" && !currentChallenge.startedAt;
+  const challengeSetupLock = waitingForLiveChallenge ? 'disabled aria-disabled="true"' : "";
   const isVerseOrder = state.triviaGameType === "verse-order";
   const isReferenceRush = state.triviaGameType === "reference-rush";
   const isBookSprint = state.triviaGameType === "book-sprint";
@@ -6870,7 +7635,7 @@ function triviaView() {
           : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   return `
     <section class="reader trivia-reader">
-      <article class="trivia-panel">
+      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""}">
         <div class="trivia-header">
           <div>
             <div class="trivia-eyebrow">${gameTitle}</div>
@@ -6878,33 +7643,34 @@ function triviaView() {
           </div>
           <div class="trivia-score-chip">${triviaScoreLabel()}</div>
         </div>
+        ${liveGameChallengeScoreboard()}
         ${state.triviaGame ? triviaGameView() : `
           <div class="trivia-setup">
             <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
-              <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button">${icons.trivia}<span>Trivia</span></button>
-              <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button">${icons.book}<span>Verse Order</span></button>
-              <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button">${icons.search}<span>Reference Rush</span></button>
-              <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button">${icons.timer}<span>Book Sprint</span></button>
-              <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button">${icons.quote}<span>Who Said It?</span></button>
+              <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
+              <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
+              <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
+              <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button" ${challengeSetupLock}>${icons.timer}<span>Book Sprint</span></button>
+              <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button" ${challengeSetupLock}>${icons.quote}<span>Who Said It?</span></button>
             </div>
             <p>${setupCopy}</p>
             <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
               <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt ? "is-hidden" : ""}">
                 <span>Category</span>
-                <select id="triviaCategorySelect">${categoryOptions}</select>
+                <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
               </label>
               <label class="${isVerseOrder ? "is-hidden" : ""}">
                 <span>Difficulty</span>
-                <select id="triviaDifficultySelect">${difficultyOptions}</select>
+                <select id="triviaDifficultySelect" ${challengeSetupLock}>${difficultyOptions}</select>
               </label>
               <label>
                 <span>Round length</span>
-                <select id="triviaCountSelect">${countOptions}</select>
+                <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
               </label>
             </div>
             ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
             ${isReferenceRush ? `
-              <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}">
+              <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
                 ${icons.timer}
                 <span>
                   <strong>Countdown ${state.referenceRushTimed ? "on" : "off"}</strong>
@@ -6918,7 +7684,8 @@ function triviaView() {
                 <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
               </div>
             ` : ""}
-            <button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : icons.trivia}<span>Start ${gameTitle}</span></button>
+            ${gameChallengeSetupCard()}
+            <button class="primary-btn trivia-start" id="startTriviaGame" ${waitingForLiveChallenge ? "disabled" : ""}>${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : icons.trivia}<span>${waitingForLiveChallenge ? "Waiting for both players" : `Start ${gameTitle}`}</span></button>
           </div>
         `}
       </article>
@@ -7361,6 +8128,9 @@ function completeTriviaGame(game) {
   game.celebrationPending = game.type === "book-sprint"
     ? Boolean(game.bookSprintBeatBest)
     : roundLength > 0 && game.score === roundLength;
+  if (game.challengeId) {
+    syncActiveChallengeProgress({ completed: true }).catch((error) => console.warn("Challenge completion update failed", error));
+  }
 }
 
 function runPendingTriviaCelebration() {
@@ -9120,6 +9890,9 @@ function bindEvents() {
   document.querySelectorAll("[data-friend-action]").forEach((button) => {
     button.addEventListener("click", () => handleFriendAction(button));
   });
+  document.querySelectorAll("[data-game-challenge-action]").forEach((button) => {
+    button.addEventListener("click", () => handleGameChallengeAction(button));
+  });
   document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
   document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
   document.getElementById("quick-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("quick"));
@@ -9368,6 +10141,11 @@ function bindEvents() {
   document.querySelector(".library")?.addEventListener("scroll", () => rememberLibraryScroll(), { passive: true });
   document.querySelectorAll("[data-trivia-mode]").forEach((button) => {
     button.addEventListener("click", () => {
+      const pendingChallenge = activeGameChallenge();
+      if (pendingChallenge?.status === "accepted" && !pendingChallenge.startedAt) {
+        showToast("This setup is locked for the accepted challenge");
+        return;
+      }
       cleanupTriviaCelebration();
       state.triviaGameType = button.dataset.triviaMode || "trivia";
       state.triviaGame = null;
@@ -9387,23 +10165,43 @@ function bindEvents() {
     });
   });
   document.getElementById("triviaCategorySelect")?.addEventListener("change", (event) => {
+    const pendingChallenge = activeGameChallenge();
+    if (pendingChallenge?.status === "accepted" && !pendingChallenge.startedAt) {
+      renderPreservingReaderScroll();
+      return showToast("This setup is locked for the accepted challenge");
+    }
     state.triviaCategory = event.target.value;
     localStorage.setItem("lw_trivia_category", state.triviaCategory);
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("triviaDifficultySelect")?.addEventListener("change", (event) => {
+    const pendingChallenge = activeGameChallenge();
+    if (pendingChallenge?.status === "accepted" && !pendingChallenge.startedAt) {
+      renderPreservingReaderScroll();
+      return showToast("This setup is locked for the accepted challenge");
+    }
     state.triviaDifficulty = event.target.value;
     localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("triviaCountSelect")?.addEventListener("change", (event) => {
+    const pendingChallenge = activeGameChallenge();
+    if (pendingChallenge?.status === "accepted" && !pendingChallenge.startedAt) {
+      renderPreservingReaderScroll();
+      return showToast("This setup is locked for the accepted challenge");
+    }
     state.triviaCount = normalizedTriviaCount(state.triviaGameType, Number(event.target.value) || 10);
     localStorage.setItem("lw_trivia_count", String(state.triviaCount));
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  document.getElementById("challengeFriendSelect")?.addEventListener("change", (event) => {
+    state.challengeOpponentId = event.target.value;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("sendGameChallenge")?.addEventListener("click", () => sendGameChallenge());
   document.getElementById("bookSprintSoundToggle")?.addEventListener("click", () => {
     state.bookSprintSound = !state.bookSprintSound;
     localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
@@ -9412,16 +10210,24 @@ function bindEvents() {
     renderPreservingReaderScroll();
   });
   document.getElementById("referenceRushTimerToggle")?.addEventListener("click", () => {
+    const pendingChallenge = activeGameChallenge();
+    if (pendingChallenge?.status === "accepted" && !pendingChallenge.startedAt) {
+      return showToast("This setup is locked for the accepted challenge");
+    }
     state.referenceRushTimed = !state.referenceRushTimed;
     localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
   document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
-  document.getElementById("restartTriviaGame")?.addEventListener("click", startTriviaGame);
+  document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
+    if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
+    startTriviaGame();
+  });
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
   document.getElementById("newTriviaGame")?.addEventListener("click", () => {
     cleanupTriviaCelebration();
+    state.activeGameChallengeId = "";
     state.triviaGame = null;
     renderPreservingReaderScroll();
   });
@@ -10015,6 +10821,8 @@ function referenceRushDifficultyDescription(difficulty) {
 }
 
 function referenceRushVersion() {
+  const challengeVersion = activeGameChallenge()?.version;
+  if (challengeVersion && isBundledTranslation(challengeVersion)) return challengeVersion;
   return state.versions.find(isBundledTranslation) || "BSB";
 }
 
@@ -10363,7 +11171,7 @@ function startBookSprintGame() {
 
 function createBookSprintPuzzle() {
   const size = state.triviaDifficulty === "Hard" ? 7 : state.triviaDifficulty === "Medium" ? 6 : 5;
-  const start = Math.floor(Math.random() * (books.length - size + 1));
+  const start = Math.floor(triviaRandomSource() * (books.length - size + 1));
   const bookSet = books.slice(start, start + size);
   return {
     books: bookSet,
@@ -10610,7 +11418,7 @@ function startVerseOrderGame() {
   const selectedVerses = pool.slice(0, puzzleCount);
   state.triviaGame = {
     type: "verse-order",
-    version: state.versions[0] || "BSB",
+    version: verseOrderGameVersion(),
     puzzles: selectedVerses.map((item, index) => createVerseOrderPuzzle(item, verseOrderPieceCount(index, puzzleCount))),
     index: 0,
     score: 0,
@@ -10619,8 +11427,14 @@ function startVerseOrderGame() {
   renderPreservingReaderScroll();
 }
 
+function verseOrderGameVersion() {
+  const challengeVersion = activeGameChallenge()?.version;
+  if (challengeVersion && isBundledTranslation(challengeVersion)) return challengeVersion;
+  return state.versions.find(isBundledTranslation) || state.versions[0] || "BSB";
+}
+
 function verseOrderPool() {
-  const version = state.versions[0] || "BSB";
+  const version = verseOrderGameVersion();
   return Object.entries(bibleData).flatMap(([chapterKey, chapter]) => {
     return (chapter.verses || []).map((verse) => {
       const text = cleanVerseOrderText(getVerseText(verse, version));
@@ -10777,7 +11591,14 @@ function nextTriviaQuestion() {
 }
 
 function exitTriviaGame() {
+  if (state.triviaGame?.challengeId && !state.triviaGame.complete) {
+    const challengeId = state.triviaGame.challengeId;
+    if (!window.confirm("End this live challenge for both players?")) return;
+    updateGameChallengeResponse(challengeId, "leave");
+    return;
+  }
   cleanupTriviaCelebration();
+  state.activeGameChallengeId = "";
   state.triviaGame = null;
   renderPreservingReaderScroll();
 }
@@ -11163,7 +11984,7 @@ function openTriviaReference() {
 function shuffleItems(items) {
   const copy = items.slice();
   for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = Math.floor(triviaRandomSource() * (index + 1));
     [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
   }
   return copy;

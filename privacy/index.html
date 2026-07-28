@@ -67,7 +67,7 @@
         });
       })();
     </script>
-    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.8" />
+    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.07.28.10" />
   </head>
   <body class="about-body">
     <a class="skip-link" href="#main-content">Skip to policy</a>
@@ -147,6 +147,10 @@
           <p>If you use Friends, Big Screen Bible stores the Supabase user IDs of the requester and recipient, whether the relationship is pending or accepted, and its creation, response, and update times. Declining or cancelling a pending request, or removing an accepted friend, deletes that relationship row.</p>
           <p>Only the two participating signed-in users can read a friend-request or friendship row. Friends can see each other's social-profile identity, but friendship records do not include email addresses or private study data.</p>
 
+          <h3>Live game challenges</h3>
+          <p>If you challenge a friend to a game, Big Screen Bible stores the two participants' Supabase user IDs, the selected game mode and setup, a random seed used to give both players the same game, invitation and game status, expiration and activity times, and each player's ready state, score, progress, completion time, and applicable elapsed time.</p>
+          <p>Only the two participating signed-in users can read a challenge or its player records. Supabase Realtime delivers authorized database changes to both players so invitations, ready state, scores, progress, and results can update while they play. Challenge records do not include email addresses, messages, notes, bookmarks, highlights, reading history, or reading streaks.</p>
+
           <h3>Optional push-notification information</h3>
           <p>If you enable daily reminders, Big Screen Bible stores a push-subscription endpoint and its browser-generated encryption keys, a one-way hash of the device-management token, your browser-reported timezone, your chosen reminder times, whether the evening reminder is enabled, the last time that device opened Big Screen Bible, and the local dates on which reminders were sent. A Big Screen Bible account is not required for this device-specific subscription.</p>
           <p>The last-opened time is used only to suppress the optional evening reminder when that device has already opened Big Screen Bible during its local day. The push endpoint is treated as sensitive and is not exposed through the public database API.</p>
@@ -178,6 +182,7 @@
             <li>Create and authenticate accounts, send confirmation or password-reset messages, and keep sessions signed in.</li>
             <li>Create and display an optional social identity and apply your discovery and friend-request choices.</li>
             <li>Find discoverable profiles, send and respond to friend requests, and maintain your friends list.</li>
+            <li>Send and respond to game challenges, start the same game for both friends, and show live progress, scores, and results.</li>
             <li>Save your preferences and restore your reading and study workspace.</li>
             <li>Sync settings, bookmarks, notes, highlights, history, and streaks across signed-in devices.</li>
             <li>Load requested Scripture text, search results, Verse of the Day content, fonts, Strong's dictionaries, and optional game celebration code.</li>
@@ -207,14 +212,14 @@
         <section class="policy-section" id="sharing">
           <h2>6. Sharing, sales, and advertising</h2>
           <p>Big Screen Bible does not sell personal information and does not use personal information for targeted advertising.</p>
-          <p>If you make a social profile discoverable, its username, optional display name, selected avatar, and relevant social preferences may be shown to other signed-in Big Screen Bible users. The same profile identity remains visible to a user with whom you have a pending request or accepted friendship. Your email address and private study data are not included in the social profile or friendship record.</p>
+          <p>If you make a social profile discoverable, its username, optional display name, selected avatar, and relevant social preferences may be shown to other signed-in Big Screen Bible users. The same profile identity remains visible to a user with whom you have a pending request or accepted friendship. A game-challenge participant can see the other participant's challenge setup, ready state, score, progress, completion, and result. Your email address and private study data are not included in social, friendship, or challenge records.</p>
           <p>Information is shared with service providers only as needed to provide the features described in this policy, comply with Bible-content licensing and usage-reporting requirements, respond to a valid legal obligation, protect the service or its users, or complete a change in who operates the service.</p>
         </section>
 
         <section class="policy-section" id="retention">
           <h2>7. Data retention</h2>
           <p>Data in local storage remains on your device until you clear the site's or app's stored data, remove or replace the saved item, or your browser or operating system clears it.</p>
-          <p>Account information, social-profile information, friendship information, and synchronized study data are retained until you remove the item where the app provides that control, request deletion, the account is deleted, or retention is otherwise needed for legitimate legal, security, or operational reasons. Big Screen Bible does not use a fixed retention schedule for this data.</p>
+          <p>Account information, social-profile information, friendship information, game-challenge information, and synchronized study data are retained until you remove the item where the app provides that control, request deletion, the account is deleted, or retention is otherwise needed for legitimate legal, security, or operational reasons. Big Screen Bible does not use a fixed retention schedule for this data.</p>
           <p>An optional push subscription is deleted when you turn reminders off and the unsubscribe request reaches the service. Invalid or expired push subscriptions are also removed when the push service reports that they can no longer receive notifications.</p>
         </section>
 
@@ -223,6 +228,7 @@
           <p>You can use the main Bible-reading features without an account. You can edit or remove individual notes, bookmarks, highlights, and history within the app, and you can clear local data through your browser or device settings. Signing out ends and removes the active account's reusable browser session but does not by itself delete local or cloud data. Forgetting a remembered account removes its saved identity, browser session, and local study snapshot from that browser.</p>
           <p>You can edit your username, display name, avatar, discovery setting, and friend-request preference in the Account panel. You can turn discovery off at any time. Profile deletion is currently handled through the account-deletion request process.</p>
           <p>You can cancel a request you sent, accept or decline a request you received, and remove an accepted friendship in the Friends panel. Removing a friendship does not delete either user's profile or account.</p>
+          <p>You can cancel a pending game challenge you sent, decline one you received, or end an accepted challenge for both participants. Completed challenge history is currently retained with the participating accounts and does not have an individual deletion control.</p>
           <p>You can turn daily reminders off in Big Screen Bible Settings or revoke notification permission in your browser or operating-system settings. Reminder times and subscriptions are device-specific.</p>
           <p>You may email <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a> to request access to, correction of, or export of your information. You may also request deletion of your account and its associated synchronized study data.</p>
           <p>Account deletion is currently handled by request because an automated deletion interface is not yet available. We may need to verify that you control the account before completing a request. Deleting an account does not automatically clear data stored locally in your browser or app; you can clear that data through your browser or device settings.</p>
@@ -231,7 +237,7 @@
 
         <section class="policy-section" id="security">
           <h2>9. Security</h2>
-          <p>The sync database is configured with Supabase Row Level Security rules intended to limit signed-in users to their own sync record. The social-profile table uses separate Row Level Security rules: owners can read and update their own profile, other signed-in users can read discoverable profiles and profiles connected to their own friend relationships, and anonymous visitors have no profile-table access. Friendship rules limit each row to its two participants, restrict request creation to eligible recipients, and allow only the recipient to accept a pending request. The push-subscription table also has Row Level Security enabled and is not granted to anonymous or signed-in browser roles; only server-side functions manage it. Provider and push-sender secret keys are kept in server-side Supabase functions rather than in the website's public code.</p>
+          <p>The sync database is configured with Supabase Row Level Security rules intended to limit signed-in users to their own sync record. The social-profile table uses separate Row Level Security rules: owners can read and update their own profile, other signed-in users can read discoverable profiles and profiles connected to their own friend relationships, and anonymous visitors have no profile-table access. Friendship rules limit each row to its two participants, restrict request creation to eligible recipients, and allow only the recipient to accept a pending request. Challenge rules limit invitations and player records to their two participants, require an accepted friendship to create a challenge, and restrict each player to updating their own game state. Realtime updates use those database access rules. The push-subscription table also has Row Level Security enabled and is not granted to anonymous or signed-in browser roles; only server-side functions manage it. Provider and push-sender secret keys are kept in server-side Supabase functions rather than in the website's public code.</p>
           <p>No internet service, browser storage system, or database can be guaranteed completely secure. Please use a strong, unique password, protect access to your email and devices, and sign out on shared devices.</p>
         </section>
 

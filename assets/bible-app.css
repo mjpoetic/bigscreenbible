@@ -2466,6 +2466,35 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   text-align: center;
 }
 
+.game-challenges-card,
+.game-challenges-card .challenge-history {
+  display: grid;
+  gap: 9px;
+}
+
+.game-challenges-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.challenge-history {
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+}
+
+.challenge-history summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.challenge-history[open] summary {
+  margin-bottom: 7px;
+}
+
 .friend-search-form {
   display: grid;
   gap: 5px;
@@ -4427,6 +4456,142 @@ select {
 
 .trivia-setup select {
   width: 100%;
+}
+
+.challenge-setup-card,
+.live-challenge-scoreboard {
+  display: grid;
+  gap: 12px;
+  width: min(720px, 100%);
+  border: 1px solid color-mix(in srgb, var(--teal) 34%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--teal) 7%, var(--paper));
+  padding: 16px;
+}
+
+.challenge-setup-card > div:first-child,
+.live-challenge-scoreboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.challenge-setup-card > div:first-child {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.challenge-setup-card span,
+.live-challenge-scoreboard-head span {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.challenge-setup-card strong,
+.live-challenge-scoreboard-head strong {
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.challenge-setup-card > label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.challenge-setup-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.challenge-setup-actions select,
+.challenge-setup-actions button {
+  min-height: 44px;
+}
+
+.challenge-setup-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.challenge-waiting-card p {
+  font-size: 15px;
+}
+
+.challenge-ready-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teal) 13%, var(--paper));
+  padding: 8px 11px;
+}
+
+.live-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.live-challenge-scoreboard {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.live-challenge-players {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.live-challenge-players > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 11px 13px;
+}
+
+.live-challenge-players > div.complete {
+  border-color: color-mix(in srgb, var(--success) 42%, var(--line));
+}
+
+.live-challenge-players span,
+.live-challenge-players small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.live-challenge-players strong {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  color: var(--teal);
+  font-size: 28px;
+}
+
+.live-challenge-scoreboard > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .trivia-start {
@@ -10855,6 +11020,21 @@ svg {
     align-self: flex-start;
   }
 
+  .challenge-setup-actions,
+  .live-challenge-players {
+    grid-template-columns: 1fr;
+  }
+
+  .live-challenge-players > span {
+    justify-self: center;
+  }
+
+  .challenge-setup-card > div:first-child,
+  .live-challenge-scoreboard-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .trivia-setup-controls,
   .trivia-choices {
     grid-template-columns: 1fr;
@@ -12837,6 +13017,7 @@ svg {
   }
 }
 
+.account-popover.open.account-panel-rerender,
 .settings-popover.open.settings-panel-rerender,
 .mobile-settings-popover.settings-panel-rerender {
   animation: none;
