@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
+    "test:accounts": "node scripts/account-switching.test.mjs",
     "test:accessibility": "node scripts/interface-text-size.test.mjs",
     "test:auto-scroll": "node scripts/auto-scroll.test.mjs",
     "test:friends": "node scripts/friendships.test.mjs",

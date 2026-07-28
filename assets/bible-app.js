@@ -268,6 +268,13 @@ const readerDoubleTapDistancePx = 44;
 const cloudSyncTable = "bsb_user_sync";
 const socialProfileTable = "bsb_profiles";
 const friendshipTable = "bsb_friendships";
+const accountDataOwnerStorageKey = "lw_account_data_owner";
+const guestSnapshotStorageKey = "lw_guest_snapshot";
+const accountSnapshotStoragePrefix = "lw_account_snapshot:";
+const rememberedAccountsStorageKey = "lw_remembered_accounts";
+const pendingAccountSwitchStorageKey = "lw_pending_account_switch";
+const guestDataOwner = "guest";
+const rememberedAccountLimit = 6;
 const socialAvatarOptions = [
   { key: "initials", label: "Initials", icon: "user" },
   { key: "book", label: "Open Bible", icon: "book" },
@@ -473,6 +480,7 @@ const state = {
   authStatus: "idle",
   authMessage: "",
   authBusy: false,
+  accountSwitching: false,
   accountOpen: false,
   socialProfile: null,
   socialProfileDraft: null,
@@ -2657,7 +2665,7 @@ function streakPopover(streak = normalizeReadingStreak(state.streak)) {
 function streakCard() {
   const streak = normalizeReadingStreak(state.streak);
   const lastVisitLabel = streak.lastVisit ? "Checked in today" : "Start today";
-  const streakNote = `${lastVisitLabel}. This stays private to this browser until account sync is added.`;
+  const streakNote = `${lastVisitLabel}. This activity stays with the active browser profile and syncs when signed in.`;
   return `
     <section class="streak-card" aria-label="Reading streak. ${streakNote}" title="${escapeHtml(streakNote)}">
       <div class="streak-card-top">
@@ -2675,6 +2683,234 @@ function streakCard() {
       </div>
     </section>
   `;
+}
+
+function accountDataOwner() {
+  return String(localStorage.getItem(accountDataOwnerStorageKey) || "").trim();
+}
+
+function setAccountDataOwner(owner = guestDataOwner) {
+  const normalizedOwner = String(owner || guestDataOwner).trim() || guestDataOwner;
+  localStorage.setItem(accountDataOwnerStorageKey, normalizedOwner);
+  return normalizedOwner;
+}
+
+function accountSnapshotStorageKey(userId) {
+  return `${accountSnapshotStoragePrefix}${encodeURIComponent(String(userId || "").trim())}`;
+}
+
+function readBrowserSnapshot(storageKey) {
+  if (!storageKey) return null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (!saved || typeof saved !== "object") return null;
+    return normalizeCloudRow(saved);
+  } catch {
+    return null;
+  }
+}
+
+function saveBrowserSnapshot(storageKey, snapshot) {
+  if (!storageKey || !snapshot) return;
+  localStorage.setItem(storageKey, JSON.stringify(normalizeCloudRow(snapshot)));
+}
+
+function guestBrowserSnapshot() {
+  return readBrowserSnapshot(guestSnapshotStorageKey);
+}
+
+function accountBrowserSnapshot(userId) {
+  if (!userId) return null;
+  return readBrowserSnapshot(accountSnapshotStorageKey(userId));
+}
+
+function saveSnapshotForOwner(owner, snapshot) {
+  if (!owner || !snapshot) return;
+  if (owner === guestDataOwner) {
+    saveBrowserSnapshot(guestSnapshotStorageKey, snapshot);
+    return;
+  }
+  saveBrowserSnapshot(accountSnapshotStorageKey(owner), snapshot);
+}
+
+function blankLocalSnapshot(sourceSnapshot = captureCloudSnapshot()) {
+  return {
+    settings: {
+      ...(sourceSnapshot?.settings || {}),
+      versionsUpdatedAt: "",
+    },
+    bookmarks: [],
+    notes: {},
+    highlights: {},
+    history: [],
+    streak: normalizeReadingStreak({}),
+  };
+}
+
+function pendingAccountSwitch() {
+  return localStorage.getItem(pendingAccountSwitchStorageKey) === "true";
+}
+
+function setPendingAccountSwitch(pending) {
+  if (pending) localStorage.setItem(pendingAccountSwitchStorageKey, "true");
+  else localStorage.removeItem(pendingAccountSwitchStorageKey);
+}
+
+function localSnapshotForAuthenticatedUser(userId) {
+  const owner = accountDataOwner();
+  const currentSnapshot = captureCloudSnapshot();
+  if (owner === userId) return currentSnapshot;
+
+  if (owner === guestDataOwner) {
+    saveSnapshotForOwner(guestDataOwner, currentSnapshot);
+  } else if (owner) {
+    saveSnapshotForOwner(owner, currentSnapshot);
+  }
+
+  const savedAccountSnapshot = accountBrowserSnapshot(userId);
+  if (savedAccountSnapshot) return savedAccountSnapshot;
+  if (owner === guestDataOwner && !pendingAccountSwitch()) return currentSnapshot;
+  return blankLocalSnapshot(currentSnapshot);
+}
+
+function activateGuestBrowserData() {
+  const currentSnapshot = captureCloudSnapshot();
+  const owner = accountDataOwner();
+  if (owner && owner !== guestDataOwner) saveSnapshotForOwner(owner, currentSnapshot);
+  const guestSnapshot = guestBrowserSnapshot() || blankLocalSnapshot(currentSnapshot);
+  setAccountDataOwner(guestDataOwner);
+  applyCloudSnapshot(guestSnapshot);
+}
+
+function normalizedRememberedAccount(account = {}) {
+  const userId = String(account.userId || "").trim();
+  const email = String(account.email || "").trim().slice(0, 320);
+  if (!userId || !email) return null;
+  return {
+    userId,
+    email,
+    provider: account.provider === "google" ? "google" : "email",
+    username: normalizeProfileUsername(account.username || ""),
+    displayName: String(account.displayName || "").trim().slice(0, 40),
+    avatarKey: socialAvatarKeys.includes(account.avatarKey) ? account.avatarKey : "initials",
+    lastUsedAt: normalizedVersionsUpdatedAt(account.lastUsedAt) || "",
+  };
+}
+
+function rememberedAccounts() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(rememberedAccountsStorageKey) || "[]");
+    if (!Array.isArray(saved)) return [];
+    return saved
+      .map(normalizedRememberedAccount)
+      .filter(Boolean)
+      .sort((a, b) => String(b.lastUsedAt).localeCompare(String(a.lastUsedAt)))
+      .slice(0, rememberedAccountLimit);
+  } catch {
+    return [];
+  }
+}
+
+function authProviderForUser(user = state.authUser) {
+  const provider = String(
+    user?.app_metadata?.provider
+    || user?.identities?.[0]?.provider
+    || "email",
+  ).toLowerCase();
+  return provider === "google" ? "google" : "email";
+}
+
+function rememberAuthenticatedAccount(user = state.authUser, profile = state.socialProfile) {
+  const existingAccount = rememberedAccounts().find((item) => item.userId === user?.id);
+  const account = normalizedRememberedAccount({
+    userId: user?.id,
+    email: user?.email,
+    provider: authProviderForUser(user),
+    username: profile?.username || existingAccount?.username,
+    displayName: profile?.displayName || existingAccount?.displayName,
+    avatarKey: profile?.avatarKey || existingAccount?.avatarKey,
+    lastUsedAt: new Date().toISOString(),
+  });
+  if (!account) return;
+  const nextAccounts = [
+    account,
+    ...rememberedAccounts().filter((item) => item.userId !== account.userId),
+  ].slice(0, rememberedAccountLimit);
+  localStorage.setItem(rememberedAccountsStorageKey, JSON.stringify(nextAccounts));
+}
+
+function forgetRememberedAccount(userId) {
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) return;
+  const nextAccounts = rememberedAccounts().filter((item) => item.userId !== normalizedUserId);
+  localStorage.setItem(rememberedAccountsStorageKey, JSON.stringify(nextAccounts));
+  localStorage.removeItem(accountSnapshotStorageKey(normalizedUserId));
+  showToast("Account forgotten on this browser");
+  renderPreservingReaderScroll();
+}
+
+function rememberedAccountsCard(prefix = "") {
+  const accounts = rememberedAccounts();
+  if (!accounts.length) return "";
+  const suffix = prefix ? `${prefix}-` : "";
+  return `
+    <section class="account-card remembered-accounts-card" aria-labelledby="${suffix}rememberedAccountsTitle">
+      <div class="account-card-head">
+        <span class="setting-label">Previously used</span>
+        <strong id="${suffix}rememberedAccountsTitle">Choose an account</strong>
+      </div>
+      <p>You’ll authenticate again before any account data is opened.</p>
+      <div class="remembered-account-list">
+        ${accounts.map((account) => {
+          const accountProfile = {
+            username: account.username || account.email.split("@")[0],
+            displayName: account.displayName,
+            avatarKey: account.avatarKey,
+          };
+          const identity = account.username ? `@${account.username}` : account.email;
+          const providerLabel = account.provider === "google" ? "Google account" : "Email account";
+          return `
+            <div class="remembered-account-row">
+              <button
+                class="remembered-account-use"
+                type="button"
+                data-use-account="${escapeHtml(account.userId)}"
+                data-account-prefix="${escapeHtml(prefix)}"
+                aria-label="Use ${escapeHtml(identity)}"
+              >
+                ${socialProfileAvatarMarkup(accountProfile, "remembered-account-avatar")}
+                <span>
+                  <strong>${escapeHtml(identity)}</strong>
+                  <small>${escapeHtml(providerLabel)}</small>
+                </span>
+                ${icons.chevron}
+              </button>
+              <button
+                class="remembered-account-forget"
+                type="button"
+                data-forget-account="${escapeHtml(account.userId)}"
+                aria-label="Forget ${escapeHtml(identity)} on this browser"
+              >Forget</button>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function useRememberedAccount(userId, prefix = "") {
+  const account = rememberedAccounts().find((item) => item.userId === userId);
+  if (!account) return;
+  if (account.provider === "google") {
+    signInWithGoogle();
+    return;
+  }
+  const suffix = prefix ? `${prefix}-` : "";
+  const emailInput = document.getElementById(`${suffix}accountEmail`);
+  const passwordInput = document.getElementById(`${suffix}accountPassword`);
+  if (emailInput) emailInput.value = account.email;
+  passwordInput?.focus?.();
 }
 
 function normalizeProfileUsername(value = "") {
@@ -3139,8 +3375,9 @@ function accountPanel(prefix = "") {
         <p>${escapeHtml(status)}</p>
         <div class="account-actions">
           <button class="ghost-btn compact-account-btn" id="${suffix}syncNowButton" type="button" ${state.authBusy ? "disabled" : ""}>Sync now</button>
-          <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out</button>
+          <button class="ghost-btn compact-account-btn" id="${suffix}switchAccountButton" type="button" ${state.authBusy ? "disabled" : ""}>${state.accountSwitching ? "Switching…" : "Switch account"}</button>
         </div>
+        <button class="account-secondary-action" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out on this device</button>
         ${passwordTools}
         <nav class="account-legal-links" aria-label="Legal information">
           <a href="./privacy/">Privacy Policy</a>
@@ -3153,6 +3390,7 @@ function accountPanel(prefix = "") {
 
   return `
     ${streakCard()}
+    ${rememberedAccountsCard(prefix)}
     <section class="account-card">
       <div class="account-card-head">
         <span class="setting-label">Account sync</span>
@@ -4672,6 +4910,19 @@ async function initializeSupabaseAuth() {
   if (!client) return;
   try {
     const session = await authenticatedSupabaseSession(client);
+    const existingOwner = accountDataOwner();
+    if (session?.user) {
+      if (!existingOwner) {
+        setAccountDataOwner(session.user.id);
+        saveSnapshotForOwner(session.user.id, captureCloudSnapshot());
+      }
+      rememberAuthenticatedAccount(session.user);
+    } else if (existingOwner && existingOwner !== guestDataOwner) {
+      activateGuestBrowserData();
+    } else {
+      setAccountDataOwner(guestDataOwner);
+      if (!guestBrowserSnapshot()) saveSnapshotForOwner(guestDataOwner, captureCloudSnapshot());
+    }
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
     if (session?.user) {
@@ -4689,6 +4940,7 @@ async function initializeSupabaseAuth() {
         state.authMessage = "Choose a new password to finish account recovery.";
       }
       if (state.authUser) {
+        rememberAuthenticatedAccount(state.authUser);
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
         Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships()])
@@ -4703,8 +4955,9 @@ async function initializeSupabaseAuth() {
         state.pushPromptVisible = false;
         resetSocialProfileState();
         resetFriendshipState();
+        activateGuestBrowserData();
         state.syncStatus = "local";
-        state.syncMessage = "Signed out. Changes are saved on this device.";
+        state.syncMessage = "Signed out. Guest data is active on this browser.";
         renderPreservingReaderScroll();
       }
     });
@@ -4796,6 +5049,7 @@ async function loadSocialProfile() {
     state.socialProfileStatus = "ready";
     state.socialProfileMessage = data ? "" : "Choose a unique username to create your social profile.";
     state.socialProfileOpen = !data;
+    rememberAuthenticatedAccount(state.authUser, state.socialProfile);
   } catch (error) {
     console.warn("Social profile load failed", error);
     state.socialProfileStatus = "error";
@@ -5049,6 +5303,7 @@ async function saveSocialProfile(event, prefix = "") {
     state.socialProfileDraft = socialProfileDraft(state.socialProfile);
     state.socialProfileStatus = "ready";
     state.socialProfileMessage = `Profile saved as @${state.socialProfile.username}.`;
+    rememberAuthenticatedAccount(state.authUser, state.socialProfile);
     if (creatingProfile) state.socialProfileOpen = false;
     showToast("Social profile saved");
   } catch (error) {
@@ -5421,6 +5676,7 @@ async function handleAccountSubmit(event, prefix = "") {
       ? "Account created. Check your email if Supabase asks you to confirm it."
       : "Signed in.";
     if (session?.user) {
+      rememberAuthenticatedAccount(session.user);
       await Promise.all([loadCloudSync(), loadSocialProfile()]);
       maybeOfferPushNotifications();
     }
@@ -5475,6 +5731,9 @@ async function signInWithGoogle() {
       provider: "google",
       options: {
         redirectTo: window.location.origin,
+        ...(rememberedAccounts().length || pendingAccountSwitch()
+          ? { queryParams: { prompt: "select_account" } }
+          : {}),
       },
     });
     if (error) throw error;
@@ -5534,30 +5793,60 @@ async function updateAccountPassword(event, prefix = "") {
   }
 }
 
-async function signOutAccount() {
+async function signOutAccount(options = {}) {
   const client = createSupabaseClient();
   if (!client) return;
+  const switching = options?.switching === true;
+  const user = state.authUser;
+  const snapshot = captureCloudSnapshot();
+  if (user?.id) saveSnapshotForOwner(user.id, snapshot);
+  setPendingAccountSwitch(true);
   state.authBusy = true;
+  state.accountSwitching = switching;
+  state.syncMessage = switching ? "Saving this account before switching…" : "Saving this account before sign out…";
   renderPreservingReaderScroll();
   try {
-    await client.auth.signOut();
+    clearTimeout(cloudSyncTimer);
+    if (user?.id) {
+      try {
+        await upsertCloudSnapshot(snapshot, { quiet: true });
+      } catch (error) {
+        console.warn("Final account sync before sign out failed", error);
+      }
+    }
+    const { error } = await client.auth.signOut({ scope: "local" });
+    if (error) throw error;
     state.authUser = null;
     resetSocialProfileState();
     resetFriendshipState();
+    activateGuestBrowserData();
     state.pushPromptVisible = false;
-    state.accountOpen = false;
+    state.accountOpen = switching;
     state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
-    state.authMessage = "";
+    state.authMessage = switching ? "Choose another account." : "";
     state.syncStatus = "local";
-    state.syncMessage = "Signed out. Changes are saved on this device.";
+    state.syncMessage = switching
+      ? "Choose another account. Your previous account data is closed."
+      : "Signed out. Guest data is active on this browser.";
   } catch (error) {
     console.warn("Sign out failed", error);
+    setPendingAccountSwitch(false);
     state.authMessage = "Could not sign out yet. Please try again.";
   } finally {
     state.authBusy = false;
+    state.accountSwitching = false;
     renderPreservingReaderScroll();
+    if (switching && !state.authUser) {
+      requestAnimationFrame(() => {
+        document.querySelector(".remembered-account-use")?.focus?.();
+      });
+    }
   }
+}
+
+function switchAccount() {
+  return signOutAccount({ switching: true });
 }
 
 function captureCloudSnapshot() {
@@ -5800,6 +6089,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
   localStorage.setItem("lw_history", JSON.stringify(state.history));
   localStorage.setItem(streakStorageKey, JSON.stringify(state.streak));
+  saveSnapshotForOwner(accountDataOwner() || guestDataOwner, snapshot);
 }
 
 async function loadCloudSync() {
@@ -5808,7 +6098,6 @@ async function loadCloudSync() {
   state.authBusy = true;
   state.syncStatus = "loading";
   state.syncMessage = "Loading your saved settings...";
-  const localSnapshot = captureCloudSnapshot();
   try {
     const session = await authenticatedSupabaseSession(client);
     const userId = session?.user?.id;
@@ -5817,6 +6106,10 @@ async function loadCloudSync() {
       state.syncMessage = "Sign in to sync across devices.";
       return;
     }
+    rememberAuthenticatedAccount(session.user);
+    const localSnapshot = localSnapshotForAuthenticatedUser(userId);
+    setAccountDataOwner(userId);
+    applyCloudSnapshot(localSnapshot);
     const { data, error } = await client
       .from(cloudSyncTable)
       .select("settings, bookmarks, notes, highlights, history, streak, updated_at")
@@ -5834,6 +6127,7 @@ async function loadCloudSync() {
     state.syncStatus = "error";
     state.syncMessage = error?.message || "Sync could not finish yet.";
   } finally {
+    if (state.authUser?.id) setPendingAccountSwitch(false);
     state.authBusy = false;
     renderPreservingReaderScroll();
   }
@@ -5869,6 +6163,8 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
     .from(cloudSyncTable)
     .upsert({ user_id: userId, ...snapshot }, { onConflict: "user_id" });
   if (error) throw error;
+  setAccountDataOwner(userId);
+  saveSnapshotForOwner(userId, snapshot);
   state.syncStatus = "synced";
   state.syncMessage = "Synced across your signed-in devices.";
   state.lastCloudSyncAt = new Date().toISOString();
@@ -8497,6 +8793,14 @@ function bindEvents() {
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
   document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
+  document.querySelectorAll("[data-use-account]").forEach((button) => {
+    button.addEventListener("click", () => {
+      useRememberedAccount(button.dataset.useAccount, button.dataset.accountPrefix || "");
+    });
+  });
+  document.querySelectorAll("[data-forget-account]").forEach((button) => {
+    button.addEventListener("click", () => forgetRememberedAccount(button.dataset.forgetAccount));
+  });
   document.getElementById("quick-socialProfileForm")?.addEventListener("submit", (event) => saveSocialProfile(event, "quick"));
   document.querySelectorAll("[data-social-profile-disclosure]").forEach((disclosure) => {
     disclosure.addEventListener("toggle", () => {
@@ -8544,9 +8848,12 @@ function bindEvents() {
   document.getElementById("syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("mobile-syncNowButton")?.addEventListener("click", syncNowAccount);
   document.getElementById("quick-syncNowButton")?.addEventListener("click", syncNowAccount);
-  document.getElementById("signOutButton")?.addEventListener("click", signOutAccount);
-  document.getElementById("mobile-signOutButton")?.addEventListener("click", signOutAccount);
-  document.getElementById("quick-signOutButton")?.addEventListener("click", signOutAccount);
+  document.getElementById("switchAccountButton")?.addEventListener("click", switchAccount);
+  document.getElementById("mobile-switchAccountButton")?.addEventListener("click", switchAccount);
+  document.getElementById("quick-switchAccountButton")?.addEventListener("click", switchAccount);
+  document.getElementById("signOutButton")?.addEventListener("click", () => signOutAccount());
+  document.getElementById("mobile-signOutButton")?.addEventListener("click", () => signOutAccount());
+  document.getElementById("quick-signOutButton")?.addEventListener("click", () => signOutAccount());
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice));
   });

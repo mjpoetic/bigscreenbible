@@ -84,6 +84,7 @@ const context = {
     return { user: { id: "user-123" } };
   },
   renderPreservingReaderScroll() {},
+  rememberAuthenticatedAccount() {},
   showToast(message) {
     toasts.push(message);
   },

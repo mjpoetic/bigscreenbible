@@ -94,6 +94,16 @@ Test the full loop with two signed-in accounts:
 4. Confirm accepted requests appear in both Friends lists.
 5. Confirm either account can remove the friendship.
 
+The signed-in Account panel also includes **Switch account**. Before switching, the app saves the active account, closes only this browser session, and restores the browser's separate guest data. Previously used accounts may be listed by email, username, avatar, and sign-in provider, but passwords and reusable account sessions are never stored by the account chooser.
+
+Browser study data is isolated in one snapshot per Supabase user. On a person's first sign-in, existing guest data follows the account as before. During later account switches, bookmarks, notes, highlights, history, streaks, and version-selection timestamps from the outgoing account are not merged into a newly selected account.
+
+Run the focused browser-isolation regression test after changing authentication or cloud-sync behavior:
+
+```sh
+npm run test:accounts
+```
+
 If you see a Row Level Security insert error, confirm that the app is signed in with an active Supabase session. The sync code writes `user_id` from `session.user.id`; it never uses the email address as the user id.
 
 ## 6. Passkeys later

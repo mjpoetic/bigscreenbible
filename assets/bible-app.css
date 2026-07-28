@@ -1873,6 +1873,97 @@ button {
   padding: 7px 9px;
 }
 
+.remembered-account-list {
+  display: grid;
+  gap: 6px;
+}
+
+.remembered-account-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.remembered-account-use,
+.remembered-account-forget {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.remembered-account-use {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.remembered-account-use > span:not(.social-profile-avatar) {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.remembered-account-use strong,
+.remembered-account-use small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remembered-account-use strong {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.remembered-account-use small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.remembered-account-use > svg {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.remembered-account-avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  font-size: 10px;
+}
+
+.remembered-account-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.remembered-account-forget {
+  align-self: stretch;
+  padding: 6px 9px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.remembered-account-use:hover,
+.remembered-account-use:focus-visible,
+.remembered-account-forget:hover,
+.remembered-account-forget:focus-visible {
+  background: color-mix(in srgb, var(--teal) 8%, transparent);
+  color: var(--teal-dark);
+}
+
 .social-profile-card {
   gap: 10px;
 }

@@ -1,0 +1,149 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+
+const source = readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../assets/bible-app.css", import.meta.url), "utf8");
+
+function extractFunction(name) {
+  const patterns = [`function ${name}(`, `async function ${name}(`];
+  const start = patterns
+    .map((pattern) => source.indexOf(pattern))
+    .filter((index) => index !== -1)
+    .sort((a, b) => a - b)[0];
+  assert.notEqual(start, undefined, `Missing ${name} in bible-app.js`);
+  const bodyStart = source.indexOf(") {", start) + 2;
+  assert.ok(bodyStart > 1, `Could not find ${name} body in bible-app.js`);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error(`Could not extract ${name} from bible-app.js`);
+}
+
+function snapshot(label) {
+  return {
+    settings: {
+      themeMode: label,
+      versions: ["BSB"],
+      versionsUpdatedAt: "2026-07-28T12:00:00.000Z",
+    },
+    bookmarks: [`${label}:1`],
+    notes: { [label]: `note-${label}` },
+    highlights: { [label]: "yellow" },
+    history: [{ ref: label, at: "2026-07-28T12:00:00.000Z" }],
+    streak: { current: 1, best: 1, totalDays: 1, lastVisit: "2026-07-28", days: ["2026-07-28"] },
+  };
+}
+
+const storage = new Map();
+let liveSnapshot = snapshot("account-a");
+const context = {
+  accountDataOwnerStorageKey: "lw_account_data_owner",
+  guestSnapshotStorageKey: "lw_guest_snapshot",
+  accountSnapshotStoragePrefix: "lw_account_snapshot:",
+  pendingAccountSwitchStorageKey: "lw_pending_account_switch",
+  guestDataOwner: "guest",
+  localStorage: {
+    getItem(key) {
+      return storage.has(key) ? storage.get(key) : null;
+    },
+    setItem(key, value) {
+      storage.set(key, String(value));
+    },
+    removeItem(key) {
+      storage.delete(key);
+    },
+  },
+  normalizeCloudRow(value = {}) {
+    return JSON.parse(JSON.stringify({
+      settings: value.settings && typeof value.settings === "object" ? value.settings : {},
+      bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [],
+      notes: value.notes && typeof value.notes === "object" ? value.notes : {},
+      highlights: value.highlights && typeof value.highlights === "object" ? value.highlights : {},
+      history: Array.isArray(value.history) ? value.history : [],
+      streak: value.streak && typeof value.streak === "object" ? value.streak : {},
+    }));
+  },
+  normalizeReadingStreak() {
+    return { current: 0, best: 0, totalDays: 0, lastVisit: "", days: [] };
+  },
+  captureCloudSnapshot() {
+    return JSON.parse(JSON.stringify(liveSnapshot));
+  },
+};
+
+vm.createContext(context);
+vm.runInContext(`
+  ${extractFunction("accountDataOwner")}
+  ${extractFunction("setAccountDataOwner")}
+  ${extractFunction("accountSnapshotStorageKey")}
+  ${extractFunction("readBrowserSnapshot")}
+  ${extractFunction("saveBrowserSnapshot")}
+  ${extractFunction("guestBrowserSnapshot")}
+  ${extractFunction("accountBrowserSnapshot")}
+  ${extractFunction("saveSnapshotForOwner")}
+  ${extractFunction("blankLocalSnapshot")}
+  ${extractFunction("pendingAccountSwitch")}
+  ${extractFunction("localSnapshotForAuthenticatedUser")}
+  globalThis.snapshotForUser = localSnapshotForAuthenticatedUser;
+`, context);
+
+storage.set("lw_account_data_owner", "account-a");
+storage.set("lw_pending_account_switch", "true");
+storage.set("lw_account_snapshot:account-b", JSON.stringify(snapshot("account-b")));
+
+const switchedToB = context.snapshotForUser("account-b");
+assert.deepEqual([...switchedToB.bookmarks], ["account-b:1"]);
+assert.deepEqual(
+  JSON.parse(storage.get("lw_account_snapshot:account-a")).bookmarks,
+  ["account-a:1"],
+  "The outgoing account must be cached before another account is opened",
+);
+
+const newAccountDuringSwitch = context.snapshotForUser("account-c");
+assert.deepEqual([...newAccountDuringSwitch.bookmarks], []);
+assert.deepEqual({ ...newAccountDuringSwitch.notes }, {});
+assert.deepEqual({ ...newAccountDuringSwitch.highlights }, {});
+assert.deepEqual([...newAccountDuringSwitch.history], []);
+assert.equal(
+  newAccountDuringSwitch.settings.versionsUpdatedAt,
+  "",
+  "Device version timestamps must not override a new account during a switch",
+);
+
+liveSnapshot = snapshot("guest");
+storage.set("lw_account_data_owner", "guest");
+storage.delete("lw_pending_account_switch");
+const firstSignIn = context.snapshotForUser("first-account");
+assert.deepEqual([...firstSignIn.bookmarks], ["guest:1"], "First sign-in should retain intentional guest data");
+assert.deepEqual(JSON.parse(storage.get("lw_guest_snapshot")).bookmarks, ["guest:1"]);
+
+storage.set("lw_pending_account_switch", "true");
+const newAccountAfterSwitch = context.snapshotForUser("new-account");
+assert.deepEqual([...newAccountAfterSwitch.bookmarks], [], "Guest data must not leak into a newly switched account");
+
+const signOutSource = extractFunction("signOutAccount");
+assert.match(signOutSource, /upsertCloudSnapshot\(snapshot/);
+assert.match(signOutSource, /auth\.signOut\(\{ scope: "local" \}\)/);
+assert.ok(
+  signOutSource.indexOf("upsertCloudSnapshot(snapshot") < signOutSource.indexOf('auth.signOut({ scope: "local" })'),
+  "The active account should sync before its local session is closed",
+);
+
+const loadCloudSyncSource = extractFunction("loadCloudSync");
+assert.match(loadCloudSyncSource, /localSnapshotForAuthenticatedUser\(userId\)/);
+assert.match(loadCloudSyncSource, /setAccountDataOwner\(userId\)/);
+assert.doesNotMatch(loadCloudSyncSource, /const localSnapshot = captureCloudSnapshot\(\)/);
+
+const rememberAccountSource = extractFunction("rememberAuthenticatedAccount");
+assert.doesNotMatch(rememberAccountSource, /password/i, "Remembered account metadata must never include a password");
+assert.match(source, /id="\$\{suffix\}switchAccountButton"/);
+assert.match(source, /rememberedAccountsCard\(prefix\)/);
+assert.match(source, /queryParams: \{ prompt: "select_account" \}/);
+assert.match(styles, /\.remembered-account-use/);
+assert.match(styles, /min-height: 44px/);
+
+console.log("Account switching tests passed");
