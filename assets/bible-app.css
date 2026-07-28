@@ -1675,12 +1675,18 @@ button {
   right: 0;
   z-index: 42;
   display: none;
-  width: min(318px, calc(100vw - 24px));
+  width: min(372px, calc(100vw - 24px));
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
   padding: 14px;
+  max-height: calc(100dvh - var(--topbar-height) - env(safe-area-inset-bottom, 0px) - 22px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 .account-popover.open {
@@ -1854,7 +1860,7 @@ button {
   gap: 7px;
 }
 
-.account-form input {
+.account-form input:not([type="checkbox"]) {
   width: 100%;
   min-height: 34px;
   border: 1px solid var(--line);
@@ -1865,6 +1871,231 @@ button {
   font-size: 13px;
   font-weight: 700;
   padding: 7px 9px;
+}
+
+.social-profile-card {
+  gap: 10px;
+}
+
+.social-profile-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.social-profile-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 1px solid color-mix(in srgb, var(--teal) 24%, var(--line));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--teal) 11%, var(--panel));
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.social-profile-avatar svg {
+  width: 19px;
+  height: 19px;
+}
+
+.social-profile-avatar.avatar-sun {
+  background: color-mix(in srgb, var(--gold) 18%, var(--panel));
+  color: color-mix(in srgb, var(--gold) 82%, var(--ink));
+}
+
+.social-profile-avatar.avatar-flame {
+  background: color-mix(in srgb, var(--red-letter) 12%, var(--panel));
+  color: var(--red-letter);
+}
+
+.social-profile-avatar.avatar-bookmark {
+  background: color-mix(in srgb, var(--gold) 14%, var(--panel));
+  color: color-mix(in srgb, var(--gold) 74%, var(--ink));
+}
+
+.social-profile-avatar.avatar-quote {
+  background: color-mix(in srgb, var(--soft) 72%, var(--panel));
+  color: var(--ink);
+}
+
+.social-profile-avatar-preview {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+  font-size: 14px;
+}
+
+.social-profile-avatar-preview svg {
+  width: 22px;
+  height: 22px;
+}
+
+.social-profile-avatar-button {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+  border: 0;
+  font-size: 9px;
+}
+
+.social-profile-avatar-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.social-profile-field {
+  display: grid;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.social-profile-field > span:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.social-profile-field > span:first-child small,
+.social-profile-field > small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.social-username-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--muted);
+  padding-left: 9px;
+}
+
+.account-form .social-username-input input {
+  min-width: 0;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  padding-left: 3px;
+  outline: none;
+}
+
+.social-username-input:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 20%, transparent);
+}
+
+.social-avatar-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.social-avatar-field legend {
+  margin-bottom: 6px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.social-avatar-options {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.social-avatar-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 42px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.social-avatar-choice .social-profile-avatar {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  border: 0;
+}
+
+.social-avatar-choice .social-profile-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.social-avatar-choice:hover,
+.social-avatar-choice:focus-visible,
+.social-avatar-choice.active {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 8%, var(--panel));
+}
+
+.social-avatar-choice.active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+
+.social-profile-privacy {
+  display: grid;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.social-profile-privacy label {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.social-profile-privacy input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--teal);
+}
+
+.social-profile-privacy span {
+  display: grid;
+  gap: 2px;
+}
+
+.social-profile-privacy strong {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.social-profile-privacy small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.social-profile-save {
+  width: 100%;
+  margin-top: 1px;
 }
 
 .account-actions {

@@ -43,6 +43,7 @@ create policy "Users can delete own sync data"
 create or replace function public.set_bsb_user_sync_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
@@ -50,11 +51,95 @@ begin
 end;
 $$;
 
+revoke execute on function public.set_bsb_user_sync_updated_at() from public, anon, authenticated;
+
 drop trigger if exists bsb_user_sync_set_updated_at on public.bsb_user_sync;
 create trigger bsb_user_sync_set_updated_at
   before update on public.bsb_user_sync
   for each row
   execute function public.set_bsb_user_sync_updated_at();
+
+create table if not exists public.bsb_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  username text not null unique
+    check (username ~ '^[a-z][a-z0-9_]{2,19}$')
+    check (username not in (
+      'admin',
+      'administrator',
+      'bigscreenbible',
+      'big_screen_bible',
+      'moderator',
+      'staff',
+      'support',
+      'system'
+    )),
+  display_name text
+    check (
+      display_name is null
+      or (
+        display_name = btrim(display_name)
+        and char_length(display_name) between 1 and 40
+      )
+    ),
+  avatar_key text not null default 'initials'
+    check (avatar_key in ('initials', 'book', 'sun', 'flame', 'bookmark', 'quote')),
+  is_discoverable boolean not null default true,
+  allow_friend_requests boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.bsb_profiles is
+  'Signed-in social identities. Email addresses and private study data are intentionally excluded.';
+
+alter table public.bsb_profiles enable row level security;
+
+revoke all on table public.bsb_profiles from anon, authenticated;
+grant select, insert, update on table public.bsb_profiles to authenticated;
+grant select, insert, update, delete on table public.bsb_profiles to service_role;
+
+drop policy if exists "Users can read own profile" on public.bsb_profiles;
+drop policy if exists "Signed-in users can read discoverable profiles" on public.bsb_profiles;
+drop policy if exists "Users can read permitted profiles" on public.bsb_profiles;
+create policy "Users can read permitted profiles"
+  on public.bsb_profiles
+  for select
+  to authenticated
+  using (((select auth.uid()) = user_id) or is_discoverable);
+
+drop policy if exists "Users can create own profile" on public.bsb_profiles;
+create policy "Users can create own profile"
+  on public.bsb_profiles
+  for insert
+  to authenticated
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update own profile" on public.bsb_profiles;
+create policy "Users can update own profile"
+  on public.bsb_profiles
+  for update
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+create or replace function public.set_bsb_profile_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+revoke execute on function public.set_bsb_profile_updated_at() from public, anon, authenticated;
+
+drop trigger if exists bsb_profile_set_updated_at on public.bsb_profiles;
+create trigger bsb_profile_set_updated_at
+  before update on public.bsb_profiles
+  for each row
+  execute function public.set_bsb_profile_updated_at();
 
 create table if not exists public.bsb_verse_of_day_cache (
   cache_date date primary key,

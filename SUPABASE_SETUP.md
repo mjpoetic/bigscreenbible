@@ -1,16 +1,23 @@
 # Supabase setup for Big Screen Bible
 
-Use this when you are ready to turn on account sync for settings, bookmarks, notes, highlights, history, and reading streaks.
+Use this when you are ready to turn on account sync and signed-in social profiles.
 
 ## 1. Create or open your Supabase project
 
 In Supabase, create a project for Big Screen Bible or open the one you already made.
 
-## 2. Add the sync table
+## 2. Add the account tables
 
 Open the Supabase SQL Editor, paste the contents of `supabase/schema.sql`, and run it.
 
-This creates one private sync row per signed-in user. Row Level Security is enabled so a user can only read or update their own saved data.
+This creates:
+
+- One private sync row per signed-in user for settings and study data.
+- One optional social-profile row per signed-in user with a unique username, optional display name, selected avatar, and privacy preferences.
+
+Row Level Security keeps sync rows private. A social profile is always readable by its owner; other signed-in users can read it only when the owner enables discovery. Anonymous visitors cannot read profile rows, and email addresses are never stored in the profile table.
+
+The schema includes explicit Data API grants for `bsb_profiles`. This is required by Supabase's 2026 secure-by-default table-exposure model and is separate from the row-level policies.
 
 ## 3. Configure authentication URLs
 
@@ -50,7 +57,7 @@ Do not put the service role key in the website. The publishable or anon key is i
 
 ## 5. Test sign in
 
-Open the site, go to Settings, and use Account sync.
+Open the site, open Account, and sign in.
 
 When signed in, the app syncs:
 
@@ -60,6 +67,15 @@ When signed in, the app syncs:
 - Highlights
 - Reading history
 - Reading streak
+
+The same Account panel lets a signed-in user create a social profile. Usernames:
+
+- Are 3–20 characters.
+- Begin with a letter.
+- Use lowercase letters, numbers, and underscores.
+- Are unique across all accounts, including profiles that have disabled discovery.
+
+The user can separately decide whether the profile appears in signed-in people searches and whether it will accept friend requests when the Friends phase is enabled.
 
 If you see a Row Level Security insert error, confirm that the app is signed in with an active Supabase session. The sync code writes `user_id` from `session.user.id`; it never uses the email address as the user id.
 

@@ -251,6 +251,16 @@ const readerTwoFingerTapMaxMs = 360;
 const readerDoubleTapMaxMs = 380;
 const readerDoubleTapDistancePx = 44;
 const cloudSyncTable = "bsb_user_sync";
+const socialProfileTable = "bsb_profiles";
+const socialAvatarOptions = [
+  { key: "initials", label: "Initials", icon: "user" },
+  { key: "book", label: "Open Bible", icon: "book" },
+  { key: "sun", label: "Sunrise", icon: "sun" },
+  { key: "flame", label: "Flame", icon: "flame" },
+  { key: "bookmark", label: "Bookmark", icon: "bookmark" },
+  { key: "quote", label: "Quotation", icon: "quote" },
+];
+const socialAvatarKeys = socialAvatarOptions.map((option) => option.key);
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
 let lastAppUpdateCheckAt = 0;
@@ -445,6 +455,11 @@ const state = {
   authMessage: "",
   authBusy: false,
   accountOpen: false,
+  socialProfile: null,
+  socialProfileDraft: null,
+  socialProfileStatus: "idle",
+  socialProfileMessage: "",
+  socialProfileBusy: false,
   passwordChangeOpen: false,
   passwordRecoveryMode: false,
   syncStatus: "local",
@@ -2365,7 +2380,12 @@ function topbar(settingsPanelRerender = false) {
         </div>
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
-  const accountLabel = state.authUser ? "Account" : "Sign in";
+  const accountLabel = state.socialProfile?.username
+    ? `Account for @${state.socialProfile.username}`
+    : state.authUser ? "Account" : "Sign in";
+  const accountIcon = state.socialProfile?.username
+    ? socialProfileAvatarMarkup(state.socialProfile, "social-profile-avatar-button")
+    : icons.user;
   const modeOptions = [
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
@@ -2404,7 +2424,7 @@ function topbar(settingsPanelRerender = false) {
       <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${state.accountOpen ? "open" : ""}">
-        <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${accountLabel}" data-tooltip="${accountLabel}">${icons.user}</button>
+        <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountLabel)}" data-tooltip="${escapeHtml(accountLabel)}">${accountIcon}</button>
         <div class="account-popover ${state.accountOpen ? "open" : ""}" aria-hidden="${state.accountOpen ? "false" : "true"}">
           <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
           ${accountPanel("quick")}
@@ -2581,6 +2601,187 @@ function streakCard() {
   `;
 }
 
+function normalizeProfileUsername(value = "") {
+  return String(value).trim().replace(/^@+/, "").toLowerCase();
+}
+
+function socialProfileValidationMessage(username, displayName = "") {
+  if (!username) return "Choose a username.";
+  if (!/^[a-z][a-z0-9_]{2,19}$/.test(username)) {
+    return "Use 3–20 characters, beginning with a letter. Lowercase letters, numbers, and underscores are allowed.";
+  }
+  if (["admin", "administrator", "bigscreenbible", "big_screen_bible", "moderator", "staff", "support", "system"].includes(username)) {
+    return "That username is reserved. Choose another.";
+  }
+  if (String(displayName).trim().length > 40) return "Keep the display name to 40 characters or fewer.";
+  return "";
+}
+
+function defaultSocialProfileDraft(user = state.authUser) {
+  const metadataName = String(user?.user_metadata?.full_name || user?.user_metadata?.name || "").trim().slice(0, 40);
+  return {
+    username: "",
+    displayName: metadataName,
+    avatarKey: "initials",
+    isDiscoverable: true,
+    allowFriendRequests: true,
+  };
+}
+
+function normalizedSocialProfile(row = {}) {
+  const username = normalizeProfileUsername(row.username);
+  const displayName = row.display_name ?? row.displayName;
+  const avatarKey = row.avatar_key ?? row.avatarKey;
+  const isDiscoverable = row.is_discoverable ?? row.isDiscoverable;
+  const allowFriendRequests = row.allow_friend_requests ?? row.allowFriendRequests;
+  return {
+    userId: row.user_id || row.userId || state.authUser?.id || "",
+    username,
+    displayName: String(displayName || "").trim().slice(0, 40),
+    avatarKey: socialAvatarKeys.includes(avatarKey) ? avatarKey : "initials",
+    isDiscoverable: isDiscoverable !== false,
+    allowFriendRequests: allowFriendRequests !== false,
+    createdAt: row.created_at || row.createdAt || "",
+    updatedAt: row.updated_at || row.updatedAt || "",
+  };
+}
+
+function socialProfileDraft(profile = state.socialProfile) {
+  if (!profile) return defaultSocialProfileDraft();
+  const normalized = normalizedSocialProfile(profile);
+  return {
+    username: normalized.username,
+    displayName: normalized.displayName,
+    avatarKey: normalized.avatarKey,
+    isDiscoverable: normalized.isDiscoverable,
+    allowFriendRequests: normalized.allowFriendRequests,
+  };
+}
+
+function socialProfileInitials(profile = state.socialProfile) {
+  const source = String(profile?.displayName || profile?.username || state.authUser?.email?.split("@")[0] || "BS").trim();
+  const words = source.split(/[\s_-]+/).filter(Boolean);
+  const initials = words.length > 1
+    ? `${words[0][0] || ""}${words[words.length - 1]?.[0] || ""}`
+    : String(words[0] || "BS").slice(0, 2);
+  return initials.toUpperCase();
+}
+
+function socialProfileAvatarMarkup(profile = state.socialProfile, className = "") {
+  const avatarKey = socialAvatarKeys.includes(profile?.avatarKey) ? profile.avatarKey : "initials";
+  const option = socialAvatarOptions.find((item) => item.key === avatarKey) || socialAvatarOptions[0];
+  const content = avatarKey === "initials"
+    ? `<span>${escapeHtml(socialProfileInitials(profile))}</span>`
+    : icons[option.icon];
+  return `<span class="social-profile-avatar avatar-${avatarKey} ${className}" aria-hidden="true">${content}</span>`;
+}
+
+function socialProfileCard(prefix = "") {
+  if (!state.authUser) return "";
+  const suffix = prefix ? `${prefix}-` : "";
+  if (state.socialProfileStatus === "loading") {
+    return `
+      <section class="account-card social-profile-card" aria-busy="true">
+        <div class="account-card-head">
+          <span class="setting-label">Social profile</span>
+          <strong>Loading your profile…</strong>
+        </div>
+        <p>Your private study data remains separate from your social identity.</p>
+      </section>
+    `;
+  }
+  const draft = state.socialProfileDraft || socialProfileDraft();
+  const hasProfile = Boolean(state.socialProfile?.username);
+  const profileForAvatar = {
+    username: draft.username,
+    displayName: draft.displayName,
+    avatarKey: draft.avatarKey,
+  };
+  const avatarChoices = socialAvatarOptions.map((option) => `
+    <button
+      class="social-avatar-choice ${draft.avatarKey === option.key ? "active" : ""}"
+      type="button"
+      role="radio"
+      aria-checked="${draft.avatarKey === option.key}"
+      aria-label="${escapeHtml(option.label)} avatar"
+      data-profile-avatar="${option.key}"
+      ${state.socialProfileBusy ? "disabled" : ""}
+    >
+      ${socialProfileAvatarMarkup({ ...profileForAvatar, avatarKey: option.key })}
+    </button>
+  `).join("");
+  const profileStatus = state.socialProfileMessage || (hasProfile
+    ? `Your profile is saved as @${state.socialProfile.username}.`
+    : "Create the identity friends will see. Your email is never shown.");
+  return `
+    <section class="account-card social-profile-card">
+      <div class="social-profile-heading">
+        ${socialProfileAvatarMarkup(profileForAvatar, "social-profile-avatar-preview")}
+        <div class="account-card-head">
+          <span class="setting-label">Social profile</span>
+          <strong>${hasProfile ? `@${escapeHtml(state.socialProfile.username)}` : "Choose your identity"}</strong>
+        </div>
+      </div>
+      <p id="${suffix}socialProfileStatus" role="status" aria-live="polite">${escapeHtml(profileStatus)}</p>
+      <form class="account-form social-profile-form" id="${suffix}socialProfileForm">
+        <label class="social-profile-field" for="${suffix}profileUsername">
+          <span>Username</span>
+          <span class="social-username-input">
+            <span aria-hidden="true">@</span>
+            <input
+              id="${suffix}profileUsername"
+              name="username"
+              value="${escapeHtml(draft.username)}"
+              inputmode="text"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              minlength="3"
+              maxlength="20"
+              pattern="[a-z][a-z0-9_]{2,19}"
+              aria-describedby="${suffix}profileUsernameHelp"
+              ${state.socialProfileBusy ? "disabled" : ""}
+              required
+            />
+          </span>
+          <small id="${suffix}profileUsernameHelp">3–20 characters. Start with a letter; use lowercase letters, numbers, or underscores.</small>
+        </label>
+        <label class="social-profile-field" for="${suffix}profileDisplayName">
+          <span>Display name <small>optional</small></span>
+          <input
+            id="${suffix}profileDisplayName"
+            name="displayName"
+            value="${escapeHtml(draft.displayName)}"
+            autocomplete="name"
+            maxlength="40"
+            placeholder="Name shown to friends"
+            ${state.socialProfileBusy ? "disabled" : ""}
+          />
+        </label>
+        <fieldset class="social-avatar-field">
+          <legend>Avatar</legend>
+          <div class="social-avatar-options" role="radiogroup" aria-label="Choose profile avatar">
+            ${avatarChoices}
+          </div>
+        </fieldset>
+        <div class="social-profile-privacy">
+          <label>
+            <input id="${suffix}profileDiscoverable" type="checkbox" ${draft.isDiscoverable ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
+            <span><strong>Appear in people search</strong><small>Only signed-in people will be able to find this profile.</small></span>
+          </label>
+          <label>
+            <input id="${suffix}profileFriendRequests" type="checkbox" ${draft.allowFriendRequests ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} />
+            <span><strong>Allow friend requests</strong><small>This preference is ready for the Friends phase.</small></span>
+          </label>
+        </div>
+        <button class="primary-btn compact-account-btn social-profile-save" type="submit" ${state.socialProfileBusy ? "disabled" : ""}>
+          ${state.socialProfileBusy ? "Saving…" : hasProfile ? "Save profile" : "Create profile"}
+        </button>
+      </form>
+    </section>
+  `;
+}
+
 function accountPanel(prefix = "") {
   const suffix = prefix ? `${prefix}-` : "";
   const email = state.authUser?.email || "";
@@ -2617,6 +2818,7 @@ function accountPanel(prefix = "") {
       : `<button class="account-secondary-action" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change Password</button>`;
     return `
       ${streakCard()}
+      ${socialProfileCard(prefix)}
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -4026,7 +4228,7 @@ async function initializeSupabaseAuth() {
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
     if (session?.user) {
-      await loadCloudSync();
+      await Promise.all([loadCloudSync(), loadSocialProfile()]);
       maybeOfferPushNotifications();
     }
     client.auth.onAuthStateChange((event, session) => {
@@ -4042,16 +4244,17 @@ async function initializeSupabaseAuth() {
       if (state.authUser) {
         state.syncStatus = "loading";
         state.syncMessage = "Loading your saved settings...";
-        loadCloudSync()
+        Promise.all([loadCloudSync(), loadSocialProfile()])
           .then(() => maybeOfferPushNotifications())
           .catch((error) => {
-            console.warn("Cloud sync load failed", error);
+            console.warn("Signed-in account data load failed", error);
             state.syncStatus = "error";
-            state.syncMessage = "Signed in, but sync could not load yet.";
+            state.syncMessage = "Signed in, but some account data could not load yet.";
             renderPreservingReaderScroll();
           });
       } else {
         state.pushPromptVisible = false;
+        resetSocialProfileState();
         state.syncStatus = "local";
         state.syncMessage = "Signed out. Changes are saved on this device.";
         renderPreservingReaderScroll();
@@ -4072,6 +4275,128 @@ function authRedirectUrl() {
     return `${location.origin}${location.pathname}`;
   }
   return "https://bigscreenbible.com/";
+}
+
+function resetSocialProfileState() {
+  state.socialProfile = null;
+  state.socialProfileDraft = null;
+  state.socialProfileStatus = "idle";
+  state.socialProfileMessage = "";
+  state.socialProfileBusy = false;
+}
+
+function captureSocialProfileDraft(prefix = "") {
+  const suffix = prefix ? `${prefix}-` : "";
+  const usernameInput = document.getElementById(`${suffix}profileUsername`);
+  const displayNameInput = document.getElementById(`${suffix}profileDisplayName`);
+  const discoverableInput = document.getElementById(`${suffix}profileDiscoverable`);
+  const friendRequestsInput = document.getElementById(`${suffix}profileFriendRequests`);
+  const current = state.socialProfileDraft || socialProfileDraft();
+  const next = {
+    username: usernameInput ? normalizeProfileUsername(usernameInput.value) : current.username,
+    displayName: displayNameInput ? displayNameInput.value.trim().slice(0, 40) : current.displayName,
+    avatarKey: socialAvatarKeys.includes(current.avatarKey) ? current.avatarKey : "initials",
+    isDiscoverable: discoverableInput ? discoverableInput.checked : current.isDiscoverable,
+    allowFriendRequests: friendRequestsInput ? friendRequestsInput.checked : current.allowFriendRequests,
+  };
+  state.socialProfileDraft = next;
+  return next;
+}
+
+function socialProfileErrorMessage(error) {
+  if (error?.code === "23505") return "That username is already taken. Choose another.";
+  if (error?.code === "23514") return "One of the profile choices is not valid. Review the form and try again.";
+  if (error?.code === "42501") return "Your profile could not be saved because account access is not ready yet.";
+  return error?.message || "Your social profile could not be saved. Please try again.";
+}
+
+async function loadSocialProfile() {
+  const client = createSupabaseClient();
+  if (!client) return;
+  const session = await authenticatedSupabaseSession(client);
+  const userId = session?.user?.id;
+  if (!userId) {
+    resetSocialProfileState();
+    return;
+  }
+  state.socialProfileStatus = "loading";
+  state.socialProfileMessage = "";
+  renderPreservingReaderScroll();
+  try {
+    const { data, error } = await client
+      .from(socialProfileTable)
+      .select("user_id, username, display_name, avatar_key, is_discoverable, allow_friend_requests, created_at, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    state.socialProfile = data ? normalizedSocialProfile(data) : null;
+    state.socialProfileDraft = socialProfileDraft(state.socialProfile);
+    state.socialProfileStatus = "ready";
+    state.socialProfileMessage = data ? "" : "Choose a unique username to create your social profile.";
+  } catch (error) {
+    console.warn("Social profile load failed", error);
+    state.socialProfileStatus = "error";
+    state.socialProfileMessage = socialProfileErrorMessage(error);
+  } finally {
+    renderPreservingReaderScroll();
+  }
+}
+
+async function saveSocialProfile(event, prefix = "") {
+  event.preventDefault();
+  if (!state.authUser) return showToast("Sign in before creating a profile");
+  const draft = captureSocialProfileDraft(prefix);
+  const validationMessage = socialProfileValidationMessage(draft.username, draft.displayName);
+  if (validationMessage) {
+    state.socialProfileMessage = validationMessage;
+    renderPreservingReaderScroll();
+    return showToast("Review your profile");
+  }
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.socialProfileBusy = true;
+  state.socialProfileMessage = state.socialProfile ? "Saving your profile…" : "Creating your profile…";
+  renderPreservingReaderScroll();
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Sign in again before saving your profile.");
+    const payload = {
+      user_id: userId,
+      username: draft.username,
+      display_name: draft.displayName || null,
+      avatar_key: draft.avatarKey,
+      is_discoverable: draft.isDiscoverable,
+      allow_friend_requests: draft.allowFriendRequests,
+    };
+    const { data, error } = await client
+      .from(socialProfileTable)
+      .upsert(payload, { onConflict: "user_id" })
+      .select("user_id, username, display_name, avatar_key, is_discoverable, allow_friend_requests, created_at, updated_at")
+      .single();
+    if (error) throw error;
+    state.socialProfile = normalizedSocialProfile(data);
+    state.socialProfileDraft = socialProfileDraft(state.socialProfile);
+    state.socialProfileStatus = "ready";
+    state.socialProfileMessage = `Profile saved as @${state.socialProfile.username}.`;
+    showToast("Social profile saved");
+  } catch (error) {
+    console.warn("Social profile save failed", error);
+    state.socialProfileStatus = "error";
+    state.socialProfileMessage = socialProfileErrorMessage(error);
+    showToast("Profile not saved");
+  } finally {
+    state.socialProfileBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+function selectSocialProfileAvatar(avatarKey, prefix = "") {
+  if (!socialAvatarKeys.includes(avatarKey) || state.socialProfileBusy) return;
+  const draft = captureSocialProfileDraft(prefix);
+  state.socialProfileDraft = { ...draft, avatarKey };
+  state.socialProfileMessage = "Avatar selected. Save your profile to keep this change.";
+  renderPreservingReaderScroll();
 }
 
 function toggleAccountMenu(forceOpen = null) {
@@ -4418,7 +4743,7 @@ async function handleAccountSubmit(event, prefix = "") {
       ? "Account created. Check your email if Supabase asks you to confirm it."
       : "Signed in.";
     if (session?.user) {
-      await loadCloudSync();
+      await Promise.all([loadCloudSync(), loadSocialProfile()]);
       maybeOfferPushNotifications();
     }
     else renderPreservingReaderScroll();
@@ -4539,6 +4864,7 @@ async function signOutAccount() {
   try {
     await client.auth.signOut();
     state.authUser = null;
+    resetSocialProfileState();
     state.pushPromptVisible = false;
     state.accountOpen = false;
     state.passwordChangeOpen = false;
@@ -7481,6 +7807,13 @@ function bindEvents() {
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
   document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
+  document.getElementById("quick-socialProfileForm")?.addEventListener("submit", (event) => saveSocialProfile(event, "quick"));
+  document.getElementById("quick-profileUsername")?.addEventListener("blur", (event) => {
+    event.currentTarget.value = normalizeProfileUsername(event.currentTarget.value);
+  });
+  document.querySelectorAll("[data-profile-avatar]").forEach((button) => {
+    button.addEventListener("click", () => selectSocialProfileAvatar(button.dataset.profileAvatar, "quick"));
+  });
   document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
   document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
   document.getElementById("quick-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("quick"));
