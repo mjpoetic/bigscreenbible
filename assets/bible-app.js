@@ -174,8 +174,8 @@ const interfaceTextSizeCodes = interfaceTextSizes.map((size) => size.code);
 const defaultAutoScrollSpeed = "normal";
 const autoScrollSpeeds = [
   { code: "slow", name: "Slow", pixelsPerSecond: 10 },
-  { code: "normal", name: "Normal", pixelsPerSecond: 16 },
-  { code: "fast", name: "Fast", pixelsPerSecond: 24 },
+  { code: "normal", name: "Normal", pixelsPerSecond: 24 },
+  { code: "fast", name: "Fast", pixelsPerSecond: 48 },
 ];
 const autoScrollSpeedCodes = autoScrollSpeeds.map((speed) => speed.code);
 

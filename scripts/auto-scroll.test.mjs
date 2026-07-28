@@ -52,7 +52,7 @@ vm.runInContext(`
   let paused = 0;
   let toast = "";
   const readerAutoScrollSurface = () => surface;
-  const activeAutoScrollSpeed = () => ({ pixelsPerSecond: 16 });
+  const activeAutoScrollSpeed = () => ({ pixelsPerSecond: 24 });
   const pauseReaderAutoScroll = () => {
     state.autoScrollActive = false;
     paused += 1;
@@ -76,8 +76,8 @@ vm.runInContext(`
   globalThis.end = { paused, toast, active: state.autoScrollActive };
 `, stepContext);
 
-assert.equal(stepContext.first.top, 102);
-assert.ok(Math.abs(stepContext.first.position - 102.56) < 0.0001);
+assert.equal(stepContext.first.top, 103);
+assert.ok(Math.abs(stepContext.first.position - 103.84) < 0.0001);
 assert.equal(stepContext.first.frame, 17);
 assert.equal(stepContext.first.active, true);
 assert.equal(stepContext.end.paused, 1);
@@ -85,6 +85,9 @@ assert.equal(stepContext.end.toast, "End of chapter");
 assert.equal(stepContext.end.active, false);
 
 assert.match(source, /id="readerAutoScrollButton"/);
+assert.match(source, /\{ code: "slow", name: "Slow", pixelsPerSecond: 10 \}/);
+assert.match(source, /\{ code: "normal", name: "Normal", pixelsPerSecond: 24 \}/);
+assert.match(source, /\{ code: "fast", name: "Fast", pixelsPerSecond: 48 \}/);
 assert.match(extractFunction("readerAutoScrollButton"), /if \(!state\.autoScrollEnabled\) return ""/);
 assert.match(source, /aria-pressed="\$\{active \? "true" : "false"\}"/);
 assert.match(source, /\["A", "Start or pause Reader \/ Parallel auto-scroll"\]/);
