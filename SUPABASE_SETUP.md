@@ -43,6 +43,16 @@ The schema also adds both room tables to the `supabase_realtime` publication. Th
 
 Pushing the website does not update an existing Supabase database. Before using multiplayer rooms, rerun the current `supabase/schema.sql` in the Supabase SQL Editor. It upgrades existing 1v1 challenges into two-seat rooms, preserves their participant state, installs the 2–10 player RPCs and Row Level Security policies, and authorizes private lobby Presence channels.
 
+If selecting friends and pressing **Create room** leaves the setup card in place, check the browser console or Network response. Error `PGRST202` mentioning `create_bsb_game_room` means the website is current but this database upgrade has not been run. After running `supabase/schema.sql`, verify the RPC was installed with:
+
+```sql
+select to_regprocedure(
+  'public.create_bsb_game_room(uuid[],text,text,text,smallint,text,boolean)'
+);
+```
+
+The query should return the full function signature rather than `null`. If it does but the browser still reports `PGRST202`, run `notify pgrst, 'reload schema';` once to refresh the Data API schema cache. Refresh Big Screen Bible before trying the room again.
+
 ### Existing projects: enable every avatar choice
 
 Pushing the website does not update an existing Supabase database. If `bsb_profiles` was created before the expanded avatar picker was added, the original check constraint accepts only the six quick choices and rejects the additional choices with Postgres error `23514`.

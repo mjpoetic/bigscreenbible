@@ -5899,6 +5899,12 @@ function resetGameChallengeState() {
 }
 
 function gameChallengeErrorMessage(error) {
+  if (
+    error?.code === "PGRST202"
+    && String(error?.message || "").includes("create_bsb_game_room")
+  ) {
+    return "Game rooms need the latest server update. Please try again after it is deployed.";
+  }
   if (error?.code === "23505") return "You already have a pending or active challenge with that friend.";
   if (error?.code === "23514") return "That challenge setup is not valid.";
   if (error?.code === "42501") return "Only accepted friends can create or update this challenge.";
@@ -8478,7 +8484,7 @@ function gameChallengeSetupCard() {
   const selectedCount = state.challengeOpponentIds.length;
   const busy = Boolean(state.gameChallengeActionBusyId);
   return `
-    <section class="challenge-setup-card">
+    <section class="challenge-setup-card" aria-busy="${busy}">
       <div>
         <span>Play with friends</span>
         <strong>Invite up to 9 friends to a live room</strong>
@@ -8507,6 +8513,11 @@ function gameChallengeSetupCard() {
           ${state.gameChallengeActionBusyId === "room:create" ? "Creating…" : "Create room"}
         </button>
       </div>
+      ${state.gameChallengeMessage ? `
+        <p class="challenge-setup-status" role="status" aria-live="polite">
+          ${escapeHtml(state.gameChallengeMessage)}
+        </p>
+      ` : ""}
     </section>
   `;
 }

@@ -749,6 +749,7 @@ revoke all on function private.bsb_users_share_game_room(uuid) from public, anon
 grant execute on function private.bsb_users_share_game_room(uuid) to authenticated;
 
 drop policy if exists "Participants can read game challenges" on public.bsb_game_challenges;
+drop policy if exists "Room members can read game challenges" on public.bsb_game_challenges;
 create policy "Room members can read game challenges"
   on public.bsb_game_challenges
   for select
@@ -756,6 +757,7 @@ create policy "Room members can read game challenges"
   using ((select private.bsb_user_is_game_room_member(id)));
 
 drop policy if exists "Participants can answer or cancel game challenges" on public.bsb_game_challenges;
+drop policy if exists "Hosts can cancel game rooms" on public.bsb_game_challenges;
 create policy "Hosts can cancel game rooms"
   on public.bsb_game_challenges
   for update
@@ -772,6 +774,7 @@ create policy "Hosts can cancel game rooms"
   );
 
 drop policy if exists "Participants can read challenge players" on public.bsb_game_challenge_players;
+drop policy if exists "Room members can read challenge players" on public.bsb_game_challenge_players;
 create policy "Room members can read challenge players"
   on public.bsb_game_challenge_players
   for select
@@ -799,6 +802,7 @@ create policy "Hosts can invite room players"
   );
 
 drop policy if exists "Players can update own live challenge state" on public.bsb_game_challenge_players;
+drop policy if exists "Players can update own room state" on public.bsb_game_challenge_players;
 create policy "Players can update own room state"
   on public.bsb_game_challenge_players
   for update

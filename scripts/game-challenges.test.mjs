@@ -85,6 +85,7 @@ vm.runInContext(`
   ${extractFunction("gameChallengePlayer")}
   ${extractFunction("gameChallengeIsExpired")}
   ${extractFunction("gameChallengeCollections")}
+  ${extractFunction("gameChallengeErrorMessage")}
   ${extractFunction("gameChallengePopupCandidates")}
   ${extractFunction("gameChallengePopupShouldInterrupt")}
   ${extractFunction("seededTriviaRandom")}
@@ -97,6 +98,7 @@ vm.runInContext(`
   globalThis.otherUserId = gameChallengeOtherUserId;
   globalThis.player = gameChallengePlayer;
   globalThis.collections = gameChallengeCollections;
+  globalThis.errorMessage = gameChallengeErrorMessage;
   globalThis.popupCandidates = gameChallengePopupCandidates;
   globalThis.popupShouldInterrupt = gameChallengePopupShouldInterrupt;
   globalThis.seededRandom = seededTriviaRandom;
@@ -139,6 +141,14 @@ assert.equal(pureContext.collections().outgoing[0].id, "outgoing");
 assert.equal(pureContext.collections().live[0].id, "live");
 assert.equal(pureContext.collections().completed[0].id, "complete");
 assert.equal(pureContext.player("live").score, 3);
+assert.equal(
+  pureContext.errorMessage({
+    code: "PGRST202",
+    message: "Could not find the function public.create_bsb_game_room in the schema cache",
+  }),
+  "Game rooms need the latest server update. Please try again after it is deployed.",
+  "A missing multiplayer RPC must produce an actionable in-screen message",
+);
 assert.deepEqual(
   Array.from(pureContext.popupCandidates(
     [],
@@ -290,6 +300,8 @@ assert.match(source, /lw_challenge_quiet_mode/);
 assert.match(source, /challengeQuietMode: state\.challengeQuietMode/);
 assert.match(source, /state\.challengeQuietMode = typeof settings\.challengeQuietMode/);
 assert.match(source, /function gameChallengeSetupCard\(/);
+assert.match(extractFunction("gameChallengeSetupCard"), /class="challenge-setup-status"/);
+assert.match(extractFunction("gameChallengeSetupCard"), /role="status" aria-live="polite"/);
 assert.doesNotMatch(
   extractFunction("gameChallengeSetupCard"),
   /Invitations? expire/,
@@ -313,6 +325,7 @@ assert.match(styles, /\.game-challenges-card/);
 assert.match(styles, /\.game-challenge-popup-overlay/);
 assert.match(styles, /\.game-challenge-popup-actions/);
 assert.match(styles, /\.challenge-setup-card/);
+assert.match(styles, /\.challenge-setup-status/);
 assert.match(styles, /\.challenge-friend-picker/);
 assert.match(styles, /\.game-room-player-list/);
 assert.match(styles, /\.live-challenge-scoreboard/);

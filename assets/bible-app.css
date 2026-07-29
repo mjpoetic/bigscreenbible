@@ -4973,6 +4973,17 @@ select {
   line-height: 1.4;
 }
 
+.challenge-setup-status {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--gold-soft);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
 .game-room-lobby p {
   margin: 0;
   font-size: 15px;
