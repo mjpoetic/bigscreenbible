@@ -39,6 +39,12 @@ Game-challenge policies enforce that:
 
 The schema also adds both challenge tables to the `supabase_realtime` publication. The app listens for authorized Postgres changes so invitations, ready state, progress, scores, and final results update without a manual refresh.
 
+### Existing projects: enable every avatar choice
+
+Pushing the website does not update an existing Supabase database. If `bsb_profiles` was created before the expanded avatar picker was added, the original check constraint accepts only the six quick choices and rejects the additional choices with Postgres error `23514`.
+
+Open the Supabase SQL Editor, paste the contents of `supabase/update-profile-avatar-options.sql`, and run it once. The script replaces only the `avatar_key` check constraint, preserves all profile rows, and returns the installed constraint definition so you can confirm all 16 avatar keys are present.
+
 ## 3. Configure authentication URLs
 
 In Supabase, open Authentication settings and set:

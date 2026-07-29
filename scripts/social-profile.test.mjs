@@ -5,6 +5,7 @@ import vm from "node:vm";
 const source = readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../assets/bible-app.css", import.meta.url), "utf8");
 const schema = readFileSync(new URL("../supabase/schema.sql", import.meta.url), "utf8");
+const avatarConstraintUpdate = readFileSync(new URL("../supabase/update-profile-avatar-options.sql", import.meta.url), "utf8");
 
 function extractFunction(name) {
   const patterns = [`function ${name}(`, `async function ${name}(`];
@@ -26,6 +27,7 @@ function extractFunction(name) {
 
 const savedPayloads = [];
 const toasts = [];
+let draftAvatarKey = "book";
 const expectedAvatarKeys = [
   "initials",
   "book",
@@ -73,7 +75,7 @@ const context = {
     return {
       username: "reader_one",
       displayName: "Reader One",
-      avatarKey: "book",
+      avatarKey: draftAvatarKey,
       isDiscoverable: false,
       allowFriendRequests: true,
     };
@@ -92,7 +94,7 @@ const context = {
             return this;
           },
           async single() {
-            return { data: profileRow, error: null };
+            return { data: { ...profileRow, avatar_key: draftAvatarKey }, error: null };
           },
         };
       },
@@ -153,6 +155,15 @@ assert.equal(state.socialProfileDraft.avatarKey, "book");
 assert.equal(state.socialProfileDraft.isDiscoverable, false);
 assert.deepEqual(toasts, ["Social profile saved"]);
 
+draftAvatarKey = "heart";
+await context.saveProfile({ preventDefault() {} }, "quick");
+
+assert.equal(savedPayloads.length, 2);
+assert.equal(savedPayloads[1].payload.avatar_key, "heart", "Additional avatar choices must be sent to Supabase");
+assert.equal(state.socialProfile.avatarKey, "heart", "The saved additional avatar must survive response normalization");
+assert.equal(state.socialProfileDraft.avatarKey, "heart", "The saved additional avatar must remain selected");
+assert.deepEqual(toasts, ["Social profile saved", "Social profile saved"]);
+
 const profileSchema = schema.slice(
   schema.indexOf("create table if not exists public.bsb_profiles"),
   schema.indexOf("create table if not exists public.bsb_verse_of_day_cache"),
@@ -167,9 +178,14 @@ assert.match(profileSchema, /username ~ '\^\[a-z\]\[a-z0-9_\]\{2,19\}\$'/);
 for (const avatarKey of expectedAvatarKeys) {
   assert.match(source, new RegExp(`key: "${avatarKey}"`), `Missing ${avatarKey} frontend avatar`);
   assert.match(profileSchema, new RegExp(`'${avatarKey}'`), `Missing ${avatarKey} database avatar`);
+  assert.match(avatarConstraintUpdate, new RegExp(`'${avatarKey}'`), `Missing ${avatarKey} deployed constraint update`);
 }
 assert.match(profileSchema, /drop constraint if exists bsb_profiles_avatar_key_check/);
 assert.match(profileSchema, /add constraint bsb_profiles_avatar_key_check/);
+assert.match(avatarConstraintUpdate, /begin;/);
+assert.match(avatarConstraintUpdate, /drop constraint if exists bsb_profiles_avatar_key_check/);
+assert.match(avatarConstraintUpdate, /add constraint bsb_profiles_avatar_key_check/);
+assert.match(avatarConstraintUpdate, /select pg_get_constraintdef\(oid\) as avatar_key_constraint/);
 
 assert.match(source, /id="\$\{suffix\}socialProfileForm"/);
 assert.match(source, /<details class="account-card social-profile-card"/);
