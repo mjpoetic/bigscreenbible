@@ -55,9 +55,22 @@ const state = {
     },
   ],
   gameChallengePlayers: {
+    incoming: [
+      { challengeId: "incoming", userId: "user-b", isHost: true, inviteStatus: "accepted" },
+      { challengeId: "incoming", userId: "user-a", isHost: false, inviteStatus: "invited" },
+    ],
+    outgoing: [
+      { challengeId: "outgoing", userId: "user-a", isHost: true, inviteStatus: "accepted" },
+      { challengeId: "outgoing", userId: "user-c", isHost: false, inviteStatus: "invited" },
+    ],
     live: [
-      { challengeId: "live", userId: "user-a", score: 3, progress: 4, ready: true },
-      { challengeId: "live", userId: "user-d", score: 2, progress: 3, ready: true },
+      { challengeId: "live", userId: "user-a", score: 3, progress: 4, ready: true, inviteStatus: "accepted" },
+      { challengeId: "live", userId: "user-d", score: 2, progress: 3, ready: true, inviteStatus: "accepted" },
+      { challengeId: "live", userId: "user-f", score: 1, progress: 2, ready: true, inviteStatus: "accepted" },
+    ],
+    complete: [
+      { challengeId: "complete", userId: "user-a", score: 5, progress: 5, inviteStatus: "accepted" },
+      { challengeId: "complete", userId: "user-e", score: 4, progress: 5, inviteStatus: "accepted" },
     ],
   },
 };
@@ -67,6 +80,7 @@ vm.createContext(pureContext);
 vm.runInContext(`
   ${extractFunction("normalizedGameChallenge")}
   ${extractFunction("normalizedGameChallengePlayer")}
+  ${extractFunction("gameChallengePlayersFor")}
   ${extractFunction("gameChallengeOtherUserId")}
   ${extractFunction("gameChallengePlayer")}
   ${extractFunction("gameChallengeIsExpired")}
@@ -74,6 +88,9 @@ vm.runInContext(`
   ${extractFunction("gameChallengePopupCandidates")}
   ${extractFunction("gameChallengePopupShouldInterrupt")}
   ${extractFunction("seededTriviaRandom")}
+  ${extractFunction("gameChallengePlayerComparison")}
+  ${extractFunction("gameChallengeRankedPlayers")}
+  ${extractFunction("gameChallengePlayerRank")}
   ${extractFunction("gameChallengeResultLabel")}
   globalThis.normalizeChallenge = normalizedGameChallenge;
   globalThis.normalizePlayer = normalizedGameChallengePlayer;
@@ -105,6 +122,7 @@ assert.deepEqual(
     roundCount: 15,
     version: "BSB",
     timed: false,
+    maxPlayers: 2,
     seed: 42,
     status: "pending",
     respondedAt: "",
@@ -122,19 +140,31 @@ assert.equal(pureContext.collections().live[0].id, "live");
 assert.equal(pureContext.collections().completed[0].id, "complete");
 assert.equal(pureContext.player("live").score, 3);
 assert.deepEqual(
-  Array.from(pureContext.popupCandidates([], state.gameChallenges, "user-a"), (notice) => ({
+  Array.from(pureContext.popupCandidates(
+    [],
+    state.gameChallenges,
+    "user-a",
+    {},
+    state.gameChallengePlayers,
+  ), (notice) => ({
     kind: notice.kind,
     challengeId: notice.challengeId,
     status: notice.status,
   })),
-  [{ kind: "incoming", challengeId: "incoming", status: "pending" }],
-  "Pending invitations must surface when challenge state first loads",
+  [{ kind: "incoming", challengeId: "incoming", status: "invited" }],
+  "Room invitations must surface when membership first loads",
 );
 assert.deepEqual(
   Array.from(pureContext.popupCandidates(
-    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "pending" }],
-    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "accepted" }],
+    [{ id: "reply", challengerId: "user-a", status: "pending" }],
+    [{ id: "reply", challengerId: "user-a", status: "pending" }],
     "user-a",
+    {
+      reply: [{ challengeId: "reply", userId: "user-b", inviteStatus: "invited" }],
+    },
+    {
+      reply: [{ challengeId: "reply", userId: "user-b", inviteStatus: "accepted" }],
+    },
   ), (notice) => ({
     kind: notice.kind,
     challengeId: notice.challengeId,
@@ -145,9 +175,15 @@ assert.deepEqual(
 );
 assert.deepEqual(
   Array.from(pureContext.popupCandidates(
-    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "pending" }],
-    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "declined" }],
+    [{ id: "reply", challengerId: "user-a", status: "pending" }],
+    [{ id: "reply", challengerId: "user-a", status: "pending" }],
     "user-a",
+    {
+      reply: [{ challengeId: "reply", userId: "user-b", inviteStatus: "invited" }],
+    },
+    {
+      reply: [{ challengeId: "reply", userId: "user-b", inviteStatus: "declined" }],
+    },
   ), (notice) => ({
     kind: notice.kind,
     challengeId: notice.challengeId,
@@ -182,18 +218,26 @@ assert.deepEqual(
 assert.equal(
   pureContext.resultLabel(
     { gameType: "book-sprint" },
-    { score: 5, completedAt: "done", elapsedMs: 38000 },
-    { score: 5, completedAt: "done", elapsedMs: 41000 },
+    { userId: "user-a", score: 5, completedAt: "done", elapsedMs: 38000 },
+    [
+      { userId: "user-a", score: 5, completedAt: "done", elapsedMs: 38000 },
+      { userId: "user-b", score: 5, completedAt: "done", elapsedMs: 41000 },
+      { userId: "user-c", score: 4, completedAt: "done", elapsedMs: 35000 },
+    ],
   ),
-  "You won the tiebreak",
+  "You finished #1 of 3",
 );
 assert.equal(
   pureContext.resultLabel(
-    { gameType: "book-sprint" },
-    { score: 5, completedAt: "done", elapsedMs: null },
-    { score: 5, completedAt: "done", elapsedMs: 41000 },
+    { gameType: "trivia" },
+    { userId: "user-a", score: 5, completedAt: "done", elapsedMs: null },
+    [
+      { userId: "user-a", score: 5, completedAt: "done", elapsedMs: null },
+      { userId: "user-b", score: 5, completedAt: "done", elapsedMs: 41000 },
+      { userId: "user-c", score: 3, completedAt: "done", elapsedMs: 39000 },
+    ],
   ),
-  "Tie game",
+  "You tied for #1 of 3",
 );
 
 const challengeSchema = schema.slice(
@@ -204,24 +248,32 @@ assert.match(challengeSchema, /create table if not exists public\.bsb_game_chall
 assert.match(challengeSchema, /create table if not exists public\.bsb_game_challenge_players/);
 assert.match(challengeSchema, /alter table public\.bsb_game_challenges enable row level security/);
 assert.match(challengeSchema, /alter table public\.bsb_game_challenge_players enable row level security/);
-assert.match(challengeSchema, /grant insert \(\s*challenger_id,\s*challenged_id,/s);
+assert.match(challengeSchema, /max_players smallint not null default 2\s+check \(max_players between 2 and 10\)/);
 assert.match(challengeSchema, /grant update \(status, responded_at\)/);
-assert.match(challengeSchema, /grant update \(\s*score,\s*progress,\s*ready,\s*completed_at,\s*elapsed_ms/s);
+assert.match(challengeSchema, /grant update \(\s*invite_status,\s*responded_at,\s*score,\s*progress,\s*ready,\s*completed_at,\s*elapsed_ms/s);
 assert.match(challengeSchema, /function private\.bsb_users_are_friends\(other_user_id uuid\)/);
 assert.match(challengeSchema, /security definer/);
 assert.match(challengeSchema, /\(select auth\.uid\(\)\) is not null/);
-assert.match(challengeSchema, /"Participants can read game challenges"/);
 assert.match(challengeSchema, /"Friends can create game challenges"/);
-assert.match(challengeSchema, /"Participants can answer or cancel game challenges"/);
-assert.match(challengeSchema, /"Participants can read challenge players"/);
-assert.match(challengeSchema, /"Players can update own live challenge state"/);
-assert.match(challengeSchema, /bsb_game_challenges_active_pair_idx/);
-assert.match(challengeSchema, /bsb_game_challenges_incoming_pending_idx/);
+assert.match(challengeSchema, /"Room members can read game challenges"/);
+assert.match(challengeSchema, /"Hosts can cancel game rooms"/);
+assert.match(challengeSchema, /"Room members can read challenge players"/);
+assert.match(challengeSchema, /"Players can update own room state"/);
+assert.match(challengeSchema, /"Hosts can invite room players"/);
+assert.match(challengeSchema, /drop index if exists public\.bsb_game_challenges_active_pair_idx/);
 assert.match(challengeSchema, /bsb_game_challenge_players_user_idx/);
-assert.match(challengeSchema, /expire_bsb_game_challenges_for_pair/);
-assert.match(challengeSchema, /status in \('pending', 'accepted'\)/);
+assert.match(challengeSchema, /invite_status in \('invited', 'accepted', 'declined', 'left'\)/);
+assert.match(challengeSchema, /validate_bsb_game_room_player_change/);
+assert.match(challengeSchema, /Room membership is locked after the game starts/);
+assert.match(challengeSchema, /player\.invite_status = 'invited'\s+and room\.status = 'pending'/);
 assert.match(challengeSchema, /create_bsb_game_challenge_players/);
 assert.match(challengeSchema, /sync_bsb_game_challenge_state/);
+assert.match(challengeSchema, /create or replace function public\.create_bsb_game_room/);
+assert.match(challengeSchema, /create or replace function public\.start_bsb_game_room/);
+assert.match(challengeSchema, /At least two players must join before the game starts/);
+assert.match(challengeSchema, /Game rooms support up to ten players/);
+assert.match(challengeSchema, /Room members can receive game room realtime/);
+assert.match(challengeSchema, /Room members can send game room realtime/);
 assert.match(challengeSchema, /alter publication supabase_realtime add table public\.bsb_game_challenges/);
 assert.match(challengeSchema, /alter publication supabase_realtime add table public\.bsb_game_challenge_players/);
 
@@ -238,11 +290,21 @@ assert.match(source, /lw_challenge_quiet_mode/);
 assert.match(source, /challengeQuietMode: state\.challengeQuietMode/);
 assert.match(source, /state\.challengeQuietMode = typeof settings\.challengeQuietMode/);
 assert.match(source, /function gameChallengeSetupCard\(/);
+assert.doesNotMatch(
+  extractFunction("gameChallengeSetupCard"),
+  /Invitations? expire/,
+  "The reusable setup card must not imply that an invitation is still active",
+);
+assert.match(source, /function gameRoomLobbyCard\(/);
 assert.match(source, /function liveGameChallengeScoreboard\(/);
-assert.match(source, /challenge\.status === "accepted" && !challenge\.startedAt/);
+assert.match(source, /Invite up to 9 friends to a live room/);
+assert.match(source, /data-challenge-friend=/);
+assert.match(source, /data-game-challenge-action="start-room"/);
+assert.match(source, /Players who have not answered do not block the room/);
 assert.match(source, /const challengeSetupLock = waitingForLiveChallenge/);
-assert.match(source, /End this live challenge for both players/);
+assert.match(source, /End this live game for every player/);
 assert.match(source, /\.channel\(`bsb-game-challenges-\$\{userId\}`\)/);
+assert.match(source, /\.channel\(`bsb-game-room:\$\{challenge\.id\}`/);
 assert.match(source, /table: gameChallengeTable/);
 assert.match(source, /table: gameChallengePlayerTable/);
 assert.match(source, /withTriviaRandomSeed\(challenge\.seed, startTriviaGame\)/);
@@ -251,6 +313,8 @@ assert.match(styles, /\.game-challenges-card/);
 assert.match(styles, /\.game-challenge-popup-overlay/);
 assert.match(styles, /\.game-challenge-popup-actions/);
 assert.match(styles, /\.challenge-setup-card/);
+assert.match(styles, /\.challenge-friend-picker/);
+assert.match(styles, /\.game-room-player-list/);
 assert.match(styles, /\.live-challenge-scoreboard/);
 assert.match(styles, /\.live-status-dot/);
 

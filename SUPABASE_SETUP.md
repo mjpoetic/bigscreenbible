@@ -15,7 +15,7 @@ This creates:
 - One private sync row per signed-in user for settings and study data.
 - One optional social-profile row per signed-in user with a unique username, optional display name, selected avatar, and privacy preferences.
 - One relationship row for each pending friend request or accepted friendship.
-- One challenge row for each friend game invitation, plus two participant rows for ready state, live score, progress, and completion.
+- One room row for each friend game invitation, plus one participant row per invited or joined player for lobby state, live score, progress, and completion.
 
 Row Level Security keeps sync rows private. A social profile is always readable by its owner; other signed-in users can read it when the owner enables discovery or when a friend-request relationship exists between the two users. Anonymous visitors cannot read profile, friendship, or challenge rows, and email addresses are never stored in those tables.
 
@@ -29,15 +29,19 @@ Friendship policies enforce that:
 - Either participant can cancel, decline, or remove their relationship.
 - Crossed or duplicate relationships for the same pair are rejected.
 
-Game-challenge policies enforce that:
+Game-room policies enforce that:
 
-- Only accepted friends can create a challenge.
-- Only the two participants can read its invitation, setup, score, progress, or result.
-- Only the recipient can accept or decline a pending invitation. The challenger can cancel a pending invitation, and either participant can end an accepted challenge.
+- Only accepted friends can be invited, and a room can contain 2–10 players.
+- Only invited or joined room members can read its setup, membership, score, progress, or result.
+- Each invitee can accept or decline only their own invitation. The host can cancel the waiting room or end an active game.
 - Each participant can update only their own ready state, score, progress, and completion.
-- Only one pending or accepted challenge can exist between the same two people at a time.
+- Only the host can start, at least two people must have joined, and every joined player must be ready.
 
-The schema also adds both challenge tables to the `supabase_realtime` publication. The app listens for authorized Postgres changes so invitations, ready state, progress, scores, and final results update without a manual refresh.
+The schema also adds both room tables to the `supabase_realtime` publication. The app listens for authorized Postgres changes so invitations, ready state, progress, scores, and final results update without a manual refresh. Private Realtime Presence channels show which joined players are currently online in a lobby.
+
+### Existing projects: enable multiplayer rooms
+
+Pushing the website does not update an existing Supabase database. Before using multiplayer rooms, rerun the current `supabase/schema.sql` in the Supabase SQL Editor. It upgrades existing 1v1 challenges into two-seat rooms, preserves their participant state, installs the 2–10 player RPCs and Row Level Security policies, and authorizes private lobby Presence channels.
 
 ### Existing projects: enable every avatar choice
 
@@ -111,16 +115,17 @@ Test the full loop with two signed-in accounts:
 4. Confirm accepted requests appear in both Friends lists.
 5. Confirm either account can remove the friendship.
 
-Then test a live challenge:
+Then test a multiplayer room:
 
-1. Keep the two accounts connected as friends.
-2. From Games, choose a mode and setup, select the friend, and send the challenge.
-3. From the other account, open Account → Game challenges and accept it.
-4. Mark both players ready and confirm the same seeded game begins for both.
-5. Answer on each account and confirm the live score and progress update on the other device.
-6. Finish on both accounts and confirm the same final result appears for each player.
+1. Keep 2–10 test accounts connected to the host as friends.
+2. From Games, choose a mode and setup, select up to nine friends, and create the room.
+3. From each invited account, accept the front-and-center invitation or open Account → Game challenges.
+4. Confirm joined players appear in the lobby, online Presence updates, and unanswered invitees do not block the room.
+5. Mark every joined player ready. Confirm only the host can start and that all devices begin the same seeded game.
+6. Answer on several accounts and confirm the live ranked score and progress update on the other devices.
+7. Finish on every joined account and confirm the same final standings appear for everyone.
 
-Invitations expire after 24 hours; an expired invitation is cleared automatically when the pair starts a new one. Either player can end an accepted challenge for both participants. Phase 3 uses client-reported casual-game scores; it is designed for friendly play, not prize competitions or anti-cheat enforcement.
+Invitations expire after 24 hours. The host can cancel a waiting room or end an active game for everyone; another player can leave the game screen without ending it. Multiplayer rooms use client-reported casual-game scores and are designed for friendly play, not prize competitions or anti-cheat enforcement.
 
 The signed-in Account panel also includes **Switch account**. The browser keeps a separate local Supabase session for each account the person signs into, so a remembered account marked **Ready to switch** can be opened without entering its password again. The outgoing account is saved before the selected session is activated. Supabase refreshes an expired access token from its refresh token; if a saved session has been revoked or is otherwise invalid, the chooser removes that session and asks the person to sign in once to reconnect it.
 
@@ -269,7 +274,7 @@ Notifications use the browser Push API, the root `push-sw.js` service worker, tw
 
 Each subscribed browser can choose its own morning time and optional evening time. The browser sends its IANA timezone, so reminders follow local time and daylight-saving changes. The sender suppresses the evening notification when that subscription has recorded an app open during the same local day. The defaults are 7:00 a.m. and 6:00 p.m.
 
-When a subscribed person is signed in, the device subscription is linked to that Supabase user ID. The person can independently turn off notifications for friend requests, incoming game challenges, and accepted challenges. Database triggers create private delivery events for those actions. The initiating signed-in browser asks the sender to deliver immediately, while the existing cron invocation retries pending events if that request is interrupted. Social notification links open the relevant Friend Requests or Game Challenges area after authentication and data loading.
+When a subscribed person is signed in, the device subscription is linked to that Supabase user ID. The person can independently turn off notifications for friend requests, incoming game-room invitations, and joined-room replies. Database triggers create one private delivery event per invitee and one reply event per person who joins. The initiating signed-in browser asks the sender to deliver immediately, while the existing cron invocation retries pending events if that request is interrupted. Social notification links open the relevant Friend Requests or Game Challenges area after authentication and data loading.
 
 On account switching or sign-out, the app unlinks the device from the outgoing account before changing the active session. The daily reminder subscription can remain enabled without an account. If the secure unlink request fails, the browser subscription is turned off locally rather than leaving social notifications connected to the outgoing account.
 

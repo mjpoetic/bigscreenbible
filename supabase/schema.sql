@@ -396,6 +396,8 @@ create table if not exists public.bsb_game_challenges (
   version text not null default 'BSB'
     check (version in ('ASV', 'BBE', 'BSB', 'KJV', 'WEB')),
   timed boolean not null default false,
+  max_players smallint not null default 2
+    check (max_players between 2 and 10),
   seed bigint not null default (floor(random() * 2147483646) + 1)::bigint
     check (seed between 1 and 2147483647),
   status text not null default 'pending'
@@ -429,7 +431,25 @@ create table if not exists public.bsb_game_challenges (
 );
 
 comment on table public.bsb_game_challenges is
-  'Friend-to-friend game invitations and shared live challenge configuration.';
+  'Friend game rooms with shared live challenge configuration for two to ten players.';
+
+alter table public.bsb_game_challenges
+  add column if not exists max_players smallint not null default 2;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'bsb_game_challenges_max_players_check'
+      and conrelid = 'public.bsb_game_challenges'::regclass
+  ) then
+    alter table public.bsb_game_challenges
+      add constraint bsb_game_challenges_max_players_check
+      check (max_players between 2 and 10);
+  end if;
+end
+$$;
 
 alter table public.bsb_game_challenges enable row level security;
 
@@ -443,17 +463,13 @@ grant insert (
   difficulty,
   round_count,
   version,
-  timed
+  timed,
+  max_players
 ) on table public.bsb_game_challenges to authenticated;
 grant update (status, responded_at) on table public.bsb_game_challenges to authenticated;
 grant select, insert, update, delete on table public.bsb_game_challenges to service_role;
 
-create unique index if not exists bsb_game_challenges_active_pair_idx
-  on public.bsb_game_challenges (
-    least(challenger_id, challenged_id),
-    greatest(challenger_id, challenged_id)
-  )
-  where status in ('pending', 'accepted');
+drop index if exists public.bsb_game_challenges_active_pair_idx;
 
 create index if not exists bsb_game_challenges_challenger_idx
   on public.bsb_game_challenges (challenger_id, created_at desc);
@@ -569,6 +585,10 @@ create trigger bsb_game_challenge_expire_pair
 create table if not exists public.bsb_game_challenge_players (
   challenge_id uuid not null references public.bsb_game_challenges(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  is_host boolean not null default false,
+  invite_status text not null default 'invited'
+    check (invite_status in ('invited', 'accepted', 'declined', 'left')),
+  responded_at timestamptz,
   score integer not null default 0 check (score >= 0),
   progress smallint not null default 0 check (progress >= 0),
   ready boolean not null default false,
@@ -581,13 +601,71 @@ create table if not exists public.bsb_game_challenge_players (
 );
 
 comment on table public.bsb_game_challenge_players is
-  'Per-player ready state, score, progress, and completion for a live game challenge.';
+  'Per-player room membership, invitation, ready state, score, progress, and completion.';
+
+alter table public.bsb_game_challenge_players
+  add column if not exists is_host boolean not null default false,
+  add column if not exists invite_status text not null default 'invited',
+  add column if not exists responded_at timestamptz;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'bsb_game_challenge_players_invite_status_check'
+      and conrelid = 'public.bsb_game_challenge_players'::regclass
+  ) then
+    alter table public.bsb_game_challenge_players
+      add constraint bsb_game_challenge_players_invite_status_check
+      check (invite_status in ('invited', 'accepted', 'declined', 'left'));
+  end if;
+end
+$$;
+
+update public.bsb_game_challenge_players as player
+set
+  is_host = player.user_id = challenge.challenger_id,
+  invite_status = case
+    when player.user_id = challenge.challenger_id then 'accepted'
+    when challenge.status = 'pending' then 'invited'
+    when challenge.status = 'declined' then 'declined'
+    else 'accepted'
+  end,
+  responded_at = case
+    when player.user_id = challenge.challenger_id then coalesce(player.responded_at, challenge.created_at)
+    when challenge.status <> 'pending' then coalesce(player.responded_at, challenge.responded_at)
+    else player.responded_at
+  end
+from public.bsb_game_challenges as challenge
+where challenge.id = player.challenge_id
+  and (
+    player.is_host is distinct from (player.user_id = challenge.challenger_id)
+    or (
+      player.user_id = challenge.challenger_id
+      and player.invite_status <> 'accepted'
+    )
+    or (
+      player.user_id <> challenge.challenger_id
+      and challenge.status = 'pending'
+      and player.invite_status = 'accepted'
+      and player.responded_at is null
+    )
+    or (
+      player.user_id <> challenge.challenger_id
+      and challenge.status <> 'pending'
+      and player.invite_status = 'invited'
+    )
+  );
 
 alter table public.bsb_game_challenge_players enable row level security;
 
 revoke all on table public.bsb_game_challenge_players from anon, authenticated;
 grant select on table public.bsb_game_challenge_players to authenticated;
+grant insert (challenge_id, user_id) on table public.bsb_game_challenge_players to authenticated;
 grant update (
+  invite_status,
+  responded_at,
   score,
   progress,
   ready,
@@ -599,46 +677,294 @@ grant select, insert, update, delete on table public.bsb_game_challenge_players 
 create index if not exists bsb_game_challenge_players_user_idx
   on public.bsb_game_challenge_players (user_id, updated_at desc);
 
+create or replace function private.bsb_user_is_game_room_member(room_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.bsb_game_challenge_players as player
+      join public.bsb_game_challenges as room
+        on room.id = player.challenge_id
+      where player.challenge_id = room_id
+        and player.user_id = (select auth.uid())
+        and (
+          player.invite_status = 'accepted'
+          or (
+            player.invite_status = 'invited'
+            and room.status = 'pending'
+            and room.expires_at > now()
+          )
+        )
+    );
+$$;
+
+revoke all on function private.bsb_user_is_game_room_member(uuid) from public, anon;
+grant execute on function private.bsb_user_is_game_room_member(uuid) to authenticated;
+
+create or replace function private.bsb_users_share_game_room(other_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    (select auth.uid()) is not null
+    and other_user_id <> (select auth.uid())
+    and exists (
+      select 1
+      from public.bsb_game_challenge_players as self_player
+      join public.bsb_game_challenges as room
+        on room.id = self_player.challenge_id
+      join public.bsb_game_challenge_players as other_player
+        on other_player.challenge_id = self_player.challenge_id
+      where self_player.user_id = (select auth.uid())
+        and (
+          self_player.invite_status = 'accepted'
+          or (
+            self_player.invite_status = 'invited'
+            and room.status = 'pending'
+            and room.expires_at > now()
+          )
+        )
+        and other_player.user_id = other_user_id
+        and (
+          other_player.invite_status = 'accepted'
+          or (
+            other_player.invite_status = 'invited'
+            and room.status = 'pending'
+            and room.expires_at > now()
+          )
+        )
+    );
+$$;
+
+revoke all on function private.bsb_users_share_game_room(uuid) from public, anon;
+grant execute on function private.bsb_users_share_game_room(uuid) to authenticated;
+
+drop policy if exists "Participants can read game challenges" on public.bsb_game_challenges;
+create policy "Room members can read game challenges"
+  on public.bsb_game_challenges
+  for select
+  to authenticated
+  using ((select private.bsb_user_is_game_room_member(id)));
+
+drop policy if exists "Participants can answer or cancel game challenges" on public.bsb_game_challenges;
+create policy "Hosts can cancel game rooms"
+  on public.bsb_game_challenges
+  for update
+  to authenticated
+  using (
+    (select auth.uid()) = challenger_id
+    and status in ('pending', 'accepted')
+  )
+  with check (
+    (select auth.uid()) = challenger_id
+    and status = 'cancelled'
+    and responded_at is not null
+    and completed_at is null
+  );
+
 drop policy if exists "Participants can read challenge players" on public.bsb_game_challenge_players;
-create policy "Participants can read challenge players"
+create policy "Room members can read challenge players"
   on public.bsb_game_challenge_players
   for select
   to authenticated
-  using (
+  using ((select private.bsb_user_is_game_room_member(challenge_id)));
+
+drop policy if exists "Hosts can invite room players" on public.bsb_game_challenge_players;
+create policy "Hosts can invite room players"
+  on public.bsb_game_challenge_players
+  for insert
+  to authenticated
+  with check (
     exists (
       select 1
-      from public.bsb_game_challenges as challenge
-      where challenge.id = challenge_id
-        and (
-          challenge.challenger_id = (select auth.uid())
-          or challenge.challenged_id = (select auth.uid())
-        )
+      from public.bsb_game_challenges as room
+      where room.id = challenge_id
+        and room.challenger_id = (select auth.uid())
+        and room.status = 'pending'
+        and room.expires_at > now()
+    )
+    and (
+      user_id = (select auth.uid())
+      or (select private.bsb_users_are_friends(user_id))
     )
   );
 
 drop policy if exists "Players can update own live challenge state" on public.bsb_game_challenge_players;
-create policy "Players can update own live challenge state"
+create policy "Players can update own room state"
   on public.bsb_game_challenge_players
   for update
   to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can read permitted profiles" on public.bsb_profiles;
+create policy "Users can read permitted profiles"
+  on public.bsb_profiles
+  for select
+  to authenticated
   using (
     (select auth.uid()) = user_id
-    and exists (
+    or is_discoverable
+    or exists (
       select 1
-      from public.bsb_game_challenges as challenge
-      where challenge.id = challenge_id
-        and challenge.status = 'accepted'
+      from public.bsb_friendships as relationship
+      where (
+        relationship.requester_id = (select auth.uid())
+        and relationship.addressee_id = bsb_profiles.user_id
+      ) or (
+        relationship.addressee_id = (select auth.uid())
+        and relationship.requester_id = bsb_profiles.user_id
+      )
     )
-  )
-  with check (
-    (select auth.uid()) = user_id
-    and exists (
-      select 1
-      from public.bsb_game_challenges as challenge
-      where challenge.id = challenge_id
-        and challenge.status = 'accepted'
-    )
+    or (select private.bsb_users_share_game_room(bsb_profiles.user_id))
   );
+
+create or replace function private.validate_bsb_game_room_player_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  room public.bsb_game_challenges%rowtype;
+  active_player_count integer;
+begin
+  if tg_op = 'INSERT' then
+    select *
+    into room
+    from public.bsb_game_challenges as challenge
+    where challenge.id = new.challenge_id
+    for update;
+  elsif old.invite_status is distinct from new.invite_status
+    or old.ready is distinct from new.ready
+  then
+    select *
+    into room
+    from public.bsb_game_challenges as challenge
+    where challenge.id = new.challenge_id
+    for update;
+  else
+    select *
+    into room
+    from public.bsb_game_challenges as challenge
+    where challenge.id = new.challenge_id;
+  end if;
+
+  if not found then
+    raise exception 'That game room does not exist'
+      using errcode = '23503';
+  end if;
+
+  if tg_op = 'INSERT' then
+    if (select auth.uid()) is null or (select auth.uid()) <> room.challenger_id then
+      raise exception 'Only the room host can invite players'
+        using errcode = '42501';
+    end if;
+    if room.status <> 'pending' or room.expires_at <= now() then
+      raise exception 'Players can only be invited to an open room'
+        using errcode = '23514';
+    end if;
+    if new.user_id <> room.challenger_id
+      and not (select private.bsb_users_are_friends(new.user_id))
+    then
+      raise exception 'Only accepted friends can be invited'
+        using errcode = '42501';
+    end if;
+
+    select count(*)
+    into active_player_count
+    from public.bsb_game_challenge_players as player
+    where player.challenge_id = new.challenge_id
+      and player.invite_status in ('invited', 'accepted');
+
+    if active_player_count >= room.max_players then
+      raise exception 'That game room is full'
+        using errcode = '23514';
+    end if;
+
+    new.is_host = new.user_id = room.challenger_id;
+    new.invite_status = case when new.is_host then 'accepted' else 'invited' end;
+    new.responded_at = case when new.is_host then now() else null end;
+    new.ready = false;
+    new.score = 0;
+    new.progress = 0;
+    new.completed_at = null;
+    new.elapsed_ms = null;
+    return new;
+  end if;
+
+  if old.challenge_id <> new.challenge_id
+    or old.user_id <> new.user_id
+    or old.is_host <> new.is_host
+  then
+    raise exception 'Room player identity cannot be changed'
+      using errcode = '23514';
+  end if;
+  if (select auth.uid()) is null or (select auth.uid()) <> new.user_id then
+    raise exception 'Players can only update their own room state'
+      using errcode = '42501';
+  end if;
+
+  if old.invite_status <> new.invite_status then
+    if room.status <> 'pending' or room.expires_at <= now() then
+      raise exception 'Room membership is locked after the game starts'
+        using errcode = '23514';
+    end if;
+    if not (
+      (old.invite_status = 'invited' and new.invite_status in ('accepted', 'declined'))
+      or (old.invite_status = 'accepted' and not old.is_host and new.invite_status = 'left')
+    ) then
+      raise exception 'That room invitation transition is not allowed'
+        using errcode = '23514';
+    end if;
+    new.responded_at = now();
+    new.ready = false;
+  end if;
+
+  if new.ready and new.invite_status <> 'accepted' then
+    raise exception 'Only accepted room players can be ready'
+      using errcode = '23514';
+  end if;
+
+  if room.status = 'pending' then
+    if new.score <> old.score
+      or new.progress <> old.progress
+      or new.completed_at is distinct from old.completed_at
+      or new.elapsed_ms is distinct from old.elapsed_ms
+    then
+      raise exception 'Scores cannot change before the room starts'
+        using errcode = '23514';
+    end if;
+  elsif room.status = 'accepted' then
+    if new.invite_status <> 'accepted' then
+      raise exception 'Room membership is locked after the game starts'
+        using errcode = '23514';
+    end if;
+  else
+    raise exception 'That game room is no longer active'
+      using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function private.validate_bsb_game_room_player_change() from public, anon, authenticated;
+
+drop trigger if exists bsb_game_room_validate_player on public.bsb_game_challenge_players;
+create trigger bsb_game_room_validate_player
+  before insert or update on public.bsb_game_challenge_players
+  for each row
+  execute function private.validate_bsb_game_room_player_change();
 
 create or replace function private.create_bsb_game_challenge_players()
 returns trigger
@@ -652,10 +978,16 @@ begin
       using errcode = '42501';
   end if;
 
-  insert into public.bsb_game_challenge_players (challenge_id, user_id)
+  insert into public.bsb_game_challenge_players (
+    challenge_id,
+    user_id,
+    is_host,
+    invite_status,
+    responded_at
+  )
   values
-    (new.id, new.challenger_id),
-    (new.id, new.challenged_id);
+    (new.id, new.challenger_id, true, 'accepted', now()),
+    (new.id, new.challenged_id, false, 'invited', null);
 
   return new;
 end;
@@ -706,40 +1038,29 @@ begin
       using errcode = '42501';
   end if;
 
+  if new.completed_at is null or old.completed_at is not null then
+    return new;
+  end if;
+
   perform 1
   from public.bsb_game_challenges as challenge
   where challenge.id = new.challenge_id
   for update;
 
-  if new.ready and not old.ready then
-    update public.bsb_game_challenges as challenge
-    set started_at = now()
-    where challenge.id = new.challenge_id
-      and challenge.status = 'accepted'
-      and challenge.started_at is null
-      and not exists (
-        select 1
-        from public.bsb_game_challenge_players as player
-        where player.challenge_id = new.challenge_id
-          and not player.ready
-      );
-  end if;
-
-  if new.completed_at is not null and old.completed_at is null then
-    update public.bsb_game_challenges as challenge
-    set
-      status = 'completed',
-      completed_at = now()
-    where challenge.id = new.challenge_id
-      and challenge.status = 'accepted'
-      and challenge.started_at is not null
-      and not exists (
-        select 1
-        from public.bsb_game_challenge_players as player
-        where player.challenge_id = new.challenge_id
-          and player.completed_at is null
-      );
-  end if;
+  update public.bsb_game_challenges as challenge
+  set
+    status = 'completed',
+    completed_at = now()
+  where challenge.id = new.challenge_id
+    and challenge.status = 'accepted'
+    and challenge.started_at is not null
+    and not exists (
+      select 1
+      from public.bsb_game_challenge_players as player
+      where player.challenge_id = new.challenge_id
+        and player.invite_status = 'accepted'
+        and player.completed_at is null
+    );
 
   return new;
 end;
@@ -752,6 +1073,165 @@ create trigger bsb_game_challenge_sync_state
   after update on public.bsb_game_challenge_players
   for each row
   execute function private.sync_bsb_game_challenge_state();
+
+create or replace function public.start_bsb_game_room(room_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  room public.bsb_game_challenges%rowtype;
+  accepted_count integer;
+  unready_count integer;
+begin
+  if (select auth.uid()) is null then
+    raise exception 'Sign in before starting a game room'
+      using errcode = '42501';
+  end if;
+
+  select *
+  into room
+  from public.bsb_game_challenges as challenge
+  where challenge.id = room_id
+  for update;
+
+  if not found then
+    raise exception 'That game room does not exist'
+      using errcode = 'P0002';
+  end if;
+  if room.challenger_id <> (select auth.uid()) then
+    raise exception 'Only the room host can start the game'
+      using errcode = '42501';
+  end if;
+  if room.status <> 'pending' or room.expires_at <= now() then
+    raise exception 'That game room is no longer open'
+      using errcode = '23514';
+  end if;
+
+  select
+    count(*) filter (where player.invite_status = 'accepted'),
+    count(*) filter (
+      where player.invite_status = 'accepted'
+        and not player.ready
+    )
+  into accepted_count, unready_count
+  from public.bsb_game_challenge_players as player
+  where player.challenge_id = room_id;
+
+  if accepted_count < 2 then
+    raise exception 'At least two players must join before the game starts'
+      using errcode = '23514';
+  end if;
+  if accepted_count > room.max_players then
+    raise exception 'That game room has too many players'
+      using errcode = '23514';
+  end if;
+  if unready_count > 0 then
+    raise exception 'Every joined player must be ready'
+      using errcode = '23514';
+  end if;
+
+  update public.bsb_game_challenges as challenge
+  set
+    status = 'accepted',
+    responded_at = now(),
+    started_at = now()
+  where challenge.id = room_id;
+
+  return room_id;
+end;
+$$;
+
+revoke all on function public.start_bsb_game_room(uuid) from public, anon, service_role;
+grant execute on function public.start_bsb_game_room(uuid) to authenticated;
+
+create or replace function public.create_bsb_game_room(
+  invitee_ids uuid[],
+  room_game_type text,
+  room_category text,
+  room_difficulty text,
+  room_round_count smallint,
+  room_version text,
+  room_timed boolean
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  host_id uuid := (select auth.uid());
+  normalized_invitees uuid[];
+  room_id uuid;
+begin
+  if host_id is null then
+    raise exception 'Sign in before creating a game room'
+      using errcode = '42501';
+  end if;
+
+  select array_agg(invitee_id order by invitee_id)
+  into normalized_invitees
+  from (
+    select distinct invitee_id
+    from unnest(coalesce(invitee_ids, array[]::uuid[])) as invitee_id
+    where invitee_id is not null
+      and invitee_id <> host_id
+  ) as unique_invitees;
+
+  if coalesce(cardinality(normalized_invitees), 0) < 1 then
+    raise exception 'Invite at least one friend'
+      using errcode = '23514';
+  end if;
+  if cardinality(normalized_invitees) > 9 then
+    raise exception 'Game rooms support up to ten players'
+      using errcode = '23514';
+  end if;
+  if exists (
+    select 1
+    from unnest(normalized_invitees) as invitee_id
+    where not (select private.bsb_users_are_friends(invitee_id))
+  ) then
+    raise exception 'Only accepted friends can be invited'
+      using errcode = '42501';
+  end if;
+
+  insert into public.bsb_game_challenges (
+    challenger_id,
+    challenged_id,
+    game_type,
+    category,
+    difficulty,
+    round_count,
+    version,
+    timed,
+    max_players
+  )
+  values (
+    host_id,
+    normalized_invitees[1],
+    room_game_type,
+    room_category,
+    room_difficulty,
+    room_round_count,
+    room_version,
+    room_timed,
+    cardinality(normalized_invitees) + 1
+  )
+  returning id into room_id;
+
+  insert into public.bsb_game_challenge_players (challenge_id, user_id)
+  select room_id, invitee_id
+  from unnest(normalized_invitees[2:cardinality(normalized_invitees)]) as invitee_id;
+
+  return room_id;
+end;
+$$;
+
+revoke all on function public.create_bsb_game_room(uuid[], text, text, text, smallint, text, boolean)
+  from public, anon, service_role;
+grant execute on function public.create_bsb_game_room(uuid[], text, text, text, smallint, text, boolean)
+  to authenticated;
 
 do $$
 begin
@@ -776,6 +1256,52 @@ begin
   end if;
 end;
 $$;
+
+create or replace function private.bsb_game_room_id_from_topic(topic text)
+returns uuid
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when topic ~ '^bsb-game-room:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      then split_part(topic, ':', 2)::uuid
+    else null
+  end;
+$$;
+
+revoke all on function private.bsb_game_room_id_from_topic(text) from public, anon;
+grant execute on function private.bsb_game_room_id_from_topic(text) to authenticated;
+
+drop policy if exists "Room members can receive game room realtime" on realtime.messages;
+create policy "Room members can receive game room realtime"
+  on realtime.messages
+  for select
+  to authenticated
+  using (
+    "private"
+    and extension in ('presence', 'broadcast')
+    and (
+      select private.bsb_user_is_game_room_member(
+        private.bsb_game_room_id_from_topic((select realtime.topic()))
+      )
+    )
+  );
+
+drop policy if exists "Room members can send game room realtime" on realtime.messages;
+create policy "Room members can send game room realtime"
+  on realtime.messages
+  for insert
+  to authenticated
+  with check (
+    "private"
+    and extension in ('presence', 'broadcast')
+    and (
+      select private.bsb_user_is_game_room_member(
+        private.bsb_game_room_id_from_topic((select realtime.topic()))
+      )
+    )
+  );
 
 create table if not exists public.bsb_verse_of_day_cache (
   cache_date date primary key,
@@ -991,6 +1517,8 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  room_host_id uuid;
 begin
   if tg_table_name = 'bsb_friendships' and tg_op = 'INSERT' and new.status = 'pending' then
     insert into public.bsb_push_events (
@@ -1008,7 +1536,16 @@ begin
       'friend_request:' || new.id::text
     )
     on conflict (event_key) do nothing;
-  elsif tg_table_name = 'bsb_game_challenges' and tg_op = 'INSERT' and new.status = 'pending' then
+  elsif
+    tg_table_name = 'bsb_game_challenge_players'
+    and tg_op = 'INSERT'
+    and new.invite_status = 'invited'
+  then
+    select challenge.challenger_id
+    into room_host_id
+    from public.bsb_game_challenges as challenge
+    where challenge.id = new.challenge_id;
+
     insert into public.bsb_push_events (
       recipient_id,
       actor_id,
@@ -1017,19 +1554,24 @@ begin
       event_key
     )
     values (
-      new.challenged_id,
-      new.challenger_id,
+      new.user_id,
+      room_host_id,
       'game_challenge',
-      new.id,
-      'game_challenge:' || new.id::text
+      new.challenge_id,
+      'game_challenge:' || new.challenge_id::text || ':' || new.user_id::text
     )
     on conflict (event_key) do nothing;
   elsif
-    tg_table_name = 'bsb_game_challenges'
+    tg_table_name = 'bsb_game_challenge_players'
     and tg_op = 'UPDATE'
-    and old.status = 'pending'
-    and new.status = 'accepted'
+    and old.invite_status = 'invited'
+    and new.invite_status = 'accepted'
   then
+    select challenge.challenger_id
+    into room_host_id
+    from public.bsb_game_challenges as challenge
+    where challenge.id = new.challenge_id;
+
     insert into public.bsb_push_events (
       recipient_id,
       actor_id,
@@ -1038,11 +1580,11 @@ begin
       event_key
     )
     values (
-      new.challenger_id,
-      new.challenged_id,
+      room_host_id,
+      new.user_id,
       'challenge_accepted',
-      new.id,
-      'challenge_accepted:' || new.id::text
+      new.challenge_id,
+      'challenge_accepted:' || new.challenge_id::text || ':' || new.user_id::text
     )
     on conflict (event_key) do nothing;
   end if;
@@ -1060,7 +1602,8 @@ create trigger bsb_friendship_enqueue_push
   execute function private.enqueue_bsb_social_push_event();
 
 drop trigger if exists bsb_game_challenge_enqueue_push on public.bsb_game_challenges;
-create trigger bsb_game_challenge_enqueue_push
-  after insert or update of status on public.bsb_game_challenges
+drop trigger if exists bsb_game_room_player_enqueue_push on public.bsb_game_challenge_players;
+create trigger bsb_game_room_player_enqueue_push
+  after insert or update of invite_status on public.bsb_game_challenge_players
   for each row
   execute function private.enqueue_bsb_social_push_event();

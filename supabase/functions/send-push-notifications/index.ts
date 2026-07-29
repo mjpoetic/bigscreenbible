@@ -51,6 +51,12 @@ type ChallengeRow = {
   status: string;
 };
 
+type ChallengePlayerRow = {
+  challenge_id: string;
+  user_id: string;
+  invite_status: string;
+};
+
 type FriendshipRow = {
   id: string;
   status: string;
@@ -171,19 +177,19 @@ function socialPayload(
   const title = gameTitle(challenge?.game_type || "");
   if (event.kind === "challenge_accepted") {
     return {
-      title: `${name} accepted your challenge`,
-      body: `${title} is ready when you are.`,
+      title: `${name} joined your game room`,
+      body: `Open the ${title} lobby to see who is ready.`,
       url: `${siteUrl}/?social=challenges&challenge=${encodeURIComponent(event.challenge_id || "")}`,
-      tag: `bsb-challenge-accepted-${event.challenge_id}`,
+      tag: `bsb-challenge-accepted-${event.challenge_id}-${event.actor_id}`,
       kind: event.kind,
     };
   }
   const rounds = Number(challenge?.round_count || 0);
   return {
-    title: `${name} challenged you`,
-    body: rounds ? `${title} · ${rounds} rounds` : title,
+    title: `${name} invited you to a game room`,
+    body: rounds ? `${title} · ${rounds} rounds · Join the lobby` : `${title} · Join the lobby`,
     url: `${siteUrl}/?social=challenges&challenge=${encodeURIComponent(event.challenge_id || "")}`,
-    tag: `bsb-game-challenge-${event.challenge_id}`,
+    tag: `bsb-game-challenge-${event.challenge_id}-${event.recipient_id}`,
     kind: event.kind,
   };
 }
@@ -198,13 +204,18 @@ function eventIsStillActionable(
   event: PushEventRow,
   friendships: Map<string, FriendshipRow>,
   challenges: Map<string, ChallengeRow>,
+  challengePlayers: Map<string, ChallengePlayerRow>,
 ) {
   if (event.kind === "friend_request") {
     return friendships.get(event.friendship_id || "")?.status === "pending";
   }
   const challengeStatus = challenges.get(event.challenge_id || "")?.status;
-  if (event.kind === "game_challenge") return challengeStatus === "pending";
-  return challengeStatus === "accepted" || challengeStatus === "completed";
+  if (event.kind === "game_challenge") {
+    return challengeStatus === "pending"
+      && challengePlayers.get(`${event.challenge_id}:${event.recipient_id}`)?.invite_status === "invited";
+  }
+  return ["pending", "accepted", "completed"].includes(challengeStatus || "")
+    && challengePlayers.get(`${event.challenge_id}:${event.actor_id}`)?.invite_status === "accepted";
 }
 
 async function sendToSubscription(subscription: SubscriptionRow, payload: Record<string, unknown>) {
@@ -360,6 +371,7 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
     { data: profiles, error: profileError },
     { data: subscriptions, error: subscriptionError },
     friendshipResult,
+    challengePlayerResult,
   ] = await Promise.all([
     supabase.from("bsb_profiles").select("user_id, username, display_name").in("user_id", actorIds),
     supabase.from(subscriptionTable)
@@ -369,10 +381,16 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
     friendshipIds.length
       ? supabase.from("bsb_friendships").select("id, status").in("id", friendshipIds)
       : Promise.resolve({ data: [], error: null }),
+    challengeIds.length
+      ? supabase.from("bsb_game_challenge_players")
+        .select("challenge_id, user_id, invite_status")
+        .in("challenge_id", challengeIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (profileError) throw profileError;
   if (subscriptionError) throw subscriptionError;
   if (friendshipResult.error) throw friendshipResult.error;
+  if (challengePlayerResult.error) throw challengePlayerResult.error;
 
   let challenges: ChallengeRow[] = [];
   if (challengeIds.length) {
@@ -388,6 +406,12 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
     (friendshipResult.data as FriendshipRow[] || []).map((friendship) => [friendship.id, friendship]),
   );
   const challengesById = new Map(challenges.map((challenge) => [challenge.id, challenge]));
+  const challengePlayersByRoomAndUser = new Map(
+    (challengePlayerResult.data as ChallengePlayerRow[] || []).map((player) => [
+      `${player.challenge_id}:${player.user_id}`,
+      player,
+    ]),
+  );
   const subscriptionsByUser = (subscriptions as SubscriptionRow[] || []).reduce((map, subscription) => {
     if (!subscription.user_id) return map;
     if (!map.has(subscription.user_id)) map.set(subscription.user_id, []);
@@ -407,7 +431,7 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
       continue;
     }
     claimed += 1;
-    if (!eventIsStillActionable(event, friendshipsById, challengesById)) {
+    if (!eventIsStillActionable(event, friendshipsById, challengesById, challengePlayersByRoomAndUser)) {
       const { error } = await supabase.from(eventTable)
         .update({ status: "sent", sent_at: new Date().toISOString(), claimed_at: null, last_error: null })
         .eq("id", event.id)
