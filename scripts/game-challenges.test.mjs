@@ -46,6 +46,7 @@ const state = {
       challengerId: "user-a",
       challengedId: "user-d",
       status: "accepted",
+      startedAt: "2026-07-29T12:00:00.000Z",
     },
     {
       id: "complete",
@@ -78,6 +79,7 @@ const state = {
 const pureContext = { state, Date };
 vm.createContext(pureContext);
 vm.runInContext(`
+  const escapeHtml = (value) => String(value);
   ${extractFunction("normalizedGameChallenge")}
   ${extractFunction("normalizedGameChallengePlayer")}
   ${extractFunction("gameChallengePlayersFor")}
@@ -93,6 +95,9 @@ vm.runInContext(`
   ${extractFunction("gameChallengeRankedPlayers")}
   ${extractFunction("gameChallengePlayerRank")}
   ${extractFunction("gameChallengeResultLabel")}
+  ${extractFunction("gameChallengeBookSprintElapsedMs")}
+  ${extractFunction("activeGameChallenge")}
+  ${extractFunction("triviaExitControl")}
   globalThis.normalizeChallenge = normalizedGameChallenge;
   globalThis.normalizePlayer = normalizedGameChallengePlayer;
   globalThis.otherUserId = gameChallengeOtherUserId;
@@ -103,6 +108,8 @@ vm.runInContext(`
   globalThis.popupShouldInterrupt = gameChallengePopupShouldInterrupt;
   globalThis.seededRandom = seededTriviaRandom;
   globalThis.resultLabel = gameChallengeResultLabel;
+  globalThis.bookSprintElapsed = gameChallengeBookSprintElapsedMs;
+  globalThis.exitControl = triviaExitControl;
 `, pureContext);
 
 assert.deepEqual(
@@ -235,8 +242,31 @@ assert.equal(
       { userId: "user-c", score: 4, completedAt: "done", elapsedMs: 35000 },
     ],
   ),
-  "You finished #1 of 3",
+  "You finished #2 of 3",
+  "Book Sprint standings must rank completed players by total time, not score",
 );
+assert.equal(
+  pureContext.bookSprintElapsed(
+    { startedAt: "2026-07-29T12:00:00.000Z" },
+    { elapsedMs: null },
+    Date.parse("2026-07-29T12:00:42.500Z"),
+  ),
+  42500,
+  "An unfinished Book Sprint player must show total elapsed room time",
+);
+state.activeGameChallengeId = "live";
+assert.match(
+  pureContext.exitControl({ challengeId: "live", complete: false }),
+  /data-game-challenge-action="end"[\s\S]*End challenge/,
+  "The host must get a prominent end-challenge control during a live round",
+);
+state.authUser.id = "user-d";
+assert.match(
+  pureContext.exitControl({ challengeId: "live", complete: false }),
+  /Live challenge in progress/,
+  "A guest must not receive a control that locally drops them out of a running room",
+);
+state.authUser.id = "user-a";
 assert.equal(
   pureContext.resultLabel(
     { gameType: "trivia" },
@@ -309,17 +339,27 @@ assert.doesNotMatch(
 );
 assert.match(source, /function gameRoomLobbyCard\(/);
 assert.match(source, /function liveGameChallengeScoreboard\(/);
+assert.match(source, /function refreshLiveGameChallengeScoreboard\(/);
+assert.match(source, /data-live-book-sprint-running="true"/);
+assert.match(source, /function triviaExitControl\(/);
+assert.match(source, /data-game-challenge-action="end"/);
 assert.match(source, /Invite up to 9 friends to a live room/);
 assert.match(source, /data-challenge-friend=/);
 assert.match(source, /data-game-challenge-action="start-room"/);
 assert.match(source, /Players who have not answered do not block the room/);
 assert.match(source, /const challengeSetupLock = waitingForLiveChallenge/);
-assert.match(source, /End this live game for every player/);
+assert.match(source, /End this live challenge for every player/);
+assert.match(extractFunction("exitTriviaGame"), /The host ends a live challenge for everyone/);
+assert.match(source, /gameChallengeLoadSequence/);
+assert.match(source, /gameChallengeRefreshInFlight/);
+assert.match(source, /previousPopupKey === gameChallengePopupNoticeKey/);
+assert.match(source, /activeGameStayedOpen/);
+assert.match(source, /game-challenge-popup-overlay open \$\{continuingPopup/);
 assert.match(source, /\.channel\(`bsb-game-challenges-\$\{userId\}`\)/);
 assert.match(source, /\.channel\(`bsb-game-room:\$\{challenge\.id\}`/);
 assert.match(source, /table: gameChallengeTable/);
 assert.match(source, /table: gameChallengePlayerTable/);
-assert.match(source, /withTriviaRandomSeed\(challenge\.seed, startTriviaGame\)/);
+assert.match(source, /withTriviaRandomSeed\(challenge\.seed, \(\) => startTriviaGame\(\{ render: false \}\)\)/);
 assert.match(source, /syncActiveChallengeProgress\(\{ completed: true \}\)/);
 assert.match(styles, /\.game-challenges-card/);
 assert.match(styles, /\.game-challenge-popup-overlay/);
@@ -330,5 +370,7 @@ assert.match(styles, /\.challenge-friend-picker/);
 assert.match(styles, /\.game-room-player-list/);
 assert.match(styles, /\.live-challenge-scoreboard/);
 assert.match(styles, /\.live-status-dot/);
+assert.match(styles, /\.trivia-end-challenge/);
+assert.match(styles, /\.game-challenge-popup-overlay\.continuing/);
 
 console.log("Game challenge tests passed");

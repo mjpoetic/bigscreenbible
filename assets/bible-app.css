@@ -2758,6 +2758,11 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   animation: dialogIn var(--motion-slow) var(--motion-ease) both;
 }
 
+.game-challenge-popup-overlay.continuing,
+.game-challenge-popup-overlay.continuing .game-challenge-popup {
+  animation: none;
+}
+
 .game-challenge-popup-icon {
   display: grid;
   place-items: center;
@@ -5242,6 +5247,13 @@ select {
   font-size: 24px;
 }
 
+.live-challenge-players strong.live-challenge-time {
+  min-width: 64px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .live-challenge-scoreboard > p {
   margin: 0;
   color: var(--muted);
@@ -5508,6 +5520,28 @@ select {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.trivia-end-challenge {
+  border-color: color-mix(in srgb, var(--red-letter) 78%, var(--line));
+  background: var(--red-letter);
+  color: #fff;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--red-letter) 24%, transparent);
+}
+
+.trivia-end-challenge:hover,
+.trivia-end-challenge:focus-visible {
+  border-color: var(--red-letter);
+  background: color-mix(in srgb, var(--red-letter) 88%, #000);
+  color: #fff;
+}
+
+.trivia-live-lock {
+  align-self: center;
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .verse-order-game h2 {

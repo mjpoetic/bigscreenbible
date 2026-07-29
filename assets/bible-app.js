@@ -243,6 +243,9 @@ let gameChallengeRealtimeChannel = null;
 let gameRoomPresenceChannel = null;
 let gameRoomPresenceId = "";
 let gameChallengeRefreshTimer = 0;
+let gameChallengeLoadSequence = 0;
+let gameChallengeRefreshInFlight = false;
+let gameChallengeRefreshQueued = false;
 let gameChallengePopupNotice = null;
 let gameChallengePopupQueue = [];
 let dismissedGameChallengePopupKeys = null;
@@ -1109,12 +1112,15 @@ function render() {
     applyPopupPosition("help");
     if (state.pushPromptVisible) document.getElementById("enablePushPrompt")?.focus();
     if (gameChallengePopupIsVisible()) {
-      const popupPrimary = document.getElementById("gameChallengePopupPrimary");
-      const popupFocusTarget = popupPrimary && !popupPrimary.disabled
-        ? popupPrimary
-        : document.querySelector("[data-game-challenge-popup-dismiss]:not([disabled])")
-          || document.getElementById("gameChallengePopupDialog");
-      popupFocusTarget?.focus({ preventScroll: true });
+      const popupDialog = document.getElementById("gameChallengePopupDialog");
+      if (popupDialog?.dataset.popupContinuing !== "true") {
+        const popupPrimary = document.getElementById("gameChallengePopupPrimary");
+        const popupFocusTarget = popupPrimary && !popupPrimary.disabled
+          ? popupPrimary
+          : document.querySelector("[data-game-challenge-popup-dismiss]:not([disabled])")
+            || popupDialog;
+        popupFocusTarget?.focus({ preventScroll: true });
+      }
     }
     if (pendingNoteComposerFocus) {
       pendingNoteComposerFocus = false;
@@ -3669,6 +3675,9 @@ function dismissGameChallengePopup({ render = true } = {}) {
 function gameChallengePopup() {
   if (!gameChallengePopupIsVisible()) return "";
   const notice = gameChallengePopupNotice;
+  const noticeKey = gameChallengePopupNoticeKey(notice);
+  const continuingPopup = document.getElementById("gameChallengePopupDialog")
+    ?.dataset.challengeNoticeKey === noticeKey;
   const challenge = state.gameChallenges.find((item) => item.id === notice.challengeId);
   if (!challenge) return "";
   const profile = friendshipProfile(notice.actorUserId || gameChallengeOtherUserId(challenge));
@@ -3695,10 +3704,12 @@ function gameChallengePopup() {
     : accepted ? "Open lobby" : "Got it";
   const popupBusy = Boolean(state.gameChallengeActionBusyId);
   return `
-    <section class="game-challenge-popup-overlay open">
+    <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}">
       <article
         class="game-challenge-popup ${incoming ? "incoming" : `reply-${notice.status}`}"
         id="gameChallengePopupDialog"
+        data-challenge-notice-key="${escapeHtml(noticeKey)}"
+        data-popup-continuing="${continuingPopup}"
         role="dialog"
         aria-modal="true"
         aria-labelledby="gameChallengePopupTitle"
@@ -3788,7 +3799,7 @@ function gameChallengeRow(challenge, kind) {
     actions = `
       ${gameChallengeActionButton("join", state.activeGameChallengeId === challenge.id ? "In game" : "Join game", challenge, { primary: true })}
       ${challenge.challengerId === state.authUser?.id
-        ? gameChallengeActionButton("leave", "End", challenge, { danger: true })
+        ? gameChallengeActionButton("end", "End", challenge, { danger: true })
         : ""}
     `;
     note = `${note} · ${acceptedPlayers.length} players · Live now`;
@@ -5894,6 +5905,8 @@ function teardownGameRoomPresence() {
 }
 
 function resetGameChallengeState() {
+  gameChallengeLoadSequence += 1;
+  gameChallengeRefreshQueued = false;
   teardownGameChallengeRealtime();
   teardownGameRoomPresence();
   state.gameChallenges = [];
@@ -5922,9 +5935,11 @@ function gameChallengeErrorMessage(error) {
 }
 
 async function loadGameChallenges({ render = true, announce = false } = {}) {
+  const loadSequence = ++gameChallengeLoadSequence;
   const client = createSupabaseClient();
   if (!client) return;
   const session = await authenticatedSupabaseSession(client);
+  if (loadSequence !== gameChallengeLoadSequence) return;
   const userId = session?.user?.id;
   if (!userId) {
     resetGameChallengeState();
@@ -5940,8 +5955,12 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
     ]),
   );
   const previousIncomingIds = new Set(gameChallengeCollections(userId).incoming.map((challenge) => challenge.id));
+  const previousActiveChallengeId = state.activeGameChallengeId;
+  const previousPopupKey = gameChallengePopupNoticeKey(gameChallengePopupNotice);
   state.gameChallengeStatus = "loading";
-  if (render) renderPreservingReaderScroll();
+  if (render && !state.gameChallenges.length && !state.triviaGame?.challengeId) {
+    renderPreservingReaderScroll();
+  }
   try {
     const { data: memberships, error: membershipError } = await client
       .from(gameChallengePlayerTable)
@@ -5974,9 +5993,8 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
       challengeRows = rooms || [];
       playerRows = players || [];
     }
-    const challenges = challengeRows.map(normalizedGameChallenge);
-    state.gameChallenges = challenges;
-    state.gameChallengePlayers = playerRows
+    let challenges = challengeRows.map(normalizedGameChallenge);
+    const playersByChallenge = playerRows
       .map(normalizedGameChallengePlayer)
       .reduce((groups, player) => {
         if (!groups[player.challengeId]) groups[player.challengeId] = [];
@@ -5995,20 +6013,36 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
       if (profilesError) throw profilesError;
       profileRows = profiles || [];
     }
-    state.gameChallengeProfiles = Object.fromEntries(
+    let challengeProfiles = Object.fromEntries(
       profileRows.map((row) => {
         const profile = normalizedSocialProfile(row);
         return [profile.userId, profile];
       }),
     );
+    if (loadSequence !== gameChallengeLoadSequence) return;
+    const previousActiveChallenge = previousChallenges
+      .find((challenge) => challenge.id === previousActiveChallengeId);
+    const preserveRunningChallenge = Boolean(
+      previousActiveChallenge
+      && previousActiveChallenge.status === "accepted"
+      && state.triviaGame?.challengeId === previousActiveChallengeId
+      && !challenges.some((challenge) => challenge.id === previousActiveChallengeId),
+    );
+    if (preserveRunningChallenge) {
+      challenges = [previousActiveChallenge, ...challenges];
+      playersByChallenge[previousActiveChallengeId] = previousPlayers[previousActiveChallengeId] || [];
+      challengeProfiles = { ...state.gameChallengeProfiles, ...challengeProfiles };
+    }
+    state.gameChallenges = challenges;
+    state.gameChallengePlayers = playersByChallenge;
+    state.gameChallengeProfiles = challengeProfiles;
     reconcileGameChallengePopupNotices(
       previousChallenges,
       challenges,
       userId,
       previousPlayers,
-      state.gameChallengePlayers,
+      playersByChallenge,
     );
-    const previousActiveChallengeId = state.activeGameChallengeId;
     const refreshedActiveChallenge = activeGameChallenge();
     if (
       previousActiveChallengeId
@@ -6029,16 +6063,45 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
         showToast(`${profile?.displayName || profile?.username || "A friend"} invited you to ${gameChallengeTitle(newest.gameType)}`);
       }
     }
-    maybeStartActiveGameChallenge();
+    maybeStartActiveGameChallenge({ render: false });
     if (state.activeGameChallengeId) {
       subscribeToActiveGameRoomPresence().catch((error) => console.warn("Game room presence failed", error));
     }
   } catch (error) {
+    if (loadSequence !== gameChallengeLoadSequence) return;
     console.warn("Game challenge load failed", error);
     state.gameChallengeStatus = "error";
     state.gameChallengeMessage = gameChallengeErrorMessage(error);
   } finally {
-    if (render) renderPreservingReaderScroll();
+    if (render && loadSequence === gameChallengeLoadSequence) {
+      const activeGameStayedOpen = Boolean(
+        previousActiveChallengeId
+        && state.activeGameChallengeId === previousActiveChallengeId
+        && state.triviaGame?.challengeId === previousActiveChallengeId
+        && state.mode === "trivia"
+        && !state.accountOpen
+        && previousPopupKey === gameChallengePopupNoticeKey(gameChallengePopupNotice),
+      );
+      if (!activeGameStayedOpen || !refreshLiveGameChallengeScoreboard()) {
+        renderPreservingReaderScroll();
+      }
+    }
+  }
+}
+
+async function refreshGameChallengesFromRealtime() {
+  if (gameChallengeRefreshInFlight) {
+    gameChallengeRefreshQueued = true;
+    return;
+  }
+  gameChallengeRefreshInFlight = true;
+  try {
+    do {
+      gameChallengeRefreshQueued = false;
+      await loadGameChallenges({ announce: true });
+    } while (gameChallengeRefreshQueued);
+  } finally {
+    gameChallengeRefreshInFlight = false;
   }
 }
 
@@ -6046,8 +6109,9 @@ function scheduleGameChallengeRefresh() {
   clearTimeout(gameChallengeRefreshTimer);
   gameChallengeRefreshTimer = setTimeout(() => {
     gameChallengeRefreshTimer = 0;
-    loadGameChallenges({ announce: true }).catch((error) => console.warn("Live challenge refresh failed", error));
-  }, 90);
+    refreshGameChallengesFromRealtime()
+      .catch((error) => console.warn("Live challenge refresh failed", error));
+  }, 140);
 }
 
 function subscribeToGameChallenges() {
@@ -6070,20 +6134,28 @@ function subscribeToGameChallenges() {
     }, scheduleGameChallengeRefresh)
     .subscribe((status) => {
       state.gameChallengeRealtimeStatus = status === "SUBSCRIBED" ? "subscribed" : status.toLowerCase();
-      if (state.accountOpen || state.mode === "trivia") renderPreservingReaderScroll();
+      if (state.accountOpen) renderPreservingReaderScroll();
     });
 }
 
 function syncGameRoomPresenceState() {
   if (!gameRoomPresenceChannel) return;
   const presence = gameRoomPresenceChannel.presenceState();
-  state.gameRoomOnlineUserIds = [...new Set(
+  const onlineUserIds = [...new Set(
     Object.values(presence || {})
       .flat()
       .map((entry) => String(entry?.userId || ""))
       .filter(Boolean),
-  )];
-  if (state.mode === "trivia" && activeGameChallenge()) renderPreservingReaderScroll();
+  )].sort();
+  const previousOnlineUserIds = [...state.gameRoomOnlineUserIds].sort();
+  if (
+    onlineUserIds.length === previousOnlineUserIds.length
+    && onlineUserIds.every((userId, index) => userId === previousOnlineUserIds[index])
+  ) return;
+  state.gameRoomOnlineUserIds = onlineUserIds;
+  if (state.mode === "trivia" && activeGameChallenge()?.status === "pending") {
+    renderPreservingReaderScroll();
+  }
 }
 
 async function trackActiveGameRoomPresence() {
@@ -6197,7 +6269,7 @@ async function sendGameChallenge(opponentIds = state.challengeOpponentIds) {
 async function updateGameChallengeResponse(challengeId, action) {
   const client = createSupabaseClient();
   if (!client || !challengeId || state.gameChallengeActionBusyId) return;
-  if (!["accept", "decline", "cancel", "leave"].includes(action)) return;
+  if (!["accept", "decline", "cancel", "end"].includes(action)) return;
   state.gameChallengeActionBusyId = challengeId;
   state.gameChallengeMessage = action === "accept" ? "Joining room…" : "Updating room…";
   renderPreservingReaderScroll();
@@ -6231,7 +6303,7 @@ async function updateGameChallengeResponse(challengeId, action) {
     }
     if (action === "accept") queueSocialPushDelivery();
     state.gameChallengeActionBusyId = "";
-    if (action === "leave") {
+    if (action === "end") {
       state.activeGameChallengeId = "";
       if (state.triviaGame?.challengeId === challengeId) state.triviaGame = null;
     }
@@ -6243,7 +6315,7 @@ async function updateGameChallengeResponse(challengeId, action) {
       await subscribeToActiveGameRoomPresence();
       state.gameChallengeMessage = "You joined the waiting room.";
       showToast("Joined the game room");
-    } else if (action === "leave") {
+    } else if (action === "end") {
       state.gameChallengeMessage = "Game room ended.";
       showToast("Game room ended");
     } else {
@@ -6426,7 +6498,7 @@ function restoreChallengeGameProgress(game, player) {
   game.index = Math.min(Math.max(0, player.progress), Math.max(0, roundLength - 1));
 }
 
-function startLoadedGameChallenge(challenge) {
+function startLoadedGameChallenge(challenge, { render = true } = {}) {
   if (!challenge || !["accepted", "completed"].includes(challenge.status)) return;
   state.activeGameChallengeId = challenge.id;
   state.mode = "trivia";
@@ -6436,7 +6508,7 @@ function startLoadedGameChallenge(challenge) {
   state.triviaDifficulty = challenge.difficulty;
   state.triviaCount = challenge.roundCount;
   state.referenceRushTimed = challenge.timed;
-  withTriviaRandomSeed(challenge.seed, startTriviaGame);
+  withTriviaRandomSeed(challenge.seed, () => startTriviaGame({ render: false }));
   if (!state.triviaGame) return;
   state.triviaGame.challengeId = challenge.id;
   const startedAt = Date.parse(challenge.startedAt || "");
@@ -6448,21 +6520,21 @@ function startLoadedGameChallenge(challenge) {
     if (state.triviaGame.type === "book-sprint") state.triviaGame.startedAt = startedAt;
   }
   restoreChallengeGameProgress(state.triviaGame, gameChallengePlayer(challenge.id));
-  renderPreservingReaderScroll();
+  if (render) renderPreservingReaderScroll();
 }
 
-function maybeStartActiveGameChallenge() {
+function maybeStartActiveGameChallenge({ render = true } = {}) {
   const challenge = activeGameChallenge();
   if (!challenge || !challenge.startedAt) return;
   if (state.triviaGame?.challengeId === challenge.id) return;
-  startLoadedGameChallenge(challenge);
+  startLoadedGameChallenge(challenge, { render });
 }
 
 function handleGameChallengeAction(button) {
   const action = button.dataset.gameChallengeAction;
   const challengeId = button.dataset.gameChallengeId || "";
-  if (["accept", "decline", "cancel", "leave"].includes(action)) {
-    if (action === "leave" && !window.confirm("End this game room for every player?")) return;
+  if (["accept", "decline", "cancel", "end"].includes(action)) {
+    if (action === "end" && !window.confirm("End this live challenge for every player?")) return;
     return updateGameChallengeResponse(challengeId, action);
   }
   if (action === "ready") return setGameRoomReady(challengeId, true);
@@ -8214,7 +8286,9 @@ function updateBookSprintTimerDisplay() {
   const game = state.triviaGame;
   const timer = document.getElementById("bookSprintTimer");
   const label = document.getElementById("bookSprintTimerLabel");
-  if (!timer || game?.type !== "book-sprint") return;
+  if (game?.type !== "book-sprint") return;
+  updateLiveBookSprintTimes();
+  if (!timer) return;
   const elapsedMs = bookSprintElapsedMs(game);
   const targetMs = Number(game.bookSprintTarget?.elapsedMs) || 0;
   if (!targetMs) {
@@ -8311,12 +8385,18 @@ function updateReferenceRushTimerDisplay() {
 }
 
 function gameChallengePlayerComparison(challenge, first, second) {
-  if ((first?.score ?? 0) !== (second?.score ?? 0)) return (second?.score ?? 0) - (first?.score ?? 0);
   if (challenge?.gameType === "book-sprint") {
+    const firstComplete = Boolean(first?.completedAt);
+    const secondComplete = Boolean(second?.completedAt);
+    if (firstComplete !== secondComplete) return firstComplete ? -1 : 1;
     const firstElapsed = first?.elapsedMs === null ? Number.POSITIVE_INFINITY : Number(first?.elapsedMs);
     const secondElapsed = second?.elapsedMs === null ? Number.POSITIVE_INFINITY : Number(second?.elapsedMs);
-    if (firstElapsed !== secondElapsed) return firstElapsed - secondElapsed;
+    if (firstComplete && firstElapsed !== secondElapsed) return firstElapsed - secondElapsed;
+    if ((first?.progress ?? 0) !== (second?.progress ?? 0)) {
+      return (second?.progress ?? 0) - (first?.progress ?? 0);
+    }
   }
+  if ((first?.score ?? 0) !== (second?.score ?? 0)) return (second?.score ?? 0) - (first?.score ?? 0);
   return 0;
 }
 
@@ -8352,6 +8432,25 @@ function gameChallengeResultLabel(
     : `You finished #${rank} of ${players.length}`;
 }
 
+function gameChallengeBookSprintElapsedMs(challenge, player, now = Date.now()) {
+  if (player?.elapsedMs !== null && player?.elapsedMs !== undefined) {
+    return Math.max(0, Number(player.elapsedMs) || 0);
+  }
+  const startedAt = Date.parse(challenge?.startedAt || "");
+  return Number.isFinite(startedAt) ? Math.max(0, now - startedAt) : 0;
+}
+
+function liveBookSprintPlayerResult(challenge, player) {
+  const elapsed = formatGameTime(gameChallengeBookSprintElapsedMs(challenge, player));
+  return `
+    <small>${player.completedAt ? "Finished" : "In progress"}</small>
+    <strong
+      class="live-challenge-time"
+      ${player.completedAt ? "" : 'data-live-book-sprint-running="true"'}
+    >${elapsed}</strong>
+  `;
+}
+
 function liveGameChallengeScoreboard() {
   const challenge = activeGameChallenge();
   if (!challenge || challenge.status === "pending") return "";
@@ -8378,8 +8477,12 @@ function liveGameChallengeScoreboard() {
               <span class="live-challenge-rank">#${rank}</span>
               ${socialProfileAvatarMarkup(profile, "live-challenge-avatar")}
               <span class="live-challenge-name">${escapeHtml(name)}</span>
-              <small>${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
-              <strong>${player.score ?? 0}</strong>
+              ${challenge.gameType === "book-sprint"
+                ? liveBookSprintPlayerResult(challenge, player)
+                : `
+                  <small>${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
+                  <strong>${player.score ?? 0}</strong>
+                `}
             </li>
           `;
         }).join("")}
@@ -8387,6 +8490,27 @@ function liveGameChallengeScoreboard() {
       <p role="status" aria-live="polite">${escapeHtml(result)}</p>
     </section>
   `;
+}
+
+function updateLiveBookSprintTimes(challenge = activeGameChallenge()) {
+  if (challenge?.gameType !== "book-sprint") return;
+  const elapsed = formatGameTime(gameChallengeBookSprintElapsedMs(challenge, null));
+  document.querySelectorAll("[data-live-book-sprint-running]").forEach((timer) => {
+    timer.textContent = elapsed;
+  });
+}
+
+function refreshLiveGameChallengeScoreboard() {
+  const current = document.querySelector(".live-challenge-scoreboard");
+  const markup = liveGameChallengeScoreboard();
+  if (!current || !markup) return false;
+  const template = document.createElement("template");
+  template.innerHTML = markup.trim();
+  const replacement = template.content.firstElementChild;
+  if (!replacement) return false;
+  current.replaceWith(replacement);
+  updateLiveBookSprintTimes();
+  return true;
 }
 
 function gameRoomLobbyPlayer(challenge, player) {
@@ -8626,6 +8750,32 @@ function triviaView() {
   `;
 }
 
+function triviaExitControl(game = state.triviaGame) {
+  const challenge = game?.challengeId ? activeGameChallenge() : null;
+  const liveChallenge = Boolean(
+    challenge
+    && challenge.status === "accepted"
+    && challenge.startedAt
+    && !game.complete,
+  );
+  if (!liveChallenge) {
+    return '<button class="ghost-btn" id="exitTriviaGame">Games menu</button>';
+  }
+  if (challenge.challengerId !== state.authUser?.id) {
+    return '<span class="trivia-live-lock" role="status">Live challenge in progress</span>';
+  }
+  const busy = state.gameChallengeActionBusyId === challenge.id;
+  return `
+    <button
+      class="ghost-btn trivia-end-challenge"
+      type="button"
+      data-game-challenge-action="end"
+      data-game-challenge-id="${escapeHtml(challenge.id)}"
+      ${busy ? "disabled" : ""}
+    >${busy ? "Ending…" : "End challenge"}</button>
+  `;
+}
+
 function triviaGameView() {
   const game = state.triviaGame;
   if (game?.type === "verse-order") return verseOrderGameView(game);
@@ -8688,13 +8838,13 @@ function triviaGameView() {
           </div>
         </div>
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.questions.length - 1 ? "Finish round" : "Next question"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
         </div>
       `}
@@ -8754,13 +8904,13 @@ function verseOrderGameView(game) {
           </div>
         </div>
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next verse"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="resetVerseOrderPuzzle" ${puzzle.selectedIds.length ? "" : "disabled"}>Reset puzzle</button>
           <button class="primary-btn" id="checkVerseOrder" ${puzzle.selectedIds.length === puzzle.segments.length ? "" : "disabled"}>Check order</button>
         </div>
@@ -8839,13 +8989,13 @@ function referenceRushGameView(game) {
           </div>
         </div>
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish round" : "Next verse"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
         </div>
       `}
@@ -8915,13 +9065,13 @@ function bookSprintGameView(game) {
           <p>The Bible order is: ${escapeHtml(puzzle.books.join(", "))}.</p>
         </div>
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.puzzles.length - 1 ? "Finish Book Sprint" : "Next round"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="resetBookSprintPuzzle" ${puzzle.selectedBooks.length ? "" : "disabled"}>Reset puzzle</button>
           <button class="primary-btn" id="checkBookSprint" ${puzzle.selectedBooks.length === puzzle.books.length ? "" : "disabled"}>Check order</button>
         </div>
@@ -8958,13 +9108,13 @@ function whoSaidItGameView(game) {
           </div>
         </div>
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.questions.length - 1 ? "Finish round" : "Next quote"}</button>
         </div>
       ` : `
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
         </div>
       `}
@@ -9018,7 +9168,7 @@ function triviaResultsView(game) {
           </div>
         </div>
         <div class="trivia-actions">
-          <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+          ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Try again</button>
           <button class="primary-btn" id="newTriviaGame">New round</button>
         </div>
@@ -9041,7 +9191,7 @@ function triviaResultsView(game) {
       <p>${resultText}</p>
       ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       <div class="trivia-actions">
-        <button class="ghost-btn" id="exitTriviaGame">Games menu</button>
+        ${triviaExitControl(game)}
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
         <button class="primary-btn" id="newTriviaGame">${game.type === "trivia" || !game.type ? "New category" : "New round"}</button>
       </div>
@@ -11701,12 +11851,12 @@ function triviaPool() {
   });
 }
 
-function startTriviaGame() {
+function startTriviaGame({ render = true } = {}) {
   cleanupTriviaCelebration();
-  if (state.triviaGameType === "verse-order") return startVerseOrderGame();
-  if (state.triviaGameType === "reference-rush") return startReferenceRushGame();
-  if (state.triviaGameType === "book-sprint") return startBookSprintGame();
-  if (state.triviaGameType === "who-said-it") return startWhoSaidItGame();
+  if (state.triviaGameType === "verse-order") return startVerseOrderGame({ render });
+  if (state.triviaGameType === "reference-rush") return startReferenceRushGame({ render });
+  if (state.triviaGameType === "book-sprint") return startBookSprintGame({ render });
+  if (state.triviaGameType === "who-said-it") return startWhoSaidItGame({ render });
   const pool = shuffleItems(triviaPool());
   if (!pool.length) {
     showToast("No trivia questions available for that category yet");
@@ -11731,10 +11881,10 @@ function startTriviaGame() {
     usedHintTypes: [],
     complete: false,
   };
-  renderPreservingReaderScroll();
+  if (render) renderPreservingReaderScroll();
 }
 
-function startReferenceRushGame() {
+function startReferenceRushGame({ render = true } = {}) {
   const pools = referenceRushPools();
   const puzzles = referenceRushPuzzles(pools, state.triviaDifficulty, normalizedTriviaCount("reference-rush", state.triviaCount));
   if (puzzles.length < 4) {
@@ -11762,7 +11912,7 @@ function startReferenceRushGame() {
     referenceRushLastTick: null,
     complete: false,
   };
-  renderPreservingReaderScroll();
+  if (render) renderPreservingReaderScroll();
 }
 
 const referenceRushEasyRefs = new Set([
@@ -12131,7 +12281,7 @@ function bookFromChapterKey(chapterKey) {
     .find((book) => chapterKey.startsWith(`${book} `)) || "";
 }
 
-function startBookSprintGame() {
+function startBookSprintGame({ render = true } = {}) {
   const puzzleCount = normalizedTriviaCount("book-sprint", state.triviaCount);
   const target = savedBookSprintBest(state.triviaDifficulty, puzzleCount);
   if (target) primeBookSprintAudio();
@@ -12152,7 +12302,7 @@ function startBookSprintGame() {
     bookSprintBestRecorded: false,
     complete: false,
   };
-  renderPreservingReaderScroll();
+  if (render) renderPreservingReaderScroll();
 }
 
 function createBookSprintPuzzle() {
@@ -12372,7 +12522,7 @@ const whoSaidItQuestions = [
   { difficulty: "hard", quote: "Should a man like me flee?", answer: "Nehemiah", choices: ["Nehemiah", "Ezra", "Mordecai", "Jeremiah"], reference: "Nehemiah 6:11", explanation: "Nehemiah refused the trap set by his enemies." },
 ];
 
-function startWhoSaidItGame() {
+function startWhoSaidItGame({ render = true } = {}) {
   const pool = shuffleItems(whoSaidItPool());
   if (!pool.length) {
     showToast("No Who Said It questions available for that difficulty yet");
@@ -12387,14 +12537,14 @@ function startWhoSaidItGame() {
     score: 0,
     complete: false,
   };
-  renderPreservingReaderScroll();
+  if (render) renderPreservingReaderScroll();
 }
 
 function whoSaidItPool() {
   return whoSaidItQuestions.filter((question) => state.triviaDifficulty === "All" || question.difficulty === state.triviaDifficulty.toLowerCase());
 }
 
-function startVerseOrderGame() {
+function startVerseOrderGame({ render = true } = {}) {
   const pool = shuffleItems(verseOrderPool());
   if (!pool.length) {
     showToast("No verses available for Verse Order yet");
@@ -12410,7 +12560,7 @@ function startVerseOrderGame() {
     score: 0,
     complete: false,
   };
-  renderPreservingReaderScroll();
+  if (render) renderPreservingReaderScroll();
 }
 
 function verseOrderGameVersion() {
@@ -12581,14 +12731,11 @@ function exitTriviaGame() {
     const challengeId = state.triviaGame.challengeId;
     const challenge = activeGameChallenge();
     if (challenge?.challengerId !== state.authUser?.id) {
-      state.activeGameChallengeId = "";
-      state.triviaGame = null;
-      teardownGameRoomPresence();
-      renderPreservingReaderScroll();
+      showToast("The host ends a live challenge for everyone");
       return;
     }
-    if (!window.confirm("End this live game for every player?")) return;
-    updateGameChallengeResponse(challengeId, "leave");
+    if (!window.confirm("End this live challenge for every player?")) return;
+    updateGameChallengeResponse(challengeId, "end");
     return;
   }
   cleanupTriviaCelebration();
