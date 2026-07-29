@@ -265,6 +265,9 @@ assert.match(showAccountSwitchNotificationSource, /account-switch-indicator/);
 assert.match(styles, /\.account-switch-indicator/);
 assert.match(styles, /animation: account-switch-indicator 2000ms/);
 assert.match(styles, /account-switch-indicator-reduced/);
+assert.match(styles, /\.chapter-change-icon\.account-switch-icon\s*\{[^}]*position:\s*relative/);
+assert.match(styles, /\.account-switch-avatar\s*\{[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%, -50%\)/);
+assert.match(styles, /\.account-switch-fallback-avatar\s*\{[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%, -50%\)/);
 
 let accountSwitchTimeout = null;
 let accountSwitchTimeoutDelay = 0;
