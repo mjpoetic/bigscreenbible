@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import vm from "node:vm";
 
 const app = fs.readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../assets/bible-app.css", import.meta.url), "utf8");
@@ -12,6 +13,19 @@ const sender = fs.readFileSync(
   new URL("../supabase/functions/send-push-notifications/index.ts", import.meta.url),
   "utf8",
 );
+
+function namedFunctionSource(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `${name} should exist`);
+  const bodyStart = source.indexOf("{", start);
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error(`${name} should have a complete function body`);
+}
 
 assert.match(schema, /add column if not exists user_id uuid references auth\.users\(id\) on delete set null/);
 assert.match(schema, /friend_request_notifications boolean not null default true/);
@@ -60,6 +74,25 @@ assert.match(app, /unlinkPushSubscriptionFromCurrentAccount/);
 assert.match(app, /applySocialNotificationDeepLink/);
 assert.match(app, /params\.get\("challenge"\)/);
 assert.match(app, /Friend requests/);
+assert.match(app, /openGameChallengeNotificationDestination\(challenge, player\)/);
+assert.match(app, /gameChallengePopupNotice = \{[\s\S]+kind: "incoming"/);
+assert.match(app, /Waiting room opened from your notification/);
+assert.match(app, /not available for this account\. Try switching accounts/);
 assert.match(styles, /\.push-social-options/);
+
+const notificationDestination = vm.runInNewContext(
+  `(${namedFunctionSource(app, "gameChallengeNotificationDestination")})`,
+  { gameChallengeIsExpired: (challenge) => Boolean(challenge.expired) },
+);
+const acceptedPlayer = { inviteStatus: "accepted" };
+const invitedPlayer = { inviteStatus: "invited" };
+assert.equal(notificationDestination(null, null), "unavailable");
+assert.equal(notificationDestination({ status: "pending" }, invitedPlayer), "invitation");
+assert.equal(notificationDestination({ status: "pending" }, acceptedPlayer), "lobby");
+assert.equal(notificationDestination({ status: "pending", expired: true }, acceptedPlayer), "ended");
+assert.equal(notificationDestination({ status: "accepted", startedAt: "" }, acceptedPlayer), "lobby");
+assert.equal(notificationDestination({ status: "accepted", startedAt: "2026-07-29T12:00:00Z" }, acceptedPlayer), "game");
+assert.equal(notificationDestination({ status: "completed" }, acceptedPlayer), "results");
+assert.equal(notificationDestination({ status: "cancelled" }, acceptedPlayer), "ended");
 
 console.log("Push notification tests passed");

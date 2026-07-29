@@ -3650,8 +3650,18 @@ function gameChallengePopupIsVisible() {
 }
 
 function dismissGameChallengePopup({ render = true } = {}) {
-  if (gameChallengePopupNotice) rememberDismissedGameChallengePopup(gameChallengePopupNotice);
+  const dismissedNotice = gameChallengePopupNotice;
+  if (dismissedNotice) rememberDismissedGameChallengePopup(dismissedNotice);
   gameChallengePopupNotice = null;
+  if (
+    dismissedNotice?.kind === "incoming"
+    && state.activeGameChallengeId === dismissedNotice.challengeId
+    && gameChallengePlayer(dismissedNotice.challengeId)?.inviteStatus === "invited"
+  ) {
+    state.activeGameChallengeId = "";
+    state.gameChallengeMessage = "Invitation saved for later in Friends & Challenges.";
+    teardownGameRoomPresence();
+  }
   showNextGameChallengePopup();
   if (render) renderPreservingReaderScroll();
 }
@@ -13589,6 +13599,98 @@ function requestedModeFromUrl() {
   return "";
 }
 
+function gameChallengeNotificationDestination(
+  challenge,
+  player,
+  expired = challenge ? gameChallengeIsExpired(challenge) : false,
+) {
+  if (!challenge || !player) return "unavailable";
+  if (expired) return "ended";
+  if (challenge.status === "pending") {
+    if (player.inviteStatus === "invited") return "invitation";
+    if (player.inviteStatus === "accepted") return "lobby";
+    return "ended";
+  }
+  if (challenge.status === "accepted") {
+    return player.inviteStatus === "accepted"
+      ? challenge.startedAt ? "game" : "lobby"
+      : "ended";
+  }
+  if (challenge.status === "completed") {
+    return player.inviteStatus === "accepted" ? "results" : "ended";
+  }
+  return "ended";
+}
+
+function setGameChallengeNotificationView(challenge) {
+  state.activeGameChallengeId = challenge.id;
+  state.accountOpen = false;
+  state.mode = "trivia";
+  state.triviaGame = null;
+  state.triviaGameType = challenge.gameType;
+  state.triviaCategory = challenge.category;
+  state.triviaDifficulty = challenge.difficulty;
+  state.triviaCount = challenge.roundCount;
+  state.referenceRushTimed = challenge.timed;
+}
+
+function clearMatchingGameChallengePopup(challengeId) {
+  if (gameChallengePopupNotice?.challengeId === challengeId) gameChallengePopupNotice = null;
+  gameChallengePopupQueue = gameChallengePopupQueue.filter((notice) => notice.challengeId !== challengeId);
+}
+
+function openGameChallengeNotificationDestination(challenge, player) {
+  state.focusMode = false;
+  state.settingsOpen = false;
+  state.accountOpen = false;
+  state.mode = "trivia";
+  clearMatchingGameChallengePopup(challenge?.id || "");
+  const destination = gameChallengeNotificationDestination(challenge, player);
+
+  if (destination === "unavailable") {
+    state.activeGameChallengeId = "";
+    state.triviaGame = null;
+    state.gameChallengeMessage = "That game room is not available for this account. Try switching accounts if a different account was invited.";
+    teardownGameRoomPresence();
+    renderPreservingReaderScroll();
+    return true;
+  }
+
+  if (destination === "ended") {
+    state.activeGameChallengeId = "";
+    state.triviaGame = null;
+    state.gameChallengeMessage = "That game room has ended or the invitation is no longer available.";
+    teardownGameRoomPresence();
+    renderPreservingReaderScroll();
+    return true;
+  }
+
+  setGameChallengeNotificationView(challenge);
+  if (destination === "invitation") {
+    gameChallengePopupNotice = {
+      userId: state.authUser.id,
+      actorUserId: challenge.challengerId,
+      kind: "incoming",
+      challengeId: challenge.id,
+      status: "invited",
+    };
+    state.gameChallengeMessage = "New game room invitation";
+    renderPreservingReaderScroll();
+    return true;
+  }
+
+  subscribeToActiveGameRoomPresence()
+    .catch((error) => console.warn("Game room presence failed", error));
+  if (destination === "game" || destination === "results") {
+    startLoadedGameChallenge(challenge);
+    return true;
+  }
+
+  state.gameChallengeMessage = "Waiting room opened from your notification.";
+  renderPreservingReaderScroll();
+  return true;
+}
+
 function applySocialNotificationDeepLink() {
   if (!state.authUser) return false;
   const params = new URLSearchParams(window.location.search);
@@ -13614,42 +13716,9 @@ function applySocialNotificationDeepLink() {
   }
 
   if (socialTarget === "challenges" || challengeId) {
-    setSocialConnectionsOpen(true);
     const challenge = state.gameChallenges.find((item) => item.id === challengeId);
-    if (!challenge) {
-      state.accountOpen = true;
-      state.gameChallengeMessage = "That challenge is no longer available for this account.";
-      renderPreservingReaderScroll();
-      return true;
-    }
-    if (challenge.status === "pending") {
-      const player = gameChallengePlayer(challenge.id, state.authUser.id);
-      state.accountOpen = true;
-      state.gameChallengeMessage = player?.inviteStatus === "invited"
-        ? "New game room invitation"
-        : "Waiting room ready to open";
-      renderPreservingReaderScroll();
-      requestAnimationFrame(() => document.querySelector(".game-challenges-card")?.scrollIntoView?.({ block: "nearest" }));
-      return true;
-    }
-    if (["accepted", "completed"].includes(challenge.status)) {
-      state.activeGameChallengeId = challenge.id;
-      state.accountOpen = false;
-      state.mode = "trivia";
-      state.triviaGame = null;
-      state.triviaGameType = challenge.gameType;
-      state.triviaCategory = challenge.category;
-      state.triviaDifficulty = challenge.difficulty;
-      state.triviaCount = challenge.roundCount;
-      state.referenceRushTimed = challenge.timed;
-      if (challenge.startedAt || challenge.status === "completed") startLoadedGameChallenge(challenge);
-      else renderPreservingReaderScroll();
-      return true;
-    }
-    state.accountOpen = true;
-    state.gameChallengeMessage = "That challenge has ended.";
-    renderPreservingReaderScroll();
-    return true;
+    const player = challenge ? gameChallengePlayer(challenge.id, state.authUser.id) : null;
+    return openGameChallengeNotificationDestination(challenge, player);
   }
 
   return false;
