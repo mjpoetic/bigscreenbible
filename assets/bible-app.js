@@ -241,6 +241,9 @@ let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
 let gameChallengeRealtimeChannel = null;
 let gameChallengeRefreshTimer = 0;
+let gameChallengePopupNotice = null;
+let gameChallengePopupQueue = [];
+let dismissedGameChallengePopupKeys = null;
 let triviaRandomSource = Math.random;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
@@ -248,6 +251,7 @@ const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
 const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
+const gameChallengePopupDismissedStorageKey = "lw_dismissed_game_challenge_popups";
 const socialConnectionsOpenStorageKey = "lw_social_connections_open";
 const libraryScrollStorageKey = "lw_library_scroll_by_rail";
 const readerPositionStorageKey = "lw_reader_position";
@@ -430,6 +434,7 @@ const state = {
   pushFriendRequestNotifications: localStorage.getItem("lw_push_friend_requests") !== "false",
   pushGameChallengeNotifications: localStorage.getItem("lw_push_game_challenges") !== "false",
   pushChallengeAcceptedNotifications: localStorage.getItem("lw_push_challenge_accepted") !== "false",
+  challengeQuietMode: localStorage.getItem("lw_challenge_quiet_mode") === "true",
   pushStatus: "Checking notification support…",
   pushBusy: false,
   pushPromptVisible: false,
@@ -1064,6 +1069,7 @@ function render() {
         ${reader(chapterChange)}
         ${accountSwitchNotification()}
       </section>
+      ${gameChallengePopup()}
       ${bottombar()}
       ${mobileFloatingSettings()}
       ${mobileSettingsPanel(settingsPanelRerender)}
@@ -1098,6 +1104,14 @@ function render() {
     restoreAccountPanelScroll(accountScrollState);
     applyPopupPosition("help");
     if (state.pushPromptVisible) document.getElementById("enablePushPrompt")?.focus();
+    if (gameChallengePopupIsVisible()) {
+      const popupPrimary = document.getElementById("gameChallengePopupPrimary");
+      const popupFocusTarget = popupPrimary && !popupPrimary.disabled
+        ? popupPrimary
+        : document.querySelector("[data-game-challenge-popup-dismiss]:not([disabled])")
+          || document.getElementById("gameChallengePopupDialog");
+      popupFocusTarget?.focus({ preventScroll: true });
+    }
     if (pendingNoteComposerFocus) {
       pendingNoteComposerFocus = false;
       const textarea = document.getElementById("noteComposerTextarea");
@@ -2172,6 +2186,14 @@ function startupReminderSettings(prefix = "") {
         <input type="checkbox" id="${controlId("ShowStreakPopupToggle")}" ${state.showStreakPopup ? "checked" : ""} />
         <span>Show daily streak popup</span>
       </label>
+    </div>
+    <div class="setting-group settings-section-subgroup challenge-quiet-mode-settings">
+      <span class="setting-label">Challenges</span>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("ChallengeQuietModeToggle")}" ${state.challengeQuietMode ? "checked" : ""} />
+        <span>Challenge Quiet Mode</span>
+      </label>
+      <p class="setting-help">Keeps incoming challenge popups in Friends &amp; Challenges while you read, study, or present. Popups still appear in Games.</p>
     </div>
     ${pushReminderSettings(prefix)}
   `);
@@ -3433,6 +3455,226 @@ function gameChallengeSummary(challenge) {
   }[challenge.gameType] || "questions";
   parts.push(`${challenge.roundCount} ${roundLabel}`);
   return parts.join(" · ");
+}
+
+function dismissedGameChallengePopups() {
+  if (dismissedGameChallengePopupKeys) return dismissedGameChallengePopupKeys;
+  try {
+    const saved = JSON.parse(localStorage.getItem(gameChallengePopupDismissedStorageKey) || "[]");
+    dismissedGameChallengePopupKeys = new Set(
+      Array.isArray(saved) ? saved.filter((key) => typeof key === "string").slice(-50) : [],
+    );
+  } catch {
+    dismissedGameChallengePopupKeys = new Set();
+  }
+  return dismissedGameChallengePopupKeys;
+}
+
+function gameChallengePopupNoticeKey(notice) {
+  if (!notice) return "";
+  return [notice.userId, notice.kind, notice.challengeId, notice.status].join(":");
+}
+
+function rememberDismissedGameChallengePopup(notice) {
+  const key = gameChallengePopupNoticeKey(notice);
+  if (!key) return;
+  const dismissed = dismissedGameChallengePopups();
+  dismissed.add(key);
+  const recent = Array.from(dismissed).slice(-50);
+  dismissedGameChallengePopupKeys = new Set(recent);
+  localStorage.setItem(gameChallengePopupDismissedStorageKey, JSON.stringify(recent));
+}
+
+function gameChallengePopupCandidates(previousChallenges = [], challenges = [], userId = "") {
+  if (!userId) return [];
+  const previousById = new Map(previousChallenges.map((challenge) => [challenge.id, challenge]));
+  const replies = challenges
+    .filter((challenge) => {
+      const previous = previousById.get(challenge.id);
+      return (
+        challenge.challengerId === userId
+        && previous?.status === "pending"
+        && ["accepted", "declined"].includes(challenge.status)
+      );
+    })
+    .map((challenge) => ({
+      userId,
+      kind: "reply",
+      challengeId: challenge.id,
+      status: challenge.status,
+    }));
+  const incoming = challenges
+    .filter((challenge) => (
+      challenge.challengedId === userId
+      && challenge.status === "pending"
+      && !gameChallengeIsExpired(challenge)
+    ))
+    .map((challenge) => ({
+      userId,
+      kind: "incoming",
+      challengeId: challenge.id,
+      status: "pending",
+    }));
+  return [...replies, ...incoming];
+}
+
+function gameChallengePopupNoticeIsValid(
+  notice,
+  challenges = state.gameChallenges,
+  userId = state.authUser?.id || "",
+) {
+  if (!notice || notice.userId !== userId) return false;
+  const challenge = challenges.find((item) => item.id === notice.challengeId);
+  if (!challenge || challenge.status !== notice.status) return false;
+  if (notice.kind === "incoming") {
+    return challenge.challengedId === userId && !gameChallengeIsExpired(challenge);
+  }
+  return notice.kind === "reply"
+    && challenge.challengerId === userId
+    && ["accepted", "declined"].includes(challenge.status);
+}
+
+function queueGameChallengePopupNotice(notice) {
+  const key = gameChallengePopupNoticeKey(notice);
+  if (
+    !key
+    || dismissedGameChallengePopups().has(key)
+    || gameChallengePopupNoticeKey(gameChallengePopupNotice) === key
+    || gameChallengePopupQueue.some((queued) => gameChallengePopupNoticeKey(queued) === key)
+  ) return;
+  gameChallengePopupQueue.push(notice);
+}
+
+function showNextGameChallengePopup() {
+  const userId = state.authUser?.id || "";
+  while (gameChallengePopupQueue.length) {
+    const candidate = gameChallengePopupQueue.shift();
+    if (
+      gameChallengePopupNoticeIsValid(candidate, state.gameChallenges, userId)
+      && !dismissedGameChallengePopups().has(gameChallengePopupNoticeKey(candidate))
+    ) {
+      gameChallengePopupNotice = candidate;
+      return;
+    }
+  }
+  gameChallengePopupNotice = null;
+}
+
+function reconcileGameChallengePopupNotices(
+  previousChallenges = [],
+  challenges = state.gameChallenges,
+  userId = state.authUser?.id || "",
+) {
+  if (!gameChallengePopupNoticeIsValid(gameChallengePopupNotice, challenges, userId)) {
+    gameChallengePopupNotice = null;
+  }
+  gameChallengePopupQueue = gameChallengePopupQueue.filter((notice) => (
+    gameChallengePopupNoticeIsValid(notice, challenges, userId)
+  ));
+  gameChallengePopupCandidates(previousChallenges, challenges, userId)
+    .forEach(queueGameChallengePopupNotice);
+  if (!gameChallengePopupNotice) showNextGameChallengePopup();
+}
+
+function gameChallengePopupShouldInterrupt(
+  notice,
+  challengeQuietMode = state.challengeQuietMode,
+  mode = state.mode,
+) {
+  return !(notice?.kind === "incoming" && challengeQuietMode && mode !== "trivia");
+}
+
+function gameChallengePopupIsVisible() {
+  if (!gameChallengePopupNoticeIsValid(gameChallengePopupNotice)) return false;
+  if (!gameChallengePopupShouldInterrupt(gameChallengePopupNotice)) return false;
+  return !(
+    state.pushPromptVisible
+    || state.tutorialActive
+    || state.tutorialIntroVisible
+    || state.shortcutsOpen
+    || state.aboutMenuOpen
+  );
+}
+
+function dismissGameChallengePopup({ render = true } = {}) {
+  if (gameChallengePopupNotice) rememberDismissedGameChallengePopup(gameChallengePopupNotice);
+  gameChallengePopupNotice = null;
+  showNextGameChallengePopup();
+  if (render) renderPreservingReaderScroll();
+}
+
+function gameChallengePopup() {
+  if (!gameChallengePopupIsVisible()) return "";
+  const notice = gameChallengePopupNotice;
+  const challenge = state.gameChallenges.find((item) => item.id === notice.challengeId);
+  if (!challenge) return "";
+  const profile = friendshipProfile(gameChallengeOtherUserId(challenge));
+  const person = profile || {
+    username: "",
+    displayName: "A friend",
+    avatarKey: "initials",
+  };
+  const personName = person.displayName || (person.username ? `@${person.username}` : "A friend");
+  const personHandle = person.username ? `@${person.username}` : "";
+  const incoming = notice.kind === "incoming";
+  const accepted = notice.status === "accepted";
+  const title = incoming
+    ? `${personName} challenged you`
+    : accepted ? `${personName} accepted` : `${personName} may play later`;
+  const body = incoming
+    ? "Ready for a live, head-to-head game?"
+    : accepted
+      ? "Your challenge is on. Open it when you’re ready to play."
+      : "Your friend declined this challenge. You can send another one whenever the time is right.";
+  const primaryAction = incoming ? "accept" : accepted ? "join" : "";
+  const primaryLabel = incoming
+    ? state.gameChallengeActionBusyId === challenge.id ? "Accepting…" : "Accept challenge"
+    : accepted ? "Open challenge" : "Got it";
+  const popupBusy = Boolean(state.gameChallengeActionBusyId);
+  return `
+    <section class="game-challenge-popup-overlay open">
+      <article
+        class="game-challenge-popup ${incoming ? "incoming" : `reply-${notice.status}`}"
+        id="gameChallengePopupDialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gameChallengePopupTitle"
+        aria-describedby="gameChallengePopupDescription"
+        tabindex="-1"
+      >
+        <div class="game-challenge-popup-icon" aria-hidden="true">${icons.trivia}</div>
+        <div class="shortcut-eyebrow">${incoming ? "Live challenge" : "Challenge reply"}</div>
+        <div class="game-challenge-popup-person">
+          ${socialProfileAvatarMarkup(person, "game-challenge-popup-avatar")}
+          <div>
+            <strong>${escapeHtml(personName)}</strong>
+            ${personHandle ? `<span>${escapeHtml(personHandle)}</span>` : ""}
+          </div>
+        </div>
+        <h2 id="gameChallengePopupTitle">${escapeHtml(title)}</h2>
+        <p id="gameChallengePopupDescription">${escapeHtml(body)}</p>
+        <div class="game-challenge-popup-summary">${escapeHtml(gameChallengeSummary(challenge))}</div>
+        <div class="game-challenge-popup-actions">
+          ${primaryAction ? `
+            <button
+              class="primary-btn"
+              id="gameChallengePopupPrimary"
+              type="button"
+              data-game-challenge-action="${primaryAction}"
+              data-game-challenge-id="${escapeHtml(challenge.id)}"
+              ${popupBusy ? "disabled" : ""}
+            >${escapeHtml(primaryLabel)}</button>
+          ` : `
+            <button class="primary-btn" id="gameChallengePopupPrimary" type="button" data-game-challenge-popup-dismiss ${popupBusy ? "disabled" : ""}>${primaryLabel}</button>
+          `}
+          ${incoming || accepted
+            ? `<button class="ghost-btn" type="button" data-game-challenge-popup-dismiss ${popupBusy ? "disabled" : ""}>Maybe later</button>`
+            : ""}
+        </div>
+        ${incoming ? '<p class="game-challenge-popup-note">Maybe later keeps this challenge waiting in Friends &amp; Challenges.</p>' : ""}
+      </article>
+    </section>
+  `;
 }
 
 function gameChallengeActionButton(action, label, challenge, { primary = false, danger = false } = {}) {
@@ -5590,6 +5832,8 @@ function resetGameChallengeState() {
   state.gameChallengeActionBusyId = "";
   state.challengeOpponentId = "";
   state.activeGameChallengeId = "";
+  gameChallengePopupNotice = null;
+  gameChallengePopupQueue = [];
 }
 
 function gameChallengeErrorMessage(error) {
@@ -5608,6 +5852,9 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
     resetGameChallengeState();
     return;
   }
+  const previousChallenges = Array.isArray(state.gameChallenges)
+    ? state.gameChallenges.map((challenge) => ({ ...challenge }))
+    : [];
   const previousIncomingIds = new Set(gameChallengeCollections(userId).incoming.map((challenge) => challenge.id));
   state.gameChallengeStatus = "loading";
   if (render) renderPreservingReaderScroll();
@@ -5638,6 +5885,7 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
         groups[player.challengeId].push(player);
         return groups;
       }, {});
+    reconcileGameChallengePopupNotices(previousChallenges, challenges, userId);
     const previousActiveChallengeId = state.activeGameChallengeId;
     const refreshedActiveChallenge = activeGameChallenge();
     if (
@@ -5968,7 +6216,26 @@ function handleGameChallengeAction(button) {
     if (action === "leave" && !window.confirm("End this live challenge for both players?")) return;
     return updateGameChallengeResponse(challengeId, action);
   }
-  if (["join", "view"].includes(action)) return joinGameChallenge(challengeId);
+  if (["join", "view"].includes(action)) {
+    if (button.closest(".game-challenge-popup")) dismissGameChallengePopup();
+    return joinGameChallenge(challengeId);
+  }
+}
+
+function trapGameChallengePopupFocus(event) {
+  if (event.key !== "Tab") return;
+  const dialog = event.currentTarget;
+  const focusable = Array.from(dialog.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === dialog || document.activeElement === first)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function captureSocialProfileDraft(prefix = "") {
@@ -7111,6 +7378,7 @@ function captureCloudSnapshot() {
       startBigScreen: state.startBigScreen,
       startVerseOfDay: state.startVerseOfDay,
       showStreakPopup: state.showStreakPopup,
+      challengeQuietMode: state.challengeQuietMode,
       triviaGameType: state.triviaGameType,
       triviaCategory: state.triviaCategory,
       triviaDifficulty: state.triviaDifficulty,
@@ -7268,6 +7536,9 @@ function applyCloudSnapshot(snapshot) {
   state.startBigScreen = settings.startBigScreen !== false;
   state.startVerseOfDay = settings.startVerseOfDay !== false;
   state.showStreakPopup = settings.showStreakPopup !== false;
+  state.challengeQuietMode = typeof settings.challengeQuietMode === "boolean"
+    ? settings.challengeQuietMode
+    : localStorage.getItem("lw_challenge_quiet_mode") === "true";
   state.triviaGameType = settings.triviaGameType || state.triviaGameType;
   state.triviaCategory = settings.triviaCategory || state.triviaCategory;
   state.triviaDifficulty = settings.triviaDifficulty || state.triviaDifficulty;
@@ -7311,6 +7582,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
   localStorage.setItem("lw_start_verse_of_day", String(state.startVerseOfDay));
   localStorage.setItem("lw_show_streak_popup", String(state.showStreakPopup));
+  localStorage.setItem("lw_challenge_quiet_mode", String(state.challengeQuietMode));
   localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
   localStorage.setItem("lw_trivia_category", state.triviaCategory);
   localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
@@ -10226,6 +10498,10 @@ function bindEvents() {
   document.querySelectorAll("[data-game-challenge-action]").forEach((button) => {
     button.addEventListener("click", () => handleGameChallengeAction(button));
   });
+  document.querySelectorAll("[data-game-challenge-popup-dismiss]").forEach((button) => {
+    button.addEventListener("click", () => dismissGameChallengePopup());
+  });
+  document.getElementById("gameChallengePopupDialog")?.addEventListener("keydown", trapGameChallengePopupFocus);
   document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
   document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
   document.getElementById("quick-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("quick"));
@@ -10377,6 +10653,14 @@ function bindEvents() {
     localStorage.setItem("lw_show_streak_popup", state.showStreakPopup ? "true" : "false");
     scheduleCloudSync();
     if (!state.showStreakPopup) dismissStreakPopup();
+  });
+  ["challengeQuietModeToggle", "mobileChallengeQuietModeToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state.challengeQuietMode = event.target.checked;
+      localStorage.setItem("lw_challenge_quiet_mode", state.challengeQuietMode ? "true" : "false");
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
   });
   ["PushNotificationsToggle", "mobilePushNotificationsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
@@ -14094,6 +14378,14 @@ function handleGlobalShortcuts(event) {
   const key = event.key.toLowerCase();
   const modifiedSlash = (event.metaKey || event.ctrlKey) && event.key === "/";
   const typing = isTypingTarget(event.target);
+
+  if (gameChallengePopupIsVisible()) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      dismissGameChallengePopup();
+    }
+    return;
+  }
 
   if (modifiedSlash) {
     event.preventDefault();

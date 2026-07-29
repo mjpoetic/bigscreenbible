@@ -2725,6 +2725,152 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   gap: 9px;
 }
 
+.game-challenge-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: grid;
+  place-items: center;
+  padding: max(22px, env(safe-area-inset-top, 0px)) max(22px, env(safe-area-inset-right, 0px))
+    max(22px, env(safe-area-inset-bottom, 0px)) max(22px, env(safe-area-inset-left, 0px));
+  background: rgba(7, 12, 20, 0.66);
+  backdrop-filter: blur(12px);
+  animation: backdropIn var(--motion-base) ease-out both;
+}
+
+.game-challenge-popup {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(500px, 100%);
+  max-height: calc(100dvh - 44px);
+  overflow: auto;
+  padding: 30px;
+  border: 1px solid color-mix(in srgb, var(--teal) 38%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 97%, transparent);
+  color: var(--ink);
+  text-align: center;
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.42),
+    0 0 0 1px color-mix(in srgb, var(--teal) 10%, transparent);
+  backdrop-filter: blur(20px);
+  animation: dialogIn var(--motion-slow) var(--motion-ease) both;
+}
+
+.game-challenge-popup-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 14px;
+  border: 1px solid color-mix(in srgb, var(--teal) 42%, var(--line));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--teal) 14%, var(--panel));
+  color: var(--teal);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+
+.game-challenge-popup-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.game-challenge-popup.reply-accepted .game-challenge-popup-icon {
+  background: color-mix(in srgb, var(--teal) 18%, var(--panel));
+}
+
+.game-challenge-popup.reply-declined .game-challenge-popup-icon {
+  border-color: var(--line);
+  background: var(--soft);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.game-challenge-popup .shortcut-eyebrow {
+  color: var(--teal);
+}
+
+.game-challenge-popup-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  text-align: left;
+}
+
+.game-challenge-popup-person > div {
+  display: grid;
+  gap: 2px;
+}
+
+.game-challenge-popup-person strong {
+  font-size: var(--interface-text-14);
+}
+
+.game-challenge-popup-person span {
+  color: var(--muted);
+  font-size: var(--interface-text-11);
+  font-weight: 750;
+}
+
+.game-challenge-popup-avatar {
+  width: 52px;
+  height: 52px;
+  flex-basis: 52px;
+  font-size: var(--interface-text-14);
+}
+
+.game-challenge-popup-avatar svg {
+  width: 25px;
+  height: 25px;
+}
+
+.game-challenge-popup h2 {
+  margin: 18px 0 7px;
+  font: 700 clamp(23px, 4vw, 31px)/1.16 "Libre Baskerville", Georgia, serif;
+}
+
+.game-challenge-popup > p {
+  max-width: 40ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--interface-text-14);
+  line-height: 1.55;
+}
+
+.game-challenge-popup-summary {
+  margin-top: 18px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: var(--interface-text-11);
+  font-weight: 800;
+}
+
+.game-challenge-popup-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  width: 100%;
+  margin-top: 22px;
+}
+
+.game-challenge-popup-actions:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.game-challenge-popup-actions button {
+  min-height: 46px;
+}
+
+.game-challenge-popup .game-challenge-popup-note {
+  margin-top: 12px;
+  font-size: var(--interface-text-10);
+}
+
 .game-challenges-heading {
   display: flex;
   align-items: center;
@@ -2746,6 +2892,34 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .challenge-history[open] summary {
   margin-bottom: 7px;
+}
+
+@media (max-width: 640px) {
+  .game-challenge-popup-overlay {
+    place-items: center;
+    padding: 12px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .game-challenge-popup {
+    width: 100%;
+    max-height: min(84dvh, 680px);
+    padding: 25px 20px 21px;
+    border-radius: 16px;
+  }
+
+  .game-challenge-popup h2 {
+    font-size: 24px;
+  }
+
+  .game-challenge-popup-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .game-challenge-popup-actions button {
+    min-height: 50px;
+  }
 }
 
 .friend-search-form {

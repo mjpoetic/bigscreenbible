@@ -71,6 +71,8 @@ vm.runInContext(`
   ${extractFunction("gameChallengePlayer")}
   ${extractFunction("gameChallengeIsExpired")}
   ${extractFunction("gameChallengeCollections")}
+  ${extractFunction("gameChallengePopupCandidates")}
+  ${extractFunction("gameChallengePopupShouldInterrupt")}
   ${extractFunction("seededTriviaRandom")}
   ${extractFunction("gameChallengeResultLabel")}
   globalThis.normalizeChallenge = normalizedGameChallenge;
@@ -78,6 +80,8 @@ vm.runInContext(`
   globalThis.otherUserId = gameChallengeOtherUserId;
   globalThis.player = gameChallengePlayer;
   globalThis.collections = gameChallengeCollections;
+  globalThis.popupCandidates = gameChallengePopupCandidates;
+  globalThis.popupShouldInterrupt = gameChallengePopupShouldInterrupt;
   globalThis.seededRandom = seededTriviaRandom;
   globalThis.resultLabel = gameChallengeResultLabel;
 `, pureContext);
@@ -117,6 +121,56 @@ assert.equal(pureContext.collections().outgoing[0].id, "outgoing");
 assert.equal(pureContext.collections().live[0].id, "live");
 assert.equal(pureContext.collections().completed[0].id, "complete");
 assert.equal(pureContext.player("live").score, 3);
+assert.deepEqual(
+  Array.from(pureContext.popupCandidates([], state.gameChallenges, "user-a"), (notice) => ({
+    kind: notice.kind,
+    challengeId: notice.challengeId,
+    status: notice.status,
+  })),
+  [{ kind: "incoming", challengeId: "incoming", status: "pending" }],
+  "Pending invitations must surface when challenge state first loads",
+);
+assert.deepEqual(
+  Array.from(pureContext.popupCandidates(
+    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "pending" }],
+    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "accepted" }],
+    "user-a",
+  ), (notice) => ({
+    kind: notice.kind,
+    challengeId: notice.challengeId,
+    status: notice.status,
+  })),
+  [{ kind: "reply", challengeId: "reply", status: "accepted" }],
+  "The challenger must see an accepted reply transition",
+);
+assert.deepEqual(
+  Array.from(pureContext.popupCandidates(
+    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "pending" }],
+    [{ id: "reply", challengerId: "user-a", challengedId: "user-b", status: "declined" }],
+    "user-a",
+  ), (notice) => ({
+    kind: notice.kind,
+    challengeId: notice.challengeId,
+    status: notice.status,
+  })),
+  [{ kind: "reply", challengeId: "reply", status: "declined" }],
+  "The challenger must see a declined reply transition",
+);
+assert.equal(
+  pureContext.popupShouldInterrupt({ kind: "incoming" }, true, "reader"),
+  false,
+  "Quiet Mode must keep incoming challenge popups out of Scripture reading",
+);
+assert.equal(
+  pureContext.popupShouldInterrupt({ kind: "incoming" }, true, "trivia"),
+  true,
+  "Quiet Mode must still surface incoming challenges in Games",
+);
+assert.equal(
+  pureContext.popupShouldInterrupt({ kind: "reply" }, true, "reader"),
+  true,
+  "Quiet Mode must not hide a reply from the challenger",
+);
 
 const randomA = pureContext.seededRandom(9876);
 const randomB = pureContext.seededRandom(9876);
@@ -172,6 +226,17 @@ assert.match(challengeSchema, /alter publication supabase_realtime add table pub
 assert.match(challengeSchema, /alter publication supabase_realtime add table public\.bsb_game_challenge_players/);
 
 assert.match(source, /function gameChallengesCard\(/);
+assert.match(source, /function gameChallengePopup\(/);
+assert.match(source, /id="gameChallengePopupDialog"/);
+assert.match(source, /role="dialog"/);
+assert.match(source, /aria-modal="true"/);
+assert.match(source, />Maybe later</);
+assert.match(source, /gameChallengePopupDismissedStorageKey/);
+assert.match(source, /lw_dismissed_game_challenge_popups/);
+assert.match(source, /id="\$\{controlId\("ChallengeQuietModeToggle"\)\}"/);
+assert.match(source, /lw_challenge_quiet_mode/);
+assert.match(source, /challengeQuietMode: state\.challengeQuietMode/);
+assert.match(source, /state\.challengeQuietMode = typeof settings\.challengeQuietMode/);
 assert.match(source, /function gameChallengeSetupCard\(/);
 assert.match(source, /function liveGameChallengeScoreboard\(/);
 assert.match(source, /challenge\.status === "accepted" && !challenge\.startedAt/);
@@ -183,6 +248,8 @@ assert.match(source, /table: gameChallengePlayerTable/);
 assert.match(source, /withTriviaRandomSeed\(challenge\.seed, startTriviaGame\)/);
 assert.match(source, /syncActiveChallengeProgress\(\{ completed: true \}\)/);
 assert.match(styles, /\.game-challenges-card/);
+assert.match(styles, /\.game-challenge-popup-overlay/);
+assert.match(styles, /\.game-challenge-popup-actions/);
 assert.match(styles, /\.challenge-setup-card/);
 assert.match(styles, /\.live-challenge-scoreboard/);
 assert.match(styles, /\.live-status-dot/);
