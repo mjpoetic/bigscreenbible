@@ -2203,6 +2203,36 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   color: var(--ink);
 }
 
+.social-profile-avatar.avatar-heart {
+  background: color-mix(in srgb, var(--red-letter) 13%, var(--panel));
+  color: var(--red-letter);
+}
+
+.social-profile-avatar.avatar-star,
+.social-profile-avatar.avatar-crown {
+  background: color-mix(in srgb, var(--gold) 18%, var(--panel));
+  color: color-mix(in srgb, var(--gold) 82%, var(--ink));
+}
+
+.social-profile-avatar.avatar-dove,
+.social-profile-avatar.avatar-leaf {
+  background: color-mix(in srgb, var(--teal) 13%, var(--panel));
+  color: color-mix(in srgb, var(--teal) 88%, var(--ink));
+}
+
+.social-profile-avatar.avatar-mountain,
+.social-profile-avatar.avatar-moon {
+  background: color-mix(in srgb, var(--soft) 78%, var(--panel));
+  color: var(--muted);
+}
+
+.social-profile-avatar.avatar-cross,
+.social-profile-avatar.avatar-fish,
+.social-profile-avatar.avatar-compass {
+  background: color-mix(in srgb, var(--teal) 10%, var(--panel));
+  color: var(--teal);
+}
+
 .social-profile-avatar-preview {
   width: 46px;
   height: 46px;
@@ -2292,13 +2322,21 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   font-weight: 850;
 }
 
+.social-avatar-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 6fr) minmax(42px, 1fr);
+  gap: 6px;
+}
+
 .social-avatar-options {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
+  min-width: 0;
 }
 
-.social-avatar-choice {
+.social-avatar-choice,
+.social-avatar-more-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2309,6 +2347,11 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
+}
+
+.social-avatar-more-toggle svg {
+  width: 18px;
+  height: 18px;
 }
 
 .social-avatar-choice .social-profile-avatar {
@@ -2325,13 +2368,87 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .social-avatar-choice:hover,
 .social-avatar-choice:focus-visible,
-.social-avatar-choice.active {
+.social-avatar-choice.active,
+.social-avatar-more-toggle:hover,
+.social-avatar-more-toggle:focus-visible,
+.social-avatar-more-toggle.active,
+.social-avatar-more-toggle[aria-expanded="true"] {
   border-color: var(--teal);
   background: color-mix(in srgb, var(--teal) 8%, var(--panel));
 }
 
-.social-avatar-choice.active {
+.social-avatar-choice.active,
+.social-avatar-more-toggle.active,
+.social-avatar-more-toggle[aria-expanded="true"] {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+
+.social-avatar-picker-popup {
+  position: fixed;
+  z-index: 190;
+  display: grid;
+  gap: 9px;
+  width: min(292px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  animation: surfaceIn var(--motion-fast) var(--motion-ease) both;
+}
+
+.social-avatar-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.social-avatar-picker-heading strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.social-avatar-picker-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.social-avatar-picker-close:hover,
+.social-avatar-picker-close:focus-visible {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.social-avatar-picker-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.social-avatar-more-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.social-avatar-more-options .social-avatar-choice {
+  min-height: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .social-avatar-picker-popup {
+    animation: none;
+  }
 }
 
 .social-profile-privacy {
@@ -9219,6 +9336,37 @@ kbd {
 
 .account-switch-halo {
   color: var(--teal-dark);
+}
+
+.account-switch-icon {
+  width: 64px;
+  height: 64px;
+}
+
+.account-switch-avatar {
+  width: 60px;
+  height: 60px;
+  flex-basis: 60px;
+  border-width: 2px;
+  font-size: 18px;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 13%, transparent);
+}
+
+.account-switch-icon .account-switch-avatar svg {
+  width: 30px;
+  height: 30px;
+}
+
+.account-switch-fallback-avatar {
+  display: grid;
+  width: 45px;
+  height: 45px;
+  place-items: center;
+}
+
+.account-switch-icon .account-switch-fallback-avatar svg {
+  width: 100%;
+  height: 100%;
 }
 
 .chapter-change-halo {

@@ -255,7 +255,10 @@ assert.match(source, /const accountSwitchNoticeDurationMs = 2000/);
 assert.match(accountSwitchNotificationSource, /role="status"/);
 assert.match(accountSwitchNotificationSource, /aria-live="polite"/);
 assert.match(accountSwitchNotificationSource, /Switched to/);
+assert.match(accountSwitchNotificationSource, /socialProfileAvatarMarkup/);
+assert.match(accountSwitchNotificationSource, /account-switch-fallback-avatar/);
 assert.match(showAccountSwitchNotificationSource, /state\.accountOpen = false/);
+assert.match(showAccountSwitchNotificationSource, /state\.socialProfile/);
 assert.match(showAccountSwitchNotificationSource, /setTimeout\(\(\) =>/);
 assert.match(showAccountSwitchNotificationSource, /accountSwitchNoticeDurationMs/);
 assert.match(showAccountSwitchNotificationSource, /account-switch-indicator/);
@@ -270,7 +273,7 @@ const notificationContext = {
   accountSwitchNotice: null,
   accountSwitchNoticeTimer: 0,
   accountSwitchNoticeDurationMs: 2000,
-  state: { accountOpen: true },
+  state: { accountOpen: true, socialProfile: null },
   rememberedAccounts() {
     return [{ userId: "account-b", email: "b@example.com", username: "outgoing-profile" }];
   },
@@ -300,7 +303,13 @@ vm.runInContext(`
 `, notificationContext);
 notificationContext.showSwitchNotice(
   { id: "account-b", email: "b@example.com" },
-  { userId: "account-b", email: "b@example.com", username: "destination-profile" },
+  {
+    userId: "account-b",
+    email: "b@example.com",
+    username: "destination-profile",
+    displayName: "Destination Profile",
+    avatarKey: "heart",
+  },
 );
 assert.equal(notificationContext.state.accountOpen, false);
 assert.equal(
@@ -308,6 +317,56 @@ assert.equal(
   "@destination-profile",
   "The switch notice must use the account the user selected, not stale remembered profile state",
 );
+assert.equal(notificationContext.currentSwitchNotice().avatarKey, "heart");
+assert.equal(notificationContext.currentSwitchNotice().displayName, "Destination Profile");
+notificationContext.state.socialProfile = {
+  userId: "account-b",
+  username: "destination-profile",
+  displayName: "Fresh Profile",
+  avatarKey: "star",
+};
+notificationContext.showSwitchNotice(
+  { id: "account-b", email: "b@example.com" },
+  {
+    userId: "account-b",
+    email: "b@example.com",
+    username: "destination-profile",
+    displayName: "Stale Profile",
+    avatarKey: "heart",
+  },
+);
+assert.equal(notificationContext.currentSwitchNotice().avatarKey, "star");
+assert.equal(notificationContext.currentSwitchNotice().displayName, "Fresh Profile");
+
+const notificationMarkupContext = {
+  accountSwitchNotice: {
+    identity: "@destination-profile",
+    username: "destination-profile",
+    displayName: "Destination Profile",
+    avatarKey: "heart",
+  },
+  socialAvatarKeys: ["initials", "heart"],
+  socialProfileAvatarMarkup(profile, className) {
+    return `<span class="${className} avatar-${profile.avatarKey}"></span>`;
+  },
+  escapeHtml(value) {
+    return String(value);
+  },
+  icons: { user: "<svg>generic-user</svg>" },
+};
+vm.createContext(notificationMarkupContext);
+vm.runInContext(`
+  ${accountSwitchNotificationSource}
+  globalThis.renderSwitchNotice = accountSwitchNotification;
+`, notificationMarkupContext);
+const chosenAvatarNotice = notificationMarkupContext.renderSwitchNotice();
+assert.match(chosenAvatarNotice, /account-switch-avatar avatar-heart/);
+assert.doesNotMatch(chosenAvatarNotice, /generic-user/);
+notificationMarkupContext.accountSwitchNotice.avatarKey = "";
+const fallbackAvatarNotice = notificationMarkupContext.renderSwitchNotice();
+assert.match(fallbackAvatarNotice, /account-switch-fallback-avatar/);
+assert.match(fallbackAvatarNotice, /generic-user/);
+
 assert.equal(accountSwitchTimeoutDelay, 2000);
 assert.equal(typeof accountSwitchTimeout, "function");
 accountSwitchTimeout();

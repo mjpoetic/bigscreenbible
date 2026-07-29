@@ -26,6 +26,24 @@ function extractFunction(name) {
 
 const savedPayloads = [];
 const toasts = [];
+const expectedAvatarKeys = [
+  "initials",
+  "book",
+  "sun",
+  "flame",
+  "bookmark",
+  "quote",
+  "cross",
+  "heart",
+  "star",
+  "dove",
+  "fish",
+  "mountain",
+  "leaf",
+  "crown",
+  "compass",
+  "moon",
+];
 const state = {
   authUser: { id: "user-123", email: "private@example.com" },
   socialProfile: null,
@@ -50,7 +68,7 @@ const profileRow = {
 const context = {
   state,
   socialProfileTable: "bsb_profiles",
-  socialAvatarKeys: ["initials", "book", "sun", "flame", "bookmark", "quote"],
+  socialAvatarKeys: expectedAvatarKeys,
   captureSocialProfileDraft() {
     return {
       username: "reader_one",
@@ -146,6 +164,12 @@ assert.match(profileSchema, /grant select, insert, update on table public\.bsb_p
 assert.match(profileSchema, /using \(\(\(select auth\.uid\(\)\) = user_id\) or is_discoverable\)/);
 assert.doesNotMatch(profileTableDefinition, /\bemail\b/i);
 assert.match(profileSchema, /username ~ '\^\[a-z\]\[a-z0-9_\]\{2,19\}\$'/);
+for (const avatarKey of expectedAvatarKeys) {
+  assert.match(source, new RegExp(`key: "${avatarKey}"`), `Missing ${avatarKey} frontend avatar`);
+  assert.match(profileSchema, new RegExp(`'${avatarKey}'`), `Missing ${avatarKey} database avatar`);
+}
+assert.match(profileSchema, /drop constraint if exists bsb_profiles_avatar_key_check/);
+assert.match(profileSchema, /add constraint bsb_profiles_avatar_key_check/);
 
 assert.match(source, /id="\$\{suffix\}socialProfileForm"/);
 assert.match(source, /<details class="account-card social-profile-card"/);
@@ -157,6 +181,11 @@ assert.match(styles, /\.social-profile-card/);
 assert.match(styles, /\.social-profile-summary/);
 assert.match(styles, /details\.social-profile-card\[open\] \.social-profile-disclosure-icon/);
 assert.match(styles, /\.social-avatar-options/);
+assert.match(source, /data-profile-avatar-more/);
+assert.match(source, /function openSocialAvatarPicker/);
+assert.match(source, /role="dialog"/);
+assert.match(styles, /\.social-avatar-picker-popup/);
+assert.match(styles, /\.social-avatar-more-options/);
 assert.match(styles, /\.social-profile-privacy/);
 
 console.log("Social profile tests passed");

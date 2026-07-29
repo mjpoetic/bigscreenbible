@@ -81,13 +81,54 @@ create table if not exists public.bsb_profiles (
         and char_length(display_name) between 1 and 40
       )
     ),
-  avatar_key text not null default 'initials'
-    check (avatar_key in ('initials', 'book', 'sun', 'flame', 'bookmark', 'quote')),
+  avatar_key text not null default 'initials',
+  constraint bsb_profiles_avatar_key_check
+    check (avatar_key in (
+      'initials',
+      'book',
+      'sun',
+      'flame',
+      'bookmark',
+      'quote',
+      'cross',
+      'heart',
+      'star',
+      'dove',
+      'fish',
+      'mountain',
+      'leaf',
+      'crown',
+      'compass',
+      'moon'
+    )),
   is_discoverable boolean not null default true,
   allow_friend_requests boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.bsb_profiles
+  drop constraint if exists bsb_profiles_avatar_key_check;
+alter table public.bsb_profiles
+  add constraint bsb_profiles_avatar_key_check
+  check (avatar_key in (
+    'initials',
+    'book',
+    'sun',
+    'flame',
+    'bookmark',
+    'quote',
+    'cross',
+    'heart',
+    'star',
+    'dove',
+    'fish',
+    'mountain',
+    'leaf',
+    'crown',
+    'compass',
+    'moon'
+  ));
 
 comment on table public.bsb_profiles is
   'Signed-in social identities. Email addresses and private study data are intentionally excluded.';

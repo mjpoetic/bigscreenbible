@@ -290,7 +290,19 @@ const socialAvatarOptions = [
   { key: "flame", label: "Flame", icon: "flame" },
   { key: "bookmark", label: "Bookmark", icon: "bookmark" },
   { key: "quote", label: "Quotation", icon: "quote" },
+  { key: "cross", label: "Cross", icon: "cross" },
+  { key: "heart", label: "Heart", icon: "heart" },
+  { key: "star", label: "Star", icon: "star" },
+  { key: "dove", label: "Dove", icon: "dove" },
+  { key: "fish", label: "Fish", icon: "fish" },
+  { key: "mountain", label: "Mountain", icon: "mountain" },
+  { key: "leaf", label: "Leaf", icon: "leaf" },
+  { key: "crown", label: "Crown", icon: "crown" },
+  { key: "compass", label: "Compass", icon: "compass" },
+  { key: "moon", label: "Moon", icon: "moon" },
 ];
+const socialAvatarQuickOptions = socialAvatarOptions.slice(0, 6);
+const socialAvatarMoreOptions = socialAvatarOptions.slice(6);
 const socialAvatarKeys = socialAvatarOptions.map((option) => option.key);
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
@@ -734,6 +746,15 @@ const icons = {
   info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><path d="M12 7h.01"/></svg>',
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
+  cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M6.5 8.5h11"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.9a5.1 5.1 0 0 0-7.2 0L12 7.5l-1.6-1.6a5.1 5.1 0 0 0-7.2 7.2L12 22l8.8-8.9a5.1 5.1 0 0 0 0-7.2z"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg>',
+  dove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 5.5c-4.4.3-7.4 2.1-8.9 5.3C9.8 8.7 7.1 7.4 3.5 7.3c1.1 3.6 3.4 6 7 7.1-.5 2.2-2 4.1-4.2 5.3 5.3.2 9.2-2.1 10.9-6.6 2.4-1.4 3.5-4 3.3-7.6z"/><path d="m17.4 8.3 2.7 1"/></svg>',
+  fish: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3.2-4 6.8-6 10.8-6 1.9 0 3.7.5 5.2 1.5L22 5v14l-3-2.5a9.5 9.5 0 0 1-5.2 1.5C9.8 18 6.2 16 3 12z"/><circle cx="13.5" cy="10" r=".7" fill="currentColor" stroke="none"/></svg>',
+  mountain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 20 7.2-12 3 5 2.1-3L21 20z"/><path d="m8.4 11 1.8 1.7 1.2-1.3"/></svg>',
+  leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 3.5C12 3.7 5.5 6.8 4.2 12.2c-1.1 4.6 2.6 7.9 6.8 6.4 5.2-1.8 8-7.4 9.5-15.1z"/><path d="M4 21c2.4-5.1 6.1-8.6 11.2-10.8"/></svg>',
+  crown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 11H5z"/><path d="M5 18h14M7 21h10"/></svg>',
+  compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9z"/></svg>',
   key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="14.5" r="4.5"/><path d="M11 11l8-8"/><path d="M16 6l2 2"/><path d="M14 8l2 2"/></svg>',
   google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.2 3-7.2z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.6-2.5l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.8A6 6 0 0 1 6 12c0-.6.1-1.2.4-1.8V7.6H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.4l3.3-2.6z"/><path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2 10 10 0 0 0 3.1 7.6l3.3 2.6c.8-2.3 3-4.1 5.6-4.1z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
@@ -741,6 +762,7 @@ const icons = {
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
   chevronLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>',
   chevronDouble: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 18 6-6-6-6"/><path d="m13 18 6-6-6-6"/></svg>',
+  more: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
@@ -1014,6 +1036,7 @@ function render() {
   const settingsPanelRerender = Boolean(settingsScrollState);
   const accountPanelRerender = Boolean(accountScrollState);
   closeMobileVerseNavMenu();
+  closeSocialAvatarPicker();
   const app = document.querySelector("#app");
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   const sideToolbarPosition = effectiveSideToolbarPosition();
@@ -1127,11 +1150,14 @@ function chapterChangeIndicator(change) {
 
 function accountSwitchNotification() {
   if (!accountSwitchNotice) return "";
+  const avatarMarkup = socialAvatarKeys.includes(accountSwitchNotice.avatarKey)
+    ? socialProfileAvatarMarkup(accountSwitchNotice, "account-switch-avatar")
+    : `<span class="account-switch-fallback-avatar">${icons.user}</span>`;
   return `
     <div class="account-switch-indicator" role="status" aria-live="polite" aria-atomic="true">
       <span class="sr-only">Switched account to ${escapeHtml(accountSwitchNotice.identity)}</span>
       <span class="chapter-change-halo account-switch-halo" aria-hidden="true">
-        <span class="chapter-change-icon">${icons.user}</span>
+        <span class="chapter-change-icon account-switch-icon">${avatarMarkup}</span>
       </span>
       <span class="chapter-change-label" aria-hidden="true">Switched to ${escapeHtml(accountSwitchNotice.identity)}</span>
     </div>
@@ -1142,12 +1168,19 @@ function showAccountSwitchNotification(user, destinationAccount = null) {
   const account = destinationAccount?.userId === user?.id
     ? destinationAccount
     : rememberedAccounts().find((item) => item.userId === user?.id);
-  const identity = account?.username
-    ? `@${account.username}`
+  const loadedProfile = state.socialProfile?.userId === user?.id
+    ? state.socialProfile
+    : null;
+  const profile = loadedProfile || account;
+  const identity = profile?.username
+    ? `@${profile.username}`
     : String(account?.email || user?.email || "your account").trim();
   accountSwitchNotice = {
     userId: String(user?.id || "").trim(),
     identity,
+    username: String(profile?.username || "").trim(),
+    displayName: String(profile?.displayName || "").trim(),
+    avatarKey: String(profile?.avatarKey || "").trim(),
   };
   clearTimeout(accountSwitchNoticeTimer);
   state.accountOpen = false;
@@ -3170,7 +3203,7 @@ function socialProfileCard(prefix = "") {
     displayName: draft.displayName,
     avatarKey: draft.avatarKey,
   };
-  const avatarChoices = socialAvatarOptions.map((option) => `
+  const avatarChoices = socialAvatarQuickOptions.map((option) => `
     <button
       class="social-avatar-choice ${draft.avatarKey === option.key ? "active" : ""}"
       type="button"
@@ -3183,6 +3216,7 @@ function socialProfileCard(prefix = "") {
       ${socialProfileAvatarMarkup({ ...profileForAvatar, avatarKey: option.key })}
     </button>
   `).join("");
+  const moreAvatarSelected = socialAvatarMoreOptions.some((option) => option.key === draft.avatarKey);
   const profileStatus = state.socialProfileMessage || (hasProfile
     ? `Your profile is saved as @${state.socialProfile.username}.`
     : "Create the identity friends will see. Your email is never shown.");
@@ -3237,8 +3271,22 @@ function socialProfileCard(prefix = "") {
           </label>
           <fieldset class="social-avatar-field">
             <legend>Avatar</legend>
-            <div class="social-avatar-options" role="radiogroup" aria-label="Choose profile avatar">
-              ${avatarChoices}
+            <div class="social-avatar-picker-row">
+              <div class="social-avatar-options" role="radiogroup" aria-label="Quick profile avatar choices">
+                ${avatarChoices}
+              </div>
+              <button
+                class="social-avatar-more-toggle ${moreAvatarSelected ? "active" : ""}"
+                id="${suffix}profileAvatarMore"
+                type="button"
+                aria-label="More avatar choices"
+                aria-expanded="false"
+                aria-controls="${suffix}socialAvatarMorePicker"
+                data-profile-avatar-more
+                data-profile-avatar-prefix="${escapeHtml(prefix)}"
+                data-tooltip="More avatars"
+                ${state.socialProfileBusy ? "disabled" : ""}
+              >${icons.more}</button>
             </div>
           </fieldset>
           <div class="social-profile-privacy">
@@ -6259,8 +6307,124 @@ function selectSocialProfileAvatar(avatarKey, prefix = "") {
   renderPreservingReaderScroll();
 }
 
+function closeSocialAvatarPicker(options = {}) {
+  const popup = document.querySelector(".social-avatar-picker-popup");
+  if (!popup) return;
+  const anchorId = popup.dataset.avatarPickerAnchor || "";
+  const anchor = anchorId ? document.getElementById(anchorId) : null;
+  anchor?.setAttribute("aria-expanded", "false");
+  popup.remove();
+  document.removeEventListener("click", closeSocialAvatarPickerOnOutside, true);
+  document.removeEventListener("keydown", closeSocialAvatarPickerOnEscape);
+  document.removeEventListener("scroll", closeSocialAvatarPickerOnViewport, true);
+  window.removeEventListener("resize", closeSocialAvatarPickerOnViewport);
+  if (options.restoreFocus) anchor?.focus();
+}
+
+function closeSocialAvatarPickerOnOutside(event) {
+  const popup = document.querySelector(".social-avatar-picker-popup");
+  if (!popup || popup.contains(event.target)) return;
+  const anchorId = popup.dataset.avatarPickerAnchor || "";
+  if (anchorId && document.getElementById(anchorId)?.contains(event.target)) return;
+  closeSocialAvatarPicker();
+}
+
+function closeSocialAvatarPickerOnEscape(event) {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeSocialAvatarPicker({ restoreFocus: true });
+}
+
+function closeSocialAvatarPickerOnViewport() {
+  closeSocialAvatarPicker();
+}
+
+function positionSocialAvatarPicker(anchor, popup) {
+  const anchorRect = anchor.getBoundingClientRect();
+  const popupRect = popup.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+  const edge = 12;
+  const gap = 8;
+  const left = Math.min(
+    Math.max(edge, anchorRect.right - popupRect.width),
+    Math.max(edge, viewportWidth - popupRect.width - edge),
+  );
+  const spaceBelow = viewportHeight - anchorRect.bottom - edge;
+  const top = spaceBelow >= popupRect.height + gap
+    ? anchorRect.bottom + gap
+    : Math.max(edge, anchorRect.top - popupRect.height - gap);
+  popup.style.left = `${Math.round(left)}px`;
+  popup.style.top = `${Math.round(top)}px`;
+}
+
+function openSocialAvatarPicker(anchor, prefix = "") {
+  const existing = document.querySelector(".social-avatar-picker-popup");
+  if (existing?.dataset.avatarPickerAnchor === anchor.id) {
+    closeSocialAvatarPicker({ restoreFocus: true });
+    return;
+  }
+  closeSocialAvatarPicker();
+  const draft = captureSocialProfileDraft(prefix);
+  const profileForAvatar = {
+    username: draft.username,
+    displayName: draft.displayName,
+    avatarKey: draft.avatarKey,
+  };
+  const suffix = prefix ? `${prefix}-` : "";
+  const popup = document.createElement("div");
+  popup.className = "social-avatar-picker-popup";
+  popup.id = `${suffix}socialAvatarMorePicker`;
+  popup.dataset.avatarPickerAnchor = anchor.id;
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-label", "More avatar choices");
+  popup.innerHTML = `
+    <div class="social-avatar-picker-heading">
+      <strong>More avatars</strong>
+      <button class="social-avatar-picker-close" type="button" aria-label="Close more avatar choices">${icons.clear}</button>
+    </div>
+    <div class="social-avatar-more-options" role="radiogroup" aria-label="Additional profile avatar choices">
+      ${socialAvatarMoreOptions.map((option) => `
+        <button
+          class="social-avatar-choice ${draft.avatarKey === option.key ? "active" : ""}"
+          type="button"
+          role="radio"
+          aria-checked="${draft.avatarKey === option.key}"
+          aria-label="${escapeHtml(option.label)} avatar"
+          data-profile-avatar-extra="${option.key}"
+        >
+          ${socialProfileAvatarMarkup({ ...profileForAvatar, avatarKey: option.key })}
+        </button>
+      `).join("")}
+    </div>
+  `;
+  (document.querySelector(".app-shell") || document.body).appendChild(popup);
+  anchor.setAttribute("aria-expanded", "true");
+  positionSocialAvatarPicker(anchor, popup);
+  popup.querySelector(".social-avatar-picker-close")?.addEventListener("click", () => {
+    closeSocialAvatarPicker({ restoreFocus: true });
+  });
+  popup.querySelectorAll("[data-profile-avatar-extra]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const avatarKey = button.dataset.profileAvatarExtra;
+      const anchorId = anchor.id;
+      closeSocialAvatarPicker();
+      selectSocialProfileAvatar(avatarKey, prefix);
+      requestAnimationFrame(() => document.getElementById(anchorId)?.focus());
+    });
+  });
+  requestAnimationFrame(() => {
+    (popup.querySelector('[aria-checked="true"]') || popup.querySelector("[data-profile-avatar-extra]"))?.focus();
+    document.addEventListener("click", closeSocialAvatarPickerOnOutside, true);
+    document.addEventListener("keydown", closeSocialAvatarPickerOnEscape);
+    document.addEventListener("scroll", closeSocialAvatarPickerOnViewport, true);
+    window.addEventListener("resize", closeSocialAvatarPickerOnViewport);
+  });
+}
+
 function toggleAccountMenu(forceOpen = null) {
   const nextOpen = forceOpen === null ? !state.accountOpen : Boolean(forceOpen);
+  if (!nextOpen) closeSocialAvatarPicker();
   if (state.accountOpen && !nextOpen) {
     animateBeforeRemoval(".account-popover.open", () => {
       state.accountOpen = false;
@@ -10018,6 +10182,7 @@ function bindEvents() {
   document.querySelectorAll("[data-social-profile-disclosure]").forEach((disclosure) => {
     disclosure.addEventListener("toggle", () => {
       state.socialProfileOpen = disclosure.open;
+      if (!disclosure.open) closeSocialAvatarPicker();
     });
     disclosure.querySelector("summary")?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
@@ -10040,6 +10205,11 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-profile-avatar]").forEach((button) => {
     button.addEventListener("click", () => selectSocialProfileAvatar(button.dataset.profileAvatar, "quick"));
+  });
+  document.querySelectorAll("[data-profile-avatar-more]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openSocialAvatarPicker(button, button.dataset.profileAvatarPrefix || "quick");
+    });
   });
   document.getElementById("quick-friendSearchForm")?.addEventListener("submit", (event) => searchFriends(event, "quick"));
   document.querySelectorAll("[data-friends-tab]").forEach((button) => {
