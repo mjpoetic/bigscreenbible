@@ -76,6 +76,7 @@ assert.match(collapsed, /aria-label="1 friend request and 2 game challenges wait
 assert.match(collapsed, />3<\/span>/);
 assert.match(collapsed, /<small>New<\/small>/);
 assert.match(collapsed, /2 connections/);
+assert.doesNotMatch(collapsed, /<span class="setting-label">Friends<\/span>/);
 assert.match(collapsed, /FRIENDS/);
 assert.match(collapsed, /CHALLENGES/);
 assert.doesNotMatch(collapsed, /data-social-connections-disclosure\s+open/);

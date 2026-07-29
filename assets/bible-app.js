@@ -3713,7 +3713,6 @@ function socialConnectionsSection(prefix = "") {
     >
       <summary class="social-connections-summary">
         <span class="account-card-head">
-          <span class="setting-label">Friends</span>
           <strong>Friends &amp; challenges</strong>
           <small>${friendships.friends.length} ${friendships.friends.length === 1 ? "connection" : "connections"}</small>
         </span>
