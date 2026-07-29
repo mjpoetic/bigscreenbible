@@ -623,6 +623,13 @@ begin
 end
 $$;
 
+-- The room-player backfill runs as a database migration without an end-user JWT.
+-- Suspend runtime guards and notification hooks here; each trigger is recreated
+-- below after the existing rows have been normalized.
+drop trigger if exists bsb_game_room_validate_player on public.bsb_game_challenge_players;
+drop trigger if exists bsb_game_challenge_sync_state on public.bsb_game_challenge_players;
+drop trigger if exists bsb_game_room_player_enqueue_push on public.bsb_game_challenge_players;
+
 update public.bsb_game_challenge_players as player
 set
   is_host = player.user_id = challenge.challenger_id,
