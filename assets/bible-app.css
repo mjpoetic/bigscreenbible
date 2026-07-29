@@ -1722,11 +1722,19 @@ button {
 }
 
 .settings-popover-head {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   min-height: 34px;
+}
+
+.settings-popover-head .popup-drag-grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .settings-popover-close {
@@ -7924,9 +7932,9 @@ select {
 
 .shortcut-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   padding: 22px 22px 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -7937,86 +7945,69 @@ select {
 }
 
 .popup-drag-grip {
-  width: 30px;
-  height: 16px;
+  position: relative;
+  width: 42px;
+  height: 42px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background-image: radial-gradient(circle, currentColor 1.25px, transparent 1.5px);
-  background-position: center;
-  background-size: 6px 6px;
   color: var(--muted);
-  opacity: 0.5;
-  transition: color var(--motion-fast) ease, opacity var(--motion-fast) ease;
+  cursor: grab;
+  opacity: 0.58;
+  touch-action: none;
+  user-select: none;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
 }
 
-@media (min-width: 641px) {
-  .popup-drag-handle {
-    cursor: grab;
-    touch-action: none;
-    user-select: none;
-  }
-
-  .popup-drag-handle:hover .popup-drag-grip,
-  .is-popup-dragging .popup-drag-grip {
-    color: var(--teal);
-    opacity: 0.9;
-  }
-
-  .is-popup-dragging .popup-drag-handle {
-    cursor: grabbing;
-  }
-
-  .draggable-popup.is-drag-positioned {
-    position: fixed !important;
-    inset: auto !important;
-    top: var(--popup-top) !important;
-    left: var(--popup-left) !important;
-    right: auto !important;
-    bottom: auto !important;
-    margin: 0 !important;
-    transform: none !important;
-    animation: none !important;
-  }
-
-  .settings-popover.is-drag-positioned,
-  .mobile-settings-popover.is-drag-positioned {
-    width: min(var(--popup-width, 320px), calc(100vw - 24px)) !important;
-    max-width: none !important;
-    max-height: min(var(--popup-max-height, 720px), calc(100dvh - 24px)) !important;
-    overflow: auto !important;
-    z-index: 360 !important;
-  }
-
-  .shortcut-panel.is-drag-positioned {
-    width: min(var(--popup-width, 660px), calc(100vw - 24px));
-    max-height: min(var(--popup-max-height, 760px), calc(100dvh - 24px));
-  }
+.popup-drag-grip::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
 }
 
-@media (max-width: 640px) {
-  .popup-drag-grip {
-    display: none;
-  }
-
-  .settings-popover-head {
-    justify-content: flex-end;
-  }
+.popup-drag-grip:hover,
+.is-popup-dragging .popup-drag-grip {
+  background: color-mix(in srgb, var(--teal) 8%, transparent);
+  color: var(--teal);
+  opacity: 0.9;
 }
 
-@media (orientation: landscape) and (max-width: 1024px) and (max-height: 560px) {
-  .popup-drag-grip {
-    display: none;
-  }
+.is-popup-dragging .popup-drag-grip {
+  cursor: grabbing;
+}
 
-  .popup-drag-handle {
-    cursor: default;
-    touch-action: auto;
-    user-select: auto;
-  }
+.draggable-popup.is-drag-positioned {
+  position: fixed !important;
+  inset: auto !important;
+  top: var(--popup-top) !important;
+  left: var(--popup-left) !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  animation: none !important;
+}
 
-  .settings-popover-head {
-    justify-content: flex-end;
-  }
+.settings-popover.is-drag-positioned,
+.mobile-settings-popover.is-drag-positioned {
+  width: min(var(--popup-width, 320px), calc(100vw - 24px)) !important;
+  max-width: none !important;
+  max-height: min(var(--popup-max-height, 720px), calc(100dvh - 24px)) !important;
+  overflow: auto !important;
+  z-index: 360 !important;
+}
+
+.shortcut-panel.is-drag-positioned {
+  width: min(var(--popup-width, 660px), calc(100vw - 24px));
+  max-height: min(var(--popup-max-height, 760px), calc(100dvh - 24px));
 }
 
 .shortcut-head h2 {

@@ -2476,8 +2476,8 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
     : "";
   return `
     <div class="mobile-settings-popover draggable-popup ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
-      <div class="settings-popover-head popup-drag-handle" data-popup-drag-handle="settings">
-        <span class="popup-drag-grip" aria-hidden="true" title="Drag to move settings"></span>
+      <div class="settings-popover-head">
+        <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
         <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
       </div>
       <div class="setting-group">
@@ -2641,8 +2641,8 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
         <div class="settings-popover draggable-popup ${state.settingsOpen ? "open" : ""} ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" role="dialog" aria-label="Settings" aria-hidden="${state.settingsOpen ? "false" : "true"}" ${popupPositionStyle("settings")}>
-          <div class="settings-popover-head popup-drag-handle" data-popup-drag-handle="settings">
-            <span class="popup-drag-grip" aria-hidden="true" title="Drag to move settings"></span>
+          <div class="settings-popover-head">
+            <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
             <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           </div>
           <div class="setting-group">
@@ -6548,7 +6548,7 @@ function fixedPopoverViewport() {
 }
 
 function popupDraggingEnabled() {
-  return window.matchMedia?.("(min-width: 641px)")?.matches && !isShortLandscapeScreen();
+  return typeof window.PointerEvent !== "undefined";
 }
 
 function popupPositionState(kind) {
@@ -9728,12 +9728,12 @@ function shortcutOverlay() {
   return `
     <section class="shortcut-overlay ${state.shortcutsOpen ? "open" : ""}" aria-hidden="${state.shortcutsOpen ? "false" : "true"}">
       <div class="shortcut-panel draggable-popup ${popupPositionClass("help")}" role="dialog" aria-modal="true" aria-labelledby="shortcutTitle" ${popupPositionStyle("help")}>
-        <div class="shortcut-head popup-drag-handle" data-popup-drag-handle="help">
+        <div class="shortcut-head">
           <div>
             <div class="shortcut-eyebrow">Help center</div>
             <h2 id="shortcutTitle">Big Screen Bible Help</h2>
           </div>
-          <span class="popup-drag-grip" aria-hidden="true" title="Drag to move help"></span>
+          <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="help" aria-hidden="true" title="Drag to move help"></span>
           <button class="icon-btn" id="closeShortcuts" aria-label="Close help" data-tooltip="Close">×</button>
         </div>
         <div class="help-tour-card">
