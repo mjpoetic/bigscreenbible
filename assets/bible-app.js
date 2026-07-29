@@ -248,6 +248,7 @@ const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
 const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
+const socialConnectionsOpenStorageKey = "lw_social_connections_open";
 const libraryScrollStorageKey = "lw_library_scroll_by_rail";
 const readerPositionStorageKey = "lw_reader_position";
 const appUpdateRestoreStorageKey = "lw_app_update_restore";
@@ -502,6 +503,7 @@ const state = {
   socialProfileMessage: "",
   socialProfileBusy: false,
   socialProfileOpen: false,
+  socialConnectionsOpen: localStorage.getItem(socialConnectionsOpenStorageKey) === "true",
   friendships: [],
   friendshipProfiles: {},
   friendshipStatus: "idle",
@@ -3680,6 +3682,59 @@ function friendsCard(prefix = "") {
   `;
 }
 
+function setSocialConnectionsOpen(open) {
+  state.socialConnectionsOpen = Boolean(open);
+  localStorage.setItem(socialConnectionsOpenStorageKey, state.socialConnectionsOpen ? "true" : "false");
+}
+
+function socialConnectionsSection(prefix = "") {
+  if (!state.authUser) return "";
+  const friendships = friendshipCollections();
+  const challenges = gameChallengeCollections();
+  const friendRequestCount = friendships.incoming.length;
+  const challengeCount = challenges.incoming.length;
+  const incomingCount = friendRequestCount + challengeCount;
+  const incomingLabels = [
+    friendRequestCount
+      ? `${friendRequestCount} friend ${friendRequestCount === 1 ? "request" : "requests"}`
+      : "",
+    challengeCount
+      ? `${challengeCount} game ${challengeCount === 1 ? "challenge" : "challenges"}`
+      : "",
+  ].filter(Boolean);
+  const activityLabel = incomingLabels.length
+    ? `${incomingLabels.join(" and ")} waiting`
+    : "No new friend activity";
+  return `
+    <details
+      class="social-connections-card ${incomingCount ? "has-incoming-activity" : ""}"
+      data-social-connections-disclosure
+      ${state.socialConnectionsOpen ? "open" : ""}
+    >
+      <summary class="social-connections-summary">
+        <span class="account-card-head">
+          <span class="setting-label">Friends</span>
+          <strong>Friends &amp; challenges</strong>
+          <small>${friendships.friends.length} ${friendships.friends.length === 1 ? "connection" : "connections"}</small>
+        </span>
+        <span class="social-connections-summary-actions">
+          ${incomingCount ? `
+            <span class="social-connections-activity" aria-label="${escapeHtml(activityLabel)}">
+              <span aria-hidden="true">${incomingCount > 9 ? "9+" : incomingCount}</span>
+              <small>New</small>
+            </span>
+          ` : ""}
+          <span class="social-connections-disclosure-icon" aria-hidden="true">${icons.chevron}</span>
+        </span>
+      </summary>
+      <div class="social-connections-content">
+        ${friendsCard(prefix)}
+        ${gameChallengesCard()}
+      </div>
+    </details>
+  `;
+}
+
 function accountSignInCard(prefix = "", options = {}) {
   const suffix = prefix ? `${prefix}-` : "";
   const addingAccount = options.addingAccount === true;
@@ -3766,8 +3821,7 @@ function accountPanel(prefix = "") {
     return `
       ${streakCard()}
       ${socialProfileCard(prefix)}
-      ${friendsCard(prefix)}
-      ${gameChallengesCard()}
+      ${socialConnectionsSection(prefix)}
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -9972,6 +10026,16 @@ function bindEvents() {
       disclosure.open = !disclosure.open;
     });
   });
+  document.querySelectorAll("[data-social-connections-disclosure]").forEach((disclosure) => {
+    disclosure.addEventListener("toggle", () => {
+      setSocialConnectionsOpen(disclosure.open);
+    });
+    disclosure.querySelector("summary")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      disclosure.open = !disclosure.open;
+    });
+  });
   document.getElementById("quick-profileUsername")?.addEventListener("blur", (event) => {
     event.currentTarget.value = normalizeProfileUsername(event.currentTarget.value);
   });
@@ -12731,6 +12795,7 @@ function applySocialNotificationDeepLink() {
   state.settingsOpen = false;
 
   if (socialTarget === "friends") {
+    setSocialConnectionsOpen(true);
     state.friendsPanelTab = params.get("tab") === "requests" ? "requests" : "friends";
     state.accountOpen = true;
     state.friendshipMessage = state.friendsPanelTab === "requests"
@@ -12742,6 +12807,7 @@ function applySocialNotificationDeepLink() {
   }
 
   if (socialTarget === "challenges" || challengeId) {
+    setSocialConnectionsOpen(true);
     const challenge = state.gameChallenges.find((item) => item.id === challengeId);
     if (!challenge) {
       state.accountOpen = true;
