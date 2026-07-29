@@ -1531,73 +1531,74 @@ as $$
 declare
   room_host_id uuid;
 begin
-  if tg_table_name = 'bsb_friendships' and tg_op = 'INSERT' and new.status = 'pending' then
-    insert into public.bsb_push_events (
-      recipient_id,
-      actor_id,
-      kind,
-      friendship_id,
-      event_key
-    )
-    values (
-      new.addressee_id,
-      new.requester_id,
-      'friend_request',
-      new.id,
-      'friend_request:' || new.id::text
-    )
-    on conflict (event_key) do nothing;
-  elsif
-    tg_table_name = 'bsb_game_challenge_players'
-    and tg_op = 'INSERT'
-    and new.invite_status = 'invited'
-  then
-    select challenge.challenger_id
-    into room_host_id
-    from public.bsb_game_challenges as challenge
-    where challenge.id = new.challenge_id;
+  if tg_table_name = 'bsb_friendships' then
+    if tg_op = 'INSERT' and new.status = 'pending' then
+      insert into public.bsb_push_events (
+        recipient_id,
+        actor_id,
+        kind,
+        friendship_id,
+        event_key
+      )
+      values (
+        new.addressee_id,
+        new.requester_id,
+        'friend_request',
+        new.id,
+        'friend_request:' || new.id::text
+      )
+      on conflict (event_key) do nothing;
+    end if;
+  elsif tg_table_name = 'bsb_game_challenge_players' then
+    if tg_op = 'INSERT' then
+      if new.invite_status = 'invited' then
+        select challenge.challenger_id
+        into room_host_id
+        from public.bsb_game_challenges as challenge
+        where challenge.id = new.challenge_id;
 
-    insert into public.bsb_push_events (
-      recipient_id,
-      actor_id,
-      kind,
-      challenge_id,
-      event_key
-    )
-    values (
-      new.user_id,
-      room_host_id,
-      'game_challenge',
-      new.challenge_id,
-      'game_challenge:' || new.challenge_id::text || ':' || new.user_id::text
-    )
-    on conflict (event_key) do nothing;
-  elsif
-    tg_table_name = 'bsb_game_challenge_players'
-    and tg_op = 'UPDATE'
-    and old.invite_status = 'invited'
-    and new.invite_status = 'accepted'
-  then
-    select challenge.challenger_id
-    into room_host_id
-    from public.bsb_game_challenges as challenge
-    where challenge.id = new.challenge_id;
+        insert into public.bsb_push_events (
+          recipient_id,
+          actor_id,
+          kind,
+          challenge_id,
+          event_key
+        )
+        values (
+          new.user_id,
+          room_host_id,
+          'game_challenge',
+          new.challenge_id,
+          'game_challenge:' || new.challenge_id::text || ':' || new.user_id::text
+        )
+        on conflict (event_key) do nothing;
+      end if;
+    elsif
+      tg_op = 'UPDATE'
+      and old.invite_status = 'invited'
+      and new.invite_status = 'accepted'
+    then
+      select challenge.challenger_id
+      into room_host_id
+      from public.bsb_game_challenges as challenge
+      where challenge.id = new.challenge_id;
 
-    insert into public.bsb_push_events (
-      recipient_id,
-      actor_id,
-      kind,
-      challenge_id,
-      event_key
-    )
-    values (
-      room_host_id,
-      new.user_id,
-      'challenge_accepted',
-      new.challenge_id,
-      'challenge_accepted:' || new.challenge_id::text || ':' || new.user_id::text
-    )
-    on conflict (event_key) do nothing;
+      insert into public.bsb_push_events (
+        recipient_id,
+        actor_id,
+        kind,
+        challenge_id,
+        event_key
+      )
+      values (
+        room_host_id,
+        new.user_id,
+        'challenge_accepted',
+        new.challenge_id,
+        'challenge_accepted:' || new.challenge_id::text || ':' || new.user_id::text
+      )
+      on conflict (event_key) do nothing;
+    end if;
   end if;
 
   return new;
