@@ -6,8 +6,13 @@ const styles = readFileSync(new URL("../assets/bible-app.css", import.meta.url),
 
 assert.match(
   source,
-  /verseNavCollapsed: localStorage\.getItem\("lw_verse_nav_collapsed"\) !== "false"/,
-  "The verse chooser should default to collapsed while preserving an explicit expanded preference",
+  /verseNavCollapsed: localStorage\.getItem\("lw_verse_nav_collapsed"\) === "true"/,
+  "The Reader verse chooser should keep its original expanded default",
+);
+assert.match(
+  source,
+  /libraryOpen: localStorage\.getItem\("lw_library_open"\) === "true"/,
+  "The side-panel verse selector should default to collapsed while preserving an explicit open preference",
 );
 
 assert.match(source, /authEmailCueId: ""/);
