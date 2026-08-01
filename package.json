@@ -16,7 +16,7 @@
     "test:notes": "node scripts/note-composer.test.mjs",
     "test:push": "node scripts/push-notifications.test.mjs",
     "test:reader-lifecycle": "node scripts/reader-lifecycle-scroll.test.mjs",
-    "test:search": "node scripts/search-query.test.mjs && node scripts/semantic-search-corpus.test.mjs && node scripts/semantic-search-quality.test.mjs",
+    "test:search": "node scripts/search-query.test.mjs && node scripts/search-scope.test.mjs && node scripts/semantic-search-corpus.test.mjs && node scripts/semantic-search-quality.test.mjs",
     "test:sharing": "node scripts/passage-sharing.test.mjs",
     "test:social": "node scripts/social-profile.test.mjs",
     "test:social-connections": "node scripts/social-connections.test.mjs",

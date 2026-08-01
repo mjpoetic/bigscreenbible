@@ -22,6 +22,7 @@ const testamentGroups = [
   ["Old Testament", oldTestamentBooks],
   ["New Testament", newTestamentBooks],
 ];
+const searchScopeCodes = ["all", "ot", "nt"];
 
 const bookAliases = buildBookAliases();
 
@@ -500,6 +501,8 @@ const state = {
   tutorialRestoreState: null,
   searchQuery: "",
   searchResultsQuery: "",
+  searchScope: normalizedSearchScope(localStorage.getItem("lw_search_scope")),
+  searchResultsScope: normalizedSearchScope(localStorage.getItem("lw_search_scope")),
   searchResults: [],
   searchPending: false,
   pendingPanelFocus: null,
@@ -4752,11 +4755,25 @@ function crossReferencesPanel() {
 function searchPanel() {
   const searchInputValue = state.searchQuery || state.searchResultsQuery;
   const canClearResults = state.searchResultsQuery || state.searchResults.length;
+  const scope = normalizedSearchScope(state.searchScope);
+  const scopeLabel = searchScopeLabel(scope);
   return `
     <section class="study-section panel-section" id="searchSection">
       <form class="study-search ${canClearResults ? "has-clear" : ""}" id="studySearchForm">
         <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="Search words, phrases, or questions" aria-label="Search Bible words, phrases, or questions" />
-        <button class="ghost-btn" type="submit">Search</button>
+        <div class="search-submit-control">
+          <button class="ghost-btn search-submit-button" id="studySearchButton" type="submit" aria-label="Search ${escapeHtml(scopeLabel)}">
+            <span>Search</span>
+            <span class="search-button-scope" id="studySearchButtonScope">${escapeHtml(searchScopeShortLabel(scope))}</span>
+          </button>
+          <label class="search-scope-menu" title="Search scope: ${escapeHtml(scopeLabel)}">
+            <span class="sr-only">Search scope</span>
+            <select id="studySearchScope" aria-label="Search scope">
+              ${searchScopeCodes.map((code) => `<option value="${code}" ${scope === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code))}</option>`).join("")}
+            </select>
+            <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
+          </label>
+        </div>
         ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>` : ""}
       </form>
       <div class="search-results">
@@ -10086,12 +10103,17 @@ function closeStudyPopup(immediate = false) {
 
 function searchResultsMarkup() {
   const query = state.searchResultsQuery;
+  const scope = normalizedSearchScope(state.searchResultsScope);
+  const scopeLabel = searchScopeLabel(scope);
   if (!query) {
     return `<div class="empty-state">Search by phrase, word, question, or reference. Try “love one another” or “Who built the ark?”</div>`;
   }
-  const verifiedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, window.bibleTriviaQuestions);
+  const eligibleQuestions = (window.bibleTriviaQuestions || []).filter((question) => (
+    referenceMatchesSearchScope(question?.reference, scope)
+  ));
+  const verifiedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, eligibleQuestions);
   if (!state.searchResults.length && !verifiedAnswer && !state.searchPending) {
-    return `<div class="empty-state">No matches found for ${escapeHtml(query)}.</div>`;
+    return `<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>`;
   }
   const answerMarkup = verifiedAnswer ? `
     <article class="verified-answer" aria-label="Verified answer">
@@ -10114,7 +10136,7 @@ function searchResultsMarkup() {
     ${answerMarkup}
     ${verifiedAnswer && passageMarkup ? `<div class="search-passages-label">Related passages</div>` : ""}
     ${passageMarkup}
-    ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages…</div>` : ""}
+    ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages in ${escapeHtml(scopeLabel)}…</div>` : ""}
   `;
 }
 
@@ -11673,7 +11695,21 @@ function bindEvents() {
   });
   document.getElementById("studySearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "");
+    runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "", {
+      scope: document.getElementById("studySearchScope")?.value,
+    });
+  });
+  document.getElementById("studySearchScope")?.addEventListener("change", (event) => {
+    const scope = normalizedSearchScope(event.currentTarget.value);
+    state.searchScope = scope;
+    localStorage.setItem("lw_search_scope", scope);
+    const scopeLabel = searchScopeLabel(scope);
+    const button = document.getElementById("studySearchButton");
+    const buttonScope = document.getElementById("studySearchButtonScope");
+    const menu = event.currentTarget.closest(".search-scope-menu");
+    if (button) button.setAttribute("aria-label", `Search ${scopeLabel}`);
+    if (buttonScope) buttonScope.textContent = searchScopeShortLabel(scope);
+    if (menu) menu.title = `Search scope: ${scopeLabel}`;
   });
   document.getElementById("clearSearchResults")?.addEventListener("click", clearSearchResults);
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
@@ -12375,6 +12411,41 @@ function bookFromChapterKey(chapterKey) {
     .slice()
     .sort((a, b) => b.length - a.length)
     .find((book) => chapterKey.startsWith(`${book} `)) || "";
+}
+
+function normalizedSearchScope(value) {
+  const scope = String(value || "").toLowerCase();
+  return searchScopeCodes.includes(scope) ? scope : "all";
+}
+
+function searchScopeLabel(scope) {
+  return {
+    all: "All Bible",
+    ot: "Old Testament",
+    nt: "New Testament",
+  }[normalizedSearchScope(scope)];
+}
+
+function searchScopeShortLabel(scope) {
+  return {
+    all: "All",
+    ot: "OT",
+    nt: "NT",
+  }[normalizedSearchScope(scope)];
+}
+
+function chapterMatchesSearchScope(chapterKey, scope) {
+  const normalizedScope = normalizedSearchScope(scope);
+  if (normalizedScope === "all") return true;
+  const book = bookFromChapterKey(String(chapterKey || ""));
+  return normalizedScope === "ot" ? oldTestamentBooks.includes(book) : newTestamentBooks.includes(book);
+}
+
+function referenceMatchesSearchScope(reference, scope) {
+  const normalizedScope = normalizedSearchScope(scope);
+  if (normalizedScope === "all") return true;
+  const parsed = parsePassageReference(reference);
+  return chapterMatchesSearchScope(parsed?.key || String(reference || ""), normalizedScope);
 }
 
 function startBookSprintGame({ render = true } = {}) {
@@ -13348,7 +13419,7 @@ function submitFocusReference(value) {
   runPhraseSearch(cleaned, { focusResults: true });
 }
 
-async function runReferenceOrPhraseSearch(value) {
+async function runReferenceOrPhraseSearch(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   state.isVerseOfDayActive = false;
@@ -13356,18 +13427,25 @@ async function runReferenceOrPhraseSearch(value) {
     gotoReference(cleaned);
     return;
   }
-  await runPhraseSearch(cleaned, { focusResults: state.focusMode && state.mode !== "big" });
+  await runPhraseSearch(cleaned, {
+    focusResults: state.focusMode && state.mode !== "big",
+    scope: options.scope,
+  });
 }
 
 async function runPhraseSearch(value, options = {}) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
+  const scope = normalizedSearchScope(options.scope ?? state.searchScope);
   const focusResults = Boolean(options.focusResults && state.focusMode && state.mode !== "big");
   const requestId = ++searchRequestId;
   state.searchQuery = query;
   state.searchResultsQuery = query;
+  state.searchScope = scope;
+  state.searchResultsScope = scope;
   state.searchResults = [];
   state.searchPending = true;
+  localStorage.setItem("lw_search_scope", scope);
   if (focusResults) {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = true;
@@ -13386,7 +13464,7 @@ async function runPhraseSearch(value, options = {}) {
   }
   try {
     await ensureAllSearchVersionsLoaded();
-    const results = await searchBible(query);
+    const results = await searchBible(query, scope);
     if (requestId !== searchRequestId || state.searchResultsQuery !== query) return;
     state.searchResults = results;
   } catch (error) {
@@ -13404,6 +13482,7 @@ function clearSearchResults() {
   searchRequestId += 1;
   state.searchQuery = "";
   state.searchResultsQuery = "";
+  state.searchResultsScope = normalizedSearchScope(state.searchScope);
   state.searchResults = [];
   state.searchPending = false;
   state.focusSearchResultsOpen = false;
@@ -13415,8 +13494,9 @@ async function ensureAllSearchVersionsLoaded() {
   await Promise.all(bundled.map(loadBibleVersion));
 }
 
-async function searchBible(query) {
+async function searchBible(query, requestedScope = state.searchScope) {
   const primaryVersion = state.versions[0] || "BSB";
+  const scope = normalizedSearchScope(requestedScope);
   const criteria = parseSearchQuery(query);
   if (!criteria.tokens.length && !criteria.exactPhrase) return [];
   const searchableVersions = translationCodes.filter(isBundledTranslation);
@@ -13424,16 +13504,17 @@ async function searchBible(query) {
   const versionOrder = criteria.questionAnalysis?.isQuestion
     ? [primarySearchVersion]
     : [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
-  const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria));
+  const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria, scope));
   const [remoteResults, semanticResults] = await Promise.all([
-    searchRemoteVersions(query, criteria),
-    searchSemanticBible(query, criteria),
+    searchRemoteVersions(query, criteria, scope),
+    searchSemanticBible(query, criteria, scope),
   ]);
   const results = [...localResults, ...remoteResults, ...semanticResults];
   const seen = new Set();
   const ranked = results
     .sort((a, b) => b.score - a.score)
     .filter((result) => {
+      if (!referenceMatchesSearchScope(result.goto || result.ref, scope)) return false;
       const key = `${result.ref}-${result.version}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -13470,12 +13551,13 @@ function removeRedundantSemanticResults(results) {
   return kept;
 }
 
-function searchVersion(version, criteria) {
+function searchVersion(version, criteria, scope = "all") {
   const versionData = loadedVersionData.get(version);
   if (!versionData?.chapters) return [];
   const results = [];
   if (criteria.questionAnalysis?.isQuestion) {
     Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
+      if (!chapterMatchesSearchScope(chapterKey, scope)) return false;
       const result = searchQuestionInChapter(version, chapterKey, chapter, criteria);
       if (result) results.push(result);
       return results.length >= 80;
@@ -13483,6 +13565,7 @@ function searchVersion(version, criteria) {
     return results;
   }
   Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
+    if (!chapterMatchesSearchScope(chapterKey, scope)) return false;
     chapter.verses.some((verse) => {
       const text = verse.text || "";
       const match = scoreSearchText(text, criteria, version);
@@ -13555,17 +13638,17 @@ function balanceResultGroup(results, versionOrder) {
   return balanced;
 }
 
-async function searchRemoteVersions(query, criteria) {
+async function searchRemoteVersions(query, criteria, scope = "all") {
   const candidates = criteria.questionAnalysis?.isQuestion
     ? uniqueList(state.versions.filter(isRemoteTranslation))
     : translationCodes.filter(isRemoteTranslation);
   const remoteVersions = candidates.filter((version) => translationProvider(version).supportsSearch !== false);
   if (!remoteVersions.length) return [];
-  const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria)));
+  const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria, scope)));
   return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
 }
 
-async function searchSemanticBible(query, criteria) {
+async function searchSemanticBible(query, criteria, scope = "all") {
   if (!criteria.questionAnalysis?.isQuestion) return [];
   const config = window.BigScreenBibleSupabase || {};
   const url = supabaseFunctionUrl("semantic-bible-search");
@@ -13600,7 +13683,7 @@ async function searchSemanticBible(query, criteria) {
         score: 150 + similarity * 40,
         matchType: "Meaning match",
       };
-    }).filter(Boolean);
+    }).filter((result) => result && referenceMatchesSearchScope(result.goto || result.ref, scope));
   } catch (_error) {
     return [];
   } finally {
@@ -13608,7 +13691,7 @@ async function searchSemanticBible(query, criteria) {
   }
 }
 
-async function searchRemoteVersion(version, query, criteria) {
+async function searchRemoteVersion(version, query, criteria, scope = "all") {
   const provider = translationProvider(version);
   const config = window.BigScreenBibleSupabase || {};
   const params = provider === bibleProviders.apiBible
@@ -13633,7 +13716,7 @@ async function searchRemoteVersion(version, query, criteria) {
       .map((result) => {
         const text = String(result?.text || "").replace(/\s+/g, " ").trim();
         const ref = String(result?.ref || result?.reference || "").trim();
-        if (!text || !ref) return null;
+        if (!text || !ref || !referenceMatchesSearchScope(ref, scope)) return null;
         const match = scoreSearchText(text, criteria, version, Number(result?.score) || 0);
         if (!match) return null;
         return {
