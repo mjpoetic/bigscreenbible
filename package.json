@@ -9,6 +9,7 @@
     "test:accounts": "node scripts/account-switching.test.mjs",
     "test:accessibility": "node scripts/interface-text-size.test.mjs",
     "test:auto-scroll": "node scripts/auto-scroll.test.mjs",
+    "test:chapter-pull": "node scripts/chapter-pull.test.mjs",
     "test:challenges": "node scripts/game-challenges.test.mjs",
     "test:friends": "node scripts/friendships.test.mjs",
     "test:headings": "node scripts/section-heading-groups.test.mjs",
