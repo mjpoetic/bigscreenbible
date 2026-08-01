@@ -209,6 +209,7 @@ let readerChapterPull = null;
 let readerChapterPullSettleTimer = 0;
 let readerChapterWheelPull = null;
 let readerChapterWheelTimer = 0;
+let readerChapterEdgeBuffer = null;
 let chapterNavigationTransitionTimer = 0;
 let chapterNavigationInProgress = false;
 let readerTouchGesture = null;
@@ -287,6 +288,8 @@ const readerChapterPullDominance = 1.15;
 const readerChapterPullBoundaryPx = 2;
 const readerChapterWheelStepMaxPx = 28;
 const readerChapterWheelIdleMs = 190;
+const readerChapterWheelEdgeSettleMs = 260;
+const readerChapterWheelSequenceGapMs = 220;
 const chapterNavigationExitMs = 150;
 const chapterNavigationEnterMs = 260;
 const readerPinchStartPx = 10;
@@ -418,6 +421,7 @@ const state = {
   autoScrollActive: false,
   autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
+  edgeChapterNavigationEnabled: localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false",
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
   printVerseNumbers: localStorage.getItem("lw_print_verse_numbers") !== "false",
@@ -2127,6 +2131,13 @@ function readingDisplaySettings(prefix = "") {
         <input type="checkbox" id="${controlId("StrongNumbersToggle")}" ${state.strongNumbers ? "checked" : ""} />
         <span>Strong's number lookups</span>
       </label>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("EdgeChapterNavigationToggle")}" ${state.edgeChapterNavigationEnabled ? "checked" : ""} />
+        <span>Pull or scroll past chapter edges</span>
+      </label>
+      <p class="setting-help">Changes chapters after a fresh outward pull or scroll at the top or bottom in Reader and Parallel.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
       <label class="setting-checkbox">
@@ -4401,6 +4412,19 @@ function setReaderAutoScrollEnabled(enabled) {
   renderPreservingReaderScroll();
 }
 
+function setEdgeChapterNavigationEnabled(enabled) {
+  const nextEnabled = Boolean(enabled);
+  if (nextEnabled === state.edgeChapterNavigationEnabled) return;
+  state.edgeChapterNavigationEnabled = nextEnabled;
+  localStorage.setItem("lw_edge_chapter_navigation_enabled", String(state.edgeChapterNavigationEnabled));
+  scheduleCloudSync();
+  if (!state.edgeChapterNavigationEnabled) {
+    cancelReaderChapterPull();
+    cancelReaderChapterWheelPull({ settle: false });
+  }
+  renderPreservingReaderScroll();
+}
+
 function updateReaderTopButton() {
   const scripture = document.querySelector(".scripture");
   const button = document.getElementById("readerTopButton");
@@ -4980,7 +5004,7 @@ function readerChapterPullIndicator(direction, reference) {
 }
 
 function readerChapterPullIndicators() {
-  if (!canUseReaderChapterSwipe()) return "";
+  if (!state.edgeChapterNavigationEnabled || !canUseReaderChapterSwipe()) return "";
   return `
     ${readerChapterPullIndicator(-1, adjacentChapterReference(-1))}
     ${readerChapterPullIndicator(1, adjacentChapterReference(1))}
@@ -7745,6 +7769,7 @@ function captureCloudSnapshot() {
       interfaceTextSize: state.interfaceTextSize,
       autoScrollEnabled: state.autoScrollEnabled,
       autoScrollSpeed: state.autoScrollSpeed,
+      edgeChapterNavigationEnabled: state.edgeChapterNavigationEnabled,
       paragraphLayout: state.paragraphLayout,
       printLayout: state.printLayout,
       printVerseNumbers: state.printVerseNumbers,
@@ -7897,6 +7922,9 @@ function applyCloudSnapshot(snapshot) {
   state.autoScrollSpeed = normalizedAutoScrollSpeed(
     settings.autoScrollSpeed || localStorage.getItem("lw_auto_scroll_speed"),
   );
+  state.edgeChapterNavigationEnabled = typeof settings.edgeChapterNavigationEnabled === "boolean"
+    ? settings.edgeChapterNavigationEnabled
+    : localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false";
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
@@ -7949,6 +7977,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
   localStorage.setItem("lw_auto_scroll_enabled", String(state.autoScrollEnabled));
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
+  localStorage.setItem("lw_edge_chapter_navigation_enabled", String(state.edgeChapterNavigationEnabled));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_print_layout", state.printLayout);
   localStorage.setItem("lw_print_verse_numbers", String(state.printVerseNumbers));
@@ -11116,6 +11145,11 @@ function bindEvents() {
       setReaderAutoScrollEnabled(event.target.checked);
     });
   });
+  ["edgeChapterNavigationToggle", "mobileEdgeChapterNavigationToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      setEdgeChapterNavigationEnabled(event.target.checked);
+    });
+  });
   document.getElementById("fullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("mobileFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("paragraphLayoutToggle")?.addEventListener("change", (event) => {
@@ -11703,6 +11737,7 @@ function bindEvents() {
   document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
     toggleReaderAutoScroll({ announce: false });
   });
+  bindReaderChapterEdgeBuffer(scriptureTouchSurface);
   scriptureTouchSurface?.addEventListener("wheel", handleReaderChapterWheel, { passive: false });
   scriptureTouchSurface?.addEventListener("pointerdown", (event) => {
     if (event.pointerType !== "touch") pauseReaderAutoScroll();
@@ -14872,7 +14907,8 @@ function readerSurfaceAtPullBoundary(surface, direction) {
 function handleReaderChapterPullStart(event) {
   clearTimeout(readerChapterPullSettleTimer);
   if (
-    !canUseReaderChapterSwipe()
+    !state.edgeChapterNavigationEnabled
+    || !canUseReaderChapterSwipe()
     || event.touches?.length !== 1
     || isReaderChapterSwipeIgnored(event.target)
   ) {
@@ -14991,6 +15027,56 @@ function normalizedReaderChapterWheelDelta(deltaY, deltaMode = 0, pageHeight = 8
   return Math.min(readerChapterWheelStepMaxPx, Math.abs(deltaY) * multiplier);
 }
 
+function updateReaderChapterEdgeBuffer(surface, now = Date.now()) {
+  if (!surface) {
+    readerChapterEdgeBuffer = null;
+    return null;
+  }
+  if (!readerChapterEdgeBuffer || readerChapterEdgeBuffer.surface !== surface) {
+    readerChapterEdgeBuffer = {
+      surface,
+      topSince: 0,
+      bottomSince: 0,
+      lastWheelAt: 0,
+    };
+  }
+  const maxScrollTop = Math.max(0, surface.scrollHeight - surface.clientHeight);
+  const atTop = surface.scrollTop <= readerChapterPullBoundaryPx;
+  const atBottom = surface.scrollTop >= maxScrollTop - readerChapterPullBoundaryPx;
+  readerChapterEdgeBuffer.topSince = atTop
+    ? (readerChapterEdgeBuffer.topSince || now)
+    : 0;
+  readerChapterEdgeBuffer.bottomSince = atBottom
+    ? (readerChapterEdgeBuffer.bottomSince || now)
+    : 0;
+  return readerChapterEdgeBuffer;
+}
+
+function bindReaderChapterEdgeBuffer(surface) {
+  if (!surface) {
+    readerChapterEdgeBuffer = null;
+    return;
+  }
+  updateReaderChapterEdgeBuffer(surface);
+  surface.addEventListener("scroll", () => updateReaderChapterEdgeBuffer(surface), { passive: true });
+}
+
+function readerChapterWheelBufferReady(buffer, direction, now = Date.now()) {
+  if (!buffer) return false;
+  const edgeSince = direction < 0 ? buffer.topSince : buffer.bottomSince;
+  const edgeIsSettled = Boolean(edgeSince) && now - edgeSince >= readerChapterWheelEdgeSettleMs;
+  const wheelSequenceIsFresh = !buffer.lastWheelAt
+    || now - buffer.lastWheelAt >= readerChapterWheelSequenceGapMs;
+  return edgeIsSettled && wheelSequenceIsFresh;
+}
+
+function delayReaderChapterWheelEdge(buffer, direction, now) {
+  if (!buffer) return;
+  if (direction < 0) buffer.topSince = now;
+  else buffer.bottomSince = now;
+  buffer.lastWheelAt = now;
+}
+
 function finishReaderChapterWheelPull() {
   const pull = readerChapterWheelPull;
   readerChapterWheelPull = null;
@@ -15025,7 +15111,8 @@ function cancelReaderChapterWheelPull({ settle = true } = {}) {
 function handleReaderChapterWheel(event) {
   pauseReaderAutoScroll();
   if (
-    !canUseReaderChapterSwipe()
+    !state.edgeChapterNavigationEnabled
+    || !canUseReaderChapterSwipe()
     || chapterNavigationInProgress
     || event.ctrlKey
     || event.shiftKey
@@ -15033,12 +15120,24 @@ function handleReaderChapterWheel(event) {
     || Math.abs(event.deltaX) > Math.abs(event.deltaY)
   ) return;
   const surface = event.currentTarget;
+  const now = Date.now();
+  const edgeBuffer = updateReaderChapterEdgeBuffer(surface, now);
   const direction = event.deltaY > 0 ? 1 : -1;
   const reference = adjacentChapterReference(direction);
   if (!reference || !readerSurfaceAtPullBoundary(surface, direction)) {
+    if (edgeBuffer) edgeBuffer.lastWheelAt = now;
     if (readerChapterWheelPull) cancelReaderChapterWheelPull();
     return;
   }
+  const continuingPull = readerChapterWheelPull
+    && readerChapterWheelPull.surface === surface
+    && readerChapterWheelPull.direction === direction;
+  if (!continuingPull && !readerChapterWheelBufferReady(edgeBuffer, direction, now)) {
+    delayReaderChapterWheelEdge(edgeBuffer, direction, now);
+    if (readerChapterWheelPull) cancelReaderChapterWheelPull();
+    return;
+  }
+  if (edgeBuffer) edgeBuffer.lastWheelAt = now;
   if (event.cancelable) event.preventDefault();
   if (readerChapterPull) cancelReaderChapterPull();
   if (

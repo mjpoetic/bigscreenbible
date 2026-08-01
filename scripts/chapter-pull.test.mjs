@@ -27,11 +27,15 @@ vm.runInContext(`
   const readerChapterPullMaxPx = 112;
   const readerChapterPullDominance = 1.15;
   const readerChapterWheelStepMaxPx = 28;
+  const readerChapterWheelEdgeSettleMs = 260;
+  const readerChapterWheelSequenceGapMs = 220;
   ${extractFunction("readerChapterPullProgress")}
   ${extractFunction("readerChapterPullIntent")}
   ${extractFunction("normalizedReaderChapterWheelDelta")}
+  ${extractFunction("readerChapterWheelBufferReady")}
   globalThis.intent = readerChapterPullIntent;
   globalThis.wheelDelta = normalizedReaderChapterWheelDelta;
+  globalThis.wheelBufferReady = readerChapterWheelBufferReady;
 `, context);
 
 const atBothEdges = {
@@ -64,18 +68,29 @@ assert.equal(context.wheelDelta(-12), 12);
 assert.equal(context.wheelDelta(1, 1), 16);
 assert.equal(context.wheelDelta(1, 2, 900), 28);
 
+const settledBottom = { topSince: 0, bottomSince: 1_000, lastWheelAt: 0 };
+assert.equal(context.wheelBufferReady(settledBottom, 1, 1_259), false);
+assert.equal(context.wheelBufferReady(settledBottom, 1, 1_260), true);
+assert.equal(context.wheelBufferReady({ ...settledBottom, lastWheelAt: 1_100 }, 1, 1_300), false);
+assert.equal(context.wheelBufferReady({ ...settledBottom, lastWheelAt: 1_100 }, 1, 1_320), true);
+assert.equal(context.wheelBufferReady({ topSince: 1_000, bottomSince: 0, lastWheelAt: 0 }, -1, 1_260), true);
+
 assert.match(source, /readerChapterPullIndicator\(-1, adjacentChapterReference\(-1\)\)/);
 assert.match(source, /readerChapterPullIndicator\(1, adjacentChapterReference\(1\)\)/);
 assert.match(extractFunction("updateReaderChapterPullVisual"), /"Pause" : "Release"/);
 assert.match(source, /touchmove", handleReaderChapterPullMove, \{ passive: false \}/);
 assert.match(source, /touchend", handleReaderChapterPullEnd, \{ passive: false \}/);
 assert.match(source, /wheel", handleReaderChapterWheel, \{ passive: false \}/);
+assert.match(source, /bindReaderChapterEdgeBuffer\(scriptureTouchSurface\)/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /readerSurfaceAtPullBoundary/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /event\.preventDefault\(\)/);
 assert.match(extractFunction("handleReaderChapterPullEnd"), /pull\.active && pull\.armed/);
 assert.match(extractFunction("handleReaderChapterPullEnd"), /moveChapter\(direction\)/);
 assert.match(extractFunction("handleReaderChapterWheel"), /event\.preventDefault\(\)/);
 assert.match(extractFunction("handleReaderChapterWheel"), /readerChapterWheelIdleMs/);
+assert.match(extractFunction("handleReaderChapterWheel"), /readerChapterWheelBufferReady/);
+assert.match(extractFunction("handleReaderChapterWheel"), /state\.edgeChapterNavigationEnabled/);
+assert.match(extractFunction("handleReaderChapterPullStart"), /state\.edgeChapterNavigationEnabled/);
 assert.match(extractFunction("finishReaderChapterWheelPull"), /moveChapter\(pull\.direction\)/);
 assert.match(extractFunction("updateReaderChapterPullVisual"), /Pause for \$\{chapterDirection\}/);
 assert.match(extractFunction("moveChapter"), /adjacentChapterReference\(direction\)/);
@@ -84,6 +99,11 @@ assert.match(extractFunction("moveChapter"), /chapter-transition-out-forward/);
 assert.match(extractFunction("applyChapterMove"), /chapterNavigationEnterMs/);
 assert.match(source, /pull past the top or bottom edge and release when the chapter indicator is ready/);
 assert.match(source, /keep scrolling with a wheel or trackpad/);
+assert.match(source, /id="\$\{controlId\("EdgeChapterNavigationToggle"\)\}"/);
+assert.match(source, /mobileEdgeChapterNavigationToggle/);
+assert.match(source, /lw_edge_chapter_navigation_enabled/);
+assert.match(extractFunction("captureCloudSnapshot"), /edgeChapterNavigationEnabled/);
+assert.match(extractFunction("applyCloudSnapshot"), /edgeChapterNavigationEnabled/);
 
 assert.match(styles, /\.reader-chapter-pull-indicator \{/);
 assert.match(styles, /\.reader-chapter-pull-indicator\.armed/);
