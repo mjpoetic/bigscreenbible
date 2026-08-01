@@ -24,14 +24,15 @@ const testamentGroups = [
 ];
 const searchScopeDefinitions = [
   { code: "all", label: "All Bible", shortLabel: "All" },
+  { code: "book", label: "Current book", shortLabel: "Bk" },
   { code: "chapter", label: "Current chapter", shortLabel: "Ch" },
   { code: "ot", label: "Old Testament", shortLabel: "OT" },
+  { code: "nt", label: "New Testament", shortLabel: "NT" },
   { code: "law", label: "Law", shortLabel: "Law" },
   { code: "history", label: "History", shortLabel: "His" },
   { code: "psalms", label: "Psalms", shortLabel: "Psa" },
   { code: "wisdom", label: "Wisdom", shortLabel: "Wis" },
   { code: "prophets", label: "Prophets", shortLabel: "Pro" },
-  { code: "nt", label: "New Testament", shortLabel: "NT" },
   { code: "gospels", label: "Gospels", shortLabel: "Gos" },
   { code: "acts", label: "Acts", shortLabel: "Act" },
   { code: "epistles", label: "Epistles", shortLabel: "Epi" },
@@ -432,6 +433,7 @@ const strongs = {
 };
 
 let searchRequestId = 0;
+let activeSearchScopeMenu = null;
 
 const state = {
   mode: "reader",
@@ -532,6 +534,11 @@ const state = {
   searchResultsChapter: "John 3",
   searchResults: [],
   searchPending: false,
+  inlineSearchQuery: "",
+  inlineSearchChapter: "",
+  inlineSearchPhraseOnly: false,
+  inlineSearchHitIndex: -1,
+  pendingInlineSearchFocus: false,
   pendingPanelFocus: null,
   pendingVerseFocus: false,
   pendingLibraryScrollRestore: false,
@@ -1092,6 +1099,10 @@ function restoreAccountPanelScroll(scrollState) {
 
 function render() {
   pauseReaderAutoScroll({ updateControl: false });
+  closeSearchScopeMenu();
+  if (state.inlineSearchQuery && normalizedSearchChapter(state.inlineSearchChapter) !== normalizedSearchChapter(state.reference)) {
+    clearInlineChapterSearchState();
+  }
   const settingsScrollState = captureSettingsPanelScroll();
   const accountScrollState = captureAccountPanelScroll();
   const settingsPanelRerender = Boolean(settingsScrollState);
@@ -1185,6 +1196,10 @@ function render() {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       scrollSelectedVerseIntoView({ block: focusMode === "nearest" ? "nearest" : "center" });
     }));
+  }
+  if (state.pendingInlineSearchFocus) {
+    state.pendingInlineSearchFocus = false;
+    requestAnimationFrame(() => requestAnimationFrame(scrollFirstInlineSearchHitIntoView));
   }
   if (state.pendingPanelFocus) {
     const target = state.pendingPanelFocus;
@@ -1932,20 +1947,20 @@ function mobileFloatingSettings() {
               id="mobileFocusPassageInput"
               type="text"
               aria-label="Bible passage"
-              value="${escapeHtml(activePassageLabel())}"
+              value="${escapeHtml(
+                state.inlineSearchQuery && normalizedSearchScope(state.searchScope) === "chapter"
+                  ? state.inlineSearchQuery
+                  : activePassageLabel()
+              )}"
               placeholder="John 3:16"
               autocomplete="off"
               autocapitalize="sentences"
               enterkeyhint="go"
             />
-            <label class="mobile-focus-search-scope" data-search-scope-control title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
-              <span class="sr-only">Focus search scope</span>
-              <select id="mobileFocusSearchScope" data-search-scope-select aria-label="Focus search scope">
-                ${searchScopeCodes.map((code) => `<option value="${code}" ${normalizedSearchScope(state.searchScope) === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code, state.reference))}</option>`).join("")}
-              </select>
+            <button class="mobile-focus-search-scope" id="mobileFocusSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" aria-label="Choose Focus search scope, current ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}" aria-haspopup="listbox" aria-expanded="false" title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
               <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
-            </label>
+            </button>
             <button type="submit">Go</button>
           </form>
         ` : ""}
@@ -2719,14 +2734,11 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       </button>
       ${streakChip()}
       <div class="search" data-tooltip="Search Bible">
-        <label class="topbar-search-scope" data-search-scope-control title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
+        <button class="topbar-search-scope" id="topbarSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" aria-label="Choose top search scope, current ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}" aria-haspopup="listbox" aria-expanded="false" title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
           <span class="sr-only">Top search scope</span>
-          <select id="topbarSearchScope" data-search-scope-select aria-label="Top search scope">
-            ${searchScopeCodes.map((code) => `<option value="${code}" ${normalizedSearchScope(state.searchScope) === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code, state.reference))}</option>`).join("")}
-          </select>
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
-        </label>
+        </button>
         <input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" />
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
@@ -4811,13 +4823,10 @@ function searchPanel() {
             <span>Search</span>
             <span class="search-button-scope" id="studySearchButtonScope" data-search-scope-short>${escapeHtml(searchScopeShortLabel(scope))}</span>
           </button>
-          <label class="search-scope-menu" data-search-scope-control title="Search scope: ${escapeHtml(scopeLabel)}">
+          <button class="search-scope-menu" id="studySearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${scope}" aria-label="Choose search scope, current ${escapeHtml(scopeLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search scope: ${escapeHtml(scopeLabel)}">
             <span class="sr-only">Search scope</span>
-            <select id="studySearchScope" data-search-scope-select aria-label="Search scope">
-              ${searchScopeCodes.map((code) => `<option value="${code}" ${scope === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code, state.reference))}</option>`).join("")}
-            </select>
             <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
-          </label>
+          </button>
         </div>
         ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>` : ""}
       </form>
@@ -5289,12 +5298,18 @@ function closeMobileVerseNavMenu(options = {}) {
 function renderStrongText(verse, version) {
   const text = getVerseText(verse, version);
   const redLetterRanges = wordsOfJesusRanges(verse, version);
-  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version);
+  const searchRanges = inlineSearchRangesForText(
+    text,
+    activeInlineSearchQuery(),
+    state.inlineSearchPhraseOnly,
+  );
+  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges);
   return renderTextWithStrongNumbers(
     text,
     getStrongEntries(verse, version),
     redLetterRanges,
     version,
+    searchRanges,
   );
 }
 
@@ -5310,6 +5325,48 @@ function getVerseText(verse, version, chapterKey = state.reference) {
   }
   if (loadingVersions.has(version)) return `Loading ${version}...`;
   return verse.KJV || verse.WEB || verse.ASV || verse.BSB || verse.BBE || "";
+}
+
+function activeInlineSearchQuery() {
+  if (!state.inlineSearchQuery) return "";
+  return normalizedSearchChapter(state.inlineSearchChapter) === normalizedSearchChapter(state.reference)
+    ? state.inlineSearchQuery
+    : "";
+}
+
+function inlineSearchRangesForText(text, query, phraseOnly = false) {
+  const value = String(text || "");
+  const criteria = parseSearchQuery(query);
+  if (!value || (!criteria.tokens.length && !criteria.exactPhrase)) return [];
+
+  const phraseWords = String(criteria.exactPhrase || criteria.phrase || "").split(" ").filter(Boolean);
+  if (phraseWords.length) {
+    const phrasePattern = phraseWords.map(escapeRegExp).join("[^A-Za-z0-9]+");
+    const phraseRegex = new RegExp(`\\b${phrasePattern}\\b`, "gi");
+    const phraseRanges = [];
+    let phraseMatch;
+    while ((phraseMatch = phraseRegex.exec(value))) {
+      phraseRanges.push({ start: phraseMatch.index, end: phraseMatch.index + phraseMatch[0].length });
+      if (!phraseMatch[0].length) phraseRegex.lastIndex += 1;
+    }
+    if (phraseRanges.length) return phraseRanges;
+  }
+
+  if (phraseOnly) return [];
+
+  const terms = uniqueList([...(criteria.highlightTerms || []), ...criteria.tokens])
+    .flatMap((term) => normalizeSearchText(term).split(" "))
+    .filter(Boolean);
+  if (!terms.length) return [];
+  const ranges = [];
+  const wordPattern = /[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)*/g;
+  let wordMatch;
+  while ((wordMatch = wordPattern.exec(value))) {
+    const normalizedWord = normalizeSearchText(wordMatch[0]);
+    if (!terms.some((term) => wordsCloseEnough(term, normalizedWord))) continue;
+    ranges.push({ start: wordMatch.index, end: wordMatch.index + wordMatch[0].length });
+  }
+  return ranges;
 }
 
 function getStrongEntries(verse, version) {
@@ -5339,8 +5396,8 @@ function normalizeStrongCodes(value) {
     .filter((code) => /^[HG]\d+$/.test(code)))];
 }
 
-function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "") {
-  if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version);
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = []) {
+  if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges);
 
   let output = "";
   let cursor = 0;
@@ -5352,11 +5409,11 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
     if (index === -1) return;
     const primaryCode = availableCodes[0];
     const codesLabel = availableCodes.join(", ");
-    output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version);
-    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version)}</button>`;
+    output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version, searchRanges);
+    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version, searchRanges)}</button>`;
     cursor = index + word.length;
   });
-  output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version);
+  output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version, searchRanges);
   return output;
 }
 
@@ -5398,12 +5455,12 @@ function wordsOfJesusRanges(verse, version) {
   return Array.isArray(ranges) ? ranges : [];
 }
 
-function renderScriptureText(text, ranges = [], baseOffset = 0, version = "") {
-  if (version === "AMP") return renderAmpInlineReferences(text, ranges, baseOffset);
-  return renderRedLetterText(text, ranges, baseOffset);
+function renderScriptureText(text, ranges = [], baseOffset = 0, version = "", searchRanges = []) {
+  if (version === "AMP") return renderAmpInlineReferences(text, ranges, baseOffset, searchRanges);
+  return renderRedLetterText(text, ranges, baseOffset, searchRanges);
 }
 
-function renderAmpInlineReferences(text, ranges = [], baseOffset = 0) {
+function renderAmpInlineReferences(text, ranges = [], baseOffset = 0, searchRanges = []) {
   const value = String(text || "");
   const referencePattern = /\[([^\[\]]{1,160})\]/g;
   let cursor = 0;
@@ -5413,12 +5470,12 @@ function renderAmpInlineReferences(text, ranges = [], baseOffset = 0) {
   while ((match = referencePattern.exec(value))) {
     const referenceMarkup = ampInlineReferenceMarkup(match[1]);
     if (!referenceMarkup) continue;
-    output += renderRedLetterText(value.slice(cursor, match.index), ranges, baseOffset + cursor);
+    output += renderRedLetterText(value.slice(cursor, match.index), ranges, baseOffset + cursor, searchRanges);
     output += `<span class="scripture-inline-reference" aria-label="Scripture references">[${referenceMarkup}]</span>`;
     cursor = match.index + match[0].length;
   }
 
-  output += renderRedLetterText(value.slice(cursor), ranges, baseOffset + cursor);
+  output += renderRedLetterText(value.slice(cursor), ranges, baseOffset + cursor, searchRanges);
   return output;
 }
 
@@ -5455,25 +5512,34 @@ function ampInlineReferencePart(value, previousBook = "") {
     : null;
 }
 
-function renderRedLetterText(text, ranges = [], baseOffset = 0) {
-  if (!state.redLetters || !ranges.length || !text) return escapeHtml(text);
+function renderRedLetterText(text, ranges = [], baseOffset = 0, searchRanges = []) {
+  const value = String(text || "");
+  if (!value) return "";
   const chunkStart = baseOffset;
-  const chunkEnd = baseOffset + text.length;
-  let cursor = 0;
-  let output = "";
-
-  ranges.forEach((range) => {
+  const chunkEnd = baseOffset + value.length;
+  const redRanges = state.redLetters ? ranges : [];
+  const boundaries = new Set([0, value.length]);
+  const addBoundaries = (items) => items.forEach((range) => {
     const start = Math.max(chunkStart, Number(range?.start));
     const end = Math.min(chunkEnd, Number(range?.end));
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
-    const localStart = start - chunkStart;
-    const localEnd = end - chunkStart;
-    if (localStart > cursor) output += escapeHtml(text.slice(cursor, localStart));
-    output += `<span class="words-of-jesus">${escapeHtml(text.slice(Math.max(cursor, localStart), localEnd))}</span>`;
-    cursor = Math.max(cursor, localEnd);
+    boundaries.add(start - chunkStart);
+    boundaries.add(end - chunkStart);
   });
-  output += escapeHtml(text.slice(cursor));
-  return output;
+  addBoundaries(redRanges);
+  addBoundaries(searchRanges);
+  const points = [...boundaries].sort((a, b) => a - b);
+  return points.slice(0, -1).map((start, index) => {
+    const end = points[index + 1];
+    if (end <= start) return "";
+    const absoluteStart = chunkStart + start;
+    const isRedLetter = redRanges.some((range) => absoluteStart >= Number(range?.start) && absoluteStart < Number(range?.end));
+    const isSearchHit = searchRanges.some((range) => absoluteStart >= Number(range?.start) && absoluteStart < Number(range?.end));
+    let markup = escapeHtml(value.slice(start, end));
+    if (isSearchHit) markup = `<mark class="inline-search-hit">${markup}</mark>`;
+    if (isRedLetter) markup = `<span class="words-of-jesus">${markup}</span>`;
+    return markup;
+  }).join("");
 }
 
 function normalizeStrongCode(code) {
@@ -11739,13 +11805,21 @@ function bindEvents() {
   document.getElementById("referenceInput")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") runReferenceOrPhraseSearch(event.currentTarget.value);
   });
-  document.querySelectorAll("[data-search-scope-select]").forEach((select) => {
-    select.addEventListener("change", (event) => setSearchScope(event.currentTarget.value));
+  document.querySelectorAll("[data-search-scope-trigger]").forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleSearchScopeMenu(event.currentTarget);
+    });
+    trigger.addEventListener("keydown", (event) => {
+      if (!["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      openSearchScopeMenu(event.currentTarget, { focusLast: event.key === "ArrowUp" });
+    });
   });
   document.getElementById("studySearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "", {
-      scope: document.getElementById("studySearchScope")?.value,
+      scope: state.searchScope,
     });
   });
   document.getElementById("clearSearchResults")?.addEventListener("click", clearSearchResults);
@@ -12462,23 +12536,155 @@ function normalizedSearchChapter(value) {
 
 function searchScopeLabel(scope, currentChapter = "") {
   const definition = searchScopeDefinitions.find(({ code }) => code === normalizedSearchScope(scope));
-  if (definition?.code !== "chapter") return definition?.label || "All Bible";
   const chapter = normalizedSearchChapter(currentChapter);
-  return chapter ? `${definition.label} (${chapter})` : definition.label;
+  if (definition?.code === "book") {
+    const book = bookFromChapterKey(chapter);
+    return book ? `${definition.label} (${book})` : definition.label;
+  }
+  if (definition?.code === "chapter") return chapter ? `${definition.label} (${chapter})` : definition.label;
+  return definition?.label || "All Bible";
 }
 
 function searchScopeShortLabel(scope) {
   return searchScopeDefinitions.find(({ code }) => code === normalizedSearchScope(scope))?.shortLabel || "All";
 }
 
+function searchScopeTriggerLabel(trigger, scopeLabel) {
+  if (trigger?.id === "topbarSearchScope") return `Choose top search scope, current ${scopeLabel}`;
+  if (trigger?.id === "mobileFocusSearchScope") return `Choose Focus search scope, current ${scopeLabel}`;
+  return `Choose search scope, current ${scopeLabel}`;
+}
+
+function toggleSearchScopeMenu(trigger) {
+  if (activeSearchScopeMenu?.trigger === trigger) {
+    closeSearchScopeMenu({ restoreFocus: true });
+    return;
+  }
+  openSearchScopeMenu(trigger);
+}
+
+function openSearchScopeMenu(trigger, options = {}) {
+  if (!trigger) return;
+  closeSearchScopeMenu();
+  const scope = normalizedSearchScope(state.searchScope);
+  const menu = document.createElement("div");
+  menu.className = "search-scope-popover";
+  menu.id = "searchScopePopover";
+  menu.setAttribute("role", "listbox");
+  menu.setAttribute("aria-label", "Search scope");
+  menu.innerHTML = searchScopeDefinitions.map(({ code }) => {
+    const selected = code === scope;
+    return `
+      <button class="search-scope-option ${selected ? "selected" : ""}" type="button" role="option" aria-selected="${selected ? "true" : "false"}" data-search-scope-option="${code}">
+        <span class="search-scope-option-check" aria-hidden="true">${selected ? "✓" : ""}</span>
+        <span>${escapeHtml(searchScopeLabel(code, state.reference))}</span>
+      </button>
+    `;
+  }).join("");
+  document.body.appendChild(menu);
+  activeSearchScopeMenu = { menu, trigger };
+  trigger.setAttribute("aria-expanded", "true");
+  trigger.setAttribute("aria-controls", menu.id);
+  menu.querySelectorAll("[data-search-scope-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setSearchScope(button.dataset.searchScopeOption);
+      closeSearchScopeMenu({ restoreFocus: true });
+    });
+  });
+  menu.addEventListener("keydown", handleSearchScopeMenuKeydown);
+  document.addEventListener("pointerdown", closeSearchScopeMenuOnOutside, true);
+  window.addEventListener("resize", positionSearchScopeMenu);
+  window.addEventListener("scroll", positionSearchScopeMenu, true);
+  positionSearchScopeMenu();
+  const optionButtons = Array.from(menu.querySelectorAll("[data-search-scope-option]"));
+  const focusTarget = options.focusLast
+    ? optionButtons[optionButtons.length - 1]
+    : menu.querySelector('[aria-selected="true"]') || optionButtons[0];
+  requestAnimationFrame(() => {
+    focusTarget?.focus({ preventScroll: true });
+    focusTarget?.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function closeSearchScopeMenu(options = {}) {
+  if (!activeSearchScopeMenu) return;
+  const { menu, trigger } = activeSearchScopeMenu;
+  activeSearchScopeMenu = null;
+  menu.remove();
+  trigger?.setAttribute("aria-expanded", "false");
+  trigger?.removeAttribute("aria-controls");
+  document.removeEventListener("pointerdown", closeSearchScopeMenuOnOutside, true);
+  window.removeEventListener("resize", positionSearchScopeMenu);
+  window.removeEventListener("scroll", positionSearchScopeMenu, true);
+  if (options.restoreFocus && trigger?.isConnected) trigger.focus({ preventScroll: true });
+}
+
+function closeSearchScopeMenuOnOutside(event) {
+  if (!activeSearchScopeMenu) return;
+  const { menu, trigger } = activeSearchScopeMenu;
+  if (menu.contains(event.target) || trigger.contains(event.target)) return;
+  closeSearchScopeMenu();
+}
+
+function handleSearchScopeMenuKeydown(event) {
+  if (!activeSearchScopeMenu) return;
+  const options = Array.from(activeSearchScopeMenu.menu.querySelectorAll("[data-search-scope-option]"));
+  const index = options.indexOf(document.activeElement);
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeSearchScopeMenu({ restoreFocus: true });
+    return;
+  }
+  if (event.key === "Tab") {
+    closeSearchScopeMenu();
+    return;
+  }
+  let nextIndex = index;
+  if (event.key === "ArrowDown") nextIndex = Math.min(options.length - 1, index + 1);
+  else if (event.key === "ArrowUp") nextIndex = Math.max(0, index - 1);
+  else if (event.key === "Home") nextIndex = 0;
+  else if (event.key === "End") nextIndex = options.length - 1;
+  else return;
+  event.preventDefault();
+  options[nextIndex]?.focus({ preventScroll: true });
+  options[nextIndex]?.scrollIntoView({ block: "nearest" });
+}
+
+function positionSearchScopeMenu() {
+  if (!activeSearchScopeMenu) return;
+  const { menu, trigger } = activeSearchScopeMenu;
+  if (!trigger?.isConnected) return closeSearchScopeMenu();
+  const margin = 12;
+  const gap = 6;
+  const anchor = trigger.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+  const width = Math.min(270, viewportWidth - margin * 2);
+  const availableBelow = Math.max(0, viewportHeight - anchor.bottom - gap - margin);
+  const availableAbove = Math.max(0, anchor.top - gap - margin);
+  const openBelow = availableBelow >= availableAbove;
+  const availableHeight = Math.max(96, openBelow ? availableBelow : availableAbove);
+  menu.style.width = `${Math.round(width)}px`;
+  menu.style.maxHeight = `${Math.round(Math.min(viewportHeight - margin * 2, availableHeight))}px`;
+  const menuHeight = menu.getBoundingClientRect().height;
+  const left = Math.min(Math.max(margin, anchor.left), viewportWidth - width - margin);
+  const top = openBelow
+    ? Math.min(viewportHeight - menuHeight - margin, anchor.bottom + gap)
+    : Math.max(margin, anchor.top - menuHeight - gap);
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.top = `${Math.round(top)}px`;
+}
+
 function setSearchScope(value) {
   const scope = normalizedSearchScope(value);
   const scopeLabel = searchScopeLabel(scope, state.reference);
   const shortLabel = searchScopeShortLabel(scope);
+  const hadInlineChapterSearch = Boolean(state.inlineSearchQuery);
   state.searchScope = scope;
   localStorage.setItem("lw_search_scope", scope);
-  document.querySelectorAll("[data-search-scope-select]").forEach((select) => {
-    select.value = scope;
+  document.querySelectorAll("[data-search-scope-trigger]").forEach((trigger) => {
+    trigger.dataset.searchScope = scope;
+    trigger.setAttribute("aria-label", searchScopeTriggerLabel(trigger, scopeLabel));
   });
   document.querySelectorAll("[data-search-scope-short]").forEach((label) => {
     label.textContent = shortLabel;
@@ -12487,12 +12693,20 @@ function setSearchScope(value) {
     control.title = `Search scope: ${scopeLabel}`;
   });
   document.getElementById("studySearchButton")?.setAttribute("aria-label", `Search ${scopeLabel}`);
+  if (scope !== "chapter" && hadInlineChapterSearch) {
+    clearInlineChapterSearchState();
+    renderPreservingReaderScroll();
+  }
 }
 
 function chapterMatchesSearchScope(chapterKey, scope, currentChapter = "") {
   const normalizedScope = normalizedSearchScope(scope);
   if (normalizedScope === "all") return true;
   const normalizedChapterKey = normalizedSearchChapter(chapterKey);
+  if (normalizedScope === "book") {
+    const currentBook = bookFromChapterKey(normalizedSearchChapter(currentChapter));
+    return Boolean(currentBook && bookFromChapterKey(normalizedChapterKey) === currentBook);
+  }
   if (normalizedScope === "chapter") {
     const normalizedCurrentChapter = normalizedSearchChapter(currentChapter);
     return Boolean(normalizedCurrentChapter && normalizedChapterKey === normalizedCurrentChapter);
@@ -13455,6 +13669,7 @@ function gotoReference(value, options = {}) {
   }
   if (Number.isFinite(options.focusVerse)) state.verse = options.focusVerse;
   searchRequestId += 1;
+  clearInlineChapterSearchState();
   state.searchQuery = "";
   state.searchPending = false;
   state.focusSearchResultsOpen = false;
@@ -13501,6 +13716,12 @@ async function runPhraseSearch(value, options = {}) {
   if (!query) return;
   const scope = normalizedSearchScope(options.scope ?? state.searchScope);
   const searchChapter = normalizedSearchChapter(options.chapter ?? state.reference);
+  if (scope === "chapter") {
+    if (advanceInlineChapterSearch(query, searchChapter)) return;
+    runInlineChapterSearch(query, searchChapter);
+    return;
+  }
+  clearInlineChapterSearchState();
   const focusResults = Boolean(options.focusResults && state.focusMode && state.mode !== "big");
   const requestId = ++searchRequestId;
   state.searchQuery = query;
@@ -13543,8 +13764,82 @@ async function runPhraseSearch(value, options = {}) {
   }
 }
 
+function clearInlineChapterSearchState() {
+  state.inlineSearchQuery = "";
+  state.inlineSearchChapter = "";
+  state.inlineSearchPhraseOnly = false;
+  state.inlineSearchHitIndex = -1;
+  state.pendingInlineSearchFocus = false;
+}
+
+function inlineSearchVersions() {
+  return state.mode === "parallel" ? activeVersions() : [state.versions[0] || "BSB"];
+}
+
+function inlineSearchHasChapterPhrase(query) {
+  const versions = inlineSearchVersions();
+  return currentChapter().verses.some((verse) => versions.some((version) => (
+    inlineSearchRangesForText(getVerseText(verse, version), query, true).length
+  )));
+}
+
+function firstInlineSearchVerse(query, phraseOnly = false) {
+  const versions = inlineSearchVersions();
+  return currentChapter().verses.find((verse) => versions.some((version) => (
+    inlineSearchRangesForText(getVerseText(verse, version), query, phraseOnly).length
+  ))) || null;
+}
+
+function runInlineChapterSearch(query, searchChapter = state.reference) {
+  searchRequestId += 1;
+  if (state.mode === "big") state.mode = "reader";
+  state.isVerseOfDayActive = false;
+  state.searchQuery = query;
+  state.searchResultsQuery = "";
+  state.searchScope = "chapter";
+  state.searchResultsScope = "chapter";
+  state.searchResultsChapter = searchChapter;
+  state.searchResults = [];
+  state.searchPending = false;
+  state.focusReferenceOpen = Boolean(state.focusMode && state.mode !== "big");
+  state.focusSearchResultsOpen = false;
+  state.inlineSearchQuery = query;
+  state.inlineSearchChapter = searchChapter;
+  state.inlineSearchPhraseOnly = inlineSearchHasChapterPhrase(query);
+  state.inlineSearchHitIndex = -1;
+  localStorage.setItem("lw_search_scope", "chapter");
+  const firstVerse = firstInlineSearchVerse(query, state.inlineSearchPhraseOnly);
+  if (!firstVerse) {
+    renderPreservingReaderScroll();
+    requestAnimationFrame(() => showToast(`No matches found in ${searchChapter}`));
+    return;
+  }
+  state.verse = firstVerse.n;
+  state.inlineSearchHitIndex = 0;
+  state.pendingInlineSearchFocus = true;
+  render();
+}
+
+function advanceInlineChapterSearch(query, searchChapter = state.reference) {
+  if (
+    state.inlineSearchQuery !== query
+    || normalizedSearchChapter(state.inlineSearchChapter) !== normalizedSearchChapter(searchChapter)
+    || normalizedSearchChapter(searchChapter) !== normalizedSearchChapter(state.reference)
+  ) return false;
+  const hits = [...document.querySelectorAll(".scripture mark.inline-search-hit")];
+  if (!hits.length) return false;
+  const nextIndex = state.inlineSearchHitIndex + 1;
+  if (nextIndex >= hits.length) {
+    showToast(`No more matches in ${searchChapter}`);
+    return true;
+  }
+  scrollInlineSearchHitIntoView(nextIndex, { smooth: false });
+  return true;
+}
+
 function clearSearchResults() {
   searchRequestId += 1;
+  clearInlineChapterSearchState();
   state.searchQuery = "";
   state.searchResultsQuery = "";
   state.searchResultsScope = normalizedSearchScope(state.searchScope);
@@ -13674,18 +13969,23 @@ function searchQuestionInChapter(version, chapterKey, chapter, criteria) {
 }
 
 function balancedSearchResults(results, primaryVersion) {
-  const versionOrder = uniqueList([
+  const exactVersionOrder = uniqueList([
     primaryVersion,
     ...state.versions,
     ...translationCodes.filter(isRemoteTranslation),
     ...translationCodes,
   ]);
+  const nonExactVersionOrder = uniqueList([
+    "BSB",
+    ...exactVersionOrder,
+  ]);
   const matchTypeOrder = ["Question match", "Meaning match", "Phrase", "Words", "Close match"];
   const ordered = [];
   matchTypeOrder.forEach((matchType) => {
+    const versionOrder = matchType === "Phrase" ? exactVersionOrder : nonExactVersionOrder;
     ordered.push(...balanceResultGroup(results.filter((result) => result.matchType === matchType), versionOrder));
   });
-  ordered.push(...balanceResultGroup(results.filter((result) => !matchTypeOrder.includes(result.matchType)), versionOrder));
+  ordered.push(...balanceResultGroup(results.filter((result) => !matchTypeOrder.includes(result.matchType)), nonExactVersionOrder));
   return ordered;
 }
 
@@ -15952,6 +16252,37 @@ function scrollSelectedVerseIntoView(options = {}) {
   selected.scrollIntoView({ block, behavior });
 }
 
+function scrollFirstInlineSearchHitIntoView() {
+  scrollInlineSearchHitIntoView(0, { smooth: false });
+}
+
+function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
+  const scripture = document.querySelector(".scripture");
+  const hits = [...(scripture?.querySelectorAll("mark.inline-search-hit") || [])];
+  const hit = hits[index];
+  if (!hit) return false;
+  hits.forEach((item) => item.classList.remove("inline-search-hit-first"));
+  hit.classList.add("inline-search-hit-first");
+  state.inlineSearchHitIndex = index;
+  const verseNumber = Number(hit.closest("[data-verse]")?.getAttribute("data-verse"));
+  if (Number.isFinite(verseNumber)) state.verse = verseNumber;
+  const behavior = !smooth || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+  if (scripture.scrollHeight > scripture.clientHeight) {
+    const scriptureBounds = scripture.getBoundingClientRect();
+    const hitBounds = hit.getBoundingClientRect();
+    const nextTop = scripture.scrollTop
+      + hitBounds.top
+      - scriptureBounds.top
+      - ((scripture.clientHeight - hitBounds.height) / 2);
+    const targetTop = Math.max(0, nextTop);
+    if (behavior === "auto") scripture.scrollTop = targetTop;
+    else scripture.scrollTo({ top: targetTop, behavior });
+    return true;
+  }
+  hit.scrollIntoView({ block: "center", behavior });
+  return true;
+}
+
 function moveVerse(direction, options = {}) {
   if (state.mode === "big") {
     const parts = currentPresentationParts();
@@ -17126,7 +17457,7 @@ document.addEventListener("click", (event) => {
   toggleStreakPopover(false);
 });
 document.addEventListener("click", (event) => {
-  if (!state.focusReferenceOpen || event.target.closest?.(".mobile-focus-passage-control")) return;
+  if (!state.focusReferenceOpen || event.target.closest?.(".mobile-focus-passage-control, .search-scope-popover")) return;
   state.focusReferenceOpen = false;
   renderPreservingReaderScroll();
 });
