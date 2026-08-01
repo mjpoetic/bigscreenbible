@@ -22,7 +22,33 @@ const testamentGroups = [
   ["Old Testament", oldTestamentBooks],
   ["New Testament", newTestamentBooks],
 ];
-const searchScopeCodes = ["all", "ot", "nt"];
+const searchScopeDefinitions = [
+  { code: "all", label: "All Bible", shortLabel: "All" },
+  { code: "chapter", label: "Current chapter", shortLabel: "Ch" },
+  { code: "ot", label: "Old Testament", shortLabel: "OT" },
+  { code: "law", label: "Law", shortLabel: "Law" },
+  { code: "history", label: "History", shortLabel: "His" },
+  { code: "psalms", label: "Psalms", shortLabel: "Psa" },
+  { code: "wisdom", label: "Wisdom", shortLabel: "Wis" },
+  { code: "prophets", label: "Prophets", shortLabel: "Pro" },
+  { code: "nt", label: "New Testament", shortLabel: "NT" },
+  { code: "gospels", label: "Gospels", shortLabel: "Gos" },
+  { code: "acts", label: "Acts", shortLabel: "Act" },
+  { code: "epistles", label: "Epistles", shortLabel: "Epi" },
+  { code: "revelation", label: "Revelation", shortLabel: "Rev" },
+];
+const searchScopeCodes = searchScopeDefinitions.map(({ code }) => code);
+const searchScopeBookGroups = {
+  law: books.slice(0, books.indexOf("Joshua")),
+  history: books.slice(books.indexOf("Joshua"), books.indexOf("Job")),
+  psalms: ["Psalm"],
+  wisdom: ["Job", "Proverbs", "Ecclesiastes", "Song of Songs"],
+  prophets: books.slice(books.indexOf("Isaiah"), books.indexOf("Matthew")),
+  gospels: ["Matthew", "Mark", "Luke", "John"],
+  acts: ["Acts"],
+  epistles: books.slice(books.indexOf("Romans"), books.indexOf("Revelation")),
+  revelation: ["Revelation"],
+};
 
 const bookAliases = buildBookAliases();
 
@@ -503,6 +529,7 @@ const state = {
   searchResultsQuery: "",
   searchScope: normalizedSearchScope(localStorage.getItem("lw_search_scope")),
   searchResultsScope: normalizedSearchScope(localStorage.getItem("lw_search_scope")),
+  searchResultsChapter: "John 3",
   searchResults: [],
   searchPending: false,
   pendingPanelFocus: null,
@@ -1911,6 +1938,14 @@ function mobileFloatingSettings() {
               autocapitalize="sentences"
               enterkeyhint="go"
             />
+            <label class="mobile-focus-search-scope" data-search-scope-control title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
+              <span class="sr-only">Focus search scope</span>
+              <select id="mobileFocusSearchScope" data-search-scope-select aria-label="Focus search scope">
+                ${searchScopeCodes.map((code) => `<option value="${code}" ${normalizedSearchScope(state.searchScope) === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code, state.reference))}</option>`).join("")}
+              </select>
+              <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
+              <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
+            </label>
             <button type="submit">Go</button>
           </form>
         ` : ""}
@@ -2684,10 +2719,10 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       </button>
       ${streakChip()}
       <div class="search" data-tooltip="Search Bible">
-        <label class="topbar-search-scope" data-search-scope-control title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope))}">
+        <label class="topbar-search-scope" data-search-scope-control title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
           <span class="sr-only">Top search scope</span>
           <select id="topbarSearchScope" data-search-scope-select aria-label="Top search scope">
-            ${searchScopeCodes.map((code) => `<option value="${code}" ${normalizedSearchScope(state.searchScope) === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code))}</option>`).join("")}
+            ${searchScopeCodes.map((code) => `<option value="${code}" ${normalizedSearchScope(state.searchScope) === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code, state.reference))}</option>`).join("")}
           </select>
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
@@ -4766,7 +4801,7 @@ function searchPanel() {
   const searchInputValue = state.searchQuery || state.searchResultsQuery;
   const canClearResults = state.searchResultsQuery || state.searchResults.length;
   const scope = normalizedSearchScope(state.searchScope);
-  const scopeLabel = searchScopeLabel(scope);
+  const scopeLabel = searchScopeLabel(scope, state.reference);
   return `
     <section class="study-section panel-section" id="searchSection">
       <form class="study-search ${canClearResults ? "has-clear" : ""}" id="studySearchForm">
@@ -4779,7 +4814,7 @@ function searchPanel() {
           <label class="search-scope-menu" data-search-scope-control title="Search scope: ${escapeHtml(scopeLabel)}">
             <span class="sr-only">Search scope</span>
             <select id="studySearchScope" data-search-scope-select aria-label="Search scope">
-              ${searchScopeCodes.map((code) => `<option value="${code}" ${scope === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code))}</option>`).join("")}
+              ${searchScopeCodes.map((code) => `<option value="${code}" ${scope === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code, state.reference))}</option>`).join("")}
             </select>
             <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
           </label>
@@ -10114,12 +10149,13 @@ function closeStudyPopup(immediate = false) {
 function searchResultsMarkup() {
   const query = state.searchResultsQuery;
   const scope = normalizedSearchScope(state.searchResultsScope);
-  const scopeLabel = searchScopeLabel(scope);
+  const searchChapter = state.searchResultsChapter || state.reference;
+  const scopeLabel = searchScopeLabel(scope, searchChapter);
   if (!query) {
     return `<div class="empty-state">Search by phrase, word, question, or reference. Try “love one another” or “Who built the ark?”</div>`;
   }
   const eligibleQuestions = (window.bibleTriviaQuestions || []).filter((question) => (
-    referenceMatchesSearchScope(question?.reference, scope)
+    referenceMatchesSearchScope(question?.reference, scope, searchChapter)
   ));
   const verifiedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, eligibleQuestions);
   if (!state.searchResults.length && !verifiedAnswer && !state.searchPending) {
@@ -12419,25 +12455,25 @@ function normalizedSearchScope(value) {
   return searchScopeCodes.includes(scope) ? scope : "all";
 }
 
-function searchScopeLabel(scope) {
-  return {
-    all: "All Bible",
-    ot: "Old Testament",
-    nt: "New Testament",
-  }[normalizedSearchScope(scope)];
+function normalizedSearchChapter(value) {
+  const parsed = parsePassageReference(String(value || ""));
+  return parsed?.key || String(value || "").trim();
+}
+
+function searchScopeLabel(scope, currentChapter = "") {
+  const definition = searchScopeDefinitions.find(({ code }) => code === normalizedSearchScope(scope));
+  if (definition?.code !== "chapter") return definition?.label || "All Bible";
+  const chapter = normalizedSearchChapter(currentChapter);
+  return chapter ? `${definition.label} (${chapter})` : definition.label;
 }
 
 function searchScopeShortLabel(scope) {
-  return {
-    all: "All",
-    ot: "OT",
-    nt: "NT",
-  }[normalizedSearchScope(scope)];
+  return searchScopeDefinitions.find(({ code }) => code === normalizedSearchScope(scope))?.shortLabel || "All";
 }
 
 function setSearchScope(value) {
   const scope = normalizedSearchScope(value);
-  const scopeLabel = searchScopeLabel(scope);
+  const scopeLabel = searchScopeLabel(scope, state.reference);
   const shortLabel = searchScopeShortLabel(scope);
   state.searchScope = scope;
   localStorage.setItem("lw_search_scope", scope);
@@ -12453,18 +12489,25 @@ function setSearchScope(value) {
   document.getElementById("studySearchButton")?.setAttribute("aria-label", `Search ${scopeLabel}`);
 }
 
-function chapterMatchesSearchScope(chapterKey, scope) {
+function chapterMatchesSearchScope(chapterKey, scope, currentChapter = "") {
   const normalizedScope = normalizedSearchScope(scope);
   if (normalizedScope === "all") return true;
-  const book = bookFromChapterKey(String(chapterKey || ""));
-  return normalizedScope === "ot" ? oldTestamentBooks.includes(book) : newTestamentBooks.includes(book);
+  const normalizedChapterKey = normalizedSearchChapter(chapterKey);
+  if (normalizedScope === "chapter") {
+    const normalizedCurrentChapter = normalizedSearchChapter(currentChapter);
+    return Boolean(normalizedCurrentChapter && normalizedChapterKey === normalizedCurrentChapter);
+  }
+  const book = bookFromChapterKey(normalizedChapterKey);
+  if (normalizedScope === "ot") return oldTestamentBooks.includes(book);
+  if (normalizedScope === "nt") return newTestamentBooks.includes(book);
+  return Boolean(searchScopeBookGroups[normalizedScope]?.includes(book));
 }
 
-function referenceMatchesSearchScope(reference, scope) {
+function referenceMatchesSearchScope(reference, scope, currentChapter = "") {
   const normalizedScope = normalizedSearchScope(scope);
   if (normalizedScope === "all") return true;
   const parsed = parsePassageReference(reference);
-  return chapterMatchesSearchScope(parsed?.key || String(reference || ""), normalizedScope);
+  return chapterMatchesSearchScope(parsed?.key || String(reference || ""), normalizedScope, currentChapter);
 }
 
 function startBookSprintGame({ render = true } = {}) {
@@ -13449,6 +13492,7 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
   await runPhraseSearch(cleaned, {
     focusResults: state.focusMode && state.mode !== "big",
     scope: options.scope,
+    chapter: options.chapter,
   });
 }
 
@@ -13456,12 +13500,14 @@ async function runPhraseSearch(value, options = {}) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
   const scope = normalizedSearchScope(options.scope ?? state.searchScope);
+  const searchChapter = normalizedSearchChapter(options.chapter ?? state.reference);
   const focusResults = Boolean(options.focusResults && state.focusMode && state.mode !== "big");
   const requestId = ++searchRequestId;
   state.searchQuery = query;
   state.searchResultsQuery = query;
   state.searchScope = scope;
   state.searchResultsScope = scope;
+  state.searchResultsChapter = searchChapter;
   state.searchResults = [];
   state.searchPending = true;
   localStorage.setItem("lw_search_scope", scope);
@@ -13483,7 +13529,7 @@ async function runPhraseSearch(value, options = {}) {
   }
   try {
     await ensureAllSearchVersionsLoaded();
-    const results = await searchBible(query, scope);
+    const results = await searchBible(query, scope, searchChapter);
     if (requestId !== searchRequestId || state.searchResultsQuery !== query) return;
     state.searchResults = results;
   } catch (error) {
@@ -13502,6 +13548,7 @@ function clearSearchResults() {
   state.searchQuery = "";
   state.searchResultsQuery = "";
   state.searchResultsScope = normalizedSearchScope(state.searchScope);
+  state.searchResultsChapter = normalizedSearchChapter(state.reference);
   state.searchResults = [];
   state.searchPending = false;
   state.focusSearchResultsOpen = false;
@@ -13513,9 +13560,10 @@ async function ensureAllSearchVersionsLoaded() {
   await Promise.all(bundled.map(loadBibleVersion));
 }
 
-async function searchBible(query, requestedScope = state.searchScope) {
+async function searchBible(query, requestedScope = state.searchScope, requestedChapter = state.reference) {
   const primaryVersion = state.versions[0] || "BSB";
   const scope = normalizedSearchScope(requestedScope);
+  const searchChapter = normalizedSearchChapter(requestedChapter);
   const criteria = parseSearchQuery(query);
   if (!criteria.tokens.length && !criteria.exactPhrase) return [];
   const searchableVersions = translationCodes.filter(isBundledTranslation);
@@ -13523,17 +13571,17 @@ async function searchBible(query, requestedScope = state.searchScope) {
   const versionOrder = criteria.questionAnalysis?.isQuestion
     ? [primarySearchVersion]
     : [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
-  const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria, scope));
+  const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria, scope, searchChapter));
   const [remoteResults, semanticResults] = await Promise.all([
-    searchRemoteVersions(query, criteria, scope),
-    searchSemanticBible(query, criteria, scope),
+    searchRemoteVersions(query, criteria, scope, searchChapter),
+    searchSemanticBible(query, criteria, scope, searchChapter),
   ]);
   const results = [...localResults, ...remoteResults, ...semanticResults];
   const seen = new Set();
   const ranked = results
     .sort((a, b) => b.score - a.score)
     .filter((result) => {
-      if (!referenceMatchesSearchScope(result.goto || result.ref, scope)) return false;
+      if (!referenceMatchesSearchScope(result.goto || result.ref, scope, searchChapter)) return false;
       const key = `${result.ref}-${result.version}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -13570,13 +13618,13 @@ function removeRedundantSemanticResults(results) {
   return kept;
 }
 
-function searchVersion(version, criteria, scope = "all") {
+function searchVersion(version, criteria, scope = "all", currentChapter = "") {
   const versionData = loadedVersionData.get(version);
   if (!versionData?.chapters) return [];
   const results = [];
   if (criteria.questionAnalysis?.isQuestion) {
     Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
-      if (!chapterMatchesSearchScope(chapterKey, scope)) return false;
+      if (!chapterMatchesSearchScope(chapterKey, scope, currentChapter)) return false;
       const result = searchQuestionInChapter(version, chapterKey, chapter, criteria);
       if (result) results.push(result);
       return results.length >= 80;
@@ -13584,7 +13632,7 @@ function searchVersion(version, criteria, scope = "all") {
     return results;
   }
   Object.entries(versionData.chapters).some(([chapterKey, chapter]) => {
-    if (!chapterMatchesSearchScope(chapterKey, scope)) return false;
+    if (!chapterMatchesSearchScope(chapterKey, scope, currentChapter)) return false;
     chapter.verses.some((verse) => {
       const text = verse.text || "";
       const match = scoreSearchText(text, criteria, version);
@@ -13657,17 +13705,17 @@ function balanceResultGroup(results, versionOrder) {
   return balanced;
 }
 
-async function searchRemoteVersions(query, criteria, scope = "all") {
+async function searchRemoteVersions(query, criteria, scope = "all", currentChapter = "") {
   const candidates = criteria.questionAnalysis?.isQuestion
     ? uniqueList(state.versions.filter(isRemoteTranslation))
     : translationCodes.filter(isRemoteTranslation);
   const remoteVersions = candidates.filter((version) => translationProvider(version).supportsSearch !== false);
   if (!remoteVersions.length) return [];
-  const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria, scope)));
+  const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria, scope, currentChapter)));
   return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
 }
 
-async function searchSemanticBible(query, criteria, scope = "all") {
+async function searchSemanticBible(query, criteria, scope = "all", currentChapter = "") {
   if (!criteria.questionAnalysis?.isQuestion) return [];
   const config = window.BigScreenBibleSupabase || {};
   const url = supabaseFunctionUrl("semantic-bible-search");
@@ -13702,7 +13750,7 @@ async function searchSemanticBible(query, criteria, scope = "all") {
         score: 150 + similarity * 40,
         matchType: "Meaning match",
       };
-    }).filter((result) => result && referenceMatchesSearchScope(result.goto || result.ref, scope));
+    }).filter((result) => result && referenceMatchesSearchScope(result.goto || result.ref, scope, currentChapter));
   } catch (_error) {
     return [];
   } finally {
@@ -13710,7 +13758,7 @@ async function searchSemanticBible(query, criteria, scope = "all") {
   }
 }
 
-async function searchRemoteVersion(version, query, criteria, scope = "all") {
+async function searchRemoteVersion(version, query, criteria, scope = "all", currentChapter = "") {
   const provider = translationProvider(version);
   const config = window.BigScreenBibleSupabase || {};
   const params = provider === bibleProviders.apiBible
@@ -13735,7 +13783,7 @@ async function searchRemoteVersion(version, query, criteria, scope = "all") {
       .map((result) => {
         const text = String(result?.text || "").replace(/\s+/g, " ").trim();
         const ref = String(result?.ref || result?.reference || "").trim();
-        if (!text || !ref || !referenceMatchesSearchScope(ref, scope)) return null;
+        if (!text || !ref || !referenceMatchesSearchScope(ref, scope, currentChapter)) return null;
         const match = scoreSearchText(text, criteria, version, Number(result?.score) || 0);
         if (!match) return null;
         return {

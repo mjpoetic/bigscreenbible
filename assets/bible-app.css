@@ -11848,9 +11848,9 @@ svg {
       bottom: 0;
       z-index: 141;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) 52px auto;
       gap: 6px;
-      width: min(286px, calc(100vw - 72px - env(safe-area-inset-right, 0px)));
+      width: min(340px, calc(100vw - 72px - env(safe-area-inset-right, 0px)));
       padding: 6px;
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -11877,6 +11877,60 @@ svg {
     .mobile-focus-passage-popover input:focus {
       border-color: color-mix(in srgb, var(--teal) 65%, var(--line));
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent);
+    }
+
+    .mobile-focus-search-scope {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-width: 52px;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      color: var(--teal);
+      cursor: pointer;
+    }
+
+    .mobile-focus-search-scope:hover,
+    .mobile-focus-search-scope:focus-within {
+      border-color: color-mix(in srgb, var(--teal) 55%, var(--line));
+      background: color-mix(in srgb, var(--teal) 10%, var(--panel));
+    }
+
+    .mobile-focus-search-scope:focus-within {
+      outline: 2px solid color-mix(in srgb, var(--teal) 22%, transparent);
+      outline-offset: 1px;
+    }
+
+    .mobile-focus-search-scope select {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .mobile-focus-search-scope-code {
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .mobile-focus-search-scope-chevron {
+      display: inline-flex;
+      pointer-events: none;
+    }
+
+    .mobile-focus-search-scope-chevron svg {
+      width: 11px;
+      height: 11px;
     }
 
     .mobile-focus-passage-popover button {
