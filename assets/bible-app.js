@@ -1194,6 +1194,7 @@ function render() {
     positionAccountPopover();
     positionSettingsPopover();
     positionFocusSearchResults();
+    positionFocusWorkspacePanel();
     positionNoteComposer();
     restoreSettingsPanelScroll(settingsScrollState);
     restoreAccountPanelScroll(accountScrollState);
@@ -2018,11 +2019,6 @@ function mobileFloatingSettings() {
 }
 
 function mobileFocusTools() {
-  const tools = [
-    ["History", icons.history],
-    ["Bookmarks", icons.bookmark],
-    ["Annotations", icons.note],
-  ];
   return `
     <div class="mobile-focus-tools-control ${state.focusToolsOpen ? "expanded" : ""}">
       <button
@@ -2038,23 +2034,56 @@ function mobileFocusTools() {
       </button>
       ${state.focusToolsOpen ? `
         <div class="mobile-focus-tools-fan" id="mobileFocusToolsFan" role="toolbar" aria-label="Focus Mode tools">
-          ${tools.map(([label, icon], index) => `
-            <button
-              class="mobile-focus-tool-option ${state.focusWorkspacePanel === label ? "active" : ""}"
-              type="button"
-              data-focus-workspace="${label}"
-              aria-label="Open ${label}"
-              aria-pressed="${state.focusWorkspacePanel === label ? "true" : "false"}"
-              data-tooltip="${label}"
-              style="--focus-tool-index: ${index}"
-            >
-              ${icon}
-            </button>
-          `).join("")}
+          ${focusWorkspaceToolButtons("mobile-focus-tool-option")}
         </div>
       ` : ""}
     </div>
   `;
+}
+
+function desktopFocusTools() {
+  if (!state.focusMode || state.mode === "big") return "";
+  return `
+    <div class="desktop-focus-tools-control ${state.focusToolsOpen ? "expanded" : ""}">
+      <button
+        class="desktop-focus-tools-toggle ${state.focusToolsOpen ? "active" : ""}"
+        id="desktopFocusToolsToggle"
+        type="button"
+        aria-label="${state.focusToolsOpen ? "Close Focus tools" : "Open Focus tools"}"
+        aria-controls="desktopFocusToolsFan"
+        aria-expanded="${state.focusToolsOpen ? "true" : "false"}"
+        data-tooltip="Focus tools"
+      >
+        ${state.focusToolsOpen ? icons.clear : icons.panels}
+      </button>
+      ${state.focusToolsOpen ? `
+        <div class="desktop-focus-tools-fan" id="desktopFocusToolsFan" role="toolbar" aria-label="Focus Mode tools">
+          ${focusWorkspaceToolButtons("desktop-focus-tool-option")}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function focusWorkspaceToolButtons(buttonClass) {
+  const tools = [
+    ["History", icons.history],
+    ["Bookmarks", icons.bookmark],
+    ["Annotations", icons.note],
+  ];
+  return tools.map(([label, icon], index) => `
+    <button
+      class="${buttonClass} ${state.focusWorkspacePanel === label ? "active" : ""}"
+      type="button"
+      data-focus-workspace="${label}"
+      aria-label="Open ${label}"
+      aria-pressed="${state.focusWorkspacePanel === label ? "true" : "false"}"
+      data-tooltip="${label}"
+      style="--focus-tool-index: ${index}"
+    >
+      ${icon}
+    </button>
+  `).join("");
 }
 
 function mobileFocusWorkspacePanel() {
@@ -2118,6 +2147,25 @@ function positionFocusSearchResults() {
   const left = Math.min(Math.max(margin, anchorRect.left), viewportWidth - width - margin);
   panel.style.left = `${Math.round(left)}px`;
   panel.style.top = `${Math.round(anchorRect.bottom + 10)}px`;
+  panel.style.width = `${Math.round(width)}px`;
+}
+
+function positionFocusWorkspacePanel() {
+  const panel = document.getElementById("mobileFocusWorkspace");
+  if (!panel) return;
+  panel.style.removeProperty("left");
+  panel.style.removeProperty("top");
+  panel.style.removeProperty("width");
+  if (isCompactScreen()) return;
+  const anchor = document.querySelector(".topbar .search");
+  if (!anchor) return;
+  const anchorRect = anchor.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const margin = 14;
+  const width = Math.min(440, Math.max(400, anchorRect.width), viewportWidth - margin * 2);
+  const left = Math.min(Math.max(margin, anchorRect.left), viewportWidth - width - margin);
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(anchorRect.bottom + 70)}px`;
   panel.style.width = `${Math.round(width)}px`;
 }
 
@@ -2847,6 +2895,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </button>
         <input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" />
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
+        ${desktopFocusTools()}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
@@ -11303,17 +11352,19 @@ function bindEvents() {
     }
     renderPreservingReaderScroll();
   });
-  document.getElementById("mobileFocusToolsToggle")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const opening = !state.focusToolsOpen;
-    resetFocusToolSurfaces();
-    state.focusToolsOpen = opening;
-    state.focusReferenceOpen = false;
-    state.focusSearchResultsOpen = false;
-    state.settingsOpen = false;
-    state.settingsPopupPosition = null;
-    state.accountOpen = false;
-    renderPreservingReaderScroll();
+  ["mobileFocusToolsToggle", "desktopFocusToolsToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const opening = !state.focusToolsOpen;
+      resetFocusToolSurfaces();
+      state.focusToolsOpen = opening;
+      state.focusReferenceOpen = false;
+      state.focusSearchResultsOpen = false;
+      state.settingsOpen = false;
+      state.settingsPopupPosition = null;
+      state.accountOpen = false;
+      renderPreservingReaderScroll();
+    });
   });
   document.querySelectorAll("[data-focus-workspace]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -17955,11 +18006,13 @@ window.addEventListener("resize", () => {
   positionAccountPopover();
   positionSettingsPopover();
   positionFocusSearchResults();
+  positionFocusWorkspacePanel();
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
   positionSettingsPopover();
+  positionFocusWorkspacePanel();
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
@@ -17992,7 +18045,7 @@ document.addEventListener("click", (event) => {
   renderPreservingReaderScroll();
 });
 document.addEventListener("click", (event) => {
-  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .mobile-focus-workspace")) return;
+  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace")) return;
   resetFocusToolSurfaces();
   renderPreservingReaderScroll();
 });
