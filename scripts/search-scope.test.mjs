@@ -55,11 +55,48 @@ assert.equal(context.scope.matches("Matthew 1", "nt"), true);
 assert.equal(context.scope.matches("Matthew 1", "ot"), false);
 assert.equal(context.scope.matches("Revelation 22", "all"), true);
 
+const selectControls = [{ value: "all" }, { value: "all" }];
+const shortLabels = [{ textContent: "All" }, { textContent: "All" }];
+const titledControls = [{ title: "Search scope: All Bible" }, { title: "Search scope: All Bible" }];
+const searchButton = {
+  label: "Search All Bible",
+  setAttribute(name, value) {
+    assert.equal(name, "aria-label");
+    this.label = value;
+  },
+};
+context.state = { searchScope: "all" };
+context.localStorage = { setItem(key, value) { context.savedScope = [key, value]; } };
+context.document = {
+  querySelectorAll(selector) {
+    if (selector === "[data-search-scope-select]") return selectControls;
+    if (selector === "[data-search-scope-short]") return shortLabels;
+    if (selector === "[data-search-scope-control]") return titledControls;
+    return [];
+  },
+  getElementById(id) {
+    return id === "studySearchButton" ? searchButton : null;
+  },
+};
+vm.runInContext(`
+  ${extractFunction("setSearchScope")}
+  globalThis.setScope = setSearchScope;
+`, context);
+context.setScope("nt");
+assert.equal(context.state.searchScope, "nt");
+assert.deepEqual([...context.savedScope], ["lw_search_scope", "nt"]);
+assert.deepEqual(selectControls.map((select) => select.value), ["nt", "nt"]);
+assert.deepEqual(shortLabels.map((label) => label.textContent), ["NT", "NT"]);
+assert.deepEqual(titledControls.map((control) => control.title), ["Search scope: New Testament", "Search scope: New Testament"]);
+assert.equal(searchButton.label, "Search New Testament");
+
 const searchBible = extractFunction("searchBible");
 const searchVersion = extractFunction("searchVersion");
 const searchRemoteVersion = extractFunction("searchRemoteVersion");
 const searchSemanticBible = extractFunction("searchSemanticBible");
-assert.match(source, /id="studySearchScope" aria-label="Search scope"/);
+assert.match(source, /id="studySearchScope" data-search-scope-select aria-label="Search scope"/);
+assert.match(source, /id="topbarSearchScope" data-search-scope-select aria-label="Top search scope"/);
+assert.match(source, /class="topbar-search-scope-code" data-search-scope-short/);
 assert.match(source, /<option value="\$\{code\}"/);
 assert.match(source, /localStorage\.setItem\("lw_search_scope", scope\)/);
 assert.match(searchBible, /searchVersion\(version, criteria, scope\)/);
@@ -72,5 +109,7 @@ assert.match(searchSemanticBible, /referenceMatchesSearchScope\(result\.goto \|\
 assert.match(extractFunction("searchResultsMarkup"), /referenceMatchesSearchScope\(question\?\.reference, scope\)/);
 assert.match(styles, /\.search-submit-control \{/);
 assert.match(styles, /\.search-scope-menu select \{[\s\S]*?opacity: 0/);
+assert.match(styles, /\.topbar-search-scope \{[\s\S]*?flex: 0 0 42px/);
+assert.match(styles, /\.topbar-search-scope select \{[\s\S]*?opacity: 0/);
 
 console.log("Search scope tests passed");

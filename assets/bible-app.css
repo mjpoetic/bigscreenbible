@@ -1199,7 +1199,7 @@ button {
 .search {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   width: clamp(178px, 21vw, 300px);
   min-width: 0;
   height: 44px;
@@ -1207,6 +1207,67 @@ button {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 6px;
+}
+
+.topbar-search-scope {
+  position: relative;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  margin-left: -10px;
+  border-radius: 5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.topbar-search-scope:hover,
+.topbar-search-scope:focus-within {
+  background: color-mix(in srgb, var(--teal) 11%, transparent);
+  color: var(--teal);
+}
+
+.topbar-search-scope:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--teal) 28%, transparent);
+  outline-offset: -2px;
+}
+
+.topbar-search-scope select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.topbar-search-icon {
+  display: inline-flex;
+  pointer-events: none;
+}
+
+.topbar-search-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.topbar-search-scope-code {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  min-width: 17px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teal) 16%, var(--panel));
+  color: var(--teal);
+  padding: 1px 3px;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  text-align: center;
+  pointer-events: none;
 }
 
 .search input {

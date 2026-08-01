@@ -2683,7 +2683,17 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </div>
       </button>
       ${streakChip()}
-      <label class="search" data-tooltip="Search Bible">${icons.search}<input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" /></label>
+      <div class="search" data-tooltip="Search Bible">
+        <label class="topbar-search-scope" data-search-scope-control title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope))}">
+          <span class="sr-only">Top search scope</span>
+          <select id="topbarSearchScope" data-search-scope-select aria-label="Top search scope">
+            ${searchScopeCodes.map((code) => `<option value="${code}" ${normalizedSearchScope(state.searchScope) === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code))}</option>`).join("")}
+          </select>
+          <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
+          <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
+        </label>
+        <input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" />
+      </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
@@ -4764,11 +4774,11 @@ function searchPanel() {
         <div class="search-submit-control">
           <button class="ghost-btn search-submit-button" id="studySearchButton" type="submit" aria-label="Search ${escapeHtml(scopeLabel)}">
             <span>Search</span>
-            <span class="search-button-scope" id="studySearchButtonScope">${escapeHtml(searchScopeShortLabel(scope))}</span>
+            <span class="search-button-scope" id="studySearchButtonScope" data-search-scope-short>${escapeHtml(searchScopeShortLabel(scope))}</span>
           </button>
-          <label class="search-scope-menu" title="Search scope: ${escapeHtml(scopeLabel)}">
+          <label class="search-scope-menu" data-search-scope-control title="Search scope: ${escapeHtml(scopeLabel)}">
             <span class="sr-only">Search scope</span>
-            <select id="studySearchScope" aria-label="Search scope">
+            <select id="studySearchScope" data-search-scope-select aria-label="Search scope">
               ${searchScopeCodes.map((code) => `<option value="${code}" ${scope === code ? "selected" : ""}>${escapeHtml(searchScopeLabel(code))}</option>`).join("")}
             </select>
             <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
@@ -11693,23 +11703,14 @@ function bindEvents() {
   document.getElementById("referenceInput")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") runReferenceOrPhraseSearch(event.currentTarget.value);
   });
+  document.querySelectorAll("[data-search-scope-select]").forEach((select) => {
+    select.addEventListener("change", (event) => setSearchScope(event.currentTarget.value));
+  });
   document.getElementById("studySearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "", {
       scope: document.getElementById("studySearchScope")?.value,
     });
-  });
-  document.getElementById("studySearchScope")?.addEventListener("change", (event) => {
-    const scope = normalizedSearchScope(event.currentTarget.value);
-    state.searchScope = scope;
-    localStorage.setItem("lw_search_scope", scope);
-    const scopeLabel = searchScopeLabel(scope);
-    const button = document.getElementById("studySearchButton");
-    const buttonScope = document.getElementById("studySearchButtonScope");
-    const menu = event.currentTarget.closest(".search-scope-menu");
-    if (button) button.setAttribute("aria-label", `Search ${scopeLabel}`);
-    if (buttonScope) buttonScope.textContent = searchScopeShortLabel(scope);
-    if (menu) menu.title = `Search scope: ${scopeLabel}`;
   });
   document.getElementById("clearSearchResults")?.addEventListener("click", clearSearchResults);
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
@@ -12432,6 +12433,24 @@ function searchScopeShortLabel(scope) {
     ot: "OT",
     nt: "NT",
   }[normalizedSearchScope(scope)];
+}
+
+function setSearchScope(value) {
+  const scope = normalizedSearchScope(value);
+  const scopeLabel = searchScopeLabel(scope);
+  const shortLabel = searchScopeShortLabel(scope);
+  state.searchScope = scope;
+  localStorage.setItem("lw_search_scope", scope);
+  document.querySelectorAll("[data-search-scope-select]").forEach((select) => {
+    select.value = scope;
+  });
+  document.querySelectorAll("[data-search-scope-short]").forEach((label) => {
+    label.textContent = shortLabel;
+  });
+  document.querySelectorAll("[data-search-scope-control]").forEach((control) => {
+    control.title = `Search scope: ${scopeLabel}`;
+  });
+  document.getElementById("studySearchButton")?.setAttribute("aria-label", `Search ${scopeLabel}`);
 }
 
 function chapterMatchesSearchScope(chapterKey, scope) {
