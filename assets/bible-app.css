@@ -4774,6 +4774,31 @@ select {
   will-change: transform;
 }
 
+.scripture:is(.chapter-transition-out-forward, .chapter-transition-out-back) {
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 150ms var(--motion-ease);
+  will-change: opacity, transform;
+}
+
+.scripture.chapter-transition-out-forward {
+  transform: translate3d(0, -18px, 0);
+}
+
+.scripture.chapter-transition-out-back {
+  transform: translate3d(0, 18px, 0);
+}
+
+.scripture.chapter-transition-enter-forward {
+  animation: reader-chapter-enter-forward 260ms var(--motion-ease) both;
+}
+
+.scripture.chapter-transition-enter-back {
+  animation: reader-chapter-enter-back 260ms var(--motion-ease) both;
+}
+
 .reader-chapter-pull-indicator {
   position: absolute;
   left: 50%;
@@ -4894,6 +4919,7 @@ select {
   font-weight: 850;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .reader-chapter-pull-copy strong {
@@ -9996,6 +10022,28 @@ kbd {
   100% {
     opacity: 0;
     transform: translate(-50%, -56%) scale(0.98);
+  }
+}
+
+@keyframes reader-chapter-enter-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes reader-chapter-enter-back {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 

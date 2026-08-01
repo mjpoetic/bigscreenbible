@@ -207,6 +207,10 @@ let presentationTouchStart = null;
 let readerChapterTouchStart = null;
 let readerChapterPull = null;
 let readerChapterPullSettleTimer = 0;
+let readerChapterWheelPull = null;
+let readerChapterWheelTimer = 0;
+let chapterNavigationTransitionTimer = 0;
+let chapterNavigationInProgress = false;
 let readerTouchGesture = null;
 let readerBlankTapStart = null;
 let lastReaderBlankTap = null;
@@ -281,6 +285,10 @@ const readerChapterPullThresholdPx = 76;
 const readerChapterPullMaxPx = 112;
 const readerChapterPullDominance = 1.15;
 const readerChapterPullBoundaryPx = 2;
+const readerChapterWheelStepMaxPx = 28;
+const readerChapterWheelIdleMs = 190;
+const chapterNavigationExitMs = 150;
+const chapterNavigationEnterMs = 260;
 const readerPinchStartPx = 10;
 const readerGestureMoveTolerancePx = 18;
 const readerTwoFingerTapMaxMs = 360;
@@ -817,7 +825,7 @@ const tutorialSteps = [
     revealVerseSelector: true,
     spotlightPadding: 5,
     title: "Move around the Bible",
-    body: "Use the chapter and verse controls for precise navigation. The nearby arrow buttons step verse by verse.",
+    body: "Use the chapter and verse controls for precise navigation. At a chapter edge, keep scrolling with a wheel or trackpad—or pull on a touchscreen—to reveal the previous or next chapter.",
   },
   {
     target: "#mobileControlsToggle, #mobileFloatingSettings, .scripture",
@@ -4922,7 +4930,7 @@ function reader(chapterChange = null) {
           </button>
         `}
       </div>
-      <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""}">
+      <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${readerChapterTransitionClass(chapterChange)}">
         ${state.mode === "parallel" ? parallelView() : readerView()}
       </article>
       ${readerChapterPullIndicators()}
@@ -4944,6 +4952,13 @@ function adjacentChapterReference(direction) {
   const index = keys.indexOf(state.reference);
   if (index < 0) return "";
   return keys[index + (direction > 0 ? 1 : -1)] || "";
+}
+
+function readerChapterTransitionClass(change) {
+  if (!change || !canUseReaderChapterSwipe()) return "";
+  return change.direction > 0
+    ? "chapter-transition-enter-forward"
+    : "chapter-transition-enter-back";
 }
 
 function readerChapterPullIndicator(direction, reference) {
@@ -11688,7 +11703,7 @@ function bindEvents() {
   document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
     toggleReaderAutoScroll({ announce: false });
   });
-  scriptureTouchSurface?.addEventListener("wheel", () => pauseReaderAutoScroll(), { passive: true });
+  scriptureTouchSurface?.addEventListener("wheel", handleReaderChapterWheel, { passive: false });
   scriptureTouchSurface?.addEventListener("pointerdown", (event) => {
     if (event.pointerType !== "touch") pauseReaderAutoScroll();
   }, { passive: true });
@@ -14797,7 +14812,7 @@ function readerChapterPullElement(direction) {
 
 function resetReaderChapterPullIndicators() {
   document.querySelectorAll(".reader-chapter-pull-indicator").forEach((indicator) => {
-    indicator.classList.remove("visible", "armed");
+    indicator.classList.remove("visible", "armed", "wheel-input");
     indicator.style.removeProperty("opacity");
     indicator.style.removeProperty("--pull-angle");
     indicator.style.removeProperty("--pull-shift");
@@ -14818,6 +14833,7 @@ function updateReaderChapterPullVisual(pull, intent) {
   const shift = (1 - progress) * (intent.direction > 0 ? 12 : -12);
   indicator.classList.add("visible");
   indicator.classList.toggle("armed", intent.armed);
+  indicator.classList.toggle("wheel-input", pull.source === "wheel");
   indicator.style.opacity = String(Math.min(1, 0.18 + progress * 0.82));
   indicator.style.setProperty("--pull-angle", `${Math.round(progress * 360)}deg`);
   indicator.style.setProperty("--pull-shift", `${shift.toFixed(1)}px`);
@@ -14825,11 +14841,17 @@ function updateReaderChapterPullVisual(pull, intent) {
   const action = indicator.querySelector(".reader-chapter-pull-action");
   if (action) {
     const chapterDirection = intent.direction > 0 ? "next chapter" : "previous chapter";
-    action.textContent = intent.armed ? `Release for ${chapterDirection}` : action.dataset.defaultLabel;
+    action.textContent = pull.source === "wheel"
+      ? (intent.armed ? `Pause for ${chapterDirection}` : `Keep scrolling for ${chapterDirection}`)
+      : (intent.armed ? `Release for ${chapterDirection}` : action.dataset.defaultLabel);
   }
   if (intent.armed !== pull.armed) {
     const status = document.getElementById("readerChapterPullStatus");
-    if (status) status.textContent = intent.armed ? `Release to open ${intent.reference}` : "";
+    if (status) {
+      status.textContent = intent.armed
+        ? `${pull.source === "wheel" ? "Pause" : "Release"} to open ${intent.reference}`
+        : "";
+    }
   }
   pull.surface.classList.remove("reader-chapter-pull-settling");
   pull.surface.classList.add("reader-chapter-pulling");
@@ -14877,6 +14899,7 @@ function handleReaderChapterPullStart(event) {
     startY: touch.clientY,
     previousReference,
     nextReference,
+    source: "touch",
     active: false,
     armed: false,
     direction: 0,
@@ -14961,6 +14984,95 @@ function cancelReaderChapterPull() {
     return;
   }
   settleReaderChapterPull(readerChapterPull);
+}
+
+function normalizedReaderChapterWheelDelta(deltaY, deltaMode = 0, pageHeight = 800) {
+  const multiplier = deltaMode === 1 ? 16 : deltaMode === 2 ? Math.max(1, pageHeight) : 1;
+  return Math.min(readerChapterWheelStepMaxPx, Math.abs(deltaY) * multiplier);
+}
+
+function finishReaderChapterWheelPull() {
+  const pull = readerChapterWheelPull;
+  readerChapterWheelPull = null;
+  clearTimeout(readerChapterWheelTimer);
+  readerChapterWheelTimer = 0;
+  if (!pull) return;
+  if (!pull.armed) {
+    settleReaderChapterPull(pull);
+    return;
+  }
+  resetReaderChapterPullIndicators();
+  pull.surface.classList.remove("reader-chapter-pulling", "reader-chapter-pull-settling");
+  pull.surface.style.removeProperty("--reader-pull-offset");
+  moveChapter(pull.direction);
+}
+
+function cancelReaderChapterWheelPull({ settle = true } = {}) {
+  const pull = readerChapterWheelPull;
+  readerChapterWheelPull = null;
+  clearTimeout(readerChapterWheelTimer);
+  readerChapterWheelTimer = 0;
+  if (!pull) return;
+  if (settle) {
+    settleReaderChapterPull(pull);
+    return;
+  }
+  resetReaderChapterPullIndicators();
+  pull.surface.classList.remove("reader-chapter-pulling", "reader-chapter-pull-settling");
+  pull.surface.style.removeProperty("--reader-pull-offset");
+}
+
+function handleReaderChapterWheel(event) {
+  pauseReaderAutoScroll();
+  if (
+    !canUseReaderChapterSwipe()
+    || chapterNavigationInProgress
+    || event.ctrlKey
+    || event.shiftKey
+    || !event.deltaY
+    || Math.abs(event.deltaX) > Math.abs(event.deltaY)
+  ) return;
+  const surface = event.currentTarget;
+  const direction = event.deltaY > 0 ? 1 : -1;
+  const reference = adjacentChapterReference(direction);
+  if (!reference || !readerSurfaceAtPullBoundary(surface, direction)) {
+    if (readerChapterWheelPull) cancelReaderChapterWheelPull();
+    return;
+  }
+  if (event.cancelable) event.preventDefault();
+  if (readerChapterPull) cancelReaderChapterPull();
+  if (
+    readerChapterWheelPull
+    && (readerChapterWheelPull.surface !== surface || readerChapterWheelPull.direction !== direction)
+  ) cancelReaderChapterWheelPull({ settle: false });
+  if (!readerChapterWheelPull) {
+    readerChapterWheelPull = {
+      surface,
+      direction,
+      reference,
+      source: "wheel",
+      distance: 0,
+      active: true,
+      armed: false,
+    };
+  }
+  const pull = readerChapterWheelPull;
+  pull.distance = Math.min(
+    readerChapterPullMaxPx,
+    pull.distance + normalizedReaderChapterWheelDelta(event.deltaY, event.deltaMode, surface.clientHeight),
+  );
+  const visualDistance = readerChapterPullStartPx + pull.distance;
+  const intent = {
+    direction,
+    reference,
+    distance: visualDistance,
+    progress: readerChapterPullProgress(visualDistance),
+    armed: visualDistance >= readerChapterPullThresholdPx,
+  };
+  updateReaderChapterPullVisual(pull, intent);
+  pull.armed = intent.armed;
+  clearTimeout(readerChapterWheelTimer);
+  readerChapterWheelTimer = setTimeout(finishReaderChapterWheelPull, readerChapterWheelIdleMs);
 }
 
 function touchDistance(first, second) {
@@ -15637,9 +15749,7 @@ function extendKeyboardVerseSelection(anchorFallback, activeVerse) {
   state.selectedVerses = available.slice(from, to + 1);
 }
 
-function moveChapter(direction) {
-  const nextReference = adjacentChapterReference(direction);
-  if (!nextReference) return;
+function applyChapterMove(direction, nextReference, { animated = false } = {}) {
   pendingChapterChange = {
     direction: direction > 0 ? 1 : -1,
     reference: nextReference,
@@ -15652,6 +15762,39 @@ function moveChapter(direction) {
   state.isVerseOfDayActive = false;
   recordHistory();
   render();
+  clearTimeout(chapterNavigationTransitionTimer);
+  if (!animated) {
+    chapterNavigationInProgress = false;
+    chapterNavigationTransitionTimer = 0;
+    return;
+  }
+  chapterNavigationTransitionTimer = setTimeout(() => {
+    chapterNavigationInProgress = false;
+    chapterNavigationTransitionTimer = 0;
+  }, chapterNavigationEnterMs);
+}
+
+function moveChapter(direction) {
+  if (chapterNavigationInProgress) return false;
+  const nextReference = adjacentChapterReference(direction);
+  if (!nextReference) return false;
+  if (readerChapterWheelPull) cancelReaderChapterWheelPull({ settle: false });
+  const surface = canUseReaderChapterSwipe() ? document.querySelector(".scripture") : null;
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!surface || reducedMotion) {
+    applyChapterMove(direction, nextReference);
+    return true;
+  }
+  chapterNavigationInProgress = true;
+  surface.classList.remove("reader-chapter-pulling", "reader-chapter-pull-settling");
+  surface.style.removeProperty("--reader-pull-offset");
+  surface.classList.add(direction > 0 ? "chapter-transition-out-forward" : "chapter-transition-out-back");
+  surface.setAttribute("aria-busy", "true");
+  clearTimeout(chapterNavigationTransitionTimer);
+  chapterNavigationTransitionTimer = setTimeout(() => {
+    applyChapterMove(direction, nextReference, { animated: true });
+  }, chapterNavigationExitMs);
+  return true;
 }
 
 function toggleBookmark() {

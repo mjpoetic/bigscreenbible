@@ -26,9 +26,12 @@ vm.runInContext(`
   const readerChapterPullThresholdPx = 76;
   const readerChapterPullMaxPx = 112;
   const readerChapterPullDominance = 1.15;
+  const readerChapterWheelStepMaxPx = 28;
   ${extractFunction("readerChapterPullProgress")}
   ${extractFunction("readerChapterPullIntent")}
+  ${extractFunction("normalizedReaderChapterWheelDelta")}
   globalThis.intent = readerChapterPullIntent;
+  globalThis.wheelDelta = normalizedReaderChapterWheelDelta;
 `, context);
 
 const atBothEdges = {
@@ -56,22 +59,39 @@ assert.ok(nextPending.progress > 0 && nextPending.progress < 1);
 assert.equal(context.intent({ ...atBothEdges, previousReference: "" }, { clientX: 100, clientY: 190 }), null);
 assert.equal(context.intent({ ...atBothEdges, nextReference: "" }, { clientX: 100, clientY: 10 }), null);
 
+assert.equal(context.wheelDelta(100), 28);
+assert.equal(context.wheelDelta(-12), 12);
+assert.equal(context.wheelDelta(1, 1), 16);
+assert.equal(context.wheelDelta(1, 2, 900), 28);
+
 assert.match(source, /readerChapterPullIndicator\(-1, adjacentChapterReference\(-1\)\)/);
 assert.match(source, /readerChapterPullIndicator\(1, adjacentChapterReference\(1\)\)/);
-assert.match(source, /Release to open \$\{intent\.reference\}/);
+assert.match(extractFunction("updateReaderChapterPullVisual"), /"Pause" : "Release"/);
 assert.match(source, /touchmove", handleReaderChapterPullMove, \{ passive: false \}/);
 assert.match(source, /touchend", handleReaderChapterPullEnd, \{ passive: false \}/);
+assert.match(source, /wheel", handleReaderChapterWheel, \{ passive: false \}/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /readerSurfaceAtPullBoundary/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /event\.preventDefault\(\)/);
 assert.match(extractFunction("handleReaderChapterPullEnd"), /pull\.active && pull\.armed/);
 assert.match(extractFunction("handleReaderChapterPullEnd"), /moveChapter\(direction\)/);
+assert.match(extractFunction("handleReaderChapterWheel"), /event\.preventDefault\(\)/);
+assert.match(extractFunction("handleReaderChapterWheel"), /readerChapterWheelIdleMs/);
+assert.match(extractFunction("finishReaderChapterWheelPull"), /moveChapter\(pull\.direction\)/);
+assert.match(extractFunction("updateReaderChapterPullVisual"), /Pause for \$\{chapterDirection\}/);
 assert.match(extractFunction("moveChapter"), /adjacentChapterReference\(direction\)/);
+assert.match(extractFunction("moveChapter"), /prefers-reduced-motion: reduce/);
+assert.match(extractFunction("moveChapter"), /chapter-transition-out-forward/);
+assert.match(extractFunction("applyChapterMove"), /chapterNavigationEnterMs/);
 assert.match(source, /pull past the top or bottom edge and release when the chapter indicator is ready/);
+assert.match(source, /keep scrolling with a wheel or trackpad/);
 
 assert.match(styles, /\.reader-chapter-pull-indicator \{/);
 assert.match(styles, /\.reader-chapter-pull-indicator\.armed/);
 assert.match(styles, /\.scripture\.reader-chapter-pulling/);
 assert.match(styles, /\.scripture\.reader-chapter-pull-settling/);
+assert.match(styles, /\.scripture\.chapter-transition-enter-forward/);
+assert.match(styles, /@keyframes reader-chapter-enter-forward/);
+assert.match(styles, /@keyframes reader-chapter-enter-back/);
 assert.match(styles, /conic-gradient\(/);
 
 console.log("Chapter pull tests passed");
