@@ -466,7 +466,7 @@ const state = {
   strongNumbers: savedStrongNumbers(),
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
-  verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
+  verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   libraryOpen: localStorage.getItem("lw_library_open") !== "false",
   activeRail: "Verse",
@@ -545,8 +545,10 @@ const state = {
   inlineSearchChapter: "",
   inlineSearchPhraseOnly: false,
   inlineSearchHitIndex: -1,
+  inlineSearchMatchCount: 0,
   inlineSearchWrapPending: false,
   pendingInlineSearchFocus: false,
+  pendingInlineSearchInputFocus: "",
   pendingPanelFocus: null,
   pendingVerseFocus: false,
   pendingLibraryScrollRestore: false,
@@ -579,6 +581,7 @@ const state = {
   authUser: null,
   authStatus: "idle",
   authMessage: "",
+  authEmailCueId: "",
   authBusy: false,
   accountSwitching: false,
   accountAddOpen: false,
@@ -921,13 +924,13 @@ const presentationTutorialSteps = [
     target: ".presentation-controls",
     spotlightPadding: 5,
     title: "Move verse by verse",
-    body: "Use Previous and Next, arrow keys, or swipe on touch devices to move through the chapter.",
+    body: "Use Previous and Next, arrow keys, or swipe on touch devices. A swipe follows your finger and previews what is coming next.",
   },
   {
     target: "#presentationSettingsToggle",
     spotlightPadding: 5,
     title: "Change the display",
-    body: "Theme, Bible version, font, and fullscreen controls live inside Big Screen settings.",
+    body: "Theme, Bible version, font, text size, and fullscreen controls live inside Big Screen settings. You can also pinch the verse to resize it.",
   },
   {
     target: ".presentation-bible-toggle",
@@ -935,6 +938,20 @@ const presentationTutorialSteps = [
     body: "Use this button when you want the full reader, study tools, notes, highlights, and games.",
   },
 ];
+
+const accountTutorialStep = {
+  target: "#accountQuickButton",
+  spotlightPadding: 5,
+  title: "Save your bookmarks",
+  body: "Create a free account to keep your bookmarks, notes, highlights, settings, and reading streak safe and available across your devices.",
+};
+
+const presentationAccountTutorialStep = {
+  target: ".presentation-bible-toggle",
+  spotlightPadding: 5,
+  title: "Save your bookmarks",
+  body: "Return to the Bible workspace, then choose Sign in to create a free account and keep your bookmarks available across your devices.",
+};
 
 state.textScale = clampTextScale(state.textScale);
 state.presentationTextScale = clampPresentationTextScale(state.presentationTextScale);
@@ -1206,9 +1223,15 @@ function render() {
       scrollSelectedVerseIntoView({ block: focusMode === "nearest" ? "nearest" : "center" });
     }));
   }
-  if (state.pendingInlineSearchFocus) {
+  if (state.pendingInlineSearchFocus || state.pendingInlineSearchInputFocus) {
+    const shouldScrollToFirstHit = state.pendingInlineSearchFocus;
+    const inputId = state.pendingInlineSearchInputFocus;
     state.pendingInlineSearchFocus = false;
-    requestAnimationFrame(() => requestAnimationFrame(scrollFirstInlineSearchHitIntoView));
+    state.pendingInlineSearchInputFocus = "";
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (shouldScrollToFirstHit) scrollFirstInlineSearchHitIntoView();
+      restoreInlineSearchInputFocus(inputId);
+    }));
   }
   if (state.pendingPanelFocus) {
     const target = state.pendingPanelFocus;
@@ -1966,7 +1989,7 @@ function mobileFloatingSettings() {
               autocapitalize="sentences"
               enterkeyhint="go"
             />
-            ${activeInlineSearchQuery() ? `<button class="mobile-focus-inline-search-clear" type="button" data-clear-search aria-label="Clear current chapter search hits" title="Clear search hits">${icons.clear}</button>` : ""}
+            ${activeInlineSearchQuery() ? `<button class="mobile-focus-inline-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" title="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
             <button class="mobile-focus-search-scope" id="mobileFocusSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" aria-label="Choose Focus search scope, current ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}" aria-haspopup="listbox" aria-expanded="false" title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
               <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
@@ -2750,7 +2773,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
         </button>
         <input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" />
-        ${activeInlineSearchQuery() ? `<button class="topbar-search-clear" type="button" data-clear-search aria-label="Clear current chapter search hits" data-tooltip="Clear search hits">${icons.clear}</button>` : ""}
+        ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
@@ -4195,6 +4218,8 @@ function socialConnectionsSection(prefix = "") {
 
 function accountSignInCard(prefix = "", options = {}) {
   const suffix = prefix ? `${prefix}-` : "";
+  const emailId = `${suffix}accountEmail`;
+  const showEmailCue = state.authEmailCueId === emailId;
   const addingAccount = options.addingAccount === true;
   const status = state.authMessage || (
     addingAccount
@@ -4209,7 +4234,7 @@ function accountSignInCard(prefix = "", options = {}) {
       </div>
       <p>${escapeHtml(status)}</p>
       <form class="account-form" id="${suffix}accountForm">
-        <input id="${suffix}accountEmail" type="email" autocomplete="email" placeholder="Email" aria-label="Email" required />
+        <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
         <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
         <div class="account-actions">
           <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
@@ -4822,12 +4847,13 @@ function crossReferencesPanel() {
 
 function searchPanel() {
   const searchInputValue = state.searchQuery || state.searchResultsQuery;
-  const canClearResults = activeInlineSearchQuery() || state.searchResultsQuery || state.searchResults.length;
+  const inlineSearchActive = Boolean(activeInlineSearchQuery());
+  const canClearResults = inlineSearchActive || state.searchResultsQuery || state.searchResults.length;
   const scope = normalizedSearchScope(state.searchScope);
   const scopeLabel = searchScopeLabel(scope, state.reference);
   return `
     <section class="study-section panel-section" id="searchSection">
-      <form class="study-search ${canClearResults ? "has-clear" : ""}" id="studySearchForm">
+      <form class="study-search ${canClearResults ? "has-clear" : ""} ${inlineSearchActive ? "has-inline-clear" : ""}" id="studySearchForm">
         <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="Search words, phrases, or questions" aria-label="Search Bible words, phrases, or questions" />
         <div class="search-submit-control">
           <button class="ghost-btn search-submit-button" id="studySearchButton" type="submit" aria-label="Search ${escapeHtml(scopeLabel)}">
@@ -4839,7 +4865,10 @@ function searchPanel() {
             <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
           </button>
         </div>
-        ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" data-clear-search aria-label="${activeInlineSearchQuery() ? "Clear current chapter search hits" : "Clear search results"}" data-tooltip="${activeInlineSearchQuery() ? "Clear search hits" : "Clear results"}">${icons.clear}</button>` : ""}
+        ${canClearResults ? inlineSearchActive
+          ? `<button class="icon-btn search-clear inline-search-clear-control" id="clearSearchResults" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>`
+          : `<button class="icon-btn search-clear" id="clearSearchResults" type="button" data-clear-search aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>`
+        : ""}
       </form>
       <div class="search-results">
         ${searchResultsMarkup()}
@@ -7568,6 +7597,7 @@ async function handleAccountSubmit(event, prefix = "") {
   const email = document.getElementById(`${suffix}accountEmail`)?.value.trim();
   const password = document.getElementById(`${suffix}accountPassword`)?.value || "";
   if (!email || !password) return;
+  state.authEmailCueId = "";
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
   const outgoingUserId = state.authUser?.id || "";
@@ -7623,12 +7653,16 @@ async function handleAccountSubmit(event, prefix = "") {
 
 async function requestPasswordReset(prefix = "") {
   const suffix = prefix ? `${prefix}-` : "";
-  const email = document.getElementById(`${suffix}accountEmail`)?.value.trim();
+  const emailId = `${suffix}accountEmail`;
+  const email = document.getElementById(emailId)?.value.trim();
   if (!email) {
+    state.authEmailCueId = emailId;
     state.authMessage = "Enter your email first, then choose Forgot your password.";
     renderPreservingReaderScroll();
+    requestAnimationFrame(() => document.getElementById(emailId)?.focus({ preventScroll: true }));
     return showToast("Enter your email first");
   }
+  state.authEmailCueId = "";
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
   state.authBusy = true;
@@ -11191,12 +11225,14 @@ function bindEvents() {
   });
   document.getElementById("mobileFocusPassagePopover")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    submitFocusReference(document.getElementById("mobileFocusPassageInput")?.value || "");
+    submitFocusReference(document.getElementById("mobileFocusPassageInput")?.value || "", {
+      sourceInputId: "mobileFocusPassageInput",
+    });
   });
   document.getElementById("mobileFocusPassageInput")?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    submitFocusReference(event.currentTarget.value);
+    submitFocusReference(event.currentTarget.value, { sourceInputId: "mobileFocusPassageInput" });
   });
   ["appUpdateButton", "mobileAppUpdateButton"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
@@ -11215,6 +11251,15 @@ function bindEvents() {
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
   document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
+  document.querySelectorAll("[id$='accountEmail']").forEach((input) => {
+    input.addEventListener("input", () => {
+      if (state.authEmailCueId !== input.id) return;
+      state.authEmailCueId = "";
+      input.classList.remove("account-email-cue");
+      input.removeAttribute("aria-invalid");
+      input.placeholder = "Email";
+    });
+  });
   document.querySelectorAll("[data-use-account]").forEach((button) => {
     button.addEventListener("click", () => {
       useRememberedAccount(button.dataset.useAccount, button.dataset.accountPrefix || "");
@@ -11867,7 +11912,10 @@ function bindEvents() {
     button.addEventListener("click", () => activateWorkspace(button.dataset.rail));
   });
   document.getElementById("referenceInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") runReferenceOrPhraseSearch(event.currentTarget.value);
+    if (event.key === "Enter") {
+      event.preventDefault();
+      runReferenceOrPhraseSearch(event.currentTarget.value, { sourceInputId: "referenceInput" });
+    }
   });
   document.querySelectorAll("[data-search-scope-trigger]").forEach((trigger) => {
     trigger.addEventListener("click", (event) => {
@@ -11884,6 +11932,15 @@ function bindEvents() {
     event.preventDefault();
     runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "", {
       scope: state.searchScope,
+      sourceInputId: "studySearchInput",
+    });
+  });
+  document.getElementById("studySearchInput")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    runReferenceOrPhraseSearch(event.currentTarget.value, {
+      scope: state.searchScope,
+      sourceInputId: "studySearchInput",
     });
   });
   document.querySelectorAll("[data-clear-search]").forEach((button) => {
@@ -13748,7 +13805,7 @@ function gotoReference(value, options = {}) {
   return true;
 }
 
-function submitFocusReference(value) {
+function submitFocusReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   state.focusReferenceOpen = false;
@@ -13757,7 +13814,10 @@ function submitFocusReference(value) {
     gotoReference(cleaned);
     return;
   }
-  runPhraseSearch(cleaned, { focusResults: true });
+  runPhraseSearch(cleaned, {
+    focusResults: true,
+    sourceInputId: options.sourceInputId || "mobileFocusPassageInput",
+  });
 }
 
 async function runReferenceOrPhraseSearch(value, options = {}) {
@@ -13772,6 +13832,7 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
     focusResults: state.focusMode && state.mode !== "big",
     scope: options.scope,
     chapter: options.chapter,
+    sourceInputId: options.sourceInputId,
   });
 }
 
@@ -13782,7 +13843,7 @@ async function runPhraseSearch(value, options = {}) {
   const searchChapter = normalizedSearchChapter(options.chapter ?? state.reference);
   if (scope === "chapter") {
     if (advanceInlineChapterSearch(query, searchChapter)) return;
-    runInlineChapterSearch(query, searchChapter);
+    runInlineChapterSearch(query, searchChapter, { sourceInputId: options.sourceInputId });
     return;
   }
   clearInlineChapterSearchState();
@@ -13833,12 +13894,75 @@ function clearInlineChapterSearchState() {
   state.inlineSearchChapter = "";
   state.inlineSearchPhraseOnly = false;
   state.inlineSearchHitIndex = -1;
+  state.inlineSearchMatchCount = 0;
   state.inlineSearchWrapPending = false;
   state.pendingInlineSearchFocus = false;
+  state.pendingInlineSearchInputFocus = "";
 }
 
 function inlineSearchVersions() {
   return state.mode === "parallel" ? activeVersions() : [state.versions[0] || "BSB"];
+}
+
+function resolveInlineSearchInputId(preferredInputId = "") {
+  const inputIds = ["referenceInput", "studySearchInput", "mobileFocusPassageInput"];
+  if (inputIds.includes(preferredInputId)) return preferredInputId;
+  const activeInputId = document.activeElement?.id || "";
+  if (inputIds.includes(activeInputId)) return activeInputId;
+  if (state.focusMode && state.mode !== "big") return "mobileFocusPassageInput";
+  if (state.libraryOpen && state.activeRail === "Search") return "studySearchInput";
+  return "referenceInput";
+}
+
+function restoreInlineSearchInputFocus(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  const caret = input.value.length;
+  input.setSelectionRange?.(caret, caret);
+}
+
+function countInlineSearchMatches(query, phraseOnly = false) {
+  const versions = inlineSearchVersions();
+  return currentChapter().verses.reduce((total, verse) => total + versions.reduce((versionTotal, version) => (
+    versionTotal + inlineSearchRangesForText(getVerseText(verse, version), query, phraseOnly).length
+  ), 0), 0);
+}
+
+function activeInlineSearchMatchCount() {
+  return activeInlineSearchQuery() ? Math.max(0, Number(state.inlineSearchMatchCount) || 0) : 0;
+}
+
+function inlineSearchProgressText() {
+  const count = activeInlineSearchMatchCount();
+  if (!count) return "0";
+  const current = Math.max(1, Math.min(count, Number(state.inlineSearchHitIndex) + 1 || 1));
+  return `${current}/${count}`;
+}
+
+function inlineSearchClearAriaLabel() {
+  const count = activeInlineSearchMatchCount();
+  if (!count) return "No current chapter matches. Clear search hits";
+  const current = Math.max(1, Math.min(count, Number(state.inlineSearchHitIndex) + 1 || 1));
+  return `Match ${current} of ${count}. Clear current chapter search hits`;
+}
+
+function inlineSearchClearTitle() {
+  const count = activeInlineSearchMatchCount();
+  return `${count} ${count === 1 ? "match" : "matches"} in ${state.inlineSearchChapter || state.reference} · Clear search hits`;
+}
+
+function updateInlineSearchProgress() {
+  const progressText = inlineSearchProgressText();
+  const ariaLabel = inlineSearchClearAriaLabel();
+  const title = inlineSearchClearTitle();
+  document.querySelectorAll("[data-inline-search-progress]").forEach((progress) => {
+    progress.textContent = progressText;
+    const button = progress.closest("[data-clear-search]");
+    button?.setAttribute("aria-label", ariaLabel);
+    if (button?.hasAttribute("title")) button.title = title;
+    if (button?.hasAttribute("data-tooltip")) button.dataset.tooltip = title;
+  });
 }
 
 function inlineSearchHasChapterPhrase(query) {
@@ -13855,7 +13979,7 @@ function firstInlineSearchVerse(query, phraseOnly = false) {
   ))) || null;
 }
 
-function runInlineChapterSearch(query, searchChapter = state.reference) {
+function runInlineChapterSearch(query, searchChapter = state.reference, options = {}) {
   searchRequestId += 1;
   if (state.mode === "big") state.mode = "reader";
   state.isVerseOfDayActive = false;
@@ -13872,7 +13996,9 @@ function runInlineChapterSearch(query, searchChapter = state.reference) {
   state.inlineSearchChapter = searchChapter;
   state.inlineSearchPhraseOnly = inlineSearchHasChapterPhrase(query);
   state.inlineSearchHitIndex = -1;
+  state.inlineSearchMatchCount = countInlineSearchMatches(query, state.inlineSearchPhraseOnly);
   state.inlineSearchWrapPending = false;
+  state.pendingInlineSearchInputFocus = resolveInlineSearchInputId(options.sourceInputId);
   localStorage.setItem("lw_search_scope", "chapter");
   const firstVerse = firstInlineSearchVerse(query, state.inlineSearchPhraseOnly);
   if (!firstVerse) {
@@ -15143,7 +15269,10 @@ function currentTutorialStep() {
 }
 
 function activeTutorialSteps() {
-  return state.tutorialMode === "presentation" ? presentationTutorialSteps : tutorialSteps;
+  const presentationTour = state.tutorialMode === "presentation";
+  const steps = presentationTour ? presentationTutorialSteps : tutorialSteps;
+  if (state.authUser) return steps;
+  return [...steps, presentationTour ? presentationAccountTutorialStep : accountTutorialStep];
 }
 
 function prepareCurrentTutorialStep() {
@@ -15323,6 +15452,8 @@ function isPresentationSwipeIgnored(target) {
 function resetPresentationDrag({ animate = true } = {}) {
   const presentationElement = document.getElementById("presentation");
   if (!presentationElement) return;
+  clearTimeout(presentationTransitionTimer);
+  presentationTransitionTimer = 0;
   presentationElement.classList.remove(
     "presentation-dragging",
     "presentation-preview-next",
@@ -15333,7 +15464,6 @@ function resetPresentationDrag({ animate = true } = {}) {
   presentationElement.style.setProperty("--presentation-drag-x", "0px");
   presentationElement.style.setProperty("--presentation-drag-progress", "0");
   if (!animate) return presentationElement.classList.remove("presentation-drag-settling");
-  clearTimeout(presentationTransitionTimer);
   presentationTransitionTimer = setTimeout(() => {
     presentationElement.classList.remove("presentation-drag-settling");
     presentationElement.style.removeProperty("--presentation-drag-x");
@@ -15356,11 +15486,14 @@ function beginPresentationPinch(event) {
 
 function handlePresentationTouchStart(event) {
   revealPresentationControls();
+  const presentationElement = document.getElementById("presentation");
   if (
     state.mode !== "big"
     || state.presentationSearchOpen
     || state.presentationSettingsOpen
     || isPresentationSwipeIgnored(event.target)
+    || presentationElement?.classList.contains("presentation-swipe-commit-next")
+    || presentationElement?.classList.contains("presentation-swipe-commit-previous")
   ) {
     presentationTouchStart = null;
     presentationPinchGesture = null;
@@ -15465,7 +15598,11 @@ function handlePresentationTouchEnd(event) {
 }
 
 function cancelPresentationTouch() {
-  if (presentationPinchGesture?.active) persistPresentationTextScale();
+  if (presentationPinchGesture?.active) {
+    persistPresentationTextScale();
+    applyPresentationTextScale();
+    showPresentationTextScaleFeedback({ settle: true });
+  }
   presentationPinchGesture = null;
   presentationTouchStart = null;
   resetPresentationDrag();
@@ -16513,9 +16650,11 @@ function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
   const hits = [...(scripture?.querySelectorAll("mark.inline-search-hit") || [])];
   const hit = hits[index];
   if (!hit) return false;
+  state.inlineSearchMatchCount = hits.length;
   hits.forEach((item) => item.classList.remove("inline-search-hit-first"));
   hit.classList.add("inline-search-hit-first");
   state.inlineSearchHitIndex = index;
+  updateInlineSearchProgress();
   const verseNumber = Number(hit.closest("[data-verse]")?.getAttribute("data-verse"));
   if (Number.isFinite(verseNumber)) state.verse = verseNumber;
   const behavior = !smooth || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";

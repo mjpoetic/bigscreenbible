@@ -1273,10 +1273,8 @@ button {
 }
 
 .topbar-search-clear {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 30px;
-  width: 30px;
+  flex: 0 0 48px;
+  width: 48px;
   height: 30px;
   margin-right: -8px;
   padding: 0;
@@ -1297,6 +1295,23 @@ button {
 .topbar-search-clear svg {
   width: 16px;
   height: 16px;
+}
+
+.inline-search-clear-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.inline-search-clear-control [data-inline-search-progress] {
+  min-width: 18px;
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-align: center;
 }
 
 .versions {
@@ -1960,6 +1975,21 @@ button {
   font-size: 13px;
   font-weight: 700;
   padding: 7px 9px;
+}
+
+.account-form input.account-email-cue {
+  border-color: #dc2626;
+  background: color-mix(in srgb, #dc2626 10%, var(--panel));
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+.account-form input.account-email-cue::placeholder {
+  color: #b91c1c;
+  opacity: 1;
+}
+
+[data-theme="dark"] .account-form input.account-email-cue::placeholder {
+  color: #fca5a5;
 }
 
 .remembered-account-list {
@@ -7632,8 +7662,33 @@ select {
   margin-bottom: 14px;
 }
 
+#searchSection .study-search {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  isolation: isolate;
+}
+
+.library #searchSection {
+  overflow: visible;
+}
+
+#searchSection .study-search::before {
+  content: "";
+  position: absolute;
+  inset: -15px -14px -10px;
+  z-index: -1;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--panel) 94%, var(--paper));
+  box-shadow: 0 10px 18px -16px color-mix(in srgb, var(--ink) 38%, transparent);
+}
+
 .study-search.has-clear {
   grid-template-columns: minmax(0, 1fr) auto 42px;
+}
+
+.study-search.has-inline-clear {
+  grid-template-columns: minmax(0, 1fr) auto 58px;
 }
 
 .study-search input {
@@ -7649,6 +7704,10 @@ select {
 .study-search .search-clear {
   width: 42px;
   min-height: 42px;
+}
+
+.study-search .search-clear.inline-search-clear-control {
+  width: 58px;
 }
 
 .search-submit-control {
@@ -8303,6 +8362,9 @@ select {
   z-index: 2;
   display: none;
   width: min(250px, calc(100vw - 32px));
+  max-height: calc(100dvh - 96px - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--presentation-button-border);
   border-radius: 8px;
   background: rgba(10, 17, 16, 0.92);
@@ -8499,7 +8561,7 @@ select {
 .presentation-copy {
   display: block;
   max-width: 100%;
-  font: 700 var(--presentation-font-size, clamp(34px, 5.8vw, 168px)) / var(--presentation-line-height, 1.12) var(--scripture-font);
+  font: 700 var(--presentation-font-size, clamp(34px, 5.8vw, 240px)) / var(--presentation-line-height, 1.12) var(--scripture-font);
 }
 
 .presentation-dragging .presentation-passage {
@@ -12157,7 +12219,7 @@ svg {
     }
 
     .app-shell.focus-shell .mobile-focus-passage-popover.has-inline-clear {
-      grid-template-columns: minmax(0, 1fr) 40px 52px auto;
+      grid-template-columns: minmax(0, 1fr) 50px 52px auto;
     }
 
     .mobile-focus-passage-popover input {
@@ -12177,9 +12239,7 @@ svg {
     }
 
     .mobile-focus-inline-search-clear {
-      display: inline-grid;
-      place-items: center;
-      width: 40px;
+      width: 50px;
       height: 40px;
       padding: 0;
       border: 1px solid var(--line);

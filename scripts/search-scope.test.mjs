@@ -176,11 +176,15 @@ assert.match(extractFunction("runPhraseSearch"), /searchResultsChapter = searchC
 assert.match(extractFunction("runPhraseSearch"), /searchBible\(query, scope, searchChapter\)/);
 assert.match(extractFunction("runPhraseSearch"), /scope === "chapter"/);
 assert.match(extractFunction("runPhraseSearch"), /advanceInlineChapterSearch\(query, searchChapter\)/);
-assert.match(extractFunction("runPhraseSearch"), /runInlineChapterSearch\(query, searchChapter\)/);
+assert.match(extractFunction("runPhraseSearch"), /runInlineChapterSearch\(query, searchChapter, \{ sourceInputId: options\.sourceInputId \}\)/);
 assert.match(extractFunction("advanceInlineChapterSearch"), /No more matches in \$\{searchChapter\}/);
-assert.match(source, /class="topbar-search-clear"[^>]*data-clear-search/);
-assert.match(source, /class="mobile-focus-inline-search-clear"[^>]*data-clear-search/);
+assert.match(source, /class="topbar-search-clear [^"]*"[^>]*data-clear-search/);
+assert.match(source, /class="mobile-focus-inline-search-clear [^"]*"[^>]*data-clear-search/);
 assert.match(source, /id="clearSearchResults"[^>]*data-clear-search/);
+assert.match(extractFunction("runInlineChapterSearch"), /pendingInlineSearchInputFocus = resolveInlineSearchInputId/);
+assert.match(extractFunction("runInlineChapterSearch"), /inlineSearchMatchCount = countInlineSearchMatches/);
+assert.match(extractFunction("render"), /restoreInlineSearchInputFocus\(inputId\)/);
+assert.match(extractFunction("bindEvents"), /studySearchInput[\s\S]*?addEventListener\("keydown"[\s\S]*?sourceInputId: "studySearchInput"/);
 assert.match(searchBible, /searchVersion\(version, criteria, scope, searchChapter\)/);
 assert.match(searchBible, /searchRemoteVersions\(query, criteria, scope, searchChapter\)/);
 assert.match(searchBible, /searchSemanticBible\(query, criteria, scope, searchChapter\)/);
@@ -196,6 +200,10 @@ assert.match(styles, /\.search-scope-option \{/);
 assert.match(styles, /\.scripture mark\.inline-search-hit \{/);
 assert.match(styles, /\.topbar-search-clear \{/);
 assert.match(styles, /\.mobile-focus-inline-search-clear \{/);
+assert.match(styles, /\.inline-search-clear-control \{/);
+assert.match(styles, /#searchSection \.study-search \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/);
+assert.match(styles, /\.library #searchSection \{[\s\S]*?overflow: visible;/);
+assert.match(styles, /#searchSection \.study-search::before \{[\s\S]*?background:/);
 
 const inlineContext = { window: {} };
 vm.createContext(inlineContext);
@@ -217,6 +225,34 @@ assert.equal(phraseText.slice(phraseRanges[0].start, phraseRanges[0].end), "Come
 const wordRanges = inlineContext.inlineRanges(phraseText, "weary burden");
 assert.deepEqual([...wordRanges].map((range) => phraseText.slice(range.start, range.end)), ["weary", "burdened"]);
 assert.deepEqual([...inlineContext.inlineRanges(phraseText, "missing phrase", true)], []);
+
+const progressContext = {
+  state: { inlineSearchQuery: "rest", inlineSearchMatchCount: 2, inlineSearchHitIndex: 0 },
+  activeInlineSearchQuery: () => "rest",
+};
+vm.createContext(progressContext);
+vm.runInContext(`
+  ${extractFunction("activeInlineSearchMatchCount")}
+  ${extractFunction("inlineSearchProgressText")}
+  ${extractFunction("inlineSearchClearAriaLabel")}
+  globalThis.progressText = inlineSearchProgressText;
+  globalThis.progressLabel = inlineSearchClearAriaLabel;
+`, progressContext);
+assert.equal(progressContext.progressText(), "1/2");
+assert.equal(progressContext.progressLabel(), "Match 1 of 2. Clear current chapter search hits");
+progressContext.state.inlineSearchHitIndex = 1;
+assert.equal(progressContext.progressText(), "2/2");
+
+const focusCalls = [];
+const focusInput = {
+  value: "rest",
+  focus: (options) => focusCalls.push(["focus", options]),
+  setSelectionRange: (start, end) => focusCalls.push(["range", start, end]),
+};
+const focusContext = { document: { getElementById: () => focusInput } };
+vm.createContext(focusContext);
+vm.runInContext(`${extractFunction("restoreInlineSearchInputFocus")}; restoreInlineSearchInputFocus("referenceInput");`, focusContext);
+assert.equal(JSON.stringify(focusCalls), JSON.stringify([["focus", { preventScroll: true }], ["range", 4, 4]]));
 
 const wrapContext = {
   state: {
