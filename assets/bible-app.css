@@ -3271,11 +3271,17 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 .mobile-focus-passage-control,
 .mobile-floating-passage,
 .mobile-focus-passage-popover,
-.mobile-focus-search-results {
+.mobile-focus-search-results,
+.mobile-focus-tools-control,
+.mobile-floating-focus-tools,
+.mobile-focus-tools-fan,
+.mobile-focus-tool-option,
+.mobile-focus-workspace {
   display: none;
 }
 
-.mobile-focus-search-results {
+.mobile-focus-search-results,
+.mobile-focus-workspace {
   position: fixed;
   z-index: 140;
   grid-template-rows: auto minmax(0, 1fr);
@@ -3291,7 +3297,8 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   animation: surfaceIn var(--motion-base) var(--motion-ease) both;
 }
 
-.mobile-focus-search-results-head {
+.mobile-focus-search-results-head,
+.mobile-focus-workspace-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3300,13 +3307,15 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   border-bottom: 1px solid var(--line);
 }
 
-.mobile-focus-search-results-head > div {
+.mobile-focus-search-results-head > div,
+.mobile-focus-workspace-head > div {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
-.mobile-focus-search-results-head span {
+.mobile-focus-search-results-head span,
+.mobile-focus-workspace-head > div > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 900;
@@ -3314,7 +3323,8 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   text-transform: uppercase;
 }
 
-.mobile-focus-search-results-head strong {
+.mobile-focus-search-results-head strong,
+.mobile-focus-workspace-head strong {
   overflow: hidden;
   color: var(--ink);
   font-size: 15px;
@@ -3323,7 +3333,21 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   white-space: nowrap;
 }
 
-.mobile-focus-search-results-head button {
+.mobile-focus-workspace-head strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mobile-focus-workspace-head strong svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: var(--teal);
+}
+
+.mobile-focus-search-results-head button,
+.mobile-focus-workspace-head > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3338,17 +3362,45 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   cursor: pointer;
 }
 
-.mobile-focus-search-results-head button svg {
+.mobile-focus-search-results-head button svg,
+.mobile-focus-workspace-head > button svg {
   width: 17px;
   height: 17px;
 }
 
-.mobile-focus-search-results-body {
+.mobile-focus-search-results-body,
+.mobile-focus-workspace-body {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 11px;
   -webkit-overflow-scrolling: touch;
+}
+
+.mobile-focus-workspace-body .study-section {
+  padding: 14px;
+  border-bottom: 0;
+}
+
+.mobile-focus-workspace-body .study-heading {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.mobile-focus-workspace-body .note-box {
+  min-height: 112px;
+}
+
+@keyframes focusToolFanIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.88);
+  }
+
+  to {
+    opacity: 0.9;
+    transform: translateX(0) scale(1);
+  }
 }
 
 .mobile-focus-search-results .search-results {
@@ -11806,6 +11858,8 @@ svg {
 
   .mobile-floating-settings,
   .mobile-floating-passage,
+  .mobile-floating-focus-tools,
+  .mobile-focus-tool-option,
   .reader-selection-tools-button,
   .reader-top-button,
   .reader-return-button {
@@ -11899,6 +11953,12 @@ svg {
   .mobile-floating-passage:hover,
   .mobile-floating-passage:focus-visible,
   .mobile-floating-passage.active,
+  .mobile-floating-focus-tools:hover,
+  .mobile-floating-focus-tools:focus-visible,
+  .mobile-floating-focus-tools.active,
+  .mobile-focus-tool-option:hover,
+  .mobile-focus-tool-option:focus-visible,
+  .mobile-focus-tool-option.active,
   .reader-selection-tools-button:hover,
   .reader-selection-tools-button:focus-visible,
   .reader-return-button:hover,
@@ -11913,7 +11973,8 @@ svg {
   }
 
   .mobile-floating-settings.mobile-settings-idle:not(.active),
-  .mobile-floating-passage.mobile-settings-idle:not(.active) {
+  .mobile-floating-passage.mobile-settings-idle:not(.active),
+  .mobile-floating-focus-tools.mobile-settings-idle:not(.active) {
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px) scale(0.94);
@@ -11921,6 +11982,8 @@ svg {
 
   .mobile-floating-settings svg,
   .mobile-floating-passage svg,
+  .mobile-floating-focus-tools svg,
+  .mobile-focus-tool-option svg,
   .reader-selection-tools-button svg,
   .reader-top-button svg,
   .reader-return-button svg {
@@ -12180,6 +12243,52 @@ svg {
       padding: 0;
     }
 
+    .app-shell.focus-shell .mobile-focus-tools-control {
+      position: fixed;
+      right: auto;
+      left: max(7px, env(safe-area-inset-left, 0px));
+      bottom: calc(var(--mobile-portrait-footer-height) + 118px + env(safe-area-inset-bottom, 0px));
+      z-index: 42;
+      display: block;
+    }
+
+    .app-shell.focus-shell .mobile-floating-focus-tools {
+      position: static;
+      right: auto;
+      left: auto;
+      bottom: auto;
+      display: inline-flex;
+    }
+
+    .app-shell.focus-shell .mobile-focus-tools-fan {
+      position: absolute;
+      left: 52px;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-shell.focus-shell .mobile-focus-tool-option {
+      position: static;
+      right: auto;
+      left: auto;
+      bottom: auto;
+      display: inline-flex;
+      opacity: 0;
+      animation: focusToolFanIn 180ms var(--motion-ease) forwards;
+      animation-delay: calc(var(--focus-tool-index) * 38ms);
+    }
+
+    .app-shell.focus-shell .mobile-focus-tool-option.active {
+      border-color: color-mix(in srgb, var(--teal) 72%, var(--line));
+      background: color-mix(in srgb, var(--teal) 17%, var(--panel));
+      box-shadow:
+        0 0 0 4px color-mix(in srgb, var(--teal) 9%, transparent),
+        0 8px 22px color-mix(in srgb, var(--ink) 12%, transparent);
+      opacity: 1;
+    }
+
     .app-shell.focus-shell .mobile-focus-passage-control {
       position: fixed;
       right: auto;
@@ -12324,6 +12433,18 @@ svg {
       display: grid;
       width: min(340px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
       max-height: min(50dvh, 420px);
+    }
+
+    .app-shell.focus-shell .mobile-focus-workspace {
+      left: max(7px, env(safe-area-inset-left, 0px));
+      bottom: calc(var(--mobile-portrait-footer-height) + 170px + env(safe-area-inset-bottom, 0px));
+      display: grid;
+      width: min(360px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+      max-height: min(56dvh, 480px);
+    }
+
+    .app-shell.focus-shell .mobile-focus-workspace-body {
+      padding: 0;
     }
 
     .reader-top-button {
@@ -13950,8 +14071,16 @@ svg {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   }
 
+  .app-shell.footer-collapsed .mobile-focus-tools-control {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+
   .app-shell.footer-collapsed .mobile-focus-search-results {
     bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .mobile-focus-workspace {
+    bottom: calc(170px + env(safe-area-inset-bottom, 0px));
   }
 
   .app-shell.footer-collapsed .reader-top-button {

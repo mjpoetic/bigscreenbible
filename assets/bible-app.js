@@ -508,6 +508,8 @@ const state = {
   settingsOpen: false,
   focusReferenceOpen: false,
   focusSearchResultsOpen: false,
+  focusToolsOpen: false,
+  focusWorkspacePanel: "",
   settingsSectionsOpen: {
     accessibility: false,
     reading: true,
@@ -1475,6 +1477,7 @@ function switchMode(nextMode) {
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
   state.parallelVersionMenuPosition = null;
+  resetFocusToolSurfaces();
   const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
   if (state.mode === "big") {
     state.presentationPart = 0;
@@ -1959,6 +1962,9 @@ function loadingScreen() {
 
 function mobileFloatingSettings() {
   if (state.mode === "big") return "";
+  const focusTools = state.focusMode
+    ? mobileFocusTools()
+    : "";
   const focusReferenceSwitcher = state.focusMode
     ? `
       <div class="mobile-focus-passage-control">
@@ -2001,11 +2007,78 @@ function mobileFloatingSettings() {
     `
     : "";
   return `
+    ${focusTools}
     ${focusReferenceSwitcher}
     <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" aria-label="Settings" data-tooltip="Settings">
       ${icons.settings}
     </button>
     ${mobileFocusSearchResults()}
+    ${mobileFocusWorkspacePanel()}
+  `;
+}
+
+function mobileFocusTools() {
+  const tools = [
+    ["History", icons.history],
+    ["Bookmarks", icons.bookmark],
+    ["Annotations", icons.note],
+  ];
+  return `
+    <div class="mobile-focus-tools-control ${state.focusToolsOpen ? "expanded" : ""}">
+      <button
+        class="mobile-floating-focus-tools ${state.focusToolsOpen ? "active" : ""}"
+        id="mobileFocusToolsToggle"
+        type="button"
+        aria-label="${state.focusToolsOpen ? "Close Focus tools" : "Open Focus tools"}"
+        aria-controls="mobileFocusToolsFan"
+        aria-expanded="${state.focusToolsOpen ? "true" : "false"}"
+        data-tooltip="Focus tools"
+      >
+        ${state.focusToolsOpen ? icons.clear : icons.panels}
+      </button>
+      ${state.focusToolsOpen ? `
+        <div class="mobile-focus-tools-fan" id="mobileFocusToolsFan" role="toolbar" aria-label="Focus Mode tools">
+          ${tools.map(([label, icon], index) => `
+            <button
+              class="mobile-focus-tool-option ${state.focusWorkspacePanel === label ? "active" : ""}"
+              type="button"
+              data-focus-workspace="${label}"
+              aria-label="Open ${label}"
+              aria-pressed="${state.focusWorkspacePanel === label ? "true" : "false"}"
+              data-tooltip="${label}"
+              style="--focus-tool-index: ${index}"
+            >
+              ${icon}
+            </button>
+          `).join("")}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function mobileFocusWorkspacePanel() {
+  const panel = state.focusWorkspacePanel;
+  if (!state.focusMode || !["History", "Bookmarks", "Annotations"].includes(panel)) return "";
+  const content = panel === "History"
+    ? historyPanel()
+    : panel === "Bookmarks"
+      ? bookmarksPanel()
+      : notesPanel();
+  const icon = panel === "History" ? icons.history : panel === "Bookmarks" ? icons.bookmark : icons.note;
+  return `
+    <section class="mobile-focus-workspace" id="mobileFocusWorkspace" role="dialog" aria-label="Focus Mode ${panel}">
+      <header class="mobile-focus-workspace-head">
+        <div>
+          <span>Focus tools</span>
+          <strong>${icon}${panel}</strong>
+        </div>
+        <button id="mobileFocusWorkspaceClose" type="button" aria-label="Close ${panel}">${icons.clear}</button>
+      </header>
+      <div class="mobile-focus-workspace-body">
+        ${content}
+      </div>
+    </section>
   `;
 }
 
@@ -4371,22 +4444,30 @@ function scheduleStreakPopupDismiss() {
 function revealMobileSettingsButton() {
   const settingsButton = document.getElementById("mobileFloatingSettings");
   const passageButton = document.getElementById("mobileFocusPassageToggle");
+  const focusToolsButton = document.getElementById("mobileFocusToolsToggle");
   const topButton = document.getElementById("readerTopButton");
-  if (!settingsButton && !passageButton && !topButton) return;
+  if (!settingsButton && !passageButton && !focusToolsButton && !topButton) return;
   settingsButton?.classList.remove("mobile-settings-idle");
   passageButton?.classList.remove("mobile-settings-idle");
+  focusToolsButton?.classList.remove("mobile-settings-idle");
   topButton?.classList.remove("reader-top-idle");
   clearTimeout(mobileSettingsIdleTimer);
-  if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.mode === "big" || !isCompactScreen()) return;
+  if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
-    if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen) return;
+    if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) return;
     document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
+    document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
     const currentTopButton = document.getElementById("readerTopButton");
     if (currentTopButton?.classList.contains("available")) {
       currentTopButton.classList.add("reader-top-idle");
     }
   }, 3200);
+}
+
+function resetFocusToolSurfaces() {
+  state.focusToolsOpen = false;
+  state.focusWorkspacePanel = "";
 }
 
 function bindMobileSettingsVisibility() {
@@ -11186,6 +11267,7 @@ function bindEvents() {
     if (state.settingsOpen) return closeSettingsPopover();
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
+    resetFocusToolSurfaces();
     state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "header";
@@ -11200,6 +11282,7 @@ function bindEvents() {
     if (state.settingsOpen) return closeSettingsPopover();
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
+    resetFocusToolSurfaces();
     state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "floating";
@@ -11212,11 +11295,43 @@ function bindEvents() {
     event.stopPropagation();
     state.focusReferenceOpen = !state.focusReferenceOpen;
     state.focusSearchResultsOpen = false;
+    resetFocusToolSurfaces();
     if (state.focusReferenceOpen) {
       state.settingsOpen = false;
       state.settingsPopupPosition = null;
       state.accountOpen = false;
     }
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("mobileFocusToolsToggle")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const opening = !state.focusToolsOpen;
+    resetFocusToolSurfaces();
+    state.focusToolsOpen = opening;
+    state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = false;
+    state.settingsOpen = false;
+    state.settingsPopupPosition = null;
+    state.accountOpen = false;
+    renderPreservingReaderScroll();
+  });
+  document.querySelectorAll("[data-focus-workspace]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      state.focusToolsOpen = true;
+      state.focusWorkspacePanel = state.focusWorkspacePanel === button.dataset.focusWorkspace
+        ? ""
+        : button.dataset.focusWorkspace;
+      state.focusReferenceOpen = false;
+      state.focusSearchResultsOpen = false;
+      state.settingsOpen = false;
+      state.settingsPopupPosition = null;
+      state.accountOpen = false;
+      renderPreservingReaderScroll();
+    });
+  });
+  document.getElementById("mobileFocusWorkspaceClose")?.addEventListener("click", () => {
+    state.focusWorkspacePanel = "";
     renderPreservingReaderScroll();
   });
   document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
@@ -11851,7 +11966,9 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
-      const closeLibraryAfterNavigation = button.dataset.keepLibraryOpen !== "true";
+      const fromFocusWorkspace = Boolean(button.closest(".mobile-focus-workspace"));
+      if (fromFocusWorkspace) resetFocusToolSurfaces();
+      const closeLibraryAfterNavigation = !fromFocusWorkspace && button.dataset.keepLibraryOpen !== "true";
       if (!closeLibraryAfterNavigation) rememberOpenLibraryState();
       const focusVerse = button.dataset.gotoVerse ? Number(button.dataset.gotoVerse) : NaN;
       gotoReference(button.dataset.goto, {
@@ -13860,6 +13977,7 @@ async function runPhraseSearch(value, options = {}) {
   if (focusResults) {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = true;
+    resetFocusToolSurfaces();
     renderPreservingReaderScroll();
   } else {
     state.mode = state.mode === "big" ? "reader" : state.mode;
@@ -13992,6 +14110,7 @@ function runInlineChapterSearch(query, searchChapter = state.reference, options 
   state.searchPending = false;
   state.focusReferenceOpen = Boolean(state.focusMode && state.mode !== "big");
   state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
   state.inlineSearchQuery = query;
   state.inlineSearchChapter = searchChapter;
   state.inlineSearchPhraseOnly = inlineSearchHasChapterPhrase(query);
@@ -15001,6 +15120,7 @@ function toggleFocusMode() {
   const applyFocusMode = () => {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
+    resetFocusToolSurfaces();
     state.focusMode = enteringFocus;
     if (state.focusMode) state.mobileControlsOpen = false;
     else pendingFocusChromeEnter = true;
@@ -16313,6 +16433,16 @@ function handleGlobalShortcuts(event) {
       state.focusSearchResultsOpen = false;
       return renderPreservingReaderScroll();
     }
+    if (state.focusWorkspacePanel) {
+      event.preventDefault();
+      state.focusWorkspacePanel = "";
+      return renderPreservingReaderScroll();
+    }
+    if (state.focusToolsOpen) {
+      event.preventDefault();
+      resetFocusToolSurfaces();
+      return renderPreservingReaderScroll();
+    }
     if (state.headerVersionMenuOpen) {
       event.preventDefault();
       return closeHeaderVersionMenu();
@@ -16450,9 +16580,10 @@ function focusFocusModeSearch() {
     input?.focus({ preventScroll: true });
     input?.select();
   };
-  if (state.focusReferenceOpen || state.focusSearchResultsOpen) {
+  if (state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
+    resetFocusToolSurfaces();
     renderPreservingReaderScroll();
     requestAnimationFrame(focusInput);
     return;
@@ -17786,6 +17917,7 @@ compactWidthQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.focusReferenceOpen = false;
   state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
@@ -17797,6 +17929,7 @@ shortLandscapeQuery?.addEventListener("change", () => {
   state.settingsOpen = false;
   state.focusReferenceOpen = false;
   state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
   state.parallelVersionMenuIndex = null;
@@ -17856,6 +17989,11 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!state.focusSearchResultsOpen || event.target.closest?.(".mobile-focus-search-results, .mobile-focus-passage-control, .topbar .search")) return;
   state.focusSearchResultsOpen = false;
+  renderPreservingReaderScroll();
+});
+document.addEventListener("click", (event) => {
+  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .mobile-focus-workspace")) return;
+  resetFocusToolSurfaces();
   renderPreservingReaderScroll();
 });
 document.addEventListener("click", handleSideToolbarPositionClick);
