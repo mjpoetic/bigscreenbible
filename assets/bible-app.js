@@ -193,6 +193,7 @@ const legacyScriptureFontCodes = {
   "ibm-plex-sans": "manrope",
 };
 const defaultInterfaceTextSize = "default";
+const defaultPresentationTextScale = 1;
 const interfaceTextSizes = [
   { code: "default", name: "Default", percent: 100 },
   { code: "large", name: "Large", percent: 112 },
@@ -232,6 +233,10 @@ let strongLexiconStatus = "idle";
 let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
+let presentationPinchGesture = null;
+let presentationScaleFeedbackTimer = 0;
+let presentationEnterDirection = 0;
+let presentationTransitionTimer = 0;
 let readerChapterTouchStart = null;
 let readerChapterPull = null;
 let readerChapterPullSettleTimer = 0;
@@ -309,6 +314,7 @@ const appVersion = document.querySelector('meta[name="app-version"]')?.content |
 const horizontalSwipeMaxMs = 850;
 const horizontalSwipeMinPx = 56;
 const horizontalSwipeDominance = 1.35;
+const presentationSwipeCommitMs = 180;
 const readerChapterPullStartPx = 7;
 const readerChapterPullThresholdPx = 76;
 const readerChapterPullMaxPx = 112;
@@ -472,6 +478,7 @@ const state = {
   presentationControlsVisible: !isCompactScreen(),
   presentationPart: 0,
   presentationTheme: localStorage.getItem("lw_presentation_theme") || defaultPresentationTheme,
+  presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
   isVerseOfDayActive: false,
@@ -538,6 +545,7 @@ const state = {
   inlineSearchChapter: "",
   inlineSearchPhraseOnly: false,
   inlineSearchHitIndex: -1,
+  inlineSearchWrapPending: false,
   pendingInlineSearchFocus: false,
   pendingPanelFocus: null,
   pendingVerseFocus: false,
@@ -929,6 +937,7 @@ const presentationTutorialSteps = [
 ];
 
 state.textScale = clampTextScale(state.textScale);
+state.presentationTextScale = clampPresentationTextScale(state.presentationTextScale);
 
 function currentChapter() {
   return bibleData[state.reference] || bibleData["John 3"] || { title: state.reference, verses: [] };
@@ -1942,7 +1951,7 @@ function mobileFloatingSettings() {
           ${icons.search}
         </button>
         ${state.focusReferenceOpen ? `
-          <form class="mobile-focus-passage-popover" id="mobileFocusPassagePopover" role="search" aria-label="Go to another passage">
+          <form class="mobile-focus-passage-popover ${activeInlineSearchQuery() ? "has-inline-clear" : ""}" id="mobileFocusPassagePopover" role="search" aria-label="Go to another passage">
             <input
               id="mobileFocusPassageInput"
               type="text"
@@ -1957,6 +1966,7 @@ function mobileFloatingSettings() {
               autocapitalize="sentences"
               enterkeyhint="go"
             />
+            ${activeInlineSearchQuery() ? `<button class="mobile-focus-inline-search-clear" type="button" data-clear-search aria-label="Clear current chapter search hits" title="Clear search hits">${icons.clear}</button>` : ""}
             <button class="mobile-focus-search-scope" id="mobileFocusSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" aria-label="Choose Focus search scope, current ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}" aria-haspopup="listbox" aria-expanded="false" title="Search scope: ${escapeHtml(searchScopeLabel(state.searchScope, state.reference))}">
               <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
@@ -2740,6 +2750,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(searchScopeShortLabel(state.searchScope))}</span>
         </button>
         <input id="referenceInput" value="${escapeHtml(state.searchQuery || referenceLabel())}" aria-label="Search Bible reference or phrase" placeholder="John 3:16 or love one another" />
+        ${activeInlineSearchQuery() ? `<button class="topbar-search-clear" type="button" data-clear-search aria-label="Clear current chapter search hits" data-tooltip="Clear search hits">${icons.clear}</button>` : ""}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
@@ -4811,7 +4822,7 @@ function crossReferencesPanel() {
 
 function searchPanel() {
   const searchInputValue = state.searchQuery || state.searchResultsQuery;
-  const canClearResults = state.searchResultsQuery || state.searchResults.length;
+  const canClearResults = activeInlineSearchQuery() || state.searchResultsQuery || state.searchResults.length;
   const scope = normalizedSearchScope(state.searchScope);
   const scopeLabel = searchScopeLabel(scope, state.reference);
   return `
@@ -4828,7 +4839,7 @@ function searchPanel() {
             <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
           </button>
         </div>
-        ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>` : ""}
+        ${canClearResults ? `<button class="icon-btn search-clear" id="clearSearchResults" type="button" data-clear-search aria-label="${activeInlineSearchQuery() ? "Clear current chapter search hits" : "Clear search results"}" data-tooltip="${activeInlineSearchQuery() ? "Clear search hits" : "Clear results"}">${icons.clear}</button>` : ""}
       </form>
       <div class="search-results">
         ${searchResultsMarkup()}
@@ -7909,6 +7920,7 @@ function captureCloudSnapshot() {
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
       presentationTheme: state.presentationTheme,
+      presentationTextScale: state.presentationTextScale,
       startBigScreen: state.startBigScreen,
       startVerseOfDay: state.startVerseOfDay,
       showStreakPopup: state.showStreakPopup,
@@ -8070,6 +8082,9 @@ function applyCloudSnapshot(snapshot) {
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
+  state.presentationTextScale = clampPresentationTextScale(
+    Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
+  );
   state.startBigScreen = settings.startBigScreen !== false;
   state.startVerseOfDay = settings.startVerseOfDay !== false;
   state.showStreakPopup = settings.showStreakPopup !== false;
@@ -8117,6 +8132,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
+  localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
   localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
   localStorage.setItem("lw_start_verse_of_day", String(state.startVerseOfDay));
   localStorage.setItem("lw_show_streak_popup", String(state.showStreakPopup));
@@ -10480,6 +10496,33 @@ function presentationPartSuffix(index) {
   return String.fromCharCode(97 + Math.min(index, 25));
 }
 
+function adjacentPresentationContent(direction) {
+  const currentParts = currentPresentationParts();
+  const partIndex = Math.max(0, Math.min(currentParts.length - 1, Number(state.presentationPart) || 0));
+  const adjacentPartIndex = partIndex + direction;
+  const currentReference = state.isVerseOfDayActive && state.verseOfDayItem
+    ? state.verseOfDayItem.reference
+    : referenceLabel();
+  if (adjacentPartIndex >= 0 && adjacentPartIndex < currentParts.length) {
+    return {
+      text: currentParts[adjacentPartIndex],
+      reference: `${currentReference}${currentParts.length > 1 ? presentationPartSuffix(adjacentPartIndex) : ""}`,
+    };
+  }
+
+  const verses = currentChapter().verses;
+  const verseIndex = verses.findIndex((verse) => verse.n === state.verse);
+  const adjacentVerse = verses[verseIndex + direction];
+  if (!adjacentVerse) return null;
+  const version = state.versions[0] || "BSB";
+  const adjacentParts = presentationTextParts(getVerseText(adjacentVerse, version));
+  const targetPartIndex = direction < 0 ? Math.max(0, adjacentParts.length - 1) : 0;
+  return {
+    text: adjacentParts[targetPartIndex] || "",
+    reference: `${state.reference}:${adjacentVerse.n}${adjacentParts.length > 1 ? presentationPartSuffix(targetPartIndex) : ""}`,
+  };
+}
+
 function presentation() {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -10500,6 +10543,15 @@ function presentation() {
   const canGoForward = partIndex < parts.length - 1 || verseIndex < verses.length - 1;
   const previousLabel = partIndex > 0 ? "Previous part" : "Previous verse";
   const nextLabel = partIndex < parts.length - 1 ? "Next part" : "Next verse";
+  const previousPreview = canGoBack ? adjacentPresentationContent(-1) : null;
+  const nextPreview = canGoForward ? adjacentPresentationContent(1) : null;
+  const enterDirection = presentationEnterDirection;
+  presentationEnterDirection = 0;
+  const enterClass = enterDirection > 0
+    ? "presentation-enter-next"
+    : enterDirection < 0
+      ? "presentation-enter-previous"
+      : "";
   const versionOptions = translationCodes
     .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)}</option>`)
     .join("");
@@ -10513,7 +10565,7 @@ function presentation() {
     ? `<input class="custom-font-input" id="presentationCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
     : "";
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""}" id="presentation" data-presentation-theme="${state.presentationTheme}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       <div class="presentation-top">
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
@@ -10552,11 +10604,20 @@ function presentation() {
                 </select>
                 ${customFontField}
               </label>
+              <div class="presentation-text-size-setting">
+                <span>Text size</span>
+                <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
+                  <button type="button" id="presentationDecreaseText" aria-label="Decrease Big Screen text size">A−</button>
+                  <button type="button" class="presentation-text-size-reset" id="presentationResetText" aria-label="Reset Big Screen text size to 100%"><span>Aa</span><strong>${Math.round(state.presentationTextScale * 100)}%</strong></button>
+                  <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
+                </div>
+              </div>
               <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
               <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
               <div class="presentation-help">
                 <span>Keyboard</span>
                 <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
+                <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
                 <div><kbd>Esc</kbd> Back to Bible</div>
               </div>
             </div>
@@ -10565,12 +10626,15 @@ function presentation() {
         </div>
       </div>
       <div class="presentation-text">
+        ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
           <span class="presentation-copy">${escapeHtml(text)}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
+        ${nextPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-next" aria-hidden="true"><span>Next</span><strong>${escapeHtml(nextPreview.reference)}</strong><p>${escapeHtml(nextPreview.text)}</p></div>` : ""}
       </div>
+      <div class="presentation-scale-feedback" id="presentationScaleFeedback" role="status" aria-live="polite"><span class="presentation-scale-feedback-mark" aria-hidden="true">Aa</span><span class="presentation-scale-feedback-label">${Math.round(state.presentationTextScale * 100)}%</span></div>
       <div class="presentation-bottom">
         <a class="presentation-brand" id="presentationBrandVerseOfDay" href="#verse-of-the-day" aria-label="Open verse of the day">
           <img class="presentation-brand-mark" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
@@ -10695,9 +10759,9 @@ function shortcutOverlay() {
     ["F", "Toggle focus layout"],
     ["Shift + F", "Toggle fullscreen"],
     ["A", "Start or pause Reader / Parallel auto-scroll"],
-    ["Shift + +", "Increase Reader / Parallel text size"],
-    ["Shift + −", "Decrease Reader / Parallel text size"],
-    ["Shift + 0", "Reset Reader / Parallel text size"],
+    ["Shift + +", "Increase text size in the current reading mode"],
+    ["Shift + −", "Decrease text size in the current reading mode"],
+    ["Shift + 0", "Reset text size in the current reading mode"],
     ["Shift + S", "Toggle Strong's lookups"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
@@ -11822,7 +11886,9 @@ function bindEvents() {
       scope: state.searchScope,
     });
   });
-  document.getElementById("clearSearchResults")?.addEventListener("click", clearSearchResults);
+  document.querySelectorAll("[data-clear-search]").forEach((button) => {
+    button.addEventListener("click", clearSearchResults);
+  });
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
   document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
@@ -11850,6 +11916,9 @@ function bindEvents() {
     render();
   });
   document.getElementById("presentationSettingsClose")?.addEventListener("click", closePresentationSettings);
+  document.getElementById("presentationDecreaseText")?.addEventListener("click", () => adjustPresentationTextScale(-0.1, { feedback: true }));
+  document.getElementById("presentationIncreaseText")?.addEventListener("click", () => adjustPresentationTextScale(0.1, { feedback: true }));
+  document.getElementById("presentationResetText")?.addEventListener("click", () => resetPresentationTextScale({ feedback: true }));
   document.getElementById("presentationHelpButton")?.addEventListener("click", () => {
     state.shortcutsOpen = true;
     state.presentationSettingsOpen = false;
@@ -11871,15 +11940,10 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("pointerdown", (event) => {
     if (event.pointerType === "mouse" || event.pointerType === "touch") revealPresentationControls();
   });
-  document.getElementById("presentation")?.addEventListener("touchstart", (event) => {
-    revealPresentationControls();
-    if (state.mode !== "big" || isPresentationSwipeIgnored(event.target) || !event.touches?.[0]) {
-      presentationTouchStart = null;
-      return;
-    }
-    presentationTouchStart = touchStartPoint(event);
-  }, { passive: true });
-  document.getElementById("presentation")?.addEventListener("touchend", handlePresentationSwipe, { passive: true });
+  document.getElementById("presentation")?.addEventListener("touchstart", handlePresentationTouchStart, { passive: true });
+  document.getElementById("presentation")?.addEventListener("touchmove", handlePresentationTouchMove, { passive: false });
+  document.getElementById("presentation")?.addEventListener("touchend", handlePresentationTouchEnd, { passive: false });
+  document.getElementById("presentation")?.addEventListener("touchcancel", cancelPresentationTouch, { passive: true });
   const scriptureTouchSurface = document.querySelector(".scripture");
   document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
     toggleReaderAutoScroll({ announce: false });
@@ -13769,6 +13833,7 @@ function clearInlineChapterSearchState() {
   state.inlineSearchChapter = "";
   state.inlineSearchPhraseOnly = false;
   state.inlineSearchHitIndex = -1;
+  state.inlineSearchWrapPending = false;
   state.pendingInlineSearchFocus = false;
 }
 
@@ -13807,6 +13872,7 @@ function runInlineChapterSearch(query, searchChapter = state.reference) {
   state.inlineSearchChapter = searchChapter;
   state.inlineSearchPhraseOnly = inlineSearchHasChapterPhrase(query);
   state.inlineSearchHitIndex = -1;
+  state.inlineSearchWrapPending = false;
   localStorage.setItem("lw_search_scope", "chapter");
   const firstVerse = firstInlineSearchVerse(query, state.inlineSearchPhraseOnly);
   if (!firstVerse) {
@@ -13828,11 +13894,18 @@ function advanceInlineChapterSearch(query, searchChapter = state.reference) {
   ) return false;
   const hits = [...document.querySelectorAll(".scripture mark.inline-search-hit")];
   if (!hits.length) return false;
+  if (state.inlineSearchWrapPending) {
+    state.inlineSearchWrapPending = false;
+    scrollInlineSearchHitIntoView(0, { smooth: false });
+    return true;
+  }
   const nextIndex = state.inlineSearchHitIndex + 1;
   if (nextIndex >= hits.length) {
+    state.inlineSearchWrapPending = true;
     showToast(`No more matches in ${searchChapter}`);
     return true;
   }
+  state.inlineSearchWrapPending = false;
   scrollInlineSearchHitIntoView(nextIndex, { smooth: false });
   return true;
 }
@@ -14753,6 +14826,47 @@ function resetTextScale({ feedback = false } = {}) {
   if (feedback) requestAnimationFrame(() => showReaderTextScaleFeedback({ settle: true }));
 }
 
+function showPresentationTextScaleFeedback({ settle = false } = {}) {
+  const feedback = document.getElementById("presentationScaleFeedback");
+  const label = feedback?.querySelector(".presentation-scale-feedback-label");
+  if (!feedback || !label) return;
+  const percent = Math.round(state.presentationTextScale * 100);
+  label.textContent = `${percent}%`;
+  feedback.classList.add("show");
+  clearTimeout(presentationScaleFeedbackTimer);
+  if (!settle) return;
+  presentationScaleFeedbackTimer = setTimeout(() => feedback.classList.remove("show"), 900);
+}
+
+function applyPresentationTextScale() {
+  const presentationElement = document.getElementById("presentation");
+  if (!presentationElement) return;
+  presentationElement.style.setProperty("--presentation-text-scale", state.presentationTextScale);
+  const resetLabel = document.querySelector("#presentationResetText strong");
+  if (resetLabel) resetLabel.textContent = `${Math.round(state.presentationTextScale * 100)}%`;
+  fitPresentationText();
+}
+
+function persistPresentationTextScale() {
+  state.presentationTextScale = clampPresentationTextScale(state.presentationTextScale);
+  localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
+  scheduleCloudSync();
+}
+
+function adjustPresentationTextScale(delta, { feedback = false } = {}) {
+  state.presentationTextScale = clampPresentationTextScale(state.presentationTextScale + delta);
+  persistPresentationTextScale();
+  render();
+  if (feedback) requestAnimationFrame(() => showPresentationTextScaleFeedback({ settle: true }));
+}
+
+function resetPresentationTextScale({ feedback = false } = {}) {
+  state.presentationTextScale = defaultPresentationTextScale;
+  persistPresentationTextScale();
+  render();
+  if (feedback) requestAnimationFrame(() => showPresentationTextScaleFeedback({ settle: true }));
+}
+
 let pendingFocusChromeEnter = false;
 let pendingLibraryEnter = false;
 
@@ -15206,18 +15320,155 @@ function isPresentationSwipeIgnored(target) {
   return Boolean(isSwipeControlTarget(target) || target?.closest?.(".presentation-settings-popover"));
 }
 
-function handlePresentationSwipe(event) {
+function resetPresentationDrag({ animate = true } = {}) {
+  const presentationElement = document.getElementById("presentation");
+  if (!presentationElement) return;
+  presentationElement.classList.remove(
+    "presentation-dragging",
+    "presentation-preview-next",
+    "presentation-preview-previous",
+    "presentation-swipe-ready",
+  );
+  if (animate) presentationElement.classList.add("presentation-drag-settling");
+  presentationElement.style.setProperty("--presentation-drag-x", "0px");
+  presentationElement.style.setProperty("--presentation-drag-progress", "0");
+  if (!animate) return presentationElement.classList.remove("presentation-drag-settling");
+  clearTimeout(presentationTransitionTimer);
+  presentationTransitionTimer = setTimeout(() => {
+    presentationElement.classList.remove("presentation-drag-settling");
+    presentationElement.style.removeProperty("--presentation-drag-x");
+    presentationElement.style.removeProperty("--presentation-drag-progress");
+  }, 220);
+}
+
+function beginPresentationPinch(event) {
+  const touches = Array.from(event.touches || []);
+  if (touches.length !== 2) return false;
+  presentationTouchStart = null;
+  presentationPinchGesture = {
+    startDistance: touchDistance(touches[0], touches[1]),
+    startScale: state.presentationTextScale,
+    active: false,
+  };
+  resetPresentationDrag({ animate: false });
+  return true;
+}
+
+function handlePresentationTouchStart(event) {
+  revealPresentationControls();
+  if (
+    state.mode !== "big"
+    || state.presentationSearchOpen
+    || state.presentationSettingsOpen
+    || isPresentationSwipeIgnored(event.target)
+  ) {
+    presentationTouchStart = null;
+    presentationPinchGesture = null;
+    return;
+  }
+  if (event.touches?.length === 2) {
+    beginPresentationPinch(event);
+    return;
+  }
+  presentationPinchGesture = null;
+  presentationTouchStart = touchStartPoint(event);
+}
+
+function handlePresentationPinchMove(event) {
+  const gesture = presentationPinchGesture;
+  if (!gesture || event.touches?.length !== 2 || !gesture.startDistance) return false;
+  const distance = touchDistance(event.touches[0], event.touches[1]);
+  if (!gesture.active && Math.abs(distance - gesture.startDistance) >= readerPinchStartPx) gesture.active = true;
+  if (!gesture.active) return false;
+  if (event.cancelable) event.preventDefault();
+  state.presentationTextScale = clamp(gesture.startScale * (distance / gesture.startDistance), 0.6, 1.6);
+  applyPresentationTextScale();
+  showPresentationTextScaleFeedback();
+  return true;
+}
+
+function handlePresentationTouchMove(event) {
+  if (handlePresentationPinchMove(event)) return;
+  const start = presentationTouchStart;
+  const touch = event.touches?.[0];
+  const presentationElement = document.getElementById("presentation");
+  if (!start || !touch || !presentationElement || event.touches?.length !== 1) return;
+  const deltaX = touch.clientX - start.x;
+  const deltaY = touch.clientY - start.y;
+  if (Math.abs(deltaX) < 8 || Math.abs(deltaX) < Math.abs(deltaY) * 1.05) return;
+  if (event.cancelable) event.preventDefault();
+  const direction = deltaX < 0 ? 1 : -1;
+  const preview = presentationElement.querySelector(
+    direction > 0 ? ".presentation-swipe-preview-next" : ".presentation-swipe-preview-previous",
+  );
+  const width = Math.max(presentationElement.clientWidth, 320);
+  const distance = Math.abs(deltaX);
+  const resistedDistance = preview
+    ? Math.min(distance, width * 0.42)
+    : Math.min(distance * 0.18, 38);
+  const dragX = Math.sign(deltaX) * resistedDistance;
+  const progress = preview ? Math.min(1, distance / horizontalSwipeMinPx) : Math.min(0.35, distance / width);
+  presentationElement.classList.add("presentation-dragging");
+  presentationElement.classList.toggle("presentation-preview-next", direction > 0 && Boolean(preview));
+  presentationElement.classList.toggle("presentation-preview-previous", direction < 0 && Boolean(preview));
+  presentationElement.classList.toggle("presentation-swipe-ready", Boolean(preview) && distance >= horizontalSwipeMinPx);
+  presentationElement.style.setProperty("--presentation-drag-x", `${dragX}px`);
+  presentationElement.style.setProperty("--presentation-drag-progress", progress.toFixed(3));
+}
+
+function finishPresentationPinch() {
+  const gesture = presentationPinchGesture;
+  presentationPinchGesture = null;
+  presentationTouchStart = null;
+  if (!gesture?.active) return;
+  persistPresentationTextScale();
+  applyPresentationTextScale();
+  showPresentationTextScaleFeedback({ settle: true });
+}
+
+function commitPresentationSwipe(direction) {
+  const presentationElement = document.getElementById("presentation");
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!presentationElement || reducedMotion) {
+    presentationEnterDirection = 0;
+    moveVerse(direction);
+    return;
+  }
+  presentationElement.classList.remove("presentation-dragging", "presentation-swipe-ready");
+  presentationElement.classList.add(direction > 0 ? "presentation-swipe-commit-next" : "presentation-swipe-commit-previous");
+  clearTimeout(presentationTransitionTimer);
+  presentationTransitionTimer = setTimeout(() => {
+    presentationEnterDirection = direction;
+    moveVerse(direction);
+  }, presentationSwipeCommitMs);
+}
+
+function handlePresentationTouchEnd(event) {
+  if (presentationPinchGesture) {
+    if ((event.touches?.length || 0) < 2) finishPresentationPinch();
+    return;
+  }
   if (state.mode !== "big" || !presentationTouchStart || state.presentationSearchOpen || state.presentationSettingsOpen) return;
   if (isPresentationSwipeIgnored(event.target)) {
     presentationTouchStart = null;
+    resetPresentationDrag();
     return;
   }
   const touch = event.changedTouches?.[0];
-  if (!touch) return;
+  if (!touch) return resetPresentationDrag();
   const direction = horizontalSwipeDirection(presentationTouchStart, touch);
   presentationTouchStart = null;
-  if (!direction) return;
-  moveVerse(direction);
+  const previewSelector = direction > 0 ? ".presentation-swipe-preview-next" : ".presentation-swipe-preview-previous";
+  if (!direction || !document.querySelector(previewSelector)) return resetPresentationDrag();
+  if (event.cancelable) event.preventDefault();
+  commitPresentationSwipe(direction);
+}
+
+function cancelPresentationTouch() {
+  if (presentationPinchGesture?.active) persistPresentationTextScale();
+  presentationPinchGesture = null;
+  presentationTouchStart = null;
+  resetPresentationDrag();
 }
 
 function canUseReaderChapterSwipe() {
@@ -15956,22 +16207,19 @@ function handleGlobalShortcuts(event) {
 
   if (typing || state.pushPromptVisible || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
-  const readerTextScaleShortcut = event.shiftKey && ["Equal", "Minus", "Digit0"].includes(event.code);
-  if (readerTextScaleShortcut && state.mode === "big") {
-    event.preventDefault();
-    return;
-  }
-
   if (event.shiftKey && event.code === "Equal") {
     event.preventDefault();
+    if (state.mode === "big") return adjustPresentationTextScale(0.1, { feedback: true });
     return adjustTextScale(0.1, { feedback: true });
   }
   if (event.shiftKey && event.code === "Minus") {
     event.preventDefault();
+    if (state.mode === "big") return adjustPresentationTextScale(-0.1, { feedback: true });
     return adjustTextScale(-0.1, { feedback: true });
   }
   if (event.shiftKey && event.code === "Digit0") {
     event.preventDefault();
+    if (state.mode === "big") return resetPresentationTextScale({ feedback: true });
     return resetTextScale({ feedback: true });
   }
   if (event.shiftKey && key === "s") {
@@ -16109,6 +16357,10 @@ function isTypingTarget(target) {
 
 function clampTextScale(value) {
   return Math.round(Math.min(1.6, Math.max(0.8, Number(value) || 1)) * 10) / 10;
+}
+
+function clampPresentationTextScale(value) {
+  return Math.round(Math.min(1.6, Math.max(0.6, Number(value) || defaultPresentationTextScale)) * 10) / 10;
 }
 
 function textFontVars() {
@@ -16759,7 +17011,8 @@ function fitPresentationText() {
   presentation.classList.remove("presentation-overflow");
   presentation.style.removeProperty("--presentation-font-size");
   presentation.style.removeProperty("--presentation-line-height");
-  const baseFontSize = Number.parseFloat(getComputedStyle(copy).fontSize) || 64;
+  const naturalFontSize = Number.parseFloat(getComputedStyle(copy).fontSize) || 64;
+  const baseFontSize = naturalFontSize * clamp(state.presentationTextScale, 0.6, 1.6);
   const copyLength = copy.textContent.trim().replace(/\s+/g, " ").length;
   const compactLineHeight = copyLength > 220 ? 1.06 : copyLength > 150 ? 1.09 : 1.12;
   const readableMinimum = viewport.clientWidth < 720 ? 0.46 : 0.52;
@@ -16773,7 +17026,7 @@ function fitPresentationText() {
   );
 
   presentation.style.setProperty("--presentation-line-height", compactLineHeight);
-  if (maxScale < 1) {
+  if (maxScale < 1 || state.presentationTextScale !== defaultPresentationTextScale) {
     presentation.style.setProperty("--presentation-font-size", `${baseFontSize * maxScale}px`);
   }
 

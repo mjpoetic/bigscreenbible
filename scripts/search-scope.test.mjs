@@ -178,6 +178,9 @@ assert.match(extractFunction("runPhraseSearch"), /scope === "chapter"/);
 assert.match(extractFunction("runPhraseSearch"), /advanceInlineChapterSearch\(query, searchChapter\)/);
 assert.match(extractFunction("runPhraseSearch"), /runInlineChapterSearch\(query, searchChapter\)/);
 assert.match(extractFunction("advanceInlineChapterSearch"), /No more matches in \$\{searchChapter\}/);
+assert.match(source, /class="topbar-search-clear"[^>]*data-clear-search/);
+assert.match(source, /class="mobile-focus-inline-search-clear"[^>]*data-clear-search/);
+assert.match(source, /id="clearSearchResults"[^>]*data-clear-search/);
 assert.match(searchBible, /searchVersion\(version, criteria, scope, searchChapter\)/);
 assert.match(searchBible, /searchRemoteVersions\(query, criteria, scope, searchChapter\)/);
 assert.match(searchBible, /searchSemanticBible\(query, criteria, scope, searchChapter\)/);
@@ -191,6 +194,8 @@ assert.match(styles, /\.topbar-search-scope \{[\s\S]*?flex: 0 0 42px/);
 assert.match(styles, /\.search-scope-popover \{[\s\S]*?position: fixed/);
 assert.match(styles, /\.search-scope-option \{/);
 assert.match(styles, /\.scripture mark\.inline-search-hit \{/);
+assert.match(styles, /\.topbar-search-clear \{/);
+assert.match(styles, /\.mobile-focus-inline-search-clear \{/);
 
 const inlineContext = { window: {} };
 vm.createContext(inlineContext);
@@ -212,6 +217,34 @@ assert.equal(phraseText.slice(phraseRanges[0].start, phraseRanges[0].end), "Come
 const wordRanges = inlineContext.inlineRanges(phraseText, "weary burden");
 assert.deepEqual([...wordRanges].map((range) => phraseText.slice(range.start, range.end)), ["weary", "burdened"]);
 assert.deepEqual([...inlineContext.inlineRanges(phraseText, "missing phrase", true)], []);
+
+const wrapContext = {
+  state: {
+    inlineSearchQuery: "rest",
+    inlineSearchChapter: "Matthew 11",
+    inlineSearchHitIndex: 1,
+    inlineSearchWrapPending: false,
+    reference: "Matthew 11",
+  },
+  document: { querySelectorAll: () => [{}, {}] },
+  normalizedSearchChapter: (value) => value,
+  showToast: (message) => { wrapContext.toast = message; },
+  scrollInlineSearchHitIntoView: (index) => {
+    wrapContext.scrolledTo = index;
+    wrapContext.state.inlineSearchHitIndex = index;
+  },
+};
+vm.createContext(wrapContext);
+vm.runInContext(`
+  ${extractFunction("advanceInlineChapterSearch")}
+  globalThis.advance = advanceInlineChapterSearch;
+`, wrapContext);
+assert.equal(wrapContext.advance("rest", "Matthew 11"), true);
+assert.equal(wrapContext.toast, "No more matches in Matthew 11");
+assert.equal(wrapContext.state.inlineSearchWrapPending, true);
+assert.equal(wrapContext.advance("rest", "Matthew 11"), true);
+assert.equal(wrapContext.scrolledTo, 0);
+assert.equal(wrapContext.state.inlineSearchWrapPending, false);
 
 const rankingContext = {
   state: { versions: ["ESV"] },
