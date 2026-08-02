@@ -10614,7 +10614,6 @@ function bottombar() {
                 ? `<button class="footer-reference-label footer-inline-picker" id="footerReferencePicker" type="button" aria-label="Choose Bible book or chapter, currently ${escapeHtml(referenceLabel())}" title="Choose book or chapter">${referenceLabel()}</button>`
                 : `<span class="footer-reference-label">${referenceLabel()}</span>`}
             </div>
-            <span class="footer-copyright">© 2026 Big Screen Bible. All rights reserved.</span>
           </div>
           <div class="bottom-actions">
             <button class="ghost-btn bottom-action" id="copyVerse" aria-label="${copyActionLabel}" data-tooltip="${copyActionLabel}" data-selection-action>
@@ -10629,6 +10628,7 @@ function bottombar() {
               <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
               <span class="bottom-action-label">About</span>
             </button>
+            <span class="footer-copyright">© 2026 Big Screen Bible. All rights reserved.</span>
           </div>
         </div>
         <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
@@ -10893,7 +10893,7 @@ function presentation() {
           <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
           <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
-        <button class="presentation-about-link" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About Big Screen Bible">About</button>
+        <button class="presentation-about-link" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About Big Screen Bible"><span aria-hidden="true">${icons.info}</span></button>
       </div>
     </section>
   `;

@@ -9055,15 +9055,20 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  min-width: 78px;
+  width: 42px;
+  min-width: 42px;
   color: var(--presentation-accent);
   border: 1px solid var(--presentation-button-border);
   border-radius: 6px;
   background: var(--presentation-button-bg);
-  padding: 0 18px;
-  font: 800 14px/1 var(--ui-font);
+  padding: 0;
   text-decoration: none;
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.presentation .presentation-about-link svg {
+  width: 22px;
+  height: 22px;
 }
 
 .presentation .presentation-about-link:hover,
@@ -13466,12 +13471,11 @@ svg {
     .presentation-about-link {
       grid-row: 1;
       justify-self: end;
-      width: 78px;
+      width: 44px;
       min-height: 38px;
-      min-width: 78px;
+      min-width: 44px;
       box-sizing: border-box;
-      padding-inline: 8px;
-      font-size: 13px;
+      padding-inline: 0;
     }
 
     .presentation-ref {
