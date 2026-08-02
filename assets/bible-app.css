@@ -3404,6 +3404,77 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   min-height: 112px;
 }
 
+.focus-mini-verse-picker {
+  display: grid;
+  gap: 14px;
+  padding: 3px;
+}
+
+.focus-mini-verse-picker > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.focus-mini-verse-picker-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(72px, 0.65fr));
+  gap: 8px;
+}
+
+.focus-mini-verse-picker label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.focus-mini-verse-picker label > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.focus-mini-verse-picker select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.focus-mini-verse-picker select:focus-visible {
+  border-color: color-mix(in srgb, var(--teal) 65%, var(--line));
+  outline: 2px solid color-mix(in srgb, var(--teal) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.focus-mini-verse-picker > button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--teal) 78%, var(--line));
+  border-radius: 8px;
+  background: var(--teal);
+  color: white;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.focus-mini-verse-picker > button:hover,
+.focus-mini-verse-picker > button:focus-visible {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--teal) 14%, transparent);
+  filter: brightness(1.04);
+  outline: none;
+}
+
 @keyframes focusToolFanIn {
   from {
     opacity: 0;
@@ -12597,6 +12668,10 @@ svg {
 
     .app-shell.focus-shell .mobile-focus-workspace-body {
       padding: 0;
+    }
+
+    .mobile-focus-workspace-body > .focus-mini-verse-picker {
+      padding: 14px;
     }
 
     .reader-top-button {

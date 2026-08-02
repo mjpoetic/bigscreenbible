@@ -510,6 +510,9 @@ const state = {
   focusSearchResultsOpen: false,
   focusToolsOpen: false,
   focusWorkspacePanel: "",
+  focusVersePickerBook: "",
+  focusVersePickerChapter: 1,
+  focusVersePickerVerse: 1,
   settingsSectionsOpen: {
     accessibility: false,
     reading: true,
@@ -976,6 +979,43 @@ function currentBookName() {
 function currentBookChapterKeys() {
   const book = currentBookName();
   return Object.keys(bibleData).filter((key) => key.startsWith(`${book} `));
+}
+
+function focusVersePickerChapterNumbers(book) {
+  return Object.keys(bibleData)
+    .filter((key) => key.startsWith(`${book} `))
+    .map((key) => Number(key.slice(book.length + 1)))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+}
+
+function focusVersePickerData() {
+  const availableBooks = books.filter((book) => focusVersePickerChapterNumbers(book).length);
+  const book = availableBooks.includes(state.focusVersePickerBook)
+    ? state.focusVersePickerBook
+    : availableBooks.includes(currentBookName())
+      ? currentBookName()
+      : availableBooks[0] || "John";
+  const chapters = focusVersePickerChapterNumbers(book);
+  const chapter = chapters.includes(Number(state.focusVersePickerChapter))
+    ? Number(state.focusVersePickerChapter)
+    : chapters[0] || 1;
+  const chapterKey = `${book} ${chapter}`;
+  const verses = (bibleData[chapterKey]?.verses || []).map((verse) => verse.n);
+  const verse = verses.includes(Number(state.focusVersePickerVerse))
+    ? Number(state.focusVersePickerVerse)
+    : verses[0] || 1;
+  return { availableBooks, book, chapters, chapter, verses, verse, chapterKey };
+}
+
+function initializeFocusVersePickerDraft() {
+  state.focusVersePickerBook = currentBookName();
+  state.focusVersePickerChapter = Number(state.reference.match(/(\d+)$/)?.[1]) || 1;
+  state.focusVersePickerVerse = state.verse;
+  const picker = focusVersePickerData();
+  state.focusVersePickerBook = picker.book;
+  state.focusVersePickerChapter = picker.chapter;
+  state.focusVersePickerVerse = picker.verse;
 }
 
 function referenceLabel() {
@@ -2067,18 +2107,19 @@ function desktopFocusTools() {
 
 function focusWorkspaceToolButtons(buttonClass) {
   const tools = [
-    ["History", icons.history],
-    ["Bookmarks", icons.bookmark],
-    ["Annotations", icons.note],
+    ["Verse", "Verse picker", icons.book],
+    ["History", "History", icons.history],
+    ["Bookmarks", "Bookmarks", icons.bookmark],
+    ["Annotations", "Annotations", icons.note],
   ];
-  return tools.map(([label, icon], index) => `
+  return tools.map(([label, tooltip, icon], index) => `
     <button
       class="${buttonClass} ${state.focusWorkspacePanel === label ? "active" : ""}"
       type="button"
       data-focus-workspace="${label}"
-      aria-label="Open ${label}"
+      aria-label="Open ${tooltip}"
       aria-pressed="${state.focusWorkspacePanel === label ? "true" : "false"}"
-      data-tooltip="${label}"
+      data-tooltip="${tooltip}"
       style="--focus-tool-index: ${index}"
     >
       ${icon}
@@ -2088,26 +2129,68 @@ function focusWorkspaceToolButtons(buttonClass) {
 
 function mobileFocusWorkspacePanel() {
   const panel = state.focusWorkspacePanel;
-  if (!state.focusMode || !["History", "Bookmarks", "Annotations"].includes(panel)) return "";
-  const content = panel === "History"
-    ? historyPanel()
-    : panel === "Bookmarks"
-      ? bookmarksPanel()
-      : notesPanel();
-  const icon = panel === "History" ? icons.history : panel === "Bookmarks" ? icons.bookmark : icons.note;
+  if (!state.focusMode || !["Verse", "History", "Bookmarks", "Annotations"].includes(panel)) return "";
+  const panelTitle = panel === "Verse" ? "Verse picker" : panel;
+  const content = panel === "Verse"
+    ? focusVersePickerPanel()
+    : panel === "History"
+      ? historyPanel()
+      : panel === "Bookmarks"
+        ? bookmarksPanel()
+        : notesPanel();
+  const icon = panel === "Verse"
+    ? icons.book
+    : panel === "History"
+      ? icons.history
+      : panel === "Bookmarks"
+        ? icons.bookmark
+        : icons.note;
   return `
-    <section class="mobile-focus-workspace" id="mobileFocusWorkspace" role="dialog" aria-label="Focus Mode ${panel}">
+    <section class="mobile-focus-workspace" id="mobileFocusWorkspace" role="dialog" aria-label="Focus Mode ${panelTitle}">
       <header class="mobile-focus-workspace-head">
         <div>
           <span>Focus tools</span>
-          <strong>${icon}${panel}</strong>
+          <strong>${icon}${panelTitle}</strong>
         </div>
-        <button id="mobileFocusWorkspaceClose" type="button" aria-label="Close ${panel}">${icons.clear}</button>
+        <button id="mobileFocusWorkspaceClose" type="button" aria-label="Close ${panelTitle}">${icons.clear}</button>
       </header>
       <div class="mobile-focus-workspace-body">
         ${content}
       </div>
     </section>
+  `;
+}
+
+function focusVersePickerPanel() {
+  const picker = focusVersePickerData();
+  state.focusVersePickerBook = picker.book;
+  state.focusVersePickerChapter = picker.chapter;
+  state.focusVersePickerVerse = picker.verse;
+  return `
+    <form class="focus-mini-verse-picker" id="focusMiniVersePickerForm">
+      <p>Choose a book, chapter, and verse without leaving Focus Mode.</p>
+      <div class="focus-mini-verse-picker-grid">
+        <label>
+          <span>Book</span>
+          <select id="focusMiniBookSelect" aria-label="Book">
+            ${picker.availableBooks.map((book) => `<option value="${escapeHtml(book)}" ${book === picker.book ? "selected" : ""}>${escapeHtml(book)}</option>`).join("")}
+          </select>
+        </label>
+        <label>
+          <span>Chapter</span>
+          <select id="focusMiniChapterSelect" aria-label="Chapter">
+            ${picker.chapters.map((chapter) => `<option value="${chapter}" ${chapter === picker.chapter ? "selected" : ""}>${chapter}</option>`).join("")}
+          </select>
+        </label>
+        <label>
+          <span>Verse</span>
+          <select id="focusMiniVerseSelect" aria-label="Verse">
+            ${picker.verses.map((verse) => `<option value="${verse}" ${verse === picker.verse ? "selected" : ""}>${verse}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
+    </form>
   `;
 }
 
@@ -11374,10 +11457,14 @@ function bindEvents() {
   document.querySelectorAll("[data-focus-workspace]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      state.focusToolsOpen = true;
-      state.focusWorkspacePanel = state.focusWorkspacePanel === button.dataset.focusWorkspace
+      const nextPanel = state.focusWorkspacePanel === button.dataset.focusWorkspace
         ? ""
         : button.dataset.focusWorkspace;
+      if (nextPanel === "Verse" && state.focusWorkspacePanel !== "Verse") {
+        initializeFocusVersePickerDraft();
+      }
+      state.focusToolsOpen = true;
+      state.focusWorkspacePanel = nextPanel;
       state.focusReferenceOpen = false;
       state.focusSearchResultsOpen = false;
       state.settingsOpen = false;
@@ -11389,6 +11476,27 @@ function bindEvents() {
   document.getElementById("mobileFocusWorkspaceClose")?.addEventListener("click", () => {
     state.focusWorkspacePanel = "";
     renderPreservingReaderScroll();
+  });
+  document.getElementById("focusMiniBookSelect")?.addEventListener("change", (event) => {
+    state.focusVersePickerBook = event.currentTarget.value;
+    state.focusVersePickerChapter = focusVersePickerChapterNumbers(state.focusVersePickerBook)[0] || 1;
+    state.focusVersePickerVerse = 1;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("focusMiniChapterSelect")?.addEventListener("change", (event) => {
+    state.focusVersePickerChapter = Number(event.currentTarget.value) || 1;
+    state.focusVersePickerVerse = 1;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("focusMiniVerseSelect")?.addEventListener("change", (event) => {
+    state.focusVersePickerVerse = Number(event.currentTarget.value) || 1;
+    renderPreservingReaderScroll();
+  });
+  document.getElementById("focusMiniVersePickerForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const picker = focusVersePickerData();
+    resetFocusToolSurfaces();
+    gotoReference(`${picker.chapterKey}:${picker.verse}`);
   });
   document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
     state.focusSearchResultsOpen = false;
