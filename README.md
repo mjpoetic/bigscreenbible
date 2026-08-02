@@ -135,3 +135,11 @@ The builder replaces the older BSB USFM Strong's arrays with phrase-level mappin
 Cross references are bundled in `assets/crossrefs.js` from the [OpenBible.info Cross References](https://www.openbible.info/labs/cross-references/) dataset, credited under CC-BY.
 
 Strong's dictionary lookup data is loaded from the [Open Scriptures Strong's dictionaries](https://github.com/openscriptures/strongs). Their browser dictionary files identify the JSON editions as Open Scriptures CC-BY-SA data derived from the public-domain Strong's dictionaries.
+
+## Copyright and Licensing
+
+Big Screen Bible's original source code, interface, artwork, and original project content are © 2026 Big Screen Bible. All rights reserved. No open-source license is granted for those original materials unless expressly stated otherwise.
+
+Scripture text, cross-reference data, dictionaries, fonts, and other third-party materials are excluded from that claim and remain subject to their respective copyrights, licenses, permissions, and attribution requirements. Translation-specific copyright notices displayed with licensed passages are part of the application and must be preserved.
+
+See [COPYRIGHT.md](./COPYRIGHT.md) for the repository's copyright statement.

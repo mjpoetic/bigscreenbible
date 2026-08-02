@@ -826,6 +826,15 @@ button {
   text-transform: uppercase;
 }
 
+.footer-copyright {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 .footer-reference {
   display: flex;
   align-items: center;
@@ -9134,6 +9143,22 @@ select {
   transform: translateY(-1px);
 }
 
+.about-menu-rights {
+  display: grid;
+  gap: 5px;
+  margin: 0 22px 22px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.about-menu-rights strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .about-menu-links strong {
   color: var(--teal);
   font-size: 15px;
@@ -11814,6 +11839,10 @@ svg {
 @media (max-width: 840px) {
   .footer-center {
     display: contents;
+  }
+
+  .footer-copyright {
+    display: none;
   }
 
   :root {

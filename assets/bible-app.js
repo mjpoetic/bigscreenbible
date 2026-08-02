@@ -10531,6 +10531,7 @@ function bottombar() {
                 ? `<button class="footer-reference-label footer-inline-picker" id="footerReferencePicker" type="button" aria-label="Choose Bible book or chapter, currently ${escapeHtml(referenceLabel())}" title="Choose book or chapter">${referenceLabel()}</button>`
                 : `<span class="footer-reference-label">${referenceLabel()}</span>`}
             </div>
+            <span class="footer-copyright">© 2026 Big Screen Bible. All rights reserved.</span>
           </div>
           <div class="bottom-actions">
             <button class="ghost-btn bottom-action" id="copyVerse" aria-label="${copyActionLabel}" data-tooltip="${copyActionLabel}" data-selection-action>
@@ -11107,6 +11108,10 @@ function aboutMenuOverlay() {
             <span>The terms for using Big Screen Bible and its content.</span>
           </a>
         </nav>
+        <div class="about-menu-rights">
+          <strong>© 2026 Big Screen Bible. All rights reserved.</strong>
+          <span>Scripture text and third-party materials remain subject to their respective copyrights and licenses.</span>
+        </div>
       </div>
     </section>
   `;
