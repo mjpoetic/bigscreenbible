@@ -298,6 +298,17 @@ const tutorialStorageKey = "lw_tutorial_seen";
 const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
 const gameChallengePopupDismissedStorageKey = "lw_dismissed_game_challenge_popups";
 const socialConnectionsOpenStorageKey = "lw_social_connections_open";
+const settingsSectionsOpenStorageKey = "lw_settings_sections_open";
+const settingsSectionsOpenUpdatedAtStorageKey = "lw_settings_sections_open_updated_at";
+const settingsSectionKeys = ["accessibility", "display", "reading", "startup", "printing", "updates"];
+const defaultSettingsSectionsOpen = {
+  accessibility: false,
+  display: true,
+  reading: true,
+  startup: false,
+  printing: false,
+  updates: false,
+};
 const libraryScrollStorageKey = "lw_library_scroll_by_rail";
 const readerPositionStorageKey = "lw_reader_position";
 const appUpdateRestoreStorageKey = "lw_app_update_restore";
@@ -513,13 +524,10 @@ const state = {
   focusVersePickerBook: "",
   focusVersePickerChapter: 1,
   focusVersePickerVerse: 1,
-  settingsSectionsOpen: {
-    accessibility: false,
-    reading: true,
-    startup: false,
-    printing: false,
-    updates: false,
-  },
+  settingsSectionsOpen: savedSettingsSectionsOpen(),
+  settingsSectionsOpenUpdatedAt: normalizedVersionsUpdatedAt(
+    localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
+  ),
   settingsAnchor: "header",
   settingsPopupPosition: null,
   streakPopoverOpen: false,
@@ -698,6 +706,22 @@ function savedPrintLayout() {
 
 function savedSideToolbarPosition() {
   return localStorage.getItem("lw_side_toolbar_position") === "right" ? "right" : "left";
+}
+
+function normalizedSettingsSectionsOpen(value) {
+  const saved = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(settingsSectionKeys.map((key) => [
+    key,
+    typeof saved[key] === "boolean" ? saved[key] : defaultSettingsSectionsOpen[key],
+  ]));
+}
+
+function savedSettingsSectionsOpen() {
+  try {
+    return normalizedSettingsSectionsOpen(JSON.parse(localStorage.getItem(settingsSectionsOpenStorageKey) || "null"));
+  } catch {
+    return normalizedSettingsSectionsOpen();
+  }
 }
 
 function savedReadingStreak() {
@@ -2310,7 +2334,16 @@ function pushReminderSettings(prefix = "") {
 function rememberDisclosureState(details, open = details.open) {
   const settingsKey = details.dataset.settingsSection;
   const helpKey = details.dataset.helpSection;
-  if (settingsKey) state.settingsSectionsOpen[settingsKey] = open;
+  if (settingsKey && settingsSectionKeys.includes(settingsKey)) {
+    const nextOpen = Boolean(open);
+    if (state.settingsSectionsOpen[settingsKey] !== nextOpen) {
+      state.settingsSectionsOpen[settingsKey] = nextOpen;
+      state.settingsSectionsOpenUpdatedAt = new Date().toISOString();
+      localStorage.setItem(settingsSectionsOpenStorageKey, JSON.stringify(state.settingsSectionsOpen));
+      localStorage.setItem(settingsSectionsOpenUpdatedAtStorageKey, state.settingsSectionsOpenUpdatedAt);
+      scheduleCloudSync();
+    }
+  }
   if (helpKey) state.helpSectionsOpen[helpKey] = open;
 }
 
@@ -2389,13 +2422,12 @@ function settingsDisclosure(key, label, content) {
   `;
 }
 
-function readingDisplaySettings(prefix = "") {
+function displaySettings(prefix = "") {
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
-  const selectedAutoScrollSpeed = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
-  return settingsDisclosure("reading", "Reading & display", `
+  return settingsDisclosure("display", "Display", `
     <div class="setting-group">
       <div class="settings-control-row">
         <div class="text-size-control" aria-label="Text size controls">
@@ -2422,7 +2454,14 @@ function readingDisplaySettings(prefix = "") {
         <span>Strong's number lookups</span>
       </label>
     </div>
-    <div class="setting-group settings-section-subgroup">
+  `);
+}
+
+function readingSettings(prefix = "") {
+  const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  const selectedAutoScrollSpeed = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+  return settingsDisclosure("reading", "Reading", `
+    <div class="setting-group">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("EdgeChapterNavigationToggle")}" ${state.edgeChapterNavigationEnabled ? "checked" : ""} />
         <span>Pull or scroll past chapter edges</span>
@@ -2856,7 +2895,8 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
         </div>
       </div>
       ${accessibilitySettings("mobile")}
-      ${readingDisplaySettings("mobile")}
+      ${displaySettings("mobile")}
+      ${readingSettings("mobile")}
       ${printingSettings("mobile")}
       ${startupReminderSettings("mobile")}
       ${appUpdateSettings("mobile")}
@@ -3030,7 +3070,8 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
             </div>
           </div>
           ${accessibilitySettings()}
-          ${readingDisplaySettings()}
+          ${displaySettings()}
+          ${readingSettings()}
           ${printingSettings()}
           ${startupReminderSettings()}
           ${appUpdateSettings()}
@@ -8153,6 +8194,8 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       interfaceTextSize: state.interfaceTextSize,
+      settingsSectionsOpen: { ...state.settingsSectionsOpen },
+      settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
       autoScrollEnabled: state.autoScrollEnabled,
       autoScrollSpeed: state.autoScrollSpeed,
       edgeChapterNavigationEnabled: state.edgeChapterNavigationEnabled,
@@ -8201,11 +8244,13 @@ function normalizeCloudRow(row = {}) {
 function mergeCloudSnapshots(cloudRow, localSnapshot) {
   const cloud = normalizeCloudRow(cloudRow);
   const versionSettings = latestVersionSettings(cloud.settings, localSnapshot.settings);
+  const disclosureSettings = latestSettingsSectionSettings(cloud.settings, localSnapshot.settings);
   return {
     settings: {
       ...localSnapshot.settings,
       ...cloud.settings,
       ...versionSettings,
+      ...disclosureSettings,
     },
     bookmarks: uniqueList([...cloud.bookmarks, ...localSnapshot.bookmarks]).slice(0, 200),
     notes: { ...cloud.notes, ...localSnapshot.notes },
@@ -8256,6 +8301,24 @@ function latestVersionSettings(cloudSettings = {}, localSettings = {}) {
   };
 }
 
+function latestSettingsSectionSettings(cloudSettings = {}, localSettings = {}) {
+  const cloudUpdatedAt = normalizedVersionsUpdatedAt(cloudSettings.settingsSectionsOpenUpdatedAt);
+  const localUpdatedAt = normalizedVersionsUpdatedAt(localSettings.settingsSectionsOpenUpdatedAt);
+  if (!cloudUpdatedAt && !localUpdatedAt) {
+    const selectedSettings = cloudSettings.settingsSectionsOpen ? cloudSettings : localSettings;
+    return {
+      settingsSectionsOpen: normalizedSettingsSectionsOpen(selectedSettings.settingsSectionsOpen),
+      settingsSectionsOpenUpdatedAt: "",
+    };
+  }
+  const useLocal = !cloudUpdatedAt || (localUpdatedAt && localUpdatedAt >= cloudUpdatedAt);
+  const selectedSettings = useLocal ? localSettings : cloudSettings;
+  return {
+    settingsSectionsOpen: normalizedSettingsSectionsOpen(selectedSettings.settingsSectionsOpen),
+    settingsSectionsOpenUpdatedAt: useLocal ? localUpdatedAt : cloudUpdatedAt,
+  };
+}
+
 function persistVersions({ changed = false } = {}) {
   if (changed) state.versionsUpdatedAt = new Date().toISOString();
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
@@ -8302,6 +8365,12 @@ function applyCloudSnapshot(snapshot) {
   state.textScale = clampTextScale(Number(settings.textScale) || 1);
   state.interfaceTextSize = normalizedInterfaceTextSize(
     settings.interfaceTextSize || localStorage.getItem("lw_interface_text_size"),
+  );
+  state.settingsSectionsOpen = normalizedSettingsSectionsOpen(
+    settings.settingsSectionsOpen || savedSettingsSectionsOpen(),
+  );
+  state.settingsSectionsOpenUpdatedAt = normalizedVersionsUpdatedAt(
+    settings.settingsSectionsOpenUpdatedAt || localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
   );
   state.autoScrollEnabled = typeof settings.autoScrollEnabled === "boolean"
     ? settings.autoScrollEnabled
@@ -8365,6 +8434,12 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
+  localStorage.setItem(settingsSectionsOpenStorageKey, JSON.stringify(state.settingsSectionsOpen));
+  if (state.settingsSectionsOpenUpdatedAt) {
+    localStorage.setItem(settingsSectionsOpenUpdatedAtStorageKey, state.settingsSectionsOpenUpdatedAt);
+  } else {
+    localStorage.removeItem(settingsSectionsOpenUpdatedAtStorageKey);
+  }
   localStorage.setItem("lw_auto_scroll_enabled", String(state.autoScrollEnabled));
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
   localStorage.setItem("lw_edge_chapter_navigation_enabled", String(state.edgeChapterNavigationEnabled));
