@@ -485,6 +485,7 @@ const state = {
   selectedStrongWord: "God",
   mobileControlsOpen: false,
   presentationSearchOpen: false,
+  presentationSearchResultsOpen: false,
   presentationSettingsOpen: false,
   presentationControlsVisible: !isCompactScreen(),
   presentationPart: 0,
@@ -1548,11 +1549,13 @@ function switchMode(nextMode) {
     state.presentationPart = 0;
     state.presentationControlsVisible = false;
     state.presentationSearchOpen = false;
+    state.presentationSearchResultsOpen = false;
     state.presentationSettingsOpen = false;
   } else {
     clearTimeout(presentationControlsTimer);
     if (previousMode === "big") {
       state.presentationSearchOpen = false;
+      state.presentationSearchResultsOpen = false;
       state.presentationSettingsOpen = false;
     }
     if (["reader", "parallel"].includes(state.mode) && !targetScrollState) {
@@ -2228,6 +2231,26 @@ function mobileFocusSearchResults() {
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
         <button id="mobileFocusSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
+      </header>
+      <div class="mobile-focus-search-results-body">
+        <div class="search-results">
+          ${searchResultsMarkup()}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function presentationSearchResults() {
+  if (state.mode !== "big" || !state.presentationSearchResultsOpen || !state.searchResultsQuery) return "";
+  return `
+    <section class="mobile-focus-search-results presentation-search-results" id="presentationSearchResults" role="dialog" aria-label="Big Screen search results" aria-busy="${state.searchPending ? "true" : "false"}">
+      <header class="mobile-focus-search-results-head">
+        <div>
+          <span>Search results</span>
+          <strong>${escapeHtml(state.searchResultsQuery)}</strong>
+        </div>
+        <button id="presentationSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
       </header>
       <div class="mobile-focus-search-results-body">
         <div class="search-results">
@@ -10888,12 +10911,12 @@ function presentation() {
     ? `<input class="custom-font-input" id="presentationCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
     : "";
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       <div class="presentation-top">
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
-            <input id="presentationSearchInput" value="" aria-label="Search passage in presentation" placeholder="John 3:16" />
+            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 or love" autocomplete="off" />
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
@@ -10948,6 +10971,7 @@ function presentation() {
           <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" data-tooltip="Back to Bible">${icons.book}</button>
         </div>
       </div>
+      ${presentationSearchResults()}
       <div class="presentation-text">
         ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
@@ -12326,6 +12350,8 @@ function bindEvents() {
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     if (state.presentationSettingsOpen) return closePresentationSettings();
     state.presentationSettingsOpen = true;
+    state.presentationSearchOpen = false;
+    state.presentationSearchResultsOpen = false;
     render();
   });
   document.getElementById("presentationSettingsClose")?.addEventListener("click", closePresentationSettings);
@@ -12339,8 +12365,14 @@ function bindEvents() {
   });
   document.getElementById("presentationSearchToggle")?.addEventListener("click", () => {
     state.presentationSearchOpen = !state.presentationSearchOpen;
+    state.presentationSearchResultsOpen = false;
+    state.presentationSettingsOpen = false;
     render();
     if (state.presentationSearchOpen) requestAnimationFrame(() => document.getElementById("presentationSearchInput")?.focus());
+  });
+  document.getElementById("presentationSearchResultsClose")?.addEventListener("click", () => {
+    state.presentationSearchResultsOpen = false;
+    render();
   });
   document.getElementById("presentationSearchForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -12440,6 +12472,7 @@ function returnFromPresentationToBible() {
   }
   state.mode = "reader";
   state.presentationSearchOpen = false;
+  state.presentationSearchResultsOpen = false;
   state.presentationSettingsOpen = false;
   state.presentationControlsVisible = false;
   state.pendingVerseFocus = true;
@@ -14150,6 +14183,7 @@ function gotoReference(value, options = {}) {
   state.searchQuery = "";
   state.searchPending = false;
   state.focusSearchResultsOpen = false;
+  state.presentationSearchResultsOpen = false;
   if (options.closeLibrary) {
     dismissLibraryAfterAction();
   }
@@ -14186,6 +14220,7 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
   }
   await runPhraseSearch(cleaned, {
     focusResults: state.focusMode && state.mode !== "big",
+    presentationResults: state.mode === "big",
     scope: options.scope,
     chapter: options.chapter,
     sourceInputId: options.sourceInputId,
@@ -14197,7 +14232,8 @@ async function runPhraseSearch(value, options = {}) {
   if (!query) return;
   const scope = normalizedSearchScope(options.scope ?? state.searchScope);
   const searchChapter = normalizedSearchChapter(options.chapter ?? state.reference);
-  if (scope === "chapter") {
+  const presentationResults = Boolean(options.presentationResults && state.mode === "big");
+  if (scope === "chapter" && !presentationResults) {
     if (advanceInlineChapterSearch(query, searchChapter)) return;
     runInlineChapterSearch(query, searchChapter, { sourceInputId: options.sourceInputId });
     return;
@@ -14218,6 +14254,12 @@ async function runPhraseSearch(value, options = {}) {
     state.focusSearchResultsOpen = true;
     resetFocusToolSurfaces();
     renderPreservingReaderScroll();
+  } else if (presentationResults) {
+    state.presentationSearchOpen = false;
+    state.presentationSearchResultsOpen = true;
+    state.presentationSettingsOpen = false;
+    state.presentationControlsVisible = true;
+    render();
   } else {
     state.mode = state.mode === "big" ? "reader" : state.mode;
     if (state.focusMode) {
@@ -14404,6 +14446,7 @@ function clearSearchResults() {
   state.searchResults = [];
   state.searchPending = false;
   state.focusSearchResultsOpen = false;
+  state.presentationSearchResultsOpen = false;
   render();
 }
 
@@ -15768,7 +15811,7 @@ function revealPresentationControls(duration = 3200) {
     render();
   }
   presentationControlsTimer = setTimeout(() => {
-    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSettingsOpen) return;
+    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen) return;
     state.presentationControlsVisible = false;
     render();
   }, duration);
@@ -15849,6 +15892,7 @@ function handlePresentationTouchStart(event) {
   if (
     state.mode !== "big"
     || state.presentationSearchOpen
+    || state.presentationSearchResultsOpen
     || state.presentationSettingsOpen
     || isPresentationSwipeIgnored(event.target)
     || presentationElement?.classList.contains("presentation-swipe-commit-next")
@@ -15940,7 +15984,7 @@ function handlePresentationTouchEnd(event) {
     if ((event.touches?.length || 0) < 2) finishPresentationPinch();
     return;
   }
-  if (state.mode !== "big" || !presentationTouchStart || state.presentationSearchOpen || state.presentationSettingsOpen) return;
+  if (state.mode !== "big" || !presentationTouchStart || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen) return;
   if (isPresentationSwipeIgnored(event.target)) {
     presentationTouchStart = null;
     resetPresentationDrag();
@@ -16699,6 +16743,11 @@ function handleGlobalShortcuts(event) {
     if (state.presentationSearchOpen) {
       event.preventDefault();
       state.presentationSearchOpen = false;
+      return render();
+    }
+    if (state.presentationSearchResultsOpen) {
+      event.preventDefault();
+      state.presentationSearchResultsOpen = false;
       return render();
     }
     if (state.presentationSettingsOpen) {
@@ -18231,6 +18280,11 @@ document.addEventListener("click", (event) => {
   if (!state.focusSearchResultsOpen || event.target.closest?.(".mobile-focus-search-results, .mobile-focus-passage-control, .topbar .search")) return;
   state.focusSearchResultsOpen = false;
   renderPreservingReaderScroll();
+});
+document.addEventListener("click", (event) => {
+  if (!state.presentationSearchResultsOpen || event.target.closest?.(".presentation-search-results, .presentation-search-slot")) return;
+  state.presentationSearchResultsOpen = false;
+  render();
 });
 document.addEventListener("click", (event) => {
   if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace")) return;

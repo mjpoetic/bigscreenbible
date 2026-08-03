@@ -3534,6 +3534,15 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   padding: 14px 10px;
 }
 
+#presentation .presentation-search-results {
+  top: max(82px, calc(env(safe-area-inset-top, 0px) + 72px));
+  bottom: auto;
+  left: max(38px, calc(env(safe-area-inset-left, 0px) + 18px));
+  display: grid;
+  width: min(440px, calc(100vw - 76px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  max-height: min(62dvh, 560px);
+}
+
 @media (min-width: 841px) {
   .app-shell.focus-shell .desktop-focus-tools-control {
     position: relative;
@@ -13425,6 +13434,14 @@ svg {
   .presentation.search-active .presentation-search.search-open input {
     flex: 1 1 auto;
     width: min(52vw, 280px);
+  }
+
+  #presentation .presentation-search-results {
+    top: max(72px, calc(env(safe-area-inset-top, 0px) + 64px));
+    bottom: auto;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    width: min(380px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    max-height: min(60dvh, 480px);
   }
 
   .presentation.search-active .presentation-actions {

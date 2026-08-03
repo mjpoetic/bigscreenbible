@@ -175,8 +175,19 @@ assert.match(source, /localStorage\.setItem\("lw_search_scope", scope\)/);
 assert.match(extractFunction("runPhraseSearch"), /searchResultsChapter = searchChapter/);
 assert.match(extractFunction("runPhraseSearch"), /searchBible\(query, scope, searchChapter\)/);
 assert.match(extractFunction("runPhraseSearch"), /scope === "chapter"/);
+assert.match(extractFunction("runReferenceOrPhraseSearch"), /presentationResults: state\.mode === "big"/);
+assert.match(extractFunction("runPhraseSearch"), /presentationResults = Boolean\(options\.presentationResults && state\.mode === "big"\)/);
+assert.match(extractFunction("runPhraseSearch"), /scope === "chapter" && !presentationResults/);
+assert.match(extractFunction("runPhraseSearch"), /else if \(presentationResults\)[\s\S]*?presentationSearchResultsOpen = true/);
+assert.doesNotMatch(
+  extractFunction("runPhraseSearch").match(/else if \(presentationResults\)([\s\S]*?)\n  \} else \{/)[1],
+  /state\.mode\s*=/,
+);
 assert.match(extractFunction("runPhraseSearch"), /advanceInlineChapterSearch\(query, searchChapter\)/);
 assert.match(extractFunction("runPhraseSearch"), /runInlineChapterSearch\(query, searchChapter, \{ sourceInputId: options\.sourceInputId \}\)/);
+assert.match(extractFunction("presentation"), /presentationSearchResults\(\)/);
+assert.match(extractFunction("presentationSearchResults"), /aria-label="Big Screen search results"/);
+assert.match(extractFunction("gotoReference"), /presentationSearchResultsOpen = false/);
 assert.match(extractFunction("advanceInlineChapterSearch"), /No more matches in \$\{searchChapter\}/);
 assert.match(source, /class="topbar-search-clear [^"]*"[^>]*data-clear-search/);
 assert.match(source, /class="mobile-focus-inline-search-clear [^"]*"[^>]*data-clear-search/);
@@ -201,6 +212,7 @@ assert.match(styles, /\.scripture mark\.inline-search-hit \{/);
 assert.match(styles, /\.topbar-search-clear \{/);
 assert.match(styles, /\.mobile-focus-inline-search-clear \{/);
 assert.match(styles, /\.inline-search-clear-control \{/);
+assert.match(styles, /#presentation \.presentation-search-results \{[\s\S]*?display: grid;/);
 assert.match(styles, /#searchSection \.study-search \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/);
 assert.match(styles, /\.library #searchSection \{[\s\S]*?overflow: visible;/);
 assert.match(styles, /#searchSection \.study-search::before \{[\s\S]*?background:/);
