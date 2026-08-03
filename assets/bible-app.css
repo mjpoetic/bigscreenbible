@@ -4222,6 +4222,12 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   transform: translate(-50%, 0);
 }
 
+.topbar .search[data-tooltip]:has([data-tooltip]:hover)::after,
+.topbar .search[data-tooltip]:has([data-tooltip]:focus-visible)::after {
+  opacity: 0;
+  transform: translate(-50%, 4px);
+}
+
 .topbar > [data-tooltip]:last-child:hover::after,
 .topbar > [data-tooltip]:last-child:focus-visible::after {
   transform: translate(0, 0);
