@@ -74,7 +74,7 @@ Licensed remote translations are provider-based:
 
 - ESV uses the Crossway ESV Supabase Edge Function.
 - NIV, NLT, and NASB 2020 use the API.Bible Supabase Edge Function.
-- AMP uses the YouVersion Platform Supabase Edge Function.
+- AMP and NIrV use the YouVersion Platform Supabase Edge Function. NIrV is identified in the version picker as an easy-reading choice for children and new readers.
 - API keys remain Supabase secrets; the browser only calls the project Edge Functions.
 - Provider copyright notices and API.Bible FUMS view tracking are included in the rendered experience.
 

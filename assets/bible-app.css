@@ -1471,6 +1471,26 @@ button {
   white-space: nowrap;
 }
 
+.primary-version-option.recommended {
+  min-height: 50px;
+}
+
+.primary-version-option .version-option-note {
+  grid-column: 2;
+  margin-top: -5px;
+  overflow: visible;
+  color: var(--teal);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.parallel-version-option .version-option-note {
+  grid-column: 3;
+}
+
 .primary-version-empty {
   padding: 10px;
   color: var(--muted);
@@ -7426,6 +7446,22 @@ select {
   white-space: nowrap;
 }
 
+.parallel-version-menu-option.recommended {
+  min-height: 50px;
+}
+
+.parallel-version-menu-option .version-option-note {
+  grid-column: 2;
+  margin-top: -5px;
+  overflow: visible;
+  color: var(--teal);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .parallel-version-remove {
   display: inline-flex;
   align-items: center;
@@ -8601,6 +8637,72 @@ select {
   position: relative;
 }
 
+.presentation-account-menu {
+  position: relative;
+}
+
+.presentation-account-toggle {
+  width: 42px;
+  padding-inline: 0;
+}
+
+.presentation-account-toggle.active {
+  color: var(--presentation-accent);
+  background: color-mix(in srgb, var(--presentation-button-bg) 72%, currentColor);
+}
+
+.presentation :is(.presentation-account-toggle, .presentation-settings-toggle)[aria-expanded="true"]::after {
+  display: none;
+}
+
+.presentation-account-popover {
+  --paper: #101716;
+  --panel: rgba(10, 17, 16, 0.97);
+  --ink: #f8f6ef;
+  --muted: rgba(248, 246, 239, 0.7);
+  --soft: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.2);
+  --teal: var(--presentation-accent);
+  --teal-dark: color-mix(in srgb, var(--presentation-accent) 76%, #000);
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 4;
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
+  text-align: left;
+  backdrop-filter: blur(16px);
+}
+
+.presentation[data-presentation-theme] .presentation-account-popover button {
+  color: var(--ink);
+}
+
+.presentation .presentation-account-popover .account-friend-request-badge {
+  color: #fff;
+}
+
+.presentation .presentation-account-popover .settings-popover-close {
+  border-color: var(--line);
+  background: var(--soft);
+}
+
+.presentation[data-presentation-theme="paper"] .presentation-account-popover,
+.presentation[data-presentation-theme="dawn"] .presentation-account-popover,
+.presentation[data-presentation-theme="meadow"] .presentation-account-popover,
+.presentation[data-presentation-theme="blush"] .presentation-account-popover,
+.presentation[data-presentation-theme="lavender"] .presentation-account-popover,
+.presentation[data-presentation-theme="sapphire"] .presentation-account-popover {
+  --paper: #fff;
+  --panel: rgba(255, 255, 255, 0.97);
+  --ink: #201a16;
+  --muted: rgba(32, 26, 22, 0.68);
+  --soft: rgba(32, 26, 22, 0.08);
+  --line: rgba(32, 26, 22, 0.18);
+  box-shadow: 0 18px 46px rgba(32, 24, 16, 0.18);
+}
+
 .presentation-settings-toggle {
   width: 42px;
   padding-inline: 0;
@@ -8649,6 +8751,16 @@ select {
   animation: surfaceIn var(--motion-base) var(--motion-ease) both;
 }
 
+.presentation-bottom-settings-menu {
+  justify-self: end;
+}
+
+.presentation-bottom-settings-menu .presentation-settings-popover {
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 10px);
+}
+
 .presentation-popover-close {
   justify-self: end;
   width: 34px;
@@ -8665,6 +8777,15 @@ select {
 .presentation-settings-popover label {
   display: grid;
   gap: 6px;
+}
+
+.presentation-settings-popover .presentation-version-note {
+  color: var(--presentation-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .presentation-text-size-setting {
@@ -8713,16 +8834,19 @@ select {
 }
 
 .presentation-fullscreen-btn,
-.presentation-help-btn {
+.presentation-help-btn,
+.presentation-about-settings-btn {
   width: 100%;
   justify-content: center;
 }
 
-.presentation-help-btn {
+.presentation-help-btn,
+.presentation-about-settings-btn {
   gap: 8px;
 }
 
-.presentation-settings-popover .presentation-help-btn span {
+.presentation-settings-popover .presentation-help-btn span,
+.presentation-settings-popover .presentation-about-settings-btn span {
   color: inherit;
   font-size: inherit;
   letter-spacing: 0;
@@ -9060,7 +9184,7 @@ select {
 }
 
 .presentation-bottom-spacer,
-.presentation-about-link {
+.presentation-bottom-settings-menu {
   justify-self: end;
 }
 
@@ -13388,7 +13512,7 @@ svg {
   }
 
   .presentation:not(.controls-visible):not(:focus-within) .presentation-fullscreen-toggle,
-  .presentation:not(.controls-visible):not(:focus-within) .presentation-settings-menu {
+  .presentation:not(.controls-visible):not(:focus-within) .presentation-account-menu {
     display: none;
   }
 
@@ -13418,7 +13542,7 @@ svg {
 
   .presentation.search-active .presentation-ref,
   .presentation.search-active .presentation-fullscreen-toggle,
-  .presentation.search-active .presentation-settings-menu {
+  .presentation.search-active .presentation-account-menu {
     display: none;
   }
 
@@ -13491,12 +13615,18 @@ svg {
       padding-inline: 0;
     }
 
-    .presentation-about-link {
+    .presentation-bottom-settings-menu {
       grid-row: 1;
       justify-self: end;
       width: 44px;
-      min-height: 38px;
       min-width: 44px;
+      box-sizing: border-box;
+    }
+
+    .presentation-bottom-settings-menu .presentation-settings-toggle {
+      width: 44px;
+      min-width: 44px;
+      min-height: 42px;
       box-sizing: border-box;
       padding-inline: 0;
     }

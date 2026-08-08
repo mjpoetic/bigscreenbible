@@ -66,5 +66,11 @@ assert.equal(legacyMerge.versionsUpdatedAt, "");
 const applyCloudSnapshotSource = extractFunction("applyCloudSnapshot");
 assert.match(applyCloudSnapshotSource, /state\.versions = normalizedVersions\(settings\.versions\)/);
 assert.doesNotMatch(applyCloudSnapshotSource, /state\.versions = mergeVersions/);
+assert.match(
+  source,
+  /code: "NIRV", displayCode: "NIrV", name: "New International Reader's Version", provider: "youVersion"/,
+);
+assert.match(source, /recommendation: "Great for children & new readers"/);
+assert.match(source, /NIrV uses clear, shorter sentences at about a third-grade reading level/);
 
 console.log("Version sync tests passed");

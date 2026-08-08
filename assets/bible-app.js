@@ -84,6 +84,7 @@ const translations = [
   { code: "KJV", name: "King James Version", provider: "local" },
   { code: "NASB2020", displayCode: "NASB", name: "New American Standard Bible 2020", provider: "apiBible" },
   { code: "NIV", name: "New International Version", provider: "apiBible" },
+  { code: "NIRV", displayCode: "NIrV", name: "New International Reader's Version", provider: "youVersion", recommendation: "Great for children & new readers" },
   { code: "NLT", name: "New Living Translation", provider: "apiBible" },
   { code: "WEB", name: "World English Bible", provider: "local" },
 ];
@@ -91,9 +92,20 @@ const translations = [
 const translationCodes = translations.map((translation) => translation.code).sort((a, b) => a.localeCompare(b));
 const translationLookup = Object.fromEntries(translations.map((translation) => [translation.code, translation]));
 const translationDisplayCode = (version) => translationLookup[version]?.displayCode || version;
+const translationRecommendation = (version) => translationLookup[version]?.recommendation || "";
 const translationProvider = (version) => bibleProviders[translationLookup[version]?.provider] || bibleProviders.local;
 const isRemoteTranslation = (version) => translationProvider(version).type === "remote";
 const isBundledTranslation = (version) => translationProvider(version).type === "bundled";
+
+function translationOptionDetailsMarkup(version) {
+  const recommendation = translationRecommendation(version);
+  return `
+    <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+    ${recommendation ? `<small class="version-option-note">${escapeHtml(recommendation)}</small>` : ""}
+  `;
+}
+
+const nirvRecommendationHelp = "NIrV uses clear, shorter sentences at about a third-grade reading level—a strong choice for children and new readers.";
 
 const printLayouts = [
   { code: "standard", name: "Standard", description: "One verse per line, matching the current print layout." },
@@ -977,10 +989,10 @@ const accountTutorialStep = {
 };
 
 const presentationAccountTutorialStep = {
-  target: ".presentation-bible-toggle",
+  target: "#presentationAccountButton",
   spotlightPadding: 5,
   title: "Save your bookmarks",
-  body: "Return to the Bible workspace, then choose Sign in to create a free account and keep your bookmarks available across your devices.",
+  body: "Open your profile here to sign in, sync bookmarks, manage friends, and keep your reading activity available across devices.",
 };
 
 state.textScale = clampTextScale(state.textScale);
@@ -1233,7 +1245,7 @@ function render() {
       ${bottombar()}
       ${mobileFloatingSettings()}
       ${mobileSettingsPanel(settingsPanelRerender)}
-      ${presentation()}
+      ${presentation(accountPanelRerender)}
       ${shortcutOverlay()}
       ${aboutMenuOverlay()}
       ${noteComposerMarkup()}
@@ -1541,6 +1553,7 @@ function switchMode(nextMode) {
   state.mode = nextMode;
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
+  state.accountOpen = false;
   state.parallelVersionMenuIndex = null;
   state.parallelVersionMenuPosition = null;
   resetFocusToolSurfaces();
@@ -2901,6 +2914,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
         <select class="primary-version-select" id="mobileSettingsPrimaryVersionSelect" aria-label="Bible version">
           ${primaryVersionOptions}
         </select>
+        <p class="setting-help">${nirvRecommendationHelp}</p>
       </div>
       <div class="setting-group">
         <label class="setting-label" for="mobileScriptureFontSelect">Scripture font</label>
@@ -2932,6 +2946,32 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
   `;
 }
 
+function accountQuickButtonContent() {
+  const incomingFriendRequestCount = state.authUser ? friendshipCollections().incoming.length : 0;
+  const incomingGameChallengeCount = state.authUser ? gameChallengeCollections().incoming.length : 0;
+  const incomingSocialCount = incomingFriendRequestCount + incomingGameChallengeCount;
+  const labelBase = state.socialProfile?.username
+    ? `Account for @${state.socialProfile.username}`
+    : state.authUser ? "Account" : "Sign in";
+  const incomingParts = [
+    incomingFriendRequestCount
+      ? `${incomingFriendRequestCount} friend ${incomingFriendRequestCount === 1 ? "request" : "requests"}`
+      : "",
+    incomingGameChallengeCount
+      ? `${incomingGameChallengeCount} game ${incomingGameChallengeCount === 1 ? "challenge" : "challenges"}`
+      : "",
+  ].filter(Boolean);
+  return {
+    label: incomingParts.length ? `${labelBase}, incoming ${incomingParts.join(" and ")}` : labelBase,
+    icon: state.socialProfile?.username
+      ? socialProfileAvatarMarkup(state.socialProfile, "social-profile-avatar-button")
+      : icons.user,
+    badge: incomingSocialCount
+      ? `<span class="account-friend-request-badge" aria-hidden="true">${incomingSocialCount > 9 ? "9+" : incomingSocialCount}</span>`
+      : "",
+  };
+}
+
 function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
@@ -2941,9 +2981,9 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     .join("");
   const primaryVersionHeaderOptions = translationCodes
     .map((version) => `
-      <button class="primary-version-option ${version === primaryVersion ? "active" : ""}" type="button" data-primary-version-option="${version}" role="option" aria-selected="${version === primaryVersion ? "true" : "false"}">
+      <button class="primary-version-option ${translationRecommendation(version) ? "recommended" : ""} ${version === primaryVersion ? "active" : ""}" type="button" data-primary-version-option="${version}" role="option" aria-selected="${version === primaryVersion ? "true" : "false"}">
         <span>${translationDisplayCode(version)}</span>
-        <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+        ${translationOptionDetailsMarkup(version)}
       </button>
     `)
     .join("");
@@ -2952,10 +2992,10 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       const selected = selectedVersions.includes(version);
       const addDisabled = !selected && selectedVersions.length >= maxVersions;
       return `
-        <button class="primary-version-option parallel-version-option ${selected ? "active" : ""}" type="button" data-toggle-version-option="${version}" role="option" aria-selected="${selected ? "true" : "false"}" ${addDisabled ? "disabled" : ""}>
+        <button class="primary-version-option parallel-version-option ${translationRecommendation(version) ? "recommended" : ""} ${selected ? "active" : ""}" type="button" data-toggle-version-option="${version}" role="option" aria-selected="${selected ? "true" : "false"}" ${addDisabled ? "disabled" : ""}>
           <span class="version-option-check" aria-hidden="true">${selected ? "✓" : ""}</span>
           <span>${translationDisplayCode(version)}</span>
-          <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+          ${translationOptionDetailsMarkup(version)}
         </button>
       `;
     })
@@ -2982,29 +3022,8 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </div>
       </div>`;
   const followsSystemTheme = !localStorage.getItem("lw_theme");
-  const incomingFriendRequestCount = state.authUser ? friendshipCollections().incoming.length : 0;
-  const incomingGameChallengeCount = state.authUser ? gameChallengeCollections().incoming.length : 0;
-  const incomingSocialCount = incomingFriendRequestCount + incomingGameChallengeCount;
-  const accountLabelBase = state.socialProfile?.username
-    ? `Account for @${state.socialProfile.username}`
-    : state.authUser ? "Account" : "Sign in";
-  const incomingParts = [
-    incomingFriendRequestCount
-      ? `${incomingFriendRequestCount} friend ${incomingFriendRequestCount === 1 ? "request" : "requests"}`
-      : "",
-    incomingGameChallengeCount
-      ? `${incomingGameChallengeCount} game ${incomingGameChallengeCount === 1 ? "challenge" : "challenges"}`
-      : "",
-  ].filter(Boolean);
-  const accountLabel = incomingParts.length
-    ? `${accountLabelBase}, incoming ${incomingParts.join(" and ")}`
-    : accountLabelBase;
-  const accountIcon = state.socialProfile?.username
-    ? socialProfileAvatarMarkup(state.socialProfile, "social-profile-avatar-button")
-    : icons.user;
-  const accountFriendBadge = incomingSocialCount
-    ? `<span class="account-friend-request-badge" aria-hidden="true">${incomingSocialCount > 9 ? "9+" : incomingSocialCount}</span>`
-    : "";
+  const accountButton = accountQuickButtonContent();
+  const headerAccountOpen = state.accountOpen && state.mode !== "big";
   const modeOptions = [
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
@@ -3051,12 +3070,14 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       </nav>
       <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
-      <div class="account-menu ${state.accountOpen ? "open" : ""}">
-        <button class="icon-btn account-quick-button ${state.authUser || state.accountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountLabel)}" data-tooltip="${escapeHtml(accountLabel)}">${accountIcon}${accountFriendBadge}</button>
-        <div class="account-popover ${state.accountOpen ? "open" : ""} ${accountPanelRerender ? "account-panel-rerender" : ""}" aria-hidden="${state.accountOpen ? "false" : "true"}">
-          <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
-          ${accountPanel("quick")}
-        </div>
+      <div class="account-menu ${headerAccountOpen ? "open" : ""}">
+        <button class="icon-btn account-quick-button ${state.authUser || headerAccountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountButton.label)}" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
+        ${state.mode === "big" ? "" : `
+          <div class="account-popover ${headerAccountOpen ? "open" : ""} ${accountPanelRerender ? "account-panel-rerender" : ""}" role="dialog" aria-label="Account and profile" aria-hidden="${headerAccountOpen ? "false" : "true"}">
+            <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
+            ${accountPanel("quick")}
+          </div>
+        `}
       </div>
       <div class="settings-menu">
         <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
@@ -3076,6 +3097,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
             <select class="primary-version-select" id="settingsPrimaryVersionSelect" aria-label="Bible version">
               ${primaryVersionOptions}
             </select>
+            <p class="setting-help">${nirvRecommendationHelp}</p>
           </div>
           <div class="setting-group">
             <label class="setting-label" for="scriptureFontSelect">Scripture font</label>
@@ -7550,7 +7572,15 @@ function toggleAccountMenu(forceOpen = null) {
     return;
   }
   state.accountOpen = nextOpen;
-  if (state.accountOpen) state.settingsOpen = false;
+  if (state.accountOpen) {
+    state.settingsOpen = false;
+    if (state.mode === "big") {
+      state.presentationControlsVisible = true;
+      state.presentationSearchOpen = false;
+      state.presentationSearchResultsOpen = false;
+      state.presentationSettingsOpen = false;
+    }
+  }
   renderPreservingReaderScroll();
   if (
     state.accountOpen
@@ -7605,7 +7635,9 @@ function openStreakEncouragement(reference) {
 
 function positionAccountPopover() {
   const popover = document.querySelector(".account-popover.open");
-  const button = document.getElementById("accountQuickButton");
+  const button = state.mode === "big"
+    ? document.getElementById("presentationAccountButton")
+    : document.getElementById("accountQuickButton");
   if (!popover || !button || !isCompactScreen()) {
     document.documentElement.style.removeProperty("--account-popover-top");
     clearFixedPopoverPosition(popover);
@@ -9963,9 +9995,9 @@ function parallelVersionMenuMarkup() {
       const current = option === version;
       const alreadySelected = !current && versions.includes(option);
       return `
-        <button class="parallel-version-menu-option ${current ? "active" : ""}" type="button" data-parallel-version-option="${option}" data-parallel-version-index="${index}" role="option" aria-selected="${current ? "true" : "false"}" ${alreadySelected ? "disabled" : ""}>
+        <button class="parallel-version-menu-option ${translationRecommendation(option) ? "recommended" : ""} ${current ? "active" : ""}" type="button" data-parallel-version-option="${option}" data-parallel-version-index="${index}" role="option" aria-selected="${current ? "true" : "false"}" ${alreadySelected ? "disabled" : ""}>
           <strong>${translationDisplayCode(option)}</strong>
-          <small>${escapeHtml(translationLookup[option]?.name || option)}</small>
+          ${translationOptionDetailsMarkup(option)}
         </button>
       `;
     })
@@ -10682,9 +10714,9 @@ function bottombar() {
   const footerSecondaryVersions = footerVersions.slice(1);
   const footerVersionOptions = translationCodes
     .map((version) => `
-      <button class="primary-version-option ${version === footerPrimaryVersion ? "active" : ""}" type="button" data-footer-version-option="${version}" role="option" aria-selected="${version === footerPrimaryVersion ? "true" : "false"}">
+      <button class="primary-version-option ${translationRecommendation(version) ? "recommended" : ""} ${version === footerPrimaryVersion ? "active" : ""}" type="button" data-footer-version-option="${version}" role="option" aria-selected="${version === footerPrimaryVersion ? "true" : "false"}">
         <span>${translationDisplayCode(version)}</span>
-        <small>${escapeHtml(translationLookup[version]?.name || version)}</small>
+        ${translationOptionDetailsMarkup(version)}
       </button>
     `)
     .join("");
@@ -10869,7 +10901,7 @@ function adjacentPresentationContent(direction) {
   };
 }
 
-function presentation() {
+function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
   const verseOfDayItem = state.isVerseOfDayActive ? state.verseOfDayItem : null;
@@ -10910,8 +10942,54 @@ function presentation() {
   const customFontField = state.scriptureFont === "custom"
     ? `<input class="custom-font-input" id="presentationCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
     : "";
+  const accountButton = accountQuickButtonContent();
+  const settingsMenu = `
+    <div class="presentation-settings-menu presentation-bottom-settings-menu">
+      <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
+      <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
+        <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
+        <label>
+          <span>Theme</span>
+          <select id="presentationThemeSelect" class="presentation-theme-select" aria-label="Change Big Screen theme">
+            ${themeOptions}
+          </select>
+        </label>
+        <label>
+          <span>Bible version</span>
+          <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
+            ${versionOptions}
+          </select>
+          <small class="presentation-version-note">${nirvRecommendationHelp}</small>
+        </label>
+        <label>
+          <span>Scripture font</span>
+          <select id="presentationScriptureFontSelect" class="scripture-font-select" aria-label="Change scripture font">
+            ${scriptureFontOptions}
+          </select>
+          ${customFontField}
+        </label>
+        <div class="presentation-text-size-setting">
+          <span>Text size</span>
+          <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
+            <button type="button" id="presentationDecreaseText" aria-label="Decrease Big Screen text size">A−</button>
+            <button type="button" class="presentation-text-size-reset" id="presentationResetText" aria-label="Reset Big Screen text size to 100%"><span>Aa</span><strong>${Math.round(state.presentationTextScale * 100)}%</strong></button>
+            <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
+          </div>
+        </div>
+        <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+        <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
+        <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & legal</span></button>
+        <div class="presentation-help">
+          <span>Keyboard</span>
+          <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
+          <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
+          <div><kbd>Esc</kbd> Back to Bible</div>
+        </div>
+      </div>
+    </div>
+  `;
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       <div class="presentation-top">
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
@@ -10927,46 +11005,14 @@ function presentation() {
         </div>
         <div class="presentation-actions">
           <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
-          <div class="presentation-settings-menu">
-            <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" data-tooltip="Big Screen settings">${icons.settings}</button>
-            <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
-              <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
-              <label>
-                <span>Theme</span>
-                <select id="presentationThemeSelect" class="presentation-theme-select" aria-label="Change Big Screen theme">
-                  ${themeOptions}
-                </select>
-              </label>
-              <label>
-                <span>Bible version</span>
-                <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
-                  ${versionOptions}
-                </select>
-              </label>
-              <label>
-                <span>Scripture font</span>
-                <select id="presentationScriptureFontSelect" class="scripture-font-select" aria-label="Change scripture font">
-                  ${scriptureFontOptions}
-                </select>
-                ${customFontField}
-              </label>
-              <div class="presentation-text-size-setting">
-                <span>Text size</span>
-                <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
-                  <button type="button" id="presentationDecreaseText" aria-label="Decrease Big Screen text size">A−</button>
-                  <button type="button" class="presentation-text-size-reset" id="presentationResetText" aria-label="Reset Big Screen text size to 100%"><span>Aa</span><strong>${Math.round(state.presentationTextScale * 100)}%</strong></button>
-                  <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
-                </div>
+          <div class="presentation-account-menu ${state.accountOpen ? "open" : ""}">
+            <button class="ghost-btn account-quick-button presentation-account-toggle ${state.authUser || state.accountOpen ? "active" : ""}" id="presentationAccountButton" type="button" aria-label="${escapeHtml(accountButton.label)}" aria-haspopup="dialog" aria-expanded="${state.accountOpen ? "true" : "false"}" aria-controls="presentationAccountPopover" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
+            ${state.mode === "big" ? `
+              <div class="account-popover presentation-account-popover ${state.accountOpen ? "open" : ""} ${accountPanelRerender ? "account-panel-rerender" : ""}" id="presentationAccountPopover" role="dialog" aria-label="Account and profile" aria-hidden="${state.accountOpen ? "false" : "true"}">
+                <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
+                ${accountPanel("quick")}
               </div>
-              <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
-              <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
-              <div class="presentation-help">
-                <span>Keyboard</span>
-                <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
-                <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
-                <div><kbd>Esc</kbd> Back to Bible</div>
-              </div>
-            </div>
+            ` : ""}
           </div>
           <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" data-tooltip="Back to Bible">${icons.book}</button>
         </div>
@@ -10992,7 +11038,7 @@ function presentation() {
           <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
           <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
-        <button class="presentation-about-link" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About Big Screen Bible"><span aria-hidden="true">${icons.info}</span></button>
+        ${settingsMenu}
       </div>
     </section>
   `;
@@ -11513,6 +11559,7 @@ function bindEvents() {
   });
   document.getElementById("settingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("accountQuickButton")?.addEventListener("click", () => toggleAccountMenu());
+  document.getElementById("presentationAccountButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
   document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
@@ -12350,6 +12397,7 @@ function bindEvents() {
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     if (state.presentationSettingsOpen) return closePresentationSettings();
     state.presentationSettingsOpen = true;
+    state.accountOpen = false;
     state.presentationSearchOpen = false;
     state.presentationSearchResultsOpen = false;
     render();
@@ -12367,6 +12415,7 @@ function bindEvents() {
     state.presentationSearchOpen = !state.presentationSearchOpen;
     state.presentationSearchResultsOpen = false;
     state.presentationSettingsOpen = false;
+    state.accountOpen = false;
     render();
     if (state.presentationSearchOpen) requestAnimationFrame(() => document.getElementById("presentationSearchInput")?.focus());
   });
@@ -12474,6 +12523,7 @@ function returnFromPresentationToBible() {
   state.presentationSearchOpen = false;
   state.presentationSearchResultsOpen = false;
   state.presentationSettingsOpen = false;
+  state.accountOpen = false;
   state.presentationControlsVisible = false;
   state.pendingVerseFocus = true;
   updateShareUrl();
@@ -15620,6 +15670,7 @@ function startTutorial() {
   markTutorialSeen();
   state.shortcutsOpen = false;
   state.settingsOpen = false;
+  state.accountOpen = false;
   state.presentationSettingsOpen = false;
   state.headerVersionMenuOpen = false;
   state.tutorialActive = true;
@@ -15811,7 +15862,7 @@ function revealPresentationControls(duration = 3200) {
     render();
   }
   presentationControlsTimer = setTimeout(() => {
-    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen) return;
+    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen) return;
     state.presentationControlsVisible = false;
     render();
   }, duration);
@@ -15894,6 +15945,7 @@ function handlePresentationTouchStart(event) {
     || state.presentationSearchOpen
     || state.presentationSearchResultsOpen
     || state.presentationSettingsOpen
+    || state.accountOpen
     || isPresentationSwipeIgnored(event.target)
     || presentationElement?.classList.contains("presentation-swipe-commit-next")
     || presentationElement?.classList.contains("presentation-swipe-commit-previous")
@@ -15984,7 +16036,7 @@ function handlePresentationTouchEnd(event) {
     if ((event.touches?.length || 0) < 2) finishPresentationPinch();
     return;
   }
-  if (state.mode !== "big" || !presentationTouchStart || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen) return;
+  if (state.mode !== "big" || !presentationTouchStart || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen) return;
   if (isPresentationSwipeIgnored(event.target)) {
     presentationTouchStart = null;
     resetPresentationDrag();
@@ -16739,6 +16791,10 @@ function handleGlobalShortcuts(event) {
       state.parallelVersionMenuIndex = null;
       state.parallelVersionMenuPosition = null;
       return renderPreservingReaderScroll();
+    }
+    if (state.accountOpen) {
+      event.preventDefault();
+      return toggleAccountMenu(false);
     }
     if (state.presentationSearchOpen) {
       event.preventDefault();

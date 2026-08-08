@@ -43,6 +43,13 @@ assert.match(source, /id="presentationDecreaseText"/);
 assert.match(source, /id="presentationResetText"/);
 assert.match(source, /id="presentationIncreaseText"/);
 assert.match(source, /Big Screen text size controls/);
+assert.match(source, /id="presentationAccountButton"/);
+assert.match(source, /id="presentationAccountPopover"/);
+assert.match(source, /presentation-bottom-settings-menu/);
+assert.match(source, /presentation-about-settings-btn/);
+assert.doesNotMatch(extractFunction("presentation"), /class="presentation-about-link"/);
+assert.match(extractFunction("bindEvents"), /presentationAccountButton/);
+assert.match(extractFunction("toggleAccountMenu"), /state\.mode === "big"/);
 assert.match(extractFunction("handleGlobalShortcuts"), /state\.mode === "big"\) return adjustPresentationTextScale\(0\.1/);
 assert.match(extractFunction("handleGlobalShortcuts"), /state\.mode === "big"\) return resetPresentationTextScale/);
 
@@ -66,5 +73,8 @@ assert.match(styles, /@keyframes presentation-slide-in-next/);
 assert.match(styles, /\.presentation-scale-feedback\.show/);
 assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?max-height: calc\(100dvh - 96px/);
 assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?overflow-y: auto/);
+assert.match(styles, /\.presentation-bottom-settings-menu \.presentation-settings-popover \{[\s\S]*?bottom: calc\(100% \+ 10px\)/);
+assert.match(styles, /\.presentation-account-popover \{[\s\S]*?background: var\(--panel\)/);
+assert.match(styles, /\.presentation-account-toggle/);
 
 console.log("Presentation display tests passed");

@@ -1,4 +1,11 @@
 import { cleanPlainText, cleanQuotedProviderText } from "./text-cleaner.ts";
+import {
+  fallbackYouVersionTranslationNames,
+  matchesYouVersionTranslation,
+  supportedYouVersionTranslations,
+  type YouVersionBibleSummary,
+  type YouVersionTranslationCode,
+} from "./translations.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,21 +20,7 @@ const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 const verseFetchConcurrency = 8;
-const parserVersion = "2026-07-06-youversion-amp-pilcrow-cleanup";
-
-type YouVersionTranslationCode = "AMP";
-
-type YouVersionBibleSummary = {
-  id?: number | string;
-  abbreviation?: string;
-  localized_abbreviation?: string;
-  title?: string;
-  localized_title?: string;
-  copyright?: string;
-  info?: string;
-  publisher_url?: string;
-  youversion_deep_link?: string;
-};
+const parserVersion = "2026-08-08-youversion-nirv";
 
 type AuthorizedBible = {
   code: YouVersionTranslationCode;
@@ -55,7 +48,10 @@ type PassageVerse = {
 };
 
 let authorizedBibleCache:
-  | { expiresAt: number; bibles: Map<YouVersionTranslationCode, AuthorizedBible> }
+  | {
+    expiresAt: number;
+    bibles: Map<YouVersionTranslationCode, AuthorizedBible>;
+  }
   | null = null;
 
 const youVersionBookIds: Record<string, string> = {
@@ -138,27 +134,6 @@ function jsonResponse(body: unknown, status = 200, cacheControl = "no-store") {
   });
 }
 
-function normalizedLabel(value: unknown) {
-  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-function matchesTranslation(
-  bible: YouVersionBibleSummary,
-  code: YouVersionTranslationCode,
-) {
-  const abbreviation = normalizedLabel(
-    bible.localized_abbreviation || bible.abbreviation,
-  );
-  const title = normalizedLabel(bible.localized_title || bible.title);
-  if (code === "AMP") {
-    return (
-      abbreviation === "AMP" ||
-      (title.includes("AMPLIFIEDBIBLE") && !title.includes("CLASSIC"))
-    );
-  }
-  return false;
-}
-
 async function youVersionRequest(path: string, appKey: string) {
   const response = await fetch(`${youVersionBaseUrl}${path}`, {
     headers: {
@@ -199,9 +174,9 @@ async function authorizedBibles(appKey: string) {
   const available = await allEnglishBibles(appKey);
   const bibles = new Map<YouVersionTranslationCode, AuthorizedBible>();
 
-  for (const code of ["AMP"] as YouVersionTranslationCode[]) {
+  for (const code of supportedYouVersionTranslations) {
     const bible = available.find((candidate) =>
-      matchesTranslation(candidate, code)
+      matchesYouVersionTranslation(candidate, code)
     );
     const id = Number(bible?.id);
     if (!Number.isInteger(id)) continue;
@@ -215,7 +190,8 @@ async function authorizedBibles(appKey: string) {
       id,
       abbreviation: metadata.localized_abbreviation || metadata.abbreviation ||
         code,
-      name: metadata.title || metadata.localized_title || "Amplified Bible",
+      name: metadata.title || metadata.localized_title ||
+        fallbackYouVersionTranslationNames[code],
       copyright: cleanQuotedProviderText(metadata.copyright),
       info: cleanQuotedProviderText(metadata.info),
       publisherUrl: String(metadata.publisher_url || "").trim(),
@@ -230,7 +206,9 @@ async function authorizedBibles(appKey: string) {
   return bibles;
 }
 
-function chapterReferenceFromReference(reference: string): ChapterReference | null {
+function chapterReferenceFromReference(
+  reference: string,
+): ChapterReference | null {
   const match = reference.match(/^(.+?)\s+(\d{1,3})$/);
   if (!match) return null;
   const book = match[1];
@@ -349,7 +327,9 @@ function sectionHeadingMapFromChapterText(
   );
 
   verses.forEach((verse) => {
-    const verseText = normalizeYouVersionHeadingText(cleanPlainText(verse.text));
+    const verseText = normalizeYouVersionHeadingText(
+      cleanPlainText(verse.text),
+    );
     if (!verseText) return;
     const index = remaining.indexOf(verseText);
     if (index === -1) return;
@@ -484,7 +464,7 @@ Deno.serve(async (request) => {
       return jsonResponse(
         {
           translations: [...availableBibles.values()],
-          missing: (["AMP"] as YouVersionTranslationCode[])
+          missing: supportedYouVersionTranslations
             .filter((code) => !availableBibles.has(code)),
         },
         200,
@@ -492,10 +472,10 @@ Deno.serve(async (request) => {
       );
     }
 
-    const version = normalizedLabel(
-      url.searchParams.get("version"),
-    ) as YouVersionTranslationCode;
-    if (!["AMP"].includes(version)) {
+    const version = String(url.searchParams.get("version") || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "") as YouVersionTranslationCode;
+    if (!supportedYouVersionTranslations.includes(version)) {
       return jsonResponse({
         error: "A supported YouVersion version is required",
       }, 400);

@@ -219,10 +219,10 @@ The included `supabase/config.toml` keeps JWT verification off for these read-on
 - API.Bible FUMS view tokens are forwarded to the browser and reported through the official FUMS web tracker.
 - Copyright text returned by API.Bible is displayed with the passage in Reader, Parallel Study, print, and Big Screen Mode.
 - API.Bible Scripture text must not be used for AI training, embeddings, LLM fine-tuning, generated paraphrases, or similar derivative model workflows.
-- YouVersion Platform requests use the `youversion-passage` Edge Function and the `X-YVP-App-Key` header server-side. The function discovers the authorized AMP Bible ID from `GET /v1/bibles?language_ranges[]=en` and caches only Bible metadata in Edge Function memory for up to 24 hours.
-- AMP chapter requests currently fetch the chapter's verse index and then fetch each verse through YouVersion's passage endpoint with notes disabled. Scripture responses use `Cache-Control: no-store`.
-- YouVersion's public REST docs do not currently list a Bible search endpoint, so AMP is not included in global remote-provider search yet.
-- Copyright text returned by YouVersion metadata is displayed with AMP passages in Reader, Parallel Study, print, and Big Screen Mode.
+- YouVersion Platform requests use the `youversion-passage` Edge Function and the `X-YVP-App-Key` header server-side. The function discovers the authorized AMP and NIrV Bible IDs from `GET /v1/bibles?language_ranges[]=en` and caches only Bible metadata in Edge Function memory for up to 24 hours.
+- AMP and NIrV chapter requests currently fetch the chapter's verse index and then fetch each verse through YouVersion's passage endpoint with notes disabled. Scripture responses use `Cache-Control: no-store`.
+- YouVersion's public REST docs do not currently list a Bible search endpoint, so AMP and NIrV are not included in global remote-provider search yet.
+- Copyright text returned by YouVersion metadata is displayed with AMP and NIrV passages in Reader, Parallel Study, print, and Big Screen Mode.
 
 To inspect which approved editions the function discovered after deployment:
 
