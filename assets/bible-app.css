@@ -32,6 +32,7 @@
   --motion-drawer: 320ms;
   --motion-drawer-close: 220ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tooltip-delay: 1s;
   --scripture-font: "Literata", Georgia, serif;
   --brand-title-font: Copperplate, "Copperplate Gothic Light", "Copperplate Gothic Bold", "Libre Baskerville", Georgia, serif;
   --brand-subtitle-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -3765,6 +3766,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   opacity: 0 !important;
   pointer-events: none;
   transform: translate(-50%, 4px) !important;
+  transition-delay: 0s !important;
 }
 
 .reader-auto-scroll-button:hover,
@@ -4258,6 +4260,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   pointer-events: none;
   transform: translate(-50%, 4px);
   transition: opacity 140ms ease, transform 140ms ease;
+  transition-delay: 0s;
 }
 
 .topbar [data-tooltip]::after,
@@ -4276,12 +4279,14 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 [data-tooltip]:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
+  transition-delay: var(--tooltip-delay);
 }
 
 .topbar .search[data-tooltip]:has([data-tooltip]:hover)::after,
 .topbar .search[data-tooltip]:has([data-tooltip]:focus-visible)::after {
   opacity: 0;
   transform: translate(-50%, 4px);
+  transition-delay: 0s;
 }
 
 .topbar > [data-tooltip]:last-child:hover::after,

@@ -26,6 +26,7 @@
     "test:social": "node scripts/social-profile.test.mjs",
     "test:social-connections": "node scripts/social-connections.test.mjs",
     "test:strongs": "node scripts/strongs.test.mjs",
+    "test:tooltips": "node scripts/tooltip-delay.test.mjs",
     "test:version-loading": "node scripts/bible-version-loading.test.mjs",
     "test:version-sync": "node scripts/version-sync.test.mjs",
     "check:app-version": "node scripts/check-app-version.mjs",
