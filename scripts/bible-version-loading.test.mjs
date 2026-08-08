@@ -39,6 +39,7 @@ assert.match(presentationSource, /bible-version-loading/);
 assert.match(presentationSource, /bibleVersionLoadingIndicator\(versionLoadingState\)/);
 
 assert.match(extractFunction("setPrimaryVersion"), /loadBibleVersionInline\(version\)/);
+assert.match(extractFunction("setPrimaryVersion"), /state\.presentationSettingsOpen = false[\s\S]*loadBibleVersionInline\(version\)/);
 assert.match(extractFunction("setParallelVersionAt"), /loadBibleVersionInline\(version\)/);
 assert.match(extractFunction("loadBibleVersionInline"), /renderPreservingReaderScroll\(\)/);
 

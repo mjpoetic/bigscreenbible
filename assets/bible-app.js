@@ -12575,6 +12575,7 @@ async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   state.presentationPart = 0;
+  if (!options.keepPresentationSettings) state.presentationSettingsOpen = false;
   persistVersions({ changed: true });
   scheduleCloudSync();
   if (isRemoteTranslation(version)) {
@@ -12585,7 +12586,6 @@ async function setPrimaryVersion(version, options = {}) {
     await loadBibleVersionInline(version);
     rebuildBibleData();
   }
-  if (!options.keepPresentationSettings) state.presentationSettingsOpen = false;
   if (options.preserveScroll) renderPreservingReaderScroll();
   else render();
 }
