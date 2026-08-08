@@ -58,6 +58,28 @@ let authorizedBibleCache:
   }
   | null = null;
 
+let youVersionBlockedUntil = 0;
+let youVersionRateLimitReset = "";
+
+class YouVersionRequestError extends Error {
+  status: number;
+  retryAfterSeconds: number;
+  rateLimitReset: string;
+
+  constructor(
+    status: number,
+    message: string,
+    retryAfterSeconds = 0,
+    rateLimitReset = "",
+  ) {
+    super(message);
+    this.name = "YouVersionRequestError";
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.rateLimitReset = rateLimitReset;
+  }
+}
+
 const youVersionBookIds: Record<string, string> = {
   Genesis: "GEN",
   Exodus: "EXO",
@@ -127,18 +149,52 @@ const youVersionBookIds: Record<string, string> = {
   Revelation: "REV",
 };
 
-function jsonResponse(body: unknown, status = 200, cacheControl = "no-store") {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  cacheControl = "no-store",
+  extraHeaders: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": cacheControl,
+      ...extraHeaders,
     },
   });
 }
 
+function retryAfterSecondsFromHeaders(headers: Headers, now = Date.now()) {
+  const retryAfter = String(headers.get("Retry-After") || "").trim();
+  if (/^\d+$/.test(retryAfter)) return Math.max(1, Number(retryAfter));
+  const retryAt = Date.parse(retryAfter);
+  if (Number.isFinite(retryAt)) {
+    return Math.max(1, Math.ceil((retryAt - now) / 1000));
+  }
+
+  const reset = String(headers.get("X-RateLimit-Reset") || "").trim();
+  if (/^\d+$/.test(reset)) {
+    const resetNumber = Number(reset);
+    const resetAt = resetNumber > 1_000_000_000
+      ? resetNumber * 1000
+      : now + resetNumber * 1000;
+    return Math.max(1, Math.ceil((resetAt - now) / 1000));
+  }
+  return 0;
+}
+
 async function youVersionRequest(path: string, appKey: string) {
+  if (youVersionBlockedUntil > Date.now()) {
+    throw new YouVersionRequestError(
+      429,
+      "YouVersion is temporarily rate-limited",
+      Math.max(1, Math.ceil((youVersionBlockedUntil - Date.now()) / 1000)),
+      youVersionRateLimitReset,
+    );
+  }
+
   const response = await fetch(`${youVersionBaseUrl}${path}`, {
     headers: {
       "X-YVP-App-Key": appKey,
@@ -149,7 +205,22 @@ async function youVersionRequest(path: string, appKey: string) {
   if (!response.ok) {
     const message = payload?.message || payload?.error ||
       "YouVersion request failed";
-    throw new Error(`${response.status}: ${message}`);
+    const retryAfterSeconds = retryAfterSecondsFromHeaders(response.headers);
+    const rateLimitReset = String(
+      response.headers.get("X-RateLimit-Reset") || "",
+    ).trim();
+    if (response.status === 429) {
+      // Keep older clients from turning one upstream 429 into a retry storm.
+      youVersionBlockedUntil = Date.now() +
+        Math.max(60, retryAfterSeconds || 300) * 1000;
+      youVersionRateLimitReset = rateLimitReset;
+    }
+    throw new YouVersionRequestError(
+      response.status,
+      `${response.status}: ${message}`,
+      retryAfterSeconds,
+      rateLimitReset,
+    );
   }
   return payload;
 }
@@ -462,6 +533,24 @@ Deno.serve(async (request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
+    if (error instanceof YouVersionRequestError && error.status === 429) {
+      const retryAfter = Math.max(1, error.retryAfterSeconds || 300);
+      return jsonResponse(
+        {
+          error: "YouVersion is temporarily rate-limited",
+          retryAfter,
+          rateLimitReset: error.rateLimitReset || undefined,
+        },
+        429,
+        "no-store",
+        {
+          "Retry-After": String(retryAfter),
+          ...(error.rateLimitReset
+            ? { "X-RateLimit-Reset": error.rateLimitReset }
+            : {}),
+        },
+      );
+    }
     return jsonResponse({ error: message || "YouVersion request failed" }, 502);
   }
 });
