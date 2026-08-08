@@ -84,6 +84,10 @@ const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
 const persistSource = extractFunction("persistCloudSnapshotLocally");
 const outsidePointerDownSource = extractFunction("closeSettingsPopoverOnOutsidePointerDown");
+const closeSettingsSource = extractFunction("closeSettingsPopover");
+const bindEventsSource = extractFunction("bindEvents");
+const topBelowHeaderSource = extractFunction("settingsPopoverTopBelowHeader");
+const positionSettingsSource = extractFunction("positionSettingsPopover");
 
 assert.match(displaySource, /settingsDisclosure\("display", "Display"/);
 assert.match(displaySource, /Paragraph layout when available/);
@@ -139,5 +143,21 @@ pointerDownOn(null);
 assert.equal(closeCalls, 1, "Outside pointer presses do nothing when Settings is closed");
 
 assert.match(source, /document\.addEventListener\("pointerdown", closeSettingsPopoverOnOutsidePointerDown\)/);
+assert.doesNotMatch(closeSettingsSource, /settingsPopupPosition/, "Closing Settings preserves a user-moved position");
+assert.doesNotMatch(bindEventsSource, /state\.settingsPopupPosition\s*=\s*null/, "Opening or replacing Settings preserves a user-moved position");
+assert.match(positionSettingsSource, /settingsPopoverTopBelowHeader\(\)/);
+assert.match(positionSettingsSource, /topOverride: top/);
+
+const topBelowHeaderContext = {
+  fixedPopoverViewport: () => ({ offsetTop: 0, width: 390, height: 844 }),
+  document: {
+    querySelector: () => ({
+      getBoundingClientRect: () => ({ bottom: 118 }),
+    }),
+  },
+};
+vm.createContext(topBelowHeaderContext);
+vm.runInContext(`${topBelowHeaderSource}; globalThis.topBelowHeader = settingsPopoverTopBelowHeader;`, topBelowHeaderContext);
+assert.equal(topBelowHeaderContext.topBelowHeader(), 126, "The default Settings top sits eight pixels below the rendered header");
 
 console.log("Settings disclosure tests passed");

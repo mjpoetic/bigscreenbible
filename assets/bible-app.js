@@ -197,9 +197,18 @@ const scriptureFonts = [
   { code: "source-sans", name: "Source Sans 3" },
   { code: "manrope", name: "Manrope" },
   { code: "atkinson-hyperlegible-next", name: "Atkinson Hyperlegible Next" },
-  { code: "custom", name: "Custom device font" },
+  { code: "custom", name: "Custom device or Google font" },
 ];
 const scriptureFontCodes = scriptureFonts.map((font) => font.code);
+const customGoogleFontStylesheetId = "custom-google-font-stylesheet";
+const genericCustomFontFamilies = new Set([
+  "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
+  "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "emoji", "math", "fangsong",
+]);
+let customFontLoadRequest = 0;
+let customFontInputTimer = 0;
+let customDeviceFontFace = null;
+let customFontLoadState = { family: "", status: "idle", message: "" };
 const legacyScriptureFontCodes = {
   merriweather: "literata",
   "ibm-plex-sans": "manrope",
@@ -2928,7 +2937,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
   const customFontField = state.scriptureFont === "custom"
-    ? `<input class="custom-font-input" id="mobileCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
+    ? customScriptureFontField("mobileCustomScriptureFontInput")
     : "";
   return `
     <div class="mobile-settings-popover draggable-popup ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
@@ -3072,7 +3081,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
   const customFontField = state.scriptureFont === "custom"
-    ? `<input class="custom-font-input" id="customScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
+    ? customScriptureFontField("customScriptureFontInput")
     : "";
   return `
     <header class="topbar">
@@ -7704,17 +7713,44 @@ function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
   } else {
     button = isElementVisible(headerButton) ? headerButton : floatingButton;
   }
-  if (!popover || !button || !compact) {
+  if (!popover) {
     document.documentElement.style.removeProperty("--settings-popover-top");
     [mobilePopover, headerPopover].forEach(clearFixedPopoverPosition);
     return;
   }
   if (mobilePopover && headerPopover && mobilePopover !== headerPopover) clearFixedPopoverPosition(headerPopover);
-  const top = positionFixedPopoverBelowButton(popover, button, {
-    coverRail: false,
-    preferAbove: isMobilePopover && button === floatingButton,
-  });
+  const top = settingsPopoverTopBelowHeader();
   document.documentElement.style.setProperty("--settings-popover-top", `${top}px`);
+  if (!compact) {
+    const viewport = fixedPopoverViewport();
+    const viewportTop = viewport.offsetTop || 0;
+    const gutter = 12;
+    popover.style.position = "fixed";
+    popover.style.top = `${top}px`;
+    popover.style.right = `${gutter}px`;
+    popover.style.bottom = "auto";
+    popover.style.left = "auto";
+    popover.style.width = "min(336px, calc(100vw - 24px))";
+    popover.style.maxWidth = "none";
+    popover.style.maxHeight = `${Math.max(180, Math.round(viewport.height - (top - viewportTop) - gutter))}px`;
+    popover.style.overflow = "auto";
+    popover.style.zIndex = "360";
+    return;
+  }
+  if (!button) return;
+  positionFixedPopoverBelowButton(popover, button, {
+    coverRail: false,
+    topOverride: top,
+  });
+}
+
+function settingsPopoverTopBelowHeader() {
+  const viewport = fixedPopoverViewport();
+  const viewportTop = viewport.offsetTop || 0;
+  const gutter = 8;
+  const headerBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom;
+  if (!Number.isFinite(headerBottom)) return viewportTop + gutter;
+  return Math.max(viewportTop + gutter, Math.round(viewportTop + headerBottom + gutter));
 }
 
 function isElementVisible(element) {
@@ -7881,7 +7917,11 @@ function finishPopupDrag(event) {
   window.removeEventListener("pointercancel", finishPopupDrag);
 }
 
-function positionFixedPopoverBelowButton(popover, button, { coverRail = false, preferAbove = false } = {}) {
+function positionFixedPopoverBelowButton(popover, button, {
+  coverRail = false,
+  preferAbove = false,
+  topOverride = null,
+} = {}) {
   const viewport = fixedPopoverViewport();
   const buttonRect = button.getBoundingClientRect();
   const viewportLeft = viewport.offsetLeft || 0;
@@ -7891,7 +7931,9 @@ function positionFixedPopoverBelowButton(popover, button, { coverRail = false, p
     ? viewportLeft + gutter
     : viewportLeft + compactRailWidth() + gutter;
   const right = gutter;
-  const belowTop = Math.max(gutter, Math.round(viewportTop + buttonRect.bottom + gutter));
+  const belowTop = Number.isFinite(topOverride)
+    ? Math.max(viewportTop + gutter, Math.round(topOverride))
+    : Math.max(viewportTop + gutter, Math.round(viewportTop + buttonRect.bottom + gutter));
   let top = belowTop;
   let maxHeight = Math.max(180, Math.round(viewport.height - (top - viewportTop) - gutter));
   if (preferAbove) {
@@ -10980,7 +11022,7 @@ function presentation(accountPanelRerender = false) {
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
   const customFontField = state.scriptureFont === "custom"
-    ? `<input class="custom-font-input" id="presentationCustomScriptureFontInput" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia, Charter, Avenir..." aria-label="Custom scripture font" />`
+    ? customScriptureFontField("presentationCustomScriptureFontInput")
     : "";
   const accountButton = accountQuickButtonContent();
   const settingsMenu = `
@@ -11591,7 +11633,6 @@ function bindEvents() {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
-    state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "header";
     if (state.settingsOpen) state.accountOpen = false;
@@ -11607,7 +11648,6 @@ function bindEvents() {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
-    state.settingsPopupPosition = null;
     state.settingsOpen = !state.settingsOpen;
     state.settingsAnchor = "floating";
     if (state.settingsOpen) state.accountOpen = false;
@@ -11622,7 +11662,6 @@ function bindEvents() {
     resetFocusToolSurfaces();
     if (state.focusReferenceOpen) {
       state.settingsOpen = false;
-      state.settingsPopupPosition = null;
       state.accountOpen = false;
     }
     renderPreservingReaderScroll();
@@ -11636,7 +11675,6 @@ function bindEvents() {
       state.focusReferenceOpen = false;
       state.focusSearchResultsOpen = false;
       state.settingsOpen = false;
-      state.settingsPopupPosition = null;
       state.accountOpen = false;
       renderPreservingReaderScroll();
     });
@@ -11655,7 +11693,6 @@ function bindEvents() {
       state.focusReferenceOpen = false;
       state.focusSearchResultsOpen = false;
       state.settingsOpen = false;
-      state.settingsPopupPosition = null;
       state.accountOpen = false;
       renderPreservingReaderScroll();
     });
@@ -11831,18 +11868,8 @@ function bindEvents() {
   document.getElementById("mobileScriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
-  document.getElementById("customScriptureFontInput")?.addEventListener("change", (event) => {
-    setCustomScriptureFont(event.target.value);
-  });
-  document.getElementById("mobileCustomScriptureFontInput")?.addEventListener("change", (event) => {
-    setCustomScriptureFont(event.target.value);
-  });
-  document.getElementById("customScriptureFontInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
-  });
-  document.getElementById("mobileCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
-  });
+  bindCustomScriptureFontInput("customScriptureFontInput");
+  bindCustomScriptureFontInput("mobileCustomScriptureFontInput");
   document.querySelectorAll("[data-interface-text-size-choice]").forEach((button) => {
     button.addEventListener("click", () => setInterfaceTextSize(button.dataset.interfaceTextSizeChoice));
   });
@@ -12427,12 +12454,7 @@ function bindEvents() {
   document.getElementById("presentationScriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
-  document.getElementById("presentationCustomScriptureFontInput")?.addEventListener("change", (event) => {
-    setCustomScriptureFont(event.target.value);
-  });
-  document.getElementById("presentationCustomScriptureFontInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") setCustomScriptureFont(event.currentTarget.value);
-  });
+  bindCustomScriptureFontInput("presentationCustomScriptureFontInput");
   document.getElementById("presentationFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
@@ -14196,12 +14218,43 @@ function setInterfaceTextSize(size) {
   renderPreservingReaderScroll();
 }
 
-function setCustomScriptureFont(font) {
+function setCustomScriptureFont(font, { rerender = true } = {}) {
+  window.clearTimeout(customFontInputTimer);
+  customFontInputTimer = 0;
   state.customScriptureFont = sanitizeFontName(font);
+  if (customFontLoadState.family === customScriptureFontNames()[0]) {
+    customFontLoadState = { family: "", status: "idle", message: "" };
+  }
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
   applyCustomScriptureFont();
   scheduleCloudSync();
-  renderPreservingReaderScroll();
+  if (rerender) renderPreservingReaderScroll();
+}
+
+function queueCustomScriptureFont(font) {
+  window.clearTimeout(customFontInputTimer);
+  customFontInputTimer = window.setTimeout(() => {
+    commitCustomScriptureFont(font);
+  }, 500);
+}
+
+function commitCustomScriptureFont(font) {
+  const sanitized = sanitizeFontName(font);
+  const retryFailedFont = sanitized === state.customScriptureFont && customFontLoadState.status === "error";
+  if (sanitized === state.customScriptureFont && !retryFailedFont) return;
+  setCustomScriptureFont(sanitized, { rerender: false });
+}
+
+function bindCustomScriptureFontInput(inputId) {
+  const input = document.getElementById(inputId);
+  input?.addEventListener("input", (event) => queueCustomScriptureFont(event.currentTarget.value));
+  input?.addEventListener("change", (event) => commitCustomScriptureFont(event.currentTarget.value));
+  input?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitCustomScriptureFont(event.currentTarget.value);
+    event.currentTarget.blur();
+  });
 }
 
 function sanitizeFontName(font) {
@@ -14213,13 +14266,148 @@ function sanitizeFontName(font) {
     .join(", ");
 }
 
+function customScriptureFontNames() {
+  return sanitizeFontName(state.customScriptureFont)
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+function quotedCssFontFamily(font) {
+  return `"${String(font || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function cssFontFamily(font) {
+  const normalized = String(font || "").toLowerCase();
+  return genericCustomFontFamilies.has(normalized) ? normalized : quotedCssFontFamily(font);
+}
+
 function customScriptureFontStack() {
-  const custom = state.customScriptureFont || "Georgia";
-  return `${custom}, Georgia, serif`;
+  const custom = customScriptureFontNames();
+  return [...custom.map(cssFontFamily), "Georgia", "serif"].join(", ");
+}
+
+function customGoogleFontUrl(font) {
+  const family = encodeURIComponent(font).replace(/%20/g, "+");
+  return `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
+}
+
+function normalizedFontFaceFamily(font) {
+  return String(font || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase();
+}
+
+function fontFaceIsLoaded(font) {
+  if (!document.fonts) return false;
+  const family = normalizedFontFaceFamily(font);
+  return Array.from(document.fonts).some((face) => (
+    normalizedFontFaceFamily(face.family) === family && face.status === "loaded"
+  ));
+}
+
+function customScriptureFontField(inputId) {
+  const statusId = `${inputId}Status`;
+  const preferredFamily = customScriptureFontNames()[0] || "";
+  const status = customFontLoadState.family === preferredFamily ? customFontLoadState : { status: "idle", message: "" };
+  return `
+    <input class="custom-font-input" id="${inputId}" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia or a Google Fonts family" aria-label="Custom device or Google font" aria-describedby="${statusId}Help ${statusId}" autocomplete="off" spellcheck="false" />
+    <p class="setting-help custom-font-help" id="${statusId}Help">Uses an installed font first. Otherwise loads the exact family name from Google Fonts. Internet required.</p>
+    <p class="custom-font-status" id="${statusId}" data-font-status="${status.status}" role="status" aria-live="polite">${escapeHtml(status.message)}</p>
+  `;
+}
+
+function setCustomFontLoadState(family, status, message) {
+  customFontLoadState = { family, status, message };
+  document.querySelectorAll(".custom-font-status").forEach((element) => {
+    element.dataset.fontStatus = status;
+    element.textContent = message;
+  });
+}
+
+function removeCustomFontResources() {
+  document.getElementById(customGoogleFontStylesheetId)?.remove();
+  if (customDeviceFontFace && document.fonts?.delete) document.fonts.delete(customDeviceFontFace);
+  customDeviceFontFace = null;
+}
+
+function loadGoogleFontStylesheet(font, request) {
+  return new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.id = customGoogleFontStylesheetId;
+    link.rel = "stylesheet";
+    link.href = customGoogleFontUrl(font);
+    link.addEventListener("load", () => resolve(link), { once: true });
+    link.addEventListener("error", () => reject(new Error("Google Fonts stylesheet failed to load")), { once: true });
+    if (request !== customFontLoadRequest) {
+      reject(new Error("Custom font request was replaced"));
+      return;
+    }
+    document.head.append(link);
+  });
+}
+
+async function loadCustomScriptureFont() {
+  const font = customScriptureFontNames()[0] || "";
+  if (state.scriptureFont !== "custom" || !font) {
+    customFontLoadRequest += 1;
+    removeCustomFontResources();
+    setCustomFontLoadState("", "idle", "");
+    return;
+  }
+  if (customFontLoadState.family === font && ["checking", "loading", "device", "ready", "google", "error"].includes(customFontLoadState.status)) {
+    setCustomFontLoadState(font, customFontLoadState.status, customFontLoadState.message);
+    return;
+  }
+
+  const request = ++customFontLoadRequest;
+  removeCustomFontResources();
+  setCustomFontLoadState(font, "checking", `Checking for ${font} on this device…`);
+  if (genericCustomFontFamilies.has(font.toLowerCase())) {
+    setCustomFontLoadState(font, "ready", `${font} is ready.`);
+    return;
+  }
+  if (fontFaceIsLoaded(font)) {
+    setCustomFontLoadState(font, "ready", `${font} is ready.`);
+    return;
+  }
+
+  if (typeof FontFace === "function" && document.fonts?.add) {
+    try {
+      const localFace = new FontFace(font, `local(${quotedCssFontFamily(font)})`);
+      await localFace.load();
+      if (request !== customFontLoadRequest) return;
+      document.fonts.add(localFace);
+      customDeviceFontFace = localFace;
+      setCustomFontLoadState(font, "device", `Using ${font} from this device.`);
+      return;
+    } catch {
+      // Continue to the Google Fonts fallback.
+    }
+  }
+
+  if (request !== customFontLoadRequest) return;
+  setCustomFontLoadState(font, "loading", `Loading ${font} from Google Fonts…`);
+  try {
+    const link = await loadGoogleFontStylesheet(font, request);
+    if (request !== customFontLoadRequest) {
+      link.remove();
+      return;
+    }
+    if (document.fonts?.load) {
+      await document.fonts.load(`1em ${quotedCssFontFamily(font)}`);
+      if (request !== customFontLoadRequest) return;
+      if (!fontFaceIsLoaded(font)) throw new Error("Google Fonts family was not found");
+    }
+    setCustomFontLoadState(font, "google", `Loaded ${font} from Google Fonts.`);
+  } catch {
+    if (request !== customFontLoadRequest) return;
+    document.getElementById(customGoogleFontStylesheetId)?.remove();
+    setCustomFontLoadState(font, "error", `Couldn’t load ${font}. Check the Google Fonts family name or your connection.`);
+  }
 }
 
 function applyCustomScriptureFont() {
   document.querySelector(".app-shell")?.style.setProperty("--custom-scripture-font", customScriptureFontStack());
+  loadCustomScriptureFont();
 }
 
 function isFullscreenActive() {
@@ -15684,7 +15872,6 @@ function closeSettingsPopover() {
   if (!state.settingsOpen) return;
   animateBeforeRemoval(".settings-popover.open, .mobile-settings-popover", () => {
     state.settingsOpen = false;
-    state.settingsPopupPosition = null;
     renderPreservingReaderScroll();
   }, { duration: 190 });
 }
