@@ -556,6 +556,8 @@ const state = {
   streakPopoverOpen: false,
   headerVersionMenuOpen: false,
   footerVersionMenuOpen: false,
+  presentationVersionMenuOpen: "",
+  presentationReferenceMenuOpen: "",
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
@@ -1599,6 +1601,8 @@ function switchMode(nextMode) {
   state.mode = nextMode;
   state.headerVersionMenuOpen = false;
   state.footerVersionMenuOpen = false;
+  state.presentationVersionMenuOpen = "";
+  state.presentationReferenceMenuOpen = "";
   state.accountOpen = false;
   state.parallelVersionMenuIndex = null;
   state.parallelVersionMenuPosition = null;
@@ -1616,6 +1620,8 @@ function switchMode(nextMode) {
       state.presentationSearchOpen = false;
       state.presentationSearchResultsOpen = false;
       state.presentationSettingsOpen = false;
+      state.presentationVersionMenuOpen = "";
+      state.presentationReferenceMenuOpen = "";
     }
     if (["reader", "parallel"].includes(state.mode) && !targetScrollState) {
       state.pendingVerseFocus = "nearest";
@@ -3275,25 +3281,61 @@ function streakPopover(streak = normalizeReadingStreak(state.streak)) {
   `;
 }
 
-function streakCard() {
+function accountStreakDetails(streak = normalizeReadingStreak(state.streak)) {
+  const weekDays = currentWeekStreakDays(streak);
+  const encouragement = currentStreakEncouragement();
+  return `
+    <div class="account-streak-details">
+      <div class="streak-week" aria-label="Current week reading activity">
+        ${weekDays.map((day) => `
+          <span class="streak-week-day ${day.read ? "read" : ""} ${day.today ? "today" : ""}" aria-label="${day.label}: ${day.read ? "read" : "not read"}${day.today ? ", today" : ""}">
+            <span>${day.label}</span>
+            <span class="streak-week-mark" aria-hidden="true">${day.read ? "&#10003;" : ""}</span>
+          </span>
+        `).join("")}
+      </div>
+      <div class="streak-encouragement">
+        <strong>${escapeHtml(encouragement.title)}</strong>
+        <p>${escapeHtml(encouragement.body)}</p>
+        <button type="button" data-streak-reference="${escapeHtml(encouragement.ref)}">Read ${escapeHtml(encouragement.ref)}</button>
+      </div>
+    </div>
+  `;
+}
+
+function streakCard(prefix = "") {
   const streak = normalizeReadingStreak(state.streak);
   const lastVisitLabel = streak.lastVisit ? "Checked in today" : "Start today";
   const streakNote = `${lastVisitLabel}. This activity stays with the active browser profile and syncs when signed in.`;
-  return `
-    <section class="streak-card" aria-label="Reading streak. ${streakNote}" title="${escapeHtml(streakNote)}">
-      <div class="streak-card-top">
-        <div class="streak-card-head">
-          ${icons.flame}
-          <div>
-            <span class="setting-label">Daily streak</span>
-            <strong>${streak.current} ${streak.current === 1 ? "day" : "days"}</strong>
-          </div>
-        </div>
-        <div class="streak-stats">
-          <span><strong>${streak.best}</strong><small>Best</small></span>
-          <span><strong>${streak.totalDays}</strong><small>Total days</small></span>
+  const content = `
+    <div class="streak-card-top">
+      <div class="streak-card-head">
+        ${icons.flame}
+        <div>
+          <span class="setting-label">Daily streak</span>
+          <strong>${streak.current} ${streak.current === 1 ? "day" : "days"}</strong>
         </div>
       </div>
+      <div class="streak-stats">
+        <span><strong>${streak.best}</strong><small>Best</small></span>
+        <span><strong>${streak.totalDays}</strong><small>Total days</small></span>
+      </div>
+    </div>
+  `;
+  if (prefix === "quick") {
+    return `
+      <details class="streak-card streak-card-disclosure" aria-label="Reading streak. ${streakNote}">
+        <summary aria-label="Show daily streak details">
+          ${content}
+          <span class="streak-card-chevron" aria-hidden="true">${icons.chevron}</span>
+        </summary>
+        ${accountStreakDetails(streak)}
+      </details>
+    `;
+  }
+  return `
+    <section class="streak-card" aria-label="Reading streak. ${streakNote}" title="${escapeHtml(streakNote)}">
+      ${content}
     </section>
   `;
 }
@@ -4593,7 +4635,7 @@ function accountPanel(prefix = "") {
   const status = state.syncMessage || (state.authUser ? "Signed in and ready to sync." : signedOutStatus);
   if (!state.authConfigured) {
     return `
-      ${streakCard()}
+      ${streakCard(prefix)}
       <section class="account-card">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
@@ -4607,7 +4649,7 @@ function accountPanel(prefix = "") {
   if (state.authUser) {
     if (state.accountSwitching) {
       return `
-        ${streakCard()}
+        ${streakCard(prefix)}
         <section class="account-card account-switcher-card">
           <div class="account-card-head">
             <span class="setting-label">Current account</span>
@@ -4637,9 +4679,25 @@ function accountPanel(prefix = "") {
           </div>
         </form>
       `
-      : `<button class="account-secondary-action" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change Password</button>`;
+      : "";
+    const changePasswordButton = state.passwordRecoveryMode || state.passwordChangeOpen
+      ? ""
+      : prefix === "quick"
+        ? `<button class="ghost-btn compact-account-btn" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change password</button>`
+        : `<button class="account-secondary-action" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change Password</button>`;
+    const sessionActions = prefix === "quick"
+      ? `
+        <div class="account-actions account-session-actions">
+          <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out</button>
+          ${changePasswordButton}
+        </div>
+      `
+      : `
+        <button class="account-secondary-action" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out on this device</button>
+        ${changePasswordButton}
+      `;
     return `
-      ${streakCard()}
+      ${streakCard(prefix)}
       ${socialProfileCard(prefix)}
       ${socialConnectionsSection(prefix)}
       <section class="account-card account-card-signed-in">
@@ -4652,7 +4710,7 @@ function accountPanel(prefix = "") {
           <button class="ghost-btn compact-account-btn" id="${suffix}syncNowButton" type="button" ${state.authBusy ? "disabled" : ""}>Sync now</button>
           <button class="ghost-btn compact-account-btn" id="${suffix}switchAccountButton" type="button" ${state.authBusy ? "disabled" : ""}>${state.accountSwitching ? "Switching…" : "Switch account"}</button>
         </div>
-        <button class="account-secondary-action" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out on this device</button>
+        ${sessionActions}
         ${passwordTools}
         <nav class="account-legal-links" aria-label="Legal information">
           <a href="./privacy/">Privacy Policy</a>
@@ -4664,7 +4722,7 @@ function accountPanel(prefix = "") {
   }
 
   return `
-    ${streakCard()}
+    ${streakCard(prefix)}
     ${rememberedAccountsCard(prefix)}
     ${accountSignInCard(prefix)}
   `;
@@ -7660,6 +7718,8 @@ function toggleAccountMenu(forceOpen = null) {
       state.presentationSearchOpen = false;
       state.presentationSearchResultsOpen = false;
       state.presentationSettingsOpen = false;
+      state.presentationVersionMenuOpen = "";
+      state.presentationReferenceMenuOpen = "";
     }
   }
   renderPreservingReaderScroll();
@@ -7709,6 +7769,7 @@ function openStreakEncouragement(reference) {
   }
   if (state.mode === "trivia") state.mode = "reader";
   state.streakPopoverOpen = false;
+  state.accountOpen = false;
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -11015,6 +11076,49 @@ function adjacentPresentationContent(direction) {
   };
 }
 
+function presentationVersionPicker(surface, version = state.versions[0] || "BSB") {
+  const open = state.presentationVersionMenuOpen === surface;
+  const menuId = `presentation${surface === "settings" ? "Settings" : "Title"}VersionMenu`;
+  const toggleId = `presentation${surface === "settings" ? "Settings" : "Title"}VersionToggle`;
+  const options = translationCodes
+    .map((code) => `
+      <button class="primary-version-option ${translationRecommendation(code) ? "recommended" : ""} ${code === version ? "active" : ""}" type="button" data-presentation-version-option="${code}" data-presentation-version-surface="${surface}" role="option" aria-selected="${code === version ? "true" : "false"}">
+        <span>${translationDisplayCode(code)}</span>
+        ${translationOptionDetailsMarkup(code)}
+      </button>
+    `)
+    .join("");
+  return `
+    <div class="presentation-version-control presentation-${surface}-version-control ${open ? "open" : ""}">
+      <button class="presentation-version-picker-toggle" id="${toggleId}" type="button" aria-label="Bible version ${translationDisplayCode(version)}" aria-haspopup="listbox" aria-expanded="${open ? "true" : "false"}" aria-controls="${menuId}">
+        <span>${translationDisplayCode(version)}</span>
+        <span class="presentation-version-picker-chevron" aria-hidden="true">${icons.chevron}</span>
+      </button>
+      <div class="primary-version-menu presentation-version-menu" id="${menuId}" role="listbox" aria-label="Bible version options">
+        ${options}
+      </div>
+    </div>
+  `;
+}
+
+function presentationReferencePicker(type, values, selectedValue) {
+  const isChapter = type === "chapter";
+  const label = isChapter ? "chapter" : "verse";
+  const open = state.presentationReferenceMenuOpen === type;
+  const toggleId = `presentation${isChapter ? "Chapter" : "Verse"}Toggle`;
+  const menuId = `presentation${isChapter ? "Chapter" : "Verse"}Menu`;
+  return `
+    <div class="presentation-reference-picker presentation-${type}-picker ${open ? "open" : ""}">
+      <button class="presentation-reference-toggle" id="${toggleId}" type="button" aria-label="Change ${label}, currently ${escapeHtml(selectedValue)}" aria-haspopup="listbox" aria-expanded="${open ? "true" : "false"}" aria-controls="${menuId}">${escapeHtml(selectedValue)}</button>
+      <div class="presentation-reference-menu" id="${menuId}" role="listbox" aria-label="Choose ${label}">
+        ${values.map((value) => `
+          <button class="presentation-reference-option ${String(value) === String(selectedValue) ? "active" : ""}" type="button" data-presentation-${type}-option="${escapeHtml(value)}" role="option" aria-selected="${String(value) === String(selectedValue) ? "true" : "false"}">${escapeHtml(value)}</button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -11032,6 +11136,7 @@ function presentation(accountPanelRerender = false) {
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
+  const chapterKeys = currentBookChapterKeys();
   const verses = currentChapter().verses.map((item) => item.n);
   const verseIndex = verses.indexOf(state.verse);
   const canGoBack = partIndex > 0 || verseIndex > 0;
@@ -11076,7 +11181,6 @@ function presentation(accountPanelRerender = false) {
           <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
             ${versionOptions}
           </select>
-          <small class="presentation-version-note">${nirvRecommendationHelp}</small>
         </label>
         <label>
           <span>Scripture font</span>
@@ -11116,8 +11220,12 @@ function presentation(accountPanelRerender = false) {
           </form>
         </div>
         <div class="presentation-ref">
-          <a class="presentation-reference-label" id="presentationReferenceBackToBible" href="#reader" aria-label="Back to Bible at ${escapeHtml(presentationReference)}">${presentationReference}</a>
-          ${verseOfDayItem ? "" : `<span class="presentation-version-label">${translationDisplayCode(version)}</span>`}
+          <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
+            ${presentationReferencePicker("chapter", chapterKeys, state.reference)}
+            <span class="presentation-reference-colon" aria-hidden="true">:</span>
+            ${presentationReferencePicker("verse", verses, state.verse)}
+          </div>
+          ${verseOfDayItem ? "" : presentationVersionPicker("title", version)}
           ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
         </div>
         <div class="presentation-actions">
@@ -11660,8 +11768,10 @@ function bindEvents() {
     await setPrimaryVersion(event.target.value, { preserveScroll: true, keepPresentationSettings: true });
   });
   document.getElementById("streakChip")?.addEventListener("click", () => toggleStreakPopover());
-  document.querySelector("[data-streak-reference]")?.addEventListener("click", (event) => {
-    openStreakEncouragement(event.currentTarget.dataset.streakReference);
+  document.querySelectorAll("[data-streak-reference]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      openStreakEncouragement(event.currentTarget.dataset.streakReference);
+    });
   });
   document.getElementById("settingsToggle")?.addEventListener("click", () => {
     if (state.settingsOpen) return closeSettingsPopover();
@@ -12480,8 +12590,59 @@ function bindEvents() {
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
   document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("presentationNext")?.addEventListener("click", () => moveVerse(1));
+  document.getElementById("presentationTitleVersionToggle")?.addEventListener("click", () => {
+    state.presentationVersionMenuOpen = state.presentationVersionMenuOpen === "title" ? "" : "title";
+    state.presentationReferenceMenuOpen = "";
+    state.presentationControlsVisible = true;
+    render();
+  });
+  document.querySelectorAll("[data-presentation-version-option]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const version = button.dataset.presentationVersionOption;
+      state.presentationVersionMenuOpen = "";
+      await setPrimaryVersion(version);
+    });
+  });
   document.getElementById("presentationVersionSelect")?.addEventListener("change", (event) => {
     setPrimaryVersion(event.target.value);
+  });
+  ["chapter", "verse"].forEach((type) => {
+    const label = type === "chapter" ? "Chapter" : "Verse";
+    document.getElementById(`presentation${label}Toggle`)?.addEventListener("click", () => {
+      state.presentationReferenceMenuOpen = state.presentationReferenceMenuOpen === type ? "" : type;
+      state.presentationVersionMenuOpen = "";
+      state.presentationControlsVisible = true;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-presentation-chapter-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextReference = button.dataset.presentationChapterOption;
+      if (!bibleData[nextReference]) return;
+      pushCurrentReturnTargetForNavigation(nextReference, bibleData[nextReference].verses?.[0]?.n);
+      state.reference = nextReference;
+      state.verse = currentChapter().verses[0].n;
+      state.presentationPart = 0;
+      state.isVerseOfDayActive = false;
+      state.presentationVersionMenuOpen = "";
+      state.presentationReferenceMenuOpen = "";
+      recordHistory();
+      render();
+    });
+  });
+  document.querySelectorAll("[data-presentation-verse-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextVerse = Number(button.dataset.presentationVerseOption);
+      if (!currentChapter().verses.some((verse) => verse.n === nextVerse)) return;
+      pushCurrentReturnTargetForNavigation(state.reference, nextVerse);
+      state.verse = nextVerse;
+      state.presentationPart = 0;
+      state.isVerseOfDayActive = false;
+      state.presentationVersionMenuOpen = "";
+      state.presentationReferenceMenuOpen = "";
+      recordHistory();
+      render();
+    });
   });
   document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
     setPresentationTheme(event.target.value);
@@ -12495,6 +12656,8 @@ function bindEvents() {
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     if (state.presentationSettingsOpen) return closePresentationSettings();
     state.presentationSettingsOpen = true;
+    state.presentationVersionMenuOpen = "";
+    state.presentationReferenceMenuOpen = "";
     state.accountOpen = false;
     state.presentationSearchOpen = false;
     state.presentationSearchResultsOpen = false;
@@ -12513,6 +12676,8 @@ function bindEvents() {
     state.presentationSearchOpen = !state.presentationSearchOpen;
     state.presentationSearchResultsOpen = false;
     state.presentationSettingsOpen = false;
+    state.presentationVersionMenuOpen = "";
+    state.presentationReferenceMenuOpen = "";
     state.accountOpen = false;
     render();
     if (state.presentationSearchOpen) requestAnimationFrame(() => document.getElementById("presentationSearchInput")?.focus());
@@ -12606,10 +12771,6 @@ function bindEvents() {
   document.getElementById("closePresentation")?.addEventListener("click", () => {
     returnFromPresentationToBible();
   });
-  document.getElementById("presentationReferenceBackToBible")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    returnFromPresentationToBible();
-  });
   window.onkeydown = handleGlobalShortcuts;
 }
 
@@ -12623,6 +12784,8 @@ function returnFromPresentationToBible() {
   state.presentationSearchOpen = false;
   state.presentationSearchResultsOpen = false;
   state.presentationSettingsOpen = false;
+  state.presentationVersionMenuOpen = "";
+  state.presentationReferenceMenuOpen = "";
   state.accountOpen = false;
   state.presentationControlsVisible = false;
   state.pendingVerseFocus = true;
@@ -12634,6 +12797,8 @@ async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   state.presentationPart = 0;
+  state.presentationVersionMenuOpen = "";
+  state.presentationReferenceMenuOpen = "";
   if (!options.keepPresentationSettings) state.presentationSettingsOpen = false;
   persistVersions({ changed: true });
   scheduleCloudSync();
@@ -15925,6 +16090,8 @@ function closePresentationSettings() {
   if (!state.presentationSettingsOpen) return;
   animateBeforeRemoval(".presentation-settings-popover.open", () => {
     state.presentationSettingsOpen = false;
+    state.presentationVersionMenuOpen = "";
+    state.presentationReferenceMenuOpen = "";
     render();
   }, { duration: 190 });
 }
@@ -16139,7 +16306,7 @@ function revealPresentationControls(duration = 3200) {
     render();
   }
   presentationControlsTimer = setTimeout(() => {
-    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen) return;
+    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen || state.presentationVersionMenuOpen || state.presentationReferenceMenuOpen) return;
     state.presentationControlsVisible = false;
     render();
   }, duration);
@@ -16222,6 +16389,8 @@ function handlePresentationTouchStart(event) {
     || state.presentationSearchOpen
     || state.presentationSearchResultsOpen
     || state.presentationSettingsOpen
+    || state.presentationVersionMenuOpen
+    || state.presentationReferenceMenuOpen
     || state.accountOpen
     || isPresentationSwipeIgnored(event.target)
     || presentationElement?.classList.contains("presentation-swipe-commit-next")
@@ -17185,6 +17354,16 @@ function handleGlobalShortcuts(event) {
     if (state.footerVersionMenuOpen) {
       event.preventDefault();
       return closeFooterVersionMenu();
+    }
+    if (state.presentationVersionMenuOpen) {
+      event.preventDefault();
+      state.presentationVersionMenuOpen = "";
+      return render();
+    }
+    if (state.presentationReferenceMenuOpen) {
+      event.preventDefault();
+      state.presentationReferenceMenuOpen = "";
+      return render();
     }
     if (Number.isInteger(state.parallelVersionMenuIndex)) {
       event.preventDefault();
@@ -18745,6 +18924,16 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   if (!state.footerVersionMenuOpen || event.target.closest?.(".footer-version-control")) return;
   closeFooterVersionMenu();
+});
+document.addEventListener("click", (event) => {
+  if (!state.presentationVersionMenuOpen || event.target.closest?.(".presentation-version-control")) return;
+  state.presentationVersionMenuOpen = "";
+  render();
+});
+document.addEventListener("click", (event) => {
+  if (!state.presentationReferenceMenuOpen || event.target.closest?.(".presentation-reference-picker")) return;
+  state.presentationReferenceMenuOpen = "";
+  render();
 });
 document.addEventListener("click", (event) => {
   if (!Number.isInteger(state.parallelVersionMenuIndex) || event.target.closest?.(".parallel-version-selector, .parallel-version-menu")) return;

@@ -45,6 +45,14 @@ assert.match(source, /id="presentationIncreaseText"/);
 assert.match(source, /Big Screen text size controls/);
 assert.match(source, /id="presentationAccountButton"/);
 assert.match(source, /id="presentationAccountPopover"/);
+assert.match(extractFunction("presentationReferencePicker"), /isChapter \? "Chapter" : "Verse"/);
+assert.match(extractFunction("presentationReferencePicker"), /presentation-reference-toggle/);
+assert.match(source, /id="presentationVersionSelect"/);
+assert.match(source, /presentationVersionPicker\("title", version\)/);
+assert.doesNotMatch(extractFunction("presentation"), /presentation-version-note/);
+assert.match(extractFunction("bindEvents"), /data-presentation-version-option/);
+assert.match(extractFunction("bindEvents"), /data-presentation-chapter-option/);
+assert.match(extractFunction("bindEvents"), /data-presentation-verse-option/);
 assert.match(source, /presentation-bottom-settings-menu/);
 assert.match(source, /presentation-about-settings-btn/);
 assert.doesNotMatch(extractFunction("presentation"), /class="presentation-about-link"/);
@@ -78,5 +86,11 @@ assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?overflow-y: auto
 assert.match(styles, /\.presentation-bottom-settings-menu \.presentation-settings-popover \{[\s\S]*?bottom: calc\(100% \+ 10px\)/);
 assert.match(styles, /\.presentation-account-popover \{[\s\S]*?background: var\(--panel\)/);
 assert.match(styles, /\.presentation-account-toggle/);
+assert.match(styles, /\.presentation-reference-controls \{/);
+assert.match(styles, /\.presentation \.presentation-reference-toggle \{/);
+assert.match(styles, /\.presentation-reference-picker\.open \.presentation-reference-menu/);
+assert.match(styles, /\.presentation-version-control\.open \.presentation-version-menu/);
+assert.match(styles, /\.presentation \.presentation-version-menu \.primary-version-option \{[\s\S]*?border: 0/);
+assert.match(styles, /\.presentation-title-version-control \.presentation-version-picker-toggle/);
 
 console.log("Presentation display tests passed");

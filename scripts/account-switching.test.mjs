@@ -446,5 +446,14 @@ assert.match(source, /Your current account stays signed in while you choose anot
 assert.match(source, /queryParams: \{ prompt: "select_account" \}/);
 assert.match(styles, /\.remembered-account-use/);
 assert.match(styles, /min-height: 44px/);
+assert.match(extractFunction("streakCard"), /prefix === "quick"/);
+assert.match(extractFunction("streakCard"), /streak-card-disclosure/);
+assert.match(extractFunction("accountPanel"), /account-session-actions/);
+assert.match(extractFunction("accountPanel"), /ghost-btn compact-account-btn[^>]*signOutButton/);
+assert.match(extractFunction("bindEvents"), /querySelectorAll\("\[data-streak-reference\]"\)/);
+assert.match(styles, /\.account-streak-details \{/);
+assert.match(styles, /\.account-session-actions:has\(> :only-child\)/);
+assert.match(styles, /\.presentation\[data-presentation-theme\] \.presentation-account-popover button\.account-secondary-action \{/);
+assert.match(styles, /color: var\(--presentation-accent\);/);
 
 console.log("Account switching tests passed");
