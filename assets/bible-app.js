@@ -1364,6 +1364,39 @@ function accountSwitchNotification() {
   `;
 }
 
+function activeBibleVersionLoadingState(versions = activeVersions()) {
+  const loading = uniqueList(versions).filter((version) => {
+    const loadKey = isRemoteTranslation(version)
+      ? remoteVersionLoadKey(version, state.reference)
+      : version;
+    return loadingVersions.has(loadKey);
+  });
+  if (!loading.length) return null;
+  return {
+    versions: loading,
+    displayCodes: loading.map(translationDisplayCode),
+    names: loading.map((version) => translationLookup[version]?.name || translationDisplayCode(version)),
+  };
+}
+
+function bibleVersionLoadingIndicator(loadingState) {
+  if (!loadingState?.versions?.length) return "";
+  const codeLabel = loadingState.displayCodes.join(" + ");
+  const nameLabel = loadingState.names.join(" and ");
+  return `
+    <div class="bible-version-loading-indicator" role="status" aria-live="polite" aria-atomic="true" data-loading-versions="${escapeHtml(loadingState.versions.join(","))}">
+      <span class="sr-only">Loading ${escapeHtml(nameLabel)}. Please wait.</span>
+      <span class="chapter-change-halo bible-version-loading-halo" aria-hidden="true">
+        <span class="chapter-change-icon bible-version-loading-icon">${icons.book}</span>
+      </span>
+      <span class="chapter-change-label bible-version-loading-label" aria-hidden="true">
+        <strong>Loading ${escapeHtml(codeLabel)}</strong>
+        <small>Please wait</small>
+      </span>
+    </div>
+  `;
+}
+
 function showAccountSwitchNotification(user, destinationAccount = null) {
   const account = destinationAccount?.userId === user?.id
     ? destinationAccount
@@ -5312,6 +5345,10 @@ function reader(chapterChange = null) {
   if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
   const chapterKeys = currentBookChapterKeys();
+  const readerContent = state.mode === "parallel" ? parallelView() : readerView();
+  const versionLoadingState = ["reader", "parallel"].includes(state.mode)
+    ? activeBibleVersionLoadingState()
+    : null;
   return `
     <section class="reader">
       <div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
@@ -5364,11 +5401,11 @@ function reader(chapterChange = null) {
           </button>
         `}
       </div>
-      <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${readerChapterTransitionClass(chapterChange)}">
-        ${state.mode === "parallel" ? parallelView() : readerView()}
+      <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
+        ${readerContent}
       </article>
       ${readerChapterPullIndicators()}
-      ${chapterChangeIndicator(chapterChange)}
+      ${versionLoadingState ? bibleVersionLoadingIndicator(versionLoadingState) : chapterChangeIndicator(chapterChange)}
       ${state.mode === "reader" || state.mode === "parallel" ? `
         ${readerAutoScrollButton()}
         ${readerSelectionToolsButton()}
@@ -5658,11 +5695,11 @@ function getVerseText(verse, version, chapterKey = state.reference) {
     ensureRemoteBibleVersion(version, chapterKey);
     const loadKey = remoteVersionLoadKey(version, chapterKey);
     const displayVersion = translationDisplayCode(version);
-    if (loadingVersions.has(loadKey)) return `Loading ${displayVersion}...`;
+    if (loadingVersions.has(loadKey)) return "";
     if (remoteVersionErrors.has(loadKey)) return `${displayVersion} is unavailable for this passage.`;
-    return `Loading ${displayVersion}...`;
+    return "";
   }
-  if (loadingVersions.has(version)) return `Loading ${version}...`;
+  if (loadingVersions.has(version)) return "";
   return verse.KJV || verse.WEB || verse.ASV || verse.BSB || verse.BBE || "";
 }
 
@@ -10906,6 +10943,9 @@ function presentation(accountPanelRerender = false) {
   const version = state.versions[0] || "BSB";
   const verseOfDayItem = state.isVerseOfDayActive ? state.verseOfDayItem : null;
   const parts = presentationTextPartsWithOffsets(verseOfDayItem?.verseText || getVerseText(verse, version));
+  const versionLoadingState = state.mode === "big"
+    ? activeBibleVersionLoadingState([version])
+    : null;
   const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
   const part = parts[partIndex];
   const text = part.text;
@@ -10989,7 +11029,7 @@ function presentation(accountPanelRerender = false) {
     </div>
   `;
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       <div class="presentation-top">
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
@@ -11026,6 +11066,7 @@ function presentation(accountPanelRerender = false) {
           ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
         ${nextPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-next" aria-hidden="true"><span>Next</span><strong>${escapeHtml(nextPreview.reference)}</strong><p>${escapeHtml(nextPreview.text)}</p></div>` : ""}
+        ${bibleVersionLoadingIndicator(versionLoadingState)}
       </div>
       <div class="presentation-scale-feedback" id="presentationScaleFeedback" role="status" aria-live="polite"><span class="presentation-scale-feedback-mark" aria-hidden="true">Aa</span><span class="presentation-scale-feedback-label">${Math.round(state.presentationTextScale * 100)}%</span></div>
       <div class="presentation-bottom">
@@ -11454,7 +11495,7 @@ function bindEvents() {
       return showToast(`Use up to ${versionLimit()} versions on this screen`);
     }
     state.versions.push(version);
-    await loadBibleVersion(version);
+    await loadBibleVersionInline(version);
     rebuildBibleData();
     persistVersions({ changed: true });
     scheduleCloudSync();
@@ -11526,7 +11567,7 @@ function bindEvents() {
           return showToast(`Use up to ${versionLimit()} versions on this screen`);
         }
         state.versions.push(version);
-        await loadBibleVersion(version);
+        await loadBibleVersionInline(version);
         rebuildBibleData();
       }
       state.headerVersionMenuOpen = true;
@@ -12539,9 +12580,9 @@ async function setPrimaryVersion(version, options = {}) {
   if (isRemoteTranslation(version)) {
     await loadBibleVersion("BSB");
     rebuildBibleData();
-    await loadBibleVersion(version);
+    await loadBibleVersionInline(version);
   } else {
-    await loadBibleVersion(version);
+    await loadBibleVersionInline(version);
     rebuildBibleData();
   }
   if (!options.keepPresentationSettings) state.presentationSettingsOpen = false;
@@ -12559,7 +12600,7 @@ async function setParallelVersionAt(index, version) {
   persistVersions({ changed: true });
   scheduleCloudSync();
   if (isRemoteTranslation(version)) await loadBibleVersion("BSB");
-  await loadBibleVersion(version);
+  await loadBibleVersionInline(version);
   rebuildBibleData();
   renderPreservingReaderScroll();
 }
@@ -15644,6 +15685,14 @@ function closeSettingsPopover() {
   }, { duration: 190 });
 }
 
+function closeSettingsPopoverOnOutsidePointerDown(event) {
+  if (
+    !state.settingsOpen
+    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, #settingsToggle, #mobileFloatingSettings")
+  ) return;
+  closeSettingsPopover();
+}
+
 function closePresentationSettings() {
   if (!state.presentationSettingsOpen) return;
   animateBeforeRemoval(".presentation-settings-popover.open", () => {
@@ -17810,6 +17859,12 @@ async function loadBibleVersion(version) {
   }
 }
 
+function loadBibleVersionInline(version) {
+  const loadRequest = loadBibleVersion(version);
+  renderPreservingReaderScroll();
+  return loadRequest;
+}
+
 function remoteVersionLoadKey(version, chapterKey) {
   return `${version}:${chapterKey}`;
 }
@@ -18309,6 +18364,7 @@ window.visualViewport?.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
+document.addEventListener("pointerdown", closeSettingsPopoverOnOutsidePointerDown);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
   closeHeaderVersionMenu();

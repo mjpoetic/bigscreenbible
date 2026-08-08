@@ -83,6 +83,7 @@ const rememberSource = extractFunction("rememberDisclosureState");
 const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
 const persistSource = extractFunction("persistCloudSnapshotLocally");
+const outsidePointerDownSource = extractFunction("closeSettingsPopoverOnOutsidePointerDown");
 
 assert.match(displaySource, /settingsDisclosure\("display", "Display"/);
 assert.match(displaySource, /Paragraph layout when available/);
@@ -102,5 +103,41 @@ assert.match(captureSource, /settingsSectionsOpen/);
 assert.match(captureSource, /settingsSectionsOpenUpdatedAt/);
 assert.match(applySource, /settingsSectionsOpen/);
 assert.match(persistSource, /settingsSectionsOpenStorageKey/);
+
+let settingsOpen = true;
+let closeCalls = 0;
+const outsidePointerDownContext = {
+  state: {
+    get settingsOpen() {
+      return settingsOpen;
+    },
+  },
+  closeSettingsPopover() {
+    closeCalls += 1;
+  },
+};
+vm.createContext(outsidePointerDownContext);
+vm.runInContext(`${outsidePointerDownSource}; globalThis.handleOutsidePointerDown = closeSettingsPopoverOnOutsidePointerDown;`, outsidePointerDownContext);
+
+const pointerDownOn = (closestMatch) => outsidePointerDownContext.handleOutsidePointerDown({
+  target: {
+    closest: () => closestMatch,
+  },
+});
+
+pointerDownOn({ className: "settings-popover open" });
+pointerDownOn({ id: "mobileSettingsPopover" });
+pointerDownOn({ id: "settingsToggle" });
+pointerDownOn({ id: "mobileFloatingSettings" });
+assert.equal(closeCalls, 0, "Settings stays open for pointer presses inside the popup or on its toggles");
+
+pointerDownOn(null);
+assert.equal(closeCalls, 1, "An outside pointer press closes Settings");
+
+settingsOpen = false;
+pointerDownOn(null);
+assert.equal(closeCalls, 1, "Outside pointer presses do nothing when Settings is closed");
+
+assert.match(source, /document\.addEventListener\("pointerdown", closeSettingsPopoverOnOutsidePointerDown\)/);
 
 console.log("Settings disclosure tests passed");
