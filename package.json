@@ -13,6 +13,7 @@
     "test:challenges": "node scripts/game-challenges.test.mjs",
     "test:defaults": "node scripts/default-behaviors.test.mjs",
     "test:friends": "node scripts/friendships.test.mjs",
+    "test:focus-layout": "node scripts/focus-mode-layout.test.mjs",
     "test:headings": "node scripts/section-heading-groups.test.mjs",
     "test:notes": "node scripts/note-composer.test.mjs",
     "test:push": "node scripts/push-notifications.test.mjs",

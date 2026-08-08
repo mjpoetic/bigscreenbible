@@ -5149,7 +5149,7 @@ select {
 }
 
 .focus-mode .scripture {
-  max-width: min(1320px, calc(100vw - 48px));
+  max-width: none;
   padding-top: 64px;
 }
 
