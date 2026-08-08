@@ -61,6 +61,7 @@ assert.match(extractFunction("handlePresentationTouchMove"), /presentation-swipe
 assert.match(extractFunction("handlePresentationPinchMove"), /state\.presentationTextScale = clamp/);
 assert.match(extractFunction("commitPresentationSwipe"), /prefers-reduced-motion: reduce/);
 assert.match(extractFunction("commitPresentationSwipe"), /presentationEnterDirection = direction/);
+assert.match(extractFunction("handlePresentationTouchStart"), /presentation-enter-next/);
 assert.match(source, /presentation-swipe-preview-previous/);
 assert.match(source, /presentation-swipe-preview-next/);
 
@@ -70,6 +71,7 @@ assert.match(styles, /clamp\(34px, 5\.8vw, 240px\)/);
 assert.match(styles, /\.presentation-swipe-preview \{/);
 assert.match(styles, /\.presentation\.presentation-enter-next \.presentation-passage/);
 assert.match(styles, /@keyframes presentation-slide-in-next/);
+assert.doesNotMatch(styles, /presentation-slide-in-next 300ms[^;]* both/);
 assert.match(styles, /\.presentation-scale-feedback\.show/);
 assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?max-height: calc\(100dvh - 96px/);
 assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?overflow-y: auto/);

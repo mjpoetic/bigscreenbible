@@ -80,6 +80,8 @@ assert.match(source, /readerChapterPullIndicator\(1, adjacentChapterReference\(1
 assert.match(extractFunction("updateReaderChapterPullVisual"), /"Pause" : "Release"/);
 assert.match(source, /touchmove", handleReaderChapterPullMove, \{ passive: false \}/);
 assert.match(source, /touchend", handleReaderChapterPullEnd, \{ passive: false \}/);
+assert.match(source, /touchmove", handleReaderChapterSwipeMove, \{ passive: false \}/);
+assert.match(source, /touchend", handleReaderChapterSwipeEnd, \{ passive: false \}/);
 assert.match(source, /wheel", handleReaderChapterWheel, \{ passive: false \}/);
 assert.match(source, /bindReaderChapterEdgeBuffer\(scriptureTouchSurface\)/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /readerSurfaceAtPullBoundary/);
@@ -96,6 +98,9 @@ assert.match(extractFunction("updateReaderChapterPullVisual"), /Pause for \$\{ch
 assert.match(extractFunction("moveChapter"), /adjacentChapterReference\(direction\)/);
 assert.match(extractFunction("moveChapter"), /prefers-reduced-motion: reduce/);
 assert.match(extractFunction("moveChapter"), /chapter-transition-out-forward/);
+assert.match(extractFunction("moveChapter"), /reader-chapter-swipe-commit-forward/);
+assert.match(extractFunction("handleReaderChapterSwipeMove"), /updateReaderChapterSwipeVisual/);
+assert.match(extractFunction("handleReaderChapterSwipeEnd"), /fromSwipe: true/);
 assert.match(extractFunction("applyChapterMove"), /chapterNavigationEnterMs/);
 assert.match(source, /pull past the top or bottom edge and release when the chapter indicator is ready/);
 assert.match(source, /keep scrolling with a wheel or trackpad/);
@@ -110,7 +115,11 @@ assert.match(styles, /\.reader-chapter-pull-indicator\.armed/);
 assert.match(styles, /\.scripture\.reader-chapter-pulling/);
 assert.match(styles, /\.scripture\.reader-chapter-pull-settling/);
 assert.match(styles, /\.scripture\.chapter-transition-enter-forward/);
+assert.match(styles, /\.scripture\.reader-chapter-swiping/);
+assert.match(styles, /\.reader-chapter-swipe-indicator\.armed/);
+assert.match(styles, /\.scripture\.chapter-swipe-enter-forward/);
 assert.match(styles, /@keyframes reader-chapter-enter-forward/);
+assert.match(styles, /@keyframes reader-chapter-swipe-enter-forward/);
 assert.match(styles, /@keyframes reader-chapter-enter-back/);
 assert.match(styles, /conic-gradient\(/);
 
