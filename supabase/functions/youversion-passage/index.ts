@@ -1,4 +1,8 @@
-import { cleanPlainText, cleanQuotedProviderText } from "./text-cleaner.ts";
+import {
+  cleanPlainText,
+  cleanQuotedProviderText,
+  extractYouVersionChapterHtml,
+} from "./text-cleaner.ts";
 import {
   fallbackYouVersionTranslationNames,
   matchesYouVersionTranslation,
@@ -19,8 +23,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const verseFetchConcurrency = 8;
-const parserVersion = "2026-08-08-youversion-nirv";
+const parserVersion = "2026-08-08-youversion-red-letters";
 
 type AuthorizedBible = {
   code: YouVersionTranslationCode;
@@ -45,6 +48,7 @@ type PassageVerse = {
   text: string;
   paragraphStart: boolean;
   sectionHeadings?: Array<{ text: string; level: number }>;
+  wordsOfJesus?: Array<{ start: number; end: number }>;
 };
 
 let authorizedBibleCache:
@@ -225,52 +229,23 @@ function chapterReferenceFromReference(
   };
 }
 
-async function chapterVerseIds(
+async function chapterPassageHtml(
   bible: AuthorizedBible,
   chapter: ChapterReference,
   appKey: string,
 ) {
-  const payload = await youVersionRequest(
-    `/v1/bibles/${encodeURIComponent(String(bible.id))}/books/${
-      encodeURIComponent(chapter.bookId)
-    }/chapters/${encodeURIComponent(String(chapter.chapter))}`,
-    appKey,
-  );
-  const verses = Array.isArray(payload?.verses) ? payload.verses : [];
-  return verses
-    .map((verse: { id?: unknown; passage_id?: unknown; title?: unknown }) => {
-      const number = Number(verse.id || verse.title);
-      const passageId = String(
-        verse.passage_id || `${chapter.chapterId}.${number}`,
-      ).trim();
-      if (!Number.isInteger(number) || number < 1 || !passageId) return null;
-      return { number, passageId };
-    })
-    .filter(Boolean) as Array<{ number: number; passageId: string }>;
-}
-
-async function passageText(
-  bible: AuthorizedBible,
-  passageId: string,
-  appKey: string,
-  options: { format?: "html" | "text"; includeHeadings?: boolean } = {},
-) {
   const query = new URLSearchParams({
-    format: options.format || "text",
-    include_headings: options.includeHeadings ? "true" : "false",
+    format: "html",
+    include_headings: "true",
     include_notes: "false",
   });
   const payload = await youVersionRequest(
     `/v1/bibles/${encodeURIComponent(String(bible.id))}/passages/${
-      encodeURIComponent(passageId)
+      encodeURIComponent(chapter.chapterId)
     }?${query}`,
     appKey,
   );
-  return {
-    id: String(payload?.id || passageId),
-    reference: String(payload?.reference || "").trim(),
-    text: cleanPlainText(payload?.content),
-  };
+  return String(payload?.content || "");
 }
 
 function cleanSectionHeading(value: string) {
@@ -297,19 +272,6 @@ function normalizeYouVersionHeadingText(value: string) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-async function chapterSectionHeadingMap(
-  bible: AuthorizedBible,
-  chapter: ChapterReference,
-  appKey: string,
-  verses: Array<{ n: number; text: string }>,
-) {
-  const headedPassage = await passageText(bible, chapter.chapterId, appKey, {
-    format: "html",
-    includeHeadings: true,
-  });
-  return sectionHeadingMapFromChapterText(headedPassage.text, chapter, verses);
 }
 
 function sectionHeadingMapFromChapterText(
@@ -347,73 +309,30 @@ function sectionHeadingMapFromChapterText(
   return headings;
 }
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  mapper: (item: T) => Promise<R>,
-) {
-  const results: Array<PromiseSettledResult<R>> = [];
-  let nextIndex = 0;
-  const workers = Array.from(
-    { length: Math.min(limit, items.length) },
-    async () => {
-      while (nextIndex < items.length) {
-        const currentIndex = nextIndex;
-        nextIndex += 1;
-        try {
-          results[currentIndex] = {
-            status: "fulfilled",
-            value: await mapper(items[currentIndex]),
-          };
-        } catch (reason) {
-          results[currentIndex] = { status: "rejected", reason };
-        }
-      }
-    },
-  );
-  await Promise.all(workers);
-  return results;
-}
-
 async function chapterVerses(
   bible: AuthorizedBible,
   chapter: ChapterReference,
   appKey: string,
 ) {
-  const verseIds = await chapterVerseIds(bible, chapter, appKey);
-  if (!verseIds.length) {
-    throw new Error(`${bible.abbreviation} returned no verse index`);
+  const passageHtml = await chapterPassageHtml(bible, chapter, appKey);
+  const verses: PassageVerse[] = extractYouVersionChapterHtml(passageHtml)
+    .map((verse) => ({
+      ...verse,
+      paragraphStart: verse.n === 1,
+    }));
+  if (!verses.length) {
+    throw new Error(`${bible.abbreviation} returned no verse text`);
   }
-  if (verseIds.length > maximumPassageVerses) {
+  if (verses.length > maximumPassageVerses) {
     throw new Error(
       `YouVersion returned more than ${maximumPassageVerses} verses`,
     );
   }
-
-  const settled = await mapWithConcurrency(
-    verseIds,
-    verseFetchConcurrency,
-    async (verse) => {
-      const passage = await passageText(bible, verse.passageId, appKey);
-      if (!passage.text) return null;
-      return {
-        n: verse.number,
-        text: passage.text,
-        paragraphStart: verse.number === 1,
-      };
-    },
-  );
-
-  const verses: PassageVerse[] = settled.flatMap((result) =>
-    result.status === "fulfilled" && result.value ? [result.value] : []
-  );
-  verses.sort((a, b) => a.n - b.n);
-  const headingMap = await chapterSectionHeadingMap(
-    bible,
+  const headingMap = sectionHeadingMapFromChapterText(
+    passageHtml,
     chapter,
-    appKey,
     verses,
-  ).catch(() => new Map());
+  );
   verses.forEach((verse) => {
     const sectionHeadings = headingMap.get(verse.n);
     if (sectionHeadings?.length) verse.sectionHeadings = sectionHeadings;

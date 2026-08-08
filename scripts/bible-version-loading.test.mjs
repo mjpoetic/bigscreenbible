@@ -40,8 +40,11 @@ assert.match(presentationSource, /bibleVersionLoadingIndicator\(versionLoadingSt
 
 assert.match(extractFunction("setPrimaryVersion"), /loadBibleVersionInline\(version\)/);
 assert.match(extractFunction("setPrimaryVersion"), /state\.presentationSettingsOpen = false[\s\S]*loadBibleVersionInline\(version\)/);
+assert.match(extractFunction("setPrimaryVersion"), /remoteVersionErrors\.delete\(remoteVersionLoadKey\(version, state\.reference\)\)/);
 assert.match(extractFunction("setParallelVersionAt"), /loadBibleVersionInline\(version\)/);
+assert.match(extractFunction("setParallelVersionAt"), /remoteVersionErrors\.delete\(remoteVersionLoadKey\(version, state\.reference\)\)/);
 assert.match(extractFunction("loadBibleVersionInline"), /renderPreservingReaderScroll\(\)/);
+assert.match(extractFunction("ensureRemoteBibleVersion"), /remoteVersionErrors\.has\(loadKey\)/);
 
 const context = {
   state: { reference: "Revelation 1" },

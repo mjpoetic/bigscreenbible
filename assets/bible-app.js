@@ -12579,6 +12579,7 @@ async function setPrimaryVersion(version, options = {}) {
   persistVersions({ changed: true });
   scheduleCloudSync();
   if (isRemoteTranslation(version)) {
+    remoteVersionErrors.delete(remoteVersionLoadKey(version, state.reference));
     await loadBibleVersion("BSB");
     rebuildBibleData();
     await loadBibleVersionInline(version);
@@ -12599,7 +12600,10 @@ async function setParallelVersionAt(index, version) {
   state.versions[index] = version;
   persistVersions({ changed: true });
   scheduleCloudSync();
-  if (isRemoteTranslation(version)) await loadBibleVersion("BSB");
+  if (isRemoteTranslation(version)) {
+    remoteVersionErrors.delete(remoteVersionLoadKey(version, state.reference));
+    await loadBibleVersion("BSB");
+  }
   await loadBibleVersionInline(version);
   rebuildBibleData();
   renderPreservingReaderScroll();
@@ -17959,7 +17963,7 @@ function trackApiBibleView(fumsToken) {
 async function ensureRemoteBibleVersion(version, chapterKey) {
   if (!isRemoteTranslation(version)) return;
   const loadKey = remoteVersionLoadKey(version, chapterKey);
-  if (remoteVersionData.has(loadKey) || loadingVersions.has(loadKey)) return;
+  if (remoteVersionData.has(loadKey) || loadingVersions.has(loadKey) || remoteVersionErrors.has(loadKey)) return;
 
   const config = window.BigScreenBibleSupabase || {};
   const provider = translationProvider(version);

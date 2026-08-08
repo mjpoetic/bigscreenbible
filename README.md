@@ -68,7 +68,7 @@ Paragraph layout support is data-driven. ESV paragraphing comes from the ESV pas
 
 Section heading support is data-driven too. Remote translations can return headings from their provider payloads, and bundled translations can use generated heading metadata from local USFM source markers such as `s1`, `r`, `d`, and `qa`.
 
-Red-letter support is also data-driven. KJV and WEB use their source USFM/USX `wj` annotations directly. BSB, BBE, and ASV use translation-specific character ranges aligned from WEB's editorial boundaries, with explicit overrides for structurally unusual mixed-speaker verses. API.Bible translations preserve `wj` ranges when their provider text includes them. Translations without source annotations or configured aligned metadata remain normal text.
+Red-letter support is also data-driven. KJV and WEB use their source USFM/USX `wj` annotations directly. BSB, BBE, and ASV use translation-specific character ranges aligned from WEB's editorial boundaries, with explicit overrides for structurally unusual mixed-speaker verses. API.Bible translations preserve `wj` ranges when their provider text includes them, and YouVersion translations preserve `wj` spans from the provider's HTML passage format. Translations without source annotations or configured aligned metadata remain normal text.
 
 Licensed remote translations are provider-based:
 
