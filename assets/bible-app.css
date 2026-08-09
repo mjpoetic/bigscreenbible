@@ -8750,6 +8750,8 @@ select {
 }
 
 .presentation-top {
+  position: relative;
+  z-index: 70;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 12px));
@@ -9482,6 +9484,38 @@ select {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+@media (min-width: 841px) {
+  .presentation-settings-popover.open {
+    gap: 10px;
+  }
+
+  .presentation-settings-popover :is(
+    .presentation-theme-select,
+    .presentation-version-select,
+    .scripture-font-select
+  ) {
+    min-height: 36px;
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .presentation-settings-popover :is(
+    .presentation-help-btn,
+    .presentation-about-settings-btn
+  ) {
+    min-height: 36px;
+    padding-block: 6px;
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .presentation-settings-disclosure > summary {
+    min-height: 34px;
+    padding-block: 7px;
+    font-size: 10px;
+  }
 }
 
 .presentation-search {

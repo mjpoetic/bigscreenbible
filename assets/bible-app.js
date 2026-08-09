@@ -11225,9 +11225,8 @@ function presentation(accountPanelRerender = false) {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
-        <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
-        <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
-        <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & legal</span></button>
+        <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
+        <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
         ${presentationSettingsDisclosure("updates", "App update", appUpdateControls("presentation"))}
         ${presentationSettingsDisclosure("keyboard", "Keyboard", `
           <div class="presentation-help">
@@ -11575,7 +11574,7 @@ function aboutMenuOverlay() {
         <div class="about-menu-head">
           <div>
             <div class="shortcut-eyebrow">Big Screen Bible</div>
-            <h2 id="aboutMenuTitle">About &amp; legal</h2>
+            <h2 id="aboutMenuTitle">About &amp; Legal</h2>
           </div>
           <button class="icon-btn" id="closeAboutMenu" type="button" aria-label="Close About and legal information" data-tooltip="Close">×</button>
         </div>
@@ -12707,7 +12706,6 @@ function bindEvents() {
     setScriptureFont(event.target.value);
   });
   bindCustomScriptureFontInput("presentationCustomScriptureFontInput");
-  document.getElementById("presentationFullscreenButton")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     if (state.presentationSettingsOpen) return closePresentationSettings();

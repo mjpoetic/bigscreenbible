@@ -51,6 +51,12 @@ assert.match(source, /id="presentationVersionSelect"/);
 assert.match(source, /presentationVersionPicker\("title", version\)/);
 assert.match(source, /presentationSettingsDisclosure\("updates", "App update", appUpdateControls\("presentation"\)\)/);
 assert.match(source, /presentationSettingsDisclosure\("keyboard", "Keyboard"/);
+assert.match(extractFunction("presentation"), /Help & Tour/);
+assert.match(extractFunction("presentation"), /About & Legal/);
+assert.match(extractFunction("aboutMenuOverlay"), /About &amp; Legal/);
+assert.doesNotMatch(extractFunction("presentation"), /id="presentationFullscreenButton"/);
+assert.doesNotMatch(extractFunction("bindEvents"), /presentationFullscreenButton/);
+assert.match(extractFunction("bindEvents"), /presentationFullscreenQuick/);
 assert.match(extractFunction("bindEvents"), /presentationAppUpdateButton/);
 assert.doesNotMatch(extractFunction("presentation"), /presentation-version-note/);
 assert.match(extractFunction("bindEvents"), /data-presentation-version-option/);
@@ -105,6 +111,8 @@ assert.match(styles, /\.presentation \.presentation-account-popover \.primary-bt
 assert.match(styles, /button\.account-secondary-action:hover,[\s\S]*?color: var\(--presentation-accent\);/);
 assert.match(styles, /\.presentation-brand:hover,[\s\S]*?drop-shadow/);
 assert.match(styles, /\.presentation-settings-disclosure > summary/);
+assert.match(styles, /\.presentation-top \{[\s\S]*?position: relative;[\s\S]*?z-index: 70;/);
+assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.presentation-settings-popover :is\([\s\S]*?\.presentation-theme-select,[\s\S]*?min-height: 36px;[\s\S]*?font-size: 12px;/);
 assert.match(styles, /\.presentation-ref \{[\s\S]*?font-size: 20px;[\s\S]*?transform: translateY\(6px\);/);
 assert.match(styles, /\.presentation-ref\.paginated \{[\s\S]*?transform: translateY\(13px\);/);
 
