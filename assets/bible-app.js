@@ -11102,11 +11102,11 @@ function presentationVersionPicker(surface, version = state.versions[0] || "BSB"
 }
 
 function presentationReferencePicker(type, values, selectedValue) {
-  const isChapter = type === "chapter";
-  const label = isChapter ? "chapter" : "verse";
+  const label = type;
+  const labelTitle = type.charAt(0).toUpperCase() + type.slice(1);
   const open = state.presentationReferenceMenuOpen === type;
-  const toggleId = `presentation${isChapter ? "Chapter" : "Verse"}Toggle`;
-  const menuId = `presentation${isChapter ? "Chapter" : "Verse"}Menu`;
+  const toggleId = `presentation${labelTitle}Toggle`;
+  const menuId = `presentation${labelTitle}Menu`;
   return `
     <div class="presentation-reference-picker presentation-${type}-picker ${open ? "open" : ""}">
       <button class="presentation-reference-toggle" id="${toggleId}" type="button" aria-label="Change ${label}, currently ${escapeHtml(selectedValue)}" aria-haspopup="listbox" aria-expanded="${open ? "true" : "false"}" aria-controls="${menuId}">${escapeHtml(selectedValue)}</button>
@@ -11136,7 +11136,10 @@ function presentation(accountPanelRerender = false) {
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
-  const chapterKeys = currentBookChapterKeys();
+  const presentationBook = currentBookName();
+  const availableBooks = books.filter((book) => focusVersePickerChapterNumbers(book).length);
+  const chapters = focusVersePickerChapterNumbers(presentationBook);
+  const presentationChapter = Number(state.reference.slice(presentationBook.length + 1)) || chapters[0] || 1;
   const verses = currentChapter().verses.map((item) => item.n);
   const verseIndex = verses.indexOf(state.verse);
   const canGoBack = partIndex > 0 || verseIndex > 0;
@@ -11221,7 +11224,9 @@ function presentation(accountPanelRerender = false) {
         </div>
         <div class="presentation-ref">
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
-            ${presentationReferencePicker("chapter", chapterKeys, state.reference)}
+            ${presentationReferencePicker("book", availableBooks, presentationBook)}
+            <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
+            ${presentationReferencePicker("chapter", chapters, presentationChapter)}
             <span class="presentation-reference-colon" aria-hidden="true">:</span>
             ${presentationReferencePicker("verse", verses, state.verse)}
           </div>
@@ -12606,8 +12611,8 @@ function bindEvents() {
   document.getElementById("presentationVersionSelect")?.addEventListener("change", (event) => {
     setPrimaryVersion(event.target.value);
   });
-  ["chapter", "verse"].forEach((type) => {
-    const label = type === "chapter" ? "Chapter" : "Verse";
+  ["book", "chapter", "verse"].forEach((type) => {
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
     document.getElementById(`presentation${label}Toggle`)?.addEventListener("click", () => {
       state.presentationReferenceMenuOpen = state.presentationReferenceMenuOpen === type ? "" : type;
       state.presentationVersionMenuOpen = "";
@@ -12615,9 +12620,28 @@ function bindEvents() {
       render();
     });
   });
+  document.querySelectorAll("[data-presentation-book-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextBook = button.dataset.presentationBookOption;
+      const nextChapter = focusVersePickerChapterNumbers(nextBook)[0] || 1;
+      const nextReference = `${nextBook} ${nextChapter}`;
+      if (!bibleData[nextReference]) return;
+      const nextVerse = bibleData[nextReference].verses?.[0]?.n || 1;
+      pushCurrentReturnTargetForNavigation(nextReference, nextVerse);
+      state.reference = nextReference;
+      state.verse = nextVerse;
+      state.presentationPart = 0;
+      state.isVerseOfDayActive = false;
+      state.presentationVersionMenuOpen = "";
+      state.presentationReferenceMenuOpen = "";
+      recordHistory();
+      render();
+    });
+  });
   document.querySelectorAll("[data-presentation-chapter-option]").forEach((button) => {
     button.addEventListener("click", () => {
-      const nextReference = button.dataset.presentationChapterOption;
+      const nextChapter = Number(button.dataset.presentationChapterOption);
+      const nextReference = `${currentBookName()} ${nextChapter}`;
       if (!bibleData[nextReference]) return;
       pushCurrentReturnTargetForNavigation(nextReference, bibleData[nextReference].verses?.[0]?.n);
       state.reference = nextReference;

@@ -8858,6 +8858,10 @@ select {
   flex: 0 0 auto;
 }
 
+.presentation-reference-space {
+  flex: 0 0 auto;
+}
+
 .presentation-reference-menu {
   position: absolute;
   top: calc(100% + 9px);
@@ -8886,7 +8890,7 @@ select {
   animation: versionMenuIn var(--motion-base) var(--motion-ease) both;
 }
 
-.presentation-chapter-picker .presentation-reference-menu {
+.presentation-book-picker .presentation-reference-menu {
   min-width: 168px;
 }
 
@@ -8905,7 +8909,10 @@ select {
 }
 
 .presentation .presentation-reference-option:hover,
-.presentation .presentation-reference-option:focus-visible,
+.presentation .presentation-reference-option:focus-visible {
+  background: transparent;
+}
+
 .presentation .presentation-reference-option.active {
   background: rgba(255, 255, 255, 0.1);
 }
@@ -9002,19 +9009,22 @@ select {
 }
 
 .presentation .presentation-version-menu .primary-version-option:hover,
-.presentation .presentation-version-menu .primary-version-option:focus-visible,
+.presentation .presentation-version-menu .primary-version-option:focus-visible {
+  background: transparent;
+}
+
 .presentation .presentation-version-menu .primary-version-option.active {
   background: var(--soft);
 }
 
 .presentation-title-version-control .presentation-version-picker-toggle {
   justify-content: center;
-  min-height: 0;
-  padding: 0;
+  min-height: 28px;
+  padding: 3px 8px;
   border: 0;
   background: transparent;
   color: var(--presentation-muted);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.12em;
 }
 
@@ -9120,7 +9130,61 @@ select {
 
 .presentation[data-presentation-theme] .presentation-account-popover button.account-secondary-action:hover,
 .presentation[data-presentation-theme] .presentation-account-popover button.account-secondary-action:focus-visible {
-  color: color-mix(in srgb, var(--presentation-accent) 76%, white);
+  color: var(--presentation-accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--presentation-accent) 28%, transparent);
+  text-decoration: none;
+}
+
+.presentation .presentation-account-popover .primary-btn:not(:disabled):hover,
+.presentation .presentation-account-popover .primary-btn:not(:disabled):focus-visible {
+  background: var(--presentation-button-bg);
+  color: var(--ink);
+}
+
+.presentation .presentation-account-popover .streak-encouragement button:hover,
+.presentation .presentation-account-popover .streak-encouragement button:focus-visible {
+  color: var(--teal);
+  text-decoration: none;
+}
+
+.presentation .presentation-account-popover .remembered-account-use:hover,
+.presentation .presentation-account-popover .remembered-account-use:focus-visible {
+  background: transparent;
+  color: var(--ink);
+}
+
+.presentation .presentation-account-popover .remembered-account-forget:hover,
+.presentation .presentation-account-popover .remembered-account-forget:focus-visible {
+  background: transparent;
+  color: var(--muted);
+}
+
+.presentation .presentation-account-popover .friends-tabs button:not(.active):hover,
+.presentation .presentation-account-popover .friends-tabs button:not(.active):focus-visible {
+  color: var(--muted);
+}
+
+.presentation .presentation-account-popover :is(.social-avatar-choice, .social-avatar-more-toggle):not(.active):not([aria-expanded="true"]):hover,
+.presentation .presentation-account-popover :is(.social-avatar-choice, .social-avatar-more-toggle):not(.active):not([aria-expanded="true"]):focus-visible {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.presentation .presentation-account-popover .social-avatar-picker-close:hover,
+.presentation .presentation-account-popover .social-avatar-picker-close:focus-visible {
+  background: transparent;
+  color: var(--muted);
+}
+
+.presentation .presentation-account-popover :is(.streak-card-disclosure > summary, .social-profile-summary, .social-connections-summary) {
+  transition: box-shadow var(--motion-fast) ease, filter var(--motion-fast) ease;
+}
+
+.presentation .presentation-account-popover :is(.streak-card-disclosure > summary, .social-profile-summary, .social-connections-summary):hover,
+.presentation .presentation-account-popover :is(.streak-card-disclosure > summary, .social-profile-summary, .social-connections-summary):focus-visible {
+  background: transparent;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--presentation-accent) 24%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--presentation-accent) 18%, transparent));
 }
 
 .presentation .presentation-account-popover .account-friend-request-badge {
@@ -9686,6 +9750,20 @@ select {
   color: #fff;
   border: 1px solid var(--presentation-button-border);
   background: var(--presentation-button-bg);
+}
+
+.presentation button:not(:disabled) {
+  transition:
+    box-shadow var(--motion-fast) ease,
+    filter var(--motion-fast) ease,
+    text-shadow var(--motion-fast) ease;
+}
+
+.presentation button:not(:disabled):hover,
+.presentation button:not(:disabled):focus-visible {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--presentation-accent) 28%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--presentation-accent) 20%, transparent));
+  text-shadow: 0 0 7px color-mix(in srgb, var(--presentation-accent) 22%, transparent);
 }
 
 .presentation [data-tooltip]::after {
@@ -14131,8 +14209,8 @@ svg {
   }
 
   .presentation .presentation-title-version-control .presentation-version-picker-toggle {
-    min-height: 24px;
-    font-size: 11px;
+    min-height: 28px;
+    font-size: 12px;
   }
 
   .presentation-title-version-control .presentation-version-menu {
