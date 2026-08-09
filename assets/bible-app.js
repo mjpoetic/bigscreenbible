@@ -558,6 +558,10 @@ const state = {
   footerVersionMenuOpen: false,
   presentationVersionMenuOpen: "",
   presentationReferenceMenuOpen: "",
+  presentationSettingsSectionsOpen: {
+    updates: false,
+    keyboard: false,
+  },
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
@@ -2652,7 +2656,7 @@ function startupReminderSettings(prefix = "") {
   `);
 }
 
-function appUpdateSettings(prefix = "") {
+function appUpdateControls(prefix = "") {
   const buttonId = prefix ? `${prefix}AppUpdateButton` : "appUpdateButton";
   const buttonLabel = state.appUpdateBusy
     ? state.appUpdateRefreshing ? "Refreshing…" : "Checking…"
@@ -2660,7 +2664,7 @@ function appUpdateSettings(prefix = "") {
       ? "Update now"
       : state.appUpdateRefreshOffered ? "Refresh app" : "Check for updates";
   const buttonClass = state.appUpdateAvailable ? "primary-btn" : "ghost-btn";
-  return settingsDisclosure("updates", "App updates", `
+  return `
     <div class="setting-group app-update-settings ${state.appUpdateAvailable ? "update-available" : ""}">
       <div class="app-update-version-row">
         <span class="setting-label">Installed version</span>
@@ -2669,7 +2673,11 @@ function appUpdateSettings(prefix = "") {
       <button class="${buttonClass} app-update-button" id="${buttonId}" type="button" ${state.appUpdateBusy ? "disabled" : ""}>${buttonLabel}</button>
       <p class="setting-help" aria-live="polite">${escapeHtml(state.appUpdateStatus)}</p>
     </div>
-  `);
+  `;
+}
+
+function appUpdateSettings(prefix = "") {
+  return settingsDisclosure("updates", "App updates", appUpdateControls(prefix));
 }
 
 function appUpdateMetadataUrl() {
@@ -2679,7 +2687,12 @@ function appUpdateMetadataUrl() {
 }
 
 function renderAppUpdateStatus() {
-  if (!state.settingsOpen || dataLoading || dataError) return;
+  if (dataLoading || dataError) return;
+  if (state.mode === "big" && state.presentationSettingsOpen) {
+    render();
+    return;
+  }
+  if (!state.settingsOpen) return;
   renderPreservingReaderScroll({ preferLastReaderAnchor: true });
 }
 
@@ -11119,6 +11132,18 @@ function presentationReferencePicker(type, values, selectedValue) {
   `;
 }
 
+function presentationSettingsDisclosure(key, label, content) {
+  const open = Boolean(state.presentationSettingsSectionsOpen[key]);
+  return `
+    <details class="presentation-settings-disclosure" data-presentation-settings-section="${key}" ${open ? "open" : ""}>
+      <summary>${label}</summary>
+      <div class="presentation-settings-disclosure-content">
+        ${content}
+      </div>
+    </details>
+  `;
+}
+
 function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -11203,12 +11228,14 @@ function presentation(accountPanelRerender = false) {
         <button class="ghost-btn presentation-fullscreen-btn" id="presentationFullscreenButton" type="button">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & tour</span></button>
         <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & legal</span></button>
-        <div class="presentation-help">
-          <span>Keyboard</span>
-          <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
-          <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
-          <div><kbd>Esc</kbd> Back to Bible</div>
-        </div>
+        ${presentationSettingsDisclosure("updates", "App update", appUpdateControls("presentation"))}
+        ${presentationSettingsDisclosure("keyboard", "Keyboard", `
+          <div class="presentation-help">
+            <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
+            <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
+            <div><kbd>Esc</kbd> Back to Bible</div>
+          </div>
+        `)}
       </div>
     </div>
   `;
@@ -11222,7 +11249,7 @@ function presentation(accountPanelRerender = false) {
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
-        <div class="presentation-ref">
+        <div class="presentation-ref ${paginated ? "paginated" : ""}">
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
             ${presentationReferencePicker("book", availableBooks, presentationBook)}
             <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
@@ -11887,7 +11914,7 @@ function bindEvents() {
     event.preventDefault();
     submitFocusReference(event.currentTarget.value, { sourceInputId: "mobileFocusPassageInput" });
   });
-  ["appUpdateButton", "mobileAppUpdateButton"].forEach((id) => {
+  ["appUpdateButton", "mobileAppUpdateButton", "presentationAppUpdateButton"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       if (state.appUpdateAvailable || state.appUpdateRefreshOffered) applyAppUpdate();
       else checkForAppUpdate({ manual: true });
@@ -11900,6 +11927,11 @@ function bindEvents() {
   document.querySelectorAll("[data-help-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
+  });
+  document.querySelectorAll("[data-presentation-settings-section]").forEach((section) => {
+    section.addEventListener("toggle", () => {
+      state.presentationSettingsSectionsOpen[section.dataset.presentationSettingsSection] = section.open;
+    });
   });
   document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
   document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));

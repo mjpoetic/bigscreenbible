@@ -8796,11 +8796,16 @@ select {
   min-width: 0;
   min-height: 42px;
   font-weight: 800;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--presentation-accent);
+  transform: translateY(6px);
+}
+
+.presentation-ref.paginated {
+  transform: translateY(13px);
 }
 
 .presentation-reference-label,
@@ -9024,7 +9029,7 @@ select {
   border: 0;
   background: transparent;
   color: var(--presentation-muted);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.12em;
 }
 
@@ -9339,6 +9344,98 @@ select {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.presentation-settings-disclosure {
+  overflow: hidden;
+  border: 1px solid var(--presentation-button-border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--presentation-button-bg) 72%, transparent);
+}
+
+.presentation-settings-disclosure > summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+  transition: box-shadow var(--motion-fast) ease, filter var(--motion-fast) ease;
+}
+
+.presentation-settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.presentation-settings-disclosure > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--presentation-muted);
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform var(--motion-fast) ease;
+  flex: 0 0 auto;
+}
+
+.presentation-settings-disclosure[open] > summary {
+  border-bottom: 1px solid var(--presentation-button-border);
+}
+
+.presentation-settings-disclosure[open] > summary::after {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.presentation-settings-disclosure > summary:hover,
+.presentation-settings-disclosure > summary:focus-visible {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--presentation-accent) 28%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--presentation-accent) 20%, transparent));
+  outline: 0;
+}
+
+.presentation-settings-disclosure-content {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.presentation-settings-disclosure .presentation-help {
+  display: grid;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.presentation-settings-disclosure .app-update-version {
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  overflow-wrap: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.presentation-settings-disclosure .setting-help {
+  color: var(--presentation-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.presentation-settings-disclosure .app-update-button {
+  width: 100%;
+  min-height: 38px;
 }
 
 .presentation-fullscreen-btn,
@@ -9666,6 +9763,20 @@ select {
   min-width: 0;
   color: inherit;
   text-decoration: none;
+  transition: filter var(--motion-fast) ease, text-shadow var(--motion-fast) ease;
+}
+
+.presentation-brand:hover,
+.presentation-brand:focus-visible {
+  filter:
+    drop-shadow(0 0 7px color-mix(in srgb, var(--presentation-accent) 24%, transparent))
+    drop-shadow(0 0 15px color-mix(in srgb, var(--presentation-accent) 16%, transparent));
+  text-shadow: 0 0 7px color-mix(in srgb, var(--presentation-accent) 20%, transparent);
+}
+
+.presentation-brand:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--presentation-accent) 42%, transparent);
+  outline-offset: 4px;
 }
 
 .presentation-brand-mark {
@@ -14184,7 +14295,11 @@ svg {
     width: min(46vw, 360px);
     max-width: min(46vw, 360px);
     text-align: center;
-    font-size: clamp(15px, 3.25vw, 18px);
+    font-size: clamp(14px, 3vw, 17px);
+  }
+
+  .presentation-ref.paginated {
+    transform: translateY(17px);
   }
 
   .presentation-version-label {
@@ -14210,7 +14325,7 @@ svg {
 
   .presentation .presentation-title-version-control .presentation-version-picker-toggle {
     min-height: 28px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .presentation-title-version-control .presentation-version-menu {

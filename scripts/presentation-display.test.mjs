@@ -49,6 +49,9 @@ assert.match(extractFunction("presentationReferencePicker"), /type\.charAt\(0\)\
 assert.match(extractFunction("presentationReferencePicker"), /presentation-reference-toggle/);
 assert.match(source, /id="presentationVersionSelect"/);
 assert.match(source, /presentationVersionPicker\("title", version\)/);
+assert.match(source, /presentationSettingsDisclosure\("updates", "App update", appUpdateControls\("presentation"\)\)/);
+assert.match(source, /presentationSettingsDisclosure\("keyboard", "Keyboard"/);
+assert.match(extractFunction("bindEvents"), /presentationAppUpdateButton/);
 assert.doesNotMatch(extractFunction("presentation"), /presentation-version-note/);
 assert.match(extractFunction("bindEvents"), /data-presentation-version-option/);
 assert.match(extractFunction("bindEvents"), /data-presentation-book-option/);
@@ -96,9 +99,13 @@ assert.match(styles, /\.presentation-reference-picker\.open \.presentation-refer
 assert.match(styles, /\.presentation-version-control\.open \.presentation-version-menu/);
 assert.match(styles, /\.presentation \.presentation-version-menu \.primary-version-option \{[\s\S]*?border: 0/);
 assert.match(styles, /\.presentation-title-version-control \.presentation-version-picker-toggle/);
-assert.match(styles, /\.presentation-title-version-control \.presentation-version-picker-toggle \{[\s\S]*?min-height: 28px;[\s\S]*?font-size: 13px;/);
+assert.match(styles, /\.presentation-title-version-control \.presentation-version-picker-toggle \{[\s\S]*?min-height: 28px;[\s\S]*?font-size: 14px;/);
 assert.match(styles, /\.presentation button:not\(:disabled\):hover,[\s\S]*?box-shadow: 0 0 16px color-mix\(in srgb, var\(--presentation-accent\) 28%, transparent\)/);
 assert.match(styles, /\.presentation \.presentation-account-popover \.primary-btn:not\(:disabled\):hover/);
 assert.match(styles, /button\.account-secondary-action:hover,[\s\S]*?color: var\(--presentation-accent\);/);
+assert.match(styles, /\.presentation-brand:hover,[\s\S]*?drop-shadow/);
+assert.match(styles, /\.presentation-settings-disclosure > summary/);
+assert.match(styles, /\.presentation-ref \{[\s\S]*?font-size: 20px;[\s\S]*?transform: translateY\(6px\);/);
+assert.match(styles, /\.presentation-ref\.paginated \{[\s\S]*?transform: translateY\(13px\);/);
 
 console.log("Presentation display tests passed");
