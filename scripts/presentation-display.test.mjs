@@ -102,9 +102,26 @@ assert.match(styles, /\.presentation-reference-controls \{/);
 assert.match(styles, /\.presentation-reference-space \{/);
 assert.match(styles, /\.presentation \.presentation-reference-toggle \{/);
 assert.match(styles, /\.presentation-reference-picker\.open \.presentation-reference-menu/);
+assert.match(styles, /\.presentation \.presentation-reference-option \{[^}]*color: var\(--ink\) !important;/);
+assert.match(styles, /\.presentation:is\([\s\S]*?\) :is\(\.presentation-version-menu, \.presentation-reference-menu\) \{[\s\S]*?--panel: rgba\(255, 255, 255, 0\.98\);/);
 assert.match(styles, /\.presentation-version-control\.open \.presentation-version-menu/);
 assert.match(styles, /\.presentation \.presentation-version-menu \.primary-version-option \{[\s\S]*?border: 0/);
 assert.match(styles, /\.presentation-title-version-control \.presentation-version-picker-toggle/);
+assert.match(styles, /\.presentation-settings-popover \.scripture-font-select,[\s\S]*?\.presentation-settings-popover \.custom-font-input \{[^}]*color: #fff;/);
+assert.match(styles, /\.presentation-settings-disclosure > summary \{[^}]*color: #fff;/);
+assert.match(styles, /\.presentation-settings-disclosure \.app-update-version \{[^}]*color: #fff;/);
+assert.match(styles, /\.presentation-settings-popover \.presentation-text-size-reset span,[^}]*color: inherit;/);
+for (const [theme, color] of [
+  ["paper", "#201810"],
+  ["dawn", "#201810"],
+  ["meadow", "#142119"],
+  ["blush", "#261722"],
+  ["lavender", "#201a2c"],
+  ["sapphire", "#07111f"],
+]) {
+  assert.match(styles, new RegExp(`\\.presentation\\[data-presentation-theme="${theme}"\\] \\.presentation-copy,[^}]*\\.presentation-settings-popover \\.scripture-font-select,[^}]*\\{[^}]*color: ${color};`));
+}
+assert.match(styles, /\.presentation:is\([\s\S]*?\.presentation-settings-disclosure > summary,[\s\S]*?\.presentation-settings-disclosure \.app-update-version[\s\S]*?\) \{[^}]*color: var\(--presentation-muted\);/);
 assert.match(styles, /\.presentation-title-version-control \.presentation-version-picker-toggle \{[\s\S]*?min-height: 28px;[\s\S]*?font-size: 14px;/);
 assert.match(styles, /\.presentation button:not\(:disabled\):hover,[\s\S]*?box-shadow: 0 0 16px color-mix\(in srgb, var\(--presentation-accent\) 28%, transparent\)/);
 assert.match(styles, /\.presentation \.presentation-account-popover \.primary-btn:not\(:disabled\):hover/);

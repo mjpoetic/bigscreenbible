@@ -8870,6 +8870,10 @@ select {
 }
 
 .presentation-reference-menu {
+  --ink: #f8f6ef;
+  --soft: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.18);
+  --panel: rgba(13, 20, 34, 0.94);
   position: absolute;
   top: calc(100% + 9px);
   left: 50%;
@@ -8883,11 +8887,11 @@ select {
   max-height: min(360px, calc(100dvh - 120px));
   overflow: auto;
   padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(13, 20, 34, 0.94);
+  background: var(--panel);
   box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
-  color: #f8f6ef;
+  color: var(--ink);
   backdrop-filter: blur(16px);
   transform: translateX(-50%);
 }
@@ -8908,7 +8912,7 @@ select {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: inherit;
+  color: var(--ink) !important;
   font-size: 13px;
   font-weight: 800;
   text-align: left;
@@ -8921,7 +8925,7 @@ select {
 }
 
 .presentation .presentation-reference-option.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--soft);
 }
 
 .presentation-reference-label {
@@ -11872,6 +11876,7 @@ kbd {
 .presentation[data-presentation-theme="paper"] .presentation-copy,
 .presentation[data-presentation-theme="paper"] .presentation-version-select,
 .presentation[data-presentation-theme="paper"] .presentation-theme-select,
+.presentation[data-presentation-theme="paper"] .presentation-settings-popover .scripture-font-select,
 .presentation[data-presentation-theme="paper"] .custom-font-input,
 .presentation[data-presentation-theme="paper"] button,
 .presentation[data-presentation-theme="paper"] .presentation-search input {
@@ -11889,12 +11894,26 @@ kbd {
   [data-presentation-theme="blush"],
   [data-presentation-theme="lavender"],
   [data-presentation-theme="sapphire"]
-) .presentation-version-menu {
+) :is(.presentation-version-menu, .presentation-reference-menu) {
   --ink: #201a16;
   --muted: rgba(32, 26, 22, 0.68);
   --soft: rgba(32, 26, 22, 0.08);
   --line: rgba(32, 26, 22, 0.18);
   --panel: rgba(255, 255, 255, 0.98);
+}
+
+.presentation:is(
+  [data-presentation-theme="paper"],
+  [data-presentation-theme="dawn"],
+  [data-presentation-theme="meadow"],
+  [data-presentation-theme="blush"],
+  [data-presentation-theme="lavender"],
+  [data-presentation-theme="sapphire"]
+) :is(
+  .presentation-settings-disclosure > summary,
+  .presentation-settings-disclosure .app-update-version
+) {
+  color: var(--presentation-muted);
 }
 
 .presentation[data-presentation-theme="paper"] .presentation-brand-copy,
@@ -11921,6 +11940,7 @@ kbd {
 .presentation[data-presentation-theme="dawn"] .presentation-copy,
 .presentation[data-presentation-theme="dawn"] .presentation-version-select,
 .presentation[data-presentation-theme="dawn"] .presentation-theme-select,
+.presentation[data-presentation-theme="dawn"] .presentation-settings-popover .scripture-font-select,
 .presentation[data-presentation-theme="dawn"] .custom-font-input,
 .presentation[data-presentation-theme="dawn"] button,
 .presentation[data-presentation-theme="dawn"] .presentation-search input {
@@ -11957,6 +11977,7 @@ kbd {
 .presentation[data-presentation-theme="meadow"] .presentation-copy,
 .presentation[data-presentation-theme="meadow"] .presentation-version-select,
 .presentation[data-presentation-theme="meadow"] .presentation-theme-select,
+.presentation[data-presentation-theme="meadow"] .presentation-settings-popover .scripture-font-select,
 .presentation[data-presentation-theme="meadow"] .custom-font-input,
 .presentation[data-presentation-theme="meadow"] button,
 .presentation[data-presentation-theme="meadow"] .presentation-search input {
@@ -11983,6 +12004,7 @@ kbd {
 .presentation[data-presentation-theme="blush"] .presentation-copy,
 .presentation[data-presentation-theme="blush"] .presentation-version-select,
 .presentation[data-presentation-theme="blush"] .presentation-theme-select,
+.presentation[data-presentation-theme="blush"] .presentation-settings-popover .scripture-font-select,
 .presentation[data-presentation-theme="blush"] .custom-font-input,
 .presentation[data-presentation-theme="blush"] button,
 .presentation[data-presentation-theme="blush"] .presentation-search input {
@@ -12009,6 +12031,7 @@ kbd {
 .presentation[data-presentation-theme="lavender"] .presentation-copy,
 .presentation[data-presentation-theme="lavender"] .presentation-version-select,
 .presentation[data-presentation-theme="lavender"] .presentation-theme-select,
+.presentation[data-presentation-theme="lavender"] .presentation-settings-popover .scripture-font-select,
 .presentation[data-presentation-theme="lavender"] .custom-font-input,
 .presentation[data-presentation-theme="lavender"] button,
 .presentation[data-presentation-theme="lavender"] .presentation-search input {
@@ -12035,6 +12058,7 @@ kbd {
 .presentation[data-presentation-theme="sapphire"] .presentation-copy,
 .presentation[data-presentation-theme="sapphire"] .presentation-version-select,
 .presentation[data-presentation-theme="sapphire"] .presentation-theme-select,
+.presentation[data-presentation-theme="sapphire"] .presentation-settings-popover .scripture-font-select,
 .presentation[data-presentation-theme="sapphire"] .custom-font-input,
 .presentation[data-presentation-theme="sapphire"] button,
 .presentation[data-presentation-theme="sapphire"] .presentation-search input {
