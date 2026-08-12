@@ -1,4 +1,4 @@
-import { normalizePsalm119AcrosticVerses } from "../_shared/psalm119-acrostic.ts";
+import { parseEsvVerses } from "./passage-parser.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-const parserVersion = "2026-06-24-psalm119-shared-normalized";
+const parserVersion = "2026-08-12-section-heading-boundaries";
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 
@@ -24,13 +24,6 @@ function jsonResponse(
       "Cache-Control": cacheControl,
     },
   });
-}
-
-function cleanVerseText(text: string) {
-  return text
-    .replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1")
-    .trim();
 }
 
 function cleanPlainText(value: unknown) {
@@ -57,68 +50,6 @@ function esvSearchQuery(value: string, exact: boolean) {
   const phrase = searchPhraseFromQuery(value);
   if (!exact) return value;
   return phrase ? `"${phrase}"` : value;
-}
-
-function headingLevelForLine(line: string) {
-  return line.length > 52 ? 2 : 1;
-}
-
-function extractEsvHeadings(text: string) {
-  return text
-    .replace(/\u00a0/g, " ")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !/^[-=_—–\s]+$/.test(line))
-    .map((line) => ({
-      text: cleanVerseText(line),
-      level: headingLevelForLine(line),
-    }));
-}
-
-function parseEsvVerses(
-  passages: string[],
-  options: { normalizePsalm119?: boolean } = {},
-) {
-  const body = passages.join("\n").replace(/\u00a0/g, " ");
-  const verses: Array<{
-    n: number;
-    text: string;
-    paragraphStart: boolean;
-    sectionHeadings?: Array<{ text: string; level: number }>;
-  }> = [];
-  const markerPattern = /\[(\d+)\]\s*([\s\S]*?)(?=\s*\[\d+\]|$)/g;
-  let match: RegExpExecArray | null;
-  let previousEnd = 0;
-
-  while ((match = markerPattern.exec(body))) {
-    const n = Number(match[1]);
-    const text = cleanVerseText(match[2]);
-    const leadingText = body.slice(previousEnd, match.index);
-    const sectionHeadings = extractEsvHeadings(leadingText);
-    const paragraphStart = verses.length === 0 ||
-      /\n\s*\n/.test(leadingText) ||
-      /(?:^|\n)[ \t]{2,}$/.test(leadingText);
-    if (Number.isFinite(n) && text) {
-      verses.push({
-        n,
-        text,
-        paragraphStart,
-        ...(sectionHeadings.length ? { sectionHeadings } : {}),
-      });
-    }
-    previousEnd = markerPattern.lastIndex;
-  }
-
-  if (verses.length) {
-    return options.normalizePsalm119
-      ? normalizePsalm119AcrosticVerses(verses)
-      : verses;
-  }
-
-  const fallbackText = cleanVerseText(body);
-  return fallbackText
-    ? [{ n: 1, text: fallbackText, paragraphStart: true }]
-    : [];
 }
 
 Deno.serve(async (request) => {
@@ -208,7 +139,7 @@ Deno.serve(async (request) => {
   esvUrl.searchParams.set("include-headings", "true");
   esvUrl.searchParams.set("include-short-copyright", "false");
   esvUrl.searchParams.set("include-passage-horizontal-lines", "false");
-  esvUrl.searchParams.set("include-heading-horizontal-lines", "false");
+  esvUrl.searchParams.set("include-heading-horizontal-lines", "true");
   esvUrl.searchParams.set("include-selahs", "true");
   esvUrl.searchParams.set("indent-paragraphs", "2");
 
