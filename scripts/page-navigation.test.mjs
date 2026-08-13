@@ -64,15 +64,68 @@ assert.deepEqual(
   ],
 );
 
+const speedContext = {};
+vm.createContext(speedContext);
+vm.runInContext(`
+  const defaultReaderPageScrollSpeed = "smooth";
+  const readerPageScrollSpeedCodes = ["quick", "smooth", "relaxed"];
+  ${extractFunction("normalizedReaderPageScrollSpeed")}
+  globalThis.normalize = normalizedReaderPageScrollSpeed;
+`, speedContext);
+
+assert.equal(speedContext.normalize("quick"), "quick");
+assert.equal(speedContext.normalize("smooth"), "smooth");
+assert.equal(speedContext.normalize("relaxed"), "relaxed");
+assert.equal(speedContext.normalize("unexpected"), "smooth");
+
+const durationMatches = [...source.matchAll(/\{ code: "(quick|smooth|relaxed)", name: "[^"]+", durationMs: (\d+) \}/g)];
+const durations = Object.fromEntries(durationMatches.map((match) => [match[1], Number(match[2])]));
+assert.deepEqual(durations, { quick: 320, smooth: 520, relaxed: 720 });
+assert.ok(Object.values(durations).every((duration) => duration < 800));
+
+const animationContext = {};
+vm.createContext(animationContext);
+vm.runInContext(`
+  const window = {};
+  const performance = { now: () => 0 };
+  let nextFrame = null;
+  const requestAnimationFrame = (callback) => { nextFrame = callback; };
+  const target = { scrollLeft: 0, scrollTop: 0 };
+  ${extractFunction("scrollPosition")}
+  ${extractFunction("applyScrollPosition")}
+  ${extractFunction("easeOutCubic")}
+  ${extractFunction("easeInOutCubic")}
+  ${extractFunction("animateScrollPosition")}
+  animateScrollPosition(target, 0, 1000, { duration: 520, easing: easeInOutCubic });
+  nextFrame(260);
+  globalThis.midpoint = target.scrollTop;
+  nextFrame(520);
+  globalThis.finish = target.scrollTop;
+`, animationContext);
+
+assert.equal(animationContext.midpoint, 500);
+assert.equal(animationContext.finish, 1000);
+
 assert.match(source, /class="reader-page-controls" aria-label="Page navigation"/);
 assert.match(source, /id="readerTopButton"[\s\S]*?Page up; press twice for top/);
 assert.match(source, /id="readerPageDownButton"[\s\S]*?Page down; press twice for bottom/);
 assert.match(extractFunction("updateReaderTopButton"), /maxScrollTop - scrollTop > 160/);
 assert.match(extractFunction("scrollReaderPage"), /pauseReaderAutoScroll\(\)/);
-assert.match(extractFunction("scrollReaderPage"), /scripture\.scrollTo/);
-assert.match(extractFunction("scrollReaderPage"), /window\.scrollTo/);
+assert.match(extractFunction("scrollReaderPage"), /animateReaderPageScroll\(scripture, targetTop\)/);
+assert.match(extractFunction("scrollReaderPage"), /animateReaderPageScroll\(window, targetTop\)/);
+assert.match(extractFunction("animateReaderPageScroll"), /prefers-reduced-motion: reduce/);
+assert.match(extractFunction("animateReaderPageScroll"), /activeReaderPageScrollSpeed\(\)\.durationMs/);
+assert.match(extractFunction("animateReaderPageScroll"), /easing: easeInOutCubic/);
+assert.match(extractFunction("noteReaderScrollIntent"), /cancelScrollPositionAnimation/);
 assert.match(extractFunction("bindReaderTopButton"), /activateReaderPageControl\(direction\)/);
 assert.match(extractFunction("bindReaderTopButton"), /addEventListener\("dblclick"[\s\S]*?boundary: true/);
+assert.match(extractFunction("readingSettings"), /Page navigation speed/);
+assert.match(extractFunction("readingSettings"), /data-page-scroll-speed/);
+assert.match(extractFunction("setReaderPageScrollSpeed"), /lw_page_scroll_speed/);
+assert.match(extractFunction("captureCloudSnapshot"), /readerPageScrollSpeed/);
+assert.match(extractFunction("applyCloudSnapshot"), /readerPageScrollSpeed/);
+assert.match(extractFunction("persistCloudSnapshotLocally"), /lw_page_scroll_speed/);
+assert.match(extractFunction("bindEvents"), /setReaderPageScrollSpeed/);
 assert.match(styles, /\.reader-page-controls \{[\s\S]*?flex-direction: column/);
 assert.match(styles, /\.reader-page-controls \.reader-page-button \{[\s\S]*?position: relative !important/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-page-controls/);

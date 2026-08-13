@@ -228,6 +228,13 @@ const autoScrollSpeeds = [
   { code: "fast", name: "Fast", pixelsPerSecond: 48 },
 ];
 const autoScrollSpeedCodes = autoScrollSpeeds.map((speed) => speed.code);
+const defaultReaderPageScrollSpeed = "smooth";
+const readerPageScrollSpeeds = [
+  { code: "quick", name: "Quick", durationMs: 320 },
+  { code: "smooth", name: "Smooth", durationMs: 520 },
+  { code: "relaxed", name: "Relaxed", durationMs: 720 },
+];
+const readerPageScrollSpeedCodes = readerPageScrollSpeeds.map((speed) => speed.code);
 
 function normalizedScriptureFont(font) {
   const normalized = legacyScriptureFontCodes[font] || font;
@@ -240,6 +247,10 @@ function normalizedInterfaceTextSize(size) {
 
 function normalizedAutoScrollSpeed(speed) {
   return autoScrollSpeedCodes.includes(speed) ? speed : defaultAutoScrollSpeed;
+}
+
+function normalizedReaderPageScrollSpeed(speed) {
+  return readerPageScrollSpeedCodes.includes(speed) ? speed : defaultReaderPageScrollSpeed;
 }
 
 let bibleData = {};
@@ -491,6 +502,7 @@ const state = {
   autoScrollActive: false,
   autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
+  readerPageScrollSpeed: normalizedReaderPageScrollSpeed(localStorage.getItem("lw_page_scroll_speed")),
   edgeChapterNavigationEnabled: localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false",
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
@@ -1862,6 +1874,18 @@ function easeOutCubic(progress) {
   return 1 - Math.pow(1 - progress, 3);
 }
 
+function easeInOutCubic(progress) {
+  return progress < 0.5
+    ? 4 * Math.pow(progress, 3)
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
+
+function cancelScrollPositionAnimation(target) {
+  if (!target) return;
+  if (target === window) window.__bsbScrollAnimation = null;
+  else target.__bsbScrollAnimation = null;
+}
+
 function animateScrollPosition(target, left, top, options = {}) {
   const start = scrollPosition(target);
   const nextLeft = Math.max(0, Number(left) || 0);
@@ -1873,6 +1897,7 @@ function animateScrollPosition(target, left, top, options = {}) {
     return;
   }
   const duration = options.duration || 440;
+  const easing = options.easing || easeOutCubic;
   const token = Symbol("scroll-animation");
   if (target === window) {
     window.__bsbScrollAnimation = token;
@@ -1884,7 +1909,7 @@ function animateScrollPosition(target, left, top, options = {}) {
     const activeToken = target === window ? window.__bsbScrollAnimation : target.__bsbScrollAnimation;
     if (activeToken !== token) return;
     const progress = Math.min(1, (now - startedAt) / duration);
-    const eased = easeOutCubic(progress);
+    const eased = easing(progress);
     applyScrollPosition(target, start.left + (deltaLeft * eased), start.top + (deltaTop * eased));
     if (progress < 1) {
       requestAnimationFrame(step);
@@ -2556,6 +2581,7 @@ function displaySettings(prefix = "") {
 function readingSettings(prefix = "") {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedAutoScrollSpeed = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+  const selectedPageScrollSpeed = readerPageScrollSpeeds.find((speed) => speed.code === state.readerPageScrollSpeed) || readerPageScrollSpeeds[1];
   return settingsDisclosure("reading", "Reading", `
     <div class="setting-group">
       <label class="setting-checkbox">
@@ -2563,6 +2589,15 @@ function readingSettings(prefix = "") {
         <span>Pull or scroll past chapter edges</span>
       </label>
       <p class="setting-help">Changes chapters after a fresh outward pull or scroll at the top or bottom in Reader and Parallel.</p>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <span class="setting-label" id="${controlId("PageScrollSpeedLabel")}">Page navigation speed</span>
+      <div class="theme-mode-segment page-scroll-speed-segment" role="group" aria-labelledby="${controlId("PageScrollSpeedLabel")}">
+        ${readerPageScrollSpeeds.map((speed) => `
+          <button class="theme-mode-button ${speed.code === state.readerPageScrollSpeed ? "active" : ""}" type="button" data-page-scroll-speed="${speed.code}" aria-pressed="${speed.code === state.readerPageScrollSpeed ? "true" : "false"}">${speed.name}</button>
+        `).join("")}
+      </div>
+      <p class="setting-help">${selectedPageScrollSpeed.name} · ${(selectedPageScrollSpeed.durationMs / 1000).toFixed(2)} seconds. Applies to Page Up, Page Down, top, and bottom.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
       <label class="setting-checkbox">
@@ -4917,6 +4952,15 @@ function setReaderAutoScrollSpeed(speed) {
   renderPreservingReaderScroll();
 }
 
+function setReaderPageScrollSpeed(speed) {
+  const normalized = normalizedReaderPageScrollSpeed(speed);
+  if (normalized === state.readerPageScrollSpeed) return;
+  state.readerPageScrollSpeed = normalized;
+  localStorage.setItem("lw_page_scroll_speed", state.readerPageScrollSpeed);
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
 function setReaderAutoScrollEnabled(enabled) {
   const nextEnabled = Boolean(enabled);
   if (nextEnabled === state.autoScrollEnabled) return;
@@ -4969,38 +5013,39 @@ function readerPageScrollTarget(currentTop, maxScrollTop, clientHeight, directio
   return Math.max(0, Math.min(maxScrollTop, currentTop + (direction * pageDistance)));
 }
 
+function activeReaderPageScrollSpeed() {
+  return readerPageScrollSpeeds.find((speed) => speed.code === state.readerPageScrollSpeed) || readerPageScrollSpeeds[1];
+}
+
+function animateReaderPageScroll(target, targetTop) {
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reducedMotion) {
+    applyScrollPosition(target, scrollPosition(target).left, targetTop);
+    return;
+  }
+  animateScrollPosition(target, scrollPosition(target).left, targetTop, {
+    duration: activeReaderPageScrollSpeed().durationMs,
+    easing: easeInOutCubic,
+  });
+}
+
 function scrollReaderPage(direction, { boundary = false } = {}) {
   if (![-1, 1].includes(direction) || !["reader", "parallel"].includes(state.mode)) return false;
   const scripture = document.querySelector(".scripture");
   if (!scripture) return false;
   pauseReaderAutoScroll();
   noteReaderScrollIntent();
-  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
   const scriptureScrolls = scripture.scrollHeight > scripture.clientHeight + 1;
   if (scriptureScrolls) {
     const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
     const targetTop = readerPageScrollTarget(scripture.scrollTop, maxScrollTop, scripture.clientHeight, direction, boundary);
-    if (boundary) {
-      scripture.scrollTop = targetTop;
-      return true;
-    }
-    scripture.scrollTo({
-      top: targetTop,
-      behavior,
-    });
+    animateReaderPageScroll(scripture, targetTop);
     return true;
   }
   const scrollHeight = Math.max(document.scrollingElement?.scrollHeight || 0, document.documentElement?.scrollHeight || 0);
   const maxScrollTop = Math.max(0, scrollHeight - window.innerHeight);
   const targetTop = readerPageScrollTarget(window.scrollY, maxScrollTop, window.innerHeight, direction, boundary);
-  if (boundary) {
-    window.scrollTo(0, targetTop);
-    return true;
-  }
-  window.scrollTo({
-    top: targetTop,
-    behavior,
-  });
+  animateReaderPageScroll(window, targetTop);
   return true;
 }
 
@@ -5167,6 +5212,8 @@ function cancelReaderAppResumeRestore() {
 function noteReaderScrollIntent() {
   readerUserScrollIntentUntil = Date.now() + 2400;
   cancelReaderAppResumeRestore();
+  cancelScrollPositionAnimation(document.querySelector(".scripture"));
+  cancelScrollPositionAnimation(window);
 }
 
 function protectedReaderPosition() {
@@ -8509,6 +8556,7 @@ function captureCloudSnapshot() {
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
       autoScrollEnabled: state.autoScrollEnabled,
       autoScrollSpeed: state.autoScrollSpeed,
+      readerPageScrollSpeed: state.readerPageScrollSpeed,
       edgeChapterNavigationEnabled: state.edgeChapterNavigationEnabled,
       paragraphLayout: state.paragraphLayout,
       printLayout: state.printLayout,
@@ -8689,6 +8737,9 @@ function applyCloudSnapshot(snapshot) {
   state.autoScrollSpeed = normalizedAutoScrollSpeed(
     settings.autoScrollSpeed || localStorage.getItem("lw_auto_scroll_speed"),
   );
+  state.readerPageScrollSpeed = normalizedReaderPageScrollSpeed(
+    settings.readerPageScrollSpeed || localStorage.getItem("lw_page_scroll_speed"),
+  );
   state.edgeChapterNavigationEnabled = typeof settings.edgeChapterNavigationEnabled === "boolean"
     ? settings.edgeChapterNavigationEnabled
     : localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false";
@@ -8753,6 +8804,7 @@ function persistCloudSnapshotLocally(snapshot) {
   }
   localStorage.setItem("lw_auto_scroll_enabled", String(state.autoScrollEnabled));
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
+  localStorage.setItem("lw_page_scroll_speed", state.readerPageScrollSpeed);
   localStorage.setItem("lw_edge_chapter_navigation_enabled", String(state.edgeChapterNavigationEnabled));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_print_layout", state.printLayout);
@@ -12124,6 +12176,9 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-auto-scroll-speed]").forEach((button) => {
     button.addEventListener("click", () => setReaderAutoScrollSpeed(button.dataset.autoScrollSpeed));
+  });
+  document.querySelectorAll("[data-page-scroll-speed]").forEach((button) => {
+    button.addEventListener("click", () => setReaderPageScrollSpeed(button.dataset.pageScrollSpeed));
   });
   ["autoScrollEnabledToggle", "mobileAutoScrollEnabledToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
