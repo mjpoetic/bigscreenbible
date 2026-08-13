@@ -288,6 +288,7 @@ let lastReaderViewportSize = null;
 const modeScrollStates = new Map();
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
+let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
 let referenceRushTimer = 0;
@@ -364,6 +365,7 @@ const readerGestureMoveTolerancePx = 18;
 const readerTwoFingerTapMaxMs = 360;
 const readerDoubleTapMaxMs = 380;
 const readerDoubleTapDistancePx = 44;
+const readerPageControlDoubleActivationMs = 380;
 const cloudSyncTable = "bsb_user_sync";
 const socialProfileTable = "bsb_profiles";
 const friendshipTable = "bsb_friendships";
@@ -904,6 +906,7 @@ const icons = {
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
   arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 10 6-6 6 6"/><path d="M12 4v16"/></svg>',
+  arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 6 6 6-6"/><path d="M12 20V4"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.55.83l9.6-6.4a1 1 0 0 0 0-1.66l-9.6-6.4A1 1 0 0 0 8 5.6z"/></svg>',
   pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>',
 };
@@ -1504,7 +1507,8 @@ function scrollTriviaAnswerActionsIntoView() {
   const offset = answerRegionHeight <= availableHeight
     ? actionsBounds.bottom - visibleBottom
     : answerBounds.top - visibleTop;
-  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const behavior = boundary || reducedMotion ? "auto" : "smooth";
   triviaReader.scrollTo({
     top: Math.max(0, triviaReader.scrollTop + offset),
     behavior,
@@ -4780,12 +4784,12 @@ function revealMobileSettingsButton() {
   const settingsButton = document.getElementById("mobileFloatingSettings");
   const passageButton = document.getElementById("mobileFocusPassageToggle");
   const focusToolsButton = document.getElementById("mobileFocusToolsToggle");
-  const topButton = document.getElementById("readerTopButton");
-  if (!settingsButton && !passageButton && !focusToolsButton && !topButton) return;
+  const pageButtons = [...document.querySelectorAll(".reader-page-button")];
+  if (!settingsButton && !passageButton && !focusToolsButton && !pageButtons.length) return;
   settingsButton?.classList.remove("mobile-settings-idle");
   passageButton?.classList.remove("mobile-settings-idle");
   focusToolsButton?.classList.remove("mobile-settings-idle");
-  topButton?.classList.remove("reader-top-idle");
+  pageButtons.forEach((button) => button.classList.remove("reader-top-idle"));
   clearTimeout(mobileSettingsIdleTimer);
   if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
@@ -4793,10 +4797,9 @@ function revealMobileSettingsButton() {
     document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
-    const currentTopButton = document.getElementById("readerTopButton");
-    if (currentTopButton?.classList.contains("available")) {
-      currentTopButton.classList.add("reader-top-idle");
-    }
+    document.querySelectorAll(".reader-page-button.available").forEach((button) => {
+      button.classList.add("reader-top-idle");
+    });
   }, 3200);
 }
 
@@ -4939,30 +4942,79 @@ function setEdgeChapterNavigationEnabled(enabled) {
 
 function updateReaderTopButton() {
   const scripture = document.querySelector(".scripture");
-  const button = document.getElementById("readerTopButton");
-  if (!scripture || !button) return;
+  const topButton = document.getElementById("readerTopButton");
+  const downButton = document.getElementById("readerPageDownButton");
+  if (!scripture || (!topButton && !downButton)) return;
   const scriptureScrolls = scripture.scrollHeight > scripture.clientHeight + 1;
   const scrollTop = scriptureScrolls ? scripture.scrollTop : window.scrollY;
-  const isAvailable = scrollTop > 160;
-  button.classList.toggle("available", isAvailable);
-  if (!isCompactScreen() || !isAvailable) {
-    button.classList.remove("reader-top-idle");
-  }
+  const scrollHeight = scriptureScrolls
+    ? scripture.scrollHeight
+    : Math.max(document.scrollingElement?.scrollHeight || 0, document.documentElement?.scrollHeight || 0);
+  const clientHeight = scriptureScrolls ? scripture.clientHeight : window.innerHeight;
+  const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+  const availability = [
+    [topButton, scrollTop > 160],
+    [downButton, maxScrollTop - scrollTop > 160],
+  ];
+  availability.forEach(([button, isAvailable]) => {
+    if (!button) return;
+    button.classList.toggle("available", isAvailable);
+    if (!isCompactScreen() || !isAvailable) button.classList.remove("reader-top-idle");
+  });
 }
 
-function scrollReaderToTop() {
-  if (!["reader", "parallel"].includes(state.mode)) return false;
+function readerPageScrollTarget(currentTop, maxScrollTop, clientHeight, direction, boundary = false) {
+  if (boundary) return direction < 0 ? 0 : maxScrollTop;
+  const pageDistance = Math.max(1, clientHeight * 0.85);
+  return Math.max(0, Math.min(maxScrollTop, currentTop + (direction * pageDistance)));
+}
+
+function scrollReaderPage(direction, { boundary = false } = {}) {
+  if (![-1, 1].includes(direction) || !["reader", "parallel"].includes(state.mode)) return false;
   const scripture = document.querySelector(".scripture");
   if (!scripture) return false;
   pauseReaderAutoScroll();
   noteReaderScrollIntent();
   const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
-  if (scripture.scrollHeight > scripture.clientHeight + 1) {
-    scripture.scrollTo({ top: 0, behavior });
-  } else {
-    window.scrollTo({ top: 0, behavior });
+  const scriptureScrolls = scripture.scrollHeight > scripture.clientHeight + 1;
+  if (scriptureScrolls) {
+    const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
+    const targetTop = readerPageScrollTarget(scripture.scrollTop, maxScrollTop, scripture.clientHeight, direction, boundary);
+    if (boundary) {
+      scripture.scrollTop = targetTop;
+      return true;
+    }
+    scripture.scrollTo({
+      top: targetTop,
+      behavior,
+    });
+    return true;
   }
+  const scrollHeight = Math.max(document.scrollingElement?.scrollHeight || 0, document.documentElement?.scrollHeight || 0);
+  const maxScrollTop = Math.max(0, scrollHeight - window.innerHeight);
+  const targetTop = readerPageScrollTarget(window.scrollY, maxScrollTop, window.innerHeight, direction, boundary);
+  if (boundary) {
+    window.scrollTo(0, targetTop);
+    return true;
+  }
+  window.scrollTo({
+    top: targetTop,
+    behavior,
+  });
   return true;
+}
+
+function activateReaderPageControl(direction, activatedAt = Date.now()) {
+  const isDoubleActivation = readerPageControlLastActivation.direction === direction
+    && activatedAt - readerPageControlLastActivation.at <= readerPageControlDoubleActivationMs;
+  readerPageControlLastActivation = isDoubleActivation
+    ? { direction: 0, at: 0 }
+    : { direction, at: activatedAt };
+  return scrollReaderPage(direction, { boundary: isDoubleActivation });
+}
+
+function scrollReaderToTop() {
+  return scrollReaderPage(-1, { boundary: true });
 }
 
 function handleTopbarScrollTap(event) {
@@ -4985,8 +5037,9 @@ function handleTopbarScrollTap(event) {
 
 function bindReaderTopButton() {
   const scripture = document.querySelector(".scripture");
-  const button = document.getElementById("readerTopButton");
-  if (!scripture || !button) return;
+  const topButton = document.getElementById("readerTopButton");
+  const downButton = document.getElementById("readerPageDownButton");
+  if (!scripture || (!topButton && !downButton)) return;
   updateReaderTopButton();
   refreshLastReaderScrollAnchor();
   scripture.addEventListener("scroll", updateReaderTopButton, { passive: true });
@@ -4994,9 +5047,19 @@ function bindReaderTopButton() {
   scripture.addEventListener("touchstart", noteReaderScrollIntent, { passive: true });
   scripture.addEventListener("pointerdown", noteReaderScrollIntent, { passive: true });
   scripture.addEventListener("wheel", noteReaderScrollIntent, { passive: true });
-  button.addEventListener("click", () => {
-    button.classList.remove("reader-top-idle");
-    scrollReaderToTop();
+  [
+    [topButton, -1],
+    [downButton, 1],
+  ].forEach(([button, direction]) => {
+    button?.addEventListener("click", () => {
+      button.classList.remove("reader-top-idle");
+      activateReaderPageControl(direction);
+    });
+    button?.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      readerPageControlLastActivation = { direction: 0, at: 0 };
+      scrollReaderPage(direction, { boundary: true });
+    });
   });
 }
 
@@ -5495,9 +5558,14 @@ function reader(chapterChange = null) {
         ${readerAutoScrollButton()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
-        <button class="reader-top-button" id="readerTopButton" type="button" aria-label="Back to top" data-tooltip="Back to top">
-          ${icons.arrowUp}
-        </button>
+        <div class="reader-page-controls" aria-label="Page navigation" role="group">
+          <button class="reader-top-button reader-page-button" id="readerTopButton" type="button" aria-label="Page up; press twice for top" data-tooltip="Page up · twice for top">
+            ${icons.arrowUp}
+          </button>
+          <button class="reader-top-button reader-page-button reader-page-down-button" id="readerPageDownButton" type="button" aria-label="Page down; press twice for bottom" data-tooltip="Page down · twice for bottom">
+            ${icons.arrowDown}
+          </button>
+        </div>
       ` : ""}
     </section>
   `;

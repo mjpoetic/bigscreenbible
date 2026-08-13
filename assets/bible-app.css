@@ -16084,3 +16084,86 @@ svg {
     margin-right: 8px;
   }
 }
+
+/* Reader page navigation shares one fixed stack so Page Down always sits below Page Up. */
+.reader-page-controls {
+  position: fixed;
+  right: var(--reader-floating-stack-right, max(24px, env(safe-area-inset-right, 0px)));
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  left: var(--reader-floating-stack-left, auto);
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.reader-page-controls .reader-page-button {
+  position: relative !important;
+  inset: auto !important;
+  pointer-events: auto;
+}
+
+.reader-return-button {
+  bottom: calc(184px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 840px) and (orientation: portrait) {
+  .reader-page-controls {
+    right: max(7px, env(safe-area-inset-right, 0px));
+    bottom: calc(var(--mobile-portrait-footer-height) + 14px + env(safe-area-inset-bottom, 0px));
+    left: auto;
+  }
+
+  .reader-return-button {
+    bottom: calc(var(--mobile-portrait-footer-height) + 118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .reader-selection-tools-button {
+    bottom: calc(var(--mobile-portrait-footer-height) + 170px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .reader-page-controls {
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .reader-return-button {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .reader-selection-tools-button {
+    bottom: calc(170px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .reader-page-controls .reader-page-button:not(.available) {
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 840px) and (orientation: landscape) {
+  .reader-page-controls {
+    right: var(--reader-floating-stack-right, max(12px, env(safe-area-inset-right, 0px)));
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    left: var(--reader-floating-stack-left, auto);
+  }
+
+  .reader-return-button {
+    bottom: calc(176px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .reader-selection-tools-button {
+    bottom: calc(228px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .reader-page-controls {
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-shell.footer-collapsed .reader-return-button {
+    bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .reader-page-controls .reader-page-button:not(.available) {
+    pointer-events: none;
+  }
+}

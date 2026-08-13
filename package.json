@@ -17,6 +17,7 @@
     "test:focus-layout": "node scripts/focus-mode-layout.test.mjs",
     "test:headings": "node scripts/section-heading-groups.test.mjs",
     "test:notes": "node scripts/note-composer.test.mjs",
+    "test:page-navigation": "node scripts/page-navigation.test.mjs",
     "test:push": "node scripts/push-notifications.test.mjs",
     "test:presentation": "node scripts/presentation-display.test.mjs",
     "test:reader-lifecycle": "node scripts/reader-lifecycle-scroll.test.mjs",
