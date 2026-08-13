@@ -213,6 +213,7 @@ assert.match(styles, /\.topbar-search-clear \{/);
 assert.match(styles, /\.mobile-focus-inline-search-clear \{/);
 assert.match(styles, /\.inline-search-clear-control \{/);
 assert.match(styles, /#presentation \.presentation-search-results \{[\s\S]*?display: grid;/);
+assert.match(styles, /\.mobile-focus-search-results \.empty-state \{[\s\S]*?color: var\(--muted\);/);
 assert.match(styles, /#searchSection \.study-search \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/);
 assert.match(styles, /\.library #searchSection \{[\s\S]*?overflow: visible;/);
 assert.match(styles, /#searchSection \.study-search::before \{[\s\S]*?background:/);

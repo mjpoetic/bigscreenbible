@@ -3647,6 +3647,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .mobile-focus-search-results .empty-state {
   padding: 14px 10px;
+  color: var(--muted);
 }
 
 #presentation .presentation-search-results {
