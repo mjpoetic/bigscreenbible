@@ -921,6 +921,7 @@ const icons = {
   more: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></svg>',
+  controls: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h4M12 6h8M4 12h9M17 12h3M4 18h2M10 18h10"/><circle cx="10" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></svg>',
   settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.2.64.8 1.03 1.51 1.03H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>',
   arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 10 6-6 6 6"/><path d="M12 4v16"/></svg>',
   arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 6 6 6-6"/><path d="M12 20V4"/></svg>',
@@ -4899,6 +4900,7 @@ function revealMobileSettingsButton() {
   if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
     if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) return;
+    document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
     document.querySelectorAll(".reader-page-button.available").forEach((button) => {
@@ -4914,7 +4916,9 @@ function resetFocusToolSurfaces() {
 
 function bindMobileSettingsVisibility() {
   revealMobileSettingsButton();
-  document.querySelector(".scripture")?.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
+  document.querySelectorAll(".scripture, .trivia-reader, .trivia-setup-main").forEach((surface) => {
+    surface.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
+  });
 }
 
 function activeAutoScrollSpeed() {
@@ -9907,7 +9911,7 @@ function triviaView() {
                 aria-controls="gamesControlsDrawer"
                 aria-expanded="${state.gamesDrawerOpen === "controls"}"
               >
-                ${icons.settings}
+                ${icons.controls}
                 <span>Controls</span>
               </button>
             ` : ""}

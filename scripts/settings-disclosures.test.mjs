@@ -91,6 +91,7 @@ const topBelowHeaderSource = extractFunction("settingsPopoverTopBelowHeader");
 const positionSettingsSource = extractFunction("positionSettingsPopover");
 const mobileFloatingSettingsSource = extractFunction("mobileFloatingSettings");
 const revealMobileSettingsSource = extractFunction("revealMobileSettingsButton");
+const bindMobileSettingsVisibilitySource = extractFunction("bindMobileSettingsVisibility");
 
 assert.match(displaySource, /settingsDisclosure\("display", "Display"/);
 assert.match(displaySource, /Paragraph layout when available/);
@@ -154,7 +155,8 @@ assert.match(bindEventsSource, /mobileControlsToggle"\)\?\.addEventListener\("cl
 assert.doesNotMatch(source, /double-tap for Settings|handleMobileControlsToggle|mobileControlsDoubleTapWindowMs/);
 assert.match(mobileFloatingSettingsSource, /state\.settingsOpen \? ""/);
 assert.match(mobileFloatingSettingsSource, /aria-label="Open Settings"/);
-assert.doesNotMatch(revealMobileSettingsSource, /mobileFloatingSettings"\)\?\.classList\.add\("mobile-settings-idle"\)/);
+assert.match(revealMobileSettingsSource, /mobileFloatingSettings"\)\?\.classList\.add\("mobile-settings-idle"\)/);
+assert.match(bindMobileSettingsVisibilitySource, /\.scripture, \.trivia-reader, \.trivia-setup-main/);
 assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings\s*\{[^}]*display:\s*none;/);
 
 const topBelowHeaderContext = {
