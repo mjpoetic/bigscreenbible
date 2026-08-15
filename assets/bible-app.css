@@ -15174,6 +15174,11 @@ svg {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .focus-mode .scripture {
+    padding-left: max(18px, calc(env(safe-area-inset-left, 0px) + 18px));
+    padding-right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px));
+  }
+
   .main-grid::before {
     left: 0;
   }
