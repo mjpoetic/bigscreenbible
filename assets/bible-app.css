@@ -16928,7 +16928,7 @@ svg {
     color: var(--accent-ink);
   }
 
-  .book-sprint-check-dock {
+  .ordering-check-dock {
     flex: 0 0 auto;
     display: grid;
     width: 100%;
@@ -16937,9 +16937,45 @@ svg {
     padding-top: 10px;
   }
 
-  .book-sprint-check-dock #checkBookSprint {
+  .ordering-check-dock :is(#checkBookSprint, #checkVerseOrder) {
     width: 100%;
     min-height: 48px;
+  }
+
+  .verse-order-game {
+    align-content: start;
+    gap: 10px;
+  }
+
+  .verse-order-game h2 {
+    width: 100%;
+    max-width: 680px;
+    margin: 0;
+    font-size: clamp(21px, 5vw, 28px);
+    line-height: 1.12;
+  }
+
+  .verse-order-game .book-sprint-instructions {
+    max-width: 680px;
+    margin: 0;
+    font-size: clamp(12px, 3.2vw, 14px);
+    line-height: 1.35;
+  }
+
+  .verse-order-game .verse-order-board {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .verse-order-game .verse-order-answer {
+    min-height: 60px;
+    padding: 9px;
+  }
+
+  .verse-order-game .verse-fragment {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: clamp(13px, 3.4vw, 16px);
   }
 
   .book-sprint-game {
@@ -17079,6 +17115,37 @@ svg {
 }
 
 @media (max-width: 840px) and (orientation: portrait) {
+  .verse-order-game {
+    justify-items: center;
+  }
+
+  .verse-order-game h2,
+  .verse-order-game .book-sprint-instructions {
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .verse-order-game :is(.verse-order-answer, .verse-fragment-bank) {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .verse-order-game .verse-fragment {
+    width: 100%;
+    text-align: center;
+  }
+
+  .verse-order-game .verse-fragment-bank:is([data-fragment-count="5"], [data-fragment-count="6"], [data-fragment-count="7"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .verse-order-game .verse-fragment-bank:is([data-fragment-count="5"], [data-fragment-count="7"]) > :last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc(50% - 4px);
+  }
+
   .games-options-drawer,
   .games-controls-drawer,
   .games-hints-drawer {
@@ -17130,7 +17197,7 @@ svg {
 }
 
 @media (orientation: landscape) and (max-width: 1366px) and (max-height: 720px) {
-  .book-sprint-check-dock {
+  .ordering-check-dock {
     align-self: flex-end;
     width: min(280px, 100%);
   }

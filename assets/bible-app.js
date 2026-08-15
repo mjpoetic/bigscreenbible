@@ -9744,11 +9744,11 @@ function mountMobileGameControls() {
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
   if (bookSprintSound) destination.append(bookSprintSound);
-  const bookSprintCheckOrder = game.querySelector("#checkBookSprint");
-  if (bookSprintCheckOrder) {
+  const orderingCheck = game.querySelector("#checkBookSprint, #checkVerseOrder");
+  if (orderingCheck) {
     const checkDock = document.createElement("div");
-    checkDock.className = "book-sprint-check-dock";
-    checkDock.append(bookSprintCheckOrder);
+    checkDock.className = "ordering-check-dock";
+    checkDock.append(orderingCheck);
     game.after(checkDock);
   }
   game.querySelectorAll(":scope > .trivia-actions").forEach((controls) => {
@@ -10206,7 +10206,7 @@ function verseOrderGameView(game) {
             return `<button class="verse-fragment selected-fragment book-sprint-draggable" data-order-selected="${escapeHtml(id)}" data-order-drag="${escapeHtml(id)}" data-order-position="${index}" aria-label="Fragment ${index + 1}: ${escapeHtml(segment?.text || "")}. Tap to remove or drag to reorder." ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(segment?.text || "")}</button>`;
           }).join("") : `<span class="verse-order-placeholder">Build the verse here.</span>`}
         </div>
-        <div class="verse-fragment-bank book-sprint-bank" data-order-bank-drop aria-label="Shuffled verse fragments">
+        <div class="verse-fragment-bank book-sprint-bank" data-fragment-count="${puzzle.segments.length}" data-order-bank-drop aria-label="Shuffled verse fragments">
           ${puzzle.shuffledIds.map((id) => {
             const segment = puzzle.segments.find((item) => item.id === id);
             const isSelected = selectedSet.has(id);
