@@ -16284,9 +16284,17 @@ svg {
 
 .games-header-action,
 .trivia-mobile-options,
+.trivia-mode-scroll,
 .games-drawer-backdrop,
 .games-drawer-header {
   display: none;
+}
+
+.trivia-mode-picker,
+.reference-rush-stage,
+.reference-rush-stage-main,
+.reference-rush-stage-side {
+  display: contents;
 }
 
 .games-drawer-shell,
@@ -16307,6 +16315,10 @@ svg {
   display: none;
 }
 
+.games-answer-overlay {
+  display: none;
+}
+
 @keyframes gamesDrawerInRight {
   from { opacity: 0; transform: translateX(28px); }
   to { opacity: 1; transform: translateX(0); }
@@ -16318,7 +16330,7 @@ svg {
 }
 
 @media (max-width: 840px),
-  (orientation: landscape) and (max-width: 1024px) and (max-height: 560px) {
+  (orientation: landscape) and (max-width: 1366px) and (max-height: 720px) {
   .app-shell.trivia-shell .mobile-floating-settings {
     display: none;
   }
@@ -16348,9 +16360,13 @@ svg {
   }
 
   .trivia-reader.is-playing .trivia-panel {
+    display: flex;
+    flex-direction: column;
     width: 100%;
+    height: 100%;
     min-height: 100%;
     margin: 0;
+    overflow: hidden;
     border-width: 0;
     border-radius: 0;
     box-shadow: none;
@@ -16444,6 +16460,26 @@ svg {
     overflow: hidden;
   }
 
+  .trivia-reader.is-playing {
+    overflow: hidden;
+  }
+
+  .trivia-reader.is-playing .trivia-game,
+  .trivia-reader.is-playing .trivia-results {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .trivia-mode-picker {
+    position: relative;
+    display: block;
+    min-width: 0;
+  }
+
   .trivia-mode-tabs {
     display: grid;
     grid-template-columns: none;
@@ -16458,6 +16494,62 @@ svg {
     padding: 1px 1px 3px;
     scrollbar-width: none;
     scroll-snap-type: x proximity;
+  }
+
+  .trivia-mode-scroll {
+    position: absolute;
+    top: 4px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid color-mix(in srgb, var(--teal) 58%, var(--line));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    color: var(--teal);
+    padding: 0;
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 18%, transparent);
+    backdrop-filter: blur(8px);
+  }
+
+  .trivia-mode-scroll[hidden] {
+    display: none;
+  }
+
+  .trivia-mode-scroll-previous {
+    left: 4px;
+  }
+
+  .trivia-mode-scroll-next {
+    right: 4px;
+  }
+
+  .trivia-mode-scroll svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .trivia-mode-picker.can-scroll-previous::before,
+  .trivia-mode-picker.can-scroll-next::after {
+    position: absolute;
+    top: 1px;
+    bottom: 3px;
+    z-index: 3;
+    width: 64px;
+    content: "";
+    pointer-events: none;
+  }
+
+  .trivia-mode-picker.can-scroll-previous::before {
+    left: 0;
+    background: linear-gradient(90deg, var(--panel) 22%, transparent);
+  }
+
+  .trivia-mode-picker.can-scroll-next::after {
+    right: 0;
+    background: linear-gradient(270deg, var(--panel) 22%, transparent);
   }
 
   .trivia-mode-tabs::-webkit-scrollbar {
@@ -16709,10 +16801,100 @@ svg {
     width: 100%;
     min-width: 0;
   }
+
+  .games-active-controls {
+    align-content: start;
+  }
+
+  .games-active-controls .reference-rush-hints,
+  .games-active-controls .trivia-actions {
+    display: grid;
+    justify-items: stretch;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .games-active-controls :is(button, .primary-btn, .ghost-btn) {
+    justify-content: center;
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .games-active-controls .trivia-live-lock {
+    margin: 0;
+    text-align: center;
+  }
+
+  .games-answer-overlay:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 175;
+    display: grid;
+    place-items: center;
+    padding: max(18px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(18px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  }
+
+  .games-answer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--ink) 52%, transparent);
+    backdrop-filter: blur(2px);
+  }
+
+  .games-answer-dialog {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 10px;
+    width: min(520px, 100%);
+    max-height: min(78dvh, 620px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid color-mix(in srgb, var(--teal) 42%, var(--line));
+    border-radius: 16px;
+    background: var(--panel);
+    box-shadow: 0 22px 70px color-mix(in srgb, var(--ink) 38%, transparent);
+    padding: clamp(18px, 4vw, 28px);
+    animation: gamesDrawerInBottom var(--motion-drawer) var(--motion-ease) both;
+  }
+
+  .games-answer-eyebrow {
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .games-answer-dialog-body {
+    display: grid;
+    gap: 14px;
+  }
+
+  .games-answer-dialog-body .trivia-feedback {
+    border-radius: 10px;
+  }
+
+  .games-answer-dialog-body .trivia-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .games-answer-dialog-body .trivia-actions :is(button, .primary-btn, .ghost-btn) {
+    justify-content: center;
+    min-height: 46px;
+  }
+
+  .games-answer-dialog-body #nextTriviaQuestion {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
 }
 
 @media (max-width: 840px) and (orientation: portrait) {
-  .games-options-drawer {
+  .games-options-drawer,
+  .games-controls-drawer {
     top: auto;
     left: 0;
     width: 100%;
@@ -16726,7 +16908,7 @@ svg {
   }
 }
 
-@media (orientation: landscape) and (max-width: 1024px) and (max-height: 560px) {
+@media (orientation: landscape) and (max-width: 1366px) and (max-height: 720px) {
   .trivia-reader.is-setup .trivia-panel,
   .trivia-reader.is-playing .trivia-panel {
     padding: 10px max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px));
@@ -16752,7 +16934,7 @@ svg {
     padding-top: 8px;
   }
 
-  .trivia-mode-tabs {
+  .trivia-mode-picker {
     grid-column: 1 / -1;
   }
 
@@ -16773,6 +16955,92 @@ svg {
   .trivia-setup .trivia-setup-copy {
     font-size: 14px;
     line-height: 1.4;
+  }
+
+  .trivia-reader.is-playing .trivia-game {
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  .trivia-reader.is-playing .trivia-progress {
+    min-height: 28px;
+  }
+
+  .reference-rush-game,
+  .who-said-it-game {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .reference-rush-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .reference-rush-stage-main,
+  .reference-rush-stage-side {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .reference-rush-stage-main {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .who-said-it-game .reference-rush-stage-main {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .reference-rush-stage .reference-rush-prompt {
+    align-content: start;
+    min-height: 0;
+    padding: 16px 18px;
+  }
+
+  .reference-rush-stage .reference-rush-prompt p {
+    font-size: clamp(20px, 3.1vw, 34px);
+    line-height: 1.2;
+  }
+
+  .reference-rush-stage .trivia-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .reference-rush-stage .trivia-choice {
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: clamp(14px, 1.7vw, 18px);
+  }
+
+  .reference-rush-timer-meter {
+    width: min(210px, 100%);
+    padding: 10px 14px;
+  }
+
+  .reference-rush-timer-meter strong {
+    font-size: 28px;
+  }
+
+  .bible-trivia-game {
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .bible-trivia-game .trivia-progress {
+    grid-column: 1 / -1;
+  }
+
+  .bible-trivia-game h2 {
+    margin: 0;
+    font-size: clamp(20px, 2.5vw, 30px);
   }
 }
 
