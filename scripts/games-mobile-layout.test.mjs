@@ -50,6 +50,8 @@ assert.match(extractFunction("scrollTriviaModes"), /tabs\.scrollBy/);
 assert.match(source, /data-trivia-mode-scroll="1"[\s\S]*?aria-label="Show more games"/);
 assert.match(source, /class="reference-rush-stage"/);
 assert.match(source, /class="trivia-results-summary"/);
+assert.match(source, /class="book-sprint-sound-icon"[\s\S]*?icons\.timer/);
+assert.match(source, /class="book-sprint-sound-copy"[\s\S]*?Audible countdown/);
 assert.match(extractFunction("startTriviaGame"), /state\.gamesDrawerOpen = ""/);
 assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\.gamesDrawerOpen = ""/);
 
@@ -72,7 +74,9 @@ assert.match(styles, /\.reference-rush-stage \{[\s\S]*?grid-template-columns: mi
 assert.match(styles, /\.reference-rush-timer-meter \{[\s\S]*?grid-column: 2;[\s\S]*?grid-row: 1;/);
 assert.match(styles, /\.trivia-reader\.is-playing \.trivia-results \{[\s\S]*?align-content: start;/);
 assert.match(styles, /\.book-sprint-game \.book-sprint-meter \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto;/);
+assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?grid-template-columns: 40px minmax\(0, 1fr\) auto;/);
+assert.match(styles, /\.games-active-controls \.book-sprint-sound-icon \{[\s\S]*?background: var\(--teal\);/);
+assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle\[aria-pressed="true"\] \.book-sprint-sound-state/);
 assert.match(styles, /\.games-controls-drawer \{[\s\S]*?width: min\(300px, 76vw\);/);
 assert.match(styles, /\.trivia-reader\.is-playing \.trivia-results-summary \{[\s\S]*?display: grid;/);
 assert.match(styles, /--games-overlay-tint: rgba\(0, 0, 0, 0\.58\);/);

@@ -6182,6 +6182,15 @@ select {
   border-color: var(--teal);
 }
 
+.book-sprint-sound-icon,
+.book-sprint-sound-copy small {
+  display: none;
+}
+
+.book-sprint-sound-copy {
+  display: contents;
+}
+
 .book-sprint-meter strong {
   font-size: clamp(24px, 3vw, 40px);
   line-height: 1;
@@ -16850,9 +16859,66 @@ svg {
   }
 
   .games-active-controls .book-sprint-sound-toggle {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
+    gap: 11px;
+    min-width: 0;
+    min-height: 62px;
+    padding: 10px 12px;
+    border-color: color-mix(in srgb, var(--teal) 38%, var(--line));
+    background: color-mix(in srgb, var(--teal) 8%, var(--paper));
+    box-shadow: inset 3px 0 var(--teal);
     text-align: left;
+  }
+
+  .games-active-controls .book-sprint-sound-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--teal);
+    color: var(--accent-ink);
+  }
+
+  .games-active-controls .book-sprint-sound-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .games-active-controls .book-sprint-sound-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .games-active-controls .book-sprint-sound-copy > span {
+    font-weight: 850;
+  }
+
+  .games-active-controls .book-sprint-sound-copy small {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .games-active-controls .book-sprint-sound-state {
+    min-width: 46px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel);
+    padding: 6px 10px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .games-active-controls .book-sprint-sound-toggle[aria-pressed="true"] .book-sprint-sound-state {
+    border-color: var(--teal);
+    background: var(--teal);
+    color: var(--accent-ink);
   }
 
   .book-sprint-game {

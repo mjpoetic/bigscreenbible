@@ -88,6 +88,8 @@ const closeSettingsSource = extractFunction("closeSettingsPopover");
 const bindEventsSource = extractFunction("bindEvents");
 const topBelowHeaderSource = extractFunction("settingsPopoverTopBelowHeader");
 const positionSettingsSource = extractFunction("positionSettingsPopover");
+const mobileControlsTapSource = extractFunction("handleMobileControlsToggle");
+const openSettingsFromMobileControlsSource = extractFunction("openSettingsFromMobileControls");
 
 assert.match(displaySource, /settingsDisclosure\("display", "Display"/);
 assert.match(displaySource, /Paragraph layout when available/);
@@ -147,6 +149,70 @@ assert.doesNotMatch(closeSettingsSource, /settingsPopupPosition/, "Closing Setti
 assert.doesNotMatch(bindEventsSource, /state\.settingsPopupPosition\s*=\s*null/, "Opening or replacing Settings preserves a user-moved position");
 assert.match(positionSettingsSource, /settingsPopoverTopBelowHeader\(\)/);
 assert.match(positionSettingsSource, /topOverride: top/);
+assert.match(bindEventsSource, /mobileControlsToggle"\)\?\.addEventListener\("click", handleMobileControlsToggle\)/);
+assert.match(source, /double-tap for Settings/);
+
+const mobileControlsTapContext = {
+  toggleCalls: 0,
+  openSettingsCalls: 0,
+};
+vm.createContext(mobileControlsTapContext);
+vm.runInContext(`
+  let lastMobileControlsTapAt = 0;
+  const mobileControlsDoubleTapWindowMs = 350;
+  function toggleMobileControls() { globalThis.toggleCalls += 1; }
+  function openSettingsFromMobileControls() { globalThis.openSettingsCalls += 1; }
+  ${mobileControlsTapSource}
+  globalThis.handleMobileControlsTap = handleMobileControlsToggle;
+`, mobileControlsTapContext);
+
+mobileControlsTapContext.handleMobileControlsTap({ timeStamp: 1000 });
+assert.equal(mobileControlsTapContext.toggleCalls, 1, "A single More tap keeps its original toggle action");
+assert.equal(mobileControlsTapContext.openSettingsCalls, 0);
+mobileControlsTapContext.handleMobileControlsTap({ timeStamp: 1200 });
+assert.equal(mobileControlsTapContext.toggleCalls, 1, "The second tap does not toggle More again");
+assert.equal(mobileControlsTapContext.openSettingsCalls, 1, "Two quick taps open Settings");
+mobileControlsTapContext.handleMobileControlsTap({ timeStamp: 1600 });
+assert.equal(mobileControlsTapContext.toggleCalls, 2, "A later tap starts a new single-tap sequence");
+
+const directSettingsContext = {
+  state: {
+    focusReferenceOpen: true,
+    focusSearchResultsOpen: true,
+    focusToolsOpen: true,
+    focusWorkspacePanel: "History",
+    settingsOpen: false,
+    settingsAnchor: "floating",
+    accountOpen: true,
+  },
+  renderCalls: 0,
+  positionAnchor: "",
+  resetFocusToolSurfaces() {
+    directSettingsContext.state.focusToolsOpen = false;
+    directSettingsContext.state.focusWorkspacePanel = "";
+  },
+  renderPreservingReaderScroll() {
+    directSettingsContext.renderCalls += 1;
+  },
+  requestAnimationFrame(callback) {
+    callback();
+  },
+  positionSettingsPopover(anchor) {
+    directSettingsContext.positionAnchor = anchor;
+  },
+};
+vm.createContext(directSettingsContext);
+vm.runInContext(`${openSettingsFromMobileControlsSource}; globalThis.openDirectSettings = openSettingsFromMobileControls;`, directSettingsContext);
+directSettingsContext.openDirectSettings();
+assert.equal(directSettingsContext.state.settingsOpen, true);
+assert.equal(directSettingsContext.state.settingsAnchor, "header");
+assert.equal(directSettingsContext.state.accountOpen, false);
+assert.equal(directSettingsContext.state.focusReferenceOpen, false);
+assert.equal(directSettingsContext.state.focusSearchResultsOpen, false);
+assert.equal(directSettingsContext.state.focusToolsOpen, false);
+assert.equal(directSettingsContext.state.focusWorkspacePanel, "");
+assert.equal(directSettingsContext.renderCalls, 1);
+assert.equal(directSettingsContext.positionAnchor, "header");
 
 const topBelowHeaderContext = {
   fixedPopoverViewport: () => ({ offsetTop: 0, width: 390, height: 844 }),
