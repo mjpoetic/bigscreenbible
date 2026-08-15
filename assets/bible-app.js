@@ -300,8 +300,6 @@ let lastReaderViewportSize = null;
 const modeScrollStates = new Map();
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
-let lastMobileControlsTapAt = 0;
-const mobileControlsDoubleTapWindowMs = 350;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
@@ -2243,9 +2241,11 @@ function mobileFloatingSettings() {
   return `
     ${focusTools}
     ${focusReferenceSwitcher}
-    <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" aria-label="Settings" data-tooltip="Settings">
-      ${icons.settings}
-    </button>
+    ${state.settingsOpen ? "" : `
+      <button class="mobile-floating-settings" id="mobileFloatingSettings" type="button" aria-label="Open Settings" aria-haspopup="dialog" data-tooltip="Settings">
+        ${icons.settings}
+      </button>
+    `}
     ${mobileFocusSearchResults()}
     ${mobileFocusWorkspacePanel()}
   `;
@@ -3234,7 +3234,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
         ${desktopFocusTools()}
       </div>
-      <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}; double-tap for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}; double-tap for Settings">${icons.plus}<span>More</span></button>
+      <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
       ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
@@ -4899,7 +4899,6 @@ function revealMobileSettingsButton() {
   if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
     if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) return;
-    document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
     document.querySelectorAll(".reader-page-button.available").forEach((button) => {
@@ -12796,7 +12795,7 @@ function bindEvents() {
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("verseNavCollapseToggle")?.addEventListener("click", toggleVerseNavCollapsed);
   document.getElementById("footerCollapseToggle")?.addEventListener("click", toggleFooterCollapsed);
-  document.getElementById("mobileControlsToggle")?.addEventListener("click", handleMobileControlsToggle);
+  document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", () => openVerseOfDay());
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
@@ -16596,31 +16595,6 @@ function toggleMobileControls() {
   }
   state.mobileControlsOpen = true;
   renderWithMobileTopbarResize();
-}
-
-function handleMobileControlsToggle(event) {
-  const tapAt = Number(event?.timeStamp) || Date.now();
-  const elapsed = tapAt - lastMobileControlsTapAt;
-  const isDoubleTap = lastMobileControlsTapAt > 0
-    && elapsed >= 0
-    && elapsed <= mobileControlsDoubleTapWindowMs;
-  lastMobileControlsTapAt = isDoubleTap ? 0 : tapAt;
-  if (isDoubleTap) {
-    openSettingsFromMobileControls();
-    return;
-  }
-  toggleMobileControls();
-}
-
-function openSettingsFromMobileControls() {
-  state.focusReferenceOpen = false;
-  state.focusSearchResultsOpen = false;
-  resetFocusToolSurfaces();
-  state.settingsOpen = true;
-  state.settingsAnchor = "header";
-  state.accountOpen = false;
-  renderPreservingReaderScroll();
-  requestAnimationFrame(() => positionSettingsPopover("header"));
 }
 
 function renderWithMobileTopbarResize() {

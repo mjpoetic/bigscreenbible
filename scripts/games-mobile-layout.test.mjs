@@ -59,7 +59,7 @@ assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\
 
 assert.match(styles, /\.games-drawer-shell,[\s\S]*?\.games-drawer-scroll \{[\s\S]*?display: contents;/);
 assert.match(styles, /\.trivia-reader\.is-setup \{[\s\S]*?overflow: hidden;/);
-assert.match(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[\s\S]*?display: none;/);
+assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[\s\S]*?display: none;/);
 assert.match(styles, /\.app-shell\.trivia-shell \.footer-collapse-toggle \{[\s\S]*?left: 0;[\s\S]*?right: 0;/);
 assert.match(styles, /\.trivia-setup \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.trivia-mode-tabs \{[\s\S]*?grid-auto-flow: column;[\s\S]*?overflow-x: auto;/);
