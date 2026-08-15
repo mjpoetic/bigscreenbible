@@ -9740,6 +9740,13 @@ function mountMobileGameControls() {
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
   if (bookSprintSound) destination.append(bookSprintSound);
+  const bookSprintCheckOrder = game.querySelector("#checkBookSprint");
+  if (bookSprintCheckOrder) {
+    const checkDock = document.createElement("div");
+    checkDock.className = "book-sprint-check-dock";
+    checkDock.append(bookSprintCheckOrder);
+    game.after(checkDock);
+  }
   game.querySelectorAll(":scope > .trivia-actions").forEach((controls) => {
     destination.append(controls);
   });

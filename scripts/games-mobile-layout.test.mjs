@@ -44,6 +44,9 @@ assert.match(extractFunction("mountMobileGameControls"), /gamesHintDrawerBody/);
 assert.match(extractFunction("mountMobileGameControls"), /hintDestination\.append\(hints\)/);
 assert.match(extractFunction("mountMobileGameControls"), /book-sprint-sound-toggle/);
 assert.match(extractFunction("mountMobileGameControls"), /destination\.append\(bookSprintSound\)/);
+assert.match(extractFunction("mountMobileGameControls"), /bookSprintCheckOrder/);
+assert.match(extractFunction("mountMobileGameControls"), /checkDock\.append\(bookSprintCheckOrder\)/);
+assert.match(extractFunction("mountMobileGameControls"), /game\.after\(checkDock\)/);
 assert.match(extractFunction("mountMobileGameControls"), /querySelectorAll\(":scope > \.trivia-actions"\)/);
 assert.match(extractFunction("mountMobileGameControls"), /\.trivia-feedback:not\(\.book-sprint-retry\)/);
 assert.match(extractFunction("openGamesHints"), /hintMenuOpen = true/);
@@ -59,7 +62,8 @@ assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\
 
 assert.match(styles, /\.games-drawer-shell,[\s\S]*?\.games-drawer-scroll \{[\s\S]*?display: contents;/);
 assert.match(styles, /\.trivia-reader\.is-setup \{[\s\S]*?overflow: hidden;/);
-assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[\s\S]*?display: none;/);
+assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[^}]*display: none;/);
+assert.match(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[^}]*mobile-portrait-footer-height, 77px\) \+ 76px/);
 assert.match(styles, /\.app-shell\.trivia-shell \.footer-collapse-toggle \{[\s\S]*?left: 0;[\s\S]*?right: 0;/);
 assert.match(styles, /\.trivia-setup \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.trivia-mode-tabs \{[\s\S]*?grid-auto-flow: column;[\s\S]*?overflow-x: auto;/);
@@ -78,8 +82,11 @@ assert.match(styles, /\.reference-rush-timer-meter \{[\s\S]*?grid-column: 2;[\s\
 assert.match(styles, /\.trivia-reader\.is-playing \.trivia-results \{[\s\S]*?align-content: start;/);
 assert.match(styles, /\.book-sprint-game \.book-sprint-meter \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
 assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?grid-template-columns: 40px minmax\(0, 1fr\) auto;/);
+assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?width: min\(260px, 100%\);/);
 assert.match(styles, /\.games-active-controls \.book-sprint-sound-icon \{[\s\S]*?background: var\(--teal\);/);
 assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle\[aria-pressed="true"\] \.book-sprint-sound-state/);
+assert.match(styles, /\.book-sprint-check-dock \{[\s\S]*?flex: 0 0 auto;[\s\S]*?width: 100%;/);
+assert.match(styles, /\.book-sprint-check-dock #checkBookSprint \{[\s\S]*?min-height: 48px;/);
 assert.match(styles, /\.games-controls-drawer \{[\s\S]*?width: min\(300px, 76vw\);/);
 assert.match(styles, /\.trivia-reader\.is-playing \.trivia-results-summary \{[\s\S]*?display: grid;/);
 assert.match(styles, /--games-overlay-tint: rgba\(0, 0, 0, 0\.58\);/);

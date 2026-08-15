@@ -155,7 +155,7 @@ assert.doesNotMatch(source, /double-tap for Settings|handleMobileControlsToggle|
 assert.match(mobileFloatingSettingsSource, /state\.settingsOpen \? ""/);
 assert.match(mobileFloatingSettingsSource, /aria-label="Open Settings"/);
 assert.doesNotMatch(revealMobileSettingsSource, /mobileFloatingSettings"\)\?\.classList\.add\("mobile-settings-idle"\)/);
-assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings\s*\{\s*display:\s*none;/);
+assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings\s*\{[^}]*display:\s*none;/);
 
 const topBelowHeaderContext = {
   fixedPopoverViewport: () => ({ offsetTop: 0, width: 390, height: 844 }),
