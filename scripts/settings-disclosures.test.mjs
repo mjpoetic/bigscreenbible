@@ -89,9 +89,16 @@ const closeSettingsSource = extractFunction("closeSettingsPopover");
 const bindEventsSource = extractFunction("bindEvents");
 const topBelowHeaderSource = extractFunction("settingsPopoverTopBelowHeader");
 const positionSettingsSource = extractFunction("positionSettingsPopover");
-const mobileFloatingSettingsSource = extractFunction("mobileFloatingSettings");
+const mobileFocusOverlayControlsSource = extractFunction("mobileFocusOverlayControls");
 const revealMobileSettingsSource = extractFunction("revealMobileSettingsButton");
 const bindMobileSettingsVisibilitySource = extractFunction("bindMobileSettingsVisibility");
+const handleMobileControlsClickSource = extractFunction("handleMobileControlsClick");
+const beginMobileControlsHoldSource = extractFunction("beginMobileControlsHold");
+const updateMobileControlsHoldSource = extractFunction("updateMobileControlsHold");
+const endMobileControlsHoldSource = extractFunction("endMobileControlsHold");
+const cancelMobileControlsHoldSource = extractFunction("cancelMobileControlsHold");
+const suppressMobileControlsContextMenuSource = extractFunction("suppressMobileControlsContextMenu");
+const openSettingsFromMobileControlsSource = extractFunction("openSettingsFromMobileControls");
 
 assert.match(displaySource, /settingsDisclosure\("display", "Display"/);
 assert.match(displaySource, /Paragraph layout when available/);
@@ -136,7 +143,6 @@ const pointerDownOn = (closestMatch) => outsidePointerDownContext.handleOutsideP
 pointerDownOn({ className: "settings-popover open" });
 pointerDownOn({ id: "mobileSettingsPopover" });
 pointerDownOn({ id: "settingsToggle" });
-pointerDownOn({ id: "mobileFloatingSettings" });
 assert.equal(closeCalls, 0, "Settings stays open for pointer presses inside the popup or on its toggles");
 
 pointerDownOn(null);
@@ -151,13 +157,132 @@ assert.doesNotMatch(closeSettingsSource, /settingsPopupPosition/, "Closing Setti
 assert.doesNotMatch(bindEventsSource, /state\.settingsPopupPosition\s*=\s*null/, "Opening or replacing Settings preserves a user-moved position");
 assert.match(positionSettingsSource, /settingsPopoverTopBelowHeader\(\)/);
 assert.match(positionSettingsSource, /topOverride: top/);
-assert.match(bindEventsSource, /mobileControlsToggle"\)\?\.addEventListener\("click", toggleMobileControls\)/);
+assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("click", handleMobileControlsClick\)/);
+assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointerdown", beginMobileControlsHold\)/);
+assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointermove", updateMobileControlsHold\)/);
+assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointerup", endMobileControlsHold\)/);
+assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("contextmenu", suppressMobileControlsContextMenu\)/);
 assert.doesNotMatch(source, /double-tap for Settings|handleMobileControlsToggle|mobileControlsDoubleTapWindowMs/);
-assert.match(mobileFloatingSettingsSource, /state\.settingsOpen \? ""/);
-assert.match(mobileFloatingSettingsSource, /aria-label="Open Settings"/);
-assert.match(revealMobileSettingsSource, /mobileFloatingSettings"\)\?\.classList\.add\("mobile-settings-idle"\)/);
+assert.doesNotMatch(mobileFocusOverlayControlsSource, /Open Settings|mobileFloatingSettings/);
+assert.doesNotMatch(source, /mobileFloatingSettings|mobile-floating-settings/);
+assert.doesNotMatch(revealMobileSettingsSource, /mobileFloatingSettings|mobile-floating-settings/);
 assert.match(bindMobileSettingsVisibilitySource, /\.scripture, \.trivia-reader, \.trivia-setup-main/);
-assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings\s*\{[^}]*display:\s*none;/);
+assert.match(styles, /\.mobile-controls-toggle\.settings-hold-pending::before/);
+assert.match(styles, /animation:\s*mobileSettingsHoldProgress 500ms linear forwards/);
+assert.match(styles, /touch-action:\s*manipulation/);
+
+let scheduledHold = null;
+let now = 1000;
+let toggles = 0;
+let renders = 0;
+let positioned = 0;
+const holdContext = {
+  state: {
+    focusReferenceOpen: true,
+    focusSearchResultsOpen: true,
+    focusToolsOpen: true,
+    focusWorkspacePanel: "History",
+    settingsOpen: false,
+    settingsAnchor: "",
+    accountOpen: true,
+  },
+  Date: { now: () => now },
+  setTimeout(callback, delay) {
+    scheduledHold = { callback, delay };
+    return 7;
+  },
+  clearTimeout() {
+    scheduledHold = null;
+  },
+  toggleMobileControls() {
+    toggles += 1;
+  },
+  resetFocusToolSurfaces() {
+    holdContext.state.focusToolsOpen = false;
+    holdContext.state.focusWorkspacePanel = "";
+  },
+  renderPreservingReaderScroll() {
+    renders += 1;
+  },
+  requestAnimationFrame(callback) {
+    callback();
+  },
+  positionSettingsPopover(anchor) {
+    assert.equal(anchor, "header");
+    positioned += 1;
+  },
+};
+vm.createContext(holdContext);
+vm.runInContext(`
+  let mobileControlsHoldTimer = 0;
+  let mobileControlsHoldGesture = null;
+  let suppressMobileControlsClickUntil = 0;
+  const mobileControlsHoldMs = 500;
+  const mobileControlsHoldMoveTolerancePx = 12;
+  ${handleMobileControlsClickSource}
+  ${beginMobileControlsHoldSource}
+  ${updateMobileControlsHoldSource}
+  ${endMobileControlsHoldSource}
+  ${cancelMobileControlsHoldSource}
+  ${suppressMobileControlsContextMenuSource}
+  ${openSettingsFromMobileControlsSource}
+  globalThis.handleClick = handleMobileControlsClick;
+  globalThis.beginHold = beginMobileControlsHold;
+  globalThis.moveHold = updateMobileControlsHold;
+  globalThis.endHold = endMobileControlsHold;
+  globalThis.suppressContextMenu = suppressMobileControlsContextMenu;
+`, holdContext);
+
+const pendingClasses = new Set();
+const holdButton = {
+  classList: {
+    add: (name) => pendingClasses.add(name),
+    remove: (name) => pendingClasses.delete(name),
+  },
+};
+const pointerEvent = (overrides = {}) => ({
+  currentTarget: holdButton,
+  isPrimary: true,
+  pointerType: "touch",
+  pointerId: 4,
+  clientX: 40,
+  clientY: 20,
+  ...overrides,
+});
+
+holdContext.beginHold(pointerEvent());
+assert.equal(scheduledHold.delay, 500, "Settings requires a deliberate half-second hold");
+assert.equal(pendingClasses.has("settings-hold-pending"), true, "Hold feedback appears while the timer is pending");
+holdContext.moveHold(pointerEvent({ clientX: 53 }));
+assert.equal(scheduledHold, null, "Moving beyond the gesture tolerance cancels the hold");
+assert.equal(pendingClasses.has("settings-hold-pending"), false, "Canceled holds remove their feedback");
+
+holdContext.beginHold(pointerEvent());
+scheduledHold.callback();
+assert.equal(holdContext.state.settingsOpen, true, "A completed hold opens Settings");
+assert.equal(holdContext.state.settingsAnchor, "header");
+assert.equal(holdContext.state.accountOpen, false);
+assert.equal(renders, 1);
+assert.equal(positioned, 1);
+
+let prevented = 0;
+const clickEvent = {
+  preventDefault: () => { prevented += 1; },
+  stopPropagation: () => {},
+};
+holdContext.handleClick(clickEvent);
+assert.equal(prevented, 1, "The click generated by a completed hold is suppressed");
+assert.equal(toggles, 0, "A completed hold does not also toggle More");
+now = 2000;
+holdContext.handleClick(clickEvent);
+assert.equal(toggles, 1, "An ordinary click keeps the original More behavior");
+
+holdContext.beginHold(pointerEvent());
+holdContext.endHold(pointerEvent());
+assert.equal(scheduledHold, null, "Releasing before the threshold cancels the hold timer");
+let contextMenuPrevented = false;
+holdContext.suppressContextMenu({ preventDefault: () => { contextMenuPrevented = true; } });
+assert.equal(contextMenuPrevented, true, "The button suppresses the native long-press context menu");
 
 const topBelowHeaderContext = {
   fixedPopoverViewport: () => ({ offsetTop: 0, width: 390, height: 844 }),

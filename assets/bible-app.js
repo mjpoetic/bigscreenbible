@@ -300,6 +300,11 @@ let lastReaderViewportSize = null;
 const modeScrollStates = new Map();
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
+let mobileControlsHoldTimer = 0;
+let mobileControlsHoldGesture = null;
+let suppressMobileControlsClickUntil = 0;
+const mobileControlsHoldMs = 500;
+const mobileControlsHoldMoveTolerancePx = 12;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
@@ -959,12 +964,12 @@ const tutorialSteps = [
     body: "Use the chapter and verse controls for precise navigation. At a chapter edge, keep scrolling with a wheel or trackpad—or pull on a touchscreen—to reveal the previous or next chapter.",
   },
   {
-    target: "#mobileControlsToggle, #mobileFloatingSettings, .scripture",
-    spotlightTarget: "#mobileControlsToggle, #mobileFloatingSettings",
+    target: "#mobileControlsToggle, .scripture",
+    spotlightTarget: "#mobileControlsToggle",
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "On phones and tablets, swipe to change chapters, or pull past the top or bottom edge and release when the chapter indicator is ready. Pinch resizes Scripture. When auto-scroll is enabled in Settings, two-finger tap starts or pauses it. Double-tap blank reading space toggles Focus Mode, and tapping empty header space returns to the top.",
+    body: "On phones and tablets, tap More for extra controls or press and hold it to open Settings. Swipe to change chapters, pinch to resize Scripture, and double-tap blank reading space to toggle Focus Mode.",
   },
   {
     target: ".rail, #openStudy",
@@ -979,7 +984,7 @@ const tutorialSteps = [
     body: "Tap a verse to copy, share, print, link, or highlight a passage without losing your place.",
   },
   {
-    target: "#settingsToggle, #mobileFloatingSettings, #presentationSettingsToggle",
+    target: "#settingsToggle, #mobileControlsToggle, #presentationSettingsToggle",
     spotlightPadding: 5,
     title: "Tune the experience",
     body: "Settings handle themes, fonts, text size, startup behavior, fullscreen, landscape toolbar side, and your private reading streak.",
@@ -1286,7 +1291,7 @@ function render() {
       </section>
       ${gameChallengePopup()}
       ${bottombar()}
-      ${mobileFloatingSettings()}
+      ${mobileFocusOverlayControls()}
       ${mobileSettingsPanel(settingsPanelRerender)}
       ${presentation(accountPanelRerender)}
       ${shortcutOverlay()}
@@ -2193,7 +2198,7 @@ function loadingScreen() {
   `;
 }
 
-function mobileFloatingSettings() {
+function mobileFocusOverlayControls() {
   if (state.mode === "big") return "";
   const focusTools = state.focusMode
     ? mobileFocusTools()
@@ -2242,11 +2247,6 @@ function mobileFloatingSettings() {
   return `
     ${focusTools}
     ${focusReferenceSwitcher}
-    ${state.settingsOpen ? "" : `
-      <button class="mobile-floating-settings" id="mobileFloatingSettings" type="button" aria-label="Open Settings" aria-haspopup="dialog" data-tooltip="Settings">
-        ${icons.settings}
-      </button>
-    `}
     ${mobileFocusSearchResults()}
     ${mobileFocusWorkspacePanel()}
   `;
@@ -3235,7 +3235,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
         ${desktopFocusTools()}
       </div>
-      <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"}">${icons.plus}<span>More</span></button>
+      <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
       ${versionControls}
       <nav class="mode-tabs" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
@@ -4887,12 +4887,10 @@ function scheduleStreakPopupDismiss() {
 }
 
 function revealMobileSettingsButton() {
-  const settingsButton = document.getElementById("mobileFloatingSettings");
   const passageButton = document.getElementById("mobileFocusPassageToggle");
   const focusToolsButton = document.getElementById("mobileFocusToolsToggle");
   const pageButtons = [...document.querySelectorAll(".reader-page-button")];
-  if (!settingsButton && !passageButton && !focusToolsButton && !pageButtons.length) return;
-  settingsButton?.classList.remove("mobile-settings-idle");
+  if (!passageButton && !focusToolsButton && !pageButtons.length) return;
   passageButton?.classList.remove("mobile-settings-idle");
   focusToolsButton?.classList.remove("mobile-settings-idle");
   pageButtons.forEach((button) => button.classList.remove("reader-top-idle"));
@@ -4900,7 +4898,6 @@ function revealMobileSettingsButton() {
   if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
     if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) return;
-    document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
     document.querySelectorAll(".reader-page-button.available").forEach((button) => {
@@ -8015,15 +8012,12 @@ function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
   const headerPopover = document.querySelector(".settings-popover.open");
   const popover = compact && mobilePopover ? mobilePopover : headerPopover || mobilePopover;
   const headerButton = document.getElementById("settingsToggle");
-  const floatingButton = document.getElementById("mobileFloatingSettings");
   const isMobilePopover = popover?.classList.contains("mobile-settings-popover");
   let button = null;
   if (isMobilePopover) {
-    if (anchorPreference === "floating" && isElementVisible(floatingButton)) button = floatingButton;
-    else if (anchorPreference === "header" && isElementVisible(headerButton)) button = headerButton;
-    else button = isElementVisible(floatingButton) ? floatingButton : headerButton;
+    button = isElementVisible(headerButton) ? headerButton : null;
   } else {
-    button = isElementVisible(headerButton) ? headerButton : floatingButton;
+    button = isElementVisible(headerButton) ? headerButton : null;
   }
   if (!popover) {
     document.documentElement.style.removeProperty("--settings-popover-top");
@@ -12364,17 +12358,6 @@ function bindEvents() {
   document.getElementById("accountQuickButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("presentationAccountButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
-  document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
-    if (state.settingsOpen) return closeSettingsPopover();
-    state.focusReferenceOpen = false;
-    state.focusSearchResultsOpen = false;
-    resetFocusToolSurfaces();
-    state.settingsOpen = !state.settingsOpen;
-    state.settingsAnchor = "floating";
-    if (state.settingsOpen) state.accountOpen = false;
-    renderPreservingReaderScroll();
-    requestAnimationFrame(() => positionSettingsPopover("floating"));
-  });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("mobileFocusPassageToggle")?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -12806,7 +12789,14 @@ function bindEvents() {
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("verseNavCollapseToggle")?.addEventListener("click", toggleVerseNavCollapsed);
   document.getElementById("footerCollapseToggle")?.addEventListener("click", toggleFooterCollapsed);
-  document.getElementById("mobileControlsToggle")?.addEventListener("click", toggleMobileControls);
+  const mobileControlsToggle = document.getElementById("mobileControlsToggle");
+  mobileControlsToggle?.addEventListener("click", handleMobileControlsClick);
+  mobileControlsToggle?.addEventListener("pointerdown", beginMobileControlsHold);
+  mobileControlsToggle?.addEventListener("pointermove", updateMobileControlsHold);
+  mobileControlsToggle?.addEventListener("pointerup", endMobileControlsHold);
+  mobileControlsToggle?.addEventListener("pointercancel", endMobileControlsHold);
+  mobileControlsToggle?.addEventListener("pointerleave", endMobileControlsHold);
+  mobileControlsToggle?.addEventListener("contextmenu", suppressMobileControlsContextMenu);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
   document.getElementById("brandVerseOfDay")?.addEventListener("click", () => openVerseOfDay());
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
@@ -16592,6 +16582,76 @@ function toggleFooterCollapsed() {
   }
 }
 
+function handleMobileControlsClick(event) {
+  if (Date.now() < suppressMobileControlsClickUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  toggleMobileControls();
+}
+
+function beginMobileControlsHold(event) {
+  if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
+  cancelMobileControlsHold();
+  const button = event.currentTarget;
+  mobileControlsHoldGesture = {
+    button,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+  };
+  button.classList.add("settings-hold-pending");
+  mobileControlsHoldTimer = setTimeout(() => {
+    const gesture = mobileControlsHoldGesture;
+    mobileControlsHoldTimer = 0;
+    mobileControlsHoldGesture = null;
+    gesture?.button.classList.remove("settings-hold-pending");
+    if (!gesture) return;
+    suppressMobileControlsClickUntil = Date.now() + 800;
+    openSettingsFromMobileControls();
+  }, mobileControlsHoldMs);
+}
+
+function updateMobileControlsHold(event) {
+  const gesture = mobileControlsHoldGesture;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  if (
+    Math.abs(event.clientX - gesture.startX) > mobileControlsHoldMoveTolerancePx
+    || Math.abs(event.clientY - gesture.startY) > mobileControlsHoldMoveTolerancePx
+  ) {
+    suppressMobileControlsClickUntil = Date.now() + 500;
+    cancelMobileControlsHold();
+  }
+}
+
+function endMobileControlsHold(event) {
+  if (mobileControlsHoldGesture && mobileControlsHoldGesture.pointerId !== event.pointerId) return;
+  cancelMobileControlsHold();
+}
+
+function cancelMobileControlsHold() {
+  clearTimeout(mobileControlsHoldTimer);
+  mobileControlsHoldTimer = 0;
+  mobileControlsHoldGesture?.button.classList.remove("settings-hold-pending");
+  mobileControlsHoldGesture = null;
+}
+
+function suppressMobileControlsContextMenu(event) {
+  event.preventDefault();
+}
+
+function openSettingsFromMobileControls() {
+  state.focusReferenceOpen = false;
+  state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
+  state.settingsOpen = true;
+  state.settingsAnchor = "header";
+  state.accountOpen = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => positionSettingsPopover("header"));
+}
+
 function toggleMobileControls() {
   if (state.mobileControlsOpen) {
     animateBeforeRemoval(
@@ -16732,7 +16792,7 @@ function closeSettingsPopover() {
 function closeSettingsPopoverOnOutsidePointerDown(event) {
   if (
     !state.settingsOpen
-    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, #settingsToggle, #mobileFloatingSettings")
+    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, #settingsToggle")
   ) return;
   closeSettingsPopover();
 }

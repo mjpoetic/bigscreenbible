@@ -65,14 +65,16 @@ assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\
 
 assert.match(styles, /\.games-drawer-shell,[\s\S]*?\.games-drawer-scroll \{[\s\S]*?display: contents;/);
 assert.match(styles, /\.trivia-reader\.is-setup \{[\s\S]*?overflow: hidden;/);
-assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[^}]*display: none;/);
-assert.match(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[^}]*mobile-portrait-footer-height, 77px\) \+ 76px/);
+assert.doesNotMatch(source, /mobileFloatingSettings/);
+assert.doesNotMatch(styles, /mobile-floating-settings/);
 assert.match(styles, /\.app-shell\.trivia-shell \.footer-collapse-toggle \{[\s\S]*?left: 0;[\s\S]*?right: 0;/);
 assert.match(styles, /\.trivia-setup \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.trivia-mode-tabs \{[\s\S]*?grid-auto-flow: column;[\s\S]*?overflow-x: auto;/);
-assert.match(styles, /\.trivia-mode-scroll-next \{[\s\S]*?right: 4px;/);
-assert.match(styles, /\.trivia-mode-scroll \{[\s\S]*?opacity: 0\.62;/);
+assert.match(styles, /\.trivia-mode-scroll-next \{[\s\S]*?right: 0;[\s\S]*?border-radius: 12px 0 0 12px;/);
+assert.match(styles, /\.trivia-mode-scroll-previous \{[\s\S]*?left: 0;[\s\S]*?border-radius: 0 12px 12px 0;/);
+assert.match(styles, /\.trivia-mode-scroll \{[\s\S]*?width: 34px;[\s\S]*?height: 44px;[\s\S]*?opacity: 0\.56;/);
 assert.match(styles, /\.trivia-mode-scroll:hover,[\s\S]*?opacity: 1;/);
+assert.match(styles, /\.trivia-mode-picker\.can-scroll-next::after \{[\s\S]*?right: 0;/);
 assert.match(styles, /\.games-answer-overlay:not\(\[hidden\]\) \{[\s\S]*?place-items: center;/);
 assert.match(styles, /\.games-answer-dialog-body #nextTriviaQuestion \{[\s\S]*?grid-row: 1;/);
 assert.match(styles, /\.trivia-result-ring:not\(\.book-sprint-time-ring\) \{[\s\S]*?height: 128px;[\s\S]*?aspect-ratio: 1;/);

@@ -1738,6 +1738,65 @@ button {
 
 .mobile-controls-toggle {
   display: none;
+  position: relative;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.mobile-controls-toggle > svg,
+.mobile-controls-toggle .mobile-controls-hold-icon {
+  transition: opacity 140ms ease, transform 500ms var(--motion-ease);
+}
+
+.mobile-controls-toggle .mobile-controls-hold-icon {
+  position: absolute;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.68) rotate(-42deg);
+}
+
+.mobile-controls-toggle .mobile-controls-hold-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mobile-controls-toggle.settings-hold-pending {
+  color: var(--teal);
+  border-color: color-mix(in srgb, var(--teal) 48%, var(--line));
+  background: color-mix(in srgb, var(--teal) 10%, var(--panel));
+}
+
+.mobile-controls-toggle.settings-hold-pending::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 2px solid color-mix(in srgb, var(--teal) 70%, transparent);
+  border-radius: 4px;
+  clip-path: inset(0 100% 0 0);
+  pointer-events: none;
+  animation: mobileSettingsHoldProgress 500ms linear forwards;
+}
+
+.mobile-controls-toggle.settings-hold-pending > svg {
+  opacity: 0;
+  transform: scale(0.68);
+}
+
+.mobile-controls-toggle.settings-hold-pending .mobile-controls-hold-icon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+@keyframes mobileSettingsHoldProgress {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .text-size-reset {
@@ -3393,10 +3452,6 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
     opacity: 1;
     transform: translateX(-50%) translateY(0) scale(1);
   }
-}
-
-.mobile-floating-settings {
-  display: none;
 }
 
 .mobile-focus-passage-control,
@@ -13188,7 +13243,6 @@ svg {
     min-height: 40px;
   }
 
-  .mobile-floating-settings,
   .mobile-floating-passage,
   .mobile-floating-focus-tools,
   .mobile-focus-tool-option,
@@ -13279,9 +13333,6 @@ svg {
     transform: translateY(8px) scale(0.94);
   }
 
-  .mobile-floating-settings:hover,
-  .mobile-floating-settings:focus-visible,
-  .mobile-floating-settings.active,
   .mobile-floating-passage:hover,
   .mobile-floating-passage:focus-visible,
   .mobile-floating-passage.active,
@@ -13304,7 +13355,6 @@ svg {
     transform: translateY(-2px);
   }
 
-  .mobile-floating-settings.mobile-settings-idle:not(.active),
   .mobile-floating-passage.mobile-settings-idle:not(.active),
   .mobile-floating-focus-tools.mobile-settings-idle:not(.active) {
     opacity: 0;
@@ -13312,7 +13362,6 @@ svg {
     transform: translateY(8px) scale(0.94);
   }
 
-  .mobile-floating-settings svg,
   .mobile-floating-passage svg,
   .mobile-floating-focus-tools svg,
   .mobile-focus-tool-option svg,
@@ -13562,17 +13611,6 @@ svg {
     .bottom-action-icon,
     .bottom-about-link .bottom-action-icon {
       display: inline-flex;
-    }
-
-    .mobile-floating-settings {
-      right: auto;
-      left: max(7px, env(safe-area-inset-left, 0px));
-      bottom: calc(var(--mobile-portrait-footer-height) + 14px + env(safe-area-inset-bottom, 0px));
-      width: 42px;
-      height: 42px;
-      min-width: 42px;
-      min-height: 42px;
-      padding: 0;
     }
 
     .app-shell.focus-shell .mobile-focus-tools-control {
@@ -13879,11 +13917,6 @@ svg {
     .bottombar {
       padding-left: max(10px, env(safe-area-inset-left, 0px));
       padding-right: max(10px, env(safe-area-inset-right, 0px));
-    }
-
-    .mobile-floating-settings {
-      right: max(12px, env(safe-area-inset-right, 0px));
-      left: auto;
     }
 
     .reader-top-button {
@@ -15339,10 +15372,6 @@ svg {
     padding-right: var(--phone-landscape-right-safe);
   }
 
-  .mobile-floating-settings {
-    display: none;
-  }
-
   .mobile-settings-popover,
   .settings-popover.open {
     left: calc(var(--rail-width) + 10px);
@@ -15430,10 +15459,6 @@ svg {
 }
 
 @media (max-width: 840px) {
-  .app-shell.footer-collapsed .mobile-floating-settings {
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-  }
-
   .app-shell.footer-collapsed .mobile-focus-passage-control {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   }
@@ -16360,10 +16385,6 @@ svg {
 
 @media (max-width: 840px),
   (orientation: landscape) and (max-width: 1366px) and (max-height: 720px) {
-  .app-shell.trivia-shell .mobile-floating-settings {
-    bottom: calc(var(--mobile-portrait-footer-height, 77px) + 76px + env(safe-area-inset-bottom, 0px));
-  }
-
   .app-shell > .main-grid.trivia-grid {
     height: auto;
     min-height: 0;
@@ -16527,20 +16548,20 @@ svg {
 
   .trivia-mode-scroll {
     position: absolute;
-    top: 4px;
+    top: 1px;
     z-index: 4;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 44px;
     border: 1px solid color-mix(in srgb, var(--teal) 58%, var(--line));
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--panel) 46%, transparent);
+    background: color-mix(in srgb, var(--panel) 38%, transparent);
     color: var(--teal);
     padding: 0;
     box-shadow: none;
-    opacity: 0.62;
+    opacity: 0.56;
+    backdrop-filter: blur(3px);
     transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
   }
 
@@ -16557,16 +16578,20 @@ svg {
   }
 
   .trivia-mode-scroll-previous {
-    left: 4px;
+    left: 0;
+    border-left: 0;
+    border-radius: 0 12px 12px 0;
   }
 
   .trivia-mode-scroll-next {
-    right: 4px;
+    right: 0;
+    border-right: 0;
+    border-radius: 12px 0 0 12px;
   }
 
   .trivia-mode-scroll svg {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
   }
 
   .trivia-mode-picker.can-scroll-previous::before,
@@ -16575,7 +16600,7 @@ svg {
     top: 1px;
     bottom: 3px;
     z-index: 3;
-    width: 64px;
+    width: 38px;
     content: "";
     pointer-events: none;
   }
