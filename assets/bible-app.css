@@ -16,6 +16,7 @@
   --success: #266d4f;
   --red-letter: #a4262c;
   --shadow: 0 18px 48px rgba(31, 26, 16, 0.08);
+  --games-overlay-tint: rgba(255, 255, 255, 0.52);
   --reader-chrome-height: 38px;
   --topbar-height: calc(72px + env(safe-area-inset-top, 0px));
   --rail-width: clamp(56px, 3.2vw, 72px);
@@ -139,6 +140,7 @@
   --success: #76c49c;
   --red-letter: #ff858b;
   --shadow: 0 20px 56px rgba(0, 0, 0, 0.34);
+  --games-overlay-tint: rgba(0, 0, 0, 0.58);
   color-scheme: dark;
 }
 
@@ -6613,6 +6615,10 @@ select {
   gap: 18px;
   padding-top: 34px;
   text-align: center;
+}
+
+.trivia-results-summary {
+  display: contents;
 }
 
 .trivia-results.perfect {
@@ -16516,11 +16522,20 @@ svg {
     height: 38px;
     border: 1px solid color-mix(in srgb, var(--teal) 58%, var(--line));
     border-radius: 999px;
-    background: color-mix(in srgb, var(--panel) 94%, transparent);
+    background: color-mix(in srgb, var(--panel) 46%, transparent);
     color: var(--teal);
     padding: 0;
+    box-shadow: none;
+    opacity: 0.62;
+    transition: opacity var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+  }
+
+  .trivia-mode-scroll:hover,
+  .trivia-mode-scroll:focus-visible {
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
     box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 18%, transparent);
-    backdrop-filter: blur(8px);
+    opacity: 1;
+    outline: 0;
   }
 
   .trivia-mode-scroll[hidden] {
@@ -16553,12 +16568,12 @@ svg {
 
   .trivia-mode-picker.can-scroll-previous::before {
     left: 0;
-    background: linear-gradient(90deg, var(--panel) 22%, transparent);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--panel) 38%, transparent), transparent);
   }
 
   .trivia-mode-picker.can-scroll-next::after {
     right: 0;
-    background: linear-gradient(270deg, var(--panel) 22%, transparent);
+    background: linear-gradient(270deg, color-mix(in srgb, var(--panel) 38%, transparent), transparent);
   }
 
   .trivia-mode-tabs::-webkit-scrollbar {
@@ -16707,9 +16722,9 @@ svg {
     height: 100%;
     border: 0;
     border-radius: 0;
-    background: color-mix(in srgb, var(--ink) 42%, transparent);
+    background: var(--games-overlay-tint);
     padding: 0;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(3px);
   }
 
   .games-drawer {
@@ -16834,6 +16849,62 @@ svg {
     text-align: center;
   }
 
+  .games-active-controls .book-sprint-sound-toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    text-align: left;
+  }
+
+  .book-sprint-game {
+    align-content: start;
+    gap: 10px;
+  }
+
+  .book-sprint-game .book-sprint-meter {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .book-sprint-game .book-sprint-meter > div {
+    width: 100%;
+    min-width: 0;
+    min-height: 68px;
+    align-content: center;
+    padding: 9px 12px;
+  }
+
+  .book-sprint-game .book-sprint-meter strong {
+    font-size: clamp(22px, 6vw, 30px);
+  }
+
+  .book-sprint-game h2 {
+    margin-top: 0;
+    font-size: clamp(21px, 5vw, 28px);
+    line-height: 1.12;
+  }
+
+  .book-sprint-game .book-sprint-instructions {
+    margin: 0;
+    font-size: clamp(12px, 3.2vw, 14px);
+    line-height: 1.35;
+  }
+
+  .book-sprint-game .verse-order-board {
+    gap: 10px;
+  }
+
+  .book-sprint-game .book-sprint-answer {
+    min-height: 60px;
+    padding: 9px;
+  }
+
+  .book-sprint-game .verse-fragment {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: clamp(13px, 3.4vw, 16px);
+  }
+
   .games-hint-drawer-body .reference-rush-hints {
     justify-items: stretch;
     width: 100%;
@@ -16865,7 +16936,7 @@ svg {
   .games-answer-backdrop {
     position: fixed;
     inset: 0;
-    background: color-mix(in srgb, var(--ink) 52%, transparent);
+    background: var(--games-overlay-tint);
     backdrop-filter: blur(2px);
   }
 
@@ -16951,6 +17022,12 @@ svg {
     width: min(360px, 100%);
     margin-top: 2px;
   }
+
+  .book-sprint-game .book-sprint-bank {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
 }
 
 @media (max-width: 460px) and (orientation: portrait) {
@@ -17014,9 +17091,77 @@ svg {
     line-height: 1.4;
   }
 
+  .games-controls-drawer {
+    width: min(300px, 76vw);
+  }
+
+  .trivia-reader.is-playing .trivia-results {
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 0.48fr);
+    align-content: center;
+    align-items: center;
+    column-gap: clamp(24px, 5vw, 72px);
+    padding: 10px clamp(18px, 5vw, 72px);
+    overflow: hidden;
+  }
+
+  .trivia-reader.is-playing .trivia-results-summary {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .trivia-reader.is-playing .trivia-results-summary > p {
+    line-height: 1.45;
+  }
+
+  .trivia-reader.is-playing .trivia-results > .trivia-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: center;
+    align-self: center;
+    width: min(280px, 100%);
+    margin: 0;
+  }
+
+  .trivia-reader.is-playing .trivia-results > .trivia-actions :is(button, .primary-btn, .ghost-btn) {
+    width: 100%;
+    min-height: 46px;
+  }
+
   .trivia-reader.is-playing .trivia-game {
     gap: 10px;
     padding-top: 10px;
+  }
+
+  .book-sprint-game .book-sprint-meter {
+    width: min(430px, 100%);
+  }
+
+  .book-sprint-game .book-sprint-meter > div {
+    min-height: 58px;
+    padding: 7px 11px;
+  }
+
+  .book-sprint-game .book-sprint-meter span {
+    font-size: 10px;
+  }
+
+  .book-sprint-game .book-sprint-meter strong {
+    font-size: clamp(20px, 2.4vw, 27px);
+  }
+
+  .book-sprint-game h2 {
+    font-size: clamp(20px, 2.4vw, 26px);
+  }
+
+  .book-sprint-game .book-sprint-instructions {
+    font-size: 12px;
+  }
+
+  .book-sprint-game .book-sprint-answer {
+    min-height: 54px;
   }
 
   .trivia-reader.is-playing .trivia-progress {

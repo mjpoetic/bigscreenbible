@@ -9736,6 +9736,8 @@ function mountMobileGameControls() {
   }
   const hints = game.querySelector(":scope > .reference-rush-hints");
   if (hints) hintDestination.append(hints);
+  const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
+  if (bookSprintSound) destination.append(bookSprintSound);
   game.querySelectorAll(":scope > .trivia-actions").forEach((controls) => {
     destination.append(controls);
   });
@@ -10470,18 +10472,20 @@ function triviaResultsView(game) {
         : `You finished all ${roundLength} rounds in ${elapsed}. The next sprint will count down from this time.`;
     return `
       <div class="trivia-results ${game.bookSprintBeatBest ? "perfect" : ""}">
-        <div class="trivia-result-ring book-sprint-time-ring">${elapsed}</div>
-        <h2>${resultTitle}</h2>
-        <p>${resultText}</p>
-        ${game.bookSprintBeatBest ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">New Book Sprint record! Wonderful work.</p>` : ""}
-        <div class="book-sprint-result-stats">
-          <div>
-            <span>Your time</span>
-            <strong>${elapsed}</strong>
-          </div>
-          <div>
-            <span>${game.bookSprintBeatBest ? "New best" : "Best time"}</span>
-            <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
+        <div class="trivia-results-summary">
+          <div class="trivia-result-ring book-sprint-time-ring">${elapsed}</div>
+          <h2>${resultTitle}</h2>
+          <p>${resultText}</p>
+          ${game.bookSprintBeatBest ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">New Book Sprint record! Wonderful work.</p>` : ""}
+          <div class="book-sprint-result-stats">
+            <div>
+              <span>Your time</span>
+              <strong>${elapsed}</strong>
+            </div>
+            <div>
+              <span>${game.bookSprintBeatBest ? "New best" : "Best time"}</span>
+              <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
+            </div>
           </div>
         </div>
         <div class="trivia-actions">
@@ -10503,10 +10507,12 @@ function triviaResultsView(game) {
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
     <div class="trivia-results ${perfect ? "perfect" : ""}">
-      <div class="trivia-result-ring">${percent}%</div>
-      <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
-      <p>${resultText}</p>
-      ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
+      <div class="trivia-results-summary">
+        <div class="trivia-result-ring">${percent}%</div>
+        <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
+        <p>${resultText}</p>
+        ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
+      </div>
       <div class="trivia-actions">
         ${triviaExitControl(game)}
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
