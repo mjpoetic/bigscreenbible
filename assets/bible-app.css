@@ -4866,6 +4866,11 @@ select {
   }
 }
 
+.app-shell.trivia-shell .footer-collapse-toggle {
+  left: 0;
+  right: 0;
+}
+
 .footer-collapse-toggle svg {
   transform: rotate(90deg);
 }

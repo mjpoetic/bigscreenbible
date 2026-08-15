@@ -20,6 +20,8 @@ function extractFunction(name) {
 
 assert.match(source, /gamesDrawerOpen: ""/);
 assert.match(source, /state\.mode === "trivia" \? "trivia-shell" : ""/);
+assert.match(source, /\["trivia", "Games", icons\.games\]/);
+assert.match(source, /data-trivia-mode="trivia"[\s\S]*?icons\.trivia/);
 assert.match(source, /id="gameSocialToggle"[\s\S]*?aria-controls="gamesSocialDrawer"/);
 assert.match(source, /id="gameOptionsToggle"[\s\S]*?aria-controls="gamesOptionsDrawer"/);
 assert.match(source, /id="gameControlsToggle"[\s\S]*?aria-controls="gamesControlsDrawer"/);
@@ -58,6 +60,7 @@ assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\
 assert.match(styles, /\.games-drawer-shell,[\s\S]*?\.games-drawer-scroll \{[\s\S]*?display: contents;/);
 assert.match(styles, /\.trivia-reader\.is-setup \{[\s\S]*?overflow: hidden;/);
 assert.match(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings \{[\s\S]*?display: none;/);
+assert.match(styles, /\.app-shell\.trivia-shell \.footer-collapse-toggle \{[\s\S]*?left: 0;[\s\S]*?right: 0;/);
 assert.match(styles, /\.trivia-setup \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.trivia-mode-tabs \{[\s\S]*?grid-auto-flow: column;[\s\S]*?overflow-x: auto;/);
 assert.match(styles, /\.trivia-mode-scroll-next \{[\s\S]*?right: 4px;/);

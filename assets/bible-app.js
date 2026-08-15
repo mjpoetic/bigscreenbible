@@ -883,6 +883,7 @@ const icons = {
   noteAdd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5h13v16h-13z" stroke-width="1.7"/><path d="M7.5 9h5M7.5 13h4.5M7.5 17h3" stroke-width="1.6"/><path d="M20 2.75v5.5M17.25 5.5h5.5" stroke-width="2.2"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
+  games: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5c0-1.7 1.3-3 3-3s3 1.3 3 3h4a1 1 0 0 1 1 1v3c1.7 0 3 1.3 3 3s-1.3 3-3 3v4a1 1 0 0 1-1 1h-4c0 1.7-1.3 3-3 3s-3-1.3-3-3H5a1 1 0 0 1-1-1v-4h1.5c1.7 0 3-1.3 3-3s-1.3-3-3-3H4V6a1 1 0 0 1 1-1z"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
   lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.7A7 7 0 1 1 15.8 14.7c-.9.7-1.3 1.5-1.4 2.3H9.6c-.1-.8-.5-1.6-1.4-2.3z"/><path d="M12 3v2"/></svg>',
@@ -3199,7 +3200,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
     ["big", "Big Screen", icons.screen],
-    ["trivia", "Games", icons.trivia],
+    ["trivia", "Games", icons.games],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
   const themePresetOptions = themePresets
