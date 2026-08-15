@@ -4834,13 +4834,14 @@ function accountPanel(prefix = "") {
 
 function streakPopup() {
   if (!state.streakPopupVisible) return "";
+  const continuingPopup = Boolean(document.getElementById("streakPopup"));
   const streak = normalizeReadingStreak(state.streak);
   const title = streak.current > 1 ? `${streak.current}-day streak` : "You started a streak";
   const message = streak.current > 1
     ? "Welcome back. A little daily rhythm is taking shape."
     : "Welcome. Come back tomorrow to keep it going.";
   return `
-    <aside class="streak-popup" id="streakPopup" role="status" aria-live="polite" tabindex="0" aria-label="Dismiss streak popup">
+    <aside class="streak-popup ${continuingPopup ? "continuing" : ""}" id="streakPopup" data-popup-continuing="${continuingPopup}" role="status" aria-live="polite" tabindex="0" aria-label="Dismiss streak popup">
       <div class="streak-popup-icon">${icons.flame}</div>
       <div>
         <strong>${title}</strong>
@@ -4853,6 +4854,7 @@ function streakPopup() {
 function dismissStreakPopup() {
   if (!state.streakPopupVisible) return;
   clearTimeout(streakPopupTimer);
+  streakPopupTimer = 0;
   animateBeforeRemoval("#streakPopup", () => {
     state.streakPopupVisible = false;
     render();
@@ -4860,9 +4862,9 @@ function dismissStreakPopup() {
 }
 
 function scheduleStreakPopupDismiss() {
-  if (!state.streakPopupVisible) return;
-  clearTimeout(streakPopupTimer);
+  if (!state.streakPopupVisible || streakPopupTimer) return;
   streakPopupTimer = setTimeout(() => {
+    streakPopupTimer = 0;
     dismissStreakPopup();
   }, 4200);
 }

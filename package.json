@@ -28,6 +28,7 @@
     "test:sharing": "node scripts/passage-sharing.test.mjs",
     "test:social": "node scripts/social-profile.test.mjs",
     "test:social-connections": "node scripts/social-connections.test.mjs",
+    "test:streak": "node scripts/streak-popup.test.mjs",
     "test:strongs": "node scripts/strongs.test.mjs",
     "test:tooltips": "node scripts/tooltip-delay.test.mjs",
     "test:version-loading": "node scripts/bible-version-loading.test.mjs",

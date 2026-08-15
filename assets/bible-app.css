@@ -3341,6 +3341,10 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   animation: streakPopupIn 360ms ease both;
 }
 
+.streak-popup.continuing {
+  animation: none;
+}
+
 .streak-popup:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--teal) 60%, transparent);
   outline-offset: 3px;
