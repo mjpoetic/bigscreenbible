@@ -130,5 +130,6 @@ assert.match(styles, /\.reader-page-controls \{[\s\S]*?flex-direction: column/);
 assert.match(styles, /\.reader-page-controls \.reader-page-button \{[\s\S]*?position: relative !important/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-page-controls/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-return-button \{[\s\S]*?right: max\(7px, env\(safe-area-inset-right, 0px\)\) !important;/);
+assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-selection-tools-button \{[\s\S]*?right: max\(7px, env\(safe-area-inset-right, 0px\)\) !important;/);
 
 console.log("Page navigation tests passed");

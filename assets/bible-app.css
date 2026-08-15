@@ -16128,7 +16128,9 @@ svg {
   }
 
   .reader-selection-tools-button {
+    right: max(7px, env(safe-area-inset-right, 0px)) !important;
     bottom: calc(var(--mobile-portrait-footer-height) + 170px + env(safe-area-inset-bottom, 0px));
+    left: auto !important;
   }
 
   .app-shell.footer-collapsed .reader-page-controls {
