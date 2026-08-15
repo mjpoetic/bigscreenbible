@@ -6622,9 +6622,18 @@ select {
 .trivia-result-ring {
   width: 128px;
   min-height: 128px;
+  box-sizing: border-box;
   border-width: 2px;
   font-size: 30px;
   background: color-mix(in srgb, var(--teal) 12%, var(--panel));
+}
+
+.trivia-result-ring:not(.book-sprint-time-ring) {
+  width: 128px;
+  height: 128px;
+  min-height: 128px;
+  aspect-ratio: 1;
+  padding: 0;
 }
 
 .trivia-results h2 {
@@ -16825,6 +16834,25 @@ svg {
     text-align: center;
   }
 
+  .games-hint-drawer-body .reference-rush-hints {
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .games-hint-drawer-body .reference-rush-hint-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .games-hint-drawer-body .reference-rush-hint-menu > div,
+  .games-hint-drawer-body .reference-rush-hint-menu .reference-rush-hint-cancel {
+    grid-column: 1;
+  }
+
+  .games-hint-drawer-body :is(button, .ghost-btn) {
+    width: 100%;
+    min-height: 46px;
+  }
+
   .games-answer-overlay:not([hidden]) {
     position: fixed;
     inset: 0;
@@ -16894,7 +16922,8 @@ svg {
 
 @media (max-width: 840px) and (orientation: portrait) {
   .games-options-drawer,
-  .games-controls-drawer {
+  .games-controls-drawer,
+  .games-hints-drawer {
     top: auto;
     left: 0;
     width: 100%;
@@ -16905,6 +16934,34 @@ svg {
     box-shadow: 0 -18px 45px color-mix(in srgb, var(--ink) 24%, transparent);
     padding: 14px max(14px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
     animation-name: gamesDrawerInBottom;
+  }
+
+  .trivia-reader.is-playing .trivia-results {
+    align-content: start;
+    gap: clamp(14px, 2.4dvh, 22px);
+    padding-top: clamp(16px, 3dvh, 28px);
+    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .trivia-reader.is-playing .trivia-results.perfect {
+    min-height: 0;
+  }
+
+  .trivia-results .trivia-actions {
+    width: min(360px, 100%);
+    margin-top: 2px;
+  }
+}
+
+@media (max-width: 460px) and (orientation: portrait) {
+  .trivia-header-actions .games-header-action span {
+    display: none;
+  }
+
+  .trivia-header-actions .games-header-action {
+    width: 40px;
+    min-width: 40px;
+    padding-inline: 0;
   }
 }
 
@@ -16974,6 +17031,7 @@ svg {
   .reference-rush-stage {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 12px;
     min-height: 0;
   }
@@ -16990,11 +17048,18 @@ svg {
   }
 
   .reference-rush-stage-main {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .who-said-it-game .reference-rush-stage-main {
-    grid-template-rows: minmax(0, 1fr);
+  .reference-rush-stage-side {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .who-said-it-game .reference-rush-stage-side {
+    grid-row: 1 / span 2;
   }
 
   .reference-rush-stage .reference-rush-prompt {
@@ -17020,7 +17085,9 @@ svg {
   }
 
   .reference-rush-timer-meter {
-    width: min(210px, 100%);
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
     padding: 10px 14px;
   }
 

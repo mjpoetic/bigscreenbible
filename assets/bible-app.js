@@ -883,6 +883,7 @@ const icons = {
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
+  lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.7A7 7 0 1 1 15.8 14.7c-.9.7-1.3 1.5-1.4 2.3H9.6c-.1-.8-.5-1.6-1.4-2.3z"/><path d="M12 3v2"/></svg>',
   quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4v6c0 4-2 7-5 8"/><path d="M21 11h-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4v6c0 4-2 7-5 8"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
   flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.6 0 6.5-2.7 6.5-6.2 0-2.6-1.4-4.7-3.5-6.7-.6 2-1.9 3.2-3.1 3.7.6-2.7-.4-5.2-3-8.1C8.5 8 5.5 10.8 5.5 15.8 5.5 19.3 8.4 22 12 22z"/><path d="M12 18.5c1.2 0 2.2-.9 2.2-2.1 0-1-.6-1.8-1.4-2.5-.2.7-.7 1.1-1.1 1.3.2-.9-.1-1.8-1-2.8-.1 1.2-.9 2.2-.9 4 0 1.2 1 2.1 2.2 2.1z"/></svg>',
@@ -9695,12 +9696,13 @@ function gamesSocialActivityCount() {
 function gamesDrawerToggleId(drawer = state.gamesDrawerOpen) {
   if (drawer === "options") return "gameOptionsToggle";
   if (drawer === "controls") return "gameControlsToggle";
+  if (drawer === "hints") return "gameHintsToggle";
   return "gameSocialToggle";
 }
 
 function setGamesDrawer(drawer = "") {
   const previousDrawer = state.gamesDrawerOpen;
-  const nextDrawer = ["options", "social", "controls"].includes(drawer) ? drawer : "";
+  const nextDrawer = ["options", "social", "controls", "hints"].includes(drawer) ? drawer : "";
   if (previousDrawer === nextDrawer) return;
   state.gamesDrawerOpen = nextDrawer;
   renderPreservingReaderScroll();
@@ -9715,10 +9717,11 @@ function setGamesDrawer(drawer = "") {
 function mountMobileGameControls() {
   if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete || !isGamesResponsiveScreen()) return;
   const destination = document.getElementById("gamesActiveControlsBody");
+  const hintDestination = document.getElementById("gamesHintDrawerBody");
   const answerDestination = document.getElementById("gamesAnswerDialogBody");
   const answerOverlay = document.getElementById("gamesAnswerOverlay");
   const game = document.querySelector(".trivia-game");
-  if (!destination || !answerDestination || !answerOverlay || !game) return;
+  if (!destination || !hintDestination || !answerDestination || !answerOverlay || !game) return;
   const feedback = game.querySelector(":scope > .trivia-feedback:not(.book-sprint-retry)");
   const answerActions = feedback ? game.querySelector(":scope > .trivia-actions") : null;
   if (feedback && answerActions) {
@@ -9731,9 +9734,38 @@ function mountMobileGameControls() {
     });
     return;
   }
-  game.querySelectorAll(":scope > .reference-rush-hints, :scope > .trivia-actions").forEach((controls) => {
+  const hints = game.querySelector(":scope > .reference-rush-hints");
+  if (hints) hintDestination.append(hints);
+  game.querySelectorAll(":scope > .trivia-actions").forEach((controls) => {
     destination.append(controls);
   });
+}
+
+function activeGameHintContext() {
+  const game = state.triviaGame;
+  if (!game || game.complete) return null;
+  if (game.type === "reference-rush") {
+    const puzzle = game.puzzles?.[game.index];
+    return puzzle && puzzle.selectedReference === null ? puzzle : null;
+  }
+  if (!game.type || game.type === "trivia") {
+    const question = game.questions?.[game.index];
+    return question && game.selectedAnswer === null ? question : null;
+  }
+  return null;
+}
+
+function openGamesHints() {
+  const hintContext = activeGameHintContext();
+  if (!hintContext) return;
+  hintContext.hintMenuOpen = true;
+  setGamesDrawer("hints");
+}
+
+function closeGamesHints() {
+  const hintContext = activeGameHintContext();
+  if (hintContext) hintContext.hintMenuOpen = false;
+  setGamesDrawer("");
 }
 
 function updateTriviaModeScrollControls() {
@@ -9823,6 +9855,7 @@ function triviaView() {
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
   const gamesUseDrawers = isGamesResponsiveScreen();
+  const gameHintsAvailable = Boolean(activeGameHintContext());
   const setupCopy = isVerseOrder
     ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
@@ -9843,6 +9876,19 @@ function triviaView() {
           <div class="trivia-header-actions">
             <div class="trivia-score-chip">${triviaScoreLabel()}</div>
             ${state.triviaGame && !state.triviaGame.complete ? `
+              ${gameHintsAvailable ? `
+                <button
+                  class="games-header-action games-hint-action ${state.gamesDrawerOpen === "hints" ? "active" : ""}"
+                  id="gameHintsToggle"
+                  type="button"
+                  aria-label="Open game hints"
+                  aria-controls="gamesHintsDrawer"
+                  aria-expanded="${state.gamesDrawerOpen === "hints"}"
+                >
+                  ${icons.lightbulb}
+                  <span>Hint</span>
+                </button>
+              ` : ""}
               <button
                 class="games-header-action ${state.gamesDrawerOpen === "controls" ? "active" : ""}"
                 id="gameControlsToggle"
@@ -9980,6 +10026,19 @@ function triviaView() {
                 <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game controls">${icons.clear}</button>
               </div>
               <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody"></div>
+            </aside>
+          </div>
+          <div class="games-drawer-shell ${state.gamesDrawerOpen === "hints" ? "open" : ""}" data-games-drawer="hints">
+            <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close game hints" tabindex="-1"></button>
+            <aside class="games-drawer games-hints-drawer" id="gamesHintsDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesHintsTitle" tabindex="-1">
+              <div class="games-drawer-header">
+                <div>
+                  <span>Current question</span>
+                  <strong id="gamesHintsTitle">Choose a hint</strong>
+                </div>
+                <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game hints">${icons.clear}</button>
+              </div>
+              <div class="games-drawer-scroll games-hint-drawer-body" id="gamesHintDrawerBody"></div>
             </aside>
           </div>
           <div class="games-answer-overlay" id="gamesAnswerOverlay" hidden>
@@ -10179,15 +10238,15 @@ function referenceRushGameView(game) {
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
       <div class="reference-rush-stage">
-        <div class="reference-rush-stage-main">
-          ${game.timed ? `
-            <div class="book-sprint-meter reference-rush-timer-meter" aria-label="Reference Rush countdown">
-              <div>
-                <span>Time left</span>
-                <strong id="referenceRushTimer">${formatCountdownTime(referenceRushRemainingMs(game))}</strong>
-              </div>
+        ${game.timed ? `
+          <div class="book-sprint-meter reference-rush-timer-meter" aria-label="Reference Rush countdown">
+            <div>
+              <span>Time left</span>
+              <strong id="referenceRushTimer">${formatCountdownTime(referenceRushRemainingMs(game))}</strong>
             </div>
-          ` : ""}
+          </div>
+        ` : ""}
+        <div class="reference-rush-stage-main">
           <div class="reference-rush-prompt">
             <p>${escapeHtml(puzzle.text)}</p>
             <span>${escapeHtml(game.version)}</span>
@@ -12747,9 +12806,16 @@ function bindEvents() {
   document.getElementById("gameControlsToggle")?.addEventListener("click", () => {
     setGamesDrawer(state.gamesDrawerOpen === "controls" ? "" : "controls");
   });
+  document.getElementById("gameHintsToggle")?.addEventListener("click", () => {
+    if (state.gamesDrawerOpen === "hints") closeGamesHints();
+    else openGamesHints();
+  });
   document.getElementById("openGameSocialRoom")?.addEventListener("click", () => setGamesDrawer("social"));
   document.querySelectorAll("[data-games-drawer-dismiss]").forEach((button) => {
-    button.addEventListener("click", () => setGamesDrawer(""));
+    button.addEventListener("click", () => {
+      if (button.closest('[data-games-drawer="hints"]')) closeGamesHints();
+      else setGamesDrawer("");
+    });
   });
   document.querySelectorAll(".games-drawer").forEach((drawer) => {
     drawer.addEventListener("keydown", trapGamesDrawerFocus);
@@ -12871,7 +12937,10 @@ function bindEvents() {
     button.addEventListener("click", () => answerTriviaQuestion(button.dataset.triviaAnswer));
   });
   document.getElementById("triviaHint")?.addEventListener("click", toggleTriviaHintMenu);
-  document.getElementById("closeTriviaHints")?.addEventListener("click", toggleTriviaHintMenu);
+  document.getElementById("closeTriviaHints")?.addEventListener("click", () => {
+    if (state.gamesDrawerOpen === "hints") closeGamesHints();
+    else toggleTriviaHintMenu();
+  });
   document.querySelectorAll("[data-trivia-hint]").forEach((button) => {
     button.addEventListener("click", () => useTriviaHint(button.dataset.triviaHint));
   });
@@ -12879,7 +12948,10 @@ function bindEvents() {
     button.addEventListener("click", () => answerReferenceRush(button.dataset.referenceAnswer));
   });
   document.getElementById("referenceRushHint")?.addEventListener("click", toggleReferenceRushHintMenu);
-  document.getElementById("closeReferenceRushHints")?.addEventListener("click", toggleReferenceRushHintMenu);
+  document.getElementById("closeReferenceRushHints")?.addEventListener("click", () => {
+    if (state.gamesDrawerOpen === "hints") closeGamesHints();
+    else toggleReferenceRushHintMenu();
+  });
   document.querySelectorAll("[data-reference-hint]").forEach((button) => {
     button.addEventListener("click", () => useReferenceRushHint(button.dataset.referenceHint));
   });
