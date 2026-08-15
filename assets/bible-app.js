@@ -269,6 +269,7 @@ let presentationPinchGesture = null;
 let presentationScaleFeedbackTimer = 0;
 let presentationEnterDirection = 0;
 let presentationTransitionTimer = 0;
+let activeModeViewTransition = null;
 let readerChapterTouchStart = null;
 let readerChapterPull = null;
 let readerChapterPullSettleTimer = 0;
@@ -1612,43 +1613,94 @@ function modeScrollStateForTarget(nextMode, previousScrollState) {
   return savedModeScrollState(nextMode) || transferReaderScrollState(previousScrollState, nextMode);
 }
 
+function modeViewTransitionDirection(previousMode, nextMode) {
+  const readerModes = ["reader", "parallel"];
+  if (readerModes.includes(previousMode) && nextMode === "big") return "enter-big";
+  if (previousMode === "big" && readerModes.includes(nextMode)) return "exit-big";
+  return "";
+}
+
+function modeViewTransitionAvailable() {
+  return (
+    typeof document.startViewTransition === "function"
+    && document.visibilityState !== "hidden"
+    && !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+  );
+}
+
+function runModeViewTransition(previousMode, nextMode, updateMode) {
+  const direction = modeViewTransitionDirection(previousMode, nextMode);
+  if (!direction || !modeViewTransitionAvailable()) {
+    updateMode();
+    return null;
+  }
+
+  activeModeViewTransition?.skipTransition?.();
+  const root = document.documentElement;
+  root.dataset.modeTransition = direction;
+  let updateRan = false;
+  let transition;
+  try {
+    transition = document.startViewTransition(() => {
+      updateRan = true;
+      updateMode();
+    });
+  } catch (error) {
+    delete root.dataset.modeTransition;
+    if (!updateRan) updateMode();
+    return null;
+  }
+
+  activeModeViewTransition = transition;
+  const finish = () => {
+    if (activeModeViewTransition !== transition) return;
+    activeModeViewTransition = null;
+    delete root.dataset.modeTransition;
+  };
+  transition.finished.then(finish, finish);
+  return transition;
+}
+
 function switchMode(nextMode) {
   if (!["reader", "parallel", "big", "trivia"].includes(nextMode)) return;
   if (nextMode === state.mode) return;
   if (nextMode !== "trivia") cleanupTriviaCelebration();
   const previousMode = state.mode;
   const previousScrollState = rememberModeScrollState();
-  state.mode = nextMode;
-  state.headerVersionMenuOpen = false;
-  state.footerVersionMenuOpen = false;
-  state.presentationVersionMenuOpen = "";
-  state.presentationReferenceMenuOpen = "";
-  state.accountOpen = false;
-  state.parallelVersionMenuIndex = null;
-  state.parallelVersionMenuPosition = null;
-  resetFocusToolSurfaces();
   const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
-  if (state.mode === "big") {
-    state.presentationPart = 0;
-    state.presentationControlsVisible = false;
-    state.presentationSearchOpen = false;
-    state.presentationSearchResultsOpen = false;
-    state.presentationSettingsOpen = false;
-  } else {
-    clearTimeout(presentationControlsTimer);
-    if (previousMode === "big") {
+  const applyModeChange = () => {
+    state.mode = nextMode;
+    state.headerVersionMenuOpen = false;
+    state.footerVersionMenuOpen = false;
+    state.presentationVersionMenuOpen = "";
+    state.presentationReferenceMenuOpen = "";
+    state.accountOpen = false;
+    state.parallelVersionMenuIndex = null;
+    state.parallelVersionMenuPosition = null;
+    resetFocusToolSurfaces();
+    if (state.mode === "big") {
+      state.presentationPart = 0;
+      state.presentationControlsVisible = false;
       state.presentationSearchOpen = false;
       state.presentationSearchResultsOpen = false;
       state.presentationSettingsOpen = false;
-      state.presentationVersionMenuOpen = "";
-      state.presentationReferenceMenuOpen = "";
+    } else {
+      clearTimeout(presentationControlsTimer);
+      if (previousMode === "big") {
+        state.presentationSearchOpen = false;
+        state.presentationSearchResultsOpen = false;
+        state.presentationSettingsOpen = false;
+        state.presentationVersionMenuOpen = "";
+        state.presentationReferenceMenuOpen = "";
+      }
+      if (["reader", "parallel"].includes(state.mode) && !targetScrollState) {
+        state.pendingVerseFocus = "nearest";
+      }
     }
-    if (["reader", "parallel"].includes(state.mode) && !targetScrollState) {
-      state.pendingVerseFocus = "nearest";
-    }
-  }
-  render();
-  restoreModeScrollAfterRender(targetScrollState);
+    render();
+    restoreModeScrollAfterRender(targetScrollState);
+  };
+  return runModeViewTransition(previousMode, nextMode, applyModeChange);
 }
 
 function currentReaderScrollAnchor() {
@@ -12952,22 +13004,7 @@ function bindEvents() {
 }
 
 function returnFromPresentationToBible() {
-  clearTimeout(presentationControlsTimer);
-  if (state.mode !== "big") {
-    switchMode("reader");
-    return;
-  }
-  state.mode = "reader";
-  state.presentationSearchOpen = false;
-  state.presentationSearchResultsOpen = false;
-  state.presentationSettingsOpen = false;
-  state.presentationVersionMenuOpen = "";
-  state.presentationReferenceMenuOpen = "";
-  state.accountOpen = false;
-  state.presentationControlsVisible = false;
-  state.pendingVerseFocus = true;
-  updateShareUrl();
-  render();
+  return switchMode("reader");
 }
 
 async function setPrimaryVersion(version, options = {}) {
