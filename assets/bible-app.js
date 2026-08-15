@@ -633,6 +633,7 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   triviaGame: null,
+  gamesDrawerOpen: "",
   authConfigured: isSupabaseConfigured(),
   authClient: null,
   authUser: null,
@@ -1265,7 +1266,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -1300,6 +1301,7 @@ function render() {
   restoreSettingsPanelScroll(settingsScrollState);
   restoreAccountPanelScroll(accountScrollState);
   requestAnimationFrame(() => {
+    centerActiveTriviaMode();
     positionAccountPopover();
     positionSettingsPopover();
     positionFocusSearchResults();
@@ -1670,6 +1672,7 @@ function switchMode(nextMode) {
   const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
   const applyModeChange = () => {
     state.mode = nextMode;
+    if (nextMode !== "trivia") state.gamesDrawerOpen = "";
     state.headerVersionMenuOpen = false;
     state.footerVersionMenuOpen = false;
     state.presentationVersionMenuOpen = "";
@@ -9625,6 +9628,59 @@ function gameChallengeSetupCard() {
   `;
 }
 
+function gamesSocialActivityCount() {
+  if (!state.authUser) return 0;
+  return friendshipCollections().incoming.length + gameChallengeCollections().incoming.length;
+}
+
+function gamesDrawerToggleId(drawer = state.gamesDrawerOpen) {
+  return drawer === "options" ? "gameOptionsToggle" : "gameSocialToggle";
+}
+
+function setGamesDrawer(drawer = "") {
+  const previousDrawer = state.gamesDrawerOpen;
+  const nextDrawer = ["options", "social"].includes(drawer) ? drawer : "";
+  if (previousDrawer === nextDrawer) return;
+  state.gamesDrawerOpen = nextDrawer;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const focusTarget = nextDrawer
+      ? document.querySelector(`.games-drawer-shell[data-games-drawer="${nextDrawer}"] .games-drawer-close`)
+      : document.getElementById(gamesDrawerToggleId(previousDrawer));
+    focusTarget?.focus({ preventScroll: true });
+  }));
+}
+
+function trapGamesDrawerFocus(event) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    setGamesDrawer("");
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = Array.from(event.currentTarget.querySelectorAll(
+    'button:not([disabled]), select:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+  )).filter((element) => !element.hidden && element.getClientRects().length);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function centerActiveTriviaMode() {
+  const tabs = document.querySelector(".trivia-mode-tabs");
+  const active = tabs?.querySelector("button.active");
+  if (!tabs || !active || (!isCompactScreen() && !isShortLandscapeScreen())) return;
+  tabs.scrollLeft = Math.max(0, active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2);
+}
+
 function triviaView() {
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
@@ -9650,6 +9706,16 @@ function triviaView() {
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
+  const difficultyLabel = isReferenceRush && state.triviaDifficulty === "All" ? "Progressive" : state.triviaDifficulty;
+  const setupSummary = [
+    state.triviaGameType === "trivia" ? state.triviaCategory : "",
+    isVerseOrder ? "Progressive" : difficultyLabel,
+    `${selectedCount} ${countLabel}`,
+    isReferenceRush ? state.referenceRushTimed ? "Timed" : "Untimed" : "",
+  ].filter(Boolean).join(" · ");
+  const socialActivityCount = gamesSocialActivityCount();
+  const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
+  const gamesUseDrawers = isCompactScreen() || isShortLandscapeScreen();
   const setupCopy = isVerseOrder
     ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
@@ -9660,14 +9726,30 @@ function triviaView() {
           ? "Read the quote, then choose who said it before opening the reference."
           : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   return `
-    <section class="reader trivia-reader">
+    <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
       <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""}">
         <div class="trivia-header">
-          <div>
+          <div class="trivia-header-copy">
             <div class="trivia-eyebrow">${gameTitle}</div>
             <h1>Games</h1>
           </div>
-          <div class="trivia-score-chip">${triviaScoreLabel()}</div>
+          <div class="trivia-header-actions">
+            <div class="trivia-score-chip">${triviaScoreLabel()}</div>
+            ${state.triviaGame ? "" : `
+              <button
+                class="games-header-action ${state.gamesDrawerOpen === "social" ? "active" : ""}"
+                id="gameSocialToggle"
+                type="button"
+                aria-label="Open social games${socialBadgeCount ? `, ${socialBadgeCount} new` : ""}"
+                aria-controls="gamesSocialDrawer"
+                aria-expanded="${state.gamesDrawerOpen === "social"}"
+              >
+                ${icons.user}
+                <span>Social</span>
+                ${socialBadgeCount ? `<small aria-hidden="true">${socialBadgeCount > 9 ? "9+" : socialBadgeCount}</small>` : ""}
+              </button>
+            `}
+          </div>
         </div>
         ${liveGameChallengeScoreboard()}
         ${state.triviaGame ? triviaGameView() : `
@@ -9679,39 +9761,88 @@ function triviaView() {
               <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button" ${challengeSetupLock}>${icons.timer}<span>Book Sprint</span></button>
               <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button" ${challengeSetupLock}>${icons.quote}<span>Who Said It?</span></button>
             </div>
-            <p>${setupCopy}</p>
-            <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
-              <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt ? "is-hidden" : ""}">
-                <span>Category</span>
-                <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
-              </label>
-              <label class="${isVerseOrder ? "is-hidden" : ""}">
-                <span>Difficulty</span>
-                <select id="triviaDifficultySelect" ${challengeSetupLock}>${difficultyOptions}</select>
-              </label>
-              <label>
-                <span>Round length</span>
-                <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
-              </label>
-            </div>
-            ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
-            ${isReferenceRush ? `
-              <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
-                ${icons.timer}
+            <div class="trivia-setup-main">
+              <p class="trivia-setup-copy">${setupCopy}</p>
+              <button
+                class="trivia-mobile-options ${state.gamesDrawerOpen === "options" ? "active" : ""}"
+                id="gameOptionsToggle"
+                type="button"
+                aria-controls="gamesOptionsDrawer"
+                aria-expanded="${state.gamesDrawerOpen === "options"}"
+              >
+                <span class="trivia-mobile-options-icon" aria-hidden="true">${icons.settings}</span>
                 <span>
-                  <strong>Countdown ${state.referenceRushTimed ? "on" : "off"}</strong>
-                  <small>${state.referenceRushTimed ? `${referenceRushTime} for this round` : "Play without a timer"}</small>
+                  <strong>Game options</strong>
+                  <small>${escapeHtml(setupSummary)}</small>
                 </span>
+                <span class="trivia-mobile-options-chevron" aria-hidden="true">${icons.chevron}</span>
               </button>
-            ` : ""}
-            ${isBookSprint ? `
-              <div class="book-sprint-best-card">
-                <span>Best time for this setup</span>
-                <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
-              </div>
-            ` : ""}
-            ${gameChallengeSetupCard()}
-            ${waitingForLiveChallenge ? "" : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+            </div>
+            <div class="games-drawer-shell ${state.gamesDrawerOpen === "options" ? "open" : ""}" data-games-drawer="options">
+              <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close game options" tabindex="-1"></button>
+              <aside class="games-drawer games-options-drawer" id="gamesOptionsDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesOptionsTitle" tabindex="-1">
+                <div class="games-drawer-header">
+                  <div>
+                    <span>Before you start</span>
+                    <strong id="gamesOptionsTitle">Game options</strong>
+                  </div>
+                  <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
+                </div>
+                <div class="games-drawer-scroll">
+                  <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
+                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt ? "is-hidden" : ""}">
+                      <span>Category</span>
+                      <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
+                    </label>
+                    <label class="${isVerseOrder ? "is-hidden" : ""}">
+                      <span>Difficulty</span>
+                      <select id="triviaDifficultySelect" ${challengeSetupLock}>${difficultyOptions}</select>
+                    </label>
+                    <label>
+                      <span>Round length</span>
+                      <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
+                    </label>
+                  </div>
+                  ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
+                  ${isReferenceRush ? `
+                    <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
+                      ${icons.timer}
+                      <span>
+                        <strong>Countdown ${state.referenceRushTimed ? "on" : "off"}</strong>
+                        <small>${state.referenceRushTimed ? `${referenceRushTime} for this round` : "Play without a timer"}</small>
+                      </span>
+                    </button>
+                  ` : ""}
+                  ${isBookSprint ? `
+                    <div class="book-sprint-best-card">
+                      <span>Best time for this setup</span>
+                      <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
+                    </div>
+                  ` : ""}
+                </div>
+              </aside>
+            </div>
+            <div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
+              <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close social games" tabindex="-1"></button>
+              <aside class="games-drawer games-social-drawer" id="gamesSocialDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesSocialTitle" tabindex="-1">
+                <div class="games-drawer-header">
+                  <div>
+                    <span>Friends &amp; rooms</span>
+                    <strong id="gamesSocialTitle">Social games</strong>
+                  </div>
+                  <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close social games">${icons.clear}</button>
+                </div>
+                <div class="games-drawer-scroll">
+                  ${gameChallengeSetupCard()}
+                </div>
+              </aside>
+            </div>
+            <div class="trivia-start-dock">
+              ${waitingForLiveChallenge
+                ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
+                : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+              <small>${escapeHtml(setupSummary)}</small>
+            </div>
           </div>
         `}
       </article>
@@ -12449,6 +12580,19 @@ function bindEvents() {
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   document.querySelector(".library")?.addEventListener("scroll", () => rememberLibraryScroll(), { passive: true });
+  document.getElementById("gameOptionsToggle")?.addEventListener("click", () => {
+    setGamesDrawer(state.gamesDrawerOpen === "options" ? "" : "options");
+  });
+  document.getElementById("gameSocialToggle")?.addEventListener("click", () => {
+    setGamesDrawer(state.gamesDrawerOpen === "social" ? "" : "social");
+  });
+  document.getElementById("openGameSocialRoom")?.addEventListener("click", () => setGamesDrawer("social"));
+  document.querySelectorAll("[data-games-drawer-dismiss]").forEach((button) => {
+    button.addEventListener("click", () => setGamesDrawer(""));
+  });
+  document.querySelectorAll(".games-drawer").forEach((drawer) => {
+    drawer.addEventListener("keydown", trapGamesDrawerFocus);
+  });
   document.querySelectorAll("[data-trivia-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const pendingChallenge = activeGameChallenge();
@@ -12540,7 +12684,10 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
-  document.getElementById("startTriviaGame")?.addEventListener("click", startTriviaGame);
+  document.getElementById("startTriviaGame")?.addEventListener("click", () => {
+    state.gamesDrawerOpen = "";
+    startTriviaGame();
+  });
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
     startTriviaGame();
@@ -12550,6 +12697,7 @@ function bindEvents() {
     cleanupTriviaCelebration();
     state.activeGameChallengeId = "";
     state.triviaGame = null;
+    state.gamesDrawerOpen = "";
     renderPreservingReaderScroll();
   });
   document.getElementById("nextTriviaQuestion")?.addEventListener("click", nextTriviaQuestion);
@@ -13141,6 +13289,7 @@ function triviaPool() {
 
 function startTriviaGame({ render = true } = {}) {
   cleanupTriviaCelebration();
+  state.gamesDrawerOpen = "";
   if (state.triviaGameType === "verse-order") return startVerseOrderGame({ render });
   if (state.triviaGameType === "reference-rush") return startReferenceRushGame({ render });
   if (state.triviaGameType === "book-sprint") return startBookSprintGame({ render });
@@ -14229,6 +14378,7 @@ function exitTriviaGame() {
   cleanupTriviaCelebration();
   state.activeGameChallengeId = "";
   state.triviaGame = null;
+  state.gamesDrawerOpen = "";
   renderPreservingReaderScroll();
 }
 
@@ -15621,6 +15771,7 @@ function setGameChallengeNotificationView(challenge) {
   state.accountOpen = false;
   state.mode = "trivia";
   state.triviaGame = null;
+  state.gamesDrawerOpen = "";
   state.triviaGameType = challenge.gameType;
   state.triviaCategory = challenge.category;
   state.triviaDifficulty = challenge.difficulty;
@@ -17511,6 +17662,10 @@ function handleGlobalShortcuts(event) {
   if (event.metaKey || event.ctrlKey || event.altKey) return;
 
   if (event.key === "Escape") {
+    if (state.gamesDrawerOpen) {
+      event.preventDefault();
+      return setGamesDrawer("");
+    }
     if (state.pushPromptVisible) {
       event.preventDefault();
       return dismissPushPermissionPrompt();
