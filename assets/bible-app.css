@@ -16235,6 +16235,45 @@ svg {
   }
 }
 
+.reader-return-button.game-return-button {
+  width: auto;
+  min-width: 46px;
+  padding: 0 16px;
+  gap: 8px;
+  color: var(--paper);
+  background: var(--teal);
+  border-color: color-mix(in srgb, var(--teal) 82%, var(--line));
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  opacity: 0.96;
+}
+
+.reader-return-button.game-return-button:hover,
+.reader-return-button.game-return-button:focus-visible {
+  color: var(--paper);
+  background: color-mix(in srgb, var(--teal) 88%, #000);
+  opacity: 1;
+}
+
+.presentation-return-button.game-return-button {
+  width: auto;
+  min-width: 44px;
+  padding-inline: 13px;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+@media (max-width: 840px) {
+  .reader-return-button.game-return-button {
+    width: auto;
+    min-width: 42px;
+    padding-inline: 13px;
+  }
+}
+
 /* Games setup keeps the desktop flow while mobile promotes setup and social tools to drawers. */
 .trivia-header-actions {
   display: flex;

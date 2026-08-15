@@ -16,6 +16,7 @@
     "test:friends": "node scripts/friendships.test.mjs",
     "test:focus-layout": "node scripts/focus-mode-layout.test.mjs",
     "test:games-layout": "node scripts/games-mobile-layout.test.mjs",
+    "test:games-return": "node scripts/game-reference-return.test.mjs",
     "test:headings": "node scripts/section-heading-groups.test.mjs",
     "test:header-brand": "node scripts/header-brand-sizing.test.mjs",
     "test:mode-transition": "node scripts/mode-transition.test.mjs",

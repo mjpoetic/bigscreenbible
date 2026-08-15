@@ -633,6 +633,7 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   triviaGame: null,
+  gameReferenceReturn: null,
   gamesDrawerOpen: "",
   authConfigured: isSupabaseConfigured(),
   authClient: null,
@@ -1523,7 +1524,7 @@ function scrollTriviaAnswerActionsIntoView() {
     ? actionsBounds.bottom - visibleBottom
     : answerBounds.top - visibleTop;
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const behavior = boundary || reducedMotion ? "auto" : "smooth";
+  const behavior = reducedMotion ? "auto" : "smooth";
   triviaReader.scrollTo({
     top: Math.max(0, triviaReader.scrollTop + offset),
     behavior,
@@ -1666,6 +1667,7 @@ function runModeViewTransition(previousMode, nextMode, updateMode) {
 function switchMode(nextMode) {
   if (!["reader", "parallel", "big", "trivia"].includes(nextMode)) return;
   if (nextMode === state.mode) return;
+  if (nextMode === "trivia" && currentGameReferenceReturn()) return returnToTriviaGame();
   if (nextMode !== "trivia") cleanupTriviaCelebration();
   const previousMode = state.mode;
   const previousScrollState = rememberModeScrollState();
@@ -5168,6 +5170,10 @@ function bindReaderTopButton() {
 function bindReaderReturnButton() {
   const button = document.getElementById("readerReturnButton");
   if (!button) return;
+  if (currentGameReferenceReturn()) {
+    button.addEventListener("click", returnToTriviaGame);
+    return;
+  }
   applyReaderReturnButtonLabel(button);
   button.addEventListener("click", () => {
     restoreReaderReturnTarget();
@@ -5776,6 +5782,14 @@ function readerSelectionToolsButton() {
 }
 
 function readerReturnButton() {
+  if (currentGameReferenceReturn()) {
+    return `
+      <button class="reader-return-button game-return-button" id="readerReturnButton" type="button" aria-label="Return to game" data-tooltip="Return to game">
+        ${icons.arrowLeft}
+        <span>Return to game</span>
+      </button>
+    `;
+  }
   const target = currentReaderReturnTarget();
   if (!target) return "";
   const tooltip = readerReturnTooltip(target);
@@ -5803,6 +5817,9 @@ function applyReaderReturnButtonLabel(button, target = currentReaderReturnTarget
 }
 
 function presentationReturnButton() {
+  if (currentGameReferenceReturn()) {
+    return `<button class="ghost-btn presentation-nav-button presentation-return-button game-return-button" id="readerReturnButton" aria-label="Return to game" data-tooltip="Return to game">${icons.arrowLeft}<span>Return to game</span></button>`;
+  }
   const target = currentReaderReturnTarget();
   if (!target) return "";
   const tooltip = readerReturnTooltip(target);
@@ -9172,7 +9189,39 @@ function normalizedTriviaCount(gameType = state.triviaGameType, count = state.tr
 
 function bookSprintElapsedMs(game = state.triviaGame) {
   if (!game || game.type !== "book-sprint" || !game.startedAt) return 0;
-  return Math.max(0, (game.finishedAt || Date.now()) - game.startedAt);
+  return Math.max(0, (game.finishedAt || game.referencePausedAt || Date.now()) - game.startedAt);
+}
+
+function pauseTriviaGameForReference(game = state.triviaGame, pausedAt = Date.now()) {
+  if (!game || game.complete || game.finishedAt || game.referencePausedAt) return false;
+  const countdownRunning = game.type === "reference-rush"
+    && game.timed
+    && game.deadlineAt
+    && game.deadlineAt > pausedAt;
+  const elapsedTimerRunning = game.type === "book-sprint" && game.startedAt;
+  if (!countdownRunning && !elapsedTimerRunning) return false;
+  game.referencePausedAt = pausedAt;
+  if (countdownRunning) game.referencePausedRemainingMs = Math.max(0, game.deadlineAt - pausedAt);
+  return true;
+}
+
+function resumeTriviaGameAfterReference(game = state.triviaGame, resumedAt = Date.now()) {
+  if (!game?.referencePausedAt) return 0;
+  const pausedDuration = Math.max(0, resumedAt - game.referencePausedAt);
+  if (game.type === "reference-rush" && game.timed && game.deadlineAt) {
+    const pausedRemainingMs = Number(game.referencePausedRemainingMs);
+    game.deadlineAt = Number.isFinite(pausedRemainingMs)
+      ? resumedAt + Math.max(0, pausedRemainingMs)
+      : game.deadlineAt + pausedDuration;
+    game.referenceRushLastTick = null;
+  }
+  if (game.type === "book-sprint" && game.startedAt) {
+    game.startedAt += pausedDuration;
+    game.bookSprintLastTick = null;
+  }
+  game.referencePausedAt = null;
+  game.referencePausedRemainingMs = null;
+  return pausedDuration;
 }
 
 function bookSprintBestKey(difficulty = state.triviaDifficulty, rounds = state.triviaCount || 10) {
@@ -9222,7 +9271,7 @@ function scheduleBookSprintTimer() {
   bookSprintTimer = 0;
   updateBookSprintTimerDisplay();
   const game = state.triviaGame;
-  if (state.mode !== "trivia" || game?.type !== "book-sprint" || game.complete) return;
+  if (state.mode !== "trivia" || game?.type !== "book-sprint" || game.complete || game.referencePausedAt) return;
   bookSprintTimer = setInterval(updateBookSprintTimerDisplay, 500);
 }
 
@@ -9295,7 +9344,10 @@ function referenceRushDurationMs(difficulty = state.triviaDifficulty, count = st
 
 function referenceRushRemainingMs(game = state.triviaGame) {
   if (!game || game.type !== "reference-rush" || !game.timed || !game.deadlineAt) return 0;
-  const now = game.finishedAt || Date.now();
+  if (game.referencePausedAt && Number.isFinite(Number(game.referencePausedRemainingMs))) {
+    return Math.max(0, Number(game.referencePausedRemainingMs));
+  }
+  const now = game.finishedAt || game.referencePausedAt || Date.now();
   return Math.max(0, game.deadlineAt - now);
 }
 
@@ -9331,7 +9383,7 @@ function scheduleReferenceRushTimer() {
   referenceRushTimer = 0;
   updateReferenceRushTimerDisplay();
   const game = state.triviaGame;
-  if (state.mode !== "trivia" || game?.type !== "reference-rush" || !game.timed || game.complete || game.finishedAt) return;
+  if (state.mode !== "trivia" || game?.type !== "reference-rush" || !game.timed || game.complete || game.finishedAt || game.referencePausedAt) return;
   referenceRushTimer = setInterval(updateReferenceRushTimerDisplay, 250);
 }
 
@@ -14744,6 +14796,23 @@ function currentVerseOrderPuzzle() {
   return game.puzzles[game.index];
 }
 
+function currentGameReferenceReturn() {
+  const target = state.gameReferenceReturn;
+  return target?.game && target.game === state.triviaGame ? target : null;
+}
+
+function returnToTriviaGame() {
+  const target = currentGameReferenceReturn();
+  if (!target) return;
+  resumeTriviaGameAfterReference(target.game);
+  state.gameReferenceReturn = null;
+  state.mode = "trivia";
+  state.focusMode = false;
+  state.pendingVerseFocus = false;
+  render();
+  restoreModeScrollAfterRender(target.scrollState);
+}
+
 function openTriviaReference() {
   const game = state.triviaGame;
   const reference = game?.type === "verse-order" || game?.type === "reference-rush"
@@ -14751,7 +14820,13 @@ function openTriviaReference() {
     : game?.type === "who-said-it"
       ? game.questions?.[game.index]?.reference
     : game?.questions?.[game.index]?.reference;
+  const gameScrollState = captureReaderScroll();
   if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
+  pauseTriviaGameForReference(game);
+  state.gameReferenceReturn = {
+    game,
+    scrollState: gameScrollState,
+  };
   state.mode = "reader";
   state.focusMode = false;
   state.libraryOpen = false;
