@@ -40,6 +40,7 @@ function snapshot(label) {
 
 const storage = new Map();
 let liveSnapshot = snapshot("account-a");
+const appliedSnapshots = [];
 const context = {
   accountDataOwnerStorageKey: "lw_account_data_owner",
   guestSnapshotStorageKey: "lw_guest_snapshot",
@@ -77,6 +78,9 @@ const context = {
   captureCloudSnapshot() {
     return JSON.parse(JSON.stringify(liveSnapshot));
   },
+  applyCloudSnapshot(value) {
+    appliedSnapshots.push(JSON.parse(JSON.stringify(value)));
+  },
 };
 
 vm.createContext(context);
@@ -92,11 +96,13 @@ vm.runInContext(`
   ${extractFunction("blankLocalSnapshot")}
   ${extractFunction("pendingAccountSwitch")}
   ${extractFunction("localSnapshotForAuthenticatedUser")}
+  ${extractFunction("activateGuestBrowserData")}
   ${extractFunction("accountSessionStorageKey")}
   ${extractFunction("rememberedAccountSession")}
   ${extractFunction("rememberAuthenticatedSession")}
   ${extractFunction("removeRememberedAccountSession")}
   globalThis.snapshotForUser = localSnapshotForAuthenticatedUser;
+  globalThis.activateGuest = activateGuestBrowserData;
   globalThis.savedSession = rememberedAccountSession;
   globalThis.rememberSession = rememberAuthenticatedSession;
   globalThis.removeSession = removeRememberedAccountSession;
@@ -135,6 +141,34 @@ assert.deepEqual(JSON.parse(storage.get("lw_guest_snapshot")).bookmarks, ["guest
 storage.set("lw_pending_account_switch", "true");
 const newAccountAfterSwitch = context.snapshotForUser("new-account");
 assert.deepEqual([...newAccountAfterSwitch.bookmarks], [], "Guest data must not leak into a newly switched account");
+
+liveSnapshot = snapshot("guest-current");
+storage.set("lw_account_data_owner", "guest");
+storage.set("lw_guest_snapshot", JSON.stringify(snapshot("guest-stale")));
+appliedSnapshots.length = 0;
+context.activateGuest();
+assert.deepEqual(
+  JSON.parse(storage.get("lw_guest_snapshot")).bookmarks,
+  ["guest-current:1"],
+  "Signed-out initialization must preserve the current guest snapshot",
+);
+assert.equal(appliedSnapshots.length, 0, "Signed-out initialization must not reapply a stale guest snapshot");
+
+liveSnapshot = snapshot("account-a-current");
+storage.set("lw_account_data_owner", "account-a");
+storage.set("lw_guest_snapshot", JSON.stringify(snapshot("guest-saved")));
+context.activateGuest();
+assert.deepEqual(
+  JSON.parse(storage.get("lw_account_snapshot:account-a")).bookmarks,
+  ["account-a-current:1"],
+  "Signing out must preserve the outgoing account snapshot",
+);
+assert.deepEqual(
+  appliedSnapshots.at(-1).bookmarks,
+  ["guest-saved:1"],
+  "Signing out must still restore the saved guest snapshot",
+);
+assert.equal(storage.get("lw_account_data_owner"), "guest");
 
 context.rememberSession({
   access_token: "access-b",

@@ -17222,6 +17222,26 @@ svg {
 }
 
 @media (orientation: landscape) and (max-width: 1366px) and (max-height: 720px) {
+  .app-shell.trivia-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-shell > .main-grid.trivia-grid {
+    height: auto;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+  }
+
+  .trivia-grid .trivia-reader.is-playing {
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .ordering-check-dock {
     align-self: flex-end;
     width: min(280px, 100%);
@@ -17277,6 +17297,38 @@ svg {
 
   .games-controls-drawer {
     width: min(300px, 76vw);
+  }
+
+  .games-answer-overlay:not([hidden]) {
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  .games-answer-dialog {
+    width: min(900px, 100%);
+    max-height: calc(100dvh - 24px);
+    padding: clamp(16px, 2.5vw, 24px);
+  }
+
+  .games-answer-dialog-body {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 0.38fr);
+    align-items: center;
+    column-gap: clamp(16px, 3vw, 28px);
+  }
+
+  .games-answer-dialog-body .trivia-feedback {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .games-answer-dialog-body .trivia-actions {
+    grid-column: 2;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+  }
+
+  .games-answer-dialog-body #nextTriviaQuestion {
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .trivia-reader.is-playing .trivia-results {

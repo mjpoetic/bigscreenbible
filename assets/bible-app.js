@@ -3552,6 +3552,10 @@ function localSnapshotForAuthenticatedUser(userId) {
 function activateGuestBrowserData() {
   const currentSnapshot = captureCloudSnapshot();
   const owner = accountDataOwner();
+  if (owner === guestDataOwner) {
+    saveSnapshotForOwner(guestDataOwner, currentSnapshot);
+    return;
+  }
   if (owner && owner !== guestDataOwner) saveSnapshotForOwner(owner, currentSnapshot);
   const guestSnapshot = guestBrowserSnapshot() || blankLocalSnapshot(currentSnapshot);
   setAccountDataOwner(guestDataOwner);
