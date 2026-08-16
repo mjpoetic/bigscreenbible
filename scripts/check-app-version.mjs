@@ -14,6 +14,7 @@ const releaseManagedFiles = [
   "assets/crossrefs.js",
   "assets/search-query.js",
   "assets/supabase-config.js",
+  "assets/theme-catalog.js",
   "assets/trivia.js",
   "assets/verse-of-day.js",
 ];

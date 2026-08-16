@@ -7,7 +7,7 @@
     <link rel="canonical" href="https://bigscreenbible.com/" />
     <meta name="robots" content="index, follow" />
     <meta name="application-name" content="Big Screen Bible" />
-    <meta name="app-version" content="2026.08.15.22" />
+    <meta name="app-version" content="2026.08.15.23" />
     <meta name="apple-mobile-web-app-title" content="Big Screen Bible" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -52,40 +52,9 @@
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=20260713-refined" />
     <link rel="manifest" href="./site.webmanifest?v=20260713-refined" />
     <meta name="theme-color" content="#111d37" />
+    <script src="./assets/theme-catalog.js?v=2026.08.15.23"></script>
     <script>
-      (function applyInitialTheme() {
-        const presets = {
-          light: ["paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire", "opal"],
-          dark: ["midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast"],
-        };
-        const defaults = { light: "sapphire", dark: "aurora" };
-        const chromeColors = {
-          paper: "#f8f7f3",
-          parchment: "#f3ecdd",
-          clarity: "#f5f7f8",
-          dawn: "#f7ead2",
-          meadow: "#e5f0d8",
-          blush: "#f8e5ee",
-          lavender: "#eae3fb",
-          sapphire: "#dbeafe",
-          opal: "#dcecff",
-          midnight: "#111827",
-          chapel: "#12100d",
-          aurora: "#111d37",
-          "rose-night": "#281323",
-          "violet-night": "#1d1735",
-          nocturne: "#07111f",
-          contrast: "#000000",
-        };
-        const systemQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
-        const savedMode = localStorage.getItem("lw_theme");
-        const theme = savedMode === "light" || savedMode === "dark" ? savedMode : systemQuery?.matches ? "dark" : "light";
-        const savedPreset = localStorage.getItem(`lw_theme_preset_${theme}`);
-        const preset = presets[theme].includes(savedPreset) ? savedPreset : defaults[theme];
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.themePreset = preset;
-        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", chromeColors[preset] || chromeColors[defaults[theme]]);
-      })();
+      window.BigScreenBibleThemeCatalog.applyStoredTheme();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -93,7 +62,7 @@
       href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400..700;1,400..700&family=Crimson+Text:wght@400;600;700&family=Figtree:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Literata:ital,wght@0,400..700;1,400..700&family=Lora:ital,wght@0,400..700;1,400..700&family=Manrope:wght@400;600;700&family=Noto+Sans:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./assets/bible-app.css?v=2026.08.15.22" />
+    <link rel="stylesheet" href="./assets/bible-app.css?v=2026.08.15.23" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -137,7 +106,7 @@
         </section>
       </main>
     </div>
-    <script src="./assets/supabase-config.js?v=2026.08.15.22"></script>
+    <script src="./assets/supabase-config.js?v=2026.08.15.23"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script async src="https://pkg.api.bible/fumsV3.min.js"></script>
     <script>
@@ -146,10 +115,10 @@
         window.fumsData.push(arguments);
       };
     </script>
-    <script src="./assets/crossrefs.js?v=2026.08.15.22"></script>
-    <script src="./assets/verse-of-day.js?v=2026.08.15.22"></script>
-    <script src="./assets/trivia.js?v=2026.08.15.22"></script>
-    <script src="./assets/search-query.js?v=2026.08.15.22"></script>
-    <script src="./assets/bible-app.js?v=2026.08.15.22"></script>
+    <script src="./assets/crossrefs.js?v=2026.08.15.23"></script>
+    <script src="./assets/verse-of-day.js?v=2026.08.15.23"></script>
+    <script src="./assets/trivia.js?v=2026.08.15.23"></script>
+    <script src="./assets/search-query.js?v=2026.08.15.23"></script>
+    <script src="./assets/bible-app.js?v=2026.08.15.23"></script>
   </body>
 </html>

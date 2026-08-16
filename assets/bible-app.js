@@ -114,78 +114,21 @@ const printLayouts = [
 ];
 const printLayoutCodes = printLayouts.map((layout) => layout.code);
 
-const themePresets = [
-  { code: "paper", name: "Paper", mode: "light" },
-  { code: "parchment", name: "Parchment", mode: "light" },
-  { code: "clarity", name: "Clarity", mode: "light" },
-  { code: "dawn", name: "Dawn", mode: "light" },
-  { code: "meadow", name: "Meadow", mode: "light" },
-  { code: "blush", name: "Blush", mode: "light" },
-  { code: "lavender", name: "Lavender", mode: "light" },
-  { code: "sapphire", name: "Sapphire", mode: "light" },
-  { code: "opal", name: "Opal", mode: "light" },
-  { code: "midnight", name: "Midnight", mode: "dark" },
-  { code: "chapel", name: "Chapel", mode: "dark" },
-  { code: "aurora", name: "Aurora", mode: "dark" },
-  { code: "rose-night", name: "Rose Night", mode: "dark" },
-  { code: "violet-night", name: "Violet Night", mode: "dark" },
-  { code: "nocturne", name: "Nocturne", mode: "dark" },
-  { code: "contrast", name: "Contrast", mode: "dark" },
-];
-const themePresetLookup = Object.fromEntries(themePresets.map((preset) => [preset.code, preset]));
-const defaultThemePresets = { light: "sapphire", dark: "aurora" };
-const presentationThemes = [
-  { code: "deep", name: "Deep" },
-  { code: "warm", name: "Warm" },
-  { code: "paper", name: "Paper" },
-  { code: "dawn", name: "Dawn" },
-  { code: "aurora", name: "Aurora" },
-  { code: "meadow", name: "Meadow" },
-  { code: "blush", name: "Blush" },
-  { code: "lavender", name: "Lavender" },
-  { code: "sapphire", name: "Sapphire" },
-  { code: "rose-night", name: "Rose Night" },
-  { code: "violet-night", name: "Violet Night" },
-  { code: "nocturne", name: "Nocturne" },
-  { code: "midnight", name: "Midnight" },
-  { code: "contrast", name: "Contrast" },
-];
-const presentationThemeCodes = presentationThemes.map((theme) => theme.code);
-const defaultPresentationTheme = "aurora";
-const presentationThemeColors = {
-  deep: "#004f54",
-  warm: "#4b3021",
-  paper: "#f9f2e4",
-  dawn: "#f7c986",
-  aurora: "#102433",
-  meadow: "#b8d99e",
-  blush: "#f5d7e6",
-  lavender: "#e7ddfb",
-  sapphire: "#dbeafe",
-  "rose-night": "#281121",
-  "violet-night": "#1b1534",
-  nocturne: "#07111f",
-  midnight: "#111827",
-  contrast: "#000000",
-};
-const themeChromeColors = {
-  paper: "#f8f7f3",
-  parchment: "#f3ecdd",
-  clarity: "#f5f7f8",
-  dawn: "#f7ead2",
-  meadow: "#e5f0d8",
-  blush: "#f8e5ee",
-  lavender: "#eae3fb",
-  sapphire: "#dbeafe",
-  opal: "#dcecff",
-  midnight: "#111827",
-  chapel: "#12100d",
-  aurora: "#111d37",
-  "rose-night": "#281323",
-  "violet-night": "#1d1735",
-  nocturne: "#07111f",
-  contrast: "#000000",
-};
+const themeCatalog = window.BigScreenBibleThemeCatalog;
+if (!themeCatalog) throw new Error("Big Screen Bible theme catalog failed to load.");
+const {
+  themePresets,
+  themePresetLookup,
+  defaultThemePresets,
+  presentationThemes,
+  presentationThemeCodes,
+  defaultPresentationTheme,
+  resolveThemeMode,
+  resolveThemePreset,
+  resolvePresentationTheme,
+  themeChromeColor,
+  presentationThemeColor,
+} = themeCatalog;
 const defaultScriptureFont = "literata";
 const scriptureFonts = [
   { code: "literata", name: "Literata" },
@@ -303,11 +246,13 @@ let mobileSettingsIdleTimer = 0;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
 let suppressMobileControlsClickUntil = 0;
-const mobileControlsHoldMs = 500;
+const mobileControlsHoldMs = 350;
 const mobileControlsHoldMoveTolerancePx = 12;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
+let modeTransitionAudioContext = null;
+let modeTransitionAudioResumePromise = null;
 let referenceRushTimer = 0;
 let referenceRushAudioContext = null;
 let orderingDragState = null;
@@ -505,6 +450,7 @@ const state = {
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
+  modeTransitionSounds: localStorage.getItem("lw_mode_transition_sounds") === "true",
   autoScrollActive: false,
   autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
@@ -531,7 +477,7 @@ const state = {
   presentationSettingsOpen: false,
   presentationControlsVisible: !isCompactScreen(),
   presentationPart: 0,
-  presentationTheme: localStorage.getItem("lw_presentation_theme") || defaultPresentationTheme,
+  presentationTheme: resolvePresentationTheme(localStorage.getItem("lw_presentation_theme")),
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
@@ -579,6 +525,7 @@ const state = {
   presentationVersionMenuOpen: "",
   presentationReferenceMenuOpen: "",
   presentationSettingsSectionsOpen: {
+    sound: false,
     updates: false,
     keyboard: false,
   },
@@ -700,15 +647,14 @@ if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentatio
 state.scriptureFont = normalizedScriptureFont(state.scriptureFont);
 
 function savedTheme() {
-  const theme = localStorage.getItem("lw_theme");
-  if (theme === "light" || theme === "dark") return theme;
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return resolveThemeMode(
+    localStorage.getItem("lw_theme"),
+    Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches),
+  );
 }
 
 function savedThemePreset(theme) {
-  const saved = localStorage.getItem(`lw_theme_preset_${theme}`);
-  if (themePresetLookup[saved]?.mode === theme) return saved;
-  return defaultThemePresets[theme];
+  return resolveThemePreset(theme, localStorage.getItem(`lw_theme_preset_${theme}`));
 }
 
 function watchSystemTheme() {
@@ -1480,8 +1426,8 @@ function showAccountSwitchNotification(user, destinationAccount = null) {
 function syncPresentationShell() {
   const isPresentationMode = state.mode === "big";
   const themeColor = isPresentationMode
-    ? presentationThemeColors[state.presentationTheme] || "#004f54"
-    : themeChromeColors[state.themePreset] || themeChromeColors[defaultThemePresets[state.theme]];
+    ? presentationThemeColor(state.presentationTheme)
+    : themeChromeColor(state.themePreset, state.theme);
   document.documentElement.dataset.theme = state.theme;
   document.body.dataset.theme = state.theme;
   document.documentElement.dataset.themePreset = state.themePreset;
@@ -1679,16 +1625,161 @@ function runModeViewTransition(previousMode, nextMode, updateMode) {
   return transition;
 }
 
-function switchMode(nextMode) {
+function modeTransitionSoundDuration(mode) {
+  return {
+    reader: 0.2,
+    parallel: 0.24,
+    big: 0.28,
+    trivia: 0.18,
+  }[mode] || 0.2;
+}
+
+function primeModeTransitionAudio() {
+  if (!state.modeTransitionSounds) return null;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return null;
+  try {
+    if (!modeTransitionAudioContext) modeTransitionAudioContext = new AudioContext();
+  } catch {
+    return null;
+  }
+  if (modeTransitionAudioContext.state === "running") {
+    return Promise.resolve(modeTransitionAudioContext);
+  }
+  if (modeTransitionAudioContext.state !== "suspended") return null;
+  if (!modeTransitionAudioResumePromise) {
+    modeTransitionAudioResumePromise = modeTransitionAudioContext.resume()
+      .then(() => modeTransitionAudioContext)
+      .catch(() => null)
+      .finally(() => {
+        modeTransitionAudioResumePromise = null;
+      });
+  }
+  return modeTransitionAudioResumePromise;
+}
+
+function playModePaperSweep(context, startAt, duration, peakGain = 0.018) {
+  const frameCount = Math.max(1, Math.ceil(context.sampleRate * duration));
+  const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+  const samples = buffer.getChannelData(0);
+  for (let index = 0; index < frameCount; index += 1) {
+    const progress = index / frameCount;
+    const paperGrain = Math.random() * 2 - 1;
+    samples[index] = paperGrain * Math.sin(Math.PI * progress) * (1 - progress * 0.35);
+  }
+
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+  const endAt = startAt + duration;
+  source.buffer = buffer;
+  filter.type = "bandpass";
+  filter.Q.setValueAtTime(0.7, startAt);
+  filter.frequency.setValueAtTime(1750, startAt);
+  filter.frequency.exponentialRampToValueAtTime(520, endAt);
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(peakGain, startAt + 0.018);
+  gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(context.destination);
+  source.start(startAt);
+  source.stop(endAt);
+}
+
+function playModeTone(context, options) {
+  const startAt = options.startAt;
+  const endAt = startAt + options.duration;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = options.type || "sine";
+  oscillator.frequency.setValueAtTime(options.startFrequency, startAt);
+  oscillator.frequency.exponentialRampToValueAtTime(options.endFrequency || options.startFrequency, endAt);
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(options.peakGain, startAt + Math.min(0.025, options.duration * 0.3));
+  gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startAt);
+  oscillator.stop(endAt);
+}
+
+function playReadyModeTransitionSound(context, mode) {
+  if (!state.modeTransitionSounds || !context || context.state !== "running") return;
+  const now = context.currentTime + 0.006;
+  const duration = modeTransitionSoundDuration(mode);
+  if (mode === "reader") {
+    playModePaperSweep(context, now, duration, 0.016);
+    return;
+  }
+  if (mode === "parallel") {
+    playModePaperSweep(context, now, 0.15, 0.014);
+    playModePaperSweep(context, now + duration - 0.15, 0.15, 0.012);
+    return;
+  }
+  if (mode === "big") {
+    playModeTone(context, {
+      startAt: now,
+      duration,
+      startFrequency: 196,
+      endFrequency: 294,
+      peakGain: 0.014,
+      type: "sine",
+    });
+    playModeTone(context, {
+      startAt: now + 0.065,
+      duration: 0.19,
+      startFrequency: 587,
+      endFrequency: 740,
+      peakGain: 0.009,
+      type: "sine",
+    });
+    return;
+  }
+  if (mode === "trivia") {
+    playModeTone(context, {
+      startAt: now,
+      duration: 0.075,
+      startFrequency: 523.25,
+      peakGain: 0.022,
+      type: "triangle",
+    });
+    playModeTone(context, {
+      startAt: now + duration - 0.1,
+      duration: 0.1,
+      startFrequency: 659.25,
+      peakGain: 0.018,
+      type: "triangle",
+    });
+  }
+}
+
+function playModeTransitionSound(mode) {
+  const ready = primeModeTransitionAudio();
+  ready?.then((context) => playReadyModeTransitionSound(context, mode));
+}
+
+function setModeTransitionSounds(enabled, options = {}) {
+  state.modeTransitionSounds = Boolean(enabled);
+  localStorage.setItem("lw_mode_transition_sounds", state.modeTransitionSounds ? "true" : "false");
+  scheduleCloudSync();
+  if (state.modeTransitionSounds && options.preview !== false) playModeTransitionSound(state.mode);
+  renderPreservingReaderScroll();
+}
+
+function switchMode(nextMode, options = {}) {
   if (!["reader", "parallel", "big", "trivia"].includes(nextMode)) return;
   if (nextMode === state.mode) return;
   if (nextMode === "trivia" && currentGameReferenceReturn()) return returnToTriviaGame();
   if (nextMode !== "trivia") cleanupTriviaCelebration();
+  const audible = Boolean(options.audible && state.modeTransitionSounds);
+  if (audible) primeModeTransitionAudio();
   const previousMode = state.mode;
   const previousScrollState = rememberModeScrollState();
   const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
   const applyModeChange = () => {
     state.mode = nextMode;
+    if (audible) playModeTransitionSound(nextMode);
     if (nextMode !== "trivia") state.gamesDrawerOpen = "";
     state.headerVersionMenuOpen = false;
     state.footerVersionMenuOpen = false;
@@ -2704,6 +2795,13 @@ function accessibilitySettings(prefix = "") {
         `).join("")}
       </div>
       <p class="setting-help" aria-live="polite">${selectedSize.name} (${selectedSize.percent}%). Enlarges navigation, Bible picker, Settings, and study-panel text. Scripture size stays separate.</p>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("ModeTransitionSoundsToggle")}" ${state.modeTransitionSounds ? "checked" : ""} />
+        <span>Mode transition sounds</span>
+      </label>
+      <p class="setting-help">Plays a short cue only when you choose a different mode. Turning this on previews the current mode sound.</p>
     </div>
   `);
 }
@@ -8047,11 +8145,15 @@ function positionSettingsPopover(anchorPreference = state.settingsAnchor) {
     popover.style.zIndex = "360";
     return;
   }
-  if (!button) return;
-  positionFixedPopoverBelowButton(popover, button, {
-    coverRail: false,
-    topOverride: top,
-  });
+  if (button) {
+    positionFixedPopoverBelowButton(popover, button, {
+      coverRail: false,
+      topOverride: top,
+    });
+  }
+  popover.style.maxHeight = `${settingsPopoverMaxHeight(top)}px`;
+  popover.style.overflow = "auto";
+  popover.style.zIndex = "360";
 }
 
 function settingsPopoverTopBelowHeader() {
@@ -8061,6 +8163,27 @@ function settingsPopoverTopBelowHeader() {
   const headerBottom = document.querySelector(".topbar")?.getBoundingClientRect().bottom;
   if (!Number.isFinite(headerBottom)) return viewportTop + gutter;
   return Math.max(viewportTop + gutter, Math.round(viewportTop + headerBottom + gutter));
+}
+
+function settingsPopoverMaxHeight(top) {
+  const viewport = fixedPopoverViewport();
+  const viewportTop = viewport.offsetTop || 0;
+  const gutter = 8;
+  let bottomBoundary = viewportTop + viewport.height - gutter;
+  document.querySelectorAll(".footer-region, .trivia-start-dock").forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    if (
+      style.display === "none"
+      || style.visibility === "hidden"
+      || rect.width <= 0
+      || rect.height <= 0
+      || rect.top <= top + 180
+      || rect.top >= bottomBoundary
+    ) return;
+    bottomBoundary = rect.top - gutter;
+  });
+  return Math.max(180, Math.round(bottomBoundary - top));
 }
 
 function isElementVisible(element) {
@@ -8638,6 +8761,7 @@ function captureCloudSnapshot() {
       customHighlightColor: state.customHighlightColor,
       textScale: state.textScale,
       interfaceTextSize: state.interfaceTextSize,
+      modeTransitionSounds: state.modeTransitionSounds,
       settingsSectionsOpen: { ...state.settingsSectionsOpen },
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
       autoScrollEnabled: state.autoScrollEnabled,
@@ -8811,6 +8935,9 @@ function applyCloudSnapshot(snapshot) {
   state.interfaceTextSize = normalizedInterfaceTextSize(
     settings.interfaceTextSize || localStorage.getItem("lw_interface_text_size"),
   );
+  state.modeTransitionSounds = typeof settings.modeTransitionSounds === "boolean"
+    ? settings.modeTransitionSounds
+    : localStorage.getItem("lw_mode_transition_sounds") === "true";
   state.settingsSectionsOpen = normalizedSettingsSectionsOpen(
     settings.settingsSectionsOpen || savedSettingsSectionsOpen(),
   );
@@ -8882,6 +9009,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
+  localStorage.setItem("lw_mode_transition_sounds", String(state.modeTransitionSounds));
   localStorage.setItem(settingsSectionsOpenStorageKey, JSON.stringify(state.settingsSectionsOpen));
   if (state.settingsSectionsOpenUpdatedAt) {
     localStorage.setItem(settingsSectionsOpenUpdatedAtStorageKey, state.settingsSectionsOpenUpdatedAt);
@@ -11770,6 +11898,13 @@ function presentation(accountPanelRerender = false) {
         </div>
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
+        ${presentationSettingsDisclosure("sound", "Sound", `
+          <label class="presentation-setting-checkbox">
+            <input type="checkbox" id="presentationModeTransitionSoundsToggle" ${state.modeTransitionSounds ? "checked" : ""} />
+            <span>Mode transition sounds</span>
+          </label>
+          <p class="setting-help">Plays a short cue only when you choose a different mode. Turning this on previews Big Screen.</p>
+        `)}
         ${presentationSettingsDisclosure("updates", "App update", appUpdateControls("presentation"))}
         ${presentationSettingsDisclosure("keyboard", "Keyboard", `
           <div class="presentation-help">
@@ -12220,7 +12355,7 @@ function bindEvents() {
   document.querySelector(".topbar")?.addEventListener("click", handleTopbarScrollTap);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
-      switchMode(button.dataset.mode);
+      switchMode(button.dataset.mode, { audible: true });
     });
   });
   document.querySelectorAll("[data-remove-version]").forEach((button) => {
@@ -12585,6 +12720,11 @@ function bindEvents() {
   bindCustomScriptureFontInput("mobileCustomScriptureFontInput");
   document.querySelectorAll("[data-interface-text-size-choice]").forEach((button) => {
     button.addEventListener("click", () => setInterfaceTextSize(button.dataset.interfaceTextSizeChoice));
+  });
+  ["modeTransitionSoundsToggle", "mobileModeTransitionSoundsToggle", "presentationModeTransitionSoundsToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      setModeTransitionSounds(event.target.checked);
+    });
   });
   document.querySelectorAll("[data-auto-scroll-speed]").forEach((button) => {
     button.addEventListener("click", () => setReaderAutoScrollSpeed(button.dataset.autoScrollSpeed));

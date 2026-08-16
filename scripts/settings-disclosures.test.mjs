@@ -88,6 +88,7 @@ const outsidePointerDownSource = extractFunction("closeSettingsPopoverOnOutsideP
 const closeSettingsSource = extractFunction("closeSettingsPopover");
 const bindEventsSource = extractFunction("bindEvents");
 const topBelowHeaderSource = extractFunction("settingsPopoverTopBelowHeader");
+const settingsMaxHeightSource = extractFunction("settingsPopoverMaxHeight");
 const positionSettingsSource = extractFunction("positionSettingsPopover");
 const mobileFocusOverlayControlsSource = extractFunction("mobileFocusOverlayControls");
 const revealMobileSettingsSource = extractFunction("revealMobileSettingsButton");
@@ -157,6 +158,7 @@ assert.doesNotMatch(closeSettingsSource, /settingsPopupPosition/, "Closing Setti
 assert.doesNotMatch(bindEventsSource, /state\.settingsPopupPosition\s*=\s*null/, "Opening or replacing Settings preserves a user-moved position");
 assert.match(positionSettingsSource, /settingsPopoverTopBelowHeader\(\)/);
 assert.match(positionSettingsSource, /topOverride: top/);
+assert.match(positionSettingsSource, /settingsPopoverMaxHeight\(top\)/);
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("click", handleMobileControlsClick\)/);
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointerdown", beginMobileControlsHold\)/);
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointermove", updateMobileControlsHold\)/);
@@ -168,8 +170,9 @@ assert.doesNotMatch(source, /mobileFloatingSettings|mobile-floating-settings/);
 assert.doesNotMatch(revealMobileSettingsSource, /mobileFloatingSettings|mobile-floating-settings/);
 assert.match(bindMobileSettingsVisibilitySource, /\.scripture, \.trivia-reader, \.trivia-setup-main/);
 assert.match(styles, /\.mobile-controls-toggle\.settings-hold-pending::before/);
-assert.match(styles, /animation:\s*mobileSettingsHoldProgress 500ms linear forwards/);
+assert.match(styles, /animation:\s*mobileSettingsHoldProgress 350ms linear forwards/);
 assert.match(styles, /touch-action:\s*manipulation/);
+assert.match(styles, /-webkit-user-select:\s*none/);
 
 let scheduledHold = null;
 let now = 1000;
@@ -217,7 +220,7 @@ vm.runInContext(`
   let mobileControlsHoldTimer = 0;
   let mobileControlsHoldGesture = null;
   let suppressMobileControlsClickUntil = 0;
-  const mobileControlsHoldMs = 500;
+  const mobileControlsHoldMs = 350;
   const mobileControlsHoldMoveTolerancePx = 12;
   ${handleMobileControlsClickSource}
   ${beginMobileControlsHoldSource}
@@ -251,7 +254,7 @@ const pointerEvent = (overrides = {}) => ({
 });
 
 holdContext.beginHold(pointerEvent());
-assert.equal(scheduledHold.delay, 500, "Settings requires a deliberate half-second hold");
+assert.equal(scheduledHold.delay, 350, "Settings opens before iOS text selection can take over");
 assert.equal(pendingClasses.has("settings-hold-pending"), true, "Hold feedback appears while the timer is pending");
 holdContext.moveHold(pointerEvent({ clientX: 53 }));
 assert.equal(scheduledHold, null, "Moving beyond the gesture tolerance cancels the hold");
@@ -295,5 +298,22 @@ const topBelowHeaderContext = {
 vm.createContext(topBelowHeaderContext);
 vm.runInContext(`${topBelowHeaderSource}; globalThis.topBelowHeader = settingsPopoverTopBelowHeader;`, topBelowHeaderContext);
 assert.equal(topBelowHeaderContext.topBelowHeader(), 126, "The default Settings top sits eight pixels below the rendered header");
+
+const popupBlocker = (top, height) => ({
+  getBoundingClientRect: () => ({ top, height, width: 390 }),
+});
+let popupBlockers = [popupBlocker(781, 61), popupBlocker(855, 77)];
+const maxHeightContext = {
+  fixedPopoverViewport: () => ({ offsetTop: 0, width: 430, height: 932 }),
+  document: {
+    querySelectorAll: () => popupBlockers,
+  },
+  getComputedStyle: () => ({ display: "grid", visibility: "visible" }),
+};
+vm.createContext(maxHeightContext);
+vm.runInContext(`${settingsMaxHeightSource}; globalThis.maxHeight = settingsPopoverMaxHeight;`, maxHeightContext);
+assert.equal(maxHeightContext.maxHeight(233), 540, "Games Settings stops above the start-game dock");
+popupBlockers = [popupBlocker(855, 77)];
+assert.equal(maxHeightContext.maxHeight(233), 614, "Other mobile Settings panels stop above the footer");
 
 console.log("Settings disclosure tests passed");
