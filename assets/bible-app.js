@@ -13501,14 +13501,11 @@ function normalizedTriviaText(value) {
 
 function triviaQuestionIsPlayable(question) {
   if (!question?.question || !question.answer || !Array.isArray(question.choices)) return false;
+  if (/^Which reference fits this clue:/i.test(question.question)) return false;
   if (/^At .+, what answer fits this clue:/i.test(question.question)) return false;
   if (new Set(question.choices.map(normalizedTriviaText)).size < 4) return false;
   const prompt = ` ${normalizedTriviaText(question.question)} `;
   const answer = normalizedTriviaText(question.answer);
-  const referenceBook = String(question.answer).match(/^(.+?)\s+\d+:\d/)?.[1];
-  if (/^Which reference fits this clue:/i.test(question.question)
-    && referenceBook
-    && prompt.includes(` ${normalizedTriviaText(referenceBook)} `)) return false;
   return !answer || !prompt.includes(` ${answer} `);
 }
 
