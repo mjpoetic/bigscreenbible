@@ -302,7 +302,7 @@ assert.equal(topBelowHeaderContext.topBelowHeader(), 126, "The default Settings 
 const popupBlocker = (top, height) => ({
   getBoundingClientRect: () => ({ top, height, width: 390 }),
 });
-let popupBlockers = [popupBlocker(781, 61), popupBlocker(855, 77)];
+const popupBlockers = [popupBlocker(855, 77)];
 const maxHeightContext = {
   fixedPopoverViewport: () => ({ offsetTop: 0, width: 430, height: 932 }),
   document: {
@@ -312,8 +312,7 @@ const maxHeightContext = {
 };
 vm.createContext(maxHeightContext);
 vm.runInContext(`${settingsMaxHeightSource}; globalThis.maxHeight = settingsPopoverMaxHeight;`, maxHeightContext);
-assert.equal(maxHeightContext.maxHeight(233), 540, "Games Settings stops above the start-game dock");
-popupBlockers = [popupBlocker(855, 77)];
-assert.equal(maxHeightContext.maxHeight(233), 614, "Other mobile Settings panels stop above the footer");
+assert.equal(maxHeightContext.maxHeight(233), 614, "Mobile Settings stays tall and stops above the footer");
+assert.doesNotMatch(settingsMaxHeightSource, /trivia-start-dock/, "The game action dock does not shorten Settings");
 
 console.log("Settings disclosure tests passed");

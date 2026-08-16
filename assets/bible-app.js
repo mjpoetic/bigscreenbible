@@ -8170,7 +8170,7 @@ function settingsPopoverMaxHeight(top) {
   const viewportTop = viewport.offsetTop || 0;
   const gutter = 8;
   let bottomBoundary = viewportTop + viewport.height - gutter;
-  document.querySelectorAll(".footer-region, .trivia-start-dock").forEach((element) => {
+  document.querySelectorAll(".footer-region").forEach((element) => {
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
     if (
