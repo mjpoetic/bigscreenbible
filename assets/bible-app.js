@@ -10006,7 +10006,7 @@ function triviaView() {
             </div>
             <div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
               <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close social games" tabindex="-1"></button>
-              <aside class="games-drawer games-social-drawer" id="gamesSocialDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesSocialTitle" tabindex="-1">
+              <aside class="games-drawer games-social-drawer" id="gamesSocialDrawer" role="dialog" aria-modal="true" aria-labelledby="gamesSocialTitle" tabindex="-1">
                 <div class="games-drawer-header">
                   <div>
                     <span>Friends &amp; rooms</span>

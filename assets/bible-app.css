@@ -16328,7 +16328,7 @@ svg {
   }
 }
 
-/* Games setup keeps the desktop flow while mobile promotes setup and social tools to drawers. */
+/* Games keeps options inline on desktop while Social consistently opens as a drawer. */
 .trivia-header-actions {
   display: flex;
   align-items: center;
@@ -16371,6 +16371,165 @@ svg {
 
 .games-answer-overlay {
   display: none;
+}
+
+#gameSocialToggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--teal);
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+#gameSocialToggle.active,
+#gameSocialToggle:hover,
+#gameSocialToggle:focus-visible {
+  border-color: color-mix(in srgb, var(--teal) 55%, var(--line));
+  background: color-mix(in srgb, var(--teal) 10%, var(--panel));
+  outline: 0;
+}
+
+#gameSocialToggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+#gameSocialToggle small {
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border: 2px solid var(--panel);
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--accent-ink);
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.games-drawer-shell[data-games-drawer="social"] {
+  display: none;
+}
+
+.games-drawer-shell[data-games-drawer="social"].open {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: block;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--games-overlay-tint);
+  padding: 0;
+  backdrop-filter: blur(3px);
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-social-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 171;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(390px, 88vw);
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: -18px 0 45px color-mix(in srgb, var(--ink) 24%, transparent);
+  padding: max(14px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) 14px;
+  animation: gamesDrawerInRight var(--motion-drawer) var(--motion-ease) both;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 13px;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-header span {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-header strong {
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-size: 22px;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--teal);
+  padding: 0;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-close:hover,
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-close:focus-visible {
+  border-color: color-mix(in srgb, var(--teal) 56%, var(--line));
+  background: color-mix(in srgb, var(--teal) 10%, var(--paper));
+  outline: 0;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .games-drawer-scroll {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 2px 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.games-drawer-shell[data-games-drawer="social"] .challenge-setup-card {
+  width: 100%;
+  grid-template-columns: 1fr;
 }
 
 @keyframes gamesDrawerInRight {
