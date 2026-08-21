@@ -438,7 +438,6 @@ const strongs = {
 
 let searchRequestId = 0;
 let activeSearchScopeMenu = null;
-let pendingNoteFilterFocus = false;
 
 const state = {
   mode: "reader",
@@ -1317,14 +1316,6 @@ function render() {
       if (shouldScrollToFirstHit) scrollFirstInlineSearchHitIntoView();
       restoreInlineSearchInputFocus(inputId);
     }));
-  }
-  if (pendingNoteFilterFocus) {
-    pendingNoteFilterFocus = false;
-    requestAnimationFrame(() => {
-      const input = document.getElementById("notesFilterInput");
-      input?.focus({ preventScroll: true });
-      input?.setSelectionRange?.(input.value.length, input.value.length);
-    });
   }
   if (state.pendingPanelFocus) {
     const target = state.pendingPanelFocus;
@@ -5629,13 +5620,13 @@ function notesPanel() {
         <div class="notes-filter-control ${filterActive ? "has-clear" : ""}">
           <span class="notes-filter-icon" aria-hidden="true">${icons.search}</span>
           <input id="notesFilterInput" type="search" value="${escapeHtml(noteFilterQuery)}" placeholder="Search saved notes" aria-label="Search saved notes by reference or note text" aria-describedby="notesFilterStatus" autocomplete="off" />
-          ${filterActive ? `<button class="icon-btn notes-filter-clear" id="clearNotesFilter" type="button" aria-label="Clear saved notes search" data-tooltip="Clear note search">${icons.clear}</button>` : ""}
+          <button class="icon-btn notes-filter-clear" id="clearNotesFilter" type="button" aria-label="Clear saved notes search" data-tooltip="Clear note search" ${filterActive ? "" : "hidden"}>${icons.clear}</button>
         </div>
         <div class="notes-filter-status" id="notesFilterStatus" aria-live="polite">${filterActive ? `${escapeHtml(filteredCountLabel)} of ${savedNotesCount} saved` : `${savedNotesCount} saved ${savedNotesCount === 1 ? "note" : "notes"}`}</div>
       </div>
       <div class="annotation-shelves" aria-label="Saved annotations">
-        ${annotationShelfMarkup("Saved notes", filterActive ? `${filteredNotes.length}/${savedNotesCount}` : savedNotesCount, "note-list", noteItemsMarkup(filteredNotes, filterActive ? `No saved notes match “${noteFilterQuery.trim()}”.` : "No saved notes yet."), "notes", { forceOpen: filterActive })}
-        ${annotationShelfMarkup("Highlighted verses", savedHighlightsCount, "highlight-list", highlightItemsMarkup(), "highlights", { forceClosed: filterActive })}
+        ${annotationShelfMarkup("Saved notes", savedNotesCount, "note-list", `${noteItemsMarkup(savedNotes, "No saved notes yet.", noteFilterQuery)}<div class="empty-state notes-filter-empty" id="notesFilterEmpty" ${filterActive && !filteredNotes.length ? "" : "hidden"}>No saved notes match “${escapeHtml(noteFilterQuery.trim())}”.</div>`, "notes")}
+        ${annotationShelfMarkup("Highlighted verses", savedHighlightsCount, "highlight-list", highlightItemsMarkup(), "highlights")}
       </div>
     </section>
   `;
@@ -11054,9 +11045,10 @@ function groupedAnnotationItemsMarkup(items, emptyText, renderItem, collectionKe
     }).join("");
 }
 
-function noteItemsMarkup(items = savedNoteItems(), emptyMessage = "No saved notes yet.") {
+function noteItemsMarkup(items = savedNoteItems(), emptyMessage = "No saved notes yet.", filterQuery = "") {
+  if (!items.length) return `<div class="empty-state notes-unfiltered-empty">${escapeHtml(emptyMessage)}</div>`;
   return groupedAnnotationItemsMarkup(items, emptyMessage, ({ ref, note }) => `
-    <div class="saved-item">
+    <div class="saved-item" data-note-filter-ref="${escapeHtml(ref)}" ${filterQuery && !noteMatchesSearchQuery({ ref, note }, filterQuery) ? "hidden" : ""}>
       <button class="note-item" data-goto="${escapeHtml(ref)}" data-goto-verse="${escapeHtml(firstVerseFromReference(ref))}">
         <div class="note-title">${escapeHtml(ref)}</div>
         <div class="note-copy">${escapeHtml(truncatePreview(note))}</div>
@@ -11089,6 +11081,88 @@ function noteMatchesSearchQuery(item, query) {
 
 function filteredSavedNoteItems(query, items = savedNoteItems()) {
   return items.filter((item) => noteMatchesSearchQuery(item, query));
+}
+
+function updateNotesFilterDom(value) {
+  const query = String(value || "");
+  state.noteFilterQuery = query;
+  const section = document.getElementById("notesSection");
+  if (!section) return;
+  const active = Boolean(query.trim());
+  const savedNotes = savedNoteItems();
+  const filteredNotes = filteredSavedNoteItems(query, savedNotes);
+  const matchingRefs = new Set(filteredNotes.map(({ ref }) => ref));
+  const input = section.querySelector("#notesFilterInput");
+  const control = section.querySelector(".notes-filter-control");
+  const clearButton = section.querySelector("#clearNotesFilter");
+  const status = section.querySelector("#notesFilterStatus");
+  const filterEmpty = section.querySelector("#notesFilterEmpty");
+  const unfilteredEmpty = section.querySelector(".notes-unfiltered-empty");
+  const notesShelf = section.querySelector('[data-annotation-shelf="notes"]');
+  const highlightsShelf = section.querySelector('[data-annotation-shelf="highlights"]');
+  const noteItems = [...section.querySelectorAll("[data-note-filter-ref]")];
+  const noteGroups = [...(notesShelf?.querySelectorAll("[data-annotation-group]") || [])];
+  const wasActive = section.dataset.notesFilterActive === "true";
+
+  if (input && input.value !== query) input.value = query;
+  control?.classList.toggle("has-clear", active);
+  if (clearButton) clearButton.hidden = !active;
+  if (status) {
+    status.textContent = active
+      ? `${filteredNotes.length} ${filteredNotes.length === 1 ? "match" : "matches"} of ${savedNotes.length} saved`
+      : `${savedNotes.length} saved ${savedNotes.length === 1 ? "note" : "notes"}`;
+  }
+
+  noteItems.forEach((item) => {
+    item.hidden = active && !matchingRefs.has(item.dataset.noteFilterRef);
+  });
+  if (unfilteredEmpty) unfilteredEmpty.hidden = active;
+  if (filterEmpty) {
+    filterEmpty.hidden = !active || Boolean(filteredNotes.length);
+    filterEmpty.textContent = `No saved notes match “${query.trim()}”.`;
+  }
+
+  const managedDetails = [notesShelf, highlightsShelf, ...noteGroups].filter(Boolean);
+  if (active && !wasActive) {
+    managedDetails.forEach((details) => {
+      details.dataset.notesFilterOriginalOpen = details.open ? "true" : "false";
+    });
+  }
+
+  const notesCount = notesShelf?.querySelector("summary small");
+  if (notesCount) notesCount.textContent = active ? `${filteredNotes.length}/${savedNotes.length}` : String(savedNotes.length);
+
+  if (active) {
+    section.dataset.notesFilterActive = "true";
+    managedDetails.forEach((details) => {
+      details.dataset.notesFilterManaged = "true";
+    });
+    if (notesShelf) notesShelf.open = true;
+    if (highlightsShelf) highlightsShelf.open = false;
+    noteGroups.forEach((group) => {
+      const visibleItems = [...group.querySelectorAll("[data-note-filter-ref]")]
+        .filter((item) => !item.hidden);
+      const groupCount = group.querySelector("summary small");
+      group.hidden = !visibleItems.length;
+      group.open = Boolean(visibleItems.length);
+      if (groupCount) groupCount.textContent = String(visibleItems.length);
+    });
+    return;
+  }
+
+  delete section.dataset.notesFilterActive;
+  noteGroups.forEach((group) => {
+    group.hidden = false;
+    const groupCount = group.querySelector("summary small");
+    if (groupCount) groupCount.textContent = String(group.querySelectorAll("[data-note-filter-ref]").length);
+  });
+  if (wasActive) {
+    managedDetails.forEach((details) => {
+      details.open = details.dataset.notesFilterOriginalOpen === "true";
+      delete details.dataset.notesFilterOriginalOpen;
+      delete details.dataset.notesFilterManaged;
+    });
+  }
 }
 
 function searchSavedNotes(query) {
@@ -13344,32 +13418,30 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-annotation-shelf]").forEach((details) => {
     details.addEventListener("toggle", () => {
+      if (details.dataset.notesFilterManaged === "true") return;
       syncOpenStateList("openAnnotationShelves", details.dataset.annotationShelf, details.open);
     });
   });
   document.querySelectorAll("[data-annotation-group]").forEach((details) => {
     details.addEventListener("toggle", () => {
+      if (details.dataset.notesFilterManaged === "true") return;
       markAnnotationGroupCollectionTouched(details.dataset.annotationGroup);
       syncOpenStateList("openAnnotationGroups", details.dataset.annotationGroup, details.open);
     });
   });
   document.getElementById("notesFilterInput")?.addEventListener("input", (event) => {
-    state.noteFilterQuery = event.currentTarget.value;
-    pendingNoteFilterFocus = true;
-    renderPreservingReaderScroll();
+    updateNotesFilterDom(event.currentTarget.value);
   });
   document.getElementById("notesFilterInput")?.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !state.noteFilterQuery) return;
     event.preventDefault();
-    state.noteFilterQuery = "";
-    pendingNoteFilterFocus = true;
-    renderPreservingReaderScroll();
+    updateNotesFilterDom("");
   });
   document.getElementById("clearNotesFilter")?.addEventListener("click", () => {
-    state.noteFilterQuery = "";
-    pendingNoteFilterFocus = true;
-    renderPreservingReaderScroll();
+    updateNotesFilterDom("");
+    document.getElementById("notesFilterInput")?.focus({ preventScroll: true });
   });
+  updateNotesFilterDom(state.noteFilterQuery);
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
       const fromFocusWorkspace = Boolean(button.closest(".mobile-focus-workspace"));

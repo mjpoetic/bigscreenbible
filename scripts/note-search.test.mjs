@@ -77,8 +77,14 @@ assert.match(extractFunction("runReferenceOrPhraseSearch"), /if \(parseReference
 assert.match(extractFunction("searchResultsMarkup"), /noteSearchResultsMarkup\(query\)/);
 assert.match(extractFunction("noteSearchResultsMarkup"), /data-edit-note=/);
 assert.match(extractFunction("noteSearchResultsMarkup"), /data-goto=/);
-assert.match(extractFunction("notesPanel"), /forceOpen: filterActive/);
-assert.match(extractFunction("notesPanel"), /forceClosed: filterActive/);
+assert.match(extractFunction("updateNotesFilterDom"), /item\.hidden = active && !matchingRefs\.has/);
+assert.match(extractFunction("updateNotesFilterDom"), /details\.dataset\.notesFilterManaged = "true"/);
+assert.match(extractFunction("updateNotesFilterDom"), /notesShelf\.open = true/);
+assert.match(extractFunction("updateNotesFilterDom"), /highlightsShelf\.open = false/);
+const noteFilterInputBinding = source.match(/document\.getElementById\("notesFilterInput"\)\?\.addEventListener\("input",[\s\S]*?\n  \}\);/)?.[0] || "";
+assert.match(noteFilterInputBinding, /updateNotesFilterDom\(event\.currentTarget\.value\)/);
+assert.doesNotMatch(noteFilterInputBinding, /render/);
+assert.doesNotMatch(source, /pendingNoteFilterFocus/);
 assert.match(styles, /\.notes-filter-control \{/);
 assert.match(styles, /\.note-search-result \{/);
 assert.match(styles, /\.search-scope-divider \{/);
