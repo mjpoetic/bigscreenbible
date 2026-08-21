@@ -133,12 +133,15 @@ for (const code of presentationCodes) {
 
 function storageFrom(values = {}) {
   const entries = new Map(Object.entries(values));
+  const writes = [];
   return {
+    writes,
     getItem(key) {
       return entries.has(key) ? entries.get(key) : null;
     },
     setItem(key, value) {
       entries.set(key, String(value));
+      writes.push([key, String(value)]);
     },
     removeItem(key) {
       entries.delete(key);
@@ -167,6 +170,7 @@ assert.equal(explicitAppearance.theme, "dark");
 assert.equal(explicitAppearance.preset, "nocturne");
 assert.equal(explicitAppearance.followsSystem, false);
 assert.equal(explicitAppearance.source, "legacy");
+assert.equal(explicitAppearance.migrated, true);
 assert.equal(explicitAppearance.appearance.themeFamily, "sapphire");
 assert.equal(explicitAppearance.appearance.overrides.dark, "nocturne");
 assert.equal(documentRef.documentElement.dataset.theme, "dark");
@@ -174,6 +178,87 @@ assert.equal(documentRef.documentElement.dataset.themePreset, "nocturne");
 assert.equal(documentRef.documentElement.dataset.themeFamily, "sapphire");
 assert.equal(documentRef.documentElement.dataset.themeCustomized, "true");
 assert.equal(meta.content, "#07111f");
+
+const migratedLegacyStorage = storageFrom({
+  lw_theme: "dark",
+  lw_theme_preset_light: "opal",
+  lw_theme_preset_dark: "nocturne",
+  lw_presentation_theme: "warm",
+});
+const firstMigration = catalog.migrateStoredAppearance({ storage: migratedLegacyStorage });
+assert.equal(firstMigration.source, "legacy");
+assert.equal(firstMigration.migrated, true);
+assert.equal(firstMigration.appearance.colorScheme, "dark");
+assert.equal(firstMigration.appearance.overrides.light, "opal");
+assert.equal(firstMigration.appearance.overrides.dark, "nocturne");
+assert.equal(firstMigration.appearance.overrides.bigScreen, "warm");
+assert.equal(firstMigration.appearance.updatedAt, "", "Migration should not impersonate a user edit");
+assert.equal(migratedLegacyStorage.writes.length, 1);
+const secondMigration = catalog.migrateStoredAppearance({ storage: migratedLegacyStorage });
+assert.equal(secondMigration.source, "v2");
+assert.equal(secondMigration.migrated, false);
+assert.equal(migratedLegacyStorage.writes.length, 1, "Migration should be idempotent");
+assert.deepEqual(
+  JSON.parse(migratedLegacyStorage.getItem("lw_appearance_v2")),
+  JSON.parse(JSON.stringify(firstMigration.appearance)),
+);
+assert.equal(migratedLegacyStorage.getItem("lw_theme"), "dark");
+assert.equal(migratedLegacyStorage.getItem("lw_theme_preset_light"), "opal");
+assert.equal(migratedLegacyStorage.getItem("lw_theme_preset_dark"), "nocturne");
+assert.equal(migratedLegacyStorage.getItem("lw_presentation_theme"), "warm");
+
+for (const colorScheme of [null, "light", "dark"]) {
+  for (const prefersDark of [false, true]) {
+    const legacyValues = {
+      colorScheme,
+      light: "parchment",
+      dark: "contrast",
+      bigScreen: "rose-night",
+    };
+    const beforeMigration = catalog.resolveAppearance(
+      catalog.appearanceFromLegacyValues(legacyValues),
+      prefersDark,
+    );
+    const equivalenceStorage = storageFrom({
+      ...(colorScheme ? { lw_theme: colorScheme } : {}),
+      lw_theme_preset_light: legacyValues.light,
+      lw_theme_preset_dark: legacyValues.dark,
+      lw_presentation_theme: legacyValues.bigScreen,
+    });
+    const migrated = catalog.resolveAppearance(
+      catalog.migrateStoredAppearance({ storage: equivalenceStorage }).appearance,
+      prefersDark,
+    );
+    assert.deepEqual(
+      [migrated.theme, migrated.preset, migrated.presentationTheme, migrated.chromeColor],
+      [beforeMigration.theme, beforeMigration.preset, beforeMigration.presentationTheme, beforeMigration.chromeColor],
+      `Migration should preserve ${colorScheme || "system"} appearance when prefersDark=${prefersDark}`,
+    );
+  }
+}
+
+const corruptAppearanceStorage = storageFrom({
+  lw_appearance_v2: "{not-json",
+  lw_theme: "light",
+  lw_theme_preset_light: "parchment",
+});
+const repairedAppearance = catalog.migrateStoredAppearance({ storage: corruptAppearanceStorage });
+assert.equal(repairedAppearance.migrated, true);
+assert.equal(repairedAppearance.appearance.overrides.light, "parchment");
+assert.doesNotThrow(() => JSON.parse(corruptAppearanceStorage.getItem("lw_appearance_v2")));
+
+const futureAppearanceStorage = storageFrom({
+  lw_appearance_v2: JSON.stringify({
+    schemaVersion: 3,
+    colorScheme: "dark",
+    themeFamily: "rose",
+    overrides: { dark: "rose-night" },
+  }),
+});
+const futureAppearance = catalog.migrateStoredAppearance({ storage: futureAppearanceStorage });
+assert.equal(futureAppearance.source, "v2");
+assert.equal(futureAppearance.migrated, false);
+assert.equal(futureAppearanceStorage.writes.length, 0, "An older client should not overwrite a future schema");
 
 const v2Storage = storageFrom({
   lw_appearance_v2: JSON.stringify({
@@ -186,6 +271,7 @@ const v2Storage = storageFrom({
 });
 const v2Appearance = catalog.applyStoredTheme({ document: documentRef, storage: v2Storage, prefersDark: true });
 assert.equal(v2Appearance.source, "v2");
+assert.equal(v2Appearance.migrated, false);
 assert.equal(v2Appearance.theme, "dark");
 assert.equal(v2Appearance.preset, "violet-night");
 assert.equal(v2Appearance.presentationTheme, "violet-night");
@@ -223,10 +309,14 @@ assert.doesNotMatch(appSource, /const themePresets = \[/);
 assert.doesNotMatch(appSource, /const presentationThemes = \[/);
 assert.match(appSource, /presentationThemeColor\(state\.presentationTheme\)/);
 assert.match(appSource, /themeChromeColor\(state\.themePreset, state\.theme\)/);
-assert.match(extractFunction("captureCloudSnapshot"), /appearance: normalizeAppearance\(state\.appearance\)/);
+assert.match(appSource, /const initialAppearance = migrateStoredAppearance\(\)\.appearance/);
+assert.match(extractFunction("captureCloudSnapshot"), /\.\.\.appearanceSnapshotSettings\(state\.appearance\)/);
+assert.match(extractFunction("normalizeCloudRow"), /migrateAppearanceSettings\(row\.settings\)/);
 assert.match(extractFunction("mergeCloudSnapshots"), /latestAppearanceSettings/);
 assert.match(extractFunction("latestAppearanceSettings"), /updatedAt/);
+assert.match(extractFunction("latestAppearanceSettings"), /appearanceSettingsRecord/);
 assert.match(extractFunction("applyCloudSnapshot"), /applyResolvedAppearance\(appearanceFromSnapshotSettings\(settings\)\)/);
+assert.match(extractFunction("applyCloudSnapshot"), /migrateAppearanceSettings\(snapshot\.settings\)/);
 assert.match(extractFunction("persistCloudSnapshotLocally"), /writeStoredAppearance\(settings\.appearance\)/);
 assert.match(extractFunction("persistCloudSnapshotLocally"), /mirrorAppearanceToLegacyStorage/);
 assert.match(extractFunction("setThemePreset"), /overrides: \{ \[state\.theme\]/);
@@ -236,6 +326,9 @@ assert.match(extractFunction("setPresentationTheme"), /overrides: \{ bigScreen:/
 
 const appearanceMergeContext = {
   normalizeAppearance: catalog.normalizeAppearance,
+  appearanceFromLegacyValues: catalog.appearanceFromLegacyValues,
+  resolveAppearance: catalog.resolveAppearance,
+  window: { matchMedia: () => ({ matches: false }) },
   normalizedVersionsUpdatedAt(value) {
     const timestamp = Date.parse(value || "");
     return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : "";
@@ -243,8 +336,15 @@ const appearanceMergeContext = {
 };
 vm.createContext(appearanceMergeContext);
 vm.runInContext(`
+  ${extractFunction("appearanceFromSnapshotSettings")}
+  ${extractFunction("hasLegacyAppearanceSettings")}
+  ${extractFunction("appearanceSettingsRecord")}
+  ${extractFunction("migrateAppearanceSettings")}
+  ${extractFunction("resolvedAppearanceForScheme")}
+  ${extractFunction("appearanceSnapshotSettings")}
   ${extractFunction("latestAppearanceSettings")}
   globalThis.latestAppearance = latestAppearanceSettings;
+  globalThis.migrateSettings = migrateAppearanceSettings;
 `, appearanceMergeContext);
 const olderCloudAppearance = {
   colorScheme: "dark",
@@ -271,6 +371,60 @@ assert.equal(
   ).appearance.themeFamily,
   "rose",
   "A newer cloud appearance should apply to the device",
+);
+
+const legacyCloudSettings = {
+  themeMode: "dark",
+  themePresetLight: "opal",
+  themePresetDark: "nocturne",
+  presentationTheme: "warm",
+  scriptureFont: "lora",
+};
+const migratedCloudSettings = appearanceMergeContext.migrateSettings(legacyCloudSettings);
+assert.equal(migratedCloudSettings.scriptureFont, "lora", "Migration should preserve unrelated settings");
+assert.equal(migratedCloudSettings.appearance.colorScheme, "dark");
+assert.equal(migratedCloudSettings.appearance.overrides.light, "opal");
+assert.equal(migratedCloudSettings.appearance.overrides.dark, "nocturne");
+assert.equal(migratedCloudSettings.appearance.overrides.bigScreen, "warm");
+assert.equal(migratedCloudSettings.appearance.updatedAt, "");
+assert.equal(
+  appearanceMergeContext.latestAppearance(
+    legacyCloudSettings,
+    { appearance: catalog.appearanceFromLegacyValues({}) },
+  ).appearance.overrides.dark,
+  "nocturne",
+  "Legacy cloud appearance should retain existing precedence over an unchanged local migration",
+);
+assert.equal(
+  appearanceMergeContext.latestAppearance(
+    legacyCloudSettings,
+    {
+      appearance: catalog.updateAppearance(
+        catalog.appearanceFromLegacyValues({}),
+        { themeFamily: "violet" },
+        "2026-08-21T15:00:00.000Z",
+      ),
+    },
+  ).appearance.themeFamily,
+  "violet",
+  "A real local edit should beat an untimestamped legacy cloud migration",
+);
+const editedLocalSelection = appearanceMergeContext.latestAppearance(
+  legacyCloudSettings,
+  {
+    appearance: catalog.updateAppearance(
+      catalog.appearanceFromLegacyValues({}),
+      { themeFamily: "violet" },
+      "2026-08-21T15:00:00.000Z",
+    ),
+  },
+);
+assert.equal(editedLocalSelection.themePresetLight, "lavender");
+assert.equal(editedLocalSelection.themePresetDark, "violet-night");
+assert.equal(
+  editedLocalSelection.presentationTheme,
+  "lavender",
+  "Legacy cloud mirrors should be regenerated from the selected appearance",
 );
 
 for (const [file, sourcePath, method] of htmlFiles) {

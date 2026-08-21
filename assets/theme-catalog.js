@@ -231,7 +231,11 @@
     const storage = options.storage || global.localStorage;
     try {
       const saved = JSON.parse(storage?.getItem?.(appearanceStorageKey) || "null");
-      if (saved && typeof saved === "object") {
+      if (
+        saved
+        && typeof saved === "object"
+        && Number(saved.schemaVersion) >= appearanceSchemaVersion
+      ) {
         return Object.freeze({ appearance: normalizeAppearance(saved), source: "v2" });
       }
     } catch {
@@ -247,6 +251,20 @@
     return normalized;
   }
 
+  function migrateStoredAppearance(options = {}) {
+    const storage = options.storage || global.localStorage;
+    const stored = readStoredAppearance({ storage });
+    if (stored.source === "v2") {
+      return Object.freeze({ ...stored, migrated: false });
+    }
+    try {
+      const appearance = writeStoredAppearance(stored.appearance, { storage });
+      return Object.freeze({ appearance, source: stored.source, migrated: true });
+    } catch {
+      return Object.freeze({ ...stored, migrated: false });
+    }
+  }
+
   function themeChromeColor(preset, theme = "light") {
     const resolvedPreset = resolveThemePreset(theme, preset);
     return themeChromeColors[resolvedPreset] || themeChromeColors[defaultThemePresets[theme === "dark" ? "dark" : "light"]];
@@ -260,11 +278,14 @@
     const prefersDark = typeof options.prefersDark === "boolean"
       ? options.prefersDark
       : Boolean(global.matchMedia?.("(prefers-color-scheme: dark)").matches);
-    const stored = readStoredAppearance(options);
+    const stored = options.migrate === false
+      ? readStoredAppearance(options)
+      : migrateStoredAppearance(options);
     const resolved = resolveAppearance(stored.appearance, prefersDark);
     return Object.freeze({
       ...resolved,
       source: stored.source,
+      migrated: Boolean(stored.migrated),
     });
   }
 
@@ -330,6 +351,7 @@
     appearanceFromLegacy,
     readStoredAppearance,
     writeStoredAppearance,
+    migrateStoredAppearance,
     themeChromeColor,
     presentationThemeColor,
     storedThemeAppearance,

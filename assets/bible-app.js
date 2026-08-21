@@ -131,12 +131,12 @@ const {
   resolveAppearance,
   updateAppearance,
   appearanceFromLegacyValues,
-  readStoredAppearance,
   writeStoredAppearance,
+  migrateStoredAppearance,
   themeChromeColor,
   presentationThemeColor,
 } = themeCatalog;
-const initialAppearance = readStoredAppearance().appearance;
+const initialAppearance = migrateStoredAppearance().appearance;
 const initialResolvedAppearance = resolveAppearance(
   initialAppearance,
   Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches),
@@ -673,8 +673,46 @@ function appearanceFromSnapshotSettings(settings = {}) {
   });
 }
 
+function hasLegacyAppearanceSettings(settings = {}) {
+  return ["themeMode", "themePresetLight", "themePresetDark", "presentationTheme"]
+    .some((key) => Object.prototype.hasOwnProperty.call(settings, key));
+}
+
+function appearanceSettingsRecord(settings = {}) {
+  if (settings.appearance && typeof settings.appearance === "object") {
+    return {
+      appearance: normalizeAppearance(settings.appearance),
+      source: "v2",
+      migrated: false,
+    };
+  }
+  if (!hasLegacyAppearanceSettings(settings)) return null;
+  return {
+    appearance: appearanceFromSnapshotSettings(settings),
+    source: "legacy",
+    migrated: true,
+  };
+}
+
+function migrateAppearanceSettings(settings = {}) {
+  const source = settings && typeof settings === "object" ? settings : {};
+  const record = appearanceSettingsRecord(source);
+  return record ? { ...source, appearance: record.appearance } : { ...source };
+}
+
 function resolvedAppearanceForScheme(appearance, theme) {
   return resolveAppearance({ ...normalizeAppearance(appearance), colorScheme: theme }, theme === "dark");
+}
+
+function appearanceSnapshotSettings(appearance, prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches)) {
+  const normalized = normalizeAppearance(appearance);
+  return {
+    appearance: normalized,
+    themeMode: normalized.colorScheme,
+    themePresetLight: resolvedAppearanceForScheme(normalized, "light").preset,
+    themePresetDark: resolvedAppearanceForScheme(normalized, "dark").preset,
+    presentationTheme: resolveAppearance(normalized, prefersDark).presentationTheme,
+  };
 }
 
 function applyResolvedAppearance(appearance = state.appearance) {
@@ -8840,16 +8878,11 @@ function cancelAccountSwitch() {
 }
 
 function captureCloudSnapshot() {
-  const lightAppearance = resolvedAppearanceForScheme(state.appearance, "light");
-  const darkAppearance = resolvedAppearanceForScheme(state.appearance, "dark");
   return {
     settings: {
       versions: state.versions,
       versionsUpdatedAt: state.versionsUpdatedAt,
-      appearance: normalizeAppearance(state.appearance),
-      themeMode: state.appearance.colorScheme,
-      themePresetLight: lightAppearance.preset,
-      themePresetDark: darkAppearance.preset,
+      ...appearanceSnapshotSettings(state.appearance),
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
       customHighlightColor: state.customHighlightColor,
@@ -8872,7 +8905,6 @@ function captureCloudSnapshot() {
       sideToolbarPosition: state.sideToolbarPosition,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
-      presentationTheme: state.presentationTheme,
       presentationTextScale: state.presentationTextScale,
       startBigScreen: state.startBigScreen,
       startVerseOfDay: state.startVerseOfDay,
@@ -8895,7 +8927,7 @@ function captureCloudSnapshot() {
 
 function normalizeCloudRow(row = {}) {
   return {
-    settings: row.settings && typeof row.settings === "object" ? row.settings : {},
+    settings: migrateAppearanceSettings(row.settings),
     bookmarks: Array.isArray(row.bookmarks) ? row.bookmarks : [],
     notes: row.notes && typeof row.notes === "object" ? row.notes : {},
     highlights: row.highlights && typeof row.highlights === "object" ? row.highlights : {},
@@ -8985,20 +9017,16 @@ function latestSettingsSectionSettings(cloudSettings = {}, localSettings = {}) {
 }
 
 function latestAppearanceSettings(cloudSettings = {}, localSettings = {}) {
-  const cloudAppearance = cloudSettings.appearance && typeof cloudSettings.appearance === "object"
-    ? normalizeAppearance(cloudSettings.appearance)
-    : null;
-  const localAppearance = localSettings.appearance && typeof localSettings.appearance === "object"
-    ? normalizeAppearance(localSettings.appearance)
-    : null;
+  const cloudAppearance = appearanceSettingsRecord(cloudSettings)?.appearance || null;
+  const localAppearance = appearanceSettingsRecord(localSettings)?.appearance || null;
   if (!cloudAppearance && !localAppearance) return {};
-  if (!cloudAppearance) return { appearance: localAppearance };
-  if (!localAppearance) return { appearance: cloudAppearance };
+  if (!cloudAppearance) return appearanceSnapshotSettings(localAppearance);
+  if (!localAppearance) return appearanceSnapshotSettings(cloudAppearance);
   const cloudUpdatedAt = normalizedVersionsUpdatedAt(cloudAppearance.updatedAt);
   const localUpdatedAt = normalizedVersionsUpdatedAt(localAppearance.updatedAt);
-  if (!cloudUpdatedAt && !localUpdatedAt) return { appearance: cloudAppearance };
+  if (!cloudUpdatedAt && !localUpdatedAt) return appearanceSnapshotSettings(cloudAppearance);
   const useLocal = !cloudUpdatedAt || (localUpdatedAt && localUpdatedAt >= cloudUpdatedAt);
-  return { appearance: useLocal ? localAppearance : cloudAppearance };
+  return appearanceSnapshotSettings(useLocal ? localAppearance : cloudAppearance);
 }
 
 function persistVersions({ changed = false } = {}) {
@@ -9036,7 +9064,7 @@ function mergeStreaks(cloudStreak, localStreak) {
 }
 
 function applyCloudSnapshot(snapshot) {
-  const settings = snapshot.settings || {};
+  const settings = migrateAppearanceSettings(snapshot.settings);
   state.versions = normalizedVersions(settings.versions);
   state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
   applyResolvedAppearance(appearanceFromSnapshotSettings(settings));
@@ -9117,7 +9145,8 @@ function applyCloudSnapshot(snapshot) {
 }
 
 function persistCloudSnapshotLocally(snapshot) {
-  const settings = snapshot.settings || {};
+  const settings = migrateAppearanceSettings(snapshot.settings);
+  const migratedSnapshot = { ...snapshot, settings };
   persistVersions();
   if (settings.appearance && typeof settings.appearance === "object") {
     state.appearance = writeStoredAppearance(settings.appearance);
@@ -9167,7 +9196,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
   localStorage.setItem("lw_history", JSON.stringify(state.history));
   localStorage.setItem(streakStorageKey, JSON.stringify(state.streak));
-  saveSnapshotForOwner(accountDataOwner() || guestDataOwner, snapshot);
+  saveSnapshotForOwner(accountDataOwner() || guestDataOwner, migratedSnapshot);
 }
 
 async function loadCloudSync() {
