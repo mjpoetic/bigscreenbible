@@ -60,7 +60,7 @@
     { code: "rose", name: "Rose", light: "blush", dark: "rose-night", presentation: { light: "blush", dark: "rose-night" } },
     { code: "violet", name: "Violet", light: "lavender", dark: "violet-night", presentation: { light: "lavender", dark: "violet-night" } },
     { code: "sapphire", name: "Sapphire", light: "sapphire", dark: "aurora", presentation: { light: "aurora", dark: "aurora" } },
-    { code: "celestial", name: "Nocturne", light: "opal", dark: "nocturne", presentation: { light: "nocturne", dark: "nocturne" } },
+    { code: "celestial", name: "Nocturne", light: "sapphire", dark: "nocturne", presentation: { light: "nocturne", dark: "nocturne" } },
     { code: "ember", name: "Ember", light: "clementine", dark: "ember-night", presentation: { light: "ember", dark: "ember" } },
   ].map((family) => Object.freeze({
     ...family,
