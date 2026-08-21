@@ -43,6 +43,7 @@ vm.runInContext(`
     { code: "revelation", label: "Revelation", shortLabel: "Rev" },
   ];
   const searchScopeCodes = searchScopeDefinitions.map(({ code }) => code);
+  const searchSourceCodes = ["scripture", "notes"];
   const oldTestamentBooks = ["Genesis", "Joshua", "Job", "Psalm", "Proverbs", "Ecclesiastes", "Song of Songs", "Isaiah", "Malachi"];
   const newTestamentBooks = ["Matthew", "Mark", "Luke", "John", "Acts", "Romans", "Jude", "Revelation"];
   const books = [...oldTestamentBooks, ...newTestamentBooks];
@@ -121,8 +122,9 @@ const searchButton = {
     this.label = value;
   },
 };
-context.state = { searchScope: "all", reference: "Matthew 11", inlineSearchQuery: "" };
+context.state = { searchSource: "scripture", searchScope: "all", reference: "Matthew 11", inlineSearchQuery: "" };
 context.localStorage = { setItem(key, value) { context.savedScope = [key, value]; } };
+context.renderPreservingReaderScroll = () => {};
 context.document = {
   querySelectorAll(selector) {
     if (selector === "[data-search-scope-trigger]") return scopeTriggers;
@@ -135,21 +137,26 @@ context.document = {
   },
 };
 vm.runInContext(`
+  ${extractFunction("normalizedSearchSource")}
+  ${extractFunction("activeSearchSourceLabel")}
+  ${extractFunction("activeSearchSourceShortLabel")}
   ${extractFunction("searchScopeTriggerLabel")}
+  ${extractFunction("updateSearchSourceControls")}
   ${extractFunction("setSearchScope")}
   globalThis.setScope = setSearchScope;
 `, context);
 context.setScope("nt");
 assert.equal(context.state.searchScope, "nt");
+assert.equal(context.state.searchSource, "scripture");
 assert.deepEqual([...context.savedScope], ["lw_search_scope", "nt"]);
 assert.deepEqual(scopeTriggers.map((trigger) => trigger.dataset.searchScope), ["nt", "nt", "nt"]);
 assert.deepEqual(scopeTriggers.map((trigger) => trigger.label), [
-  "Choose top search scope, current New Testament",
-  "Choose search scope, current New Testament",
-  "Choose Focus search scope, current New Testament",
+  "Choose top search source, current New Testament",
+  "Choose search source, current New Testament",
+  "Choose Focus search source, current New Testament",
 ]);
 assert.deepEqual(shortLabels.map((label) => label.textContent), ["NT", "NT", "NT"]);
-assert.deepEqual(titledControls.map((control) => control.title), ["Search scope: New Testament", "Search scope: New Testament", "Search scope: New Testament"]);
+assert.deepEqual(titledControls.map((control) => control.title), ["Search in: New Testament", "Search in: New Testament", "Search in: New Testament"]);
 assert.equal(searchButton.label, "Search New Testament");
 context.setScope("chapter");
 assert.deepEqual(shortLabels.map((label) => label.textContent), ["Ch", "Ch", "Ch"]);

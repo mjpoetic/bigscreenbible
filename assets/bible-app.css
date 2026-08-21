@@ -8023,7 +8023,74 @@ select {
 .annotation-shelves {
   display: grid;
   gap: 10px;
+  margin-top: 12px;
+}
+
+.notes-filter {
+  display: grid;
+  gap: 6px;
   margin-top: 18px;
+}
+
+.notes-filter-control {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--muted);
+}
+
+.notes-filter-control.has-clear {
+  grid-template-columns: 36px minmax(0, 1fr) 40px;
+}
+
+.notes-filter-icon {
+  display: inline-grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.notes-filter-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.notes-filter input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 0 8px 0 0;
+}
+
+.notes-filter input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.notes-filter-control:focus-within {
+  border-color: color-mix(in srgb, var(--teal) 68%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 13%, transparent);
+}
+
+.notes-filter-clear {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+.notes-filter-status {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .annotation-shelf {
@@ -8462,6 +8529,59 @@ select {
   color: var(--teal);
   font-size: 15px;
   font-weight: 900;
+}
+
+.search-scope-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 6px 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.search-scope-divider::before,
+.search-scope-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+.search-source-option {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--gold) 76%, transparent);
+}
+
+.note-search-result {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.note-search-result-main {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 13px;
+  text-align: left;
+}
+
+.note-search-result-main:hover,
+.note-search-result-main:focus-visible {
+  background: color-mix(in srgb, var(--teal) 8%, transparent);
+  outline: none;
+}
+
+.note-search-edit {
+  justify-self: end;
+  margin: 0 10px 9px;
 }
 
 .search-result mark {
