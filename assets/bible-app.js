@@ -120,16 +120,27 @@ if (!themeCatalog) throw new Error("Big Screen Bible theme catalog failed to loa
 const {
   themePresets,
   themePresetLookup,
-  defaultThemePresets,
   presentationThemes,
   presentationThemeCodes,
   defaultPresentationTheme,
-  resolveThemeMode,
-  resolveThemePreset,
-  resolvePresentationTheme,
+  resolveThemeFamily,
+  resolveThemeFamilyPreset,
+  resolveThemeFamilyPresentation,
+  normalizeAppearance,
+  hasAppearanceOverrides,
+  resolveAppearance,
+  updateAppearance,
+  appearanceFromLegacyValues,
+  readStoredAppearance,
+  writeStoredAppearance,
   themeChromeColor,
   presentationThemeColor,
 } = themeCatalog;
+const initialAppearance = readStoredAppearance().appearance;
+const initialResolvedAppearance = resolveAppearance(
+  initialAppearance,
+  Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches),
+);
 const defaultScriptureFont = "literata";
 const scriptureFonts = [
   { code: "literata", name: "Literata" },
@@ -445,8 +456,9 @@ const state = {
   verse: 16,
   versions: JSON.parse(localStorage.getItem("lw_versions") || '["BSB","KJV"]'),
   versionsUpdatedAt: normalizedVersionsUpdatedAt(localStorage.getItem("lw_versions_updated_at")),
-  theme: savedTheme(),
-  themePreset: "",
+  appearance: initialAppearance,
+  theme: initialResolvedAppearance.theme,
+  themePreset: initialResolvedAppearance.preset,
   scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
@@ -478,7 +490,7 @@ const state = {
   presentationSettingsOpen: false,
   presentationControlsVisible: !isCompactScreen(),
   presentationPart: 0,
-  presentationTheme: resolvePresentationTheme(localStorage.getItem("lw_presentation_theme")),
+  presentationTheme: initialResolvedAppearance.presentationTheme,
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
@@ -646,28 +658,67 @@ const highlightColors = ["yellow", "blue", "pink", "green", "orange", "purple"];
 state.versions = state.versions.filter((version) => translationCodes.includes(version));
 if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
 if (!state.versions.some(isBundledTranslation)) state.versions.unshift("BSB");
-state.themePreset = savedThemePreset(state.theme);
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = defaultPresentationTheme;
 state.scriptureFont = normalizedScriptureFont(state.scriptureFont);
 
-function savedTheme() {
-  return resolveThemeMode(
-    localStorage.getItem("lw_theme"),
-    Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches),
-  );
+function appearanceFromSnapshotSettings(settings = {}) {
+  if (settings.appearance && typeof settings.appearance === "object") {
+    return normalizeAppearance(settings.appearance);
+  }
+  return appearanceFromLegacyValues({
+    colorScheme: settings.themeMode,
+    light: settings.themePresetLight,
+    dark: settings.themePresetDark,
+    bigScreen: settings.presentationTheme,
+  });
 }
 
-function savedThemePreset(theme) {
-  return resolveThemePreset(theme, localStorage.getItem(`lw_theme_preset_${theme}`));
+function resolvedAppearanceForScheme(appearance, theme) {
+  return resolveAppearance({ ...normalizeAppearance(appearance), colorScheme: theme }, theme === "dark");
+}
+
+function applyResolvedAppearance(appearance = state.appearance) {
+  state.appearance = normalizeAppearance(appearance);
+  const resolved = resolveAppearance(
+    state.appearance,
+    Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches),
+  );
+  state.theme = resolved.theme;
+  state.themePreset = resolved.preset;
+  state.presentationTheme = resolved.presentationTheme;
+  return resolved;
+}
+
+function mirrorAppearanceToLegacyStorage(appearance = state.appearance) {
+  const normalized = normalizeAppearance(appearance);
+  if (normalized.colorScheme === "light" || normalized.colorScheme === "dark") {
+    localStorage.setItem("lw_theme", normalized.colorScheme);
+  } else {
+    localStorage.removeItem("lw_theme");
+  }
+  localStorage.setItem("lw_theme_preset_light", resolvedAppearanceForScheme(normalized, "light").preset);
+  localStorage.setItem("lw_theme_preset_dark", resolvedAppearanceForScheme(normalized, "dark").preset);
+  localStorage.setItem("lw_presentation_theme", resolveAppearance(
+    normalized,
+    Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches),
+  ).presentationTheme);
+}
+
+function persistAppearance(appearance, options = {}) {
+  state.appearance = writeStoredAppearance(appearance);
+  const resolved = applyResolvedAppearance(state.appearance);
+  mirrorAppearanceToLegacyStorage(state.appearance);
+  if (options.sync !== false) scheduleCloudSync();
+  return resolved;
 }
 
 function watchSystemTheme() {
   const query = window.matchMedia?.("(prefers-color-scheme: dark)");
   if (!query) return;
   query.addEventListener("change", (event) => {
-    if (localStorage.getItem("lw_theme")) return;
-    state.theme = event.matches ? "dark" : "light";
-    state.themePreset = savedThemePreset(state.theme);
+    if (state.appearance.colorScheme !== "system") return;
+    applyResolvedAppearance(state.appearance);
+    mirrorAppearanceToLegacyStorage(state.appearance);
     render();
   });
 }
@@ -1235,7 +1286,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -1440,6 +1491,10 @@ function syncPresentationShell() {
   document.body.dataset.theme = state.theme;
   document.documentElement.dataset.themePreset = state.themePreset;
   document.body.dataset.themePreset = state.themePreset;
+  document.documentElement.dataset.themeFamily = state.appearance.themeFamily;
+  document.body.dataset.themeFamily = state.appearance.themeFamily;
+  document.documentElement.dataset.themeCustomized = hasAppearanceOverrides(state.appearance) ? "true" : "false";
+  document.body.dataset.themeCustomized = hasAppearanceOverrides(state.appearance) ? "true" : "false";
   document.documentElement.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.body.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.documentElement.dataset.presentationTheme = state.presentationTheme;
@@ -2283,7 +2338,7 @@ function captureAnnotationOpenState() {
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
-    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-scripture-font="${state.scriptureFont}">
+    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}">
       <section class="loading-reader">
         <div class="loading-card">
           <img class="loading-logo-mark" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
@@ -8785,13 +8840,16 @@ function cancelAccountSwitch() {
 }
 
 function captureCloudSnapshot() {
+  const lightAppearance = resolvedAppearanceForScheme(state.appearance, "light");
+  const darkAppearance = resolvedAppearanceForScheme(state.appearance, "dark");
   return {
     settings: {
       versions: state.versions,
       versionsUpdatedAt: state.versionsUpdatedAt,
-      themeMode: localStorage.getItem("lw_theme") || "system",
-      themePresetLight: localStorage.getItem("lw_theme_preset_light") || defaultThemePresets.light,
-      themePresetDark: localStorage.getItem("lw_theme_preset_dark") || defaultThemePresets.dark,
+      appearance: normalizeAppearance(state.appearance),
+      themeMode: state.appearance.colorScheme,
+      themePresetLight: lightAppearance.preset,
+      themePresetDark: darkAppearance.preset,
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
       customHighlightColor: state.customHighlightColor,
@@ -8850,12 +8908,14 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
   const cloud = normalizeCloudRow(cloudRow);
   const versionSettings = latestVersionSettings(cloud.settings, localSnapshot.settings);
   const disclosureSettings = latestSettingsSectionSettings(cloud.settings, localSnapshot.settings);
+  const appearanceSettings = latestAppearanceSettings(cloud.settings, localSnapshot.settings);
   return {
     settings: {
       ...localSnapshot.settings,
       ...cloud.settings,
       ...versionSettings,
       ...disclosureSettings,
+      ...appearanceSettings,
     },
     bookmarks: uniqueList([...cloud.bookmarks, ...localSnapshot.bookmarks]).slice(0, 200),
     notes: { ...cloud.notes, ...localSnapshot.notes },
@@ -8924,6 +8984,23 @@ function latestSettingsSectionSettings(cloudSettings = {}, localSettings = {}) {
   };
 }
 
+function latestAppearanceSettings(cloudSettings = {}, localSettings = {}) {
+  const cloudAppearance = cloudSettings.appearance && typeof cloudSettings.appearance === "object"
+    ? normalizeAppearance(cloudSettings.appearance)
+    : null;
+  const localAppearance = localSettings.appearance && typeof localSettings.appearance === "object"
+    ? normalizeAppearance(localSettings.appearance)
+    : null;
+  if (!cloudAppearance && !localAppearance) return {};
+  if (!cloudAppearance) return { appearance: localAppearance };
+  if (!localAppearance) return { appearance: cloudAppearance };
+  const cloudUpdatedAt = normalizedVersionsUpdatedAt(cloudAppearance.updatedAt);
+  const localUpdatedAt = normalizedVersionsUpdatedAt(localAppearance.updatedAt);
+  if (!cloudUpdatedAt && !localUpdatedAt) return { appearance: cloudAppearance };
+  const useLocal = !cloudUpdatedAt || (localUpdatedAt && localUpdatedAt >= cloudUpdatedAt);
+  return { appearance: useLocal ? localAppearance : cloudAppearance };
+}
+
 function persistVersions({ changed = false } = {}) {
   if (changed) state.versionsUpdatedAt = new Date().toISOString();
   localStorage.setItem("lw_versions", JSON.stringify(state.versions));
@@ -8962,8 +9039,7 @@ function applyCloudSnapshot(snapshot) {
   const settings = snapshot.settings || {};
   state.versions = normalizedVersions(settings.versions);
   state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
-  state.theme = settings.themeMode === "dark" || settings.themeMode === "light" ? settings.themeMode : savedTheme();
-  state.themePreset = settings[`themePreset${state.theme === "dark" ? "Dark" : "Light"}`] || savedThemePreset(state.theme);
+  applyResolvedAppearance(appearanceFromSnapshotSettings(settings));
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
@@ -9008,7 +9084,6 @@ function applyCloudSnapshot(snapshot) {
   state.sideToolbarPosition = settings.sideToolbarPosition === "right" ? "right" : "left";
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
-  state.presentationTheme = presentationThemeCodes.includes(settings.presentationTheme) ? settings.presentationTheme : defaultPresentationTheme;
   state.presentationTextScale = clampPresentationTextScale(
     Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
   );
@@ -9044,10 +9119,11 @@ function applyCloudSnapshot(snapshot) {
 function persistCloudSnapshotLocally(snapshot) {
   const settings = snapshot.settings || {};
   persistVersions();
-  if (settings.themeMode === "dark" || settings.themeMode === "light") localStorage.setItem("lw_theme", settings.themeMode);
-  else localStorage.removeItem("lw_theme");
-  localStorage.setItem("lw_theme_preset_light", settings.themePresetLight || defaultThemePresets.light);
-  localStorage.setItem("lw_theme_preset_dark", settings.themePresetDark || defaultThemePresets.dark);
+  if (settings.appearance && typeof settings.appearance === "object") {
+    state.appearance = writeStoredAppearance(settings.appearance);
+    applyResolvedAppearance(state.appearance);
+  }
+  mirrorAppearanceToLegacyStorage(state.appearance);
   localStorage.setItem("lw_scripture_font", state.scriptureFont);
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
@@ -13793,36 +13869,44 @@ async function setParallelVersionAt(index, version) {
 
 function setThemePreset(preset) {
   if (themePresetLookup[preset]?.mode !== state.theme) return;
-  state.themePreset = preset;
-  localStorage.setItem(`lw_theme_preset_${state.theme}`, preset);
-  scheduleCloudSync();
+  const familyPreset = resolveThemeFamilyPreset(state.appearance.themeFamily, state.theme);
+  persistAppearance(updateAppearance(state.appearance, {
+    overrides: { [state.theme]: preset === familyPreset ? null : preset },
+  }));
   renderPreservingReaderScroll();
 }
 
 function setThemeMode(mode) {
   if (mode === "system") return resetThemeToSystem();
   if (!["light", "dark"].includes(mode)) return;
-  state.theme = mode;
-  state.themePreset = savedThemePreset(state.theme);
-  localStorage.setItem("lw_theme", state.theme);
-  scheduleCloudSync();
+  persistAppearance(updateAppearance(state.appearance, { colorScheme: mode }));
   renderPreservingReaderScroll();
 }
 
 function resetThemeToSystem() {
-  localStorage.removeItem("lw_theme");
-  state.theme = savedTheme();
-  state.themePreset = savedThemePreset(state.theme);
-  scheduleCloudSync();
+  persistAppearance(updateAppearance(state.appearance, { colorScheme: "system" }));
   showToast("Following system theme");
+  renderPreservingReaderScroll();
+}
+
+function setThemeFamily(family, options = {}) {
+  const resolvedFamily = resolveThemeFamily(family);
+  if (resolvedFamily !== family) return;
+  persistAppearance(updateAppearance(state.appearance, {
+    themeFamily: resolvedFamily,
+    overrides: options.preserveOverrides
+      ? state.appearance.overrides
+      : { light: null, dark: null, bigScreen: null },
+  }));
   renderPreservingReaderScroll();
 }
 
 function setPresentationTheme(theme) {
   if (!presentationThemeCodes.includes(theme)) return;
-  state.presentationTheme = theme;
-  localStorage.setItem("lw_presentation_theme", theme);
-  scheduleCloudSync();
+  const familyPresentation = resolveThemeFamilyPresentation(state.appearance.themeFamily, state.theme);
+  persistAppearance(updateAppearance(state.appearance, {
+    overrides: { bigScreen: theme === familyPresentation ? null : theme },
+  }));
   state.presentationSettingsOpen = false;
   render();
 }
