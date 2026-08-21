@@ -123,6 +123,7 @@ const {
   presentationThemes,
   presentationThemeCodes,
   defaultPresentationTheme,
+  themeFamilies,
   resolveThemeFamily,
   resolveThemeFamilyPreset,
   resolveThemeFamilyPresentation,
@@ -3268,6 +3269,8 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
     .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}</option>`)
     .join("");
   const followsSystemTheme = !localStorage.getItem("lw_theme");
+  const themeFamilyOptions = themeFamilyOptionsMarkup();
+  const currentColorLabel = `Current ${state.theme} color`;
   const themePresetOptions = themePresets
     .filter((preset) => preset.mode === state.theme)
     .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
@@ -3285,8 +3288,15 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
         <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
       </div>
       <div class="setting-group">
-        <label class="setting-label" for="mobileThemePresetSelect">Color theme</label>
-        <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="Color theme">
+        <label class="setting-label" for="mobileThemeFamilySelect">Theme family</label>
+        <select class="theme-preset-select" id="mobileThemeFamilySelect" aria-label="Theme family">
+          ${themeFamilyOptions}
+        </select>
+        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
+      </div>
+      <div class="setting-group">
+        <label class="setting-label" for="mobileThemePresetSelect">${currentColorLabel}</label>
+        <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="${currentColorLabel}">
           ${themePresetOptions}
         </select>
       </div>
@@ -3416,6 +3426,8 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     .filter((preset) => preset.mode === state.theme)
     .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
     .join("");
+  const themeFamilyOptions = themeFamilyOptionsMarkup();
+  const currentColorLabel = `Current ${state.theme} color`;
   const scriptureFontOptions = scriptureFonts
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
@@ -3470,8 +3482,15 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
             <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           </div>
           <div class="setting-group">
-            <label class="setting-label" for="themePresetSelect">Color theme</label>
-            <select class="theme-preset-select" id="themePresetSelect" aria-label="Color theme">
+            <label class="setting-label" for="themeFamilySelect">Theme family</label>
+            <select class="theme-preset-select" id="themeFamilySelect" aria-label="Theme family">
+              ${themeFamilyOptions}
+            </select>
+            <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="themePresetSelect">${currentColorLabel}</label>
+            <select class="theme-preset-select" id="themePresetSelect" aria-label="${currentColorLabel}">
               ${themePresetOptions}
             </select>
           </div>
@@ -12094,6 +12113,16 @@ function presentationSettingsDisclosure(key, label, content) {
   `;
 }
 
+function themeFamilyOptionsMarkup() {
+  const customized = hasAppearanceOverrides(state.appearance);
+  return `
+    ${customized ? '<option value="" selected>Custom mix</option>' : ""}
+    ${themeFamilies.map((family) => `
+      <option value="${family.code}" ${!customized && family.code === state.appearance.themeFamily ? "selected" : ""}>${family.name}</option>
+    `).join("")}
+  `;
+}
+
 function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -12136,6 +12165,7 @@ function presentation(accountPanelRerender = false) {
   const themeOptions = presentationThemes
     .map((theme) => `<option value="${theme.code}" ${theme.code === state.presentationTheme ? "selected" : ""}>${theme.name}</option>`)
     .join("");
+  const themeFamilyOptions = themeFamilyOptionsMarkup();
   const scriptureFontOptions = scriptureFonts
     .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
     .join("");
@@ -12149,7 +12179,14 @@ function presentation(accountPanelRerender = false) {
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
         <label>
-          <span>Theme</span>
+          <span>Theme family</span>
+          <select id="presentationThemeFamilySelect" class="presentation-theme-select" aria-label="Theme family">
+            ${themeFamilyOptions}
+          </select>
+        </label>
+        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize Big Screen.</p>
+        <label>
+          <span>Big Screen color</span>
           <select id="presentationThemeSelect" class="presentation-theme-select" aria-label="Change Big Screen theme">
             ${themeOptions}
           </select>
@@ -13000,6 +13037,12 @@ function bindEvents() {
   document.getElementById("mobileThemePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
   });
+  document.getElementById("themeFamilySelect")?.addEventListener("change", (event) => {
+    if (event.target.value) setThemeFamily(event.target.value);
+  });
+  document.getElementById("mobileThemeFamilySelect")?.addEventListener("change", (event) => {
+    if (event.target.value) setThemeFamily(event.target.value);
+  });
   document.getElementById("scriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
@@ -13725,6 +13768,9 @@ function bindEvents() {
   });
   document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
     setPresentationTheme(event.target.value);
+  });
+  document.getElementById("presentationThemeFamilySelect")?.addEventListener("change", (event) => {
+    if (event.target.value) setThemeFamily(event.target.value);
   });
   document.getElementById("presentationScriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);

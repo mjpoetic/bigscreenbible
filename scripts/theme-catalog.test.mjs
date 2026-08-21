@@ -40,15 +40,18 @@ const darkCodes = catalog.themePresets.filter(({ mode }) => mode === "dark").map
 const presentationCodes = Array.from(catalog.presentationThemeCodes);
 
 assert.deepEqual(Array.from(lightCodes), [
-  "paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire", "opal",
+  "paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire", "opal", "clementine",
 ]);
 assert.deepEqual(Array.from(darkCodes), [
-  "midnight", "chapel", "aurora", "rose-night", "violet-night", "nocturne", "contrast",
+  "midnight", "chapel", "aurora", "dusk", "forest-night", "rose-night", "violet-night", "nocturne", "ember-night", "contrast",
 ]);
 assert.deepEqual(presentationCodes, [
-  "deep", "warm", "paper", "dawn", "aurora", "meadow", "blush", "lavender", "sapphire",
+  "deep", "warm", "ember", "paper", "dawn", "aurora", "meadow", "blush", "lavender", "sapphire",
   "rose-night", "violet-night", "nocturne", "midnight", "contrast",
 ]);
+assert.equal(lightCodes.length, 10);
+assert.equal(darkCodes.length, 10);
+assert.equal(presentationCodes.length, 15);
 assert.equal(catalog.defaultThemePresets.light, "sapphire");
 assert.equal(catalog.defaultThemePresets.dark, "aurora");
 assert.equal(catalog.defaultPresentationTheme, "aurora");
@@ -78,7 +81,45 @@ assert.equal(catalog.resolveThemeFamily("unknown"), "sapphire");
 assert.equal(catalog.resolveThemeFamilyPreset("rose", "light"), "blush");
 assert.equal(catalog.resolveThemeFamilyPreset("rose", "dark"), "rose-night");
 assert.equal(catalog.resolveThemeFamilyPresentation("violet", "dark"), "violet-night");
-assert.equal(catalog.resolveThemeFamilyPreset("ember", "light"), "sapphire", "Future palettes should fall back safely until added");
+assert.equal(catalog.resolveThemeFamilyPreset("sunrise", "dark"), "dusk");
+assert.equal(catalog.resolveThemeFamilyPreset("meadow", "dark"), "forest-night");
+assert.equal(catalog.resolveThemeFamilyPreset("ember", "light"), "clementine");
+assert.equal(catalog.resolveThemeFamilyPreset("ember", "dark"), "ember-night");
+assert.equal(catalog.resolveThemeFamilyPresentation("ember", "light"), "ember");
+assert.equal(catalog.resolveThemeFamilyPresentation("ember", "dark"), "ember");
+
+function relativeLuminance(hex) {
+  const channels = hex.match(/[a-f\d]{2}/gi).map((channel) => parseInt(channel, 16) / 255);
+  const linear = channels.map((channel) => (
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  ));
+  return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2]);
+}
+
+function contrastRatio(first, second) {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  return (Math.max(firstLuminance, secondLuminance) + 0.05)
+    / (Math.min(firstLuminance, secondLuminance) + 0.05);
+}
+
+for (const [name, foreground, background, minimum] of [
+  ["Clementine text", "#2b180f", "#fffaf4", 7],
+  ["Clementine muted text", "#765e50", "#fffaf4", 4.5],
+  ["Clementine accent", "#ffffff", "#b64f16", 4.5],
+  ["Dusk text", "#fff4e9", "#21151f", 7],
+  ["Dusk muted text", "#d1b6b2", "#21151f", 4.5],
+  ["Dusk accent", "#32150d", "#f0a06f", 4.5],
+  ["Forest Night text", "#eef9f0", "#102319", 7],
+  ["Forest Night muted text", "#afcbb8", "#102319", 4.5],
+  ["Forest Night accent", "#062316", "#71d59a", 4.5],
+  ["Ember Night text", "#fff4ec", "#2a120d", 7],
+  ["Ember Night muted text", "#d4b5a6", "#2a120d", 4.5],
+  ["Ember Night accent", "#361309", "#ff9b5a", 4.5],
+  ["Ember Big Screen text", "#fff8f2", "#5a210f", 7],
+]) {
+  assert.ok(contrastRatio(foreground, background) >= minimum, `${name} should meet its contrast target`);
+}
 
 const normalizedAppearance = catalog.normalizeAppearance({
   colorScheme: "dark",
@@ -322,7 +363,17 @@ assert.match(extractFunction("persistCloudSnapshotLocally"), /mirrorAppearanceTo
 assert.match(extractFunction("setThemePreset"), /overrides: \{ \[state\.theme\]/);
 assert.match(extractFunction("setThemeMode"), /colorScheme: mode/);
 assert.match(extractFunction("setThemeFamily"), /themeFamily: resolvedFamily/);
+assert.match(extractFunction("setThemeFamily"), /light: null, dark: null, bigScreen: null/);
 assert.match(extractFunction("setPresentationTheme"), /overrides: \{ bigScreen:/);
+assert.match(extractFunction("themeFamilyOptionsMarkup"), /Custom mix/);
+assert.match(extractFunction("themeFamilyOptionsMarkup"), /themeFamilies\.map/);
+assert.match(appSource, /id="themeFamilySelect"/);
+assert.match(appSource, /id="mobileThemeFamilySelect"/);
+assert.match(appSource, /id="presentationThemeFamilySelect"/);
+assert.match(appSource, /Links Light, Dark, and Big Screen colors/);
+assert.match(appSource, /getElementById\("themeFamilySelect"\).*setThemeFamily/s);
+assert.match(appSource, /getElementById\("mobileThemeFamilySelect"\).*setThemeFamily/s);
+assert.match(appSource, /getElementById\("presentationThemeFamilySelect"\).*setThemeFamily/s);
 
 const appearanceMergeContext = {
   normalizeAppearance: catalog.normalizeAppearance,

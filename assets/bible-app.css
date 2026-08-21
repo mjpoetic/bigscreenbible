@@ -288,6 +288,26 @@
   --shadow: 0 18px 48px rgba(34, 67, 117, 0.1);
 }
 
+[data-theme-preset="clementine"] {
+  --bg:
+    radial-gradient(circle at 14% 16%, rgba(255, 255, 255, 0.64), transparent 29%),
+    radial-gradient(circle at 86% 12%, rgba(225, 106, 38, 0.16), transparent 34%),
+    linear-gradient(145deg, #fff8ef 0%, #f4dcc5 50%, #efc2a4 100%);
+  --browser-chrome: #f4dcc5;
+  --paper: #fffaf4;
+  --panel: rgba(255, 250, 244, 0.95);
+  --ink: #2b180f;
+  --muted: #765e50;
+  --soft: #f1dbc8;
+  --line: #dec2aa;
+  --teal: #b64f16;
+  --teal-dark: #8d3a0d;
+  --gold: #9a5e10;
+  --gold-soft: #f4d9b0;
+  --success: #5f7b4d;
+  --shadow: 0 18px 48px rgba(126, 60, 23, 0.11);
+}
+
 [data-theme-preset="chapel"] {
   --bg: #12100d;
   --browser-chrome: #12100d;
@@ -328,6 +348,50 @@
   --gold-soft: #23284c;
   --success: #82d9af;
   --shadow: 0 22px 60px rgba(4, 7, 20, 0.54);
+}
+
+[data-theme-preset="dusk"] {
+  --bg:
+    radial-gradient(circle at 16% 16%, rgba(241, 132, 91, 0.19), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(163, 91, 171, 0.18), transparent 35%),
+    linear-gradient(145deg, #160f1b 0%, #2a1824 52%, #4a241d 100%);
+  --browser-chrome: #2a1824;
+  --paper: #1d131b;
+  --panel: rgba(33, 21, 31, 0.95);
+  --ink: #fff4e9;
+  --muted: #d1b6b2;
+  --soft: #3b2836;
+  --line: #574052;
+  --teal: #f0a06f;
+  --teal-dark: #cc7951;
+  --accent-ink: #32150d;
+  --accent-hover: #ffb58d;
+  --gold: #ffc173;
+  --gold-soft: #4a2c20;
+  --success: #9fc38d;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme-preset="forest-night"] {
+  --bg:
+    radial-gradient(circle at 17% 17%, rgba(75, 199, 126, 0.17), transparent 30%),
+    radial-gradient(circle at 85% 11%, rgba(194, 169, 89, 0.14), transparent 35%),
+    linear-gradient(145deg, #07130f 0%, #10251b 52%, #183524 100%);
+  --browser-chrome: #10251b;
+  --paper: #0c1b14;
+  --panel: rgba(16, 35, 25, 0.95);
+  --ink: #eef9f0;
+  --muted: #afcbb8;
+  --soft: #203b2b;
+  --line: #31523d;
+  --teal: #71d59a;
+  --teal-dark: #4eaf76;
+  --accent-ink: #062316;
+  --accent-hover: #8ce3ac;
+  --gold: #d5b966;
+  --gold-soft: #3b321c;
+  --success: #80d4a0;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme-preset="rose-night"] {
@@ -384,6 +448,28 @@
   --gold: #d59a52;
   --gold-soft: #352518;
   --success: #7cd3b0;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.54);
+}
+
+[data-theme-preset="ember-night"] {
+  --bg:
+    radial-gradient(circle at 16% 17%, rgba(255, 119, 56, 0.2), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(255, 194, 104, 0.13), transparent 34%),
+    linear-gradient(145deg, #140907 0%, #2a120d 50%, #4a1d11 100%);
+  --browser-chrome: #2a120d;
+  --paper: #1c0d09;
+  --panel: rgba(42, 18, 13, 0.95);
+  --ink: #fff4ec;
+  --muted: #d4b5a6;
+  --soft: #43261d;
+  --line: #61382a;
+  --teal: #ff9b5a;
+  --teal-dark: #da7038;
+  --accent-ink: #361309;
+  --accent-hover: #ffb27e;
+  --gold: #f6c36e;
+  --gold-soft: #49301b;
+  --success: #a9c681;
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.54);
 }
 
@@ -9546,6 +9632,11 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   gap: 6px;
 }
 
+.presentation-settings-popover > .setting-help {
+  color: var(--presentation-muted);
+  font-size: 11px;
+}
+
 .presentation-settings-popover .presentation-version-note {
   color: var(--presentation-muted);
   font-size: 10px;
@@ -12182,6 +12273,19 @@ kbd {
     radial-gradient(circle at 76% 12%, rgba(232, 164, 72, 0.28), transparent 34%);
   background-color: #4b3021;
   --presentation-accent: #f2c67d;
+}
+
+.presentation[data-presentation-theme="ember"] {
+  background:
+    radial-gradient(circle at 16% 18%, rgba(255, 132, 62, 0.28), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(255, 210, 137, 0.16), transparent 35%),
+    linear-gradient(145deg, #140805 0%, #5a210f 52%, #8b3214 100%);
+  background-color: #5a210f;
+  color: #fff8f2;
+  --presentation-accent: #ffc27d;
+  --presentation-button-bg: rgba(255, 238, 222, 0.11);
+  --presentation-button-border: rgba(255, 218, 184, 0.36);
+  --presentation-muted: rgba(255, 239, 226, 0.78);
 }
 
 .presentation[data-presentation-theme="paper"] {

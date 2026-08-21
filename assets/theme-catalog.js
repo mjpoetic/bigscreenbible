@@ -11,12 +11,16 @@
     { code: "lavender", name: "Lavender", mode: "light" },
     { code: "sapphire", name: "Sapphire", mode: "light" },
     { code: "opal", name: "Opal", mode: "light" },
+    { code: "clementine", name: "Clementine", mode: "light" },
     { code: "midnight", name: "Midnight", mode: "dark" },
     { code: "chapel", name: "Chapel", mode: "dark" },
     { code: "aurora", name: "Aurora", mode: "dark" },
+    { code: "dusk", name: "Dusk", mode: "dark" },
+    { code: "forest-night", name: "Forest Night", mode: "dark" },
     { code: "rose-night", name: "Rose Night", mode: "dark" },
     { code: "violet-night", name: "Violet Night", mode: "dark" },
     { code: "nocturne", name: "Nocturne", mode: "dark" },
+    { code: "ember-night", name: "Ember Night", mode: "dark" },
     { code: "contrast", name: "Contrast", mode: "dark" },
   ].map(Object.freeze));
 
@@ -30,6 +34,7 @@
   const presentationThemes = Object.freeze([
     { code: "deep", name: "Deep" },
     { code: "warm", name: "Warm" },
+    { code: "ember", name: "Ember" },
     { code: "paper", name: "Paper" },
     { code: "dawn", name: "Dawn" },
     { code: "aurora", name: "Aurora" },
@@ -69,6 +74,7 @@
   const presentationThemeColors = Object.freeze({
     deep: "#004f54",
     warm: "#4b3021",
+    ember: "#5a210f",
     paper: "#f9f2e4",
     dawn: "#f7c986",
     aurora: "#102433",
@@ -93,12 +99,16 @@
     lavender: "#eae3fb",
     sapphire: "#dbeafe",
     opal: "#dcecff",
+    clementine: "#f4dcc5",
     midnight: "#111827",
     chapel: "#12100d",
     aurora: "#111d37",
+    dusk: "#2a1824",
+    "forest-night": "#10251b",
     "rose-night": "#281323",
     "violet-night": "#1d1735",
     nocturne: "#07111f",
+    "ember-night": "#2a120d",
     contrast: "#000000",
   });
 
