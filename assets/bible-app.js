@@ -16256,6 +16256,21 @@ function returnToTriviaGame() {
   restoreModeScrollAfterRender(target.scrollState);
 }
 
+function scheduleGameReferenceVerseFocus(reference, verse) {
+  const focusReference = () => {
+    if (
+      state.mode !== "reader"
+      || state.reference !== reference
+      || state.verse !== verse
+      || !currentGameReferenceReturn()
+    ) return;
+    scrollSelectedVerseIntoView({ block: "center", behavior: "auto" });
+  };
+  requestAnimationFrame(() => requestAnimationFrame(focusReference));
+  window.setTimeout(focusReference, 180);
+  document.fonts?.ready?.then(focusReference).catch(() => {});
+}
+
 function openTriviaReference() {
   const game = state.triviaGame;
   const reference = game?.type === "word-search"
@@ -16278,6 +16293,7 @@ function openTriviaReference() {
   state.pendingVerseFocus = true;
   recordHistory();
   render();
+  scheduleGameReferenceVerseFocus(state.reference, state.verse);
 }
 
 function shuffleItems(items) {
@@ -19665,7 +19681,8 @@ function scrollSelectedVerseIntoView(options = {}) {
   const selected = scripture?.querySelector(`[data-verse="${state.verse}"]`)
     || document.querySelector(`[data-verse="${state.verse}"]`);
   if (!selected) return;
-  const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+  const behavior = options.behavior
+    || (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth");
   if (scripture && scripture.scrollHeight > scripture.clientHeight) {
     const scriptureBounds = scripture.getBoundingClientRect();
     const selectedBounds = selected.getBoundingClientRect();

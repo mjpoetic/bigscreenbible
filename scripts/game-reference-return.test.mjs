@@ -27,6 +27,19 @@ assert.match(openReference, /const gameScrollState = captureReaderScroll\(\)/);
 assert.match(openReference, /pauseTriviaGameForReference\(game\)/);
 assert.match(openReference, /state\.gameReferenceReturn = \{[\s\S]*?game,[\s\S]*?scrollState: gameScrollState/);
 assert.match(openReference, /state\.mode = "reader"/);
+assert.match(openReference, /scheduleGameReferenceVerseFocus\(state\.reference, state\.verse\)/);
+
+const focusReference = extractFunction("scheduleGameReferenceVerseFocus");
+assert.match(focusReference, /state\.mode !== "reader"/);
+assert.match(focusReference, /state\.reference !== reference/);
+assert.match(focusReference, /state\.verse !== verse/);
+assert.match(focusReference, /currentGameReferenceReturn\(\)/);
+assert.match(focusReference, /scrollSelectedVerseIntoView\(\{ block: "center", behavior: "auto" \}\)/);
+assert.match(focusReference, /requestAnimationFrame\(\(\) => requestAnimationFrame\(focusReference\)\)/);
+assert.match(focusReference, /window\.setTimeout\(focusReference, 180\)/);
+
+const scrollSelectedVerse = extractFunction("scrollSelectedVerseIntoView");
+assert.match(scrollSelectedVerse, /options\.behavior/);
 
 const pauseTimer = extractFunction("pauseTriviaGameForReference");
 assert.match(pauseTimer, /game\.type === "reference-rush"[\s\S]*?game\.timed[\s\S]*?game\.deadlineAt/);
