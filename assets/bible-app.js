@@ -10288,6 +10288,8 @@ function mountMobileGameControls() {
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
   if (bookSprintSound) destination.append(bookSprintSound);
+  const wordSearchActions = game.querySelector(".word-search-actions");
+  if (wordSearchActions) destination.append(wordSearchActions);
   const orderingCheck = game.querySelector("#checkBookSprint, #checkVerseOrder");
   if (orderingCheck) {
     const checkDock = document.createElement("div");
@@ -10392,7 +10394,7 @@ function triviaView() {
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const difficultyOptions = triviaDifficulties().map((difficulty) => {
+  const difficultyOptions = (isWordSearch ? ["Easy", "Medium", "Hard"] : triviaDifficulties()).map((difficulty) => {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
     return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
@@ -10436,8 +10438,8 @@ function triviaView() {
       <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""}">
         <div class="trivia-header">
           <div class="trivia-header-copy">
-            <div class="trivia-eyebrow">${gameTitle}</div>
-            <h1>Games</h1>
+            <div class="trivia-eyebrow">${state.triviaGame?.type === "word-search" ? "Games" : gameTitle}</div>
+            <h1>${state.triviaGame?.type === "word-search" ? "Word Search" : "Games"}</h1>
           </div>
           <div class="trivia-header-actions">
             <div class="trivia-score-chip">${triviaScoreLabel()}</div>
@@ -11187,6 +11189,7 @@ function triviaResultsView(game) {
 }
 
 function triviaRoundLength(game) {
+  if (game?.type === "word-search") return game.words?.length || 0;
   return game?.questions?.length || game?.puzzles?.length || 0;
 }
 
@@ -11306,21 +11309,27 @@ function triviaResultTitle(percent) {
 
 function triviaScoreLabel() {
   if (!state.triviaGame) {
+    if (state.triviaGameType === "word-search") {
+      const config = wordSearchDifficultyConfig(state.triviaDifficulty);
+      return `${config.wordCount} words`;
+    }
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
     if (state.triviaGameType === "reference-rush") return `${referenceRushAvailableCount()} verses`;
     if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, normalizedTriviaCount("book-sprint", state.triviaCount)))}`;
     if (state.triviaGameType === "who-said-it") return `${whoSaidItPool().length} quotes`;
     return `${triviaPool().length} questions`;
   }
-  const roundLength = state.triviaGame.questions?.length || state.triviaGame.puzzles?.length || 0;
+  const roundLength = triviaRoundLength(state.triviaGame);
   if (state.triviaGame.complete) {
     if (state.triviaGame.type === "book-sprint") return formatGameTime(bookSprintElapsedMs(state.triviaGame));
+    if (state.triviaGame.type === "word-search") return formatGameTime(wordSearchElapsedMs(state.triviaGame));
     return `${state.triviaGame.score} / ${roundLength}`;
   }
   if (state.triviaGame.type === "verse-order") return `${state.triviaGame.score} ordered`;
   if (state.triviaGame.type === "reference-rush") return `${state.triviaGame.score} matched`;
   if (state.triviaGame.type === "book-sprint") return `Round ${state.triviaGame.index + 1} / ${roundLength}`;
   if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
+  if (state.triviaGame.type === "word-search") return `${state.triviaGame.score} of ${roundLength} found`;
   return `${state.triviaGame.score} correct`;
 }
 
@@ -13028,6 +13037,7 @@ function bindEvents() {
   bindReaderTopButton();
   bindReaderReturnButton();
   bindReaderSelectionToolsButton();
+  bindWordSearchGrid();
   document.querySelector(".topbar")?.addEventListener("click", handleTopbarScrollTap);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -13686,6 +13696,10 @@ function bindEvents() {
       state.triviaGame = null;
       if (state.triviaGameType === "reference-rush") {
         state.triviaDifficulty = "Easy";
+        localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+      }
+      if (state.triviaGameType === "word-search" && state.triviaDifficulty === "All") {
+        state.triviaDifficulty = "Medium";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
       if (state.triviaGameType === "book-sprint") {
@@ -15681,6 +15695,209 @@ function nextReferenceRushPuzzle() {
   renderPreservingReaderScroll();
 }
 
+function sameWordSearchCells(first = [], second = []) {
+  return first.length === second.length && first.every((cell, index) => (
+    cell.row === second[index]?.row && cell.column === second[index]?.column
+  ));
+}
+
+function setWordSearchStatus(message) {
+  const game = state.triviaGame;
+  if (game?.type === "word-search") game.lastSelectionMessage = message;
+  const status = document.getElementById("wordSearchStatus");
+  if (status) status.textContent = message;
+}
+
+function paintWordSearchSelection(cells = [], anchor = state.triviaGame?.selectionAnchor) {
+  const selectedKeys = new Set(cells.map(wordSearchCellKey));
+  const anchorKey = anchor ? wordSearchCellKey(anchor) : "";
+  document.querySelectorAll("[data-word-search-cell]").forEach((cell) => {
+    const key = cell.dataset.wordSearchCell;
+    cell.classList.toggle("is-preview", selectedKeys.has(key));
+    cell.classList.toggle("is-anchor", key === anchorKey);
+  });
+}
+
+function clearWordSearchSelection() {
+  const game = state.triviaGame;
+  if (game?.type !== "word-search") return;
+  game.selectionAnchor = null;
+  game.selectionPreview = [];
+  paintWordSearchSelection([], null);
+}
+
+function commitWordSearchSelection(cells) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "word-search" || game.complete || cells.length < 3) {
+    clearWordSearchSelection();
+    setWordSearchStatus("Choose at least three letters in a straight line.");
+    return false;
+  }
+  const found = new Set(game.foundWords);
+  const placement = game.placements.find((candidate) => (
+    !found.has(candidate.word)
+    && (sameWordSearchCells(candidate.cells, cells) || sameWordSearchCells(candidate.cells, cells.slice().reverse()))
+  ));
+  clearWordSearchSelection();
+  if (!placement) {
+    clearTimeout(wordSearchFeedbackTimer);
+    const selectedKeys = new Set(cells.map(wordSearchCellKey));
+    document.querySelectorAll("[data-word-search-cell]").forEach((cell) => {
+      cell.classList.toggle("is-miss", selectedKeys.has(cell.dataset.wordSearchCell));
+    });
+    setWordSearchStatus("That line is not one of the hidden words. Keep looking.");
+    wordSearchFeedbackTimer = setTimeout(() => {
+      document.querySelectorAll(".word-search-cell.is-miss").forEach((cell) => cell.classList.remove("is-miss"));
+    }, 520);
+    return false;
+  }
+  game.foundWords = [...game.foundWords, placement.word];
+  game.score = game.foundWords.length;
+  setWordSearchStatus(`${placement.word} found. ${game.words.length - game.score} remaining.`);
+  if (game.score >= game.words.length) {
+    game.finishedAt = Date.now();
+    const result = recordWordSearchBest(game);
+    game.wordSearchBest = result?.best || null;
+    game.wordSearchIsNewBest = Boolean(result?.isNewBest);
+    completeTriviaGame(game);
+  }
+  renderPreservingReaderScroll();
+  return true;
+}
+
+function chooseWordSearchCell(row, column) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "word-search" || game.complete) return;
+  const cell = { row, column };
+  if (!game.selectionAnchor) {
+    game.selectionAnchor = cell;
+    game.selectionPreview = [cell];
+    paintWordSearchSelection(game.selectionPreview, cell);
+    setWordSearchStatus("First letter selected. Choose the last letter.");
+    return;
+  }
+  const cells = wordSearchSelectionCells(game.selectionAnchor.row, game.selectionAnchor.column, row, column);
+  if (!cells.length) {
+    game.selectionAnchor = cell;
+    game.selectionPreview = [cell];
+    paintWordSearchSelection(game.selectionPreview, cell);
+    setWordSearchStatus("Choose a last letter in a straight line, or start again here.");
+    return;
+  }
+  commitWordSearchSelection(cells);
+}
+
+function wordSearchCellFromPoint(grid, clientX, clientY) {
+  const game = state.triviaGame;
+  if (!grid || game?.type !== "word-search") return null;
+  const rect = grid.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const column = Math.min(game.size - 1, Math.max(0, Math.floor(((clientX - rect.left) / rect.width) * game.size)));
+  const row = Math.min(game.size - 1, Math.max(0, Math.floor(((clientY - rect.top) / rect.height) * game.size)));
+  return { row, column };
+}
+
+function beginWordSearchPointer(event) {
+  const game = state.triviaGame;
+  const grid = event.currentTarget;
+  if (!game || game.type !== "word-search" || game.complete || event.button !== 0 || wordSearchPointerState) return;
+  const start = wordSearchCellFromPoint(grid, event.clientX, event.clientY);
+  if (!start) return;
+  event.preventDefault();
+  wordSearchPointerState = {
+    pointerId: event.pointerId,
+    grid,
+    start,
+    end: start,
+    moved: false,
+  };
+  game.selectionPreview = [start];
+  paintWordSearchSelection(game.selectionPreview, game.selectionAnchor);
+  grid.setPointerCapture?.(event.pointerId);
+}
+
+function moveWordSearchPointer(event) {
+  const pointer = wordSearchPointerState;
+  const game = state.triviaGame;
+  if (!pointer || !game || game.type !== "word-search" || event.pointerId !== pointer.pointerId) return;
+  const target = wordSearchCellFromPoint(pointer.grid, event.clientX, event.clientY);
+  if (!target) return;
+  const snapped = wordSearchSnappedEnd(pointer.start.row, pointer.start.column, target.row, target.column, game.size);
+  pointer.end = snapped;
+  pointer.moved = pointer.moved || snapped.row !== pointer.start.row || snapped.column !== pointer.start.column;
+  game.selectionPreview = wordSearchSelectionCells(pointer.start.row, pointer.start.column, snapped.row, snapped.column);
+  paintWordSearchSelection(game.selectionPreview, game.selectionAnchor);
+  event.preventDefault();
+}
+
+function finishWordSearchPointer(event) {
+  const pointer = wordSearchPointerState;
+  const game = state.triviaGame;
+  if (!pointer || !game || game.type !== "word-search" || event.pointerId !== pointer.pointerId) return;
+  wordSearchPointerState = null;
+  pointer.grid.releasePointerCapture?.(event.pointerId);
+  if (pointer.moved) {
+    commitWordSearchSelection(game.selectionPreview.slice());
+    return;
+  }
+  game.selectionPreview = [];
+  chooseWordSearchCell(pointer.start.row, pointer.start.column);
+}
+
+function cancelWordSearchPointer(event) {
+  const pointer = wordSearchPointerState;
+  if (!pointer || event.pointerId !== pointer.pointerId) return;
+  wordSearchPointerState = null;
+  const game = state.triviaGame;
+  if (game?.type === "word-search") {
+    game.selectionPreview = game.selectionAnchor ? [game.selectionAnchor] : [];
+    paintWordSearchSelection(game.selectionPreview, game.selectionAnchor);
+  }
+}
+
+function handleWordSearchGridKeydown(event) {
+  const game = state.triviaGame;
+  const cell = event.target.closest?.("[data-word-search-cell]");
+  if (!game || game.type !== "word-search" || game.complete || !cell) return;
+  let row = Number(cell.dataset.row);
+  let column = Number(cell.dataset.column);
+  const movement = {
+    ArrowUp: [-1, 0],
+    ArrowDown: [1, 0],
+    ArrowLeft: [0, -1],
+    ArrowRight: [0, 1],
+  }[event.key];
+  if (movement) {
+    event.preventDefault();
+    row = Math.min(game.size - 1, Math.max(0, row + movement[0]));
+    column = Math.min(game.size - 1, Math.max(0, column + movement[1]));
+    game.keyboardCell = { row, column };
+    document.querySelectorAll("[data-word-search-cell]").forEach((gridCell) => {
+      gridCell.tabIndex = Number(gridCell.dataset.row) === row && Number(gridCell.dataset.column) === column ? 0 : -1;
+    });
+    document.querySelector(`[data-word-search-cell="${row}:${column}"]`)?.focus();
+    return;
+  }
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    chooseWordSearchCell(row, column);
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    clearWordSearchSelection();
+    setWordSearchStatus("Selection cleared.");
+  }
+}
+
+function bindWordSearchGrid() {
+  const grid = document.getElementById("wordSearchGrid");
+  if (!grid || state.triviaGame?.complete) return;
+  grid.addEventListener("pointerdown", beginWordSearchPointer);
+  grid.addEventListener("pointermove", moveWordSearchPointer, { passive: false });
+  grid.addEventListener("pointerup", finishWordSearchPointer);
+  grid.addEventListener("pointercancel", cancelWordSearchPointer);
+  grid.addEventListener("keydown", handleWordSearchGridKeydown);
+}
+
 function selectBookSprintBook(book) {
   const puzzle = currentBookSprintPuzzle();
   if (!puzzle || puzzle.answered || puzzle.selectedBooks.includes(book)) return;
@@ -16003,7 +16220,9 @@ function returnToTriviaGame() {
 
 function openTriviaReference() {
   const game = state.triviaGame;
-  const reference = game?.type === "verse-order" || game?.type === "reference-rush"
+  const reference = game?.type === "word-search"
+    ? game.reference
+    : game?.type === "verse-order" || game?.type === "reference-rush"
     ? game.puzzles?.[game.index]?.reference
     : game?.type === "who-said-it"
       ? game.questions?.[game.index]?.reference

@@ -18,10 +18,11 @@ function extractFunction(name) {
   throw new Error(`Could not extract ${name} from bible-app.js`);
 }
 
-assert.equal(source.match(/id="openTriviaReference"/g)?.length, 4);
+assert.equal(source.match(/id="openTriviaReference"/g)?.length, 5);
 assert.match(source, /gameReferenceReturn: null/);
 
 const openReference = extractFunction("openTriviaReference");
+assert.match(openReference, /game\?\.type === "word-search"[\s\S]*?game\.reference/);
 assert.match(openReference, /const gameScrollState = captureReaderScroll\(\)/);
 assert.match(openReference, /pauseTriviaGameForReference\(game\)/);
 assert.match(openReference, /state\.gameReferenceReturn = \{[\s\S]*?game,[\s\S]*?scrollState: gameScrollState/);
