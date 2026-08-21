@@ -23,7 +23,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const parserVersion = "2026-08-08-youversion-red-letters";
+const parserVersion = "2026-08-21-youversion-structure";
 
 type AuthorizedBible = {
   code: YouVersionTranslationCode;
@@ -48,6 +48,7 @@ type PassageVerse = {
   text: string;
   paragraphStart: boolean;
   sectionHeadings?: Array<{ text: string; level: number }>;
+  lineBreaks?: number[];
   wordsOfJesus?: Array<{ start: number; end: number }>;
 };
 
@@ -321,15 +322,10 @@ async function chapterPassageHtml(
 
 function cleanSectionHeading(value: string) {
   const heading = normalizeYouVersionHeadingText(cleanPlainText(value))
-    .replace(/^[\s:;,\-.]+/, "")
-    .replace(/\s+\d+$/, "")
-    .replace(/[\s:;,\-.]+$/, "")
     .trim();
   if (!heading) return "";
   if (/^\d+$/.test(heading)) return "";
-  if (/^\d+\s+/.test(heading)) return "";
-  if (heading.length > 80) return "";
-  if (/[.!?]/.test(heading)) return "";
+  if (heading.length > 240) return "";
   return heading;
 }
 
@@ -341,45 +337,6 @@ function normalizeYouVersionHeadingText(value: string) {
     .trim();
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function sectionHeadingMapFromChapterText(
-  headedText: string,
-  chapter: ChapterReference,
-  verses: Array<{ n: number; text: string }>,
-) {
-  const headings = new Map<number, Array<{ text: string; level: number }>>();
-  let remaining = normalizeYouVersionHeadingText(cleanPlainText(headedText));
-  if (!remaining) return headings;
-
-  const chapterLabel = new RegExp(
-    `^${escapeRegExp(chapter.book)}\\s+${chapter.chapter}\\s+`,
-    "i",
-  );
-
-  verses.forEach((verse) => {
-    const verseText = normalizeYouVersionHeadingText(
-      cleanPlainText(verse.text),
-    );
-    if (!verseText) return;
-    const index = remaining.indexOf(verseText);
-    if (index === -1) return;
-
-    const verseNumber = escapeRegExp(String(verse.n));
-    const beforeVerse = remaining.slice(0, index)
-      .replace(chapterLabel, "")
-      .replace(new RegExp(`^${verseNumber}\\s+`), "")
-      .replace(new RegExp(`\\s+${verseNumber}$`), "");
-    const heading = cleanSectionHeading(beforeVerse);
-    if (heading) headings.set(verse.n, [{ text: heading, level: 1 }]);
-    remaining = remaining.slice(index + verseText.length).trim();
-  });
-
-  return headings;
-}
-
 async function chapterVerses(
   bible: AuthorizedBible,
   chapter: ChapterReference,
@@ -389,7 +346,7 @@ async function chapterVerses(
   const verses: PassageVerse[] = extractYouVersionChapterHtml(passageHtml)
     .map((verse) => ({
       ...verse,
-      paragraphStart: verse.n === 1,
+      paragraphStart: verse.n === 1 || verse.paragraphStart,
     }));
   if (!verses.length) {
     throw new Error(`${bible.abbreviation} returned no verse text`);
@@ -399,15 +356,6 @@ async function chapterVerses(
       `YouVersion returned more than ${maximumPassageVerses} verses`,
     );
   }
-  const headingMap = sectionHeadingMapFromChapterText(
-    passageHtml,
-    chapter,
-    verses,
-  );
-  verses.forEach((verse) => {
-    const sectionHeadings = headingMap.get(verse.n);
-    if (sectionHeadings?.length) verse.sectionHeadings = sectionHeadings;
-  });
   return dedupeRepeatedSectionHeadings(verses);
 }
 

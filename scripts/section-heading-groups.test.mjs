@@ -21,8 +21,17 @@ function extractFunction(name) {
 const context = {};
 vm.createContext(context);
 vm.runInContext(`
+  const state = { redLetters: false };
+  const escapeHtml = (value) => String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
   ${extractFunction("groupSectionHeadings")}
+  ${extractFunction("lineBreaksForVerse")}
+  ${extractFunction("renderRedLetterText")}
   globalThis.group = groupSectionHeadings;
+  globalThis.breaks = lineBreaksForVerse;
+  globalThis.renderText = renderRedLetterText;
 `, context);
 
 const group = (headings) => [...context.group(headings)].map((items) => [...items]);
@@ -79,6 +88,25 @@ assert.deepEqual(
     heading("The Beginning of Knowledge", 1),
     heading("(Proverbs 9:1–12)", 2),
   ]],
+);
+
+const nirvText = "A deer longs for streams of water. God, I long for you in the same way.";
+const nirvBreak = nirvText.indexOf("God,");
+assert.deepEqual(
+  [...context.breaks({ lineBreaks: { NIRV: [nirvBreak, nirvBreak, -1, 2.5] } }, "NIRV")],
+  [nirvBreak],
+);
+assert.equal(
+  context.renderText(nirvText, [], 0, [], [nirvBreak]),
+  'A deer longs for streams of water. <br class="scripture-line-break" />God, I long for you in the same way.',
+);
+assert.match(
+  extractFunction("mergeRemoteVersionChapter"),
+  /verse\.lineBreaks\[version\] = lineBreaks/,
+);
+assert.match(
+  extractFunction("presentation"),
+  /lineBreaksForVerse\(verse, version\)/,
 );
 
 console.log("Section heading grouping tests passed");

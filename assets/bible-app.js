@@ -268,6 +268,9 @@ let modeTransitionAudioContext = null;
 let modeTransitionAudioResumePromise = null;
 let referenceRushTimer = 0;
 let referenceRushAudioContext = null;
+let wordSearchTimer = 0;
+let wordSearchPointerState = null;
+let wordSearchFeedbackTimer = 0;
 let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
 let activeMobileVerseNavMenu = null;
@@ -289,6 +292,7 @@ let dismissedGameChallengePopupKeys = null;
 let triviaRandomSource = Math.random;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
+const wordSearchBestStorageKey = "lw_word_search_bests";
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
@@ -927,6 +931,7 @@ const icons = {
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
   games: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5c0-1.7 1.3-3 3-3s3 1.3 3 3h4a1 1 0 0 1 1 1v3c1.7 0 3 1.3 3 3s-1.3 3-3 3v4a1 1 0 0 1-1 1h-4c0 1.7-1.3 3-3 3s-3-1.3-3-3H5a1 1 0 0 1-1-1v-4h1.5c1.7 0 3-1.3 3-3s-1.3-3-3-3H4V6a1 1 0 0 1 1-1z"/></svg>',
+  wordSearch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="m5.3 18.2 3.4-3.4 3.2 3.2 6.8-7" stroke-width="2.2"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
   lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.7A7 7 0 1 1 15.8 14.7c-.9.7-1.3 1.5-1.4 2.3H9.6c-.1-.8-.5-1.6-1.4-2.3z"/><path d="M12 3v2"/></svg>',
@@ -1317,6 +1322,8 @@ function render() {
     bookSprintTimer = 0;
     clearInterval(referenceRushTimer);
     referenceRushTimer = 0;
+    clearInterval(wordSearchTimer);
+    wordSearchTimer = 0;
     app.innerHTML = loadingScreen();
     return;
   }
@@ -1425,6 +1432,7 @@ function render() {
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
   scheduleReferenceRushTimer();
+  scheduleWordSearchTimer();
 }
 
 function chapterChangeIndicator(change) {
@@ -6239,18 +6247,20 @@ function closeMobileVerseNavMenu(options = {}) {
 function renderStrongText(verse, version) {
   const text = getVerseText(verse, version);
   const redLetterRanges = wordsOfJesusRanges(verse, version);
+  const lineBreaks = lineBreaksForVerse(verse, version);
   const searchRanges = inlineSearchRangesForText(
     text,
     activeInlineSearchQuery(),
     state.inlineSearchPhraseOnly,
   );
-  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges);
+  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
   return renderTextWithStrongNumbers(
     text,
     getStrongEntries(verse, version),
     redLetterRanges,
     version,
     searchRanges,
+    lineBreaks,
   );
 }
 
@@ -6337,8 +6347,8 @@ function normalizeStrongCodes(value) {
     .filter((code) => /^[HG]\d+$/.test(code)))];
 }
 
-function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = []) {
-  if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges);
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = []) {
+  if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
 
   let output = "";
   let cursor = 0;
@@ -6350,11 +6360,11 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
     if (index === -1) return;
     const primaryCode = availableCodes[0];
     const codesLabel = availableCodes.join(", ");
-    output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version, searchRanges);
-    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version, searchRanges)}</button>`;
+    output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version, searchRanges, lineBreaks);
+    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</button>`;
     cursor = index + word.length;
   });
-  output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version, searchRanges);
+  output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version, searchRanges, lineBreaks);
   return output;
 }
 
@@ -6396,12 +6406,19 @@ function wordsOfJesusRanges(verse, version) {
   return Array.isArray(ranges) ? ranges : [];
 }
 
-function renderScriptureText(text, ranges = [], baseOffset = 0, version = "", searchRanges = []) {
-  if (version === "AMP") return renderAmpInlineReferences(text, ranges, baseOffset, searchRanges);
-  return renderRedLetterText(text, ranges, baseOffset, searchRanges);
+function lineBreaksForVerse(verse, version) {
+  const offsets = verse?.lineBreaks?.[version];
+  return Array.isArray(offsets)
+    ? [...new Set(offsets.map(Number).filter((offset) => Number.isInteger(offset) && offset > 0))]
+    : [];
 }
 
-function renderAmpInlineReferences(text, ranges = [], baseOffset = 0, searchRanges = []) {
+function renderScriptureText(text, ranges = [], baseOffset = 0, version = "", searchRanges = [], lineBreaks = []) {
+  if (version === "AMP") return renderAmpInlineReferences(text, ranges, baseOffset, searchRanges, lineBreaks);
+  return renderRedLetterText(text, ranges, baseOffset, searchRanges, lineBreaks);
+}
+
+function renderAmpInlineReferences(text, ranges = [], baseOffset = 0, searchRanges = [], lineBreaks = []) {
   const value = String(text || "");
   const referencePattern = /\[([^\[\]]{1,160})\]/g;
   let cursor = 0;
@@ -6411,12 +6428,12 @@ function renderAmpInlineReferences(text, ranges = [], baseOffset = 0, searchRang
   while ((match = referencePattern.exec(value))) {
     const referenceMarkup = ampInlineReferenceMarkup(match[1]);
     if (!referenceMarkup) continue;
-    output += renderRedLetterText(value.slice(cursor, match.index), ranges, baseOffset + cursor, searchRanges);
+    output += renderRedLetterText(value.slice(cursor, match.index), ranges, baseOffset + cursor, searchRanges, lineBreaks);
     output += `<span class="scripture-inline-reference" aria-label="Scripture references">[${referenceMarkup}]</span>`;
     cursor = match.index + match[0].length;
   }
 
-  output += renderRedLetterText(value.slice(cursor), ranges, baseOffset + cursor, searchRanges);
+  output += renderRedLetterText(value.slice(cursor), ranges, baseOffset + cursor, searchRanges, lineBreaks);
   return output;
 }
 
@@ -6453,7 +6470,7 @@ function ampInlineReferencePart(value, previousBook = "") {
     : null;
 }
 
-function renderRedLetterText(text, ranges = [], baseOffset = 0, searchRanges = []) {
+function renderRedLetterText(text, ranges = [], baseOffset = 0, searchRanges = [], lineBreaks = []) {
   const value = String(text || "");
   if (!value) return "";
   const chunkStart = baseOffset;
@@ -6469,6 +6486,10 @@ function renderRedLetterText(text, ranges = [], baseOffset = 0, searchRanges = [
   });
   addBoundaries(redRanges);
   addBoundaries(searchRanges);
+  const visibleLineBreaks = lineBreaks
+    .map(Number)
+    .filter((offset) => Number.isInteger(offset) && offset >= chunkStart && offset < chunkEnd);
+  visibleLineBreaks.forEach((offset) => boundaries.add(offset - chunkStart));
   const points = [...boundaries].sort((a, b) => a - b);
   return points.slice(0, -1).map((start, index) => {
     const end = points[index + 1];
@@ -6479,7 +6500,7 @@ function renderRedLetterText(text, ranges = [], baseOffset = 0, searchRanges = [
     let markup = escapeHtml(value.slice(start, end));
     if (isSearchHit) markup = `<mark class="inline-search-hit">${markup}</mark>`;
     if (isRedLetter) markup = `<span class="words-of-jesus">${markup}</span>`;
-    return markup;
+    return `${visibleLineBreaks.includes(absoluteStart) ? '<br class="scripture-line-break" />' : ""}${markup}`;
   }).join("");
 }
 
@@ -9489,6 +9510,235 @@ function formatCountdownTime(milliseconds) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+const wordSearchPassages = [
+  { chapterKey: "Genesis 1", start: 1, end: 5, label: "Genesis 1:1–5", words: ["beginning", "created", "heavens", "earth", "spirit", "waters", "light", "darkness", "day", "night"] },
+  { chapterKey: "Genesis 12", start: 1, end: 7, label: "Genesis 12:1–7", words: ["country", "kindred", "father", "nation", "blessing", "families", "abrams", "canaan", "altar", "appeared"] },
+  { chapterKey: "Exodus 14", start: 13, end: 18, label: "Exodus 14:13–18", words: ["fear", "stand", "salvation", "egyptians", "forward", "staff", "stretch", "waters", "glory", "chariots"] },
+  { chapterKey: "Psalm 23", start: 1, end: 6, label: "Psalm 23", words: ["shepherd", "pastures", "waters", "soul", "paths", "valley", "comfort", "staff", "goodness", "mercy", "house"] },
+  { chapterKey: "Psalm 119", start: 105, end: 112, label: "Psalm 119:105–112", words: ["lamp", "light", "path", "sworn", "righteous", "afflicted", "offering", "teach", "heritage", "joy", "heart", "statutes"] },
+  { chapterKey: "Isaiah 40", start: 28, end: 31, label: "Isaiah 40:28–31", words: ["everlasting", "creator", "weary", "understanding", "strength", "power", "hope", "renew", "eagles", "wings", "run", "walk"] },
+  { chapterKey: "Matthew 5", start: 3, end: 10, label: "Matthew 5:3–10", words: ["blessed", "kingdom", "mourn", "comforted", "meek", "hunger", "mercy", "pure", "peacemakers", "righteousness"] },
+  { chapterKey: "Matthew 6", start: 25, end: 34, label: "Matthew 6:25–34", words: ["life", "birds", "heavenly", "father", "lilies", "clothed", "faith", "kingdom", "righteousness", "tomorrow"] },
+  { chapterKey: "Luke 2", start: 8, end: 14, label: "Luke 2:8–14", words: ["shepherds", "fields", "angel", "glory", "savior", "christ", "manger", "heavenly", "peace", "praise"] },
+  { chapterKey: "John 1", start: 1, end: 9, label: "John 1:1–9", words: ["beginning", "word", "god", "created", "life", "light", "darkness", "witness", "believe", "world"] },
+  { chapterKey: "John 15", start: 1, end: 8, label: "John 15:1–8", words: ["vine", "father", "branch", "fruit", "clean", "remain", "nothing", "withered", "disciples", "glory"] },
+  { chapterKey: "Romans 8", start: 31, end: 39, label: "Romans 8:31–39", words: ["against", "spared", "chosen", "justify", "christ", "intercedes", "trouble", "victors", "creation", "separate", "love"] },
+  { chapterKey: "1 Corinthians 13", start: 4, end: 8, label: "1 Corinthians 13:4–8", words: ["patient", "kind", "envy", "boast", "proud", "truth", "protects", "trusts", "hopes", "perseveres", "love"] },
+  { chapterKey: "Galatians 5", start: 22, end: 25, label: "Galatians 5:22–25", words: ["fruit", "spirit", "love", "joy", "peace", "patience", "kindness", "goodness", "faithfulness", "gentleness", "control"] },
+  { chapterKey: "Ephesians 6", start: 10, end: 17, label: "Ephesians 6:10–17", words: ["strong", "armor", "stand", "truth", "righteousness", "peace", "faith", "salvation", "spirit", "word", "shield", "helmet"] },
+  { chapterKey: "Philippians 4", start: 4, end: 9, label: "Philippians 4:4–9", words: ["rejoice", "gentleness", "anxious", "prayer", "thanksgiving", "peace", "hearts", "minds", "true", "honorable", "lovely", "praiseworthy"] },
+  { chapterKey: "Hebrews 11", start: 1, end: 6, label: "Hebrews 11:1–6", words: ["faith", "confidence", "hope", "assurance", "unseen", "ancients", "universe", "created", "pleased", "reward"] },
+  { chapterKey: "Revelation 21", start: 1, end: 5, label: "Revelation 21:1–5", words: ["heaven", "earth", "holy", "city", "dwelling", "people", "tears", "death", "mourning", "throne", "new"] },
+];
+
+const wordSearchStopWords = new Set([
+  "about", "after", "again", "against", "also", "among", "because", "before", "being", "between", "could", "every", "from", "have", "having", "into", "itself", "shall", "should", "their", "there", "these", "they", "thing", "those", "through", "under", "until", "upon", "very", "were", "what", "when", "where", "which", "while", "with", "would", "your", "yours",
+]);
+
+function wordSearchDifficultyConfig(difficulty = state.triviaDifficulty) {
+  return {
+    Easy: { size: 8, wordCount: 6 },
+    Medium: { size: 9, wordCount: 8 },
+    Hard: { size: 10, wordCount: 10 },
+    All: { size: 9, wordCount: 8 },
+  }[difficulty] || { size: 9, wordCount: 8 };
+}
+
+function normalizeWordSearchWord(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase();
+}
+
+function wordSearchVersion() {
+  return state.versions.find(isBundledTranslation) || "BSB";
+}
+
+function wordSearchPassageVerses(pack, version) {
+  return (bibleData[pack.chapterKey]?.verses || [])
+    .filter((verse) => verse.n >= pack.start && verse.n <= pack.end)
+    .map((verse) => ({ n: verse.n, text: cleanVerseOrderText(getVerseText(verse, version)) }))
+    .filter((verse) => verse.text);
+}
+
+function wordSearchPassageWords(pack, version, difficulty) {
+  const config = wordSearchDifficultyConfig(difficulty);
+  const verses = wordSearchPassageVerses(pack, version);
+  const tokens = verses.flatMap((verse) => verse.text.match(/[A-Za-z]+/g) || []).map(normalizeWordSearchWord);
+  const tokenSet = new Set(tokens);
+  const curated = pack.words
+    .map(normalizeWordSearchWord)
+    .filter((word) => word.length >= 3 && word.length <= config.size && tokenSet.has(word));
+  const fallback = [...new Set(tokens)].filter((word) => (
+    word.length >= 4
+    && word.length <= config.size
+    && !wordSearchStopWords.has(word.toLowerCase())
+    && !curated.includes(word)
+  ));
+  const candidates = [...shuffleItems(curated), ...shuffleItems(fallback)];
+  return [...new Set(candidates)].slice(0, config.wordCount);
+}
+
+function wordSearchDirections(difficulty) {
+  if (difficulty === "Easy") return [[0, 1], [1, 0]];
+  if (difficulty === "Hard") return [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  return [[0, 1], [1, 0], [1, 1], [1, -1]];
+}
+
+function createWordSearchGrid(words, size, difficulty) {
+  const normalizedWords = [...new Set(words.map(normalizeWordSearchWord))]
+    .filter((word) => word.length >= 3 && word.length <= size)
+    .sort((first, second) => second.length - first.length);
+  const directions = wordSearchDirections(difficulty);
+  for (let restart = 0; restart < 36; restart += 1) {
+    const cells = Array.from({ length: size }, () => Array(size).fill(""));
+    const placements = [];
+    let failed = false;
+    for (const word of normalizedWords) {
+      const candidates = [];
+      directions.forEach(([rowStep, columnStep]) => {
+        for (let row = 0; row < size; row += 1) {
+          for (let column = 0; column < size; column += 1) {
+            const endRow = row + rowStep * (word.length - 1);
+            const endColumn = column + columnStep * (word.length - 1);
+            if (endRow < 0 || endRow >= size || endColumn < 0 || endColumn >= size) continue;
+            let overlap = 0;
+            let valid = true;
+            const wordCells = [];
+            for (let index = 0; index < word.length; index += 1) {
+              const nextRow = row + rowStep * index;
+              const nextColumn = column + columnStep * index;
+              const existing = cells[nextRow][nextColumn];
+              if (existing && existing !== word[index]) {
+                valid = false;
+                break;
+              }
+              if (existing === word[index]) overlap += 1;
+              wordCells.push({ row: nextRow, column: nextColumn });
+            }
+            if (valid) candidates.push({ cells: wordCells, overlap });
+          }
+        }
+      });
+      if (!candidates.length) {
+        failed = true;
+        break;
+      }
+      candidates.sort((first, second) => second.overlap - first.overlap);
+      const bestOverlap = candidates[0].overlap;
+      const preferred = candidates.filter((candidate) => candidate.overlap >= Math.max(0, bestOverlap - 1)).slice(0, 48);
+      const placement = preferred[Math.floor(triviaRandomSource() * preferred.length)];
+      placement.cells.forEach(({ row, column }, index) => {
+        cells[row][column] = word[index];
+      });
+      placements.push({ word, cells: placement.cells });
+    }
+    if (failed || placements.length !== normalizedWords.length) continue;
+    const fillerLetters = "EEEEEEEEEEEEAAAAAAAAAARRRRRRRRIIIIIIIIOOOOOOOOTTTTTTTTNNNNNNNSSSSSSLLLLLLCCCCCUUUUUDDDDPPPPMMMMHHHHGGGBBBFYYWKVXZJQ";
+    cells.forEach((row) => row.forEach((letter, column) => {
+      if (!letter) row[column] = fillerLetters[Math.floor(triviaRandomSource() * fillerLetters.length)];
+    }));
+    return { cells, placements };
+  }
+  return null;
+}
+
+function wordSearchSelectionCells(startRow, startColumn, endRow, endColumn) {
+  const rowDelta = endRow - startRow;
+  const columnDelta = endColumn - startColumn;
+  if (rowDelta !== 0 && columnDelta !== 0 && Math.abs(rowDelta) !== Math.abs(columnDelta)) return [];
+  const length = Math.max(Math.abs(rowDelta), Math.abs(columnDelta)) + 1;
+  const rowStep = Math.sign(rowDelta);
+  const columnStep = Math.sign(columnDelta);
+  return Array.from({ length }, (_, index) => ({
+    row: startRow + rowStep * index,
+    column: startColumn + columnStep * index,
+  }));
+}
+
+function wordSearchSnappedEnd(startRow, startColumn, endRow, endColumn, size) {
+  const rowDelta = endRow - startRow;
+  const columnDelta = endColumn - startColumn;
+  const rowDistance = Math.abs(rowDelta);
+  const columnDistance = Math.abs(columnDelta);
+  let rowStep = Math.sign(rowDelta);
+  let columnStep = Math.sign(columnDelta);
+  if (rowDistance > columnDistance * 1.6) columnStep = 0;
+  else if (columnDistance > rowDistance * 1.6) rowStep = 0;
+  const requestedLength = Math.max(rowDistance, columnDistance);
+  let maxLength = requestedLength;
+  while (maxLength > 0) {
+    const snappedRow = startRow + rowStep * maxLength;
+    const snappedColumn = startColumn + columnStep * maxLength;
+    if (snappedRow >= 0 && snappedRow < size && snappedColumn >= 0 && snappedColumn < size) {
+      return { row: snappedRow, column: snappedColumn };
+    }
+    maxLength -= 1;
+  }
+  return { row: startRow, column: startColumn };
+}
+
+function wordSearchCellKey(cell) {
+  return `${cell.row}:${cell.column}`;
+}
+
+function wordSearchFoundCellKeys(game) {
+  const found = new Set(game?.foundWords || []);
+  return new Set((game?.placements || [])
+    .filter((placement) => found.has(placement.word))
+    .flatMap((placement) => placement.cells.map(wordSearchCellKey)));
+}
+
+function wordSearchElapsedMs(game = state.triviaGame) {
+  if (!game || game.type !== "word-search" || !game.startedAt) return 0;
+  return Math.max(0, (game.finishedAt || Date.now()) - game.startedAt);
+}
+
+function savedWordSearchBests() {
+  try {
+    return JSON.parse(localStorage.getItem(wordSearchBestStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function savedWordSearchBest(difficulty) {
+  return savedWordSearchBests()[difficulty || "Medium"] || null;
+}
+
+function recordWordSearchBest(game) {
+  if (!game || game.type !== "word-search" || !game.finishedAt) return null;
+  const result = {
+    difficulty: game.difficulty,
+    elapsedMs: wordSearchElapsedMs(game),
+    completedAt: new Date(game.finishedAt).toISOString(),
+  };
+  const bests = savedWordSearchBests();
+  const previous = bests[game.difficulty];
+  const isNewBest = !previous || result.elapsedMs < previous.elapsedMs;
+  if (isNewBest) {
+    bests[game.difficulty] = result;
+    localStorage.setItem(wordSearchBestStorageKey, JSON.stringify(bests));
+  }
+  return { best: bests[game.difficulty] || previous || result, isNewBest, hadPrevious: Boolean(previous) };
+}
+
+function updateWordSearchTimerDisplay() {
+  const timer = document.getElementById("wordSearchTimer");
+  if (timer && state.triviaGame?.type === "word-search") timer.textContent = formatGameTime(wordSearchElapsedMs());
+}
+
+function scheduleWordSearchTimer() {
+  clearInterval(wordSearchTimer);
+  wordSearchTimer = 0;
+  updateWordSearchTimerDisplay();
+  const game = state.triviaGame;
+  if (state.mode !== "trivia" || game?.type !== "word-search" || game.complete) return;
+  wordSearchTimer = setInterval(updateWordSearchTimerDisplay, 500);
+}
+
 function normalizedTriviaCount(gameType = state.triviaGameType, count = state.triviaCount) {
   const values = gameType === "book-sprint" ? bookSprintRoundLengths : triviaRoundLengths;
   const requested = Number(count) || values[0];
@@ -10138,6 +10388,7 @@ function triviaView() {
   const isReferenceRush = state.triviaGameType === "reference-rush";
   const isBookSprint = state.triviaGameType === "book-sprint";
   const isWhoSaidIt = state.triviaGameType === "who-said-it";
+  const isWordSearch = state.triviaGameType === "word-search";
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
@@ -10149,8 +10400,10 @@ function triviaView() {
   const countValues = isBookSprint ? bookSprintRoundLengths : triviaRoundLengths;
   const selectedCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
   const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
-  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : "Bible Trivia";
+  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
+  const wordSearchConfig = wordSearchDifficultyConfig(state.triviaDifficulty);
+  const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty) : null;
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
@@ -10158,11 +10411,13 @@ function triviaView() {
   const setupSummary = [
     state.triviaGameType === "trivia" ? state.triviaCategory : "",
     isVerseOrder ? "Progressive" : difficultyLabel,
-    `${selectedCount} ${countLabel}`,
+    isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : `${selectedCount} ${countLabel}`,
     isReferenceRush ? state.referenceRushTimed ? "Timed" : "Untimed" : "",
+    isWordSearch ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
+  const socialSupported = !isWordSearch;
   const gamesUseDrawers = isGamesResponsiveScreen();
   const gameHintsAvailable = Boolean(activeGameHintContext());
   const setupCopy = isVerseOrder
@@ -10173,10 +10428,12 @@ function triviaView() {
         ? "Put the books in Bible order as quickly as you can. Your first finish sets a best time; later sprints count down toward it."
         : isWhoSaidIt
           ? "Read the quote, then choose who said it before opening the reference."
-          : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
+          : isWordSearch
+            ? "Find words drawn from one Scripture passage. Drag across letters, or choose the first and last letter, then read the passage when the grid is complete."
+            : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   return `
     <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
-      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""}">
+      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""}">
         <div class="trivia-header">
           <div class="trivia-header-copy">
             <div class="trivia-eyebrow">${gameTitle}</div>
@@ -10209,7 +10466,7 @@ function triviaView() {
                 <span>Controls</span>
               </button>
             ` : ""}
-            ${state.triviaGame ? "" : `
+            ${state.triviaGame || !socialSupported ? "" : `
               <button
                 class="games-header-action ${state.gamesDrawerOpen === "social" ? "active" : ""}"
                 id="gameSocialToggle"
@@ -10236,6 +10493,7 @@ function triviaView() {
                 <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
                 <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button" ${challengeSetupLock}>${icons.timer}<span>Book Sprint</span></button>
                 <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button" ${challengeSetupLock}>${icons.quote}<span>Who Said It?</span></button>
+                <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" aria-label="Word Search, new" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span><small class="game-new-badge">New</small></button>
               </div>
               <button class="trivia-mode-scroll trivia-mode-scroll-next" type="button" data-trivia-mode-scroll="1" aria-label="Show more games" hidden>${icons.chevron}</button>
             </div>
@@ -10267,8 +10525,8 @@ function triviaView() {
                   <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
-                  <div class="trivia-setup-controls ${isVerseOrder ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
-                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt ? "is-hidden" : ""}">
+                  <div class="trivia-setup-controls ${isVerseOrder || isWordSearch ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
+                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch ? "is-hidden" : ""}">
                       <span>Category</span>
                       <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
                     </label>
@@ -10276,7 +10534,7 @@ function triviaView() {
                       <span>Difficulty</span>
                       <select id="triviaDifficultySelect" ${challengeSetupLock}>${difficultyOptions}</select>
                     </label>
-                    <label>
+                    <label class="${isWordSearch ? "is-hidden" : ""}">
                       <span>Round length</span>
                       <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
                     </label>
@@ -10297,10 +10555,17 @@ function triviaView() {
                       <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
                     </div>
                   ` : ""}
+                  ${isWordSearch ? `
+                    <div class="book-sprint-best-card word-search-best-card">
+                      <span>Best ${escapeHtml(state.triviaDifficulty)} time</span>
+                      <strong>${wordSearchBest ? formatGameTime(wordSearchBest.elapsedMs) : "No best yet"}</strong>
+                    </div>
+                    <p class="word-search-solo-note">Word Search is a solo game in this first release.</p>
+                  ` : ""}
                 </div>
               </aside>
             </div>
-            <div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
+            ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
               <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close social games" tabindex="-1"></button>
               <aside class="games-drawer games-social-drawer" id="gamesSocialDrawer" role="dialog" aria-modal="true" aria-labelledby="gamesSocialTitle" tabindex="-1">
                 <div class="games-drawer-header">
@@ -10314,11 +10579,11 @@ function triviaView() {
                   ${gameChallengeSetupCard()}
                 </div>
               </aside>
-            </div>
+            </div>` : ""}
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
-                : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+                : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : icons.trivia}<span>Start ${gameTitle}</span></button>`}
               <small>${escapeHtml(setupSummary)}</small>
             </div>
           </div>
@@ -10392,6 +10657,7 @@ function triviaExitControl(game = state.triviaGame) {
 
 function triviaGameView() {
   const game = state.triviaGame;
+  if (game?.type === "word-search") return wordSearchGameView(game);
   if (game?.type === "verse-order") return verseOrderGameView(game);
   if (game?.type === "reference-rush") return referenceRushGameView(game);
   if (game?.type === "book-sprint") return bookSprintGameView(game);
@@ -10477,6 +10743,93 @@ function triviaChoiceButton(question, choice, answered) {
     eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
   return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" ${answered || eliminated ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+}
+
+function wordSearchPassageMarkup(game) {
+  return `
+    <div class="word-search-passage-text">
+      ${game.verses.map((verse) => `<p><span>${verse.n}</span>${escapeHtml(verse.text)}</p>`).join("")}
+    </div>
+  `;
+}
+
+function wordSearchGameView(game) {
+  const foundWords = new Set(game.foundWords);
+  const foundCells = wordSearchFoundCellKeys(game);
+  const previewCells = new Set((game.selectionPreview || []).map(wordSearchCellKey));
+  const anchorKey = game.selectionAnchor ? wordSearchCellKey(game.selectionAnchor) : "";
+  const keyboardKey = wordSearchCellKey(game.keyboardCell || { row: 0, column: 0 });
+  const foundCount = game.foundWords.length;
+  const elapsed = formatGameTime(wordSearchElapsedMs(game));
+  const best = game.wordSearchBest || savedWordSearchBest(game.difficulty);
+  return `
+    <div class="trivia-game word-search-game ${game.complete ? "is-complete" : ""}">
+      <div class="word-search-toolbar">
+        <div class="trivia-progress">
+          <span>Word Search · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
+          <strong>${foundCount} of ${game.words.length} found</strong>
+        </div>
+        <div class="word-search-timer" aria-label="Elapsed time">
+          ${icons.timer}
+          <span>Time</span>
+          <strong id="wordSearchTimer">${elapsed}</strong>
+        </div>
+      </div>
+      <div class="word-search-layout">
+        <div class="word-search-board-shell">
+          <div
+            class="word-search-grid"
+            id="wordSearchGrid"
+            role="grid"
+            aria-label="${game.size} by ${game.size} Word Search grid"
+            aria-rowcount="${game.size}"
+            aria-colcount="${game.size}"
+            aria-describedby="wordSearchStatus"
+            style="--word-search-size: ${game.size}"
+          >
+            ${game.cells.flatMap((row, rowIndex) => row.map((letter, columnIndex) => {
+              const key = `${rowIndex}:${columnIndex}`;
+              const classes = [
+                "word-search-cell",
+                foundCells.has(key) ? "is-found" : "",
+                previewCells.has(key) ? "is-preview" : "",
+                anchorKey === key ? "is-anchor" : "",
+              ].filter(Boolean).join(" ");
+              return `<button class="${classes}" type="button" role="gridcell" data-word-search-cell="${key}" data-row="${rowIndex}" data-column="${columnIndex}" aria-rowindex="${rowIndex + 1}" aria-colindex="${columnIndex + 1}" aria-label="Row ${rowIndex + 1}, column ${columnIndex + 1}, ${letter}${foundCells.has(key) ? ", found" : ""}" tabindex="${keyboardKey === key ? "0" : "-1"}" ${game.complete ? "disabled" : ""}>${letter}</button>`;
+            })).join("")}
+          </div>
+          <p class="word-search-status" id="wordSearchStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Puzzle complete. The full passage is ready to read." : game.lastSelectionMessage)}</p>
+        </div>
+        <aside class="word-search-sidebar" aria-label="Word Search details">
+          <div class="word-search-passage-heading">
+            <span>${game.complete ? "Puzzle passage" : "Find words from"}</span>
+            <strong>${escapeHtml(game.referenceLabel)}</strong>
+          </div>
+          ${game.complete ? `
+            <div class="word-search-complete-summary">
+              <span>${game.wordSearchIsNewBest ? "New best time" : "Completed in"}</span>
+              <strong>${elapsed}</strong>
+              ${best ? `<small>Best ${escapeHtml(game.difficulty)} time · ${formatGameTime(best.elapsedMs)}</small>` : ""}
+            </div>
+            ${wordSearchPassageMarkup(game)}
+            <div class="trivia-reference word-search-reference">
+              <span>${escapeHtml(game.referenceLabel)}</span>
+              <button class="text-btn" id="openTriviaReference" type="button">Open passage</button>
+            </div>
+          ` : `
+            <p class="word-search-instructions">Drag across letters in a straight line. You can also choose the first letter, then the last.</p>
+          `}
+          <div class="word-search-list" aria-label="Words to find">
+            ${game.words.map((word) => `<span class="${foundWords.has(word) ? "is-found" : ""}">${foundWords.has(word) ? '<span aria-hidden="true">✓</span>' : ""}<span>${escapeHtml(word)}</span></span>`).join("")}
+          </div>
+          <div class="trivia-actions word-search-actions">
+            ${triviaExitControl(game)}
+            <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  `;
 }
 
 function verseOrderGameView(game) {
@@ -12134,6 +12487,13 @@ function presentation(accountPanelRerender = false) {
   const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
   const part = parts[partIndex];
   const text = part.text;
+  const textMarkup = renderRedLetterText(
+    text,
+    [],
+    part.start,
+    [],
+    verseOfDayItem ? [] : lineBreaksForVerse(verse, version),
+  );
   state.presentationPart = partIndex;
   const paginated = parts.length > 1;
   const presentationReference = `${verseOfDayItem?.reference || referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
@@ -12271,7 +12631,7 @@ function presentation(accountPanelRerender = false) {
       <div class="presentation-text">
         ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
-          <span class="presentation-copy">${escapeHtml(text)}</span>
+          <span class="presentation-copy">${textMarkup}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
@@ -12310,7 +12670,7 @@ function printVerseNumberMarkup(verseNumber) {
 }
 
 function printVerseTextMarkup({ n, text, verse }, version) {
-  return `${printVerseNumberMarkup(n)}${renderRedLetterText(text, wordsOfJesusRanges(verse, version))}`;
+  return `${printVerseNumberMarkup(n)}${renderRedLetterText(text, wordsOfJesusRanges(verse, version), 0, [], lineBreaksForVerse(verse, version))}`;
 }
 
 function standardPrintPassageMarkup(lines, version) {
@@ -14040,6 +14400,7 @@ function triviaPool() {
 function startTriviaGame({ render = true } = {}) {
   cleanupTriviaCelebration();
   state.gamesDrawerOpen = "";
+  if (state.triviaGameType === "word-search") return startWordSearchGame({ render });
   if (state.triviaGameType === "verse-order") return startVerseOrderGame({ render });
   if (state.triviaGameType === "reference-rush") return startReferenceRushGame({ render });
   if (state.triviaGameType === "book-sprint") return startBookSprintGame({ render });
@@ -14066,6 +14427,54 @@ function startTriviaGame({ render = true } = {}) {
     score: 0,
     selectedAnswer: null,
     usedHintTypes: [],
+    complete: false,
+  };
+  if (render) renderPreservingReaderScroll();
+}
+
+function startWordSearchGame({ render = true } = {}) {
+  const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
+  const config = wordSearchDifficultyConfig(difficulty);
+  const version = wordSearchVersion();
+  const passageOptions = shuffleItems(wordSearchPassages).map((pack) => ({
+    pack,
+    verses: wordSearchPassageVerses(pack, version),
+    words: wordSearchPassageWords(pack, version, difficulty),
+  })).filter((option) => option.verses.length && option.words.length >= config.wordCount);
+  let selected = null;
+  let generated = null;
+  for (const option of passageOptions) {
+    generated = createWordSearchGrid(option.words.slice(0, config.wordCount), config.size, difficulty);
+    if (generated) {
+      selected = option;
+      break;
+    }
+  }
+  if (!selected || !generated) {
+    showToast("A Word Search puzzle could not be built yet. Try another difficulty.");
+    return;
+  }
+  state.triviaDifficulty = difficulty;
+  localStorage.setItem("lw_trivia_difficulty", difficulty);
+  state.triviaGame = {
+    type: "word-search",
+    difficulty,
+    version,
+    reference: `${selected.pack.chapterKey}:${selected.pack.start}-${selected.pack.end}`,
+    referenceLabel: selected.pack.label,
+    verses: selected.verses,
+    size: config.size,
+    cells: generated.cells,
+    placements: generated.placements,
+    words: generated.placements.map((placement) => placement.word).sort((first, second) => first.localeCompare(second)),
+    foundWords: [],
+    keyboardCell: { row: 0, column: 0 },
+    selectionAnchor: null,
+    selectionPreview: [],
+    lastSelectionMessage: "Drag across letters, or choose the first and last letter.",
+    startedAt: Date.now(),
+    finishedAt: null,
+    score: 0,
     complete: false,
   };
   if (render) renderPreservingReaderScroll();
@@ -19922,7 +20331,7 @@ function verseOfDayAttributionMarkup(className = "") {
 function mergeRemoteVersionChapter(version, chapterKey, verses) {
   const chapter = bibleData[chapterKey];
   if (!chapter) return;
-  verses.forEach(({ n, text, paragraphStart, sectionHeadings, wordsOfJesus }) => {
+  verses.forEach(({ n, text, paragraphStart, sectionHeadings, lineBreaks, wordsOfJesus }) => {
     if (!Number.isFinite(Number(n)) || !text) return;
     let verse = chapter.verses.find((item) => item.n === Number(n));
     if (!verse) {
@@ -19942,6 +20351,12 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
           level: Math.max(1, Math.min(4, Number(heading?.level) || 1)),
         }))
         .filter((heading) => heading.text);
+    }
+    if (Array.isArray(lineBreaks) && lineBreaks.length) {
+      verse.lineBreaks = verse.lineBreaks || {};
+      verse.lineBreaks[version] = lineBreaks
+        .map(Number)
+        .filter((offset) => Number.isInteger(offset) && offset > 0 && offset < verse[version].length);
     }
     if (Array.isArray(wordsOfJesus) && wordsOfJesus.length) {
       verse.wordsOfJesus = verse.wordsOfJesus || {};

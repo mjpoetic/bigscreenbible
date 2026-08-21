@@ -81,13 +81,81 @@ Deno.test("splits YouVersion chapter HTML at verse milestones", () => {
         n: 1,
         text: "Before Jesus spoke.",
         wordsOfJesus: [{ start: 7, end: 19 }],
+        paragraphStart: true,
       },
       {
         n: 2,
         text: "He continued, then the narrator spoke.",
         wordsOfJesus: [{ start: 0, end: 12 }],
+        paragraphStart: false,
       },
     ],
+  );
+});
+
+Deno.test("preserves NIrV headings and poetic line breaks", () => {
+  const verseOne =
+    "A deer longs for streams of water. God, I long for you in the same way.";
+  const verseTwo =
+    "I am thirsty for God. I am thirsty for the living God. When can I go and meet with him?";
+  assertEquals(
+    extractYouVersionChapterHtml(`
+      <div class="ms1 yv-h">Book II</div>
+      <div class="mr yv-h">Psalms 42–72</div>
+      <div class="d">For the director of music. A maskil of the Sons of Korah.</div>
+      <div class="q1">
+        <span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>
+        A deer longs for streams of water.
+      </div>
+      <div class="q1">God, I long for you in the same way.</div>
+      <div class="q1">
+        <span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>
+        I am thirsty for God. I am thirsty for the living God.
+      </div>
+      <div class="q1">When can I go and meet with him?</div>
+    `),
+    [
+      {
+        n: 1,
+        text: verseOne,
+        lineBreaks: [verseOne.indexOf("God,")],
+        paragraphStart: false,
+        sectionHeadings: [
+          { text: "Book II", level: 1 },
+          { text: "Psalms 42–72", level: 1 },
+          {
+            text: "For the director of music. A maskil of the Sons of Korah.",
+            level: 1,
+          },
+        ],
+      },
+      {
+        n: 2,
+        text: verseTwo,
+        lineBreaks: [verseTwo.indexOf("When")],
+        paragraphStart: false,
+      },
+    ],
+  );
+});
+
+Deno.test("preserves explicit breaks and acrostic headings", () => {
+  const text = "Aleph line one. Aleph line two.";
+  assertEquals(
+    extractYouVersionChapterHtml(`
+      <div class="qa yv-h">Aleph</div>
+      <div class="q1">
+        <span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>
+        Aleph line one.<br />Aleph line two.
+      </div>
+    `),
+    [{
+      n: 1,
+      text,
+      lineBreaks: [text.indexOf("Aleph line two")],
+      paragraphStart: false,
+      sectionHeadings: [{ text: "Aleph", level: 1 }],
+    }],
   );
 });
 

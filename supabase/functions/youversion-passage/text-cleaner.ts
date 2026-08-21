@@ -14,14 +14,23 @@ export function cleanPlainText(value: unknown) {
 }
 
 export function extractYouVersionPassageHtml(value: unknown) {
+  const parsed = youVersionHtmlCharacters(value, false);
   return normalizedYouVersionText(
-    youVersionHtmlCharacters(value, false).get(0) || [],
+    parsed.verses.get(0) || [],
   );
 }
 
 export function extractYouVersionChapterHtml(value: unknown) {
-  return [...youVersionHtmlCharacters(value, true).entries()]
-    .map(([n, characters]) => ({ n, ...normalizedYouVersionText(characters) }))
+  const parsed = youVersionHtmlCharacters(value, true);
+  return [...parsed.verses.entries()]
+    .map(([n, characters]) => ({
+      n,
+      ...normalizedYouVersionText(characters),
+      paragraphStart: parsed.paragraphStarts.has(n),
+      ...(parsed.sectionHeadings.has(n)
+        ? { sectionHeadings: parsed.sectionHeadings.get(n) }
+        : {}),
+    }))
     .filter((verse) => Number.isInteger(verse.n) && verse.n > 0 && verse.text)
     .sort((a, b) => a.n - b.n);
 }
@@ -30,29 +39,93 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
   const html = String(value || "");
   const verses = new Map<
     number,
-    Array<{ value: string; wordsOfJesus: boolean }>
+    Array<{
+      value: string;
+      wordsOfJesus: boolean;
+      lineBreakBefore?: boolean;
+    }>
   >();
+  const paragraphStarts = new Set<number>();
+  const sectionHeadings = new Map<
+    number,
+    Array<{ text: string; level: number }>
+  >();
+  let pendingHeadings: Array<{ text: string; level: number }> = [];
   if (!splitByVerse) verses.set(0, []);
   let currentVerse = splitByVerse ? -1 : 0;
   const elements: Array<{
     name: string;
     skipped: boolean;
     wordsOfJesus: boolean;
+    headingLevel: number;
+    headingCharacters?: string[];
+    scriptureBlock: boolean;
+    paragraphBlock: boolean;
+    boundaryApplied: boolean;
   }> = [];
   let skippedDepth = 0;
   let wordsOfJesusDepth = 0;
+  let pendingExplicitLineBreak = false;
+
+  const closeElement = (element: typeof elements[number] | undefined) => {
+    if (!element) return;
+    if (element.skipped) skippedDepth -= 1;
+    if (element.wordsOfJesus) wordsOfJesusDepth -= 1;
+    if (!element.headingCharacters) return;
+    const text = cleanYouVersionHeadingText(element.headingCharacters.join(""));
+    if (text) pendingHeadings.push({ text, level: element.headingLevel });
+  };
+
+  const attachPendingHeadings = () => {
+    if (!splitByVerse || currentVerse < 1 || !pendingHeadings.length) return;
+    const existing = sectionHeadings.get(currentVerse) || [];
+    pendingHeadings.forEach((heading) => {
+      if (
+        !existing.some((item) =>
+          item.text === heading.text && item.level === heading.level
+        )
+      ) existing.push(heading);
+    });
+    sectionHeadings.set(currentVerse, existing);
+    pendingHeadings = [];
+  };
 
   for (
     const token of html.match(/<!--[\s\S]*?-->|<![^>]*>|<[^>]+>|[^<]+/g) || []
   ) {
     if (!token.startsWith("<")) {
+      const decoded = decodeHtmlEntities(token);
+      const headingElement = elements.findLast((element) =>
+        Boolean(element.headingCharacters)
+      );
+      if (headingElement?.headingCharacters) {
+        headingElement.headingCharacters.push(decoded);
+        continue;
+      }
       if (skippedDepth || currentVerse < 0) continue;
       const characters = verses.get(currentVerse) || [];
       if (!verses.has(currentVerse)) verses.set(currentVerse, characters);
-      for (const character of decodeHtmlEntities(token)) {
+      const firstVisibleIndex = decoded.search(/[^\s¶]/u);
+      const block = elements.findLast((element) => element.scriptureBlock);
+      const beginsBlock = firstVisibleIndex >= 0 && block &&
+        !block.boundaryApplied;
+      if (beginsBlock) {
+        block.boundaryApplied = true;
+        if (block.paragraphBlock) paragraphStarts.add(currentVerse);
+        attachPendingHeadings();
+      } else if (firstVisibleIndex >= 0) attachPendingHeadings();
+      const lineBreakBefore = Boolean(
+        (beginsBlock || pendingExplicitLineBreak) &&
+          characters.some((character) => /[^\s¶]/u.test(character.value)),
+      );
+      if (firstVisibleIndex >= 0) pendingExplicitLineBreak = false;
+      for (const [index, character] of [...decoded].entries()) {
         characters.push({
           value: character,
           wordsOfJesus: wordsOfJesusDepth > 0,
+          ...(lineBreakBefore && index === firstVisibleIndex
+            ? { lineBreakBefore: true }
+            : {}),
         });
       }
       continue;
@@ -68,9 +141,7 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
         .lastIndexOf(name);
       if (matchingIndex === -1) continue;
       while (elements.length > matchingIndex) {
-        const element = elements.pop();
-        if (element?.skipped) skippedDepth -= 1;
-        if (element?.wordsOfJesus) wordsOfJesusDepth -= 1;
+        closeElement(elements.pop());
       }
       continue;
     }
@@ -85,25 +156,46 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
         verses.set(currentVerse, []);
       }
     }
-    const skipped = classes.some((className) =>
-      ["yv-vlbl", "yv-clbl", "yv-n", "yv-h"].includes(className)
-    );
+    const headingLevel = youVersionHeadingLevel(classes);
+    const heading = headingLevel > 0;
+    const skipped = heading ||
+      classes.some((className) =>
+        ["yv-vlbl", "yv-clbl", "yv-n"].includes(className)
+      );
     const wordsOfJesus = classes.includes("wj");
+    const scriptureBlock = isYouVersionScriptureBlock(name, classes);
+    const paragraphBlock = isYouVersionParagraphBlock(classes);
     const selfClosing = /\/\s*>$/.test(token) ||
       ["br", "hr", "img", "input", "meta", "link"].includes(name);
+    if (name === "br" && currentVerse >= 0) pendingExplicitLineBreak = true;
     if (selfClosing) continue;
-    elements.push({ name, skipped, wordsOfJesus });
+    elements.push({
+      name,
+      skipped,
+      wordsOfJesus,
+      headingLevel,
+      ...(heading ? { headingCharacters: [] } : {}),
+      scriptureBlock,
+      paragraphBlock,
+      boundaryApplied: false,
+    });
     if (skipped) skippedDepth += 1;
     if (wordsOfJesus) wordsOfJesusDepth += 1;
   }
 
-  return verses;
+  while (elements.length) closeElement(elements.pop());
+  return { verses, paragraphStarts, sectionHeadings };
 }
 
 function normalizedYouVersionText(
-  characters: Array<{ value: string; wordsOfJesus: boolean }>,
+  characters: Array<{
+    value: string;
+    wordsOfJesus: boolean;
+    lineBreakBefore?: boolean;
+  }>,
 ) {
   const normalized: Array<{ value: string; wordsOfJesus: boolean }> = [];
+  const lineBreaks: number[] = [];
   for (const character of characters) {
     const whitespace = /\s/.test(character.value) || character.value === "¶";
     if (whitespace) {
@@ -111,6 +203,14 @@ function normalizedYouVersionText(
         normalized.push({ value: " ", wordsOfJesus: character.wordsOfJesus });
       }
       continue;
+    }
+    if (character.lineBreakBefore && normalized.length) {
+      if (normalized.at(-1)?.value !== " ") {
+        normalized.push({ value: " ", wordsOfJesus: false });
+      }
+      if (lineBreaks.at(-1) !== normalized.length) {
+        lineBreaks.push(normalized.length);
+      }
     }
     normalized.push(character);
   }
@@ -126,8 +226,48 @@ function normalizedYouVersionText(
 
   return {
     text: normalized.map((character) => character.value).join(""),
+    ...(lineBreaks.length
+      ? {
+        lineBreaks: lineBreaks.filter((offset) => offset < normalized.length),
+      }
+      : {}),
     ...(wordsOfJesus.length ? { wordsOfJesus } : {}),
   };
+}
+
+function cleanYouVersionHeadingText(value: string) {
+  return String(value || "")
+    .replace(/\bL\s+ord(?=[A-Z])/g, "Lord ")
+    .replace(/\bL\s+ord\b/g, "Lord")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function youVersionHeadingLevel(classes: string[]) {
+  if (
+    !classes.includes("yv-h") &&
+    !classes.some((className) =>
+      /^(?:s\d?|ms\d?|mr|r|d|sp|qa|qd)$/i.test(className)
+    )
+  ) return 0;
+  const numbered = classes
+    .map((className) => Number(className.match(/^(?:s|ms)(\d+)$/i)?.[1]))
+    .find((level) => Number.isFinite(level) && level > 0);
+  return Math.max(1, Math.min(4, numbered || 1));
+}
+
+function isYouVersionScriptureBlock(name: string, classes: string[]) {
+  if (!["div", "p", "li", "td"].includes(name)) return false;
+  return classes.some((className) =>
+    /^(?:p|m|mi|nb|pc|pr|pm|pmc|pmo|pmr|pi\d*|q\d*|qm\d*|qr|qc|b)$/i
+      .test(className)
+  );
+}
+
+function isYouVersionParagraphBlock(classes: string[]) {
+  return classes.some((className) =>
+    /^(?:p|m|mi|nb|pc|pr|pm|pmc|pmo|pmr|pi\d*)$/i.test(className)
+  );
 }
 
 function htmlClassTokens(tag: string) {
