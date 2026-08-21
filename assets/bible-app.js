@@ -3345,7 +3345,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day">
         <img class="brand-mark-image" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
-        <div>
+        <div class="brand-copy">
           <div class="brand-title">Big Screen</div>
           <div class="brand-subtitle">Bible</div>
         </div>

@@ -16466,6 +16466,43 @@ svg {
   }
 }
 
+@media (max-width: 840px) and (orientation: portrait) {
+  .app-shell.focus-shell .brand {
+    order: 2;
+    grid-column: 1 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .app-shell.focus-shell .brand-mark-image {
+    width: 44px;
+    margin-right: 0;
+  }
+
+  .app-shell.focus-shell .brand-divider,
+  .app-shell.focus-shell .brand-copy {
+    display: none;
+  }
+
+  .app-shell.focus-shell .mode-tabs {
+    grid-column: 3 / 9;
+  }
+
+  .app-shell.focus-shell #focusToggle {
+    grid-column: 9 / 11;
+  }
+
+  .app-shell.focus-shell .account-menu {
+    grid-column: 11 / -1;
+  }
+}
+
 .reader-return-button.game-return-button {
   width: auto;
   min-width: 46px;
