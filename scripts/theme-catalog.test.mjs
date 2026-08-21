@@ -83,6 +83,11 @@ assert.equal(catalog.resolveThemeFamilyPreset("rose", "dark"), "rose-night");
 assert.equal(catalog.resolveThemeFamilyPresentation("violet", "dark"), "violet-night");
 assert.equal(catalog.resolveThemeFamilyPreset("sunrise", "dark"), "dusk");
 assert.equal(catalog.resolveThemeFamilyPreset("meadow", "dark"), "forest-night");
+assert.equal(catalog.themeFamilyLookup.celestial.name, "Nocturne");
+assert.equal(catalog.resolveThemeFamilyPreset("celestial", "light"), "opal");
+assert.equal(catalog.resolveThemeFamilyPreset("celestial", "dark"), "nocturne");
+assert.equal(catalog.resolveThemeFamilyPresentation("celestial", "light"), "nocturne");
+assert.equal(catalog.resolveThemeFamilyPresentation("celestial", "dark"), "nocturne");
 assert.equal(catalog.resolveThemeFamilyPreset("ember", "light"), "clementine");
 assert.equal(catalog.resolveThemeFamilyPreset("ember", "dark"), "ember-night");
 assert.equal(catalog.resolveThemeFamilyPresentation("ember", "light"), "ember");
@@ -149,6 +154,14 @@ const customizedRose = catalog.resolveAppearance({
 assert.equal(customizedRose.preset, "opal");
 assert.equal(customizedRose.presentationTheme, "warm");
 assert.equal(customizedRose.customized, true);
+const nocturneLight = catalog.resolveAppearance({ colorScheme: "light", themeFamily: "celestial" });
+assert.equal(nocturneLight.preset, "opal");
+assert.equal(nocturneLight.presentationTheme, "nocturne");
+assert.equal(nocturneLight.customized, false);
+const nocturneDark = catalog.resolveAppearance({ colorScheme: "dark", themeFamily: "celestial" });
+assert.equal(nocturneDark.preset, "nocturne");
+assert.equal(nocturneDark.presentationTheme, "nocturne");
+assert.equal(nocturneDark.customized, false);
 const updatedAppearance = catalog.updateAppearance(
   customizedRose.appearance,
   { overrides: { light: null, dark: "nocturne" } },
