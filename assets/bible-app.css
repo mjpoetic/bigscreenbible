@@ -3459,6 +3459,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   }
 }
 
+.mobile-floating-settings,
 .mobile-focus-passage-control,
 .mobile-floating-passage,
 .mobile-focus-passage-popover,
@@ -13274,6 +13275,7 @@ svg {
     min-height: 40px;
   }
 
+  .mobile-floating-settings,
   .mobile-floating-passage,
   .mobile-floating-focus-tools,
   .mobile-focus-tool-option,
@@ -13303,6 +13305,10 @@ svg {
     backdrop-filter: blur(14px);
     opacity: 0.72;
     transition: opacity 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .mobile-floating-settings {
+    display: none;
   }
 
   .reader-top-button {
@@ -13364,6 +13370,9 @@ svg {
     transform: translateY(8px) scale(0.94);
   }
 
+  .mobile-floating-settings:hover,
+  .mobile-floating-settings:focus-visible,
+  .mobile-floating-settings.active,
   .mobile-floating-passage:hover,
   .mobile-floating-passage:focus-visible,
   .mobile-floating-passage.active,
@@ -13386,6 +13395,7 @@ svg {
     transform: translateY(-2px);
   }
 
+  .mobile-floating-settings.mobile-settings-idle:not(.active),
   .mobile-floating-passage.mobile-settings-idle:not(.active),
   .mobile-floating-focus-tools.mobile-settings-idle:not(.active) {
     opacity: 0;
@@ -13393,6 +13403,7 @@ svg {
     transform: translateY(8px) scale(0.94);
   }
 
+  .mobile-floating-settings svg,
   .mobile-floating-passage svg,
   .mobile-floating-focus-tools svg,
   .mobile-focus-tool-option svg,
@@ -13641,6 +13652,17 @@ svg {
 
     .bottom-action-icon,
     .bottom-about-link .bottom-action-icon {
+      display: inline-flex;
+    }
+
+    .app-shell.focus-shell .settings-menu {
+      display: none;
+    }
+
+    .app-shell.focus-shell .mobile-floating-settings {
+      right: auto;
+      left: max(7px, env(safe-area-inset-left, 0px));
+      bottom: calc(var(--mobile-portrait-footer-height) + 14px + env(safe-area-inset-bottom, 0px));
       display: inline-flex;
     }
 
@@ -15490,6 +15512,10 @@ svg {
 }
 
 @media (max-width: 840px) {
+  .app-shell.footer-collapsed .mobile-floating-settings {
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
   .app-shell.footer-collapsed .mobile-focus-passage-control {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px));
   }

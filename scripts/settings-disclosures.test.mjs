@@ -144,6 +144,7 @@ const pointerDownOn = (closestMatch) => outsidePointerDownContext.handleOutsideP
 pointerDownOn({ className: "settings-popover open" });
 pointerDownOn({ id: "mobileSettingsPopover" });
 pointerDownOn({ id: "settingsToggle" });
+pointerDownOn({ id: "mobileFloatingSettings" });
 assert.equal(closeCalls, 0, "Settings stays open for pointer presses inside the popup or on its toggles");
 
 pointerDownOn(null);
@@ -165,10 +166,13 @@ assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("point
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointerup", endMobileControlsHold\)/);
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("contextmenu", suppressMobileControlsContextMenu\)/);
 assert.doesNotMatch(source, /double-tap for Settings|handleMobileControlsToggle|mobileControlsDoubleTapWindowMs/);
-assert.doesNotMatch(mobileFocusOverlayControlsSource, /Open Settings|mobileFloatingSettings/);
-assert.doesNotMatch(source, /mobileFloatingSettings|mobile-floating-settings/);
-assert.doesNotMatch(revealMobileSettingsSource, /mobileFloatingSettings|mobile-floating-settings/);
+assert.match(mobileFocusOverlayControlsSource, /state\.focusMode && !state\.settingsOpen/);
+assert.match(mobileFocusOverlayControlsSource, /aria-label="Open Settings"/);
+assert.match(bindEventsSource, /mobileFloatingSettings/);
+assert.match(revealMobileSettingsSource, /mobileFloatingSettings"\)\?\.classList\.add\("mobile-settings-idle"\)/);
 assert.match(bindMobileSettingsVisibilitySource, /\.scripture, \.trivia-reader, \.trivia-setup-main/);
+assert.match(styles, /\.app-shell\.focus-shell \.mobile-floating-settings \{[\s\S]*?bottom: calc\(var\(--mobile-portrait-footer-height\) \+ 14px/);
+assert.match(styles, /\.app-shell\.focus-shell \.settings-menu \{[\s\S]*?display: none;/);
 assert.match(styles, /\.mobile-controls-toggle\.settings-hold-pending::before/);
 assert.match(styles, /animation:\s*mobileSettingsHoldProgress 350ms linear forwards/);
 assert.match(styles, /touch-action:\s*manipulation/);

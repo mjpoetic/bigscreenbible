@@ -2338,6 +2338,11 @@ function mobileFocusOverlayControls() {
   return `
     ${focusTools}
     ${focusReferenceSwitcher}
+    ${state.focusMode && !state.settingsOpen ? `
+      <button class="mobile-floating-settings" id="mobileFloatingSettings" type="button" aria-label="Open Settings" aria-haspopup="dialog" data-tooltip="Settings">
+        ${icons.settings}
+      </button>
+    ` : ""}
     ${mobileFocusSearchResults()}
     ${mobileFocusWorkspacePanel()}
   `;
@@ -4989,10 +4994,12 @@ function scheduleStreakPopupDismiss() {
 }
 
 function revealMobileSettingsButton() {
+  const settingsButton = document.getElementById("mobileFloatingSettings");
   const passageButton = document.getElementById("mobileFocusPassageToggle");
   const focusToolsButton = document.getElementById("mobileFocusToolsToggle");
   const pageButtons = [...document.querySelectorAll(".reader-page-button")];
-  if (!passageButton && !focusToolsButton && !pageButtons.length) return;
+  if (!settingsButton && !passageButton && !focusToolsButton && !pageButtons.length) return;
+  settingsButton?.classList.remove("mobile-settings-idle");
   passageButton?.classList.remove("mobile-settings-idle");
   focusToolsButton?.classList.remove("mobile-settings-idle");
   pageButtons.forEach((button) => button.classList.remove("reader-top-idle"));
@@ -5000,6 +5007,7 @@ function revealMobileSettingsButton() {
   if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
     if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) return;
+    document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
     document.querySelectorAll(".reader-page-button.available").forEach((button) => {
@@ -12497,6 +12505,17 @@ function bindEvents() {
   document.getElementById("accountQuickButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("presentationAccountButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("accountPopoverClose")?.addEventListener("click", () => toggleAccountMenu(false));
+  document.getElementById("mobileFloatingSettings")?.addEventListener("click", () => {
+    if (state.settingsOpen) return closeSettingsPopover();
+    state.focusReferenceOpen = false;
+    state.focusSearchResultsOpen = false;
+    resetFocusToolSurfaces();
+    state.settingsOpen = true;
+    state.settingsAnchor = "floating";
+    state.accountOpen = false;
+    renderPreservingReaderScroll();
+    requestAnimationFrame(() => positionSettingsPopover("floating"));
+  });
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("mobileFocusPassageToggle")?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -16933,7 +16952,7 @@ function closeSettingsPopover() {
 function closeSettingsPopoverOnOutsidePointerDown(event) {
   if (
     !state.settingsOpen
-    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, #settingsToggle")
+    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, #settingsToggle, #mobileFloatingSettings")
   ) return;
   closeSettingsPopover();
 }
