@@ -6515,6 +6515,7 @@ select {
 }
 
 .word-search-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(var(--word-search-size), minmax(0, 1fr));
   grid-template-rows: repeat(var(--word-search-size), minmax(0, 1fr));
@@ -6553,20 +6554,20 @@ select {
 
 .word-search-cell:focus-visible {
   position: relative;
-  z-index: 3;
+  z-index: 5;
   outline: 3px solid var(--gold);
   outline-offset: -3px;
 }
 
 .word-search-cell.is-found {
-  background: color-mix(in srgb, var(--teal) 26%, var(--paper));
+  background: color-mix(in srgb, var(--teal) 10%, var(--paper));
   color: color-mix(in srgb, var(--teal) 82%, var(--ink));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 28%, transparent);
+  box-shadow: none;
 }
 
 .word-search-cell.is-preview {
   position: relative;
-  z-index: 2;
+  z-index: 4;
   background: var(--gold);
   color: var(--accent-ink);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--gold) 68%, var(--ink));
@@ -6574,6 +6575,38 @@ select {
 
 .word-search-cell.is-anchor {
   box-shadow: inset 0 0 0 3px var(--teal), inset 0 0 0 5px var(--paper);
+}
+
+.word-search-found-outlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.word-search-found-outline {
+  fill: color-mix(in srgb, var(--teal) 9%, transparent);
+  stroke: color-mix(in srgb, var(--teal) 86%, var(--ink));
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.word-search-found-outline.tone-1 {
+  fill: color-mix(in srgb, var(--gold) 11%, transparent);
+  stroke: color-mix(in srgb, var(--gold) 78%, var(--ink));
+}
+
+.word-search-found-outline.tone-2 {
+  fill: color-mix(in srgb, #6f7fb6 11%, transparent);
+  stroke: color-mix(in srgb, #6f7fb6 82%, var(--ink));
+}
+
+.word-search-found-outline.tone-3 {
+  fill: color-mix(in srgb, #8d6aa8 10%, transparent);
+  stroke: color-mix(in srgb, #8d6aa8 80%, var(--ink));
 }
 
 .word-search-cell.is-miss {

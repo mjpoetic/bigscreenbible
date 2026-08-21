@@ -30,15 +30,19 @@ vm.createContext(context);
 vm.runInContext(`
   ${extractFunction("normalizeWordSearchWord")}
   ${extractFunction("wordSearchDirections")}
+  ${extractFunction("wordSearchDiagonalTarget")}
   ${extractFunction("createWordSearchGrid")}
   ${extractFunction("wordSearchSelectionCells")}
   ${extractFunction("wordSearchSnappedEnd")}
+  ${extractFunction("wordSearchFoundOutlines")}
   globalThis.wordSearchApi = {
     normalizeWordSearchWord,
     wordSearchDirections,
+    wordSearchDiagonalTarget,
     createWordSearchGrid,
     wordSearchSelectionCells,
     wordSearchSnappedEnd,
+    wordSearchFoundOutlines,
   };
 `, context);
 
@@ -48,6 +52,9 @@ assert.equal(api.normalizeWordSearchWord("God's"), "GODS");
 assert.equal(api.wordSearchDirections("Easy").length, 2);
 assert.equal(api.wordSearchDirections("Medium").length, 4);
 assert.equal(api.wordSearchDirections("Hard").length, 8);
+assert.equal(api.wordSearchDiagonalTarget("Easy", 6), 0);
+assert.equal(api.wordSearchDiagonalTarget("Medium", 8), 3);
+assert.equal(api.wordSearchDiagonalTarget("Hard", 10), 6);
 
 for (const example of [
   { difficulty: "Easy", size: 8, words: ["LIGHT", "EARTH", "WATER", "SPIRIT", "NIGHT", "CREATED"] },
@@ -59,6 +66,12 @@ for (const example of [
   assert.equal(puzzle.cells.length, example.size);
   assert.ok(puzzle.cells.every((row) => row.length === example.size && row.every((letter) => /^[A-Z]$/.test(letter))));
   assert.deepEqual(new Set(puzzle.placements.map((placement) => placement.word)), new Set(example.words));
+  const diagonalCount = puzzle.placements.filter((placement) => {
+    const first = placement.cells[0];
+    const last = placement.cells.at(-1);
+    return first.row !== last.row && first.column !== last.column;
+  }).length;
+  assert.equal(diagonalCount, api.wordSearchDiagonalTarget(example.difficulty, example.words.length));
   puzzle.placements.forEach((placement) => {
     const letters = placement.cells.map(({ row, column }) => puzzle.cells[row][column]).join("");
     assert.equal(letters, placement.word);
@@ -76,6 +89,37 @@ for (const example of [
   });
 }
 
+for (const example of [
+  { difficulty: "Easy", size: 8, words: ["LIGHT", "EARTH", "WATER", "SPIRIT", "NIGHT", "CREATED"] },
+  { difficulty: "Medium", size: 9, words: ["SHEPHERD", "WATERS", "VALLEY", "COMFORT", "GOODNESS", "MERCY", "HOUSE", "PATHS"] },
+  { difficulty: "Hard", size: 10, words: ["PEACEMAKER", "KINGDOM", "BLESSED", "COMFORTED", "MERCY", "MEEK", "PURE", "HUNGER", "MOURN", "HEAVEN"] },
+]) {
+  for (let generation = 0; generation < 12; generation += 1) {
+    const puzzle = api.createWordSearchGrid(example.words, example.size, example.difficulty);
+    assert.ok(puzzle, `${example.difficulty} puzzle generation ${generation + 1} should succeed`);
+    const diagonalCount = puzzle.placements.filter((placement) => {
+      const first = placement.cells[0];
+      const last = placement.cells.at(-1);
+      return first.row !== last.row && first.column !== last.column;
+    }).length;
+    assert.equal(diagonalCount, api.wordSearchDiagonalTarget(example.difficulty, example.words.length));
+  }
+}
+
+const outlineMarkup = api.wordSearchFoundOutlines({
+  size: 9,
+  foundWords: ["FAITH", "HOPE"],
+  placements: [
+    { word: "FAITH", cells: [{ row: 1, column: 1 }, { row: 2, column: 2 }, { row: 3, column: 3 }, { row: 4, column: 4 }, { row: 5, column: 5 }] },
+    { word: "HOPE", cells: [{ row: 5, column: 2 }, { row: 5, column: 3 }, { row: 5, column: 4 }, { row: 5, column: 5 }] },
+    { word: "UNSEEN", cells: [{ row: 0, column: 0 }, { row: 0, column: 1 }, { row: 0, column: 2 }, { row: 0, column: 3 }, { row: 0, column: 4 }, { row: 0, column: 5 }] },
+  ],
+});
+assert.match(outlineMarkup, /data-word-search-outline="FAITH"/);
+assert.match(outlineMarkup, /data-word-search-outline="HOPE"/);
+assert.doesNotMatch(outlineMarkup, /data-word-search-outline="UNSEEN"/);
+assert.equal((outlineMarkup.match(/<rect /g) || []).length, 2);
+
 assert.equal(api.wordSearchSelectionCells(0, 0, 2, 1).length, 0, "Bent selections must be rejected");
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 5, 9) }, { row: 6, column: 4 });
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 6, 9) }, { row: 6, column: 6 });
@@ -84,6 +128,7 @@ assert.match(source, /data-trivia-mode="word-search"[\s\S]*?game-new-badge/);
 assert.match(source, /aria-label="Word Search, new"/);
 assert.match(extractFunction("startTriviaGame"), /startWordSearchGame/);
 assert.match(extractFunction("wordSearchGameView"), /role="grid"/);
+assert.match(extractFunction("wordSearchGameView"), /wordSearchFoundOutlines/);
 assert.match(extractFunction("wordSearchGameView"), /id="openTriviaReference"/);
 assert.match(extractFunction("bindWordSearchGrid"), /pointerdown/);
 assert.match(extractFunction("bindWordSearchGrid"), /keydown/);
@@ -97,6 +142,8 @@ assert.match(extractFunction("openTriviaReference"), /game\?\.type === "word-sea
 assert.match(styles, /\.game-new-badge \{/);
 assert.match(styles, /\.word-search-grid \{[\s\S]*?touch-action: none;/);
 assert.match(styles, /\.word-search-cell \{[\s\S]*?font-family: "Atkinson Hyperlegible Next"/);
+assert.match(styles, /\.word-search-found-outlines \{[\s\S]*?pointer-events: none;/);
+assert.match(styles, /\.word-search-found-outline \{[\s\S]*?vector-effect: non-scaling-stroke;/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.word-search-list \{[\s\S]*?grid-template-columns: repeat\(3/);
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.word-search-layout \{[\s\S]*?grid-template-columns:/);
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.word-search-grid \{[\s\S]*?height: 100%;/);

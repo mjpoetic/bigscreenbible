@@ -9587,18 +9587,29 @@ function wordSearchDirections(difficulty) {
   return [[0, 1], [1, 0], [1, 1], [1, -1]];
 }
 
+function wordSearchDiagonalTarget(difficulty, wordCount) {
+  if (difficulty === "Medium") return Math.max(1, Math.round(wordCount * 0.375));
+  if (difficulty === "Hard") return Math.max(2, Math.round(wordCount * 0.6));
+  return 0;
+}
+
 function createWordSearchGrid(words, size, difficulty) {
   const normalizedWords = [...new Set(words.map(normalizeWordSearchWord))]
     .filter((word) => word.length >= 3 && word.length <= size)
     .sort((first, second) => second.length - first.length);
   const directions = wordSearchDirections(difficulty);
+  const cardinalDirections = directions.filter(([rowStep, columnStep]) => rowStep === 0 || columnStep === 0);
+  const diagonalDirections = directions.filter(([rowStep, columnStep]) => rowStep !== 0 && columnStep !== 0);
+  const diagonalTarget = wordSearchDiagonalTarget(difficulty, normalizedWords.length);
+  const diagonalWords = new Set(diagonalTarget ? normalizedWords.slice(-diagonalTarget) : []);
   for (let restart = 0; restart < 36; restart += 1) {
     const cells = Array.from({ length: size }, () => Array(size).fill(""));
     const placements = [];
     let failed = false;
     for (const word of normalizedWords) {
       const candidates = [];
-      directions.forEach(([rowStep, columnStep]) => {
+      const wordDirections = diagonalWords.has(word) ? diagonalDirections : cardinalDirections;
+      wordDirections.forEach(([rowStep, columnStep]) => {
         for (let row = 0; row < size; row += 1) {
           for (let column = 0; column < size; column += 1) {
             const endRow = row + rowStep * (word.length - 1);
@@ -9689,6 +9700,32 @@ function wordSearchFoundCellKeys(game) {
   return new Set((game?.placements || [])
     .filter((placement) => found.has(placement.word))
     .flatMap((placement) => placement.cells.map(wordSearchCellKey)));
+}
+
+function wordSearchFoundOutlines(game) {
+  const found = new Set(game?.foundWords || []);
+  const size = Number(game?.size) || 1;
+  const cellSize = 100 / size;
+  const outlines = (game?.placements || []).filter((placement) => found.has(placement.word));
+  if (!outlines.length) return "";
+  return `
+    <svg class="word-search-found-outlines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      ${outlines.map((placement, index) => {
+        const first = placement.cells[0];
+        const last = placement.cells[placement.cells.length - 1];
+        const startX = (first.column + 0.5) * cellSize;
+        const startY = (first.row + 0.5) * cellSize;
+        const endX = (last.column + 0.5) * cellSize;
+        const endY = (last.row + 0.5) * cellSize;
+        const centerX = (startX + endX) / 2;
+        const centerY = (startY + endY) / 2;
+        const width = Math.hypot(endX - startX, endY - startY) + cellSize * 0.78;
+        const height = cellSize * 0.72;
+        const angle = Math.atan2(endY - startY, endX - startX) * (180 / Math.PI);
+        return `<rect class="word-search-found-outline tone-${index % 4}" data-word-search-outline="${placement.word}" x="${(centerX - width / 2).toFixed(3)}" y="${(centerY - height / 2).toFixed(3)}" width="${width.toFixed(3)}" height="${height.toFixed(3)}" rx="${(height / 2).toFixed(3)}" transform="rotate(${angle.toFixed(3)} ${centerX.toFixed(3)} ${centerY.toFixed(3)})" />`;
+      }).join("")}
+    </svg>
+  `;
 }
 
 function wordSearchElapsedMs(game = state.triviaGame) {
@@ -10799,6 +10836,7 @@ function wordSearchGameView(game) {
               ].filter(Boolean).join(" ");
               return `<button class="${classes}" type="button" role="gridcell" data-word-search-cell="${key}" data-row="${rowIndex}" data-column="${columnIndex}" aria-rowindex="${rowIndex + 1}" aria-colindex="${columnIndex + 1}" aria-label="Row ${rowIndex + 1}, column ${columnIndex + 1}, ${letter}${foundCells.has(key) ? ", found" : ""}" tabindex="${keyboardKey === key ? "0" : "-1"}" ${game.complete ? "disabled" : ""}>${letter}</button>`;
             })).join("")}
+            ${wordSearchFoundOutlines(game)}
           </div>
           <p class="word-search-status" id="wordSearchStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Puzzle complete. The full passage is ready to read." : game.lastSelectionMessage)}</p>
         </div>
