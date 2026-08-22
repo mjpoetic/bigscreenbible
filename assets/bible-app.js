@@ -272,6 +272,8 @@ let modeTransitionAudioResumePromise = null;
 let referenceRushTimer = 0;
 let referenceRushAudioContext = null;
 let wordSearchTimer = 0;
+let wordSearchAudioContext = null;
+let wordSearchAudioResumePromise = null;
 let wordSearchPointerState = null;
 let wordSearchFeedbackTimer = 0;
 let orderingDragState = null;
@@ -296,6 +298,8 @@ let triviaRandomSource = Math.random;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
+const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
+const wordSearchRecentPassageLimit = 12;
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
@@ -608,9 +612,12 @@ const state = {
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
+  wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
+  wordSearchRecentPassages: savedWordSearchRecentPassages(),
   triviaGame: null,
   gameReferenceReturn: null,
   gamesDrawerOpen: "",
+  wordSearchRestartPromptOpen: false,
   authConfigured: isSupabaseConfigured(),
   authClient: null,
   authUser: null,
@@ -659,6 +666,7 @@ let activePopupDrag = null;
 let pendingNoteComposerFocus = false;
 
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
+if (state.triviaGameType !== "word-search" && state.triviaDifficulty === "Expert") state.triviaDifficulty = "Hard";
 state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
 
 const highlightColors = ["yellow", "blue", "pink", "green", "orange", "purple"];
@@ -2924,6 +2932,13 @@ function accessibilitySettings(prefix = "") {
         <span>Mode transition sounds</span>
       </label>
       <p class="setting-help">Plays a short cue only when you choose a different mode. Turning this on previews the current mode sound.</p>
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("WordSearchSoundsToggle")}" ${state.wordSearchSounds ? "checked" : ""} />
+        <span>Word Search sounds</span>
+      </label>
+      <p class="setting-help">Plays quiet confirmation tones for found words and incorrect selections.</p>
     </div>
   `);
 }
@@ -8964,6 +8979,8 @@ function captureCloudSnapshot() {
       triviaCount: state.triviaCount,
       bookSprintSound: state.bookSprintSound,
       referenceRushTimed: state.referenceRushTimed,
+      wordSearchSounds: state.wordSearchSounds,
+      wordSearchRecentPassages: state.wordSearchRecentPassages,
     },
     bookmarks: state.bookmarks,
     notes: state.notes,
@@ -8996,6 +9013,10 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       ...versionSettings,
       ...disclosureSettings,
       ...appearanceSettings,
+      wordSearchRecentPassages: mergeWordSearchRecentPassages(
+        cloud.settings.wordSearchRecentPassages,
+        localSnapshot.settings.wordSearchRecentPassages,
+      ),
     },
     bookmarks: uniqueList([...cloud.bookmarks, ...localSnapshot.bookmarks]).slice(0, 200),
     notes: { ...cloud.notes, ...localSnapshot.notes },
@@ -9175,6 +9196,11 @@ function applyCloudSnapshot(snapshot) {
   state.triviaCount = normalizedTriviaCount(state.triviaGameType, Number(settings.triviaCount) || state.triviaCount);
   state.bookSprintSound = settings.bookSprintSound !== false;
   state.referenceRushTimed = settings.referenceRushTimed !== false;
+  state.wordSearchSounds = settings.wordSearchSounds !== false;
+  state.wordSearchRecentPassages = mergeWordSearchRecentPassages(
+    settings.wordSearchRecentPassages,
+    savedWordSearchRecentPassages(),
+  );
   state.bookmarks = Array.isArray(snapshot.bookmarks) ? uniqueList(snapshot.bookmarks).slice(0, 200) : [];
   state.notes = snapshot.notes && typeof snapshot.notes === "object" ? snapshot.notes : {};
   state.noteFilterQuery = "";
@@ -9239,6 +9265,8 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_trivia_count", String(state.triviaCount));
   localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
   localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
+  localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
+  localStorage.setItem(wordSearchRecentStorageKey, JSON.stringify(state.wordSearchRecentPassages));
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
@@ -9521,21 +9549,46 @@ function formatCountdownTime(milliseconds) {
 const wordSearchPassages = [
   { chapterKey: "Genesis 1", start: 1, end: 5, label: "Genesis 1:1–5", words: ["beginning", "created", "heavens", "earth", "spirit", "waters", "light", "darkness", "day", "night"] },
   { chapterKey: "Genesis 12", start: 1, end: 7, label: "Genesis 12:1–7", words: ["country", "kindred", "father", "nation", "blessing", "families", "abrams", "canaan", "altar", "appeared"] },
+  { chapterKey: "Genesis 22", start: 1, end: 14, label: "Genesis 22:1–14", words: ["abraham", "isaac", "moriah", "sacrifice", "mountain", "worship", "firewood", "lamb", "angel", "heaven", "ram", "provided", "offering", "place"] },
   { chapterKey: "Exodus 14", start: 13, end: 18, label: "Exodus 14:13–18", words: ["fear", "stand", "salvation", "egyptians", "forward", "staff", "stretch", "waters", "glory", "chariots"] },
+  { chapterKey: "Exodus 20", start: 1, end: 17, label: "Exodus 20:1–17", words: ["commandments", "egypt", "gods", "idol", "sabbath", "honor", "father", "mother", "murder", "adultery", "steal", "testimony", "neighbor", "covet"] },
+  { chapterKey: "Joshua 1", start: 5, end: 9, label: "Joshua 1:5–9", words: ["joshua", "strong", "courageous", "inherit", "people", "law", "turn", "prosperous", "meditate", "mouth", "afraid", "discouraged", "wherever", "commanded"] },
+  { chapterKey: "Ruth 1", start: 16, end: 17, label: "Ruth 1:16–17", words: ["urge", "leave", "return", "wherever", "people", "god", "stay", "lodge", "die", "buried", "separates", "death"] },
+  { chapterKey: "1 Samuel 17", start: 40, end: 50, label: "1 Samuel 17:40–50", words: ["staff", "stones", "stream", "shepherd", "philistine", "david", "sword", "spear", "battle", "lord", "forehead", "sling", "stone", "triumphed"] },
+  { chapterKey: "Psalm 1", start: 1, end: 6, label: "Psalm 1", words: ["blessed", "wicked", "sinners", "delight", "law", "meditates", "tree", "streams", "fruit", "leaf", "prospers", "chaff", "righteous", "way"] },
   { chapterKey: "Psalm 23", start: 1, end: 6, label: "Psalm 23", words: ["shepherd", "pastures", "waters", "soul", "paths", "valley", "comfort", "staff", "goodness", "mercy", "house"] },
+  { chapterKey: "Psalm 46", start: 1, end: 10, label: "Psalm 46:1–10", words: ["refuge", "strength", "trouble", "earth", "mountains", "waters", "river", "city", "nations", "fortress", "desolations", "still", "exalted", "hosts"] },
   { chapterKey: "Psalm 119", start: 105, end: 112, label: "Psalm 119:105–112", words: ["lamp", "light", "path", "sworn", "righteous", "afflicted", "offering", "teach", "heritage", "joy", "heart", "statutes"] },
+  { chapterKey: "Psalm 121", start: 1, end: 8, label: "Psalm 121", words: ["mountains", "help", "maker", "heaven", "earth", "slumber", "keeper", "shade", "sun", "moon", "harm", "watch", "coming", "forever"] },
+  { chapterKey: "Proverbs 3", start: 5, end: 12, label: "Proverbs 3:5–12", words: ["trust", "heart", "lean", "understanding", "ways", "acknowledge", "paths", "wise", "evil", "healing", "wealth", "honor", "discipline", "delights"] },
   { chapterKey: "Isaiah 40", start: 28, end: 31, label: "Isaiah 40:28–31", words: ["everlasting", "creator", "weary", "understanding", "strength", "power", "hope", "renew", "eagles", "wings", "run", "walk"] },
+  { chapterKey: "Isaiah 53", start: 3, end: 6, label: "Isaiah 53:3–6", words: ["despised", "rejected", "sorrows", "grief", "suffering", "carried", "punished", "pierced", "crushed", "peace", "wounds", "healed", "sheep", "iniquity"] },
+  { chapterKey: "Jeremiah 29", start: 11, end: 14, label: "Jeremiah 29:11–14", words: ["plans", "prosper", "future", "hope", "call", "pray", "listen", "seek", "heart", "found", "captivity", "nations", "places", "restore"] },
+  { chapterKey: "Daniel 3", start: 16, end: 27, label: "Daniel 3:16–27", words: ["shadrach", "meshach", "abednego", "furnace", "deliver", "serve", "worship", "flames", "soldiers", "bound", "fourth", "angel", "fire", "clothes"] },
+  { chapterKey: "Micah 6", start: 6, end: 8, label: "Micah 6:6–8", words: ["offerings", "calves", "rivers", "oil", "firstborn", "transgression", "good", "requires", "justice", "mercy", "walk", "humbly", "god"] },
   { chapterKey: "Matthew 5", start: 3, end: 10, label: "Matthew 5:3–10", words: ["blessed", "kingdom", "mourn", "comforted", "meek", "hunger", "mercy", "pure", "peacemakers", "righteousness"] },
   { chapterKey: "Matthew 6", start: 25, end: 34, label: "Matthew 6:25–34", words: ["life", "birds", "heavenly", "father", "lilies", "clothed", "faith", "kingdom", "righteousness", "tomorrow"] },
+  { chapterKey: "Matthew 28", start: 16, end: 20, label: "Matthew 28:16–20", words: ["disciples", "galilee", "mountain", "worshiped", "authority", "heaven", "earth", "therefore", "nations", "baptizing", "father", "son", "spirit", "commanded"] },
   { chapterKey: "Luke 2", start: 8, end: 14, label: "Luke 2:8–14", words: ["shepherds", "fields", "angel", "glory", "savior", "christ", "manger", "heavenly", "peace", "praise"] },
+  { chapterKey: "Luke 15", start: 11, end: 24, label: "Luke 15:11–24", words: ["younger", "father", "property", "country", "squandered", "famine", "servants", "bread", "heaven", "worthy", "compassion", "robe", "ring", "celebrate"] },
   { chapterKey: "John 1", start: 1, end: 9, label: "John 1:1–9", words: ["beginning", "word", "god", "created", "life", "light", "darkness", "witness", "believe", "world"] },
+  { chapterKey: "John 3", start: 14, end: 21, label: "John 3:14–21", words: ["moses", "serpent", "lifted", "believes", "eternal", "life", "loved", "world", "son", "condemn", "saved", "light", "darkness", "truth"] },
+  { chapterKey: "John 10", start: 7, end: 14, label: "John 10:7–14", words: ["gate", "sheep", "thieves", "robbers", "saved", "pasture", "steal", "destroy", "life", "abundant", "shepherd", "lays", "wolf", "knows"] },
   { chapterKey: "John 15", start: 1, end: 8, label: "John 15:1–8", words: ["vine", "father", "branch", "fruit", "clean", "remain", "nothing", "withered", "disciples", "glory"] },
+  { chapterKey: "Acts 2", start: 1, end: 8, label: "Acts 2:1–8", words: ["pentecost", "together", "heaven", "wind", "fire", "tongues", "spirit", "languages", "jerusalem", "nations", "sound", "bewildered", "speaking", "native"] },
   { chapterKey: "Romans 8", start: 31, end: 39, label: "Romans 8:31–39", words: ["against", "spared", "chosen", "justify", "christ", "intercedes", "trouble", "victors", "creation", "separate", "love"] },
+  { chapterKey: "Romans 12", start: 1, end: 8, label: "Romans 12:1–8", words: ["mercies", "bodies", "sacrifice", "holy", "worship", "conformed", "transformed", "renewing", "will", "faith", "members", "gifts", "prophecy", "service"] },
   { chapterKey: "1 Corinthians 13", start: 4, end: 8, label: "1 Corinthians 13:4–8", words: ["patient", "kind", "envy", "boast", "proud", "truth", "protects", "trusts", "hopes", "perseveres", "love"] },
   { chapterKey: "Galatians 5", start: 22, end: 25, label: "Galatians 5:22–25", words: ["fruit", "spirit", "love", "joy", "peace", "patience", "kindness", "goodness", "faithfulness", "gentleness", "control"] },
+  { chapterKey: "Ephesians 2", start: 8, end: 10, label: "Ephesians 2:8–10", words: ["grace", "saved", "faith", "gift", "works", "boast", "workmanship", "created", "christ", "jesus", "good", "prepared", "walk"] },
   { chapterKey: "Ephesians 6", start: 10, end: 17, label: "Ephesians 6:10–17", words: ["strong", "armor", "stand", "truth", "righteousness", "peace", "faith", "salvation", "spirit", "word", "shield", "helmet"] },
+  { chapterKey: "Philippians 2", start: 5, end: 11, label: "Philippians 2:5–11", words: ["mind", "christ", "jesus", "nature", "equality", "servant", "likeness", "humbled", "obedient", "cross", "exalted", "name", "tongue", "glory"] },
   { chapterKey: "Philippians 4", start: 4, end: 9, label: "Philippians 4:4–9", words: ["rejoice", "gentleness", "anxious", "prayer", "thanksgiving", "peace", "hearts", "minds", "true", "honorable", "lovely", "praiseworthy"] },
+  { chapterKey: "Colossians 3", start: 12, end: 17, label: "Colossians 3:12–17", words: ["chosen", "holy", "beloved", "compassion", "kindness", "humility", "gentleness", "patience", "forgive", "love", "peace", "thankful", "wisdom", "gratitude"] },
   { chapterKey: "Hebrews 11", start: 1, end: 6, label: "Hebrews 11:1–6", words: ["faith", "confidence", "hope", "assurance", "unseen", "ancients", "universe", "created", "pleased", "reward"] },
+  { chapterKey: "2 Timothy 3", start: 14, end: 17, label: "2 Timothy 3:14–17", words: ["continue", "learned", "convinced", "childhood", "scriptures", "wisdom", "salvation", "faith", "christ", "inspired", "teaching", "correction", "training", "equipped"] },
+  { chapterKey: "1 Peter 5", start: 6, end: 11, label: "1 Peter 5:6–11", words: ["humble", "mighty", "anxiety", "cares", "sober", "watchful", "adversary", "devil", "resist", "faith", "suffering", "restore", "strengthen", "power"] },
+  { chapterKey: "1 John 4", start: 7, end: 12, label: "1 John 4:7–12", words: ["beloved", "love", "born", "knows", "manifested", "son", "world", "live", "atoning", "sacrifice", "loved", "ought", "one", "another"] },
   { chapterKey: "Revelation 21", start: 1, end: 5, label: "Revelation 21:1–5", words: ["heaven", "earth", "holy", "city", "dwelling", "people", "tears", "death", "mourning", "throne", "new"] },
 ];
 
@@ -9543,13 +9596,80 @@ const wordSearchStopWords = new Set([
   "about", "after", "again", "against", "also", "among", "because", "before", "being", "between", "could", "every", "from", "have", "having", "into", "itself", "shall", "should", "their", "there", "these", "they", "thing", "those", "through", "under", "until", "upon", "very", "were", "what", "when", "where", "which", "while", "with", "would", "your", "yours",
 ]);
 
+function normalizeWordSearchRecentPassages(entries = []) {
+  const normalized = (Array.isArray(entries) ? entries : [])
+    .map((entry) => typeof entry === "string" ? { key: entry, at: "" } : entry)
+    .filter((entry) => entry && typeof entry.key === "string" && entry.key.trim())
+    .map((entry) => ({
+      key: entry.key.trim().slice(0, 80),
+      at: normalizedVersionsUpdatedAt(entry.at),
+    }))
+    .sort((first, second) => String(second.at).localeCompare(String(first.at)));
+  const seen = new Set();
+  return normalized.filter((entry) => {
+    if (seen.has(entry.key)) return false;
+    seen.add(entry.key);
+    return true;
+  }).slice(0, wordSearchRecentPassageLimit);
+}
+
+function mergeWordSearchRecentPassages(...collections) {
+  return normalizeWordSearchRecentPassages(collections.flatMap((entries) => Array.isArray(entries) ? entries : []));
+}
+
+function savedWordSearchRecentPassages() {
+  try {
+    return normalizeWordSearchRecentPassages(JSON.parse(localStorage.getItem(wordSearchRecentStorageKey) || "[]"));
+  } catch {
+    return [];
+  }
+}
+
+function wordSearchPassageKey(pack) {
+  return `${pack.chapterKey}:${pack.start}-${pack.end}`;
+}
+
+function orderedWordSearchPassages(packs = wordSearchPassages, recentPassages = state.wordSearchRecentPassages) {
+  const recent = normalizeWordSearchRecentPassages(recentPassages);
+  const recentIndex = new Map(recent.map((entry, index) => [entry.key, index]));
+  const fresh = shuffleItems(packs.filter((pack) => !recentIndex.has(wordSearchPassageKey(pack))));
+  const older = packs
+    .filter((pack) => recentIndex.has(wordSearchPassageKey(pack)))
+    .sort((first, second) => recentIndex.get(wordSearchPassageKey(second)) - recentIndex.get(wordSearchPassageKey(first)));
+  return [...fresh, ...older];
+}
+
+function recordWordSearchPassage(pack) {
+  state.wordSearchRecentPassages = mergeWordSearchRecentPassages(
+    [{ key: wordSearchPassageKey(pack), at: new Date().toISOString() }],
+    state.wordSearchRecentPassages,
+  );
+  localStorage.setItem(wordSearchRecentStorageKey, JSON.stringify(state.wordSearchRecentPassages));
+  scheduleCloudSync();
+}
+
 function wordSearchDifficultyConfig(difficulty = state.triviaDifficulty) {
   return {
     Easy: { size: 8, wordCount: 6 },
     Medium: { size: 9, wordCount: 8 },
     Hard: { size: 10, wordCount: 10 },
+    Expert: { size: 12, wordCount: 12 },
     All: { size: 9, wordCount: 8 },
   }[difficulty] || { size: 9, wordCount: 8 };
+}
+
+function wordSearchDifficulties() {
+  return ["Easy", "Medium", "Hard", "Expert"];
+}
+
+function wordSearchDifficultyDescription(difficulty) {
+  const config = wordSearchDifficultyConfig(difficulty);
+  return {
+    Easy: `${config.size}×${config.size} · ${config.wordCount} words · across and down`,
+    Medium: `${config.size}×${config.size} · ${config.wordCount} words · some diagonal`,
+    Hard: `${config.size}×${config.size} · ${config.wordCount} words · more diagonal and backward`,
+    Expert: `${config.size}×${config.size} · ${config.wordCount} words · mostly diagonal and backward`,
+  }[difficulty] || `${config.size}×${config.size} · ${config.wordCount} words`;
 }
 
 function normalizeWordSearchWord(value) {
@@ -9591,13 +9711,14 @@ function wordSearchPassageWords(pack, version, difficulty) {
 
 function wordSearchDirections(difficulty) {
   if (difficulty === "Easy") return [[0, 1], [1, 0]];
-  if (difficulty === "Hard") return [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  if (["Hard", "Expert"].includes(difficulty)) return [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   return [[0, 1], [1, 0], [1, 1], [1, -1]];
 }
 
 function wordSearchDiagonalTarget(difficulty, wordCount) {
   if (difficulty === "Medium") return Math.max(1, Math.round(wordCount * 0.375));
   if (difficulty === "Hard") return Math.max(2, Math.round(wordCount * 0.6));
+  if (difficulty === "Expert") return Math.max(3, Math.round(wordCount * 0.7));
   return 0;
 }
 
@@ -9610,7 +9731,8 @@ function createWordSearchGrid(words, size, difficulty) {
   const diagonalDirections = directions.filter(([rowStep, columnStep]) => rowStep !== 0 && columnStep !== 0);
   const diagonalTarget = wordSearchDiagonalTarget(difficulty, normalizedWords.length);
   const diagonalWords = new Set(diagonalTarget ? normalizedWords.slice(-diagonalTarget) : []);
-  for (let restart = 0; restart < 36; restart += 1) {
+  const restartLimit = difficulty === "Expert" ? 120 : 36;
+  for (let restart = 0; restart < restartLimit; restart += 1) {
     const cells = Array.from({ length: size }, () => Array(size).fill(""));
     const placements = [];
     let failed = false;
@@ -9782,6 +9904,71 @@ function scheduleWordSearchTimer() {
   const game = state.triviaGame;
   if (state.mode !== "trivia" || game?.type !== "word-search" || game.complete) return;
   wordSearchTimer = setInterval(updateWordSearchTimerDisplay, 500);
+}
+
+function primeWordSearchAudio() {
+  if (!state.wordSearchSounds) return null;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return null;
+  try {
+    if (!wordSearchAudioContext) wordSearchAudioContext = new AudioContext();
+  } catch {
+    return null;
+  }
+  if (wordSearchAudioContext.state === "running") return Promise.resolve(wordSearchAudioContext);
+  if (wordSearchAudioContext.state !== "suspended") return null;
+  if (!wordSearchAudioResumePromise) {
+    wordSearchAudioResumePromise = wordSearchAudioContext.resume()
+      .then(() => wordSearchAudioContext)
+      .catch(() => null)
+      .finally(() => { wordSearchAudioResumePromise = null; });
+  }
+  return wordSearchAudioResumePromise;
+}
+
+function playReadyWordSearchFeedbackSound(context, result) {
+  if (!state.wordSearchSounds || document.hidden || !context || context.state !== "running") return;
+  const now = context.currentTime + 0.004;
+  if (result === "found") {
+    playModeTone(context, {
+      startAt: now,
+      duration: 0.09,
+      startFrequency: 523.25,
+      endFrequency: 622.25,
+      peakGain: 0.014,
+      type: "sine",
+    });
+    playModeTone(context, {
+      startAt: now + 0.065,
+      duration: 0.105,
+      startFrequency: 659.25,
+      endFrequency: 783.99,
+      peakGain: 0.011,
+      type: "sine",
+    });
+    return;
+  }
+  playModeTone(context, {
+    startAt: now,
+    duration: 0.12,
+    startFrequency: 220,
+    endFrequency: 174.61,
+    peakGain: 0.012,
+    type: "triangle",
+  });
+}
+
+function playWordSearchFeedbackSound(result) {
+  const ready = primeWordSearchAudio();
+  ready?.then((context) => playReadyWordSearchFeedbackSound(context, result));
+}
+
+function setWordSearchSounds(enabled, options = {}) {
+  state.wordSearchSounds = Boolean(enabled);
+  localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
+  scheduleCloudSync();
+  if (state.wordSearchSounds && options.preview !== false) playWordSearchFeedbackSound("found");
+  renderPreservingReaderScroll();
 }
 
 function normalizedTriviaCount(gameType = state.triviaGameType, count = state.triviaCount) {
@@ -10309,6 +10496,57 @@ function setGamesDrawer(drawer = "") {
   }));
 }
 
+function openWordSearchRestartPrompt() {
+  if (state.triviaGame?.type !== "word-search") return;
+  state.gamesDrawerOpen = "";
+  state.wordSearchRestartPromptOpen = true;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const dialog = document.getElementById("wordSearchRestartDialog");
+    const current = dialog?.querySelector("[data-word-search-restart-difficulty][aria-current='true']");
+    (current || dialog)?.focus({ preventScroll: true });
+  }));
+}
+
+function closeWordSearchRestartPrompt() {
+  if (!state.wordSearchRestartPromptOpen) return;
+  state.wordSearchRestartPromptOpen = false;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.getElementById("restartTriviaGame")?.focus({ preventScroll: true });
+  }));
+}
+
+function restartWordSearchAtDifficulty(difficulty) {
+  if (!wordSearchDifficulties().includes(difficulty)) return;
+  state.wordSearchRestartPromptOpen = false;
+  state.triviaDifficulty = difficulty;
+  localStorage.setItem("lw_trivia_difficulty", difficulty);
+  scheduleCloudSync();
+  startWordSearchGame();
+}
+
+function trapWordSearchRestartDialog(event) {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeWordSearchRestartPrompt();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const dialog = event.currentTarget;
+  const focusable = [...dialog.querySelectorAll("button:not(:disabled)")];
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 function mountMobileGameControls() {
   if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete || !isGamesResponsiveScreen()) return;
   const destination = document.getElementById("gamesActiveControlsBody");
@@ -10439,7 +10677,7 @@ function triviaView() {
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const difficultyOptions = (isWordSearch ? ["Easy", "Medium", "Hard"] : triviaDifficulties()).map((difficulty) => {
+  const difficultyOptions = (isWordSearch ? wordSearchDifficulties() : triviaDifficulties()).map((difficulty) => {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
     return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
@@ -10535,12 +10773,12 @@ function triviaView() {
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
+                <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" aria-label="Word Search, new" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span><small class="game-new-badge">New</small></button>
                 <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
                 <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
                 <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
                 <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button" ${challengeSetupLock}>${icons.timer}<span>Book Sprint</span></button>
                 <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button" ${challengeSetupLock}>${icons.quote}<span>Who Said It?</span></button>
-                <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" aria-label="Word Search, new" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span><small class="game-new-badge">New</small></button>
               </div>
               <button class="trivia-mode-scroll trivia-mode-scroll-next" type="button" data-trivia-mode-scroll="1" aria-label="Show more games" hidden>${icons.chevron}</button>
             </div>
@@ -10800,6 +11038,31 @@ function wordSearchPassageMarkup(game) {
   `;
 }
 
+function wordSearchRestartDialog(game) {
+  if (!state.wordSearchRestartPromptOpen) return "";
+  return `
+    <section class="word-search-restart-overlay">
+      <button class="word-search-restart-backdrop" type="button" data-word-search-restart-dismiss aria-label="Keep current puzzle"></button>
+      <article class="word-search-restart-dialog" id="wordSearchRestartDialog" role="dialog" aria-modal="true" aria-labelledby="wordSearchRestartTitle" aria-describedby="wordSearchRestartDescription" tabindex="-1">
+        <div class="word-search-restart-icon" aria-hidden="true">${icons.wordSearch}</div>
+        <span class="trivia-eyebrow">Choose your next challenge</span>
+        <h2 id="wordSearchRestartTitle">Select a difficulty</h2>
+        <p id="wordSearchRestartDescription">Your current puzzle stays here until you choose a new level.</p>
+        <div class="word-search-restart-options" role="group" aria-label="Word Search difficulty">
+          ${wordSearchDifficulties().map((difficulty) => `
+            <button class="word-search-restart-option ${difficulty === game.difficulty ? "active" : ""}" type="button" data-word-search-restart-difficulty="${difficulty}" ${difficulty === game.difficulty ? 'aria-current="true"' : ""}>
+              <strong>${difficulty}</strong>
+              <small>${wordSearchDifficultyDescription(difficulty)}</small>
+              ${difficulty === game.difficulty ? "<span>Current level</span>" : ""}
+            </button>
+          `).join("")}
+        </div>
+        <button class="ghost-btn word-search-restart-cancel" type="button" data-word-search-restart-dismiss>Keep current puzzle</button>
+      </article>
+    </section>
+  `;
+}
+
 function wordSearchGameView(game) {
   const foundWords = new Set(game.foundWords);
   const foundCells = wordSearchFoundCellKeys(game);
@@ -10876,6 +11139,7 @@ function wordSearchGameView(game) {
           </div>
         </aside>
       </div>
+      ${wordSearchRestartDialog(game)}
     </div>
   `;
 }
@@ -13475,6 +13739,11 @@ function bindEvents() {
       setModeTransitionSounds(event.target.checked);
     });
   });
+  ["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      setWordSearchSounds(event.target.checked);
+    });
+  });
   document.querySelectorAll("[data-auto-scroll-speed]").forEach((button) => {
     button.addEventListener("click", () => setReaderAutoScrollSpeed(button.dataset.autoScrollSpeed));
   });
@@ -13747,12 +14016,17 @@ function bindEvents() {
       cleanupTriviaCelebration();
       state.triviaGameType = button.dataset.triviaMode || "trivia";
       state.triviaGame = null;
+      state.wordSearchRestartPromptOpen = false;
       if (state.triviaGameType === "reference-rush") {
         state.triviaDifficulty = "Easy";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
       if (state.triviaGameType === "word-search" && state.triviaDifficulty === "All") {
         state.triviaDifficulty = "Medium";
+        localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+      }
+      if (state.triviaGameType !== "word-search" && state.triviaDifficulty === "Expert") {
+        state.triviaDifficulty = "Hard";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
       if (state.triviaGameType === "book-sprint") {
@@ -13836,8 +14110,16 @@ function bindEvents() {
     state.gamesDrawerOpen = "";
     startTriviaGame();
   });
+  document.querySelectorAll("[data-word-search-restart-difficulty]").forEach((button) => {
+    button.addEventListener("click", () => restartWordSearchAtDifficulty(button.dataset.wordSearchRestartDifficulty));
+  });
+  document.querySelectorAll("[data-word-search-restart-dismiss]").forEach((button) => {
+    button.addEventListener("click", closeWordSearchRestartPrompt);
+  });
+  document.getElementById("wordSearchRestartDialog")?.addEventListener("keydown", trapWordSearchRestartDialog);
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
+    if (state.triviaGame?.type === "word-search") return openWordSearchRestartPrompt();
     startTriviaGame();
   });
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
@@ -13846,6 +14128,7 @@ function bindEvents() {
     state.activeGameChallengeId = "";
     state.triviaGame = null;
     state.gamesDrawerOpen = "";
+    state.wordSearchRestartPromptOpen = false;
     renderPreservingReaderScroll();
   });
   document.getElementById("nextTriviaQuestion")?.addEventListener("click", nextTriviaQuestion);
@@ -14503,7 +14786,7 @@ function startWordSearchGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
   const config = wordSearchDifficultyConfig(difficulty);
   const version = wordSearchVersion();
-  const passageOptions = shuffleItems(wordSearchPassages).map((pack) => ({
+  const passageOptions = orderedWordSearchPassages().map((pack) => ({
     pack,
     verses: wordSearchPassageVerses(pack, version),
     words: wordSearchPassageWords(pack, version, difficulty),
@@ -14522,6 +14805,7 @@ function startWordSearchGame({ render = true } = {}) {
     return;
   }
   state.triviaDifficulty = difficulty;
+  state.wordSearchRestartPromptOpen = false;
   localStorage.setItem("lw_trivia_difficulty", difficulty);
   state.triviaGame = {
     type: "word-search",
@@ -14544,6 +14828,7 @@ function startWordSearchGame({ render = true } = {}) {
     score: 0,
     complete: false,
   };
+  recordWordSearchPassage(selected.pack);
   if (render) renderPreservingReaderScroll();
 }
 
@@ -15686,6 +15971,7 @@ function exitTriviaGame() {
   state.activeGameChallengeId = "";
   state.triviaGame = null;
   state.gamesDrawerOpen = "";
+  state.wordSearchRestartPromptOpen = false;
   renderPreservingReaderScroll();
 }
 
@@ -15781,9 +16067,11 @@ function clearWordSearchSelection() {
 
 function commitWordSearchSelection(cells) {
   const game = state.triviaGame;
-  if (!game || game.type !== "word-search" || game.complete || cells.length < 3) {
+  if (!game || game.type !== "word-search" || game.complete) return false;
+  if (cells.length < 3) {
     clearWordSearchSelection();
     setWordSearchStatus("Choose at least three letters in a straight line.");
+    playWordSearchFeedbackSound("mistake");
     return false;
   }
   const found = new Set(game.foundWords);
@@ -15799,6 +16087,7 @@ function commitWordSearchSelection(cells) {
       cell.classList.toggle("is-miss", selectedKeys.has(cell.dataset.wordSearchCell));
     });
     setWordSearchStatus("That line is not one of the hidden words. Keep looking.");
+    playWordSearchFeedbackSound("mistake");
     wordSearchFeedbackTimer = setTimeout(() => {
       document.querySelectorAll(".word-search-cell.is-miss").forEach((cell) => cell.classList.remove("is-miss"));
     }, 520);
@@ -15807,6 +16096,7 @@ function commitWordSearchSelection(cells) {
   game.foundWords = [...game.foundWords, placement.word];
   game.score = game.foundWords.length;
   setWordSearchStatus(`${placement.word} found. ${game.words.length - game.score} remaining.`);
+  playWordSearchFeedbackSound("found");
   if (game.score >= game.words.length) {
     game.finishedAt = Date.now();
     const result = recordWordSearchBest(game);
@@ -15835,6 +16125,7 @@ function chooseWordSearchCell(row, column) {
     game.selectionPreview = [cell];
     paintWordSearchSelection(game.selectionPreview, cell);
     setWordSearchStatus("Choose a last letter in a straight line, or start again here.");
+    playWordSearchFeedbackSound("mistake");
     return;
   }
   commitWordSearchSelection(cells);
@@ -18202,6 +18493,28 @@ function closePresentationSettings() {
     state.presentationReferenceMenuOpen = "";
     render();
   }, { duration: 190 });
+}
+
+function closePresentationSettingsOnOutsidePointerDown(event) {
+  if (
+    !state.presentationSettingsOpen
+    || event.target.closest?.(".presentation-settings-popover.open, #presentationSettingsToggle")
+  ) return;
+  closePresentationSettings();
+}
+
+function closeAccountPopoverOnOutsidePointerDown(event) {
+  if (
+    !state.accountOpen
+    || event.target.closest?.(".account-popover.open, #accountQuickButton, #presentationAccountButton")
+  ) return;
+  toggleAccountMenu(false);
+}
+
+function closeOpenPopoversOnOutsidePointerDown(event) {
+  closeSettingsPopoverOnOutsidePointerDown(event);
+  closePresentationSettingsOnOutsidePointerDown(event);
+  closeAccountPopoverOnOutsidePointerDown(event);
 }
 
 function markTutorialSeen() {
@@ -21040,7 +21353,7 @@ window.visualViewport?.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
-document.addEventListener("pointerdown", closeSettingsPopoverOnOutsidePointerDown);
+document.addEventListener("pointerdown", closeOpenPopoversOnOutsidePointerDown);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager, .focus-brand-version-menu, #brandVerseOfDay")) return;
   closeHeaderVersionMenu();

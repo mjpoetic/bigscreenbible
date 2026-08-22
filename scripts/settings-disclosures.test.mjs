@@ -85,6 +85,9 @@ const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
 const persistSource = extractFunction("persistCloudSnapshotLocally");
 const outsidePointerDownSource = extractFunction("closeSettingsPopoverOnOutsidePointerDown");
+const presentationOutsidePointerDownSource = extractFunction("closePresentationSettingsOnOutsidePointerDown");
+const accountOutsidePointerDownSource = extractFunction("closeAccountPopoverOnOutsidePointerDown");
+const openPopoversOutsidePointerDownSource = extractFunction("closeOpenPopoversOnOutsidePointerDown");
 const closeSettingsSource = extractFunction("closeSettingsPopover");
 const bindEventsSource = extractFunction("bindEvents");
 const topBelowHeaderSource = extractFunction("settingsPopoverTopBelowHeader");
@@ -154,7 +157,76 @@ settingsOpen = false;
 pointerDownOn(null);
 assert.equal(closeCalls, 1, "Outside pointer presses do nothing when Settings is closed");
 
-assert.match(source, /document\.addEventListener\("pointerdown", closeSettingsPopoverOnOutsidePointerDown\)/);
+let presentationSettingsOpen = true;
+let presentationCloseCalls = 0;
+const presentationOutsidePointerDownContext = {
+  state: {
+    get presentationSettingsOpen() {
+      return presentationSettingsOpen;
+    },
+  },
+  closePresentationSettings() {
+    presentationCloseCalls += 1;
+  },
+};
+vm.createContext(presentationOutsidePointerDownContext);
+vm.runInContext(`${presentationOutsidePointerDownSource}; globalThis.handleOutsidePointerDown = closePresentationSettingsOnOutsidePointerDown;`, presentationOutsidePointerDownContext);
+
+const presentationPointerDownOn = (closestMatch) => presentationOutsidePointerDownContext.handleOutsidePointerDown({
+  target: {
+    closest: () => closestMatch,
+  },
+});
+
+presentationPointerDownOn({ className: "presentation-settings-popover open" });
+presentationPointerDownOn({ id: "presentationSettingsToggle" });
+assert.equal(presentationCloseCalls, 0, "Big Screen Settings stays open for pointer presses inside the popup or on its toggle");
+
+presentationPointerDownOn(null);
+assert.equal(presentationCloseCalls, 1, "An outside pointer press closes Big Screen Settings");
+
+presentationSettingsOpen = false;
+presentationPointerDownOn(null);
+assert.equal(presentationCloseCalls, 1, "Outside pointer presses do nothing when Big Screen Settings is closed");
+
+let accountOpen = true;
+let accountCloseCalls = 0;
+const accountOutsidePointerDownContext = {
+  state: {
+    get accountOpen() {
+      return accountOpen;
+    },
+  },
+  toggleAccountMenu(forceOpen) {
+    assert.equal(forceOpen, false);
+    accountCloseCalls += 1;
+  },
+};
+vm.createContext(accountOutsidePointerDownContext);
+vm.runInContext(`${accountOutsidePointerDownSource}; globalThis.handleOutsidePointerDown = closeAccountPopoverOnOutsidePointerDown;`, accountOutsidePointerDownContext);
+
+const accountPointerDownOn = (closestMatch) => accountOutsidePointerDownContext.handleOutsidePointerDown({
+  target: {
+    closest: () => closestMatch,
+  },
+});
+
+accountPointerDownOn({ className: "account-popover open" });
+accountPointerDownOn({ id: "accountQuickButton" });
+accountPointerDownOn({ id: "presentationAccountButton" });
+assert.equal(accountCloseCalls, 0, "Account stays open for pointer presses inside the popup or on either site-wide toggle");
+
+accountPointerDownOn(null);
+assert.equal(accountCloseCalls, 1, "An outside pointer press closes Account");
+
+accountOpen = false;
+accountPointerDownOn(null);
+assert.equal(accountCloseCalls, 1, "Outside pointer presses do nothing when Account is closed");
+
+assert.match(openPopoversOutsidePointerDownSource, /closeSettingsPopoverOnOutsidePointerDown\(event\)/);
+assert.match(openPopoversOutsidePointerDownSource, /closePresentationSettingsOnOutsidePointerDown\(event\)/);
+assert.match(openPopoversOutsidePointerDownSource, /closeAccountPopoverOnOutsidePointerDown\(event\)/);
+assert.match(source, /document\.addEventListener\("pointerdown", closeOpenPopoversOnOutsidePointerDown\)/);
 assert.doesNotMatch(closeSettingsSource, /settingsPopupPosition/, "Closing Settings preserves a user-moved position");
 assert.doesNotMatch(bindEventsSource, /state\.settingsPopupPosition\s*=\s*null/, "Opening or replacing Settings preserves a user-moved position");
 assert.match(positionSettingsSource, /settingsPopoverTopBelowHeader\(\)/);

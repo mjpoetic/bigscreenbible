@@ -6791,6 +6791,166 @@ select {
   margin-top: 2px;
 }
 
+.word-search-restart-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px))
+    max(18px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  background: rgba(7, 12, 20, 0.68);
+  backdrop-filter: blur(12px);
+  animation: backdropIn var(--motion-base) ease-out both;
+}
+
+.word-search-restart-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.word-search-restart-dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--gold) 48%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 98%, transparent);
+  color: var(--ink);
+  padding: clamp(20px, 4vw, 34px);
+  text-align: center;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.44);
+  -webkit-overflow-scrolling: touch;
+  animation: dialogIn var(--motion-slow) var(--motion-ease) both;
+}
+
+.word-search-restart-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, var(--line));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--gold) 13%, var(--panel));
+  color: var(--gold);
+}
+
+.word-search-restart-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.word-search-restart-dialog h2,
+.word-search-restart-dialog p {
+  margin: 0;
+}
+
+.word-search-restart-dialog h2 {
+  font-size: clamp(25px, 4vw, 36px);
+}
+
+.word-search-restart-dialog > p {
+  max-width: 520px;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.word-search-restart-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.word-search-restart-option {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.word-search-restart-option:hover,
+.word-search-restart-option:focus-visible,
+.word-search-restart-option.active {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 11%, var(--paper));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 36%, transparent);
+}
+
+.word-search-restart-option strong {
+  color: var(--teal);
+  font-size: 18px;
+}
+
+.word-search-restart-option small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.word-search-restart-option span {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.word-search-restart-cancel {
+  min-width: min(240px, 100%);
+  min-height: 46px;
+  margin-top: 2px;
+  justify-content: center;
+}
+
+@media (max-width: 520px) {
+  .word-search-restart-overlay {
+    padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  }
+
+  .word-search-restart-dialog {
+    max-height: calc(100dvh - 20px);
+    gap: 9px;
+    padding: 18px 14px;
+  }
+
+  .word-search-restart-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .word-search-restart-options {
+    gap: 8px;
+  }
+
+  .word-search-restart-option {
+    min-height: 88px;
+    padding: 11px 12px;
+  }
+}
+
 .trivia-progress {
   display: flex;
   align-items: center;
