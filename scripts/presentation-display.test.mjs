@@ -93,7 +93,7 @@ assert.match(styles, /\.presentation\.presentation-enter-next \.presentation-pas
 assert.match(styles, /@keyframes presentation-slide-in-next/);
 assert.doesNotMatch(styles, /presentation-slide-in-next 300ms[^;]* both/);
 assert.match(styles, /\.presentation-scale-feedback\.show/);
-assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?max-height: calc\(100dvh - 96px/);
+assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?max-height: calc\(100dvh - 165px - env\(safe-area-inset-top, 0px\) - env\(safe-area-inset-bottom, 0px\)\)/);
 assert.match(styles, /\.presentation-settings-popover \{[\s\S]*?overflow-y: auto/);
 assert.match(styles, /\.presentation-bottom-settings-menu \.presentation-settings-popover \{[\s\S]*?bottom: calc\(100% \+ 10px\)/);
 assert.match(styles, /\.presentation-account-popover \{[\s\S]*?background: var\(--panel\)/);

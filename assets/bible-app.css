@@ -10138,7 +10138,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   z-index: 2;
   display: none;
   width: min(250px, calc(100vw - 32px));
-  max-height: calc(100dvh - 96px - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 165px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--presentation-button-border);
