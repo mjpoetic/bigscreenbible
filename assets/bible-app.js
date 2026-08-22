@@ -2938,7 +2938,7 @@ function accessibilitySettings(prefix = "") {
         <input type="checkbox" id="${controlId("WordSearchSoundsToggle")}" ${state.wordSearchSounds ? "checked" : ""} />
         <span>Word Search sounds</span>
       </label>
-      <p class="setting-help">Plays quiet confirmation tones for found words and incorrect selections.</p>
+      <p class="setting-help">Plays quiet confirmation tones and ticks through the final 10 seconds of a personal-best countdown.</p>
     </div>
   `);
 }
@@ -9884,17 +9884,44 @@ function recordWordSearchBest(game) {
   };
   const bests = savedWordSearchBests();
   const previous = bests[game.difficulty];
-  const isNewBest = !previous || result.elapsedMs < previous.elapsedMs;
+  const beatPrevious = Boolean(previous && result.elapsedMs < previous.elapsedMs);
+  const isNewBest = !previous || beatPrevious;
   if (isNewBest) {
     bests[game.difficulty] = result;
     localStorage.setItem(wordSearchBestStorageKey, JSON.stringify(bests));
   }
-  return { best: bests[game.difficulty] || previous || result, isNewBest, hadPrevious: Boolean(previous) };
+  return {
+    best: bests[game.difficulty] || previous || result,
+    isNewBest,
+    beatPrevious,
+    hadPrevious: Boolean(previous),
+  };
 }
 
 function updateWordSearchTimerDisplay() {
+  const game = state.triviaGame;
   const timer = document.getElementById("wordSearchTimer");
-  if (timer && state.triviaGame?.type === "word-search") timer.textContent = formatGameTime(wordSearchElapsedMs());
+  const label = document.getElementById("wordSearchTimerLabel");
+  if (!timer || game?.type !== "word-search") return;
+  const elapsedMs = wordSearchElapsedMs(game);
+  const targetMs = Number(game.wordSearchTarget?.elapsedMs) || 0;
+  if (!targetMs || game.complete) {
+    timer.textContent = formatGameTime(elapsedMs);
+    if (label) label.textContent = game.complete ? "Finished" : "Time";
+    timer.classList.remove("is-urgent", "is-critical", "is-expired");
+    return;
+  }
+  const remainingMs = Math.max(0, targetMs - elapsedMs);
+  const secondsRemaining = Math.ceil(remainingMs / 1000);
+  timer.textContent = formatCountdownTime(remainingMs);
+  timer.classList.toggle("is-urgent", remainingMs > 0 && remainingMs <= 10000);
+  timer.classList.toggle("is-critical", remainingMs > 0 && remainingMs <= 5000);
+  timer.classList.toggle("is-expired", remainingMs <= 0);
+  if (secondsRemaining > 0 && secondsRemaining <= 10 && game.wordSearchLastTick !== secondsRemaining) {
+    game.wordSearchLastTick = secondsRemaining;
+    playWordSearchCountdownTick(secondsRemaining);
+  }
+  if (label) label.textContent = remainingMs > 0 ? "Time to beat" : "Best time passed";
 }
 
 function scheduleWordSearchTimer() {
@@ -9956,6 +9983,23 @@ function playReadyWordSearchFeedbackSound(context, result) {
     peakGain: 0.012,
     type: "triangle",
   });
+}
+
+function playReadyWordSearchCountdownTick(context, secondsRemaining) {
+  if (!state.wordSearchSounds || document.hidden || !context || context.state !== "running") return;
+  playModeTone(context, {
+    startAt: context.currentTime + 0.004,
+    duration: 0.05,
+    startFrequency: secondsRemaining <= 3 ? 1180 : 920,
+    endFrequency: secondsRemaining <= 3 ? 1180 : 920,
+    peakGain: secondsRemaining <= 3 ? 0.027 : 0.018,
+    type: "square",
+  });
+}
+
+function playWordSearchCountdownTick(secondsRemaining) {
+  const ready = primeWordSearchAudio();
+  ready?.then((context) => playReadyWordSearchCountdownTick(context, secondsRemaining));
 }
 
 function playWordSearchFeedbackSound(result) {
@@ -10714,7 +10758,7 @@ function triviaView() {
         : isWhoSaidIt
           ? "Read the quote, then choose who said it before opening the reference."
           : isWordSearch
-            ? "Find words drawn from one Scripture passage. Drag across letters, or choose the first and last letter, then read the passage when the grid is complete."
+            ? "Find words drawn from one Scripture passage. Your first finish at each level sets a best time; later puzzles count down toward it."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   return `
     <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
@@ -11071,6 +11115,10 @@ function wordSearchGameView(game) {
   const keyboardKey = wordSearchCellKey(game.keyboardCell || { row: 0, column: 0 });
   const foundCount = game.foundWords.length;
   const elapsed = formatGameTime(wordSearchElapsedMs(game));
+  const targetMs = Number(game.wordSearchTarget?.elapsedMs) || 0;
+  const remainingMs = Math.max(0, targetMs - wordSearchElapsedMs(game));
+  const timerLabel = game.complete ? "Finished" : targetMs ? (remainingMs > 0 ? "Time to beat" : "Best time passed") : "Time";
+  const timerValue = game.complete || !targetMs ? elapsed : formatCountdownTime(remainingMs);
   const best = game.wordSearchBest || savedWordSearchBest(game.difficulty);
   return `
     <div class="trivia-game word-search-game ${game.complete ? "is-complete" : ""}">
@@ -11079,10 +11127,10 @@ function wordSearchGameView(game) {
           <span>Word Search · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
           <strong>${foundCount} of ${game.words.length} found</strong>
         </div>
-        <div class="word-search-timer" aria-label="Elapsed time">
+        <div class="word-search-timer" aria-label="Word Search timer and best result">
           ${icons.timer}
-          <span>Time</span>
-          <strong id="wordSearchTimer">${elapsed}</strong>
+          <span id="wordSearchTimerLabel">${timerLabel}</span>
+          <strong id="wordSearchTimer">${timerValue}</strong>
         </div>
       </div>
       <div class="word-search-layout">
@@ -11118,9 +11166,11 @@ function wordSearchGameView(game) {
           </div>
           ${game.complete ? `
             <div class="word-search-complete-summary">
-              <span>${game.wordSearchIsNewBest ? "New best time" : "Completed in"}</span>
+              <span>${game.wordSearchBeatBest ? "New fastest time" : game.wordSearchHadPrevious ? "Completed in" : "Best time set"}</span>
               <strong>${elapsed}</strong>
-              ${best ? `<small>Best ${escapeHtml(game.difficulty)} time · ${formatGameTime(best.elapsedMs)}</small>` : ""}
+              ${game.wordSearchHadPrevious && game.wordSearchTarget
+                ? `<small>${game.wordSearchBeatBest ? "Previous time to beat" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(game.wordSearchBeatBest ? game.wordSearchTarget.elapsedMs : best?.elapsedMs)}</small>`
+                : `<small>The next ${escapeHtml(game.difficulty)} puzzle will count down from this time.</small>`}
             </div>
             ${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
@@ -14785,6 +14835,7 @@ function startTriviaGame({ render = true } = {}) {
 function startWordSearchGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
   const config = wordSearchDifficultyConfig(difficulty);
+  const target = savedWordSearchBest(difficulty);
   const version = wordSearchVersion();
   const passageOptions = orderedWordSearchPassages().map((pack) => ({
     pack,
@@ -14807,6 +14858,7 @@ function startWordSearchGame({ render = true } = {}) {
   state.triviaDifficulty = difficulty;
   state.wordSearchRestartPromptOpen = false;
   localStorage.setItem("lw_trivia_difficulty", difficulty);
+  if (target) primeWordSearchAudio();
   state.triviaGame = {
     type: "word-search",
     difficulty,
@@ -14825,6 +14877,12 @@ function startWordSearchGame({ render = true } = {}) {
     lastSelectionMessage: "Drag across letters, or choose the first and last letter.",
     startedAt: Date.now(),
     finishedAt: null,
+    wordSearchBest: null,
+    wordSearchIsNewBest: false,
+    wordSearchBeatBest: false,
+    wordSearchHadPrevious: Boolean(target),
+    wordSearchTarget: target,
+    wordSearchLastTick: null,
     score: 0,
     complete: false,
   };
@@ -16102,6 +16160,8 @@ function commitWordSearchSelection(cells) {
     const result = recordWordSearchBest(game);
     game.wordSearchBest = result?.best || null;
     game.wordSearchIsNewBest = Boolean(result?.isNewBest);
+    game.wordSearchBeatBest = Boolean(result?.beatPrevious);
+    game.wordSearchHadPrevious = Boolean(result?.hadPrevious);
     completeTriviaGame(game);
   }
   renderPreservingReaderScroll();

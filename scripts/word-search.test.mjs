@@ -50,6 +50,7 @@ vm.runInContext(`
   ${extractFunction("wordSearchSnappedEnd")}
   ${extractFunction("wordSearchFoundOutlines")}
   ${extractFunction("playReadyWordSearchFeedbackSound")}
+  ${extractFunction("playReadyWordSearchCountdownTick")}
   globalThis.wordSearchApi = {
     normalizeWordSearchWord,
     normalizeWordSearchRecentPassages,
@@ -68,6 +69,11 @@ vm.runInContext(`
     feedbackSound: (result) => {
       soundEvents.length = 0;
       playReadyWordSearchFeedbackSound({ currentTime: 1, state: "running" }, result);
+      return soundEvents.map((event) => ({ ...event }));
+    },
+    countdownTick: (secondsRemaining) => {
+      soundEvents.length = 0;
+      playReadyWordSearchCountdownTick({ currentTime: 1, state: "running" }, secondsRemaining);
       return soundEvents.map((event) => ({ ...event }));
     },
   };
@@ -94,6 +100,14 @@ const mistakeSound = JSON.parse(JSON.stringify(api.feedbackSound("mistake")));
 assert.equal(mistakeSound.length, 1);
 assert.equal(mistakeSound[0].type, "triangle");
 assert.ok(mistakeSound[0].endFrequency < mistakeSound[0].startFrequency);
+const countdownTick = JSON.parse(JSON.stringify(api.countdownTick(10)));
+assert.equal(countdownTick.length, 1);
+assert.equal(countdownTick[0].type, "square");
+assert.equal(countdownTick[0].startFrequency, 920);
+assert.ok(countdownTick[0].duration <= 0.05 && countdownTick[0].peakGain <= 0.018);
+const criticalCountdownTick = JSON.parse(JSON.stringify(api.countdownTick(3)));
+assert.equal(criticalCountdownTick[0].startFrequency, 1180);
+assert.ok(criticalCountdownTick[0].peakGain <= 0.027);
 
 const recentPacks = [
   { chapterKey: "Psalm 1", start: 1, end: 6 },
@@ -192,12 +206,21 @@ assert.ok(
 );
 assert.match(triviaViewSource, /isWordSearch \? wordSearchDifficulties\(\) : triviaDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startWordSearchGame/);
-assert.match(extractFunction("startWordSearchGame"), /orderedWordSearchPassages\(\)/);
-assert.match(extractFunction("startWordSearchGame"), /recordWordSearchPassage\(selected\.pack\)/);
+const startWordSearchSource = extractFunction("startWordSearchGame");
+assert.match(startWordSearchSource, /orderedWordSearchPassages\(\)/);
+assert.match(startWordSearchSource, /recordWordSearchPassage\(selected\.pack\)/);
+assert.match(startWordSearchSource, /savedWordSearchBest\(difficulty\)/);
+assert.match(startWordSearchSource, /if \(target\) primeWordSearchAudio\(\)/);
+assert.match(startWordSearchSource, /wordSearchTarget: target/);
+assert.match(startWordSearchSource, /wordSearchHadPrevious: Boolean\(target\)/);
+assert.match(startWordSearchSource, /wordSearchLastTick: null/);
 assert.match(extractFunction("wordSearchGameView"), /role="grid"/);
 assert.match(extractFunction("wordSearchGameView"), /wordSearchFoundOutlines/);
 assert.match(extractFunction("wordSearchGameView"), /id="openTriviaReference"/);
 assert.match(extractFunction("wordSearchGameView"), /wordSearchRestartDialog\(game\)/);
+assert.match(extractFunction("wordSearchGameView"), /Time to beat/);
+assert.match(extractFunction("wordSearchGameView"), /Best time passed/);
+assert.match(extractFunction("wordSearchGameView"), /Best time set/);
 assert.match(extractFunction("wordSearchRestartDialog"), /data-word-search-restart-difficulty/);
 assert.match(extractFunction("openWordSearchRestartPrompt"), /state\.wordSearchRestartPromptOpen = true/);
 assert.match(extractFunction("restartWordSearchAtDifficulty"), /startWordSearchGame\(\)/);
@@ -208,6 +231,7 @@ assert.match(extractFunction("handleWordSearchGridKeydown"), /ArrowUp/);
 assert.match(extractFunction("handleWordSearchGridKeydown"), /Enter/);
 const commitSelectionSource = extractFunction("commitWordSearchSelection");
 assert.match(commitSelectionSource, /recordWordSearchBest/);
+assert.match(commitSelectionSource, /game\.wordSearchBeatBest = Boolean\(result\?\.beatPrevious\)/);
 assert.match(commitSelectionSource, /playWordSearchFeedbackSound\("found"\)/);
 assert.match(commitSelectionSource, /playWordSearchFeedbackSound\("mistake"\)/);
 assert.match(extractFunction("chooseWordSearchCell"), /playWordSearchFeedbackSound\("mistake"\)/);
@@ -217,8 +241,20 @@ assert.match(feedbackSoundSource, /result === "found"/);
 assert.match(feedbackSoundSource, /peakGain: 0\.014/);
 assert.match(feedbackSoundSource, /startFrequency: 220/);
 assert.match(feedbackSoundSource, /endFrequency: 174\.61/);
+const countdownSoundSource = extractFunction("playReadyWordSearchCountdownTick");
+assert.match(countdownSoundSource, /secondsRemaining <= 3 \? 1180 : 920/);
+assert.match(countdownSoundSource, /secondsRemaining <= 3 \? 0\.027 : 0\.018/);
+assert.match(countdownSoundSource, /type: "square"/);
 assert.match(extractFunction("setWordSearchSounds"), /lw_word_search_sounds/);
+const timerDisplaySource = extractFunction("updateWordSearchTimerDisplay");
+assert.match(timerDisplaySource, /game\.wordSearchTarget\?\.elapsedMs/);
+assert.match(timerDisplaySource, /remainingMs > 0 && remainingMs <= 10000/);
+assert.match(timerDisplaySource, /secondsRemaining > 0 && secondsRemaining <= 10/);
+assert.match(timerDisplaySource, /playWordSearchCountdownTick\(secondsRemaining\)/);
+assert.match(timerDisplaySource, /game\.complete \? "Finished" : "Time"/);
 assert.match(extractFunction("scheduleWordSearchTimer"), /setInterval/);
+assert.match(extractFunction("recordWordSearchBest"), /beatPrevious/);
+assert.match(extractFunction("savedWordSearchBest"), /difficulty \|\| "Medium"/);
 assert.match(extractFunction("mountMobileGameControls"), /word-search-actions/);
 assert.match(extractFunction("openTriviaReference"), /game\?\.type === "word-search"[\s\S]*?game\.reference/);
 
@@ -236,6 +272,9 @@ assert.match(styles, /\.word-search-grid \{[\s\S]*?touch-action: none;/);
 assert.match(styles, /\.word-search-cell \{[\s\S]*?font-family: "Atkinson Hyperlegible Next"/);
 assert.match(styles, /\.word-search-found-outlines \{[\s\S]*?pointer-events: none;/);
 assert.match(styles, /\.word-search-found-outline \{[\s\S]*?vector-effect: non-scaling-stroke;/);
+assert.match(styles, /\.word-search-timer strong\.is-urgent/);
+assert.match(styles, /\.word-search-timer strong\.is-critical/);
+assert.match(styles, /\.word-search-timer strong\.is-expired/);
 assert.match(styles, /\.word-search-restart-overlay \{[\s\S]*?position: fixed;/);
 assert.match(styles, /\.word-search-restart-option \{[\s\S]*?min-height: 92px;/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.word-search-list \{[\s\S]*?grid-template-columns: repeat\(3/);
