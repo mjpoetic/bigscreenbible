@@ -40,6 +40,7 @@ assert.match(extractFunction("setGamesDrawer"), /focus\(\{ preventScroll: true \
 assert.match(extractFunction("trapGamesDrawerFocus"), /event\.key === "Escape"/);
 assert.match(extractFunction("trapGamesDrawerFocus"), /event\.key !== "Tab"/);
 assert.match(extractFunction("centerActiveTriviaMode"), /tabs\.scrollLeft/);
+assert.doesNotMatch(extractFunction("centerActiveTriviaMode"), /isGamesResponsiveScreen/);
 assert.match(extractFunction("mountMobileGameControls"), /gamesActiveControlsBody/);
 assert.match(extractFunction("mountMobileGameControls"), /gamesAnswerDialogBody/);
 assert.match(extractFunction("mountMobileGameControls"), /gamesHintDrawerBody/);
@@ -74,6 +75,7 @@ assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-setting
 assert.match(styles, /\.app-shell\.trivia-shell \.footer-collapse-toggle \{[\s\S]*?left: 0;[\s\S]*?right: 0;/);
 assert.match(styles, /\.trivia-setup \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.trivia-mode-tabs \{[\s\S]*?grid-auto-flow: column;[\s\S]*?overflow-x: auto;/);
+assert.match(styles, /\/\* Games keeps options inline on desktop[\s\S]*?\.trivia-mode-picker \{[\s\S]*?display: block;[\s\S]*?width: min\(900px, 100%\);/);
 assert.match(styles, /\.trivia-mode-scroll-next \{[\s\S]*?right: 0;[\s\S]*?border-radius: 12px 0 0 12px;/);
 assert.match(styles, /\.trivia-mode-scroll-previous \{[\s\S]*?left: 0;[\s\S]*?border-radius: 0 12px 12px 0;/);
 assert.match(styles, /\.trivia-mode-scroll \{[\s\S]*?width: 34px;[\s\S]*?height: 44px;[\s\S]*?opacity: 0\.56;/);

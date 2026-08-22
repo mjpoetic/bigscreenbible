@@ -10944,7 +10944,7 @@ function trapGamesDrawerFocus(event) {
 function centerActiveTriviaMode() {
   const tabs = document.querySelector(".trivia-mode-tabs");
   const active = tabs?.querySelector("button.active");
-  if (!tabs || !active || !isGamesResponsiveScreen()) return;
+  if (!tabs || !active) return;
   tabs.scrollLeft = Math.max(0, active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2);
   updateTriviaModeScrollControls();
 }
@@ -11487,10 +11487,15 @@ function crosswordGameView(game) {
           <span>Crossword · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
           <strong id="crosswordProgress">${game.score} of ${game.entries.length} solved</strong>
         </div>
-        <div class="word-search-timer" aria-label="Crossword elapsed time">
-          ${icons.timer}
-          <span>${game.complete ? "Finished" : "Time"}</span>
-          <strong id="crosswordTimer">${elapsed}</strong>
+        <div class="crossword-toolbar-controls">
+          <div class="word-search-timer" aria-label="Crossword elapsed time">
+            ${icons.timer}
+            <span>${game.complete ? "Finished" : "Time"}</span>
+            <strong id="crosswordTimer">${elapsed}</strong>
+          </div>
+          <button class="ghost-btn crossword-menu-control" id="exitTriviaGame" type="button">
+            ${icons.chevronLeft}<span>Games menu</span>
+          </button>
         </div>
       </div>
       <div class="crossword-layout">
@@ -11568,7 +11573,6 @@ function crosswordGameView(game) {
             </div>
           `}
           <div class="trivia-actions crossword-actions">
-            ${triviaExitControl(game)}
             <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
           </div>
         </aside>
@@ -21443,7 +21447,7 @@ window.addEventListener("resize", () => {
     presentationResizeTimer = setTimeout(render, 120);
   } else {
     fitPresentationText();
-    if (isCompactScreen() || isShortLandscapeScreen() || (state.mode === "trivia" && isGamesResponsiveScreen())) {
+    if (isCompactScreen() || isShortLandscapeScreen() || state.mode === "trivia") {
       preserveReaderScrollAfterViewportChange();
       updateTriviaModeScrollControls();
     }
@@ -21455,7 +21459,7 @@ window.addEventListener("orientationchange", () => {
     presentationResizeTimer = setTimeout(render, 120);
     return;
   }
-  if (isCompactScreen() || isShortLandscapeScreen() || (state.mode === "trivia" && isGamesResponsiveScreen())) {
+  if (isCompactScreen() || isShortLandscapeScreen() || state.mode === "trivia") {
     renderAfterViewportChangePreservingReaderScroll();
   }
 });

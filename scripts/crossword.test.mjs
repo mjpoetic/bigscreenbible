@@ -171,6 +171,7 @@ assert.match(extractFunction("crosswordGameView"), /role="grid"/);
 assert.match(extractFunction("crosswordGameView"), /data-crossword-key/);
 assert.match(extractFunction("crosswordGameView"), /Across/);
 assert.match(extractFunction("crosswordGameView"), /Down/);
+assert.match(extractFunction("crosswordGameView"), /class="ghost-btn crossword-menu-control" id="exitTriviaGame"/);
 assert.match(extractFunction("bindCrosswordGrid"), /keydown/);
 assert.match(extractFunction("handleCrosswordKeydown"), /Backspace/);
 assert.match(extractFunction("handleCrosswordKeydown"), /ArrowRight/);
@@ -182,6 +183,9 @@ assert.match(extractFunction("openTriviaReference"), /game\?\.type === "crosswor
 assert.match(extractFunction("mountMobileGameControls"), /crossword-actions/);
 assert.match(styles, /\.crossword-grid \{[\s\S]*?touch-action: manipulation;/);
 assert.match(styles, /\.crossword-keyboard button \{[\s\S]*?min-height: 42px;/);
+assert.match(styles, /\.crossword-sidebar \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
+assert.match(styles, /\.crossword-clue-columns \{[\s\S]*?overflow-y: auto;[\s\S]*?scrollbar-gutter: stable;/);
+assert.match(styles, /\.crossword-menu-control \{[\s\S]*?min-height: 44px;/);
 assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.crossword-keyboard button \{[\s\S]*?min-height: 44px;/);
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.crossword-layout \{/);
 
