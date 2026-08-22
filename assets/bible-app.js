@@ -259,6 +259,9 @@ let mobileSettingsIdleTimer = 0;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
 let suppressMobileControlsClickUntil = 0;
+let focusBrandVersionHoldTimer = 0;
+let focusBrandVersionHoldGesture = null;
+let suppressFocusBrandClickUntil = 0;
 const mobileControlsHoldMs = 350;
 const mobileControlsHoldMoveTolerancePx = 12;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
@@ -3454,6 +3457,11 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <div class="brand-subtitle">Bible</div>
         </div>
       </button>
+      ${state.focusMode && state.headerVersionMenuOpen ? `
+        <div class="primary-version-menu focus-brand-version-menu" role="listbox" aria-label="${state.mode === "parallel" ? "Selected Bible versions" : "Bible version options"}">
+          ${state.mode === "parallel" ? parallelVersionOptions : primaryVersionHeaderOptions}
+        </div>
+      ` : ""}
       ${streakChip()}
       <div class="search" data-tooltip="${notesSearchSource ? "Search your notes" : "Search Bible"}">
         <button class="topbar-search-scope" id="topbarSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose top search source, current ${escapeHtml(activeSearchLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search in: ${escapeHtml(activeSearchLabel)}">
@@ -13683,7 +13691,14 @@ function bindEvents() {
   mobileControlsToggle?.addEventListener("pointerleave", endMobileControlsHold);
   mobileControlsToggle?.addEventListener("contextmenu", suppressMobileControlsContextMenu);
   document.getElementById("mobileFocusToggle")?.addEventListener("click", toggleFocusMode);
-  document.getElementById("brandVerseOfDay")?.addEventListener("click", () => openVerseOfDay());
+  const brandVerseOfDay = document.getElementById("brandVerseOfDay");
+  brandVerseOfDay?.addEventListener("click", handleBrandVerseOfDayClick);
+  brandVerseOfDay?.addEventListener("pointerdown", beginFocusBrandVersionHold);
+  brandVerseOfDay?.addEventListener("pointermove", updateFocusBrandVersionHold);
+  brandVerseOfDay?.addEventListener("pointerup", endFocusBrandVersionHold);
+  brandVerseOfDay?.addEventListener("pointercancel", endFocusBrandVersionHold);
+  brandVerseOfDay?.addEventListener("pointerleave", endFocusBrandVersionHold);
+  brandVerseOfDay?.addEventListener("contextmenu", suppressFocusBrandContextMenu);
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
     event.stopPropagation();
     openVerseOfDayInReader();
@@ -17949,6 +17964,91 @@ function openSettingsFromMobileControls() {
   requestAnimationFrame(() => positionSettingsPopover("header"));
 }
 
+function focusBrandVersionHoldEnabled() {
+  return Boolean(
+    state.focusMode
+    && state.mode !== "big"
+    && isCompactScreen()
+    && window.matchMedia?.("(orientation: portrait)")?.matches
+  );
+}
+
+function handleBrandVerseOfDayClick(event) {
+  if (Date.now() < suppressFocusBrandClickUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  state.headerVersionMenuOpen = false;
+  openVerseOfDay();
+}
+
+function beginFocusBrandVersionHold(event) {
+  if (
+    !focusBrandVersionHoldEnabled()
+    || event.isPrimary === false
+    || (event.pointerType === "mouse" && event.button !== 0)
+  ) return;
+  cancelFocusBrandVersionHold();
+  const button = event.currentTarget;
+  focusBrandVersionHoldGesture = {
+    button,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+  };
+  button.classList.add("version-hold-pending");
+  focusBrandVersionHoldTimer = setTimeout(() => {
+    const gesture = focusBrandVersionHoldGesture;
+    focusBrandVersionHoldTimer = 0;
+    focusBrandVersionHoldGesture = null;
+    gesture?.button.classList.remove("version-hold-pending");
+    if (!gesture) return;
+    suppressFocusBrandClickUntil = Date.now() + 800;
+    openFocusBrandVersionMenu();
+  }, mobileControlsHoldMs);
+}
+
+function updateFocusBrandVersionHold(event) {
+  const gesture = focusBrandVersionHoldGesture;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  if (
+    Math.abs(event.clientX - gesture.startX) > mobileControlsHoldMoveTolerancePx
+    || Math.abs(event.clientY - gesture.startY) > mobileControlsHoldMoveTolerancePx
+  ) {
+    suppressFocusBrandClickUntil = Date.now() + 500;
+    cancelFocusBrandVersionHold();
+  }
+}
+
+function endFocusBrandVersionHold(event) {
+  if (focusBrandVersionHoldGesture && focusBrandVersionHoldGesture.pointerId !== event.pointerId) return;
+  cancelFocusBrandVersionHold();
+}
+
+function cancelFocusBrandVersionHold() {
+  clearTimeout(focusBrandVersionHoldTimer);
+  focusBrandVersionHoldTimer = 0;
+  focusBrandVersionHoldGesture?.button.classList.remove("version-hold-pending");
+  focusBrandVersionHoldGesture = null;
+}
+
+function suppressFocusBrandContextMenu(event) {
+  if (!focusBrandVersionHoldEnabled()) return;
+  event.preventDefault();
+}
+
+function openFocusBrandVersionMenu() {
+  state.focusReferenceOpen = false;
+  state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
+  state.settingsOpen = false;
+  state.accountOpen = false;
+  state.footerVersionMenuOpen = false;
+  state.headerVersionMenuOpen = true;
+  renderPreservingReaderScroll();
+}
+
 function toggleMobileControls() {
   if (state.mobileControlsOpen) {
     animateBeforeRemoval(
@@ -20942,7 +21042,7 @@ window.visualViewport?.addEventListener("resize", () => {
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 document.addEventListener("pointerdown", closeSettingsPopoverOnOutsidePointerDown);
 document.addEventListener("click", (event) => {
-  if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager")) return;
+  if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager, .focus-brand-version-menu, #brandVerseOfDay")) return;
   closeHeaderVersionMenu();
 });
 document.addEventListener("click", (event) => {

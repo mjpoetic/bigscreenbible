@@ -14,6 +14,7 @@
     "test:custom-font": "node scripts/custom-scripture-font.test.mjs",
     "test:defaults": "node scripts/default-behaviors.test.mjs",
     "test:friends": "node scripts/friendships.test.mjs",
+    "test:focus-brand": "node scripts/focus-brand-version-hold.test.mjs",
     "test:focus-layout": "node scripts/focus-mode-layout.test.mjs",
     "test:games-layout": "node scripts/games-mobile-layout.test.mjs",
     "test:games-return": "node scripts/game-reference-return.test.mjs",
