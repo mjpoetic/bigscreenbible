@@ -185,6 +185,28 @@ for (const code of presentationCodes) {
   }
 }
 
+function cssDeclarationBlock(marker) {
+  const start = styles.indexOf(marker);
+  assert.notEqual(start, -1, `Missing CSS block for ${marker}`);
+  const bodyStart = styles.indexOf("{", start) + 1;
+  const bodyEnd = styles.indexOf("}", bodyStart);
+  return styles.slice(bodyStart, bodyEnd);
+}
+
+for (const [theme, marker] of [
+  ["deep", ".presentation {"],
+  ["warm", '.presentation[data-presentation-theme="warm"] {'],
+  ["paper", '.presentation[data-presentation-theme="paper"] {'],
+  ["midnight", '.presentation[data-presentation-theme="midnight"] {'],
+  ["contrast", '.presentation[data-presentation-theme="contrast"] {'],
+]) {
+  const block = cssDeclarationBlock(marker);
+  const background = block.slice(block.indexOf("background:"), block.indexOf("background-color:"));
+  assert.ok((background.match(/radial-gradient\(/g) || []).length >= 2, `${theme} should have layered gradient highlights`);
+  assert.equal((background.match(/linear-gradient\(/g) || []).length, 1, `${theme} should have one gradient base`);
+  assert.ok(background.lastIndexOf("linear-gradient(") > background.lastIndexOf("radial-gradient("), `${theme} highlights should remain visible above its base gradient`);
+}
+
 function storageFrom(values = {}) {
   const entries = new Map(Object.entries(values));
   const writes = [];
