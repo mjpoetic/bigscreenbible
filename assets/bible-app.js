@@ -276,6 +276,8 @@ let wordSearchAudioContext = null;
 let wordSearchAudioResumePromise = null;
 let wordSearchPointerState = null;
 let wordSearchFeedbackTimer = 0;
+let crosswordTimer = 0;
+let crosswordFeedbackTimer = 0;
 let orderingDragState = null;
 let orderingSuppressClickUntil = 0;
 let activeMobileVerseNavMenu = null;
@@ -298,6 +300,7 @@ let triviaRandomSource = Math.random;
 const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
+const crosswordBestStorageKey = "lw_crossword_bests";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
 const wordSearchRecentPassageLimit = 12;
 const triviaRoundLengths = [5, 10, 15, 20];
@@ -666,7 +669,7 @@ let activePopupDrag = null;
 let pendingNoteComposerFocus = false;
 
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
-if (state.triviaGameType !== "word-search" && state.triviaDifficulty === "Expert") state.triviaDifficulty = "Hard";
+if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") state.triviaDifficulty = "Hard";
 state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
 
 const highlightColors = ["yellow", "blue", "pink", "green", "orange", "purple"];
@@ -943,6 +946,7 @@ const icons = {
   screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg>',
   games: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5c0-1.7 1.3-3 3-3s3 1.3 3 3h4a1 1 0 0 1 1 1v3c1.7 0 3 1.3 3 3s-1.3 3-3 3v4a1 1 0 0 1-1 1h-4c0 1.7-1.3 3-3 3s-3-1.3-3-3H5a1 1 0 0 1-1-1v-4h1.5c1.7 0 3-1.3 3-3s-1.3-3-3-3H4V6a1 1 0 0 1 1-1z"/></svg>',
   wordSearch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="m5.3 18.2 3.4-3.4 3.2 3.2 6.8-7" stroke-width="2.2"/></svg>',
+  crossword: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM15 3h6v6h-6zM9 9h6v6H9zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
   lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.7A7 7 0 1 1 15.8 14.7c-.9.7-1.3 1.5-1.4 2.3H9.6c-.1-.8-.5-1.6-1.4-2.3z"/><path d="M12 3v2"/></svg>',
@@ -1335,6 +1339,8 @@ function render() {
     referenceRushTimer = 0;
     clearInterval(wordSearchTimer);
     wordSearchTimer = 0;
+    clearInterval(crosswordTimer);
+    crosswordTimer = 0;
     app.innerHTML = loadingScreen();
     return;
   }
@@ -1444,6 +1450,7 @@ function render() {
   scheduleBookSprintTimer();
   scheduleReferenceRushTimer();
   scheduleWordSearchTimer();
+  scheduleCrosswordTimer();
 }
 
 function chapterChangeIndicator(change) {
@@ -9672,6 +9679,190 @@ function wordSearchDifficultyDescription(difficulty) {
   }[difficulty] || `${config.size}×${config.size} · ${config.wordCount} words`;
 }
 
+function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
+  return {
+    Easy: { size: 9, entryCount: 5 },
+    Medium: { size: 11, entryCount: 7 },
+    Hard: { size: 13, entryCount: 9 },
+    Expert: { size: 15, entryCount: 11 },
+    All: { size: 11, entryCount: 7 },
+  }[difficulty] || { size: 11, entryCount: 7 };
+}
+
+function crosswordDifficulties() {
+  return ["Easy", "Medium", "Hard", "Expert"];
+}
+
+function crosswordDifficultyDescription(difficulty) {
+  const config = crosswordDifficultyConfig(difficulty);
+  return `${config.size}×${config.size} workspace · ${config.entryCount} passage words`;
+}
+
+function crosswordPassageWords(pack, version, difficulty) {
+  const config = crosswordDifficultyConfig(difficulty);
+  const verses = wordSearchPassageVerses(pack, version);
+  const tokens = verses.flatMap((verse) => verse.text.match(/[A-Za-z]+/g) || []).map(normalizeWordSearchWord);
+  const tokenSet = new Set(tokens);
+  const curated = pack.words
+    .map(normalizeWordSearchWord)
+    .filter((word) => word.length >= 3 && word.length <= config.size && tokenSet.has(word));
+  const fallback = [...new Set(tokens)].filter((word) => (
+    word.length >= 4
+    && word.length <= config.size
+    && !wordSearchStopWords.has(word.toLowerCase())
+    && !curated.includes(word)
+  ));
+  return [...new Set([...shuffleItems(curated), ...shuffleItems(fallback)])]
+    .slice(0, Math.max(config.entryCount + 9, 18));
+}
+
+function crosswordCanPlaceWord(grid, word, row, column, direction, requireCrossing = true) {
+  const size = grid.length;
+  const rowStep = direction === "down" ? 1 : 0;
+  const columnStep = direction === "across" ? 1 : 0;
+  const endRow = row + rowStep * (word.length - 1);
+  const endColumn = column + columnStep * (word.length - 1);
+  if (row < 0 || column < 0 || endRow >= size || endColumn >= size) return null;
+  const beforeRow = row - rowStep;
+  const beforeColumn = column - columnStep;
+  const afterRow = endRow + rowStep;
+  const afterColumn = endColumn + columnStep;
+  if (beforeRow >= 0 && beforeColumn >= 0 && beforeRow < size && beforeColumn < size && grid[beforeRow][beforeColumn]) return null;
+  if (afterRow >= 0 && afterColumn >= 0 && afterRow < size && afterColumn < size && grid[afterRow][afterColumn]) return null;
+  let intersections = 0;
+  const cells = [];
+  for (let index = 0; index < word.length; index += 1) {
+    const nextRow = row + rowStep * index;
+    const nextColumn = column + columnStep * index;
+    const existing = grid[nextRow][nextColumn];
+    if (existing) {
+      if (existing.letter !== word[index] || existing[direction]) return null;
+      intersections += 1;
+    } else if (direction === "across") {
+      if (grid[nextRow - 1]?.[nextColumn] || grid[nextRow + 1]?.[nextColumn]) return null;
+    } else if (grid[nextRow]?.[nextColumn - 1] || grid[nextRow]?.[nextColumn + 1]) {
+      return null;
+    }
+    cells.push({ row: nextRow, column: nextColumn });
+  }
+  if (requireCrossing && intersections < 1) return null;
+  return { word, row, column, direction, cells, intersections };
+}
+
+function crosswordPlaceWord(grid, placement) {
+  placement.cells.forEach(({ row, column }, index) => {
+    const cell = grid[row][column] || { letter: placement.word[index], across: false, down: false };
+    cell[placement.direction] = true;
+    grid[row][column] = cell;
+  });
+}
+
+function crosswordPlacementCandidates(grid, word) {
+  const seen = new Set();
+  const candidates = [];
+  grid.forEach((row, rowIndex) => row.forEach((cell, columnIndex) => {
+    if (!cell) return;
+    for (let letterIndex = 0; letterIndex < word.length; letterIndex += 1) {
+      if (word[letterIndex] !== cell.letter) continue;
+      ["across", "down"].forEach((direction) => {
+        const startRow = rowIndex - (direction === "down" ? letterIndex : 0);
+        const startColumn = columnIndex - (direction === "across" ? letterIndex : 0);
+        const key = `${startRow}:${startColumn}:${direction}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const placement = crosswordCanPlaceWord(grid, word, startRow, startColumn, direction);
+        if (placement) candidates.push(placement);
+      });
+    }
+  }));
+  return candidates;
+}
+
+function finalizeCrosswordGrid(grid, placements) {
+  const occupied = placements.flatMap((placement) => placement.cells);
+  const minRow = Math.min(...occupied.map((cell) => cell.row));
+  const maxRow = Math.max(...occupied.map((cell) => cell.row));
+  const minColumn = Math.min(...occupied.map((cell) => cell.column));
+  const maxColumn = Math.max(...occupied.map((cell) => cell.column));
+  const rows = maxRow - minRow + 1;
+  const columns = maxColumn - minColumn + 1;
+  const cells = Array.from({ length: rows }, (_, row) => Array.from({ length: columns }, (_, column) => (
+    grid[row + minRow][column + minColumn]?.letter || ""
+  )));
+  const shifted = placements.map((placement) => ({
+    ...placement,
+    row: placement.row - minRow,
+    column: placement.column - minColumn,
+    cells: placement.cells.map((cell) => ({ row: cell.row - minRow, column: cell.column - minColumn })),
+  }));
+  const starts = [...new Set(shifted.map((placement) => `${placement.row}:${placement.column}`))]
+    .map((key) => {
+      const [row, column] = key.split(":").map(Number);
+      return { key, row, column };
+    })
+    .sort((first, second) => first.row - second.row || first.column - second.column);
+  const numberByStart = new Map(starts.map((start, index) => [start.key, index + 1]));
+  const entries = shifted
+    .map((placement) => {
+      const number = numberByStart.get(`${placement.row}:${placement.column}`);
+      return { ...placement, number, id: `${number}-${placement.direction}` };
+    })
+    .sort((first, second) => first.number - second.number || first.direction.localeCompare(second.direction));
+  const numbers = Object.fromEntries(starts.map((start, index) => [start.key, index + 1]));
+  return { rows, columns, cells, entries, numbers };
+}
+
+function createCrosswordGrid(words, size, entryCount) {
+  const normalizedWords = [...new Set(words.map(normalizeWordSearchWord))]
+    .filter((word) => word.length >= 3 && word.length <= size);
+  if (normalizedWords.length < entryCount) return null;
+  for (let restart = 0; restart < 180; restart += 1) {
+    const ordered = shuffleItems(normalizedWords).sort((first, second) => second.length - first.length + (triviaRandomSource() - 0.5));
+    const firstWord = ordered[Math.min(restart % Math.min(5, ordered.length), ordered.length - 1)];
+    const grid = Array.from({ length: size }, () => Array(size).fill(null));
+    const firstColumn = Math.floor((size - firstWord.length) / 2);
+    const firstPlacement = crosswordCanPlaceWord(grid, firstWord, Math.floor(size / 2), firstColumn, "across", false);
+    if (!firstPlacement) continue;
+    crosswordPlaceWord(grid, firstPlacement);
+    const placements = [firstPlacement];
+    const remaining = ordered.filter((word) => word !== firstWord);
+    while (placements.length < entryCount && remaining.length) {
+      const options = remaining.flatMap((word) => crosswordPlacementCandidates(grid, word).map((placement) => ({
+        placement,
+        score: placement.intersections * 100 - Math.abs(size / 2 - placement.row) - Math.abs(size / 2 - placement.column),
+      })));
+      if (!options.length) break;
+      options.sort((first, second) => second.score - first.score);
+      const bestScore = options[0].score;
+      const preferred = options.filter((option) => option.score >= bestScore - 4).slice(0, 24);
+      const selected = preferred[Math.floor(triviaRandomSource() * preferred.length)].placement;
+      crosswordPlaceWord(grid, selected);
+      placements.push(selected);
+      remaining.splice(remaining.indexOf(selected.word), 1);
+    }
+    if (placements.length >= entryCount) return finalizeCrosswordGrid(grid, placements.slice(0, entryCount));
+  }
+  return null;
+}
+
+function crosswordClueForWord(verses, answer) {
+  const pattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "i");
+  const replacementPattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "gi");
+  const verse = verses.find((candidate) => pattern.test(candidate.text));
+  if (!verse) return `${answer.length} letters from this passage.`;
+  const match = verse.text.match(pattern);
+  const matchIndex = match?.index || 0;
+  let start = Math.max(0, matchIndex - 58);
+  let end = Math.min(verse.text.length, matchIndex + answer.length + 76);
+  if (start > 0) start = verse.text.indexOf(" ", start) + 1;
+  if (end < verse.text.length) {
+    const nextSpace = verse.text.lastIndexOf(" ", end);
+    if (nextSpace > matchIndex) end = nextSpace;
+  }
+  const excerpt = verse.text.slice(start, end).replace(replacementPattern, "_____");
+  return `Verse ${verse.n}: ${start > 0 ? "…" : ""}${excerpt}${end < verse.text.length ? "…" : ""}`;
+}
+
 function normalizeWordSearchWord(value) {
   return String(value || "")
     .normalize("NFD")
@@ -9931,6 +10122,54 @@ function scheduleWordSearchTimer() {
   const game = state.triviaGame;
   if (state.mode !== "trivia" || game?.type !== "word-search" || game.complete) return;
   wordSearchTimer = setInterval(updateWordSearchTimerDisplay, 500);
+}
+
+function crosswordElapsedMs(game = state.triviaGame) {
+  if (!game || game.type !== "crossword" || !game.startedAt) return 0;
+  return Math.max(0, (game.finishedAt || Date.now()) - game.startedAt);
+}
+
+function savedCrosswordBests() {
+  try {
+    return JSON.parse(localStorage.getItem(crosswordBestStorageKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function savedCrosswordBest(difficulty) {
+  return savedCrosswordBests()[difficulty || "Medium"] || null;
+}
+
+function recordCrosswordBest(game) {
+  if (!game || game.type !== "crossword" || !game.finishedAt) return null;
+  const result = {
+    difficulty: game.difficulty,
+    elapsedMs: crosswordElapsedMs(game),
+    completedAt: new Date(game.finishedAt).toISOString(),
+  };
+  const bests = savedCrosswordBests();
+  const previous = bests[game.difficulty];
+  const isNewBest = !previous || result.elapsedMs < previous.elapsedMs;
+  if (isNewBest) {
+    bests[game.difficulty] = result;
+    localStorage.setItem(crosswordBestStorageKey, JSON.stringify(bests));
+  }
+  return { best: bests[game.difficulty] || previous || result, isNewBest, hadPrevious: Boolean(previous) };
+}
+
+function updateCrosswordTimerDisplay() {
+  const timer = document.getElementById("crosswordTimer");
+  if (timer && state.triviaGame?.type === "crossword") timer.textContent = formatGameTime(crosswordElapsedMs());
+}
+
+function scheduleCrosswordTimer() {
+  clearInterval(crosswordTimer);
+  crosswordTimer = 0;
+  updateCrosswordTimerDisplay();
+  const game = state.triviaGame;
+  if (state.mode !== "trivia" || game?.type !== "crossword" || game.complete) return;
+  crosswordTimer = setInterval(updateCrosswordTimerDisplay, 500);
 }
 
 function primeWordSearchAudio() {
@@ -10617,6 +10856,8 @@ function mountMobileGameControls() {
   if (bookSprintSound) destination.append(bookSprintSound);
   const wordSearchActions = game.querySelector(".word-search-actions");
   if (wordSearchActions) destination.append(wordSearchActions);
+  const crosswordActions = game.querySelector(".crossword-actions");
+  if (crosswordActions) destination.append(crosswordActions);
   const orderingCheck = game.querySelector("#checkBookSprint, #checkVerseOrder");
   if (orderingCheck) {
     const checkDock = document.createElement("div");
@@ -10718,10 +10959,11 @@ function triviaView() {
   const isBookSprint = state.triviaGameType === "book-sprint";
   const isWhoSaidIt = state.triviaGameType === "who-said-it";
   const isWordSearch = state.triviaGameType === "word-search";
+  const isCrossword = state.triviaGameType === "crossword";
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const difficultyOptions = (isWordSearch ? wordSearchDifficulties() : triviaDifficulties()).map((difficulty) => {
+  const difficultyOptions = (isWordSearch ? wordSearchDifficulties() : isCrossword ? crosswordDifficulties() : triviaDifficulties()).map((difficulty) => {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
     return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
@@ -10729,10 +10971,12 @@ function triviaView() {
   const countValues = isBookSprint ? bookSprintRoundLengths : triviaRoundLengths;
   const selectedCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
   const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
-  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : "Bible Trivia";
+  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : isCrossword ? "Crossword" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
   const wordSearchConfig = wordSearchDifficultyConfig(state.triviaDifficulty);
   const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty) : null;
+  const crosswordConfig = crosswordDifficultyConfig(state.triviaDifficulty);
+  const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty) : null;
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
@@ -10740,13 +10984,13 @@ function triviaView() {
   const setupSummary = [
     state.triviaGameType === "trivia" ? state.triviaCategory : "",
     isVerseOrder ? "Progressive" : difficultyLabel,
-    isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : `${selectedCount} ${countLabel}`,
+    isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : `${selectedCount} ${countLabel}`,
     isReferenceRush ? state.referenceRushTimed ? "Timed" : "Untimed" : "",
-    isWordSearch ? "Solo" : "",
+    isWordSearch || isCrossword ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
-  const socialSupported = !isWordSearch;
+  const socialSupported = !isWordSearch && !isCrossword;
   const gamesUseDrawers = isGamesResponsiveScreen();
   const gameHintsAvailable = Boolean(activeGameHintContext());
   const setupCopy = isVerseOrder
@@ -10759,14 +11003,17 @@ function triviaView() {
           ? "Read the quote, then choose who said it before opening the reference."
           : isWordSearch
             ? "Find words drawn from one Scripture passage. Your first finish at each level sets a best time; later puzzles count down toward it."
+            : isCrossword
+              ? "Solve connected Across and Down entries using verse excerpts from one well-known Scripture passage."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
+  const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : "";
   return `
     <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
-      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""}">
+      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""} ${state.triviaGame?.type === "crossword" ? "has-crossword" : ""}">
         <div class="trivia-header">
           <div class="trivia-header-copy">
-            <div class="trivia-eyebrow">${state.triviaGame?.type === "word-search" ? "Games" : gameTitle}</div>
-            <h1>${state.triviaGame?.type === "word-search" ? "Word Search" : "Games"}</h1>
+            <div class="trivia-eyebrow">${activePuzzleTitle ? "Games" : gameTitle}</div>
+            <h1>${activePuzzleTitle || "Games"}</h1>
           </div>
           <div class="trivia-header-actions">
             <div class="trivia-score-chip">${triviaScoreLabel()}</div>
@@ -10817,7 +11064,8 @@ function triviaView() {
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
-                <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" aria-label="Word Search, new" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span><small class="game-new-badge">New</small></button>
+                <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
+                <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" aria-label="Crossword, new" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span><small class="game-new-badge">New</small></button>
                 <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
                 <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
                 <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
@@ -10854,8 +11102,8 @@ function triviaView() {
                   <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
-                  <div class="trivia-setup-controls ${isVerseOrder || isWordSearch ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
-                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch ? "is-hidden" : ""}">
+                  <div class="trivia-setup-controls ${isVerseOrder || isWordSearch || isCrossword ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
+                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword ? "is-hidden" : ""}">
                       <span>Category</span>
                       <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
                     </label>
@@ -10863,7 +11111,7 @@ function triviaView() {
                       <span>Difficulty</span>
                       <select id="triviaDifficultySelect" ${challengeSetupLock}>${difficultyOptions}</select>
                     </label>
-                    <label class="${isWordSearch ? "is-hidden" : ""}">
+                    <label class="${isWordSearch || isCrossword ? "is-hidden" : ""}">
                       <span>Round length</span>
                       <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
                     </label>
@@ -10891,6 +11139,13 @@ function triviaView() {
                     </div>
                     <p class="word-search-solo-note">Word Search is a solo game in this first release.</p>
                   ` : ""}
+                  ${isCrossword ? `
+                    <div class="book-sprint-best-card word-search-best-card">
+                      <span>Best ${escapeHtml(state.triviaDifficulty)} time</span>
+                      <strong>${crosswordBest ? formatGameTime(crosswordBest.elapsedMs) : "No best yet"}</strong>
+                    </div>
+                    <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
+                  ` : ""}
                 </div>
               </aside>
             </div>
@@ -10912,7 +11167,7 @@ function triviaView() {
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
-                : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+                : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : icons.trivia}<span>Start ${gameTitle}</span></button>`}
               <small>${escapeHtml(setupSummary)}</small>
             </div>
           </div>
@@ -10987,6 +11242,7 @@ function triviaExitControl(game = state.triviaGame) {
 function triviaGameView() {
   const game = state.triviaGame;
   if (game?.type === "word-search") return wordSearchGameView(game);
+  if (game?.type === "crossword") return crosswordGameView(game);
   if (game?.type === "verse-order") return verseOrderGameView(game);
   if (game?.type === "reference-rush") return referenceRushGameView(game);
   if (game?.type === "book-sprint") return bookSprintGameView(game);
@@ -11190,6 +11446,133 @@ function wordSearchGameView(game) {
         </aside>
       </div>
       ${wordSearchRestartDialog(game)}
+    </div>
+  `;
+}
+
+function crosswordEntryById(game, entryId) {
+  return game?.entries?.find((entry) => entry.id === entryId) || null;
+}
+
+function crosswordEntryLabel(entry) {
+  return entry ? `${entry.number} ${entry.direction === "across" ? "Across" : "Down"}` : "Crossword clue";
+}
+
+function crosswordGameView(game) {
+  const completedEntries = new Set(game.completedEntryIds || []);
+  const errorCells = new Set(game.errorCellKeys || []);
+  const activeEntry = crosswordEntryById(game, game.activeEntryId) || game.entries[0];
+  const activeCells = new Set((activeEntry?.cells || []).map(wordSearchCellKey));
+  const completedCells = new Set(game.entries
+    .filter((entry) => completedEntries.has(entry.id))
+    .flatMap((entry) => entry.cells.map(wordSearchCellKey)));
+  const elapsed = formatGameTime(crosswordElapsedMs(game));
+  const best = game.crosswordBest || savedCrosswordBest(game.difficulty);
+  const clueGroup = (direction) => game.entries.filter((entry) => entry.direction === direction).map((entry) => `
+    <button
+      class="crossword-clue ${entry.id === activeEntry?.id ? "is-active" : ""} ${completedEntries.has(entry.id) ? "is-complete" : ""}"
+      type="button"
+      data-crossword-entry="${entry.id}"
+      aria-pressed="${entry.id === activeEntry?.id}"
+    >
+      <strong>${entry.number}</strong>
+      <span>${escapeHtml(entry.clue)} <small>(${entry.word.length})</small></span>
+      ${completedEntries.has(entry.id) ? '<span class="crossword-clue-check" aria-label="Solved">✓</span>' : ""}
+    </button>
+  `).join("");
+  return `
+    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}">
+      <div class="crossword-toolbar word-search-toolbar">
+        <div class="trivia-progress">
+          <span>Crossword · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
+          <strong id="crosswordProgress">${game.score} of ${game.entries.length} solved</strong>
+        </div>
+        <div class="word-search-timer" aria-label="Crossword elapsed time">
+          ${icons.timer}
+          <span>${game.complete ? "Finished" : "Time"}</span>
+          <strong id="crosswordTimer">${elapsed}</strong>
+        </div>
+      </div>
+      <div class="crossword-layout">
+        <section class="crossword-play" aria-label="Crossword board">
+          ${game.complete ? "" : `
+            <button class="crossword-active-clue" type="button" data-crossword-entry="${activeEntry?.id || ""}">
+              <strong id="crosswordActiveClueLabel">${escapeHtml(crosswordEntryLabel(activeEntry))}</strong>
+              <span id="crosswordActiveClueText">${escapeHtml(activeEntry?.clue || "Choose a clue")}</span>
+            </button>
+          `}
+          <div class="crossword-grid-scroll">
+            <div
+              class="crossword-grid"
+              id="crosswordGrid"
+              role="grid"
+              aria-label="${game.rows} by ${game.columns} Crossword grid"
+              aria-rowcount="${game.rows}"
+              aria-colcount="${game.columns}"
+              aria-describedby="crosswordStatus"
+              style="--crossword-rows:${game.rows};--crossword-columns:${game.columns}"
+            >
+              ${game.cells.flatMap((row, rowIndex) => row.map((solution, columnIndex) => {
+                const key = `${rowIndex}:${columnIndex}`;
+                if (!solution) return '<span class="crossword-block" aria-hidden="true"></span>';
+                const answer = game.answers[key] || "";
+                const number = game.numbers[key] || "";
+                const classes = [
+                  "crossword-cell",
+                  activeCells.has(key) ? "is-entry-active" : "",
+                  game.activeCellKey === key ? "is-active" : "",
+                  completedCells.has(key) ? "is-complete" : "",
+                  errorCells.has(key) ? "is-error" : "",
+                ].filter(Boolean).join(" ");
+                return `<button class="${classes}" type="button" role="gridcell" data-crossword-cell="${key}" data-row="${rowIndex}" data-column="${columnIndex}" aria-rowindex="${rowIndex + 1}" aria-colindex="${columnIndex + 1}" aria-label="${number ? `${number}, ` : ""}row ${rowIndex + 1}, column ${columnIndex + 1}${answer ? `, ${answer}` : ", blank"}" tabindex="${game.activeCellKey === key ? "0" : "-1"}" ${game.complete ? "disabled" : ""}>${number ? `<small>${number}</small>` : ""}<span class="crossword-cell-letter">${escapeHtml(answer)}</span></button>`;
+              })).join("")}
+            </div>
+          </div>
+          <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
+          ${game.complete ? "" : `
+            <div class="crossword-keyboard" aria-label="Crossword letter keyboard">
+              ${["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].map((row) => `<div>${[...row].map((letter) => `<button type="button" data-crossword-key="${letter}" aria-label="Enter ${letter}">${letter}</button>`).join("")}</div>`).join("")}
+              <div class="crossword-keyboard-actions">
+                <button type="button" data-crossword-key="backspace" aria-label="Erase letter">${icons.clear}<span>Erase</span></button>
+                <button type="button" data-crossword-key="check">${icons.search}<span>Check word</span></button>
+              </div>
+            </div>
+          `}
+        </section>
+        <aside class="crossword-sidebar" aria-label="Crossword clues">
+          <div class="word-search-passage-heading">
+            <span>${game.complete ? "Puzzle passage" : "Clues from"}</span>
+            <strong>${escapeHtml(game.referenceLabel)}</strong>
+          </div>
+          ${game.complete ? `
+            <div class="word-search-complete-summary">
+              <span>${game.crosswordIsNewBest ? "New best time" : "Completed in"}</span>
+              <strong>${elapsed}</strong>
+              ${best ? `<small>Best ${escapeHtml(game.difficulty)} time · ${formatGameTime(best.elapsedMs)}</small>` : ""}
+            </div>
+            ${wordSearchPassageMarkup(game)}
+            <div class="trivia-reference word-search-reference">
+              <span>${escapeHtml(game.referenceLabel)}</span>
+              <button class="text-btn" id="openTriviaReference" type="button">Open passage</button>
+            </div>
+          ` : `
+            <div class="crossword-clue-columns">
+              <section>
+                <h2>Across</h2>
+                <div>${clueGroup("across")}</div>
+              </section>
+              <section>
+                <h2>Down</h2>
+                <div>${clueGroup("down")}</div>
+              </section>
+            </div>
+          `}
+          <div class="trivia-actions crossword-actions">
+            ${triviaExitControl(game)}
+            <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
+          </div>
+        </aside>
+      </div>
     </div>
   `;
 }
@@ -11550,6 +11933,7 @@ function triviaResultsView(game) {
 
 function triviaRoundLength(game) {
   if (game?.type === "word-search") return game.words?.length || 0;
+  if (game?.type === "crossword") return game.entries?.length || 0;
   return game?.questions?.length || game?.puzzles?.length || 0;
 }
 
@@ -11673,6 +12057,7 @@ function triviaScoreLabel() {
       const config = wordSearchDifficultyConfig(state.triviaDifficulty);
       return `${config.wordCount} words`;
     }
+    if (state.triviaGameType === "crossword") return `${crosswordDifficultyConfig(state.triviaDifficulty).entryCount} clues`;
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
     if (state.triviaGameType === "reference-rush") return `${referenceRushAvailableCount()} verses`;
     if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, normalizedTriviaCount("book-sprint", state.triviaCount)))}`;
@@ -11683,6 +12068,7 @@ function triviaScoreLabel() {
   if (state.triviaGame.complete) {
     if (state.triviaGame.type === "book-sprint") return formatGameTime(bookSprintElapsedMs(state.triviaGame));
     if (state.triviaGame.type === "word-search") return formatGameTime(wordSearchElapsedMs(state.triviaGame));
+    if (state.triviaGame.type === "crossword") return formatGameTime(crosswordElapsedMs(state.triviaGame));
     return `${state.triviaGame.score} / ${roundLength}`;
   }
   if (state.triviaGame.type === "verse-order") return `${state.triviaGame.score} ordered`;
@@ -11690,6 +12076,7 @@ function triviaScoreLabel() {
   if (state.triviaGame.type === "book-sprint") return `Round ${state.triviaGame.index + 1} / ${roundLength}`;
   if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
   if (state.triviaGame.type === "word-search") return `${state.triviaGame.score} of ${roundLength} found`;
+  if (state.triviaGame.type === "crossword") return `${state.triviaGame.score} of ${roundLength} solved`;
   return `${state.triviaGame.score} correct`;
 }
 
@@ -13398,6 +13785,7 @@ function bindEvents() {
   bindReaderReturnButton();
   bindReaderSelectionToolsButton();
   bindWordSearchGrid();
+  bindCrosswordGrid();
   document.querySelector(".topbar")?.addEventListener("click", handleTopbarScrollTap);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -14071,11 +14459,11 @@ function bindEvents() {
         state.triviaDifficulty = "Easy";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
-      if (state.triviaGameType === "word-search" && state.triviaDifficulty === "All") {
+      if (["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "All") {
         state.triviaDifficulty = "Medium";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
-      if (state.triviaGameType !== "word-search" && state.triviaDifficulty === "Expert") {
+      if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") {
         state.triviaDifficulty = "Hard";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
@@ -14170,6 +14558,7 @@ function bindEvents() {
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
     if (state.triviaGame?.type === "word-search") return openWordSearchRestartPrompt();
+    if (state.triviaGame?.type === "crossword") return startCrosswordGame();
     startTriviaGame();
   });
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
@@ -14801,6 +15190,7 @@ function startTriviaGame({ render = true } = {}) {
   cleanupTriviaCelebration();
   state.gamesDrawerOpen = "";
   if (state.triviaGameType === "word-search") return startWordSearchGame({ render });
+  if (state.triviaGameType === "crossword") return startCrosswordGame({ render });
   if (state.triviaGameType === "verse-order") return startVerseOrderGame({ render });
   if (state.triviaGameType === "reference-rush") return startReferenceRushGame({ render });
   if (state.triviaGameType === "book-sprint") return startBookSprintGame({ render });
@@ -14883,6 +15273,64 @@ function startWordSearchGame({ render = true } = {}) {
     wordSearchHadPrevious: Boolean(target),
     wordSearchTarget: target,
     wordSearchLastTick: null,
+    score: 0,
+    complete: false,
+  };
+  recordWordSearchPassage(selected.pack);
+  if (render) renderPreservingReaderScroll();
+}
+
+function startCrosswordGame({ render = true } = {}) {
+  const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
+  const config = crosswordDifficultyConfig(difficulty);
+  const version = wordSearchVersion();
+  const passageOptions = orderedWordSearchPassages().map((pack) => ({
+    pack,
+    verses: wordSearchPassageVerses(pack, version),
+    words: crosswordPassageWords(pack, version, difficulty),
+  })).filter((option) => option.verses.length && option.words.length >= config.entryCount);
+  let selected = null;
+  let generated = null;
+  for (const option of passageOptions) {
+    generated = createCrosswordGrid(option.words, config.size, config.entryCount);
+    if (generated) {
+      selected = option;
+      break;
+    }
+  }
+  if (!selected || !generated) {
+    showToast("A Crossword puzzle could not be built yet. Try another difficulty.");
+    return;
+  }
+  const entries = generated.entries.map((entry) => ({
+    ...entry,
+    clue: crosswordClueForWord(selected.verses, entry.word),
+  }));
+  const firstEntry = entries[0];
+  state.triviaDifficulty = difficulty;
+  localStorage.setItem("lw_trivia_difficulty", difficulty);
+  state.triviaGame = {
+    type: "crossword",
+    difficulty,
+    version,
+    reference: `${selected.pack.chapterKey}:${selected.pack.start}-${selected.pack.end}`,
+    referenceLabel: selected.pack.label,
+    verses: selected.verses,
+    rows: generated.rows,
+    columns: generated.columns,
+    cells: generated.cells,
+    numbers: generated.numbers,
+    entries,
+    answers: {},
+    completedEntryIds: [],
+    errorCellKeys: [],
+    activeEntryId: firstEntry.id,
+    activeCellKey: wordSearchCellKey(firstEntry.cells[0]),
+    lastMessage: "Choose a clue or cell, then type with the keyboard below.",
+    startedAt: Date.now(),
+    finishedAt: null,
+    crosswordBest: null,
+    crosswordIsNewBest: false,
     score: 0,
     complete: false,
   };
@@ -16302,6 +16750,247 @@ function bindWordSearchGrid() {
   grid.addEventListener("keydown", handleWordSearchGridKeydown);
 }
 
+function crosswordEntriesAtCell(game, row, column) {
+  const key = `${row}:${column}`;
+  return (game?.entries || []).filter((entry) => entry.cells.some((cell) => wordSearchCellKey(cell) === key));
+}
+
+function setCrosswordStatus(message) {
+  const game = state.triviaGame;
+  if (game?.type === "crossword") game.lastMessage = message;
+  const status = document.getElementById("crosswordStatus");
+  if (status) status.textContent = message;
+}
+
+function crosswordEntryIsCorrect(game, entry) {
+  return Boolean(entry && entry.cells.every((cell, index) => (
+    game.answers[wordSearchCellKey(cell)] === entry.word[index]
+  )));
+}
+
+function crosswordEntryIsFilled(game, entry) {
+  return Boolean(entry && entry.cells.every((cell) => game.answers[wordSearchCellKey(cell)]));
+}
+
+function reconcileCrosswordCompletedEntries(game) {
+  game.completedEntryIds = (game.completedEntryIds || []).filter((entryId) => (
+    crosswordEntryIsCorrect(game, crosswordEntryById(game, entryId))
+  ));
+  game.score = game.completedEntryIds.length;
+}
+
+function updateCrosswordDom({ focus = false } = {}) {
+  const game = state.triviaGame;
+  if (game?.type !== "crossword" || game.complete) return;
+  const activeEntry = crosswordEntryById(game, game.activeEntryId);
+  const activeCells = new Set((activeEntry?.cells || []).map(wordSearchCellKey));
+  const completedEntries = new Set(game.completedEntryIds || []);
+  const completedCells = new Set(game.entries
+    .filter((entry) => completedEntries.has(entry.id))
+    .flatMap((entry) => entry.cells.map(wordSearchCellKey)));
+  const errorCells = new Set(game.errorCellKeys || []);
+  document.querySelectorAll("[data-crossword-cell]").forEach((cell) => {
+    const key = cell.dataset.crosswordCell;
+    const answer = game.answers[key] || "";
+    cell.querySelector(".crossword-cell-letter").textContent = answer;
+    cell.classList.toggle("is-entry-active", activeCells.has(key));
+    cell.classList.toggle("is-active", game.activeCellKey === key);
+    cell.classList.toggle("is-complete", completedCells.has(key));
+    cell.classList.toggle("is-error", errorCells.has(key));
+    cell.tabIndex = game.activeCellKey === key ? 0 : -1;
+    const number = game.numbers[key];
+    const row = Number(cell.dataset.row) + 1;
+    const column = Number(cell.dataset.column) + 1;
+    cell.setAttribute("aria-label", `${number ? `${number}, ` : ""}row ${row}, column ${column}${answer ? `, ${answer}` : ", blank"}`);
+  });
+  document.querySelectorAll("[data-crossword-entry]").forEach((clue) => {
+    const entryId = clue.dataset.crosswordEntry;
+    clue.classList.toggle("is-active", entryId === activeEntry?.id);
+    clue.classList.toggle("is-complete", completedEntries.has(entryId));
+    clue.setAttribute("aria-pressed", String(entryId === activeEntry?.id));
+  });
+  const activeLabel = document.getElementById("crosswordActiveClueLabel");
+  const activeText = document.getElementById("crosswordActiveClueText");
+  if (activeLabel) activeLabel.textContent = crosswordEntryLabel(activeEntry);
+  if (activeText) activeText.textContent = activeEntry?.clue || "Choose a clue";
+  const progress = document.getElementById("crosswordProgress");
+  if (progress) progress.textContent = `${game.score} of ${game.entries.length} solved`;
+  setCrosswordStatus(game.lastMessage);
+  if (focus) document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`)?.focus({ preventScroll: true });
+}
+
+function selectCrosswordEntry(entryId, preferredCellKey = "", options = {}) {
+  const game = state.triviaGame;
+  const entry = crosswordEntryById(game, entryId);
+  if (!entry || game.complete) return;
+  const preferred = entry.cells.find((cell) => wordSearchCellKey(cell) === preferredCellKey);
+  const firstBlank = entry.cells.find((cell) => !game.answers[wordSearchCellKey(cell)]);
+  const cell = preferred || firstBlank || entry.cells[0];
+  game.activeEntryId = entry.id;
+  game.activeCellKey = wordSearchCellKey(cell);
+  updateCrosswordDom({ focus: options.focus !== false });
+}
+
+function selectCrosswordCell(row, column) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "crossword" || game.complete || !game.cells[row]?.[column]) return;
+  const key = `${row}:${column}`;
+  const entries = crosswordEntriesAtCell(game, row, column);
+  if (!entries.length) return;
+  let entry = entries.find((candidate) => candidate.id === game.activeEntryId) || entries[0];
+  if (game.activeCellKey === key && entries.length > 1) {
+    entry = entries.find((candidate) => candidate.id !== game.activeEntryId) || entry;
+  }
+  game.activeEntryId = entry.id;
+  game.activeCellKey = key;
+  game.lastMessage = `${crosswordEntryLabel(entry)} selected.`;
+  updateCrosswordDom({ focus: true });
+}
+
+function advanceCrosswordCell(game, entry, delta) {
+  const currentIndex = Math.max(0, entry.cells.findIndex((cell) => wordSearchCellKey(cell) === game.activeCellKey));
+  const nextIndex = Math.min(entry.cells.length - 1, Math.max(0, currentIndex + delta));
+  game.activeCellKey = wordSearchCellKey(entry.cells[nextIndex]);
+}
+
+function completeCrosswordEntry(game, entry) {
+  if (!entry || (game.completedEntryIds || []).includes(entry.id)) return false;
+  game.completedEntryIds = [...game.completedEntryIds, entry.id];
+  game.score = game.completedEntryIds.length;
+  game.errorCellKeys = [];
+  if (game.score >= game.entries.length) {
+    game.finishedAt = Date.now();
+    const result = recordCrosswordBest(game);
+    game.crosswordBest = result?.best || null;
+    game.crosswordIsNewBest = Boolean(result?.isNewBest);
+    completeTriviaGame(game);
+    renderPreservingReaderScroll();
+    return true;
+  }
+  const nextEntry = game.entries.find((candidate) => !game.completedEntryIds.includes(candidate.id));
+  game.activeEntryId = nextEntry.id;
+  game.activeCellKey = wordSearchCellKey(nextEntry.cells.find((cell) => !game.answers[wordSearchCellKey(cell)]) || nextEntry.cells[0]);
+  game.lastMessage = `${crosswordEntryLabel(entry)} is correct. ${game.entries.length - game.score} clues remain.`;
+  updateCrosswordDom({ focus: true });
+  return true;
+}
+
+function enterCrosswordLetter(letter) {
+  const game = state.triviaGame;
+  const entry = crosswordEntryById(game, game?.activeEntryId);
+  const normalized = String(letter || "").toUpperCase();
+  if (!game || game.type !== "crossword" || game.complete || !entry || !/^[A-Z]$/.test(normalized)) return;
+  game.answers[game.activeCellKey] = normalized;
+  game.errorCellKeys = [];
+  reconcileCrosswordCompletedEntries(game);
+  if (crosswordEntryIsCorrect(game, entry)) {
+    completeCrosswordEntry(game, entry);
+    return;
+  }
+  advanceCrosswordCell(game, entry, 1);
+  game.lastMessage = `${crosswordEntryLabel(entry)} · ${entry.word.length} letters`;
+  updateCrosswordDom({ focus: true });
+}
+
+function eraseCrosswordLetter() {
+  const game = state.triviaGame;
+  const entry = crosswordEntryById(game, game?.activeEntryId);
+  if (!game || game.type !== "crossword" || game.complete || !entry) return;
+  if (game.answers[game.activeCellKey]) game.answers[game.activeCellKey] = "";
+  else advanceCrosswordCell(game, entry, -1);
+  reconcileCrosswordCompletedEntries(game);
+  game.errorCellKeys = [];
+  game.lastMessage = `${crosswordEntryLabel(entry)} · letter erased`;
+  updateCrosswordDom({ focus: true });
+}
+
+function checkCrosswordEntry() {
+  const game = state.triviaGame;
+  const entry = crosswordEntryById(game, game?.activeEntryId);
+  if (!game || game.type !== "crossword" || game.complete || !entry) return;
+  if (!crosswordEntryIsFilled(game, entry)) {
+    game.lastMessage = `Finish ${crosswordEntryLabel(entry)} before checking it.`;
+    updateCrosswordDom({ focus: true });
+    return;
+  }
+  if (crosswordEntryIsCorrect(game, entry)) {
+    completeCrosswordEntry(game, entry);
+    return;
+  }
+  clearTimeout(crosswordFeedbackTimer);
+  game.errorCellKeys = entry.cells
+    .filter((cell, index) => game.answers[wordSearchCellKey(cell)] !== entry.word[index])
+    .map(wordSearchCellKey);
+  game.lastMessage = `${crosswordEntryLabel(entry)} is not quite right. Check the highlighted letters.`;
+  updateCrosswordDom({ focus: true });
+  crosswordFeedbackTimer = setTimeout(() => {
+    if (state.triviaGame !== game || game.complete) return;
+    game.errorCellKeys = [];
+    updateCrosswordDom();
+  }, 700);
+}
+
+function moveCrosswordSelection(rowDelta, columnDelta) {
+  const game = state.triviaGame;
+  if (!game || game.type !== "crossword" || game.complete) return;
+  let [row, column] = game.activeCellKey.split(":").map(Number);
+  do {
+    row += rowDelta;
+    column += columnDelta;
+  } while (row >= 0 && column >= 0 && row < game.rows && column < game.columns && !game.cells[row]?.[column]);
+  if (row < 0 || column < 0 || row >= game.rows || column >= game.columns) return;
+  selectCrosswordCell(row, column);
+}
+
+function handleCrosswordKeydown(event) {
+  if (/^[a-z]$/i.test(event.key)) {
+    event.preventDefault();
+    enterCrosswordLetter(event.key);
+  } else if (event.key === "Backspace" || event.key === "Delete") {
+    event.preventDefault();
+    eraseCrosswordLetter();
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    checkCrosswordEntry();
+  } else if (event.key === " ") {
+    event.preventDefault();
+    const [row, column] = state.triviaGame.activeCellKey.split(":").map(Number);
+    selectCrosswordCell(row, column);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    moveCrosswordSelection(-1, 0);
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    moveCrosswordSelection(1, 0);
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    moveCrosswordSelection(0, -1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    moveCrosswordSelection(0, 1);
+  }
+}
+
+function bindCrosswordGrid() {
+  const grid = document.getElementById("crosswordGrid");
+  if (!grid || state.triviaGame?.complete) return;
+  grid.addEventListener("click", (event) => {
+    const cell = event.target.closest?.("[data-crossword-cell]");
+    if (cell) selectCrosswordCell(Number(cell.dataset.row), Number(cell.dataset.column));
+  });
+  grid.addEventListener("keydown", handleCrosswordKeydown);
+  document.querySelectorAll("[data-crossword-entry]").forEach((clue) => {
+    clue.addEventListener("click", () => selectCrosswordEntry(clue.dataset.crosswordEntry));
+  });
+  document.querySelectorAll("[data-crossword-key]").forEach((key) => {
+    key.addEventListener("click", () => {
+      if (key.dataset.crosswordKey === "backspace") eraseCrosswordLetter();
+      else if (key.dataset.crosswordKey === "check") checkCrosswordEntry();
+      else enterCrosswordLetter(key.dataset.crosswordKey);
+    });
+  });
+}
+
 function selectBookSprintBook(book) {
   const puzzle = currentBookSprintPuzzle();
   if (!puzzle || puzzle.answered || puzzle.selectedBooks.includes(book)) return;
@@ -16639,7 +17328,7 @@ function scheduleGameReferenceVerseFocus(reference, verse) {
 
 function openTriviaReference() {
   const game = state.triviaGame;
-  const reference = game?.type === "word-search"
+  const reference = game?.type === "word-search" || game?.type === "crossword"
     ? game.reference
     : game?.type === "verse-order" || game?.type === "reference-rush"
     ? game.puzzles?.[game.index]?.reference

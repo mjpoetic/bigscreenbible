@@ -197,14 +197,14 @@ assert.equal(api.wordSearchSelectionCells(0, 0, 2, 1).length, 0, "Bent selection
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 5, 9) }, { row: 6, column: 4 });
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 6, 9) }, { row: 6, column: 6 });
 
-assert.match(source, /data-trivia-mode="word-search"[\s\S]*?game-new-badge/);
-assert.match(source, /aria-label="Word Search, new"/);
+assert.match(source, /data-trivia-mode="crossword"[\s\S]*?game-new-badge/);
+assert.doesNotMatch(source, /aria-label="Word Search, new"/);
 const triviaViewSource = extractFunction("triviaView");
 assert.ok(
   triviaViewSource.indexOf('data-trivia-mode="word-search"') < triviaViewSource.indexOf('data-trivia-mode="trivia"'),
   "Word Search must be first in the Games list",
 );
-assert.match(triviaViewSource, /isWordSearch \? wordSearchDifficulties\(\) : triviaDifficulties\(\)/);
+assert.match(triviaViewSource, /isWordSearch \? wordSearchDifficulties\(\) : isCrossword \? crosswordDifficulties\(\) : triviaDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startWordSearchGame/);
 const startWordSearchSource = extractFunction("startWordSearchGame");
 assert.match(startWordSearchSource, /orderedWordSearchPassages\(\)/);
