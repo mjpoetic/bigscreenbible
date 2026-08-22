@@ -7125,7 +7125,7 @@ select {
   min-height: 150px;
 }
 
-.word-search-restart-overlay {
+.puzzle-restart-overlay {
   position: fixed;
   inset: 0;
   z-index: 220;
@@ -7138,7 +7138,7 @@ select {
   animation: backdropIn var(--motion-base) ease-out both;
 }
 
-.word-search-restart-backdrop {
+.puzzle-restart-backdrop {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -7149,7 +7149,7 @@ select {
   padding: 0;
 }
 
-.word-search-restart-dialog {
+.puzzle-restart-dialog {
   position: relative;
   z-index: 1;
   display: grid;
@@ -7169,7 +7169,7 @@ select {
   animation: dialogIn var(--motion-slow) var(--motion-ease) both;
 }
 
-.word-search-restart-icon {
+.puzzle-restart-icon {
   display: grid;
   place-items: center;
   width: 54px;
@@ -7180,28 +7180,28 @@ select {
   color: var(--gold);
 }
 
-.word-search-restart-icon svg {
+.puzzle-restart-icon svg {
   width: 27px;
   height: 27px;
 }
 
-.word-search-restart-dialog h2,
-.word-search-restart-dialog p {
+.puzzle-restart-dialog h2,
+.puzzle-restart-dialog p {
   margin: 0;
 }
 
-.word-search-restart-dialog h2 {
+.puzzle-restart-dialog h2 {
   font-size: clamp(25px, 4vw, 36px);
 }
 
-.word-search-restart-dialog > p {
+.puzzle-restart-dialog > p {
   max-width: 520px;
   color: var(--muted);
   font-weight: 700;
   line-height: 1.45;
 }
 
-.word-search-restart-options {
+.puzzle-restart-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -7209,7 +7209,7 @@ select {
   margin-top: 4px;
 }
 
-.word-search-restart-option {
+.puzzle-restart-option {
   position: relative;
   display: grid;
   align-content: center;
@@ -7223,27 +7223,27 @@ select {
   text-align: left;
 }
 
-.word-search-restart-option:hover,
-.word-search-restart-option:focus-visible,
-.word-search-restart-option.active {
+.puzzle-restart-option:hover,
+.puzzle-restart-option:focus-visible,
+.puzzle-restart-option.active {
   border-color: var(--gold);
   background: color-mix(in srgb, var(--gold) 11%, var(--paper));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 36%, transparent);
 }
 
-.word-search-restart-option strong {
+.puzzle-restart-option strong {
   color: var(--teal);
   font-size: 18px;
 }
 
-.word-search-restart-option small {
+.puzzle-restart-option small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
   line-height: 1.35;
 }
 
-.word-search-restart-option span {
+.puzzle-restart-option span {
   color: var(--gold);
   font-size: 10px;
   font-weight: 900;
@@ -7251,7 +7251,7 @@ select {
   text-transform: uppercase;
 }
 
-.word-search-restart-cancel {
+.puzzle-restart-cancel {
   min-width: min(240px, 100%);
   min-height: 46px;
   margin-top: 2px;
@@ -7259,27 +7259,27 @@ select {
 }
 
 @media (max-width: 520px) {
-  .word-search-restart-overlay {
+  .puzzle-restart-overlay {
     padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px))
       max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
   }
 
-  .word-search-restart-dialog {
+  .puzzle-restart-dialog {
     max-height: calc(100dvh - 20px);
     gap: 9px;
     padding: 18px 14px;
   }
 
-  .word-search-restart-icon {
+  .puzzle-restart-icon {
     width: 46px;
     height: 46px;
   }
 
-  .word-search-restart-options {
+  .puzzle-restart-options {
     gap: 8px;
   }
 
-  .word-search-restart-option {
+  .puzzle-restart-option {
     min-height: 88px;
     padding: 11px 12px;
   }

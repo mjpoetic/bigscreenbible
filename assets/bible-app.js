@@ -620,7 +620,7 @@ const state = {
   triviaGame: null,
   gameReferenceReturn: null,
   gamesDrawerOpen: "",
-  wordSearchRestartPromptOpen: false,
+  puzzleRestartPromptOpen: false,
   authConfigured: isSupabaseConfigured(),
   authClient: null,
   authUser: null,
@@ -10779,40 +10779,43 @@ function setGamesDrawer(drawer = "") {
   }));
 }
 
-function openWordSearchRestartPrompt() {
-  if (state.triviaGame?.type !== "word-search") return;
+function openPuzzleRestartPrompt() {
+  if (!["word-search", "crossword"].includes(state.triviaGame?.type)) return;
   state.gamesDrawerOpen = "";
-  state.wordSearchRestartPromptOpen = true;
+  state.puzzleRestartPromptOpen = true;
   renderPreservingReaderScroll();
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const dialog = document.getElementById("wordSearchRestartDialog");
-    const current = dialog?.querySelector("[data-word-search-restart-difficulty][aria-current='true']");
+    const dialog = document.getElementById("puzzleRestartDialog");
+    const current = dialog?.querySelector("[data-puzzle-restart-difficulty][aria-current='true']");
     (current || dialog)?.focus({ preventScroll: true });
   }));
 }
 
-function closeWordSearchRestartPrompt() {
-  if (!state.wordSearchRestartPromptOpen) return;
-  state.wordSearchRestartPromptOpen = false;
+function closePuzzleRestartPrompt() {
+  if (!state.puzzleRestartPromptOpen) return;
+  state.puzzleRestartPromptOpen = false;
   renderPreservingReaderScroll();
   requestAnimationFrame(() => requestAnimationFrame(() => {
     document.getElementById("restartTriviaGame")?.focus({ preventScroll: true });
   }));
 }
 
-function restartWordSearchAtDifficulty(difficulty) {
-  if (!wordSearchDifficulties().includes(difficulty)) return;
-  state.wordSearchRestartPromptOpen = false;
+function restartPuzzleAtDifficulty(difficulty) {
+  const gameType = state.triviaGame?.type;
+  const difficulties = gameType === "crossword" ? crosswordDifficulties() : wordSearchDifficulties();
+  if (!["word-search", "crossword"].includes(gameType) || !difficulties.includes(difficulty)) return;
+  state.puzzleRestartPromptOpen = false;
   state.triviaDifficulty = difficulty;
   localStorage.setItem("lw_trivia_difficulty", difficulty);
   scheduleCloudSync();
-  startWordSearchGame();
+  if (gameType === "crossword") startCrosswordGame();
+  else startWordSearchGame();
 }
 
-function trapWordSearchRestartDialog(event) {
+function trapPuzzleRestartDialog(event) {
   if (event.key === "Escape") {
     event.preventDefault();
-    closeWordSearchRestartPrompt();
+    closePuzzleRestartPrompt();
     return;
   }
   if (event.key !== "Tab") return;
@@ -11338,26 +11341,30 @@ function wordSearchPassageMarkup(game) {
   `;
 }
 
-function wordSearchRestartDialog(game) {
-  if (!state.wordSearchRestartPromptOpen) return "";
+function puzzleRestartDialog(game) {
+  if (!state.puzzleRestartPromptOpen) return "";
+  const isCrossword = game.type === "crossword";
+  const gameLabel = isCrossword ? "Crossword" : "Word Search";
+  const difficulties = isCrossword ? crosswordDifficulties() : wordSearchDifficulties();
+  const difficultyDescription = isCrossword ? crosswordDifficultyDescription : wordSearchDifficultyDescription;
   return `
-    <section class="word-search-restart-overlay">
-      <button class="word-search-restart-backdrop" type="button" data-word-search-restart-dismiss aria-label="Keep current puzzle"></button>
-      <article class="word-search-restart-dialog" id="wordSearchRestartDialog" role="dialog" aria-modal="true" aria-labelledby="wordSearchRestartTitle" aria-describedby="wordSearchRestartDescription" tabindex="-1">
-        <div class="word-search-restart-icon" aria-hidden="true">${icons.wordSearch}</div>
+    <section class="puzzle-restart-overlay">
+      <button class="puzzle-restart-backdrop" type="button" data-puzzle-restart-dismiss aria-label="Keep current puzzle"></button>
+      <article class="puzzle-restart-dialog" id="puzzleRestartDialog" role="dialog" aria-modal="true" aria-labelledby="puzzleRestartTitle" aria-describedby="puzzleRestartDescription" tabindex="-1">
+        <div class="puzzle-restart-icon" aria-hidden="true">${isCrossword ? icons.crossword : icons.wordSearch}</div>
         <span class="trivia-eyebrow">Choose your next challenge</span>
-        <h2 id="wordSearchRestartTitle">Select a difficulty</h2>
-        <p id="wordSearchRestartDescription">Your current puzzle stays here until you choose a new level.</p>
-        <div class="word-search-restart-options" role="group" aria-label="Word Search difficulty">
-          ${wordSearchDifficulties().map((difficulty) => `
-            <button class="word-search-restart-option ${difficulty === game.difficulty ? "active" : ""}" type="button" data-word-search-restart-difficulty="${difficulty}" ${difficulty === game.difficulty ? 'aria-current="true"' : ""}>
+        <h2 id="puzzleRestartTitle">Select a difficulty</h2>
+        <p id="puzzleRestartDescription">Your current ${gameLabel} stays here until you choose a new level.</p>
+        <div class="puzzle-restart-options" role="group" aria-label="${gameLabel} difficulty">
+          ${difficulties.map((difficulty) => `
+            <button class="puzzle-restart-option ${difficulty === game.difficulty ? "active" : ""}" type="button" data-puzzle-restart-difficulty="${difficulty}" ${difficulty === game.difficulty ? 'aria-current="true"' : ""}>
               <strong>${difficulty}</strong>
-              <small>${wordSearchDifficultyDescription(difficulty)}</small>
+              <small>${difficultyDescription(difficulty)}</small>
               ${difficulty === game.difficulty ? "<span>Current level</span>" : ""}
             </button>
           `).join("")}
         </div>
-        <button class="ghost-btn word-search-restart-cancel" type="button" data-word-search-restart-dismiss>Keep current puzzle</button>
+        <button class="ghost-btn puzzle-restart-cancel" type="button" data-puzzle-restart-dismiss>Keep current puzzle</button>
       </article>
     </section>
   `;
@@ -11445,7 +11452,7 @@ function wordSearchGameView(game) {
           </div>
         </aside>
       </div>
-      ${wordSearchRestartDialog(game)}
+      ${puzzleRestartDialog(game)}
     </div>
   `;
 }
@@ -11577,6 +11584,7 @@ function crosswordGameView(game) {
           </div>
         </aside>
       </div>
+      ${puzzleRestartDialog(game)}
     </div>
   `;
 }
@@ -14458,7 +14466,7 @@ function bindEvents() {
       cleanupTriviaCelebration();
       state.triviaGameType = button.dataset.triviaMode || "trivia";
       state.triviaGame = null;
-      state.wordSearchRestartPromptOpen = false;
+      state.puzzleRestartPromptOpen = false;
       if (state.triviaGameType === "reference-rush") {
         state.triviaDifficulty = "Easy";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
@@ -14552,17 +14560,16 @@ function bindEvents() {
     state.gamesDrawerOpen = "";
     startTriviaGame();
   });
-  document.querySelectorAll("[data-word-search-restart-difficulty]").forEach((button) => {
-    button.addEventListener("click", () => restartWordSearchAtDifficulty(button.dataset.wordSearchRestartDifficulty));
+  document.querySelectorAll("[data-puzzle-restart-difficulty]").forEach((button) => {
+    button.addEventListener("click", () => restartPuzzleAtDifficulty(button.dataset.puzzleRestartDifficulty));
   });
-  document.querySelectorAll("[data-word-search-restart-dismiss]").forEach((button) => {
-    button.addEventListener("click", closeWordSearchRestartPrompt);
+  document.querySelectorAll("[data-puzzle-restart-dismiss]").forEach((button) => {
+    button.addEventListener("click", closePuzzleRestartPrompt);
   });
-  document.getElementById("wordSearchRestartDialog")?.addEventListener("keydown", trapWordSearchRestartDialog);
+  document.getElementById("puzzleRestartDialog")?.addEventListener("keydown", trapPuzzleRestartDialog);
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
-    if (state.triviaGame?.type === "word-search") return openWordSearchRestartPrompt();
-    if (state.triviaGame?.type === "crossword") return startCrosswordGame();
+    if (["word-search", "crossword"].includes(state.triviaGame?.type)) return openPuzzleRestartPrompt();
     startTriviaGame();
   });
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
@@ -14571,7 +14578,7 @@ function bindEvents() {
     state.activeGameChallengeId = "";
     state.triviaGame = null;
     state.gamesDrawerOpen = "";
-    state.wordSearchRestartPromptOpen = false;
+    state.puzzleRestartPromptOpen = false;
     renderPreservingReaderScroll();
   });
   document.getElementById("nextTriviaQuestion")?.addEventListener("click", nextTriviaQuestion);
@@ -15250,7 +15257,7 @@ function startWordSearchGame({ render = true } = {}) {
     return;
   }
   state.triviaDifficulty = difficulty;
-  state.wordSearchRestartPromptOpen = false;
+  state.puzzleRestartPromptOpen = false;
   localStorage.setItem("lw_trivia_difficulty", difficulty);
   if (target) primeWordSearchAudio();
   state.triviaGame = {
@@ -16481,7 +16488,7 @@ function exitTriviaGame() {
   state.activeGameChallengeId = "";
   state.triviaGame = null;
   state.gamesDrawerOpen = "";
-  state.wordSearchRestartPromptOpen = false;
+  state.puzzleRestartPromptOpen = false;
   renderPreservingReaderScroll();
 }
 
