@@ -405,8 +405,11 @@ const loadedVersionData = new Map();
 const loadingVersions = new Set();
 const remoteVersionData = new Map();
 const remoteVersionErrors = new Map();
+const remoteVersionRequests = new Map();
+const remoteVersionRerenders = new Set();
 const remoteSearchErrors = new Map();
 const trackedFumsTokens = new Set();
+let referencePreviewRequestId = 0;
 let verseOfDayPool = null;
 const strongLexiconSources = [
   {
@@ -6484,7 +6487,7 @@ function ampInlineReferenceMarkup(value) {
   if (!parts.length || parts.some((part) => !part)) return "";
 
   return parts
-    .map((part) => `<button class="scripture-inline-reference-link" type="button" data-scripture-reference="${escapeHtml(part.reference)}" aria-label="Open ${escapeHtml(part.reference)}">${escapeHtml(part.display)}</button>`)
+    .map((part) => `<button class="scripture-inline-reference-link" type="button" data-scripture-reference="${escapeHtml(part.reference)}" aria-label="Preview ${escapeHtml(part.reference)}" aria-haspopup="dialog" aria-expanded="false">${escapeHtml(part.display)}</button>`)
     .join('<span class="scripture-inline-reference-separator">; </span>');
 }
 
@@ -9469,7 +9472,7 @@ function scriptureHeadingTextMarkup(text, options = {}) {
   const referenceParts = options.linkReferences === false ? null : scriptureHeadingReferenceParts(text);
   if (!referenceParts) return escapeHtml(text);
   return `(${referenceParts
-    .map((part) => `<button class="scripture-heading-reference-link" type="button" data-heading-reference="${escapeHtml(part.reference)}" aria-label="Open ${escapeHtml(part.display)}">${escapeHtml(part.display)}</button>`)
+    .map((part) => `<button class="scripture-heading-reference-link" type="button" data-heading-reference="${escapeHtml(part.reference)}" aria-label="Preview ${escapeHtml(part.display)}" aria-haspopup="dialog" aria-expanded="false">${escapeHtml(part.display)}</button>`)
     .join('<span class="scripture-heading-reference-separator">; </span>')})`;
 }
 
@@ -12687,6 +12690,87 @@ function openCrossReferencePopup(anchor) {
   showStudyPopup(anchor, content, "Cross references");
 }
 
+function referencePreviewHref(reference) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("ref", reference);
+  url.searchParams.delete("verses");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function referencePreviewPassageMarkup(reference, requestedVersion) {
+  const parsed = parsePassageReference(reference);
+  if (!parsed) return `<div class="empty-state">This Scripture reference could not be read.</div>`;
+  const selected = new Set(parsed.verses);
+  const passageVerses = (bibleData[parsed.key]?.verses || [])
+    .filter((verse) => selected.has(verse.n));
+  const requestedAvailable = passageVerses.length
+    && passageVerses.every((verse) => String(verse[requestedVersion] || "").trim());
+  const version = requestedAvailable ? requestedVersion : "BSB";
+  const lines = passageVerses
+    .map((verse) => ({ n: verse.n, text: String(verse[version] || "").trim() }))
+    .filter(({ text }) => text);
+  const fallbackNotice = version !== requestedVersion
+    ? `<p class="reference-preview-notice">${escapeHtml(translationDisplayCode(requestedVersion))} could not be loaded for this preview. Showing ${escapeHtml(translationDisplayCode(version))}.</p>`
+    : "";
+  const passage = lines.length
+    ? lines.map(({ n, text }) => `
+        <p class="reference-preview-verse"><sup>${n}</sup><span>${escapeHtml(text)}</span></p>
+      `).join("")
+    : `<div class="empty-state">Scripture text is not available for this reference.</div>`;
+  return `
+    <div class="reference-preview-meta">
+      <strong>${escapeHtml(reference)}</strong>
+      <span>${escapeHtml(translationDisplayCode(version))}</span>
+    </div>
+    ${fallbackNotice}
+    <div class="reference-preview-text" tabindex="0" aria-label="${escapeHtml(reference)} Scripture text">
+      ${passage}
+    </div>
+    ${apiBibleAttributionMarkup([version], "reference-preview-attribution", parsed.key)}
+    <div class="reference-preview-actions">
+      <a class="reference-preview-go" href="${escapeHtml(referencePreviewHref(reference))}" data-popup-goto="${escapeHtml(reference)}">Go to Passage <span aria-hidden="true">→</span></a>
+    </div>
+  `;
+}
+
+async function openReferencePreviewPopup(anchor, reference) {
+  const normalizedReference = normalizeHeadingReference(reference);
+  const parsed = parsePassageReference(normalizedReference);
+  if (!parsed) {
+    showToast("This Scripture reference could not be read");
+    return;
+  }
+  const version = state.versions[0] || "BSB";
+  const needsRemoteText = isRemoteTranslation(version)
+    && !remoteVersionData.has(remoteVersionLoadKey(version, parsed.key));
+  const initialContent = needsRemoteText
+    ? `<div class="reference-preview-loading" role="status" aria-live="polite"><span class="reference-preview-loading-mark" aria-hidden="true"></span><span>Loading ${escapeHtml(translationDisplayCode(version))}…</span></div>`
+    : referencePreviewPassageMarkup(normalizedReference, version);
+  const popup = showStudyPopup(
+    anchor,
+    `<div class="reference-preview-body" data-reference-preview-body>${initialContent}</div>`,
+    "Scripture preview",
+    { className: "reference-preview-popup" },
+  );
+  const requestId = ++referencePreviewRequestId;
+  popup.dataset.referencePreviewRequest = String(requestId);
+  popup.dataset.referencePreview = normalizedReference;
+  bindStudyPopupGotoLinks(popup);
+  if (!needsRemoteText) return;
+
+  await ensureRemoteBibleVersion(version, parsed.key, { rerender: false });
+  if (
+    requestId !== referencePreviewRequestId
+    || popup !== document.getElementById("studyPopup")
+    || !popup.isConnected
+  ) return;
+  const body = popup.querySelector("[data-reference-preview-body]");
+  if (!body) return;
+  body.innerHTML = referencePreviewPassageMarkup(normalizedReference, version);
+  bindStudyPopupGotoLinks(popup);
+  positionStudyPopup(anchor, popup);
+}
+
 function openVerseActionMenu(anchor) {
   const verseNumber = Number(anchor.dataset.verseActions);
   if (!verseNumber) return;
@@ -12799,10 +12883,22 @@ function closeVerseActionMenu(immediate = false) {
   animateBeforeRemoval("#verseActionMenu", () => menu.remove(), { duration: 150 });
 }
 
-function showStudyPopup(anchor, content, label) {
+function bindStudyPopupGotoLinks(popup) {
+  popup.querySelectorAll("[data-popup-goto]").forEach((button) => {
+    if (button.dataset.popupGotoBound === "true") return;
+    button.dataset.popupGotoBound = "true";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeStudyPopup();
+      gotoReference(button.dataset.popupGoto, { linkNavigation: true });
+    });
+  });
+}
+
+function showStudyPopup(anchor, content, label, options = {}) {
   closeStudyPopup(true);
   const popup = document.createElement("div");
-  popup.className = "study-popup";
+  popup.className = ["study-popup", options.className || ""].filter(Boolean).join(" ");
   popup.id = "studyPopup";
   popup.setAttribute("role", "dialog");
   popup.setAttribute("aria-label", label);
@@ -12814,29 +12910,48 @@ function showStudyPopup(anchor, content, label) {
     ${content}
   `;
   (document.querySelector(".app-shell") || document.body).appendChild(popup);
+  popup.studyPopupAnchor = anchor;
+  anchor.setAttribute("aria-expanded", "true");
+  anchor.setAttribute("aria-controls", popup.id);
   positionStudyPopup(anchor, popup);
-  popup.querySelector(".study-popup-close")?.addEventListener("click", closeStudyPopup);
-  popup.querySelectorAll("[data-popup-goto]").forEach((button) => {
-    button.addEventListener("click", () => {
-      closeStudyPopup();
-      gotoReference(button.dataset.popupGoto, { linkNavigation: true });
-    });
+  popup.querySelector(".study-popup-close")?.addEventListener("click", () => {
+    closeStudyPopup(false, true);
   });
+  bindStudyPopupGotoLinks(popup);
   requestAnimationFrame(() => {
     document.addEventListener("click", closeStudyPopupOnOutside, true);
     window.addEventListener("resize", closeStudyPopup, { once: true });
   });
+  return popup;
 }
 
 function positionStudyPopup(anchor, popup) {
   const rect = anchor.getBoundingClientRect();
   const gap = 10;
-  const maxWidth = Math.min(360, window.innerWidth - 24);
+  const referencePreview = popup.classList.contains("reference-preview-popup");
+  const maxWidth = Math.min(referencePreview ? 440 : 360, window.innerWidth - 24);
   popup.style.maxWidth = `${maxWidth}px`;
-  const popupRect = popup.getBoundingClientRect();
+  popup.style.removeProperty("--reference-preview-text-max-height");
+  let popupRect = popup.getBoundingClientRect();
   const left = Math.min(Math.max(12, rect.left + rect.width / 2 - popupRect.width / 2), window.innerWidth - popupRect.width - 12);
-  const canFitBelow = rect.bottom + gap + popupRect.height <= window.innerHeight - 12;
+  const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - 12);
+  const spaceAbove = Math.max(0, rect.top - gap - 12);
+  const canFitBelow = referencePreview
+    ? spaceBelow >= Math.min(popupRect.height, 260) || spaceBelow >= spaceAbove
+    : rect.bottom + gap + popupRect.height <= window.innerHeight - 12;
+  if (referencePreview) {
+    const availableHeight = Math.max(180, canFitBelow ? spaceBelow : spaceAbove);
+    const passage = popup.querySelector(".reference-preview-text");
+    if (passage && popupRect.height > availableHeight) {
+      const nextPassageHeight = Math.max(96, passage.clientHeight - (popupRect.height - availableHeight));
+      popup.style.setProperty("--reference-preview-text-max-height", `${nextPassageHeight}px`);
+      popupRect = popup.getBoundingClientRect();
+    }
+  }
   const top = canFitBelow ? rect.bottom + gap : Math.max(12, rect.top - popupRect.height - gap);
+  const anchorX = Math.min(Math.max(22, rect.left + rect.width / 2 - left), popupRect.width - 22);
+  popup.dataset.placement = canFitBelow ? "below" : "above";
+  popup.style.setProperty("--study-popup-anchor-x", `${anchorX}px`);
   popup.style.left = `${left}px`;
   popup.style.top = `${top}px`;
 }
@@ -12844,14 +12959,19 @@ function positionStudyPopup(anchor, popup) {
 function closeStudyPopupOnOutside(event) {
   const popup = document.getElementById("studyPopup");
   if (!popup) return;
-  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse]")) return;
+  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-heading-reference], [data-scripture-reference]")) return;
   closeStudyPopup();
 }
 
-function closeStudyPopup(immediate = false) {
+function closeStudyPopup(immediate = false, restoreFocus = false) {
+  referencePreviewRequestId += 1;
   const popup = document.getElementById("studyPopup");
   document.removeEventListener("click", closeStudyPopupOnOutside, true);
   if (!popup) return;
+  const anchor = popup.studyPopupAnchor;
+  anchor?.setAttribute("aria-expanded", "false");
+  anchor?.removeAttribute("aria-controls");
+  if (restoreFocus && anchor?.isConnected) anchor.focus({ preventScroll: true });
   if (immediate) {
     popup.remove();
     return;
@@ -14687,13 +14807,13 @@ function bindEvents() {
   document.querySelectorAll("[data-heading-reference]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      gotoReference(button.dataset.headingReference || "", { linkNavigation: true });
+      openReferencePreviewPopup(button, button.dataset.headingReference || "");
     });
   });
   document.querySelectorAll("[data-scripture-reference]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      gotoReference(button.dataset.scriptureReference || "", { linkNavigation: true });
+      openReferencePreviewPopup(button, button.dataset.scriptureReference || "");
     });
   });
   document.querySelectorAll("[data-verse-actions]").forEach((button) => {
@@ -20494,7 +20614,7 @@ function handleGlobalShortcuts(event) {
     }
     if (document.getElementById("studyPopup")) {
       event.preventDefault();
-      return closeStudyPopup();
+      return closeStudyPopup(false, true);
     }
     if (state.aboutMenuOpen) {
       event.preventDefault();
@@ -21699,53 +21819,65 @@ function trackApiBibleView(fumsToken) {
   window.fums?.("trackView", fumsToken);
 }
 
-async function ensureRemoteBibleVersion(version, chapterKey) {
-  if (!isRemoteTranslation(version)) return;
+async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
+  if (!isRemoteTranslation(version)) return null;
   const loadKey = remoteVersionLoadKey(version, chapterKey);
-  if (remoteVersionData.has(loadKey) || loadingVersions.has(loadKey) || remoteVersionErrors.has(loadKey)) return;
+  if (remoteVersionData.has(loadKey)) return remoteVersionData.get(loadKey);
+  if (remoteVersionErrors.has(loadKey)) return null;
+  if (options.rerender !== false) remoteVersionRerenders.add(loadKey);
+  if (remoteVersionRequests.has(loadKey)) return remoteVersionRequests.get(loadKey);
 
   const config = window.BigScreenBibleSupabase || {};
   const provider = translationProvider(version);
   const url = remoteFunctionUrl(version, chapterKey);
   if (!url || !config.anonKey) {
     remoteVersionErrors.set(loadKey, "Remote Bible version is not configured.");
-    return;
+    remoteVersionRerenders.delete(loadKey);
+    return null;
   }
 
-  loadingVersions.add(loadKey);
-  remoteVersionErrors.delete(loadKey);
-  try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${config.anonKey}`,
-      },
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload.error || `${version} request failed`);
+  const request = (async () => {
+    loadingVersions.add(loadKey);
+    remoteVersionErrors.delete(loadKey);
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: {
+          apikey: config.anonKey,
+          Authorization: `Bearer ${config.anonKey}`,
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || `${version} request failed`);
+      }
+      const verses = Array.isArray(payload.verses) ? payload.verses : [];
+      if (!verses.length) throw new Error(`${version} returned no verses`);
+      const versionPayload = { ...payload, verses };
+      remoteVersionData.set(loadKey, versionPayload);
+      mergeRemoteVersionChapter(version, chapterKey, verses);
+      if (provider.tracksFums) trackApiBibleView(payload.fumsToken);
+      return versionPayload;
+    } catch (error) {
+      console.error(error);
+      remoteVersionErrors.set(loadKey, error.message || `${version} could not be loaded`);
+      return null;
+    } finally {
+      loadingVersions.delete(loadKey);
+      remoteVersionRequests.delete(loadKey);
+      if (remoteVersionRerenders.delete(loadKey)) renderPreservingReaderScroll();
     }
-    const verses = Array.isArray(payload.verses) ? payload.verses : [];
-    if (!verses.length) throw new Error(`${version} returned no verses`);
-    remoteVersionData.set(loadKey, { ...payload, verses });
-    mergeRemoteVersionChapter(version, chapterKey, verses);
-    if (provider.tracksFums) trackApiBibleView(payload.fumsToken);
-  } catch (error) {
-    console.error(error);
-    remoteVersionErrors.set(loadKey, error.message || `${version} could not be loaded`);
-  } finally {
-    loadingVersions.delete(loadKey);
-    renderPreservingReaderScroll();
-  }
+  })();
+  remoteVersionRequests.set(loadKey, request);
+  return request;
 }
 
-function apiBibleAttributionMarkup(versions, className = "") {
+function apiBibleAttributionMarkup(versions, className = "", chapterKey = state.reference) {
   const notices = [];
   const seen = new Set();
   versions.forEach((version) => {
     if (!translationProvider(version).showsAttribution) return;
-    const payload = remoteVersionData.get(remoteVersionLoadKey(version, state.reference));
+    const payload = remoteVersionData.get(remoteVersionLoadKey(version, chapterKey));
     const copyright = String(payload?.copyright || "").trim();
     if (!copyright || seen.has(copyright)) return;
     seen.add(copyright);
