@@ -9666,7 +9666,12 @@ select {
   z-index: 210;
   width: min(360px, calc(100vw - 24px));
   max-height: min(460px, calc(100vh - 24px));
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid color-mix(in srgb, var(--teal) 54%, var(--line));
   border-radius: 8px;
   background: var(--panel);
@@ -9780,6 +9785,7 @@ select {
   max-height: min(330px, calc(100dvh - 230px), var(--reference-preview-text-max-height, 330px));
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   scrollbar-gutter: stable;
   border-block: 1px solid var(--line);
   padding: 12px 4px;

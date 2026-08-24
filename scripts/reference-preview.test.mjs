@@ -128,8 +128,12 @@ assert.match(extractFunction("ensureRemoteBibleVersion"), /options\.rerender !==
 
 assert.match(styles, /\.reference-preview-popup::before \{/);
 assert.match(styles, /\.reference-preview-popup \{[\s\S]*?max-height: none/);
+assert.match(styles, /\.study-popup \{[\s\S]*?overflow-y: auto[\s\S]*?overscroll-behavior: contain/);
+assert.match(styles, /\.study-popup \{[\s\S]*?pointer-events: auto[\s\S]*?touch-action: pan-y/);
+assert.match(styles, /\.study-popup \{[\s\S]*?-webkit-overflow-scrolling: touch/);
 assert.match(styles, /\.reference-preview-text \{[\s\S]*?--reference-preview-text-max-height[\s\S]*?overflow-y: auto/);
 assert.match(styles, /\.reference-preview-text \{[\s\S]*?overscroll-behavior: contain/);
+assert.match(styles, /\.reference-preview-text \{[\s\S]*?touch-action: pan-y/);
 assert.match(styles, /\.reference-preview-go \{[\s\S]*?min-height: 42px/);
 assert.match(styles, /\.reference-preview-actions\.has-back \{/);
 assert.match(styles, /\.reference-preview-back \{[\s\S]*?min-height: 42px/);
