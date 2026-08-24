@@ -264,6 +264,11 @@ let focusBrandVersionHoldGesture = null;
 let suppressFocusBrandClickUntil = 0;
 const mobileControlsHoldMs = 350;
 const mobileControlsHoldMoveTolerancePx = 12;
+let crossReferenceHoldTimer = 0;
+let crossReferenceHoldGesture = null;
+let suppressCrossReferenceVerseClickUntil = 0;
+const crossReferenceHoldMs = mobileControlsHoldMs;
+const crossReferenceHoldMoveTolerancePx = mobileControlsHoldMoveTolerancePx;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
@@ -355,7 +360,6 @@ const readerTwoFingerTapMaxMs = 360;
 const readerDoubleTapMaxMs = 380;
 const readerDoubleTapDistancePx = 44;
 const readerPageControlDoubleActivationMs = 380;
-const crossReferenceMouseClickDelayMs = 500;
 const cloudSyncTable = "bsb_user_sync";
 const socialProfileTable = "bsb_profiles";
 const friendshipTable = "bsb_friendships";
@@ -412,7 +416,6 @@ const remoteVersionRerenders = new Set();
 const remoteSearchErrors = new Map();
 const trackedFumsTokens = new Set();
 let referencePreviewRequestId = 0;
-let crossReferenceClickTimer = 0;
 let verseOfDayPool = null;
 const strongLexiconSources = [
   {
@@ -9529,7 +9532,7 @@ function paragraphReaderView(verses, version) {
         ${group.map((verse) => `
           <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
             <span class="paragraph-verse-marker">
-              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" data-cross-ref-double-click="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}. Double-click for cross references" aria-expanded="false">${verse.n}</button>
+              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" data-cross-ref-hold="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}. Press and hold for cross references" aria-expanded="false">${verse.n}</button>
               ${verseNoteIndicatorsMarkup(verse.n)}
             </span>
             <span class="verse-text">${renderStrongText(verse, version)}</span>
@@ -12686,8 +12689,7 @@ function openStrongPopup(anchor) {
 }
 
 function openCrossReferencePopup(anchor) {
-  clearPendingCrossReferenceClick();
-  const verseNumber = Number(anchor.dataset.crossRefVerse || anchor.dataset.crossRefDoubleClick);
+  const verseNumber = Number(anchor.dataset.crossRefVerse || anchor.dataset.crossRefHold);
   const reference = `${state.reference}:${verseNumber}`;
   const refs = crossReferenceItems(reference);
   state.verse = verseNumber;
@@ -12697,36 +12699,77 @@ function openCrossReferencePopup(anchor) {
   bindCrossReferencePreviewLinks(popup);
 }
 
-function clearPendingCrossReferenceClick() {
-  if (!crossReferenceClickTimer) return;
-  window.clearTimeout(crossReferenceClickTimer);
-  crossReferenceClickTimer = 0;
+function suppressCrossReferenceVerseClick(event) {
+  if (Date.now() >= suppressCrossReferenceVerseClickUntil) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
 }
 
 function bindCrossReferenceVerseNumber(button) {
-  let pointerType = "";
-  button.addEventListener("pointerdown", (event) => {
-    pointerType = event.pointerType || "";
-  });
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (event.detail === 0 || (pointerType && pointerType !== "mouse")) {
-      openCrossReferencePopup(button);
-      return;
-    }
-    clearPendingCrossReferenceClick();
-    if (event.detail > 1) return;
-    crossReferenceClickTimer = window.setTimeout(() => {
-      crossReferenceClickTimer = 0;
-      if (button.isConnected) openCrossReferencePopup(button);
-    }, crossReferenceMouseClickDelayMs);
-  });
-  button.addEventListener("dblclick", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    clearPendingCrossReferenceClick();
-    openCrossReferencePopup(button);
-  });
+  button.addEventListener("pointerdown", beginCrossReferenceHold);
+  button.addEventListener("pointermove", updateCrossReferenceHold);
+  button.addEventListener("pointerup", endCrossReferenceHold);
+  button.addEventListener("pointercancel", endCrossReferenceHold);
+  button.addEventListener("pointerleave", endCrossReferenceHold);
+  button.addEventListener("contextmenu", suppressCrossReferenceContextMenu);
+}
+
+function handleCrossReferenceVerseClick(event) {
+  if (suppressCrossReferenceVerseClick(event)) return;
+  event.stopPropagation();
+  openCrossReferencePopup(event.currentTarget);
+}
+
+function beginCrossReferenceHold(event) {
+  if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
+  cancelCrossReferenceHold();
+  const button = event.currentTarget;
+  crossReferenceHoldGesture = {
+    button,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+  };
+  button.classList.add("cross-ref-hold-pending");
+  crossReferenceHoldTimer = setTimeout(() => {
+    const gesture = crossReferenceHoldGesture;
+    crossReferenceHoldTimer = 0;
+    crossReferenceHoldGesture = null;
+    gesture?.button.classList.remove("cross-ref-hold-pending");
+    if (!gesture || gesture.button.isConnected === false) return;
+    suppressCrossReferenceVerseClickUntil = Date.now() + 800;
+    closeVerseActionMenu(true);
+    openCrossReferencePopup(gesture.button);
+  }, crossReferenceHoldMs);
+}
+
+function updateCrossReferenceHold(event) {
+  const gesture = crossReferenceHoldGesture;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  if (
+    Math.abs(event.clientX - gesture.startX) > crossReferenceHoldMoveTolerancePx
+    || Math.abs(event.clientY - gesture.startY) > crossReferenceHoldMoveTolerancePx
+  ) {
+    suppressCrossReferenceVerseClickUntil = Date.now() + 500;
+    cancelCrossReferenceHold();
+  }
+}
+
+function endCrossReferenceHold(event) {
+  if (crossReferenceHoldGesture && crossReferenceHoldGesture.pointerId !== event.pointerId) return;
+  cancelCrossReferenceHold();
+}
+
+function cancelCrossReferenceHold() {
+  clearTimeout(crossReferenceHoldTimer);
+  crossReferenceHoldTimer = 0;
+  crossReferenceHoldGesture?.button.classList.remove("cross-ref-hold-pending");
+  crossReferenceHoldGesture = null;
+}
+
+function suppressCrossReferenceContextMenu(event) {
+  event.preventDefault();
 }
 
 function crossReferencePopupMarkup(reference, refs = crossReferenceItems(reference)) {
@@ -13085,7 +13128,7 @@ function positionStudyPopup(anchor, popup) {
 function closeStudyPopupOnOutside(event) {
   const popup = document.getElementById("studyPopup");
   if (!popup) return;
-  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-heading-reference], [data-scripture-reference]")) return;
+  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference]")) return;
   closeStudyPopup();
 }
 
@@ -14936,7 +14979,10 @@ function bindEvents() {
       openCrossReferencePopup(button);
     });
   });
-  document.querySelectorAll(".verse-num[data-cross-ref-verse]").forEach(bindCrossReferenceVerseNumber);
+  document.querySelectorAll(".verse-num[data-cross-ref-verse]").forEach((button) => {
+    button.addEventListener("click", handleCrossReferenceVerseClick);
+    bindCrossReferenceVerseNumber(button);
+  });
   document.querySelectorAll("[data-heading-reference]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -14951,19 +14997,12 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-verse-actions]").forEach((button) => {
     button.addEventListener("click", (event) => {
+      if (suppressCrossReferenceVerseClick(event)) return;
       event.stopPropagation();
-      if (event.detail > 1) return;
       openVerseActionMenu(button);
     });
   });
-  document.querySelectorAll("[data-cross-ref-double-click]").forEach((button) => {
-    button.addEventListener("dblclick", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      closeVerseActionMenu(true);
-      openCrossReferencePopup(button);
-    });
-  });
+  document.querySelectorAll(".verse-num[data-cross-ref-hold]").forEach(bindCrossReferenceVerseNumber);
   document.querySelectorAll("[data-copy-verse]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();

@@ -96,15 +96,17 @@ assert.match(ampMarkup, /data-chapter="Ezekiel 36"/);
 
 assert.match(source, /data-heading-reference="[^\n]+aria-haspopup="dialog" aria-expanded="false"/);
 assert.match(source, /data-scripture-reference="[^\n]+aria-haspopup="dialog" aria-expanded="false"/);
-assert.match(extractFunction("paragraphReaderView"), /data-cross-ref-double-click="\$\{verse\.n\}"/);
-assert.match(extractFunction("openCrossReferencePopup"), /anchor\.dataset\.crossRefVerse \|\| anchor\.dataset\.crossRefDoubleClick/);
-assert.match(extractFunction("bindCrossReferenceVerseNumber"), /pointerType && pointerType !== "mouse"/);
-assert.match(extractFunction("bindCrossReferenceVerseNumber"), /crossReferenceMouseClickDelayMs/);
-assert.match(extractFunction("bindCrossReferenceVerseNumber"), /addEventListener\("dblclick"/);
+assert.match(extractFunction("paragraphReaderView"), /data-cross-ref-hold="\$\{verse\.n\}"/);
+assert.match(extractFunction("openCrossReferencePopup"), /anchor\.dataset\.crossRefVerse \|\| anchor\.dataset\.crossRefHold/);
+assert.match(extractFunction("bindCrossReferenceVerseNumber"), /pointerdown", beginCrossReferenceHold/);
+assert.match(extractFunction("bindCrossReferenceVerseNumber"), /pointercancel", endCrossReferenceHold/);
+assert.match(extractFunction("bindCrossReferenceVerseNumber"), /contextmenu", suppressCrossReferenceContextMenu/);
 assert.match(extractFunction("bindEvents"), /\.verse-num\[data-cross-ref-verse\]/);
-assert.match(extractFunction("bindEvents"), /querySelectorAll\("\[data-cross-ref-double-click\]"\)/);
-assert.match(extractFunction("bindEvents"), /addEventListener\("dblclick"/);
-assert.match(extractFunction("bindEvents"), /if \(event\.detail > 1\) return/);
+assert.match(extractFunction("bindEvents"), /\.verse-num\[data-cross-ref-hold\]/);
+assert.match(extractFunction("beginCrossReferenceHold"), /crossReferenceHoldMs/);
+assert.match(extractFunction("updateCrossReferenceHold"), /crossReferenceHoldMoveTolerancePx/);
+assert.match(styles, /\.verse-num\.cross-ref-hold-pending::after/);
+assert.match(styles, /animation:\s*mobileSettingsHoldProgress 350ms linear forwards/);
 assert.match(extractFunction("bindEvents"), /openReferencePreviewPopup\(button, button\.dataset\.headingReference/);
 assert.match(extractFunction("bindEvents"), /openReferencePreviewPopup\(button, button\.dataset\.scriptureReference/);
 assert.match(extractFunction("openReferencePreviewPopup"), /ensureRemoteBibleVersion\(version, parsed\.key, \{ rerender: false \}\)/);
@@ -148,5 +150,102 @@ assert.match(styles, /\.reference-preview-actions\.has-back \{/);
 assert.match(styles, /\.reference-preview-back \{[\s\S]*?min-height: 42px/);
 assert.match(styles, /@media \(max-width: 520px\) \{[\s\S]*?\.reference-preview-go \{[\s\S]*?min-height: 44px/);
 assert.match(styles, /@media \(max-width: 520px\) \{[\s\S]*?\.reference-preview-back \{[\s\S]*?min-height: 44px/);
+
+let scheduledHold = null;
+let holdNow = 1000;
+let crossReferenceOpens = 0;
+let verseMenuCloses = 0;
+const holdContext = {
+  Date: { now: () => holdNow },
+  setTimeout(callback, delay) {
+    scheduledHold = { callback, delay };
+    return 7;
+  },
+  clearTimeout() {
+    scheduledHold = null;
+  },
+  closeVerseActionMenu(immediate) {
+    assert.equal(immediate, true);
+    verseMenuCloses += 1;
+  },
+  openCrossReferencePopup() {
+    crossReferenceOpens += 1;
+  },
+};
+vm.createContext(holdContext);
+vm.runInContext(`
+  let crossReferenceHoldTimer = 0;
+  let crossReferenceHoldGesture = null;
+  let suppressCrossReferenceVerseClickUntil = 0;
+  const crossReferenceHoldMs = 350;
+  const crossReferenceHoldMoveTolerancePx = 12;
+  ${extractFunction("suppressCrossReferenceVerseClick")}
+  ${extractFunction("handleCrossReferenceVerseClick")}
+  ${extractFunction("beginCrossReferenceHold")}
+  ${extractFunction("updateCrossReferenceHold")}
+  ${extractFunction("endCrossReferenceHold")}
+  ${extractFunction("cancelCrossReferenceHold")}
+  ${extractFunction("suppressCrossReferenceContextMenu")}
+  globalThis.handleClick = handleCrossReferenceVerseClick;
+  globalThis.beginHold = beginCrossReferenceHold;
+  globalThis.moveHold = updateCrossReferenceHold;
+  globalThis.endHold = endCrossReferenceHold;
+  globalThis.suppressContextMenu = suppressCrossReferenceContextMenu;
+`, holdContext);
+
+const holdClasses = new Set();
+const holdButton = {
+  isConnected: true,
+  classList: {
+    add: (name) => holdClasses.add(name),
+    remove: (name) => holdClasses.delete(name),
+  },
+};
+const holdPointerEvent = (overrides = {}) => ({
+  currentTarget: holdButton,
+  isPrimary: true,
+  pointerType: "touch",
+  pointerId: 4,
+  clientX: 40,
+  clientY: 20,
+  ...overrides,
+});
+
+holdContext.beginHold(holdPointerEvent());
+assert.equal(scheduledHold.delay, 350, "Cross references use the established mobile hold timing");
+assert.equal(holdClasses.has("cross-ref-hold-pending"), true, "The verse number shows hold progress");
+holdContext.moveHold(holdPointerEvent({ clientX: 53 }));
+assert.equal(scheduledHold, null, "Moving beyond the tolerance cancels the cross-reference hold");
+assert.equal(holdClasses.has("cross-ref-hold-pending"), false);
+
+holdNow = 2000;
+holdContext.beginHold(holdPointerEvent());
+scheduledHold.callback();
+assert.equal(crossReferenceOpens, 1, "A completed hold opens the verse cross references");
+assert.equal(verseMenuCloses, 1, "A completed hold replaces any paragraph verse menu");
+assert.equal(holdClasses.has("cross-ref-hold-pending"), false);
+
+let clickPrevented = 0;
+let clickStopped = 0;
+const clickEvent = {
+  currentTarget: holdButton,
+  preventDefault: () => { clickPrevented += 1; },
+  stopPropagation: () => { clickStopped += 1; },
+};
+holdContext.handleClick(clickEvent);
+assert.equal(clickPrevented, 1, "The click generated after a completed hold is suppressed");
+assert.equal(crossReferenceOpens, 1, "The completed hold does not reopen the popup on click");
+
+holdNow = 3000;
+holdContext.handleClick(clickEvent);
+assert.equal(crossReferenceOpens, 2, "A normal short click keeps the existing direct cross-reference behavior");
+assert.equal(clickStopped, 2);
+
+holdContext.beginHold(holdPointerEvent());
+holdContext.endHold(holdPointerEvent());
+assert.equal(scheduledHold, null, "Releasing before the threshold cancels the hold");
+let contextMenuPrevented = false;
+holdContext.suppressContextMenu({ preventDefault: () => { contextMenuPrevented = true; } });
+assert.equal(contextMenuPrevented, true, "Native long-press menus are suppressed on verse numbers");
 
 console.log("Reference preview tests passed");

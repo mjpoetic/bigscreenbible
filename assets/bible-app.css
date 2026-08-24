@@ -8238,6 +8238,7 @@ select {
 }
 
 .verse-num {
+  position: relative;
   min-height: 0;
   border: 0;
   background: transparent;
@@ -8246,6 +8247,25 @@ select {
   text-align: right;
   padding: 0;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.verse-num.cross-ref-hold-pending {
+  color: var(--teal);
+}
+
+.verse-num.cross-ref-hold-pending::after {
+  content: "";
+  position: absolute;
+  inset: 1px -3px;
+  border: 1px solid color-mix(in srgb, var(--teal) 72%, transparent);
+  border-radius: 4px;
+  clip-path: inset(0 100% 0 0);
+  pointer-events: none;
+  animation: mobileSettingsHoldProgress 350ms linear forwards;
 }
 
 .cross-ref-trigger:hover,
