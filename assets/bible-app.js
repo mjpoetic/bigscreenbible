@@ -391,6 +391,7 @@ const socialAvatarMoreOptions = socialAvatarOptions.slice(6);
 const socialAvatarKeys = socialAvatarOptions.map((option) => option.key);
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
+const verseOfDayTranslationCode = "NIV";
 let lastAppUpdateCheckAt = 0;
 let announcedAppUpdateVersion = "";
 let pendingAppUpdateRestore = null;
@@ -1907,9 +1908,19 @@ function switchMode(nextMode, options = {}) {
   if (audible) primeModeTransitionAudio();
   const previousMode = state.mode;
   const previousScrollState = rememberModeScrollState();
-  const targetScrollState = modeScrollStateForTarget(nextMode, previousScrollState);
+  const openVerseOfDayPassage = previousMode === "big"
+    && ["reader", "parallel"].includes(nextMode)
+    && state.isVerseOfDayActive
+    && Boolean(state.verseOfDayItem);
+  const targetScrollState = openVerseOfDayPassage
+    ? null
+    : modeScrollStateForTarget(nextMode, previousScrollState);
   const applyModeChange = () => {
     state.mode = nextMode;
+    if (openVerseOfDayPassage) {
+      state.isVerseOfDayActive = false;
+      state.pendingVerseFocus = true;
+    }
     if (audible) playModeTransitionSound(nextMode);
     if (nextMode !== "trivia") state.gamesDrawerOpen = "";
     state.headerVersionMenuOpen = false;
@@ -1935,7 +1946,7 @@ function switchMode(nextMode, options = {}) {
         state.presentationVersionMenuOpen = "";
         state.presentationReferenceMenuOpen = "";
       }
-      if (["reader", "parallel"].includes(state.mode) && !targetScrollState) {
+      if (["reader", "parallel"].includes(state.mode) && !targetScrollState && !openVerseOfDayPassage) {
         state.pendingVerseFocus = "nearest";
       }
     }
@@ -9408,7 +9419,7 @@ function verseOfDayReaderView() {
   if (!item) return "";
   return `
     <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
-      <h1 class="section-title" id="verseOfDayReference">${escapeHtml(item.reference)}</h1>
+      <h1 class="section-title" id="verseOfDayReference">${escapeHtml(verseOfDayReferenceLabel(item))}</h1>
       <p class="verse-of-day-copy">${escapeHtml(item.verseText)}</p>
       <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
         <span aria-hidden="true">${icons.book}</span>
@@ -12678,16 +12689,48 @@ function openCrossReferencePopup(anchor) {
   const refs = crossReferenceItems(reference);
   state.verse = verseNumber;
   state.isVerseOfDayActive = false;
-  const content = `
+  const popup = showStudyPopup(anchor, crossReferencePopupMarkup(reference, refs), "Cross references");
+  popup.dataset.crossRefVerse = String(verseNumber);
+  bindCrossReferencePreviewLinks(popup);
+}
+
+function crossReferencePopupMarkup(reference, refs = crossReferenceItems(reference)) {
+  return `
     <div class="ref-title">${escapeHtml(reference)} cross references</div>
     <div class="popup-ref-list">
       ${refs.length
-        ? refs.map((ref) => `<button class="ref-item" data-popup-goto="${escapeHtml(ref.goto)}"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+        ? refs.map((ref) => `<button class="ref-item" type="button" data-popup-preview="${escapeHtml(ref.goto)}" aria-label="Preview ${escapeHtml(ref.label)}" aria-haspopup="dialog"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
         : `<div class="empty-state">No cross references are bundled for ${escapeHtml(reference)}.</div>`}
     </div>
     <div class="source-note">Cross references from OpenBible.info, CC-BY.</div>
   `;
-  showStudyPopup(anchor, content, "Cross references");
+}
+
+function bindCrossReferencePreviewLinks(popup) {
+  popup.querySelectorAll("[data-popup-preview]").forEach((button) => {
+    if (button.dataset.popupPreviewBound === "true") return;
+    button.dataset.popupPreviewBound = "true";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openReferencePreviewPopup(
+        popup.studyPopupAnchor,
+        button.dataset.popupPreview || "",
+        { popup, returnToCrossReferences: true },
+      );
+    });
+  });
+}
+
+function restoreCrossReferencePopup(popup) {
+  const verseNumber = Number(popup.dataset.crossRefVerse);
+  if (!verseNumber) return;
+  referencePreviewRequestId += 1;
+  const reference = `${state.reference}:${verseNumber}`;
+  setStudyPopupContent(popup, crossReferencePopupMarkup(reference), "Cross references");
+  bindCrossReferencePreviewLinks(popup);
+  positionStudyPopup(popup.studyPopupAnchor, popup);
+  popup.querySelector("[data-popup-preview]")?.focus({ preventScroll: true });
 }
 
 function referencePreviewHref(reference) {
@@ -12697,7 +12740,7 @@ function referencePreviewHref(reference) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-function referencePreviewPassageMarkup(reference, requestedVersion) {
+function referencePreviewPassageMarkup(reference, requestedVersion, options = {}) {
   const parsed = parsePassageReference(reference);
   if (!parsed) return `<div class="empty-state">This Scripture reference could not be read.</div>`;
   const selected = new Set(parsed.verses);
@@ -12727,13 +12770,20 @@ function referencePreviewPassageMarkup(reference, requestedVersion) {
       ${passage}
     </div>
     ${apiBibleAttributionMarkup([version], "reference-preview-attribution", parsed.key)}
-    <div class="reference-preview-actions">
+    <div class="reference-preview-actions ${options.returnToCrossReferences ? "has-back" : ""}">
+      ${options.returnToCrossReferences ? `<button class="reference-preview-back" type="button" data-reference-preview-back><span aria-hidden="true">←</span> Cross references</button>` : ""}
       <a class="reference-preview-go" href="${escapeHtml(referencePreviewHref(reference))}" data-popup-goto="${escapeHtml(reference)}">Go to Passage <span aria-hidden="true">→</span></a>
     </div>
   `;
 }
 
-async function openReferencePreviewPopup(anchor, reference) {
+function bindReferencePreviewBack(popup) {
+  popup.querySelector("[data-reference-preview-back]")?.addEventListener("click", () => {
+    restoreCrossReferencePopup(popup);
+  });
+}
+
+async function openReferencePreviewPopup(anchor, reference, options = {}) {
   const normalizedReference = normalizeHeadingReference(reference);
   const parsed = parsePassageReference(normalizedReference);
   if (!parsed) {
@@ -12745,17 +12795,25 @@ async function openReferencePreviewPopup(anchor, reference) {
     && !remoteVersionData.has(remoteVersionLoadKey(version, parsed.key));
   const initialContent = needsRemoteText
     ? `<div class="reference-preview-loading" role="status" aria-live="polite"><span class="reference-preview-loading-mark" aria-hidden="true"></span><span>Loading ${escapeHtml(translationDisplayCode(version))}…</span></div>`
-    : referencePreviewPassageMarkup(normalizedReference, version);
-  const popup = showStudyPopup(
+    : referencePreviewPassageMarkup(normalizedReference, version, options);
+  const content = `<div class="reference-preview-body" data-reference-preview-body>${initialContent}</div>`;
+  const popup = options.popup || showStudyPopup(
     anchor,
-    `<div class="reference-preview-body" data-reference-preview-body>${initialContent}</div>`,
+    content,
     "Scripture preview",
     { className: "reference-preview-popup" },
   );
+  if (options.popup) {
+    setStudyPopupContent(popup, content, "Scripture preview", { className: "reference-preview-popup" });
+    positionStudyPopup(anchor, popup);
+    (popup.querySelector("[data-reference-preview-back]") || popup.querySelector(".study-popup-close"))
+      ?.focus({ preventScroll: true });
+  }
   const requestId = ++referencePreviewRequestId;
   popup.dataset.referencePreviewRequest = String(requestId);
   popup.dataset.referencePreview = normalizedReference;
   bindStudyPopupGotoLinks(popup);
+  bindReferencePreviewBack(popup);
   if (!needsRemoteText) return;
 
   await ensureRemoteBibleVersion(version, parsed.key, { rerender: false });
@@ -12766,9 +12824,11 @@ async function openReferencePreviewPopup(anchor, reference) {
   ) return;
   const body = popup.querySelector("[data-reference-preview-body]");
   if (!body) return;
-  body.innerHTML = referencePreviewPassageMarkup(normalizedReference, version);
+  body.innerHTML = referencePreviewPassageMarkup(normalizedReference, version, options);
   bindStudyPopupGotoLinks(popup);
+  bindReferencePreviewBack(popup);
   positionStudyPopup(anchor, popup);
+  if (options.popup) popup.querySelector("[data-reference-preview-back]")?.focus({ preventScroll: true });
 }
 
 function openVerseActionMenu(anchor) {
@@ -12895,12 +12955,8 @@ function bindStudyPopupGotoLinks(popup) {
   });
 }
 
-function showStudyPopup(anchor, content, label, options = {}) {
-  closeStudyPopup(true);
-  const popup = document.createElement("div");
+function setStudyPopupContent(popup, content, label, options = {}) {
   popup.className = ["study-popup", options.className || ""].filter(Boolean).join(" ");
-  popup.id = "studyPopup";
-  popup.setAttribute("role", "dialog");
   popup.setAttribute("aria-label", label);
   popup.innerHTML = `
     <div class="study-popup-head">
@@ -12909,15 +12965,24 @@ function showStudyPopup(anchor, content, label, options = {}) {
     </div>
     ${content}
   `;
-  (document.querySelector(".app-shell") || document.body).appendChild(popup);
-  popup.studyPopupAnchor = anchor;
-  anchor.setAttribute("aria-expanded", "true");
-  anchor.setAttribute("aria-controls", popup.id);
-  positionStudyPopup(anchor, popup);
   popup.querySelector(".study-popup-close")?.addEventListener("click", () => {
     closeStudyPopup(false, true);
   });
   bindStudyPopupGotoLinks(popup);
+}
+
+function showStudyPopup(anchor, content, label, options = {}) {
+  closeStudyPopup(true);
+  const popup = document.createElement("div");
+  popup.id = "studyPopup";
+  popup.setAttribute("role", "dialog");
+  setStudyPopupContent(popup, content, label, options);
+  (document.querySelector(".app-shell") || document.body).appendChild(popup);
+  popup.studyPopupAnchor = anchor;
+  popup.studyPopupAnchorRect = anchor.getBoundingClientRect();
+  anchor.setAttribute("aria-expanded", "true");
+  anchor.setAttribute("aria-controls", popup.id);
+  positionStudyPopup(anchor, popup);
   requestAnimationFrame(() => {
     document.addEventListener("click", closeStudyPopupOnOutside, true);
     window.addEventListener("resize", closeStudyPopup, { once: true });
@@ -12926,7 +12991,10 @@ function showStudyPopup(anchor, content, label, options = {}) {
 }
 
 function positionStudyPopup(anchor, popup) {
-  const rect = anchor.getBoundingClientRect();
+  const anchorConnected = Boolean(anchor?.isConnected);
+  const rect = anchorConnected ? anchor.getBoundingClientRect() : popup.studyPopupAnchorRect;
+  if (!rect) return;
+  if (anchorConnected) popup.studyPopupAnchorRect = rect;
   const gap = 10;
   const referencePreview = popup.classList.contains("reference-preview-popup");
   const maxWidth = Math.min(referencePreview ? 440 : 360, window.innerWidth - 24);
@@ -13078,7 +13146,8 @@ function verseTextAtReference(ref) {
   const key = `${match[1]} ${match[2]}`;
   const verse = bibleData[key]?.verses.find((item) => item.n === Number(match[3]));
   if (!verse) return "";
-  return getVerseText(verse, state.versions[0] || "BSB", key);
+  const version = state.versions[0] || "BSB";
+  return verse[version] || verse.BSB || verse.KJV || verse.WEB || verse.ASV || verse.BBE || "";
 }
 
 function truncatePreview(value) {
@@ -13384,7 +13453,10 @@ function presentation(accountPanelRerender = false) {
   );
   state.presentationPart = partIndex;
   const paginated = parts.length > 1;
-  const presentationReference = `${verseOfDayItem?.reference || referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
+  const presentationReferenceBase = `${verseOfDayItem?.reference || referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
+  const presentationReference = verseOfDayItem
+    ? `${presentationReferenceBase} (${verseOfDayTranslationCode})`
+    : presentationReferenceBase;
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
@@ -13498,7 +13570,9 @@ function presentation(accountPanelRerender = false) {
             <span class="presentation-reference-colon" aria-hidden="true">:</span>
             ${presentationReferencePicker("verse", verses, state.verse)}
           </div>
-          ${verseOfDayItem ? "" : presentationVersionPicker("title", version)}
+          ${verseOfDayItem
+            ? `<span class="presentation-version-label">(${verseOfDayTranslationCode})</span>`
+            : presentationVersionPicker("title", version)}
           ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
         </div>
         <div class="presentation-actions">
@@ -21770,6 +21844,11 @@ function normalizeVerseOfDayItem(payload) {
   ) return null;
 
   return { reference, verseText, sourceUrl, publishedAt };
+}
+
+function verseOfDayReferenceLabel(item = state.verseOfDayItem) {
+  const reference = String(item?.reference || "").trim();
+  return reference ? `${reference} (${verseOfDayTranslationCode})` : "";
 }
 
 async function fetchVerseOfDayItem() {

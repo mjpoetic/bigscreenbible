@@ -64,6 +64,39 @@ assert.match(extractFunction("runModeViewTransition"), /transition\.finished\.th
 assert.match(extractFunction("switchMode"), /runModeViewTransition\(previousMode, nextMode, applyModeChange\)/);
 assert.match(extractFunction("returnFromPresentationToBible"), /switchMode\("reader"\)/);
 
+const switchModeContext = {
+  state: {
+    mode: "big",
+    modeTransitionSounds: false,
+    isVerseOfDayActive: true,
+    verseOfDayItem: { reference: "Psalm 116:1-2" },
+  },
+  currentGameReferenceReturn: () => null,
+  returnToTriviaGame() {},
+  cleanupTriviaCelebration() {},
+  primeModeTransitionAudio() {},
+  playModeTransitionSound() {},
+  rememberModeScrollState: () => null,
+  modeScrollStateForTarget: () => ({ shouldNotRestore: true }),
+  resetFocusToolSurfaces() {},
+  clearTimeout() {},
+  presentationControlsTimer: 0,
+  render() {},
+  restoreModeScrollAfterRender(scrollState) {
+    switchModeContext.restoredScrollState = scrollState;
+  },
+  runModeViewTransition(previousMode, nextMode, updateMode) {
+    updateMode();
+  },
+};
+vm.createContext(switchModeContext);
+vm.runInContext(`${extractFunction("switchMode")}; globalThis.changeMode = switchMode;`, switchModeContext);
+switchModeContext.changeMode("reader");
+assert.equal(switchModeContext.state.mode, "reader");
+assert.equal(switchModeContext.state.isVerseOfDayActive, false, "Leaving Verse of the Day in Big Screen opens its Bible passage");
+assert.equal(switchModeContext.state.pendingVerseFocus, true, "The cited verse is centered after leaving Big Screen");
+assert.equal(switchModeContext.restoredScrollState, null, "A stale Reader scroll position cannot override the Verse of the Day reference");
+
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-old\(root\)/);
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-new\(root\)/);
 assert.match(styles, /html\[data-mode-transition="exit-big"\]::view-transition-old\(root\)/);

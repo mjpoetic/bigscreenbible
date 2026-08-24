@@ -9827,6 +9827,31 @@ select {
   background: var(--panel);
 }
 
+.reference-preview-actions.has-back {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reference-preview-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  border-radius: 6px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--muted);
+  font: 800 12px / 1 var(--ui-font);
+}
+
+.reference-preview-back:hover,
+.reference-preview-back:focus-visible {
+  background: color-mix(in srgb, var(--soft) 76%, transparent);
+  color: var(--ink);
+  outline: none;
+}
+
 .reference-preview-go {
   display: inline-flex;
   align-items: center;
@@ -9878,6 +9903,10 @@ select {
   }
 
   .reference-preview-go {
+    min-height: 44px;
+  }
+
+  .reference-preview-back {
     min-height: 44px;
   }
 }

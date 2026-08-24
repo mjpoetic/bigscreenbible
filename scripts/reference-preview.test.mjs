@@ -48,7 +48,9 @@ const context = {
 vm.createContext(context);
 vm.runInContext(`
   ${extractFunction("referencePreviewPassageMarkup")}
+  ${extractFunction("crossReferencePopupMarkup")}
   globalThis.previewMarkup = referencePreviewPassageMarkup;
+  globalThis.crossReferenceMarkup = crossReferencePopupMarkup;
 `, context);
 
 const fallbackMarkup = context.previewMarkup("Ezekiel 36:16-17", "AMP");
@@ -61,6 +63,24 @@ assert.doesNotMatch(fallbackMarkup, /<sup>18<\/sup>/);
 assert.match(fallbackMarkup, /class="reference-preview-text" tabindex="0"/);
 assert.match(fallbackMarkup, /data-popup-goto="Ezekiel 36:16-17"/);
 assert.match(fallbackMarkup, />Go to Passage /);
+assert.doesNotMatch(fallbackMarkup, /data-reference-preview-back/);
+
+const crossReferencePreviewMarkup = context.previewMarkup(
+  "Ezekiel 36:16-17",
+  "BSB",
+  { returnToCrossReferences: true },
+);
+assert.match(crossReferencePreviewMarkup, /data-reference-preview-back/);
+assert.match(crossReferencePreviewMarkup, />←<\/span> Cross references/);
+
+const crossReferenceListMarkup = context.crossReferenceMarkup("Romans 8:1", [{
+  goto: "John 3:18",
+  label: "John 3:18",
+  preview: "Whoever believes in Him is not condemned.",
+}]);
+assert.match(crossReferenceListMarkup, /data-popup-preview="John 3:18"/);
+assert.match(crossReferenceListMarkup, /aria-label="Preview John 3:18"/);
+assert.doesNotMatch(crossReferenceListMarkup, /data-popup-goto/);
 
 context.bibleData["Ezekiel 36"].verses[0].AMP = "Then the word of the Lord came to me, saying,";
 context.bibleData["Ezekiel 36"].verses[1].AMP = "Son of man, when the house of Israel lived in their own land...";
@@ -76,9 +96,18 @@ assert.match(extractFunction("bindEvents"), /openReferencePreviewPopup\(button, 
 assert.match(extractFunction("bindEvents"), /openReferencePreviewPopup\(button, button\.dataset\.scriptureReference/);
 assert.match(extractFunction("openReferencePreviewPopup"), /ensureRemoteBibleVersion\(version, parsed\.key, \{ rerender: false \}\)/);
 assert.match(extractFunction("openReferencePreviewPopup"), /requestId !== referencePreviewRequestId/);
-assert.match(extractFunction("showStudyPopup"), /options\.className/);
+assert.match(extractFunction("openReferencePreviewPopup"), /options\.popup \|\| showStudyPopup/);
+assert.match(extractFunction("bindCrossReferencePreviewLinks"), /returnToCrossReferences: true/);
+assert.match(extractFunction("bindCrossReferencePreviewLinks"), /openReferencePreviewPopup/);
+assert.match(extractFunction("restoreCrossReferencePopup"), /setStudyPopupContent/);
+assert.match(extractFunction("restoreCrossReferencePopup"), /bindCrossReferencePreviewLinks/);
+assert.doesNotMatch(extractFunction("verseTextAtReference"), /getVerseText/);
+assert.match(extractFunction("verseTextAtReference"), /verse\[version\] \|\| verse\.BSB/);
+assert.match(extractFunction("setStudyPopupContent"), /options\.className/);
 assert.match(extractFunction("showStudyPopup"), /aria-expanded", "true"/);
+assert.match(extractFunction("showStudyPopup"), /studyPopupAnchorRect/);
 assert.match(extractFunction("closeStudyPopup"), /aria-expanded", "false"/);
+assert.match(extractFunction("positionStudyPopup"), /anchorConnected/);
 assert.match(extractFunction("positionStudyPopup"), /referencePreview \? 440 : 360/);
 assert.match(extractFunction("positionStudyPopup"), /--reference-preview-text-max-height/);
 assert.match(extractFunction("ensureRemoteBibleVersion"), /remoteVersionRequests\.has\(loadKey\)/);
@@ -89,6 +118,9 @@ assert.match(styles, /\.reference-preview-popup \{[\s\S]*?max-height: none/);
 assert.match(styles, /\.reference-preview-text \{[\s\S]*?--reference-preview-text-max-height[\s\S]*?overflow-y: auto/);
 assert.match(styles, /\.reference-preview-text \{[\s\S]*?overscroll-behavior: contain/);
 assert.match(styles, /\.reference-preview-go \{[\s\S]*?min-height: 42px/);
+assert.match(styles, /\.reference-preview-actions\.has-back \{/);
+assert.match(styles, /\.reference-preview-back \{[\s\S]*?min-height: 42px/);
 assert.match(styles, /@media \(max-width: 520px\) \{[\s\S]*?\.reference-preview-go \{[\s\S]*?min-height: 44px/);
+assert.match(styles, /@media \(max-width: 520px\) \{[\s\S]*?\.reference-preview-back \{[\s\S]*?min-height: 44px/);
 
 console.log("Reference preview tests passed");

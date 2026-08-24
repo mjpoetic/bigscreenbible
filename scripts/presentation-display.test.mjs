@@ -49,6 +49,9 @@ assert.match(extractFunction("presentationReferencePicker"), /type\.charAt\(0\)\
 assert.match(extractFunction("presentationReferencePicker"), /presentation-reference-toggle/);
 assert.match(source, /id="presentationVersionSelect"/);
 assert.match(source, /presentationVersionPicker\("title", version\)/);
+assert.match(extractFunction("presentation"), /presentation-version-label">\(\$\{verseOfDayTranslationCode\}\)<\/span>/);
+assert.match(extractFunction("verseOfDayReaderView"), /verseOfDayReferenceLabel\(item\)/);
+assert.match(extractFunction("verseOfDayReferenceLabel"), /\$\{reference\} \(\$\{verseOfDayTranslationCode\}\)/);
 assert.match(source, /presentationSettingsDisclosure\("updates", "App update", appUpdateControls\("presentation"\)\)/);
 assert.match(source, /presentationSettingsDisclosure\("keyboard", "Keyboard"/);
 assert.match(extractFunction("presentation"), /Help & Tour/);
