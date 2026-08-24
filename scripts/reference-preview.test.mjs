@@ -96,6 +96,15 @@ assert.match(ampMarkup, /data-chapter="Ezekiel 36"/);
 
 assert.match(source, /data-heading-reference="[^\n]+aria-haspopup="dialog" aria-expanded="false"/);
 assert.match(source, /data-scripture-reference="[^\n]+aria-haspopup="dialog" aria-expanded="false"/);
+assert.match(extractFunction("paragraphReaderView"), /data-cross-ref-double-click="\$\{verse\.n\}"/);
+assert.match(extractFunction("openCrossReferencePopup"), /anchor\.dataset\.crossRefVerse \|\| anchor\.dataset\.crossRefDoubleClick/);
+assert.match(extractFunction("bindCrossReferenceVerseNumber"), /pointerType && pointerType !== "mouse"/);
+assert.match(extractFunction("bindCrossReferenceVerseNumber"), /crossReferenceMouseClickDelayMs/);
+assert.match(extractFunction("bindCrossReferenceVerseNumber"), /addEventListener\("dblclick"/);
+assert.match(extractFunction("bindEvents"), /\.verse-num\[data-cross-ref-verse\]/);
+assert.match(extractFunction("bindEvents"), /querySelectorAll\("\[data-cross-ref-double-click\]"\)/);
+assert.match(extractFunction("bindEvents"), /addEventListener\("dblclick"/);
+assert.match(extractFunction("bindEvents"), /if \(event\.detail > 1\) return/);
 assert.match(extractFunction("bindEvents"), /openReferencePreviewPopup\(button, button\.dataset\.headingReference/);
 assert.match(extractFunction("bindEvents"), /openReferencePreviewPopup\(button, button\.dataset\.scriptureReference/);
 assert.match(extractFunction("openReferencePreviewPopup"), /ensureRemoteBibleVersion\(version, parsed\.key, \{ rerender: false \}\)/);
