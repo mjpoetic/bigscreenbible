@@ -12699,7 +12699,7 @@ function crossReferencePopupMarkup(reference, refs = crossReferenceItems(referen
     <div class="ref-title">${escapeHtml(reference)} cross references</div>
     <div class="popup-ref-list">
       ${refs.length
-        ? refs.map((ref) => `<button class="ref-item" type="button" data-popup-preview="${escapeHtml(ref.goto)}" aria-label="Preview ${escapeHtml(ref.label)}" aria-haspopup="dialog"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+        ? refs.map((ref) => `<button class="ref-item" type="button" data-popup-preview="${escapeHtml(ref.label)}" data-popup-navigation="${escapeHtml(ref.goto)}" aria-label="Preview ${escapeHtml(ref.label)}" aria-haspopup="dialog"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
         : `<div class="empty-state">No cross references are bundled for ${escapeHtml(reference)}.</div>`}
     </div>
     <div class="source-note">Cross references from OpenBible.info, CC-BY.</div>
@@ -12716,7 +12716,11 @@ function bindCrossReferencePreviewLinks(popup) {
       openReferencePreviewPopup(
         popup.studyPopupAnchor,
         button.dataset.popupPreview || "",
-        { popup, returnToCrossReferences: true },
+        {
+          popup,
+          returnToCrossReferences: true,
+          goToReference: button.dataset.popupNavigation || button.dataset.popupPreview || "",
+        },
       );
     });
   });
@@ -12760,6 +12764,7 @@ function referencePreviewPassageMarkup(reference, requestedVersion, options = {}
         <p class="reference-preview-verse"><sup>${n}</sup><span>${escapeHtml(text)}</span></p>
       `).join("")
     : `<div class="empty-state">Scripture text is not available for this reference.</div>`;
+  const goToReference = options.goToReference || reference;
   return `
     <div class="reference-preview-meta">
       <strong>${escapeHtml(reference)}</strong>
@@ -12772,13 +12777,15 @@ function referencePreviewPassageMarkup(reference, requestedVersion, options = {}
     ${apiBibleAttributionMarkup([version], "reference-preview-attribution", parsed.key)}
     <div class="reference-preview-actions ${options.returnToCrossReferences ? "has-back" : ""}">
       ${options.returnToCrossReferences ? `<button class="reference-preview-back" type="button" data-reference-preview-back><span aria-hidden="true">←</span> Cross references</button>` : ""}
-      <a class="reference-preview-go" href="${escapeHtml(referencePreviewHref(reference))}" data-popup-goto="${escapeHtml(reference)}">Go to Passage <span aria-hidden="true">→</span></a>
+      <a class="reference-preview-go" href="${escapeHtml(referencePreviewHref(goToReference))}" data-popup-goto="${escapeHtml(goToReference)}">Go to Passage <span aria-hidden="true">→</span></a>
     </div>
   `;
 }
 
 function bindReferencePreviewBack(popup) {
-  popup.querySelector("[data-reference-preview-back]")?.addEventListener("click", () => {
+  popup.querySelector("[data-reference-preview-back]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     restoreCrossReferencePopup(popup);
   });
 }
@@ -12790,12 +12797,16 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
     showToast("This Scripture reference could not be read");
     return;
   }
+  const previewOptions = {
+    ...options,
+    goToReference: normalizeHeadingReference(options.goToReference || normalizedReference),
+  };
   const version = state.versions[0] || "BSB";
   const needsRemoteText = isRemoteTranslation(version)
     && !remoteVersionData.has(remoteVersionLoadKey(version, parsed.key));
   const initialContent = needsRemoteText
     ? `<div class="reference-preview-loading" role="status" aria-live="polite"><span class="reference-preview-loading-mark" aria-hidden="true"></span><span>Loading ${escapeHtml(translationDisplayCode(version))}…</span></div>`
-    : referencePreviewPassageMarkup(normalizedReference, version, options);
+    : referencePreviewPassageMarkup(normalizedReference, version, previewOptions);
   const content = `<div class="reference-preview-body" data-reference-preview-body>${initialContent}</div>`;
   const popup = options.popup || showStudyPopup(
     anchor,
@@ -12824,7 +12835,7 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
   ) return;
   const body = popup.querySelector("[data-reference-preview-body]");
   if (!body) return;
-  body.innerHTML = referencePreviewPassageMarkup(normalizedReference, version, options);
+  body.innerHTML = referencePreviewPassageMarkup(normalizedReference, version, previewOptions);
   bindStudyPopupGotoLinks(popup);
   bindReferencePreviewBack(popup);
   positionStudyPopup(anchor, popup);
@@ -21483,7 +21494,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .cross-ref-popup, .strong-popup, .note-composer")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }

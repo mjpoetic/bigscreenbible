@@ -68,18 +68,22 @@ assert.doesNotMatch(fallbackMarkup, /data-reference-preview-back/);
 const crossReferencePreviewMarkup = context.previewMarkup(
   "Ezekiel 36:16-17",
   "BSB",
-  { returnToCrossReferences: true },
+  { returnToCrossReferences: true, goToReference: "Ezekiel 36:16" },
 );
 assert.match(crossReferencePreviewMarkup, /data-reference-preview-back/);
 assert.match(crossReferencePreviewMarkup, />←<\/span> Cross references/);
+assert.match(crossReferencePreviewMarkup, /data-popup-goto="Ezekiel 36:16"/);
+assert.match(crossReferencePreviewMarkup, /<sup>16<\/sup>/);
+assert.match(crossReferencePreviewMarkup, /<sup>17<\/sup>/);
 
 const crossReferenceListMarkup = context.crossReferenceMarkup("Romans 8:1", [{
   goto: "John 3:18",
-  label: "John 3:18",
+  label: "John 3:18-19",
   preview: "Whoever believes in Him is not condemned.",
 }]);
-assert.match(crossReferenceListMarkup, /data-popup-preview="John 3:18"/);
-assert.match(crossReferenceListMarkup, /aria-label="Preview John 3:18"/);
+assert.match(crossReferenceListMarkup, /data-popup-preview="John 3:18-19"/);
+assert.match(crossReferenceListMarkup, /data-popup-navigation="John 3:18"/);
+assert.match(crossReferenceListMarkup, /aria-label="Preview John 3:18-19"/);
 assert.doesNotMatch(crossReferenceListMarkup, /data-popup-goto/);
 
 context.bibleData["Ezekiel 36"].verses[0].AMP = "Then the word of the Lord came to me, saying,";
@@ -99,8 +103,12 @@ assert.match(extractFunction("openReferencePreviewPopup"), /requestId !== refere
 assert.match(extractFunction("openReferencePreviewPopup"), /options\.popup \|\| showStudyPopup/);
 assert.match(extractFunction("bindCrossReferencePreviewLinks"), /returnToCrossReferences: true/);
 assert.match(extractFunction("bindCrossReferencePreviewLinks"), /openReferencePreviewPopup/);
+assert.match(extractFunction("bindCrossReferencePreviewLinks"), /button\.dataset\.popupNavigation/);
 assert.match(extractFunction("restoreCrossReferencePopup"), /setStudyPopupContent/);
 assert.match(extractFunction("restoreCrossReferencePopup"), /bindCrossReferencePreviewLinks/);
+assert.match(extractFunction("bindReferencePreviewBack"), /event\.preventDefault\(\)/);
+assert.match(extractFunction("bindReferencePreviewBack"), /event\.stopPropagation\(\)/);
+assert.match(extractFunction("dismissSelectionBarOnOutsideClick"), /\.study-popup/);
 assert.doesNotMatch(extractFunction("verseTextAtReference"), /getVerseText/);
 assert.match(extractFunction("verseTextAtReference"), /verse\[version\] \|\| verse\.BSB/);
 assert.match(extractFunction("setStudyPopupContent"), /options\.className/);
