@@ -104,8 +104,13 @@ assert.match(extractFunction("openReferencePreviewPopup"), /options\.popup \|\| 
 assert.match(extractFunction("bindCrossReferencePreviewLinks"), /returnToCrossReferences: true/);
 assert.match(extractFunction("bindCrossReferencePreviewLinks"), /openReferencePreviewPopup/);
 assert.match(extractFunction("bindCrossReferencePreviewLinks"), /button\.dataset\.popupNavigation/);
+assert.match(extractFunction("bindCrossReferencePreviewLinks"), /crossReferenceReturnState/);
+assert.match(extractFunction("bindCrossReferencePreviewLinks"), /scrollTop: popup\.scrollTop/);
 assert.match(extractFunction("restoreCrossReferencePopup"), /setStudyPopupContent/);
 assert.match(extractFunction("restoreCrossReferencePopup"), /bindCrossReferencePreviewLinks/);
+assert.match(extractFunction("restoreCrossReferencePopup"), /returnState\?\.previewReference/);
+assert.match(extractFunction("restoreCrossReferencePopup"), /focusTarget\?\.focus\(\{ preventScroll: true \}\)/);
+assert.match(extractFunction("restoreCrossReferencePopup"), /popup\.scrollTop = returnState\.scrollTop/);
 assert.match(extractFunction("bindReferencePreviewBack"), /event\.preventDefault\(\)/);
 assert.match(extractFunction("bindReferencePreviewBack"), /event\.stopPropagation\(\)/);
 assert.match(extractFunction("dismissSelectionBarOnOutsideClick"), /\.study-popup/);

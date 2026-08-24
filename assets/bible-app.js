@@ -12713,6 +12713,11 @@ function bindCrossReferencePreviewLinks(popup) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      popup.crossReferenceReturnState = {
+        previewReference: button.dataset.popupPreview || "",
+        goToReference: button.dataset.popupNavigation || button.dataset.popupPreview || "",
+        scrollTop: popup.scrollTop,
+      };
       openReferencePreviewPopup(
         popup.studyPopupAnchor,
         button.dataset.popupPreview || "",
@@ -12729,12 +12734,19 @@ function bindCrossReferencePreviewLinks(popup) {
 function restoreCrossReferencePopup(popup) {
   const verseNumber = Number(popup.dataset.crossRefVerse);
   if (!verseNumber) return;
+  const returnState = popup.crossReferenceReturnState;
   referencePreviewRequestId += 1;
   const reference = `${state.reference}:${verseNumber}`;
   setStudyPopupContent(popup, crossReferencePopupMarkup(reference), "Cross references");
   bindCrossReferencePreviewLinks(popup);
   positionStudyPopup(popup.studyPopupAnchor, popup);
-  popup.querySelector("[data-popup-preview]")?.focus({ preventScroll: true });
+  const previewButtons = [...popup.querySelectorAll("[data-popup-preview]")];
+  const focusTarget = previewButtons.find((button) => (
+    button.dataset.popupPreview === returnState?.previewReference
+    && button.dataset.popupNavigation === returnState?.goToReference
+  )) || previewButtons[0];
+  focusTarget?.focus({ preventScroll: true });
+  if (Number.isFinite(returnState?.scrollTop)) popup.scrollTop = returnState.scrollTop;
 }
 
 function referencePreviewHref(reference) {
