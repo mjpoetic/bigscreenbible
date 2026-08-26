@@ -11070,6 +11070,29 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   font: 700 var(--presentation-font-size, clamp(34px, 5.8vw, 240px)) / var(--presentation-line-height, 1.12) var(--scripture-font);
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .presentation-text {
+    cursor: grab;
+  }
+
+  .presentation-passage {
+    cursor: default;
+  }
+
+  .presentation-copy {
+    cursor: text;
+  }
+
+  .presentation.presentation-pointer-dragging .presentation-text {
+    cursor: grabbing;
+  }
+}
+
+.presentation.presentation-pointer-dragging {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .presentation-dragging .presentation-passage {
   transition: none;
   will-change: transform;

@@ -79,8 +79,17 @@ assert.match(extractFunction("handleGlobalShortcuts"), /state\.mode === "big"\) 
 assert.match(source, /touchmove", handlePresentationTouchMove, \{ passive: false \}/);
 assert.match(source, /touchend", handlePresentationTouchEnd, \{ passive: false \}/);
 assert.match(source, /touchcancel", cancelPresentationTouch/);
+assert.match(source, /pointerdown", handlePresentationPointerDown/);
 assert.match(extractFunction("handlePresentationTouchMove"), /event\.preventDefault\(\)/);
-assert.match(extractFunction("handlePresentationTouchMove"), /presentation-swipe-ready/);
+assert.match(extractFunction("handlePresentationTouchMove"), /updatePresentationSwipeDrag/);
+assert.match(extractFunction("handlePresentationPointerMove"), /updatePresentationSwipeDrag/);
+assert.match(extractFunction("updatePresentationSwipeDrag"), /presentation-swipe-ready/);
+assert.match(extractFunction("isPresentationPointerDragTarget"), /\.presentation-passage, \.bible-version-loading-indicator/);
+assert.match(extractFunction("handlePresentationPointerDown"), /event\.pointerType === "mouse"/);
+assert.match(extractFunction("handlePresentationPointerDown"), /event\.button === 0/);
+assert.match(extractFunction("handlePresentationPointerDown"), /setPointerCapture/);
+assert.match(extractFunction("handlePresentationPointerUp"), /commitPresentationSwipe\(direction\)/);
+assert.match(extractFunction("cancelPresentationPointerDrag"), /resetPresentationDrag\(\)/);
 assert.match(extractFunction("handlePresentationPinchMove"), /state\.presentationTextScale = clamp/);
 assert.match(extractFunction("commitPresentationSwipe"), /prefers-reduced-motion: reduce/);
 assert.match(extractFunction("commitPresentationSwipe"), /presentationEnterDirection = direction/);
@@ -92,6 +101,9 @@ assert.match(extractFunction("fitPresentationText"), /naturalFontSize \* clamp\(
 assert.match(styles, /width: min\(100%, 3400px\)/);
 assert.match(styles, /clamp\(34px, 5\.8vw, 240px\)/);
 assert.match(styles, /\.presentation-swipe-preview \{/);
+assert.match(styles, /@media \(hover: hover\) and \(pointer: fine\) \{[\s\S]*?\.presentation-text \{[\s\S]*?cursor: grab;/);
+assert.match(styles, /\.presentation\.presentation-pointer-dragging \.presentation-text \{[\s\S]*?cursor: grabbing;/);
+assert.match(styles, /\.presentation\.presentation-pointer-dragging \{[\s\S]*?user-select: none;/);
 assert.match(styles, /\.presentation\.presentation-enter-next \.presentation-passage/);
 assert.match(styles, /@keyframes presentation-slide-in-next/);
 assert.doesNotMatch(styles, /presentation-slide-in-next 300ms[^;]* both/);

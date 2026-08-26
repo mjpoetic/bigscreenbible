@@ -222,6 +222,7 @@ let strongLexiconPromise = null;
 let presentationControlsTimer = 0;
 let presentationTouchStart = null;
 let presentationPinchGesture = null;
+let presentationPointerDrag = null;
 let presentationScaleFeedbackTimer = 0;
 let presentationEnterDirection = 0;
 let presentationTransitionTimer = 0;
@@ -1077,7 +1078,7 @@ const presentationTutorialSteps = [
     target: ".presentation-controls",
     spotlightPadding: 5,
     title: "Move verse by verse",
-    body: "Use Previous and Next, arrow keys, or swipe on touch devices. A swipe follows your finger and previews what is coming next.",
+    body: "Use Previous and Next, arrow keys, swipe on touch devices, or drag empty space with a mouse. A swipe or drag previews what is coming next.",
   },
   {
     target: "#presentationSettingsToggle",
@@ -15382,9 +15383,7 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("pointermove", (event) => {
     if (event.pointerType === "mouse") revealPresentationControls();
   });
-  document.getElementById("presentation")?.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse" || event.pointerType === "touch") revealPresentationControls();
-  });
+  document.getElementById("presentation")?.addEventListener("pointerdown", handlePresentationPointerDown);
   document.getElementById("presentation")?.addEventListener("touchstart", handlePresentationTouchStart, { passive: true });
   document.getElementById("presentation")?.addEventListener("touchmove", handlePresentationTouchMove, { passive: false });
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationTouchEnd, { passive: false });
@@ -19938,6 +19937,15 @@ function isPresentationSwipeIgnored(target) {
   return Boolean(isSwipeControlTarget(target) || target?.closest?.(".presentation-settings-popover"));
 }
 
+function isPresentationPointerDragTarget(target, presentationElement) {
+  const stage = target?.closest?.(".presentation-text");
+  return Boolean(
+    stage
+    && presentationElement?.contains(stage)
+    && !target.closest?.(".presentation-passage, .bible-version-loading-indicator")
+  );
+}
+
 function resetPresentationDrag({ animate = true } = {}) {
   const presentationElement = document.getElementById("presentation");
   if (!presentationElement) return;
@@ -19948,6 +19956,7 @@ function resetPresentationDrag({ animate = true } = {}) {
     "presentation-preview-next",
     "presentation-preview-previous",
     "presentation-swipe-ready",
+    "presentation-pointer-dragging",
   );
   if (animate) presentationElement.classList.add("presentation-drag-settling");
   presentationElement.style.setProperty("--presentation-drag-x", "0px");
@@ -20018,12 +20027,16 @@ function handlePresentationTouchMove(event) {
   if (handlePresentationPinchMove(event)) return;
   const start = presentationTouchStart;
   const touch = event.touches?.[0];
+  if (!start || !touch || event.touches?.length !== 1) return;
+  if (updatePresentationSwipeDrag(start, touch) && event.cancelable) event.preventDefault();
+}
+
+function updatePresentationSwipeDrag(start, point) {
   const presentationElement = document.getElementById("presentation");
-  if (!start || !touch || !presentationElement || event.touches?.length !== 1) return;
-  const deltaX = touch.clientX - start.x;
-  const deltaY = touch.clientY - start.y;
-  if (Math.abs(deltaX) < 8 || Math.abs(deltaX) < Math.abs(deltaY) * 1.05) return;
-  if (event.cancelable) event.preventDefault();
+  if (!start || !point || !presentationElement) return false;
+  const deltaX = point.clientX - start.x;
+  const deltaY = point.clientY - start.y;
+  if (Math.abs(deltaX) < 8 || Math.abs(deltaX) < Math.abs(deltaY) * 1.05) return false;
   const direction = deltaX < 0 ? 1 : -1;
   const preview = presentationElement.querySelector(
     direction > 0 ? ".presentation-swipe-preview-next" : ".presentation-swipe-preview-previous",
@@ -20041,6 +20054,7 @@ function handlePresentationTouchMove(event) {
   presentationElement.classList.toggle("presentation-swipe-ready", Boolean(preview) && distance >= horizontalSwipeMinPx);
   presentationElement.style.setProperty("--presentation-drag-x", `${dragX}px`);
   presentationElement.style.setProperty("--presentation-drag-progress", progress.toFixed(3));
+  return true;
 }
 
 function finishPresentationPinch() {
@@ -20099,6 +20113,81 @@ function cancelPresentationTouch() {
   }
   presentationPinchGesture = null;
   presentationTouchStart = null;
+  resetPresentationDrag();
+}
+
+function handlePresentationPointerDown(event) {
+  const initialPresentationElement = event.currentTarget;
+  const canBeginDrag = event.pointerType === "mouse"
+    && event.button === 0
+    && isPresentationPointerDragTarget(event.target, initialPresentationElement);
+  if (event.pointerType === "mouse" || event.pointerType === "touch") revealPresentationControls();
+  if (!canBeginDrag || presentationPointerDrag) return;
+  const presentationElement = document.getElementById("presentation");
+  if (
+    state.mode !== "big"
+    || state.presentationSearchOpen
+    || state.presentationSearchResultsOpen
+    || state.presentationSettingsOpen
+    || state.presentationVersionMenuOpen
+    || state.presentationReferenceMenuOpen
+    || state.accountOpen
+    || presentationElement?.classList.contains("presentation-swipe-commit-next")
+    || presentationElement?.classList.contains("presentation-swipe-commit-previous")
+  ) return;
+  presentationElement.classList.remove("presentation-enter-next", "presentation-enter-previous");
+  presentationElement.classList.add("presentation-pointer-dragging");
+  presentationPointerDrag = {
+    pointerId: event.pointerId,
+    presentationElement,
+    start: {
+      x: event.clientX,
+      y: event.clientY,
+      time: Date.now(),
+    },
+  };
+  presentationElement.setPointerCapture?.(event.pointerId);
+  window.addEventListener("pointermove", handlePresentationPointerMove, { passive: false });
+  window.addEventListener("pointerup", handlePresentationPointerUp);
+  window.addEventListener("pointercancel", cancelPresentationPointerDrag);
+  event.preventDefault();
+}
+
+function handlePresentationPointerMove(event) {
+  const drag = presentationPointerDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  if (updatePresentationSwipeDrag(drag.start, event) && event.cancelable) event.preventDefault();
+}
+
+function releasePresentationPointerDrag() {
+  const drag = presentationPointerDrag;
+  if (!drag) return null;
+  presentationPointerDrag = null;
+  drag.presentationElement.classList.remove("presentation-pointer-dragging");
+  if (drag.presentationElement.hasPointerCapture?.(drag.pointerId)) {
+    drag.presentationElement.releasePointerCapture(drag.pointerId);
+  }
+  window.removeEventListener("pointermove", handlePresentationPointerMove);
+  window.removeEventListener("pointerup", handlePresentationPointerUp);
+  window.removeEventListener("pointercancel", cancelPresentationPointerDrag);
+  return drag;
+}
+
+function handlePresentationPointerUp(event) {
+  const activeDrag = presentationPointerDrag;
+  if (!activeDrag || event.pointerId !== activeDrag.pointerId) return;
+  const direction = horizontalSwipeDirection(activeDrag.start, event);
+  const previewSelector = direction > 0 ? ".presentation-swipe-preview-next" : ".presentation-swipe-preview-previous";
+  const hasPreview = Boolean(direction && activeDrag.presentationElement.querySelector(previewSelector));
+  releasePresentationPointerDrag();
+  if (!hasPreview) return resetPresentationDrag();
+  if (event.cancelable) event.preventDefault();
+  commitPresentationSwipe(direction);
+}
+
+function cancelPresentationPointerDrag(event) {
+  if (!presentationPointerDrag || (event?.pointerId != null && event.pointerId !== presentationPointerDrag.pointerId)) return;
+  releasePresentationPointerDrag();
   resetPresentationDrag();
 }
 
