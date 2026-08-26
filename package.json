@@ -39,6 +39,7 @@
     "test:tooltips": "node scripts/tooltip-delay.test.mjs",
     "test:trivia": "node scripts/trivia-question-quality.test.mjs",
     "test:version-loading": "node scripts/bible-version-loading.test.mjs",
+    "test:verse-of-day": "node scripts/verse-of-day-presentation.test.mjs",
     "test:version-sync": "node scripts/version-sync.test.mjs",
     "test:word-search": "node scripts/word-search.test.mjs",
     "test:crossword": "node scripts/crossword.test.mjs",

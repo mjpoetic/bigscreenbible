@@ -78,6 +78,12 @@ const switchModeContext = {
   playModeTransitionSound() {},
   rememberModeScrollState: () => null,
   modeScrollStateForTarget: () => ({ shouldNotRestore: true }),
+  selectVerseOfDayReference(reference) {
+    assert.equal(reference, "Psalm 116:1-2");
+    switchModeContext.state.isVerseOfDayActive = false;
+    switchModeContext.state.verse = 1;
+    switchModeContext.state.selectedVerses = [1, 2];
+  },
   resetFocusToolSurfaces() {},
   clearTimeout() {},
   presentationControlsTimer: 0,
@@ -94,6 +100,7 @@ vm.runInContext(`${extractFunction("switchMode")}; globalThis.changeMode = switc
 switchModeContext.changeMode("reader");
 assert.equal(switchModeContext.state.mode, "reader");
 assert.equal(switchModeContext.state.isVerseOfDayActive, false, "Leaving Verse of the Day in Big Screen opens its Bible passage");
+assert.deepEqual(switchModeContext.state.selectedVerses, [1, 2], "Back to Bible preselects the full Verse of the Day passage");
 assert.equal(switchModeContext.state.pendingVerseFocus, true, "The cited verse is centered after leaving Big Screen");
 assert.equal(switchModeContext.restoredScrollState, null, "A stale Reader scroll position cannot override the Verse of the Day reference");
 

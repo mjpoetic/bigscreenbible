@@ -1923,7 +1923,7 @@ function switchMode(nextMode, options = {}) {
   const applyModeChange = () => {
     state.mode = nextMode;
     if (openVerseOfDayPassage) {
-      state.isVerseOfDayActive = false;
+      selectVerseOfDayReference(state.verseOfDayItem.reference);
       state.pendingVerseFocus = true;
     }
     if (audible) playModeTransitionSound(nextMode);
@@ -13429,9 +13429,83 @@ function presentationTextPartsWithOffsets(value) {
   return parts.filter((part) => part.text);
 }
 
+function splitVerseOfDayText(value, weights) {
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  const normalizedWeights = weights.map((weight) => Math.max(1, Number(weight) || 1));
+  if (!text || normalizedWeights.length <= 1) return [text];
+  const totalWeight = normalizedWeights.reduce((total, weight) => total + weight, 0);
+  const minimumPartLength = Math.min(18, Math.max(8, Math.floor(text.length / normalizedWeights.length / 3)));
+  const parts = [];
+  let start = 0;
+  let consumedWeight = 0;
+
+  for (let index = 0; index < normalizedWeights.length - 1; index += 1) {
+    consumedWeight += normalizedWeights[index];
+    const ideal = Math.round(text.length * consumedWeight / totalWeight);
+    const remainingParts = normalizedWeights.length - index - 1;
+    const minimum = Math.min(text.length - remainingParts, start + minimumPartLength);
+    const maximum = Math.max(minimum, text.length - remainingParts * minimumPartLength);
+    const searchRadius = Math.max(28, Math.round(text.length / normalizedWeights.length * 0.48));
+    const searchStart = Math.max(minimum, ideal - searchRadius);
+    const searchEnd = Math.min(maximum, ideal + searchRadius);
+    const candidates = [];
+
+    for (let textIndex = searchStart; textIndex <= searchEnd; textIndex += 1) {
+      if (!/\s/.test(text[textIndex])) continue;
+      candidates.push({
+        index: textIndex,
+        score: presentationBreakPriority(text, textIndex) * 1000 - Math.abs(textIndex - ideal),
+      });
+    }
+
+    const chosen = candidates.sort((a, b) => b.score - a.score)[0]?.index
+      ?? Math.max(minimum, Math.min(maximum, ideal));
+    parts.push(text.slice(start, chosen).trim());
+    start = chosen;
+    while (/\s/.test(text[start])) start += 1;
+  }
+
+  parts.push(text.slice(start).trim());
+  return parts;
+}
+
+function verseOfDayVerseEntries(item = state.verseOfDayItem) {
+  const parsed = parsePassageReference(item?.reference);
+  const verseText = String(item?.verseText || "").trim();
+  if (!parsed || !verseText) return [];
+  const verseNumbers = parsed.verses.length ? parsed.verses : [parsed.verse];
+  const chapterVerses = bibleData[parsed.key]?.verses || [];
+  const weights = verseNumbers.map((verseNumber) => {
+    const verse = chapterVerses.find((candidate) => candidate.n === verseNumber);
+    return String(verse?.BSB || verse?.text || verse?.KJV || verse?.WEB || verse?.ASV || verse?.BBE || "").length || 1;
+  });
+  const texts = splitVerseOfDayText(verseText, weights);
+  return verseNumbers.map((verse, index) => ({
+    reference: `${parsed.key}:${verse}`,
+    verse,
+    text: texts[index] || "",
+  })).filter((entry) => entry.text);
+}
+
+function verseOfDayPresentationPages(item = state.verseOfDayItem) {
+  const entries = verseOfDayVerseEntries(item);
+  return entries.flatMap((entry, verseIndex) => {
+    const parts = presentationTextPartsWithOffsets(entry.text);
+    return parts.map((part, versePartIndex) => ({
+      ...part,
+      reference: entry.reference,
+      verse: entry.verse,
+      verseIndex,
+      verseCount: entries.length,
+      versePartIndex,
+      versePartCount: parts.length,
+    }));
+  });
+}
+
 function currentPresentationParts() {
   if (state.isVerseOfDayActive && state.verseOfDayItem) {
-    return presentationTextParts(state.verseOfDayItem.verseText);
+    return verseOfDayPresentationPages().map((page) => page.text);
   }
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -13443,6 +13517,16 @@ function presentationPartSuffix(index) {
 }
 
 function adjacentPresentationContent(direction) {
+  if (state.isVerseOfDayActive && state.verseOfDayItem) {
+    const pages = verseOfDayPresentationPages();
+    const partIndex = Math.max(0, Math.min(pages.length - 1, Number(state.presentationPart) || 0));
+    const adjacentPage = pages[partIndex + direction];
+    if (!adjacentPage) return null;
+    return {
+      text: adjacentPage.text,
+      reference: `${adjacentPage.reference}${adjacentPage.versePartCount > 1 ? presentationPartSuffix(adjacentPage.versePartIndex) : ""}`,
+    };
+  }
   const currentParts = currentPresentationParts();
   const partIndex = Math.max(0, Math.min(currentParts.length - 1, Number(state.presentationPart) || 0));
   const adjacentPartIndex = partIndex + direction;
@@ -13538,7 +13622,9 @@ function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
   const verseOfDayItem = state.isVerseOfDayActive ? state.verseOfDayItem : null;
-  const parts = presentationTextPartsWithOffsets(verseOfDayItem?.verseText || getVerseText(verse, version));
+  const parts = verseOfDayItem
+    ? verseOfDayPresentationPages(verseOfDayItem)
+    : presentationTextPartsWithOffsets(getVerseText(verse, version));
   const versionLoadingState = state.mode === "big"
     ? activeBibleVersionLoadingState([version])
     : null;
@@ -13553,11 +13639,20 @@ function presentation(accountPanelRerender = false) {
     verseOfDayItem ? [] : lineBreaksForVerse(verse, version),
   );
   state.presentationPart = partIndex;
+  if (verseOfDayItem) state.verse = part.verse;
   const paginated = parts.length > 1;
-  const presentationReferenceBase = `${verseOfDayItem?.reference || referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
+  const presentationReferenceBase = verseOfDayItem
+    ? `${part.reference}${part.versePartCount > 1 ? presentationPartSuffix(part.versePartIndex) : ""}`
+    : `${referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
   const presentationReference = verseOfDayItem
     ? `${presentationReferenceBase} (${verseOfDayTranslationCode})`
     : presentationReferenceBase;
+  const presentationPosition = verseOfDayItem
+    ? [
+      part.verseCount > 1 ? `Verse ${part.verseIndex + 1} of ${part.verseCount}` : "",
+      part.versePartCount > 1 ? `Part ${part.versePartIndex + 1} of ${part.versePartCount}` : "",
+    ].filter(Boolean).join(" · ")
+    : paginated ? `Part ${partIndex + 1} of ${parts.length}` : "";
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
@@ -13567,10 +13662,16 @@ function presentation(accountPanelRerender = false) {
   const presentationChapter = Number(state.reference.slice(presentationBook.length + 1)) || chapters[0] || 1;
   const verses = currentChapter().verses.map((item) => item.n);
   const verseIndex = verses.indexOf(state.verse);
-  const canGoBack = partIndex > 0 || verseIndex > 0;
-  const canGoForward = partIndex < parts.length - 1 || verseIndex < verses.length - 1;
-  const previousLabel = partIndex > 0 ? "Previous part" : "Previous verse";
-  const nextLabel = partIndex < parts.length - 1 ? "Next part" : "Next verse";
+  const canGoBack = verseOfDayItem ? partIndex > 0 : partIndex > 0 || verseIndex > 0;
+  const canGoForward = verseOfDayItem ? partIndex < parts.length - 1 : partIndex < parts.length - 1 || verseIndex < verses.length - 1;
+  const previousPage = verseOfDayItem ? parts[partIndex - 1] : null;
+  const nextPage = verseOfDayItem ? parts[partIndex + 1] : null;
+  const previousLabel = verseOfDayItem && previousPage
+    ? previousPage.verse === part.verse ? "Previous part" : "Previous verse"
+    : partIndex > 0 ? "Previous part" : "Previous verse";
+  const nextLabel = verseOfDayItem && nextPage
+    ? nextPage.verse === part.verse ? "Next part" : "Next verse"
+    : partIndex < parts.length - 1 ? "Next part" : "Next verse";
   const previousPreview = canGoBack ? adjacentPresentationContent(-1) : null;
   const nextPreview = canGoForward ? adjacentPresentationContent(1) : null;
   const enterDirection = presentationEnterDirection;
@@ -13665,16 +13766,18 @@ function presentation(accountPanelRerender = false) {
         </div>
         <div class="presentation-ref ${paginated ? "paginated" : ""}">
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
-            ${presentationReferencePicker("book", availableBooks, presentationBook)}
-            <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
-            ${presentationReferencePicker("chapter", chapters, presentationChapter)}
-            <span class="presentation-reference-colon" aria-hidden="true">:</span>
-            ${presentationReferencePicker("verse", verses, state.verse)}
+            ${verseOfDayItem
+              ? `<span class="presentation-verse-of-day-reference">${escapeHtml(part.reference)}</span>`
+              : `${presentationReferencePicker("book", availableBooks, presentationBook)}
+                <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
+                ${presentationReferencePicker("chapter", chapters, presentationChapter)}
+                <span class="presentation-reference-colon" aria-hidden="true">:</span>
+                ${presentationReferencePicker("verse", verses, state.verse)}`}
           </div>
           ${verseOfDayItem
             ? `<span class="presentation-version-label">(${verseOfDayTranslationCode})</span>`
             : presentationVersionPicker("title", version)}
-          ${paginated ? `<span class="presentation-part-position">Part ${partIndex + 1} of ${parts.length}</span>` : ""}
+          ${presentationPosition ? `<span class="presentation-part-position">${escapeHtml(presentationPosition)}</span>` : ""}
         </div>
         <div class="presentation-actions">
           <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
@@ -18635,7 +18738,7 @@ async function resolvedVerseOfDay() {
 function openVerseOfDayInReader() {
   const reference = state.verseOfDayItem?.reference;
   const returnTarget = captureReaderReturnTarget();
-  if (!reference || !setReferenceFromString(reference)) return;
+  if (!reference || !selectVerseOfDayReference(reference)) return;
   if (returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
     pushReaderReturnTarget(returnTarget);
     state.returnSelectionToolsOpen = false;
@@ -18646,6 +18749,13 @@ function openVerseOfDayInReader() {
   recordHistory();
   updateShareUrl();
   render();
+}
+
+function selectVerseOfDayReference(reference) {
+  const parsed = parsePassageReference(reference);
+  if (!parsed || !setReferenceFromString(reference)) return false;
+  state.selectedVerses = [...parsed.verses];
+  return true;
 }
 
 function sharedReferenceFromUrl() {
@@ -21221,14 +21331,21 @@ function moveVerse(direction, options = {}) {
     const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
     if (direction < 0 && partIndex > 0) {
       state.presentationPart = partIndex - 1;
+      if (state.isVerseOfDayActive) {
+        state.verse = verseOfDayPresentationPages()[state.presentationPart]?.verse || state.verse;
+      }
       render();
       return;
     }
     if (direction > 0 && partIndex < parts.length - 1) {
       state.presentationPart = partIndex + 1;
+      if (state.isVerseOfDayActive) {
+        state.verse = verseOfDayPresentationPages()[state.presentationPart]?.verse || state.verse;
+      }
       render();
       return;
     }
+    if (state.isVerseOfDayActive) return;
   }
 
   const verses = currentChapter().verses.map((verse) => verse.n);
