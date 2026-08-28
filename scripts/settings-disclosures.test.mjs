@@ -22,11 +22,12 @@ function extractFunction(name) {
 const context = {};
 vm.createContext(context);
 vm.runInContext(`
-  const settingsSectionKeys = ["accessibility", "display", "reading", "startup", "printing", "updates"];
+  const settingsSectionKeys = ["accessibility", "display", "reading", "sharing", "startup", "printing", "updates"];
   const defaultSettingsSectionsOpen = {
     accessibility: false,
     display: true,
     reading: true,
+    sharing: false,
     startup: false,
     printing: false,
     updates: false,
@@ -47,6 +48,7 @@ assert.deepEqual(
     accessibility: false,
     display: true,
     reading: true,
+    sharing: false,
     startup: false,
     printing: false,
     updates: false,
@@ -58,6 +60,7 @@ assert.deepEqual(
     accessibility: false,
     display: false,
     reading: false,
+    sharing: false,
     startup: false,
     printing: true,
     updates: false,
@@ -80,6 +83,7 @@ assert.equal(localNewer.settingsSectionsOpenUpdatedAt, "2026-08-03T12:02:00.000Z
 
 const displaySource = extractFunction("displaySettings");
 const readingSource = extractFunction("readingSettings");
+const sharingSource = extractFunction("sharingSettings");
 const rememberSource = extractFunction("rememberDisclosureState");
 const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
@@ -111,8 +115,10 @@ assert.match(readingSource, /settingsDisclosure\("reading", "Reading"/);
 assert.match(readingSource, /Pull or scroll past chapter edges/);
 assert.match(readingSource, /Enable auto-scroll controls/);
 assert.doesNotMatch(readingSource, /Paragraph layout when available/);
-assert.match(source, /\$\{displaySettings\("mobile"\)\}[\s\S]*?\$\{readingSettings\("mobile"\)\}/);
-assert.match(source, /\$\{displaySettings\(\)\}[\s\S]*?\$\{readingSettings\(\)\}/);
+assert.match(sharingSource, /settingsDisclosure\("sharing", "Copy & sharing"/);
+assert.match(sharingSource, /Copied and shared Bible text format/);
+assert.match(source, /\$\{displaySettings\("mobile"\)\}[\s\S]*?\$\{readingSettings\("mobile"\)\}[\s\S]*?\$\{sharingSettings\("mobile"\)\}/);
+assert.match(source, /\$\{displaySettings\(\)\}[\s\S]*?\$\{readingSettings\(\)\}[\s\S]*?\$\{sharingSettings\(\)\}/);
 
 assert.match(rememberSource, /settingsSectionsOpenUpdatedAt = new Date\(\)\.toISOString\(\)/);
 assert.match(rememberSource, /settingsSectionsOpenStorageKey/);

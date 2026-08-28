@@ -1020,6 +1020,49 @@ button {
   text-overflow: ellipsis;
 }
 
+.shared-version-return {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--teal) 28%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teal) 8%, transparent);
+  color: var(--teal);
+  font: 750 10px/1 var(--ui-font);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shared-version-return svg {
+  width: 13px;
+  height: 13px;
+}
+
+.shared-version-return:hover,
+.shared-version-return:focus-visible {
+  background: color-mix(in srgb, var(--teal) 14%, transparent);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--teal) 22%, transparent);
+}
+
+.scripture .shared-version-return-reader {
+  position: sticky;
+  top: 12px;
+  z-index: 12;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  min-height: 34px;
+  margin: 10px auto;
+  padding: 7px 11px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+  backdrop-filter: blur(14px);
+}
+
 .footer-inline-picker {
   padding: 3px 5px;
   border: 0;
@@ -10259,6 +10302,39 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   min-width: 0;
   max-width: 100%;
   white-space: nowrap;
+}
+
+.presentation .presentation-reference-share {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 11px);
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--presentation-accent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-5px, -50%) scale(0.92);
+  transition: opacity 160ms ease, transform 160ms ease, box-shadow var(--motion-fast) ease;
+}
+
+.presentation.controls-visible .presentation-reference-share,
+.presentation-reference-controls:focus-within .presentation-reference-share {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(0, -50%) scale(1);
+}
+
+.presentation .shared-version-return-presentation {
+  min-height: 25px;
+  padding: 3px 8px;
+  border-color: var(--presentation-button-border);
+  background: var(--presentation-button-bg);
+  color: var(--presentation-muted);
+  font-size: 10px;
 }
 
 .presentation-reference-picker {

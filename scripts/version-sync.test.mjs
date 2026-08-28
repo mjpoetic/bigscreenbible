@@ -64,7 +64,8 @@ assert.deepEqual(legacyMerge.versions, ["BSB", "KJV", "WEB"]);
 assert.equal(legacyMerge.versionsUpdatedAt, "");
 
 const applyCloudSnapshotSource = extractFunction("applyCloudSnapshot");
-assert.match(applyCloudSnapshotSource, /state\.versions = normalizedVersions\(settings\.versions\)/);
+assert.match(applyCloudSnapshotSource, /state\.versions = versionsWithSharedVersionOverride\(settings\.versions\)/);
+assert.match(extractFunction("versionsWithSharedVersionOverride"), /const baseVersions = normalizedVersions\(versions\)/);
 assert.doesNotMatch(applyCloudSnapshotSource, /state\.versions = mergeVersions/);
 assert.match(
   source,

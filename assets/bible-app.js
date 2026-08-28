@@ -114,6 +114,17 @@ const printLayouts = [
   { code: "big-screen", name: "Big Screen", description: "Large quotation-style Scripture with the reference above it." },
 ];
 const printLayoutCodes = printLayouts.map((layout) => layout.code);
+const passageShareFormats = [
+  { code: "quotation", name: "Quotation", description: "Quoted Scripture with the reference on its own line." },
+  { code: "plain", name: "Plain text", description: "Scripture without quotation marks or a leading dash." },
+  { code: "compact", name: "Compact", description: "Scripture and its reference together on one line." },
+];
+const passageShareFormatCodes = passageShareFormats.map((format) => format.code);
+const defaultPassageShareFormat = "quotation";
+
+function normalizedPassageShareFormat(format) {
+  return passageShareFormatCodes.includes(format) ? format : defaultPassageShareFormat;
+}
 
 const themeCatalog = window.BigScreenBibleThemeCatalog;
 if (!themeCatalog) throw new Error("Big Screen Bible theme catalog failed to load.");
@@ -317,11 +328,12 @@ const gameChallengePopupDismissedStorageKey = "lw_dismissed_game_challenge_popup
 const socialConnectionsOpenStorageKey = "lw_social_connections_open";
 const settingsSectionsOpenStorageKey = "lw_settings_sections_open";
 const settingsSectionsOpenUpdatedAtStorageKey = "lw_settings_sections_open_updated_at";
-const settingsSectionKeys = ["accessibility", "display", "reading", "startup", "printing", "updates"];
+const settingsSectionKeys = ["accessibility", "display", "reading", "sharing", "startup", "printing", "updates"];
 const defaultSettingsSectionsOpen = {
   accessibility: false,
   display: true,
   reading: true,
+  sharing: false,
   startup: false,
   printing: false,
   updates: false,
@@ -498,6 +510,7 @@ const state = {
   printLayout: savedPrintLayout(),
   printVerseNumbers: localStorage.getItem("lw_print_verse_numbers") !== "false",
   printFullVersionName: localStorage.getItem("lw_print_full_version_name") === "true",
+  passageShareFormat: normalizedPassageShareFormat(localStorage.getItem("lw_passage_share_format")),
   sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
   redLetters: savedRedLetters(),
   strongNumbers: savedStrongNumbers(),
@@ -562,7 +575,9 @@ const state = {
   footerVersionMenuOpen: false,
   presentationVersionMenuOpen: "",
   presentationReferenceMenuOpen: "",
+  sharedVersionOverride: null,
   presentationSettingsSectionsOpen: {
+    sharing: false,
     sound: false,
     updates: false,
     keyboard: false,
@@ -2996,6 +3011,30 @@ function printingSettings(prefix = "") {
   `);
 }
 
+function passageShareFormatOptions() {
+  return passageShareFormats
+    .map((format) => `<option value="${format.code}" ${format.code === state.passageShareFormat ? "selected" : ""}>${format.name}</option>`)
+    .join("");
+}
+
+function passageShareFormatHelp() {
+  return passageShareFormats.find((format) => format.code === state.passageShareFormat)?.description
+    || passageShareFormats[0].description;
+}
+
+function sharingSettings(prefix = "") {
+  const controlId = prefix ? `${prefix}PassageShareFormatSelect` : "passageShareFormatSelect";
+  return settingsDisclosure("sharing", "Copy & sharing", `
+    <div class="setting-group">
+      <label class="setting-label" for="${controlId}">Bible text format</label>
+      <select class="primary-version-select passage-share-format-select" id="${controlId}" aria-label="Copied and shared Bible text format">
+        ${passageShareFormatOptions()}
+      </select>
+      <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
+    </div>
+  `);
+}
+
 function startupReminderSettings(prefix = "") {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("startup", "Startup & reminders", `
@@ -3378,6 +3417,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
       ${accessibilitySettings("mobile")}
       ${displaySettings("mobile")}
       ${readingSettings("mobile")}
+      ${sharingSettings("mobile")}
       ${printingSettings("mobile")}
       ${startupReminderSettings("mobile")}
       ${appUpdateSettings("mobile")}
@@ -3577,6 +3617,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           ${accessibilitySettings()}
           ${displaySettings()}
           ${readingSettings()}
+          ${sharingSettings()}
           ${printingSettings()}
           ${startupReminderSettings()}
           ${appUpdateSettings()}
@@ -5978,6 +6019,7 @@ function reader(chapterChange = null) {
         `}
       </div>
       <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
+        ${sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
       ${readerChapterSwipeIndicators()}
@@ -8970,7 +9012,7 @@ function cancelAccountSwitch() {
 function captureCloudSnapshot() {
   return {
     settings: {
-      versions: state.versions,
+      versions: persistentVersions(),
       versionsUpdatedAt: state.versionsUpdatedAt,
       ...appearanceSnapshotSettings(state.appearance),
       scriptureFont: state.scriptureFont,
@@ -8989,6 +9031,7 @@ function captureCloudSnapshot() {
       printLayout: state.printLayout,
       printVerseNumbers: state.printVerseNumbers,
       printFullVersionName: state.printFullVersionName,
+      passageShareFormat: state.passageShareFormat,
       sectionHeadings: state.sectionHeadings,
       redLetters: state.redLetters,
       strongNumbers: state.strongNumbers,
@@ -9127,9 +9170,26 @@ function latestAppearanceSettings(cloudSettings = {}, localSettings = {}) {
 
 function persistVersions({ changed = false } = {}) {
   if (changed) state.versionsUpdatedAt = new Date().toISOString();
-  localStorage.setItem("lw_versions", JSON.stringify(state.versions));
+  localStorage.setItem("lw_versions", JSON.stringify(persistentVersions()));
   if (state.versionsUpdatedAt) localStorage.setItem("lw_versions_updated_at", state.versionsUpdatedAt);
   else localStorage.removeItem("lw_versions_updated_at");
+}
+
+function persistentVersions() {
+  return state.sharedVersionOverride?.returnVersions?.length
+    ? [...state.sharedVersionOverride.returnVersions]
+    : [...state.versions];
+}
+
+function versionsWithSharedVersionOverride(versions) {
+  const baseVersions = normalizedVersions(versions);
+  const sharedVersion = state.sharedVersionOverride?.version;
+  if (!translationCodes.includes(sharedVersion) || sharedVersion === baseVersions[0]) {
+    state.sharedVersionOverride = null;
+    return baseVersions;
+  }
+  state.sharedVersionOverride.returnVersions = [...baseVersions];
+  return [sharedVersion, ...baseVersions.filter((version) => version !== sharedVersion)];
 }
 
 function mergeHistory(cloudHistory = [], localHistory = []) {
@@ -9161,7 +9221,7 @@ function mergeStreaks(cloudStreak, localStreak) {
 
 function applyCloudSnapshot(snapshot) {
   const settings = migrateAppearanceSettings(snapshot.settings);
-  state.versions = normalizedVersions(settings.versions);
+  state.versions = versionsWithSharedVersionOverride(settings.versions);
   state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
   applyResolvedAppearance(appearanceFromSnapshotSettings(settings));
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
@@ -9202,6 +9262,9 @@ function applyCloudSnapshot(snapshot) {
   state.printFullVersionName = typeof settings.printFullVersionName === "boolean"
     ? settings.printFullVersionName
     : localStorage.getItem("lw_print_full_version_name") === "true";
+  state.passageShareFormat = normalizedPassageShareFormat(
+    settings.passageShareFormat || localStorage.getItem("lw_passage_share_format"),
+  );
   state.sectionHeadings = settings.sectionHeadings !== false;
   state.redLetters = typeof settings.redLetters === "boolean" ? settings.redLetters : savedRedLetters();
   state.strongNumbers = typeof settings.strongNumbers === "boolean" ? settings.strongNumbers : savedStrongNumbers();
@@ -9274,6 +9337,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_print_layout", state.printLayout);
   localStorage.setItem("lw_print_verse_numbers", String(state.printVerseNumbers));
   localStorage.setItem("lw_print_full_version_name", String(state.printFullVersionName));
+  localStorage.setItem("lw_passage_share_format", state.passageShareFormat);
   localStorage.setItem("lw_section_headings", String(state.sectionHeadings));
   localStorage.setItem("lw_red_letters", String(state.redLetters));
   localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
@@ -13609,6 +13673,17 @@ function presentationSettingsDisclosure(key, label, content) {
   `;
 }
 
+function sharedVersionReturnButton(surface) {
+  const version = state.sharedVersionOverride?.returnVersions?.[0];
+  if (!version || version === state.versions[0]) return "";
+  const displayCode = translationDisplayCode(version);
+  return `
+    <button class="shared-version-return shared-version-return-${surface}" type="button" data-return-shared-version aria-label="Return to your Bible version, ${escapeHtml(displayCode)}" data-tooltip="Return to ${escapeHtml(displayCode)}">
+      ${icons.arrowLeft}<span>Return to ${escapeHtml(displayCode)}</span>
+    </button>
+  `;
+}
+
 function themeFamilyOptionsMarkup() {
   const customized = hasAppearanceOverrides(state.appearance);
   return `
@@ -13737,6 +13812,15 @@ function presentation(accountPanelRerender = false) {
         </div>
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
+        ${presentationSettingsDisclosure("sharing", "Copy & sharing", `
+          <label>
+            <span>Bible text format</span>
+            <select id="presentationPassageShareFormatSelect" class="presentation-version-select passage-share-format-select" aria-label="Copied and shared Bible text format">
+              ${passageShareFormatOptions()}
+            </select>
+          </label>
+          <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
+        `)}
         ${presentationSettingsDisclosure("sound", "Sound", `
           <label class="presentation-setting-checkbox">
             <input type="checkbox" id="presentationModeTransitionSoundsToggle" ${state.modeTransitionSounds ? "checked" : ""} />
@@ -13774,10 +13858,12 @@ function presentation(accountPanelRerender = false) {
                 ${presentationReferencePicker("chapter", chapters, presentationChapter)}
                 <span class="presentation-reference-colon" aria-hidden="true">:</span>
                 ${presentationReferencePicker("verse", verses, state.verse)}`}
+            <button class="ghost-btn presentation-reference-share" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-tooltip="Share passage">${icons.share}</button>
           </div>
           ${verseOfDayItem
             ? `<span class="presentation-version-label">(${verseOfDayTranslationCode})</span>`
             : presentationVersionPicker("title", version)}
+          ${sharedVersionReturnButton("presentation")}
           ${presentationPosition ? `<span class="presentation-part-position">${escapeHtml(presentationPosition)}</span>` : ""}
         </div>
         <div class="presentation-actions">
@@ -14205,6 +14291,7 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-remove-version]").forEach((button) => {
     button.addEventListener("click", () => {
+      clearSharedVersionOverride({ restoreVersions: true });
       if (state.versions.length === 1) return showToast("Keep at least one version selected");
       state.versions = state.versions.filter((version) => version !== button.dataset.removeVersion);
       persistVersions({ changed: true });
@@ -14214,6 +14301,7 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-remove-parallel-version]").forEach((button) => {
     button.addEventListener("click", () => {
+      clearSharedVersionOverride({ restoreVersions: true });
       const version = button.dataset.removeParallelVersion;
       if (!version || version === state.versions[0]) return;
       state.versions = state.versions.filter((item) => item !== version);
@@ -14294,8 +14382,12 @@ function bindEvents() {
       await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
     });
   });
+  document.querySelectorAll("[data-return-shared-version]").forEach((button) => {
+    button.addEventListener("click", restoreSharedVersion);
+  });
   document.querySelectorAll("[data-toggle-version-option]").forEach((button) => {
     button.addEventListener("click", async () => {
+      clearSharedVersionOverride({ restoreVersions: true });
       const version = button.dataset.toggleVersionOption;
       if (!translationCodes.includes(version)) return;
       if (state.versions.includes(version)) {
@@ -14647,6 +14739,11 @@ function bindEvents() {
       localStorage.setItem("lw_print_full_version_name", state.printFullVersionName ? "true" : "false");
       scheduleCloudSync();
       renderPreservingReaderScroll();
+    });
+  });
+  ["passageShareFormatSelect", "mobilePassageShareFormatSelect", "presentationPassageShareFormatSelect"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      setPassageShareFormat(event.target.value);
     });
   });
   document.getElementById("sectionHeadingsToggle")?.addEventListener("change", (event) => {
@@ -15436,6 +15533,7 @@ function bindEvents() {
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
   document.getElementById("shareSelection")?.addEventListener("click", shareSelectedPassage);
+  document.getElementById("presentationShare")?.addEventListener("click", sharePresentationPassage);
   document.getElementById("copySelectionLink")?.addEventListener("click", copySelectedPassageLink);
   document.getElementById("printSelection")?.addEventListener("click", printSelectedPassage);
   document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
@@ -15465,8 +15563,31 @@ function returnFromPresentationToBible() {
   return switchMode("reader");
 }
 
+function clearSharedVersionOverride({ restoreVersions = false } = {}) {
+  const returnVersions = state.sharedVersionOverride?.returnVersions;
+  if (restoreVersions && returnVersions?.length) state.versions = [...returnVersions];
+  state.sharedVersionOverride = null;
+  if (!window.history?.replaceState) return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("version");
+  url.searchParams.delete("translation");
+  window.history.replaceState(null, "", url);
+}
+
+async function restoreSharedVersion() {
+  const returnVersion = state.sharedVersionOverride?.returnVersions?.[0];
+  if (!returnVersion) return;
+  clearSharedVersionOverride({ restoreVersions: true });
+  await loadBibleVersion(returnVersion);
+  rebuildBibleData();
+  if (state.mode === "big") render();
+  else renderPreservingReaderScroll();
+  showToast(`Returned to ${translationDisplayCode(returnVersion)}`);
+}
+
 async function setPrimaryVersion(version, options = {}) {
   if (!translationCodes.includes(version)) return;
+  clearSharedVersionOverride({ restoreVersions: true });
   state.versions = [version, ...state.versions.filter((item) => item !== version)];
   state.presentationPart = 0;
   state.presentationVersionMenuOpen = "";
@@ -15487,7 +15608,18 @@ async function setPrimaryVersion(version, options = {}) {
   else render();
 }
 
+function setPassageShareFormat(format) {
+  const normalized = normalizedPassageShareFormat(format);
+  if (normalized === state.passageShareFormat) return;
+  state.passageShareFormat = normalized;
+  localStorage.setItem("lw_passage_share_format", normalized);
+  scheduleCloudSync();
+  if (state.mode === "big") render();
+  else renderPreservingReaderScroll();
+}
+
 async function setParallelVersionAt(index, version) {
+  clearSharedVersionOverride({ restoreVersions: true });
   const versions = activeVersions();
   if (!versions[index] || versions[index] === version) {
     return renderPreservingReaderScroll();
@@ -18690,6 +18822,7 @@ async function applyStartupExperience() {
   const sharedRef = sharedReferenceFromUrl();
   const requestedMode = requestedModeFromUrl();
   if (sharedRef && setReferenceFromString(sharedRef)) {
+    await applySharedVersionFromUrl();
     const selected = sharedVersesFromUrl();
     if (selected.length) state.selectedVerses = selected;
     if (requestedMode) state.mode = requestedMode;
@@ -18707,6 +18840,28 @@ async function applyStartupExperience() {
   if (requestedMode) state.mode = requestedMode;
   else if (state.startBigScreen) state.mode = "big";
   if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
+}
+
+function requestedVersionFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = String(params.get("version") || params.get("translation") || "").trim().toLowerCase();
+  if (!requested) return "";
+  return translations.find((translation) => (
+    translation.code.toLowerCase() === requested
+    || String(translation.displayCode || "").toLowerCase() === requested
+  ))?.code || "";
+}
+
+async function applySharedVersionFromUrl() {
+  const version = requestedVersionFromUrl();
+  if (!version || version === state.versions[0]) return;
+  state.sharedVersionOverride = {
+    version,
+    returnVersions: [...state.versions],
+  };
+  state.versions = [version, ...state.versions.filter((item) => item !== version)];
+  await loadBibleVersion(version);
+  rebuildBibleData();
 }
 
 async function openVerseOfDay(options = {}) {
@@ -21697,7 +21852,14 @@ async function copySpecificVerses(verseNumbers) {
 }
 
 async function shareSelectedPassage() {
-  const verseNumbers = selectedVerseNumbers();
+  return sharePassage(selectedVerseNumbers());
+}
+
+async function sharePresentationPassage() {
+  return sharePassage([state.verse]);
+}
+
+async function sharePassage(verseNumbers) {
   const text = passageShareText(verseNumbers);
   if (navigator.share) {
     try {
@@ -21822,25 +21984,32 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
 }
 
 function passageText(verseNumbers = selectedVerseNumbers()) {
-  if (state.isVerseOfDayActive && state.verseOfDayItem) {
-    return `${state.verseOfDayItem.reference}\n${state.verseOfDayItem.verseText}`;
-  }
-  const lines = passageLines(verseNumbers);
-  const reference = formatReferenceLabel(state.reference, verseNumbers);
-  return `${reference} ${translationDisplayCode(state.versions[0])}\n${lines.map(({ n, text }) => `${n}. ${text}`).join("\n")}`;
+  return formattedPassageText(verseNumbers);
 }
 
 function passageShareText(verseNumbers = selectedVerseNumbers()) {
+  return `${formattedPassageText(verseNumbers)}\n\n${passageShareUrl(verseNumbers)}`;
+}
+
+function passageVersion() {
+  return state.isVerseOfDayActive && state.verseOfDayItem
+    ? verseOfDayTranslationCode
+    : translationDisplayCode(state.versions[0]);
+}
+
+function formattedPassageText(verseNumbers = selectedVerseNumbers()) {
   const lines = passageLines(verseNumbers);
-  const quote = lines
+  const scripture = lines
     .map(({ n, text }) => verseNumbers.length > 1 ? `${n}. ${String(text || "").trim()}` : String(text || "").trim())
     .filter(Boolean)
     .join("\n");
   const reference = state.isVerseOfDayActive && state.verseOfDayItem
     ? state.verseOfDayItem.reference
     : formatReferenceLabel(state.reference, verseNumbers);
-  const version = translationDisplayCode(state.versions[0]);
-  return `“${quote}”\n— ${reference} (${version})\n\n${passageShareUrl(verseNumbers)}`;
+  const citation = `${reference} (${passageVersion()})`;
+  if (state.passageShareFormat === "plain") return `${scripture}\n${citation}`;
+  if (state.passageShareFormat === "compact") return `“${scripture.replace(/\s*\n\s*/g, " ")}” — ${citation}`;
+  return `“${scripture}”\n— ${citation}`;
 }
 
 function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
@@ -21850,6 +22019,9 @@ function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
   if (verseNumbers.length > 1) url.searchParams.set("verses", verseRangeParam(verseNumbers));
   else url.searchParams.delete("verses");
   if (["reader", "parallel", "big"].includes(state.mode)) url.searchParams.set("mode", state.mode);
+  url.searchParams.set("version", state.isVerseOfDayActive && state.verseOfDayItem
+    ? verseOfDayTranslationCode
+    : state.versions[0]);
   return url.toString();
 }
 
