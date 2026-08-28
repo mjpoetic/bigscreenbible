@@ -19681,6 +19681,16 @@ function closeAccountPopoverOnOutsidePointerDown(event) {
   toggleAccountMenu(false);
 }
 
+function closePresentationSearchOnOutsideClick(event) {
+  if (
+    (!state.presentationSearchOpen && !state.presentationSearchResultsOpen)
+    || event.target.closest?.(".presentation-search-slot, .presentation-search-results")
+  ) return;
+  state.presentationSearchOpen = false;
+  state.presentationSearchResultsOpen = false;
+  render();
+}
+
 function closeOpenPopoversOnOutsidePointerDown(event) {
   closeSettingsPopoverOnOutsidePointerDown(event);
   closePresentationSettingsOnOutsidePointerDown(event);
@@ -22676,11 +22686,7 @@ document.addEventListener("click", (event) => {
   state.focusSearchResultsOpen = false;
   renderPreservingReaderScroll();
 });
-document.addEventListener("click", (event) => {
-  if (!state.presentationSearchResultsOpen || event.target.closest?.(".presentation-search-results, .presentation-search-slot")) return;
-  state.presentationSearchResultsOpen = false;
-  render();
-});
+document.addEventListener("click", closePresentationSearchOnOutsideClick);
 document.addEventListener("click", (event) => {
   if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace")) return;
   resetFocusToolSurfaces();

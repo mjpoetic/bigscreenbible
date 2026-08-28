@@ -39,6 +39,50 @@ assert.match(extractFunction("applyCloudSnapshot"), /state\.presentationTextScal
 assert.match(extractFunction("persistCloudSnapshotLocally"), /lw_presentation_text_scale/);
 assert.match(extractFunction("persistPresentationTextScale"), /scheduleCloudSync\(\)/);
 
+const searchDismissContext = {
+  state: {
+    presentationSearchOpen: true,
+    presentationSearchResultsOpen: false,
+  },
+  renderCalls: 0,
+};
+searchDismissContext.render = () => {
+  searchDismissContext.renderCalls += 1;
+};
+vm.createContext(searchDismissContext);
+vm.runInContext(`
+  ${extractFunction("closePresentationSearchOnOutsideClick")}
+  globalThis.dismissSearch = closePresentationSearchOnOutsideClick;
+`, searchDismissContext);
+
+const clickPresentationSearch = (closestMatch) => searchDismissContext.dismissSearch({
+  target: {
+    closest: () => closestMatch,
+  },
+});
+
+clickPresentationSearch({ className: "presentation-search-slot" });
+assert.equal(searchDismissContext.state.presentationSearchOpen, true, "Big Screen search stays open for clicks inside its controls");
+assert.equal(searchDismissContext.renderCalls, 0);
+
+clickPresentationSearch(null);
+assert.equal(searchDismissContext.state.presentationSearchOpen, false, "An outside click closes the Big Screen search controls");
+assert.equal(searchDismissContext.state.presentationSearchResultsOpen, false);
+assert.equal(searchDismissContext.renderCalls, 1);
+
+searchDismissContext.state.presentationSearchResultsOpen = true;
+clickPresentationSearch({ className: "presentation-search-results" });
+assert.equal(searchDismissContext.state.presentationSearchResultsOpen, true, "Big Screen results stay open for clicks inside the results panel");
+assert.equal(searchDismissContext.renderCalls, 1);
+
+clickPresentationSearch(null);
+assert.equal(searchDismissContext.state.presentationSearchResultsOpen, false, "An outside click closes Big Screen search results");
+assert.equal(searchDismissContext.renderCalls, 2);
+
+clickPresentationSearch(null);
+assert.equal(searchDismissContext.renderCalls, 2, "Outside clicks do nothing when Big Screen search is already closed");
+assert.match(source, /document\.addEventListener\("click", closePresentationSearchOnOutsideClick\)/);
+
 assert.match(source, /id="presentationDecreaseText"/);
 assert.match(source, /id="presentationResetText"/);
 assert.match(source, /id="presentationIncreaseText"/);
