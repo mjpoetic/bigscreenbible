@@ -10307,18 +10307,47 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 .presentation .presentation-reference-share {
   position: absolute;
   top: 50%;
-  left: calc(100% + 11px);
-  width: 36px;
-  min-width: 36px;
-  min-height: 36px;
-  height: 36px;
+  left: calc(100% + 2px);
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  height: 42px;
   padding: 0;
-  border-radius: 999px;
+  border: 0;
+  background: transparent;
   color: var(--presentation-accent);
   opacity: 0;
   pointer-events: none;
   transform: translate(-5px, -50%) scale(0.92);
-  transition: opacity 160ms ease, transform 160ms ease, box-shadow var(--motion-fast) ease;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.presentation-reference-share-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--presentation-button-border);
+  border-radius: 999px;
+  background: var(--presentation-button-bg);
+  transition: box-shadow var(--motion-fast) ease, filter var(--motion-fast) ease;
+}
+
+.presentation-reference-share-glyph svg {
+  width: 15px;
+  height: 15px;
+}
+
+.presentation .presentation-reference-share:not(:disabled):hover,
+.presentation .presentation-reference-share:not(:disabled):focus-visible {
+  box-shadow: none;
+  filter: none;
+}
+
+.presentation .presentation-reference-share:not(:disabled):hover .presentation-reference-share-glyph,
+.presentation .presentation-reference-share:not(:disabled):focus-visible .presentation-reference-share-glyph {
+  box-shadow: 0 0 16px color-mix(in srgb, var(--presentation-accent) 28%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--presentation-accent) 20%, transparent));
 }
 
 .presentation.controls-visible .presentation-reference-share,

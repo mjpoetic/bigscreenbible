@@ -142,6 +142,8 @@ assert.equal(
 );
 
 assert.match(source, /id="presentationShare"/);
+assert.match(source, /presentation-reference-share-glyph/);
+assert.match(source, /M12\.5 8\.25C8\.8 8\.8 6\.55 11 5\.75 15/);
 assert.match(source, /data-return-shared-version/);
 assert.match(source, /url\.searchParams\.set\("version"/);
 assert.match(source, /await applySharedVersionFromUrl\(\)/);
@@ -149,6 +151,7 @@ assert.match(source, /passageShareFormat: state\.passageShareFormat/);
 assert.match(extractFunction("clearSharedVersionOverride"), /url\.searchParams\.delete\("version"\)/);
 assert.match(extractFunction("persistentVersions"), /sharedVersionOverride\?\.returnVersions/);
 assert.match(styles, /\.presentation \.presentation-reference-share \{[\s\S]*?opacity: 0;/);
+assert.match(styles, /\.presentation-reference-share-glyph \{[\s\S]*?width: 24px;[\s\S]*?height: 24px;/);
 assert.match(styles, /\.presentation\.controls-visible \.presentation-reference-share,[\s\S]*?opacity: 1;/);
 
 const versionUrlContext = {
