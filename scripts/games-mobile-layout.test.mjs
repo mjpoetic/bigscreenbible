@@ -86,7 +86,9 @@ assert.match(styles, /\.games-answer-dialog-body #nextTriviaQuestion \{[\s\S]*?g
 assert.match(styles, /\.trivia-result-ring:not\(\.book-sprint-time-ring\) \{[\s\S]*?height: 128px;[\s\S]*?aspect-ratio: 1;/);
 assert.match(styles, /\.trivia-start-dock \{[\s\S]*?display: grid;/);
 assert.match(styles, /\.games-drawer-shell\.open \{[\s\S]*?position: fixed;/);
-assert.match(styles, /\.games-options-drawer,[\s\S]*?\.games-controls-drawer,[\s\S]*?\.games-hints-drawer \{[\s\S]*?top: auto;[\s\S]*?animation-name: gamesDrawerInBottom;/);
+assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.games-options-drawer,\s*\.games-hints-drawer \{[\s\S]*?top: auto;[\s\S]*?left: 0;[\s\S]*?animation-name: gamesDrawerInBottom;/);
+assert.doesNotMatch(styles, /\.games-options-drawer,\s*\.games-controls-drawer,\s*\.games-hints-drawer/);
+assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\) \.games-drawer \{[\s\S]*?right: 0;[\s\S]*?animation: gamesDrawerInRight/);
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.trivia-start-dock \{[\s\S]*?grid-column: 2;/);
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.app-shell\.trivia-shell \{[\s\S]*?height: 100dvh;[\s\S]*?overflow: hidden;/);
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.app-shell > \.main-grid\.trivia-grid \{[\s\S]*?height: auto;[\s\S]*?align-self: stretch;[\s\S]*?overflow: hidden;/);
