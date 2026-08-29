@@ -8852,6 +8852,32 @@ select {
   padding: 0 6px;
 }
 
+.selection-bar-controls {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+.selection-bar-controls::-webkit-scrollbar {
+  display: none;
+}
+
+.selection-bar-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
 .highlight-palette {
   display: inline-flex;
   align-items: center;
@@ -14801,7 +14827,8 @@ svg {
   }
 
   .selection-bar-summary {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    max-width: 280px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -15711,6 +15738,11 @@ svg {
 
     .selection-bar-summary {
       grid-column: 1 / -1;
+    }
+
+    .selection-bar-controls,
+    .selection-bar-actions {
+      display: contents;
     }
 
     .highlight-palette {
@@ -17413,6 +17445,13 @@ svg {
     gap: 6px;
     max-height: min(42vh, 240px);
     overflow-x: hidden;
+  }
+
+  .app-shell.focus-shell .selection-bar .selection-bar-controls,
+  .app-shell.focus-shell .selection-bar .selection-bar-actions,
+  .focus-shell .selection-bar .selection-bar-controls,
+  .focus-shell .selection-bar .selection-bar-actions {
+    display: contents;
   }
 
   @media (orientation: landscape) {

@@ -107,6 +107,7 @@ assert.equal(animationContext.midpoint, 500);
 assert.equal(animationContext.finish, 1000);
 
 assert.match(source, /class="reader-page-controls" aria-label="Page navigation"/);
+assert.match(source, /class="selection-bar-controls"[\s\S]*?class="selection-bar-actions"/);
 assert.match(source, /id="readerTopButton"[\s\S]*?Page up; press twice for top/);
 assert.match(source, /id="readerPageDownButton"[\s\S]*?Page down; press twice for bottom/);
 assert.match(extractFunction("updateReaderTopButton"), /maxScrollTop - scrollTop > 160/);
@@ -133,5 +134,8 @@ assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) 
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-selection-tools-button \{[\s\S]*?right: max\(7px, env\(safe-area-inset-right, 0px\)\) !important;/);
 assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.selection-bar \{[\s\S]*?width: min\(1040px, calc\(100vw - 32px\)\);[\s\S]*?flex-wrap: nowrap;/);
 assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.selection-bar-summary \{[\s\S]*?min-width: 0;[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/);
+assert.match(styles, /\.selection-bar-controls \{[\s\S]*?overflow-x: auto;[\s\S]*?touch-action: pan-x;/);
+assert.match(styles, /\.selection-bar-actions \{[\s\S]*?display: inline-flex;[\s\S]*?flex: 0 0 auto;/);
+assert.match(styles, /\.selection-bar-controls,[\s\S]*?\.selection-bar-actions \{[\s\S]*?display: contents;/);
 
 console.log("Page navigation tests passed");
