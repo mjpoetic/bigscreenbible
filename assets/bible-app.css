@@ -7211,11 +7211,44 @@ select {
   width: 100%;
 }
 
+.crossword-input-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 620px);
+}
+
+.crossword-input-controls .crossword-status {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.crossword-keyboard-toggle {
+  flex: 0 0 auto;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.crossword-native-input {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .crossword-keyboard {
   display: grid;
   gap: 6px;
   width: min(100%, 620px);
   padding-top: 2px;
+}
+
+.crossword-keyboard[hidden] {
+  display: none;
 }
 
 .crossword-keyboard > div {

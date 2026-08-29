@@ -318,6 +318,7 @@ const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
+const crosswordKeyboardVisibleStorageKey = "lw_crossword_keyboard_visible";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
 const puzzlePassageSourceStorageKey = "lw_puzzle_passage_source";
 const puzzleCustomReferenceStorageKey = "lw_puzzle_custom_reference";
@@ -644,6 +645,7 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
+  crosswordKeyboardVisible: localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false",
   wordSearchRecentPassages: savedWordSearchRecentPassages(),
   puzzlePassageSource: normalizedPuzzlePassageSource(localStorage.getItem(puzzlePassageSourceStorageKey)),
   puzzleCustomReference: normalizedPuzzleCustomReference(localStorage.getItem(puzzleCustomReferenceStorageKey)),
@@ -9058,6 +9060,7 @@ function captureCloudSnapshot() {
       bookSprintSound: state.bookSprintSound,
       referenceRushTimed: state.referenceRushTimed,
       wordSearchSounds: state.wordSearchSounds,
+      crosswordKeyboardVisible: state.crosswordKeyboardVisible,
       wordSearchRecentPassages: state.wordSearchRecentPassages,
       puzzlePassageSource: state.puzzlePassageSource,
       puzzleCustomReference: state.puzzleCustomReference,
@@ -9298,6 +9301,9 @@ function applyCloudSnapshot(snapshot) {
   state.bookSprintSound = settings.bookSprintSound !== false;
   state.referenceRushTimed = settings.referenceRushTimed !== false;
   state.wordSearchSounds = settings.wordSearchSounds !== false;
+  state.crosswordKeyboardVisible = typeof settings.crosswordKeyboardVisible === "boolean"
+    ? settings.crosswordKeyboardVisible
+    : localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false";
   state.wordSearchRecentPassages = mergeWordSearchRecentPassages(
     settings.wordSearchRecentPassages,
     savedWordSearchRecentPassages(),
@@ -9379,6 +9385,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
   localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
   localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
+  localStorage.setItem(crosswordKeyboardVisibleStorageKey, String(state.crosswordKeyboardVisible));
   localStorage.setItem(wordSearchRecentStorageKey, JSON.stringify(state.wordSearchRecentPassages));
   localStorage.setItem(puzzlePassageSourceStorageKey, state.puzzlePassageSource);
   localStorage.setItem(puzzleCustomReferenceStorageKey, state.puzzleCustomReference);
@@ -12030,9 +12037,33 @@ function crosswordGameView(game) {
               })).join("")}
             </div>
           </div>
-          <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
+          <div class="crossword-input-controls">
+            <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
+            ${game.complete ? "" : `
+              <button
+                class="text-btn crossword-keyboard-toggle"
+                id="crosswordKeyboardToggle"
+                type="button"
+                aria-controls="crosswordKeyboard"
+                aria-expanded="${state.crosswordKeyboardVisible}"
+              >${state.crosswordKeyboardVisible ? "Hide keyboard" : "Show keyboard"}</button>
+              <input
+                class="crossword-native-input"
+                id="crosswordNativeInput"
+                type="text"
+                inputmode="text"
+                enterkeyhint="done"
+                autocomplete="off"
+                autocapitalize="characters"
+                autocorrect="off"
+                spellcheck="false"
+                aria-label="Type crossword letters"
+                aria-describedby="crosswordStatus"
+              >
+            `}
+          </div>
           ${game.complete ? "" : `
-            <div class="crossword-keyboard" aria-label="Crossword letter keyboard">
+            <div class="crossword-keyboard" id="crosswordKeyboard" aria-label="Crossword letter keyboard" ${state.crosswordKeyboardVisible ? "" : "hidden"}>
               ${["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].map((row) => `<div>${[...row].map((letter) => `<button type="button" data-crossword-key="${letter}" aria-label="Enter ${letter}">${letter}</button>`).join("")}</div>`).join("")}
               <div class="crossword-keyboard-actions">
                 <button type="button" data-crossword-key="backspace" aria-label="Erase letter">${icons.clear}<span>Erase</span></button>
@@ -16379,7 +16410,7 @@ function startCrosswordGame({ render = true } = {}) {
     errorCellKeys: [],
     activeEntryId: firstEntry.id,
     activeCellKey: wordSearchCellKey(firstEntry.cells[0]),
-    lastMessage: "Choose a clue or cell, then type with the keyboard below.",
+    lastMessage: "Choose a clue or cell, then type with your physical or device keyboard.",
     startedAt: Date.now(),
     finishedAt: null,
     crosswordBest: null,
@@ -17869,7 +17900,30 @@ function updateCrosswordDom({ focus = false } = {}) {
   const progress = document.getElementById("crosswordProgress");
   if (progress) progress.textContent = `${game.score} of ${game.entries.length} solved`;
   setCrosswordStatus(game.lastMessage);
-  if (focus) document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`)?.focus({ preventScroll: true });
+  if (focus && document.activeElement?.id !== "crosswordNativeInput") {
+    document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`)?.focus({ preventScroll: true });
+  }
+}
+
+function focusCrosswordNativeInput() {
+  const input = document.getElementById("crosswordNativeInput");
+  if (!input || state.triviaGame?.type !== "crossword" || state.triviaGame.complete) return;
+  input.value = "";
+  input.focus({ preventScroll: true });
+}
+
+function setCrosswordKeyboardVisible(visible) {
+  state.crosswordKeyboardVisible = Boolean(visible);
+  localStorage.setItem(crosswordKeyboardVisibleStorageKey, String(state.crosswordKeyboardVisible));
+  scheduleCloudSync();
+  const keyboard = document.getElementById("crosswordKeyboard");
+  const toggle = document.getElementById("crosswordKeyboardToggle");
+  if (keyboard) keyboard.hidden = !state.crosswordKeyboardVisible;
+  if (toggle) {
+    toggle.textContent = state.crosswordKeyboardVisible ? "Hide keyboard" : "Show keyboard";
+    toggle.setAttribute("aria-expanded", String(state.crosswordKeyboardVisible));
+  }
+  if (!state.crosswordKeyboardVisible) focusCrosswordNativeInput();
 }
 
 function selectCrosswordEntry(entryId, preferredCellKey = "", options = {}) {
@@ -17998,30 +18052,50 @@ function moveCrosswordSelection(rowDelta, columnDelta) {
 function handleCrosswordKeydown(event) {
   if (/^[a-z]$/i.test(event.key)) {
     event.preventDefault();
+    event.stopPropagation();
     enterCrosswordLetter(event.key);
   } else if (event.key === "Backspace" || event.key === "Delete") {
     event.preventDefault();
+    event.stopPropagation();
     eraseCrosswordLetter();
   } else if (event.key === "Enter") {
     event.preventDefault();
+    event.stopPropagation();
     checkCrosswordEntry();
   } else if (event.key === " ") {
     event.preventDefault();
+    event.stopPropagation();
     const [row, column] = state.triviaGame.activeCellKey.split(":").map(Number);
     selectCrosswordCell(row, column);
   } else if (event.key === "ArrowUp") {
     event.preventDefault();
+    event.stopPropagation();
     moveCrosswordSelection(-1, 0);
   } else if (event.key === "ArrowDown") {
     event.preventDefault();
+    event.stopPropagation();
     moveCrosswordSelection(1, 0);
   } else if (event.key === "ArrowLeft") {
     event.preventDefault();
+    event.stopPropagation();
     moveCrosswordSelection(0, -1);
   } else if (event.key === "ArrowRight") {
     event.preventDefault();
+    event.stopPropagation();
     moveCrosswordSelection(0, 1);
   }
+}
+
+function handleCrosswordNativeInput(event) {
+  const letters = String(event.currentTarget.value || "").match(/[a-z]/gi) || [];
+  event.currentTarget.value = "";
+  letters.forEach((letter) => enterCrosswordLetter(letter));
+}
+
+function handleCrosswordNativeBeforeInput(event) {
+  if (!String(event.inputType || "").startsWith("delete")) return;
+  event.preventDefault();
+  eraseCrosswordLetter();
 }
 
 function bindCrosswordGrid() {
@@ -18029,11 +18103,16 @@ function bindCrosswordGrid() {
   if (!grid || state.triviaGame?.complete) return;
   grid.addEventListener("click", (event) => {
     const cell = event.target.closest?.("[data-crossword-cell]");
-    if (cell) selectCrosswordCell(Number(cell.dataset.row), Number(cell.dataset.column));
+    if (!cell) return;
+    selectCrosswordCell(Number(cell.dataset.row), Number(cell.dataset.column));
+    focusCrosswordNativeInput();
   });
   grid.addEventListener("keydown", handleCrosswordKeydown);
   document.querySelectorAll("[data-crossword-entry]").forEach((clue) => {
-    clue.addEventListener("click", () => selectCrosswordEntry(clue.dataset.crosswordEntry));
+    clue.addEventListener("click", () => {
+      selectCrosswordEntry(clue.dataset.crosswordEntry, "", { focus: false });
+      focusCrosswordNativeInput();
+    });
   });
   document.querySelectorAll("[data-crossword-key]").forEach((key) => {
     key.addEventListener("click", () => {
@@ -18041,6 +18120,13 @@ function bindCrosswordGrid() {
       else if (key.dataset.crosswordKey === "check") checkCrosswordEntry();
       else enterCrosswordLetter(key.dataset.crosswordKey);
     });
+  });
+  const nativeInput = document.getElementById("crosswordNativeInput");
+  nativeInput?.addEventListener("keydown", handleCrosswordKeydown);
+  nativeInput?.addEventListener("beforeinput", handleCrosswordNativeBeforeInput);
+  nativeInput?.addEventListener("input", handleCrosswordNativeInput);
+  document.getElementById("crosswordKeyboardToggle")?.addEventListener("click", () => {
+    setCrosswordKeyboardVisible(!state.crosswordKeyboardVisible);
   });
 }
 
@@ -21776,6 +21862,11 @@ function handleGlobalShortcuts(event) {
     const showFeedback = () => requestAnimationFrame(() => showToast(`Strong's lookups ${enabled ? "on" : "off"}`));
     if (lexiconLoad) lexiconLoad.finally(showFeedback);
     else showFeedback();
+    return;
+  }
+  if (!event.shiftKey && /^[a-z]$/i.test(event.key) && state.mode === "trivia" && state.triviaGame?.type === "crossword") {
+    event.preventDefault();
+    if (!state.triviaGame.complete) enterCrosswordLetter(event.key);
     return;
   }
   if (!event.shiftKey && key === "a" && canUseReaderKeyboardNavigation()) {

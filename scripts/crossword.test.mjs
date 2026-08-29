@@ -272,6 +272,10 @@ assert.match(extractFunction("startCrosswordGame"), /recordWordSearchPassage/);
 assert.match(extractFunction("triviaGameView"), /crosswordGameView/);
 assert.match(extractFunction("crosswordGameView"), /role="grid"/);
 assert.match(extractFunction("crosswordGameView"), /data-crossword-key/);
+assert.match(extractFunction("crosswordGameView"), /id="crosswordNativeInput"/);
+assert.match(extractFunction("crosswordGameView"), /inputmode="text"/);
+assert.match(extractFunction("crosswordGameView"), /id="crosswordKeyboardToggle"/);
+assert.match(extractFunction("crosswordGameView"), /state\.crosswordKeyboardVisible \? "" : "hidden"/);
 assert.match(extractFunction("crosswordGameView"), /Across/);
 assert.match(extractFunction("crosswordGameView"), /Down/);
 assert.match(extractFunction("crosswordGameView"), /class="ghost-btn crossword-menu-control" id="exitTriviaGame"/);
@@ -280,8 +284,27 @@ assert.match(extractFunction("puzzleRestartDialog"), /crosswordDifficulties\(\)/
 assert.match(extractFunction("puzzleRestartDialog"), /crosswordDifficultyDescription/);
 assert.match(extractFunction("restartPuzzleAtDifficulty"), /startCrosswordGame\(\)/);
 assert.match(extractFunction("bindCrosswordGrid"), /keydown/);
+assert.match(extractFunction("bindCrosswordGrid"), /beforeinput/);
+assert.match(extractFunction("bindCrosswordGrid"), /focusCrosswordNativeInput/);
+assert.match(extractFunction("bindCrosswordGrid"), /setCrosswordKeyboardVisible/);
 assert.match(extractFunction("handleCrosswordKeydown"), /Backspace/);
 assert.match(extractFunction("handleCrosswordKeydown"), /ArrowRight/);
+assert.match(extractFunction("handleCrosswordKeydown"), /stopPropagation/);
+assert.match(extractFunction("handleCrosswordNativeInput"), /match\(\/\[a-z\]\/gi\)/);
+assert.match(extractFunction("handleCrosswordNativeBeforeInput"), /startsWith\("delete"\)/);
+assert.match(extractFunction("setCrosswordKeyboardVisible"), /crosswordKeyboardVisibleStorageKey/);
+assert.match(extractFunction("setCrosswordKeyboardVisible"), /scheduleCloudSync\(\)/);
+assert.match(extractFunction("captureCloudSnapshot"), /crosswordKeyboardVisible/);
+assert.match(extractFunction("applyCloudSnapshot"), /settings\.crosswordKeyboardVisible/);
+assert.match(extractFunction("persistCloudSnapshotLocally"), /crosswordKeyboardVisibleStorageKey/);
+const globalShortcutsSource = extractFunction("handleGlobalShortcuts");
+const crosswordLetterOwnershipIndex = globalShortcutsSource.indexOf('state.triviaGame?.type === "crossword"');
+assert.ok(crosswordLetterOwnershipIndex >= 0, "Crossword should own unmodified letter keys");
+assert.ok(
+  crosswordLetterOwnershipIndex < globalShortcutsSource.indexOf('if (key === "p")'),
+  "Crossword letter handling must run before single-letter app shortcuts",
+);
+assert.match(globalShortcutsSource, /!event\.shiftKey && \/\^\[a-z\]\$\/i\.test\(event\.key\)/);
 assert.match(extractFunction("enterCrosswordLetter"), /updateCrosswordDom/);
 assert.doesNotMatch(extractFunction("enterCrosswordLetter"), /renderPreservingReaderScroll\(\)/);
 assert.match(extractFunction("checkCrosswordEntry"), /errorCellKeys/);
@@ -290,6 +313,8 @@ assert.match(extractFunction("openTriviaReference"), /game\?\.type === "crosswor
 assert.match(extractFunction("mountMobileGameControls"), /crossword-actions/);
 assert.match(styles, /\.crossword-grid \{[\s\S]*?touch-action: manipulation;/);
 assert.match(styles, /\.crossword-keyboard button \{[\s\S]*?min-height: 42px;/);
+assert.match(styles, /\.crossword-keyboard\[hidden\] \{[\s\S]*?display: none;/);
+assert.match(styles, /\.crossword-native-input \{[\s\S]*?opacity: 0;[\s\S]*?pointer-events: none;/);
 assert.match(styles, /\.crossword-sidebar \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.crossword-clue-columns \{[\s\S]*?overflow-y: auto;[\s\S]*?scrollbar-gutter: stable;/);
 assert.match(styles, /\.crossword-menu-control \{[\s\S]*?min-height: 44px;/);
