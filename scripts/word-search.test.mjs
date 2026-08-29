@@ -197,7 +197,8 @@ assert.equal(api.wordSearchSelectionCells(0, 0, 2, 1).length, 0, "Bent selection
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 5, 9) }, { row: 6, column: 4 });
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 6, 9) }, { row: 6, column: 6 });
 
-assert.match(source, /data-trivia-mode="crossword"[\s\S]*?game-new-badge/);
+assert.doesNotMatch(source, /game-new-badge/);
+assert.doesNotMatch(source, /aria-label="Crossword, new"/);
 assert.doesNotMatch(source, /aria-label="Word Search, new"/);
 const triviaViewSource = extractFunction("triviaView");
 assert.ok(
@@ -209,7 +210,7 @@ assert.match(extractFunction("startTriviaGame"), /startWordSearchGame/);
 const startWordSearchSource = extractFunction("startWordSearchGame");
 assert.match(startWordSearchSource, /orderedWordSearchPassages\(\)/);
 assert.match(startWordSearchSource, /recordWordSearchPassage\(selected\.pack\)/);
-assert.match(startWordSearchSource, /savedWordSearchBest\(difficulty\)/);
+assert.match(startWordSearchSource, /savedWordSearchBest\(difficulty, bestContext\)/);
 assert.match(startWordSearchSource, /if \(target\) primeWordSearchAudio\(\)/);
 assert.match(startWordSearchSource, /wordSearchTarget: target/);
 assert.match(startWordSearchSource, /wordSearchHadPrevious: Boolean\(target\)/);
@@ -254,7 +255,7 @@ assert.match(timerDisplaySource, /playWordSearchCountdownTick\(secondsRemaining\
 assert.match(timerDisplaySource, /game\.complete \? "Finished" : "Time"/);
 assert.match(extractFunction("scheduleWordSearchTimer"), /setInterval/);
 assert.match(extractFunction("recordWordSearchBest"), /beatPrevious/);
-assert.match(extractFunction("savedWordSearchBest"), /difficulty \|\| "Medium"/);
+assert.match(extractFunction("savedWordSearchBest"), /puzzleBestKey\(difficulty, context\)/);
 assert.match(extractFunction("mountMobileGameControls"), /word-search-actions/);
 assert.match(extractFunction("openTriviaReference"), /game\?\.type === "word-search"[\s\S]*?game\.reference/);
 
@@ -267,7 +268,7 @@ assert.match(extractFunction("accessibilitySettings"), /WordSearchSoundsToggle/)
 assert.match(extractFunction("captureCloudSnapshot"), /wordSearchSounds: state\.wordSearchSounds/);
 assert.match(extractFunction("applyCloudSnapshot"), /state\.wordSearchSounds = settings\.wordSearchSounds !== false/);
 
-assert.match(styles, /\.game-new-badge \{/);
+assert.doesNotMatch(styles, /\.game-new-badge \{/);
 assert.match(styles, /\.word-search-grid \{[\s\S]*?touch-action: none;/);
 assert.match(styles, /\.word-search-cell \{[\s\S]*?font-family: "Atkinson Hyperlegible Next"/);
 assert.match(styles, /\.word-search-found-outlines \{[\s\S]*?pointer-events: none;/);

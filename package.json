@@ -43,6 +43,7 @@
     "test:version-sync": "node scripts/version-sync.test.mjs",
     "test:word-search": "node scripts/word-search.test.mjs",
     "test:crossword": "node scripts/crossword.test.mjs",
+    "test:custom-puzzles": "node scripts/custom-puzzles.test.mjs",
     "check:app-version": "node scripts/check-app-version.mjs",
     "semantic:corpus": "node scripts/semantic-search-corpus.mjs",
     "semantic:index:genesis": "node scripts/index-semantic-search.mjs --book Genesis",

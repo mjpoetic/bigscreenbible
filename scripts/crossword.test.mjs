@@ -160,7 +160,8 @@ assert.ok(
   triviaViewSource.indexOf('data-trivia-mode="crossword"') < triviaViewSource.indexOf('data-trivia-mode="trivia"'),
   "Crossword should be prominent before Trivia",
 );
-assert.match(triviaViewSource, /aria-label="Crossword, new"/);
+assert.doesNotMatch(triviaViewSource, /aria-label="Crossword, new"/);
+assert.doesNotMatch(source, /game-new-badge/);
 assert.match(triviaViewSource, /isCrossword \? crosswordDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startCrosswordGame/);
 assert.match(extractFunction("startCrosswordGame"), /orderedWordSearchPassages\(\)/);

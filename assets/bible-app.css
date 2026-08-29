@@ -5886,31 +5886,6 @@ select {
   height: 20px;
 }
 
-.game-new-badge {
-  position: absolute;
-  top: 3px;
-  right: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  min-height: 16px;
-  border-radius: 999px;
-  background: var(--gold);
-  color: var(--accent-ink);
-  padding: 1px 5px;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.trivia-mode-tabs button.active .game-new-badge {
-  background: var(--panel);
-  color: var(--teal);
-}
-
 .trivia-setup p,
 .trivia-results p,
 .trivia-feedback p {
@@ -5948,6 +5923,258 @@ select {
 
 .trivia-setup select {
   width: 100%;
+}
+
+.puzzle-creator {
+  display: grid;
+  gap: 14px;
+  width: min(620px, 100%);
+  border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--teal) 6%, var(--paper));
+  padding: 16px;
+}
+
+.puzzle-creator-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.puzzle-creator-heading > span {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.puzzle-creator-heading > strong {
+  color: var(--ink);
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.puzzle-source-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.puzzle-source-options button {
+  min-height: 44px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 9px 12px;
+  font-weight: 850;
+}
+
+.puzzle-source-options button:last-child {
+  border-right: 0;
+}
+
+.puzzle-source-options button.active {
+  background: var(--teal);
+  color: var(--accent-ink);
+}
+
+.puzzle-reference-field,
+.puzzle-version-field {
+  gap: 7px !important;
+}
+
+.puzzle-reference-field > span,
+.puzzle-version-field > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.puzzle-reference-field > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.puzzle-reference-field input,
+.puzzle-version-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 9px 11px;
+  font: inherit;
+}
+
+.puzzle-reference-field input:focus,
+.puzzle-version-field select:focus {
+  border-color: color-mix(in srgb, var(--teal) 65%, var(--line));
+  outline: 2px solid color-mix(in srgb, var(--teal) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.puzzle-reference-field .ghost-btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.puzzle-creator-status {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  padding: 11px 12px;
+}
+
+.puzzle-creator-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 14%, var(--paper));
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.puzzle-creator-status > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.puzzle-creator-status strong,
+.puzzle-creator-status small {
+  line-height: 1.35;
+}
+
+.puzzle-creator-status strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.puzzle-creator-status small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.puzzle-creator-status.is-ready {
+  border-color: color-mix(in srgb, var(--teal) 48%, var(--line));
+  background: color-mix(in srgb, var(--teal) 9%, var(--panel));
+}
+
+.puzzle-creator-status.is-ready .puzzle-creator-status-icon {
+  background: var(--teal);
+  color: var(--accent-ink);
+}
+
+.puzzle-creator-status.is-error {
+  border-color: color-mix(in srgb, var(--gold) 54%, var(--line));
+  background: color-mix(in srgb, var(--gold) 8%, var(--panel));
+}
+
+.puzzle-creator-status.is-error .puzzle-creator-status-icon {
+  background: var(--gold);
+  color: var(--accent-ink);
+}
+
+.puzzle-word-review {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.puzzle-word-review[hidden] {
+  display: none;
+}
+
+.puzzle-word-review summary {
+  min-height: 34px;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.puzzle-word-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  max-height: 176px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 2px 2px;
+}
+
+.puzzle-word-choice {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 7px 8px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.puzzle-word-choice.is-selected {
+  border-color: color-mix(in srgb, var(--teal) 54%, var(--line));
+  background: color-mix(in srgb, var(--teal) 13%, var(--paper));
+  color: var(--teal);
+}
+
+.puzzle-word-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.puzzle-word-choice:has(input:focus-visible) {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.puzzle-word-choice span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trivia-setup .puzzle-word-review p,
+.trivia-setup .puzzle-creator-random-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.trivia-setup .puzzle-creator-random-note {
+  margin: 0;
 }
 
 .challenge-setup-card,

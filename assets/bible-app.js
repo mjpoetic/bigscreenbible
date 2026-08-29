@@ -319,6 +319,9 @@ const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
+const puzzlePassageSourceStorageKey = "lw_puzzle_passage_source";
+const puzzleCustomReferenceStorageKey = "lw_puzzle_custom_reference";
+const puzzleCustomVersionStorageKey = "lw_puzzle_custom_version";
 const wordSearchRecentPassageLimit = 12;
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
@@ -642,6 +645,11 @@ const state = {
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
   wordSearchRecentPassages: savedWordSearchRecentPassages(),
+  puzzlePassageSource: normalizedPuzzlePassageSource(localStorage.getItem(puzzlePassageSourceStorageKey)),
+  puzzleCustomReference: normalizedPuzzleCustomReference(localStorage.getItem(puzzleCustomReferenceStorageKey)),
+  puzzleCustomVersion: normalizedPuzzleCustomVersion(localStorage.getItem(puzzleCustomVersionStorageKey)),
+  puzzleCustomWordChoices: [],
+  puzzleCustomWordsEdited: false,
   triviaGame: null,
   gameReferenceReturn: null,
   gamesDrawerOpen: "",
@@ -9051,6 +9059,9 @@ function captureCloudSnapshot() {
       referenceRushTimed: state.referenceRushTimed,
       wordSearchSounds: state.wordSearchSounds,
       wordSearchRecentPassages: state.wordSearchRecentPassages,
+      puzzlePassageSource: state.puzzlePassageSource,
+      puzzleCustomReference: state.puzzleCustomReference,
+      puzzleCustomVersion: puzzleCreatorVersion(),
     },
     bookmarks: state.bookmarks,
     notes: state.notes,
@@ -9291,6 +9302,17 @@ function applyCloudSnapshot(snapshot) {
     settings.wordSearchRecentPassages,
     savedWordSearchRecentPassages(),
   );
+  state.puzzlePassageSource = normalizedPuzzlePassageSource(
+    settings.puzzlePassageSource || localStorage.getItem(puzzlePassageSourceStorageKey),
+  );
+  state.puzzleCustomReference = normalizedPuzzleCustomReference(
+    settings.puzzleCustomReference || localStorage.getItem(puzzleCustomReferenceStorageKey),
+  );
+  state.puzzleCustomVersion = normalizedPuzzleCustomVersion(
+    settings.puzzleCustomVersion || localStorage.getItem(puzzleCustomVersionStorageKey),
+  );
+  state.puzzleCustomWordChoices = [];
+  state.puzzleCustomWordsEdited = false;
   state.bookmarks = Array.isArray(snapshot.bookmarks) ? uniqueList(snapshot.bookmarks).slice(0, 200) : [];
   state.notes = snapshot.notes && typeof snapshot.notes === "object" ? snapshot.notes : {};
   state.noteFilterQuery = "";
@@ -9358,6 +9380,9 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
   localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
   localStorage.setItem(wordSearchRecentStorageKey, JSON.stringify(state.wordSearchRecentPassages));
+  localStorage.setItem(puzzlePassageSourceStorageKey, state.puzzlePassageSource);
+  localStorage.setItem(puzzleCustomReferenceStorageKey, state.puzzleCustomReference);
+  localStorage.setItem(puzzleCustomVersionStorageKey, puzzleCreatorVersion());
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   localStorage.setItem("lw_highlights", JSON.stringify(state.highlights));
@@ -9686,6 +9711,317 @@ const wordSearchPassages = [
 const wordSearchStopWords = new Set([
   "about", "after", "again", "against", "also", "among", "because", "before", "being", "between", "could", "every", "from", "have", "having", "into", "itself", "shall", "should", "their", "there", "these", "they", "thing", "those", "through", "under", "until", "upon", "very", "were", "what", "when", "where", "which", "while", "with", "would", "your", "yours",
 ]);
+
+const customPuzzleStopWords = new Set([
+  ...wordSearchStopWords,
+  "and", "are", "been", "but", "did", "does", "for", "had", "has", "her", "here", "hers", "him", "his", "how", "its", "may", "not", "now", "one", "our", "ours", "out", "she", "than", "that", "the", "them", "then", "this", "was", "who", "whom", "why", "will", "you",
+]);
+
+function normalizedPuzzlePassageSource(value) {
+  return value === "custom" ? "custom" : "random";
+}
+
+function normalizedPuzzleCustomReference(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").slice(0, 80);
+}
+
+function normalizedPuzzleCustomVersion(value) {
+  const version = String(value || "").trim().toUpperCase();
+  return translationCodes.includes(version) && isBundledTranslation(version) ? version : "";
+}
+
+function bundledPuzzleVersions() {
+  return translationCodes.filter(isBundledTranslation);
+}
+
+function puzzleCreatorVersion() {
+  return normalizedPuzzleCustomVersion(state.puzzleCustomVersion) || wordSearchVersion();
+}
+
+function puzzlePassageReference(pack) {
+  if (!pack?.chapterKey || !Number.isFinite(pack.start) || !Number.isFinite(pack.end)) return "";
+  return `${pack.chapterKey}:${pack.start}${pack.end === pack.start ? "" : `-${pack.end}`}`;
+}
+
+function puzzlePassageLabel(pack) {
+  if (!pack?.chapterKey) return "";
+  if (pack.wholeChapter) return pack.chapterKey;
+  return `${pack.chapterKey}:${pack.start}${pack.end === pack.start ? "" : `–${pack.end}`}`;
+}
+
+function parsePuzzlePassageReference(value) {
+  const cleaned = normalizedPuzzleCustomReference(value).replace(/[–—]/g, "-");
+  const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::(\d+)(?:\s*-\s*(\d+))?)?$/);
+  if (!match) return null;
+  const book = normalizeBookName(match[1]);
+  if (!book) return null;
+  const chapterKey = `${book} ${match[2]}`;
+  const available = (bibleData[chapterKey]?.verses || []).map((verse) => Number(verse.n)).filter(Number.isFinite);
+  if (!available.length) return null;
+  const wholeChapter = !match[3];
+  const requestedStart = wholeChapter ? available[0] : Number(match[3]);
+  const requestedEnd = wholeChapter ? available.at(-1) : Number(match[4] || match[3]);
+  const [start, end] = [requestedStart, requestedEnd].sort((first, second) => first - second);
+  if (!available.includes(start) || !available.includes(end)) return null;
+  const verses = available.filter((verse) => verse >= start && verse <= end);
+  if (!verses.length) return null;
+  const pack = { chapterKey, start, end, wholeChapter, words: [] };
+  pack.label = puzzlePassageLabel(pack);
+  return pack;
+}
+
+function currentReaderPuzzleReference() {
+  const selected = (state.selectedVerses || []).map(Number).filter(Number.isFinite).sort((first, second) => first - second);
+  if (!selected.length) return state.reference;
+  return `${state.reference}:${selected[0]}${selected.at(-1) === selected[0] ? "" : `-${selected.at(-1)}`}`;
+}
+
+function customPuzzleCandidateWords(verses, maxLength) {
+  const stats = new Map();
+  let position = 0;
+  (verses || []).forEach((verse) => {
+    (String(verse.text || "").match(/[A-Za-z]+/g) || []).forEach((token) => {
+      const word = normalizeWordSearchWord(token);
+      if (word.length < 3 || word.length > maxLength || customPuzzleStopWords.has(word.toLowerCase())) return;
+      const current = stats.get(word) || { word, count: 0, first: position };
+      current.count += 1;
+      stats.set(word, current);
+      position += 1;
+    });
+  });
+  return [...stats.values()]
+    .sort((first, second) => (
+      second.word.length - first.word.length
+      || Math.min(second.count, 3) - Math.min(first.count, 3)
+      || first.first - second.first
+      || first.word.localeCompare(second.word)
+    ))
+    .map((entry) => entry.word)
+    .slice(0, 28);
+}
+
+function resetPuzzleCustomWordChoices() {
+  state.puzzleCustomWordChoices = [];
+  state.puzzleCustomWordsEdited = false;
+}
+
+function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = state.triviaDifficulty) {
+  if (state.puzzlePassageSource !== "custom" || !["word-search", "crossword"].includes(gameType)) {
+    return { custom: false, valid: true, title: "Surprise passage", message: "A passage will be selected for you." };
+  }
+  const pack = parsePuzzlePassageReference(state.puzzleCustomReference);
+  if (!pack) {
+    return {
+      custom: true,
+      valid: false,
+      title: "Choose a Bible passage",
+      message: "Try a reference like Psalm 23, John 3:16, or 1 Corinthians 13:4-8.",
+      candidates: [],
+      selectedWords: [],
+    };
+  }
+  const version = puzzleCreatorVersion();
+  if (!loadedVersionData.has(version)) {
+    return {
+      custom: true,
+      valid: false,
+      pending: true,
+      pack,
+      version,
+      reference: puzzlePassageReference(pack),
+      title: `Loading ${translationDisplayCode(version)}`,
+      message: "The selected bundled translation is loading for this puzzle.",
+      candidates: [],
+      selectedWords: [],
+    };
+  }
+  const verses = wordSearchPassageVerses(pack, version);
+  const config = gameType === "crossword" ? crosswordDifficultyConfig(difficulty) : wordSearchDifficultyConfig(difficulty);
+  const required = gameType === "crossword" ? config.entryCount : config.wordCount;
+  const candidates = customPuzzleCandidateWords(verses, config.size);
+  const defaultCount = gameType === "crossword"
+    ? Math.min(candidates.length, Math.max(required + 6, 12))
+    : Math.min(candidates.length, required);
+  const selectedWords = state.puzzleCustomWordsEdited
+    ? uniqueList(state.puzzleCustomWordChoices).filter((word) => candidates.includes(word))
+    : candidates.slice(0, defaultCount);
+  const reference = puzzlePassageReference(pack);
+  const passageLabel = puzzlePassageLabel(pack);
+  if (!verses.length) {
+    return { custom: true, valid: false, pack, version, reference, candidates, selectedWords, required, title: "Passage unavailable", message: `${translationDisplayCode(version)} has no text available for ${passageLabel}.` };
+  }
+  if (candidates.length < required) {
+    return {
+      custom: true,
+      valid: false,
+      pack,
+      version,
+      reference,
+      verses,
+      candidates,
+      selectedWords,
+      required,
+      title: "Choose a longer passage",
+      message: `${passageLabel} has ${candidates.length} usable ${candidates.length === 1 ? "word" : "words"}. ${difficulty} needs ${required}.`,
+    };
+  }
+  const selectionValid = gameType === "crossword" ? selectedWords.length >= required : selectedWords.length === required;
+  if (!selectionValid) {
+    return {
+      custom: true,
+      valid: false,
+      pack,
+      version,
+      reference,
+      verses,
+      candidates,
+      selectedWords,
+      required,
+      title: "Review your words",
+      message: gameType === "crossword"
+        ? `Select at least ${required} words so ${required} connected entries can be built.`
+        : `Select exactly ${required} words for this ${difficulty} grid.`,
+    };
+  }
+  return {
+    custom: true,
+    valid: true,
+    pack,
+    version,
+    reference,
+    verses,
+    candidates,
+    selectedWords,
+    required,
+    title: "Ready to create",
+    message: gameType === "crossword"
+      ? `${passageLabel} has ${candidates.length} usable words. The puzzle will place ${required} connected entries.`
+      : `${passageLabel} has ${candidates.length} usable words. This grid will hide ${required}.`,
+  };
+}
+
+function puzzleCreatorStatusMarkup(evaluation) {
+  return `
+    <div class="puzzle-creator-status-icon" aria-hidden="true">${evaluation.valid ? "✓" : evaluation.pending ? "…" : "!"}</div>
+    <span>
+      <strong>${escapeHtml(evaluation.title)}</strong>
+      <small>${escapeHtml(evaluation.message)}</small>
+    </span>
+  `.trim();
+}
+
+function puzzleCreatorWordReviewMarkup(evaluation) {
+  const selected = new Set(evaluation.selectedWords || []);
+  return (evaluation.candidates || []).map((word) => `
+    <label class="puzzle-word-choice ${selected.has(word) ? "is-selected" : ""}">
+      <input type="checkbox" data-puzzle-custom-word="${escapeHtml(word)}" ${selected.has(word) ? "checked" : ""} />
+      <span>${escapeHtml(word)}</span>
+    </label>
+  `).join("");
+}
+
+function puzzleCreatorReviewSummary(evaluation, gameType = state.triviaGameType) {
+  if (gameType === "crossword") return `Review words · ${evaluation.selectedWords.length} allowed`;
+  return `Review words · ${evaluation.selectedWords.length} of ${evaluation.required || 0} selected`;
+}
+
+function puzzleBestKey(difficulty, context = {}) {
+  if (!context?.customPassage || !context.reference) return difficulty || "Medium";
+  return `custom:${context.version || "BSB"}:${context.reference}:${difficulty || "Medium"}`;
+}
+
+function puzzleCreatorBestContext(evaluation = puzzleCreatorEvaluation()) {
+  if (!evaluation?.custom || !evaluation.reference) return {};
+  return { customPassage: true, reference: evaluation.reference, version: evaluation.version };
+}
+
+function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
+  const evaluation = puzzleCreatorEvaluation(gameType, difficulty);
+  const custom = state.puzzlePassageSource === "custom";
+  const version = puzzleCreatorVersion();
+  const versionOptions = bundledPuzzleVersions().map((code) => `
+    <option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)} · ${escapeHtml(translationLookup[code]?.name || code)}</option>
+  `).join("");
+  const reviewVisible = custom && !evaluation.pending && Boolean(evaluation.candidates?.length);
+  return `
+    <section class="puzzle-creator" id="puzzleCreator" aria-labelledby="puzzleCreatorTitle">
+      <div class="puzzle-creator-heading">
+        <span>Passage</span>
+        <strong id="puzzleCreatorTitle">Choose how this puzzle begins</strong>
+      </div>
+      <div class="puzzle-source-options" role="group" aria-label="Puzzle passage source">
+        <button class="${custom ? "" : "active"}" type="button" data-puzzle-passage-source="random" aria-pressed="${!custom}" ${challengeSetupLock}>Surprise me</button>
+        <button class="${custom ? "active" : ""}" type="button" data-puzzle-passage-source="custom" aria-pressed="${custom}" ${challengeSetupLock}>Choose passage</button>
+      </div>
+      ${custom ? `
+        <label class="puzzle-reference-field" for="puzzleCustomReferenceInput">
+          <span>Bible passage</span>
+          <div>
+            <input id="puzzleCustomReferenceInput" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Psalm 23:1-6" value="${escapeHtml(state.puzzleCustomReference)}" ${challengeSetupLock} />
+            <button class="ghost-btn" id="useCurrentPuzzlePassage" type="button" ${challengeSetupLock}>Use current</button>
+          </div>
+        </label>
+        <label class="puzzle-version-field" for="puzzleCustomVersionSelect">
+          <span>Puzzle translation</span>
+          <select id="puzzleCustomVersionSelect" ${challengeSetupLock}>${versionOptions}</select>
+        </label>
+        <div class="puzzle-creator-status ${evaluation.valid ? "is-ready" : evaluation.pending ? "is-loading" : "is-error"}" id="puzzleCreatorStatus" role="status" aria-live="polite">
+          ${puzzleCreatorStatusMarkup(evaluation)}
+        </div>
+        <details class="puzzle-word-review" id="puzzleWordReview" ${reviewVisible ? "" : "hidden"}>
+          <summary id="puzzleWordReviewSummary">${escapeHtml(puzzleCreatorReviewSummary(evaluation, gameType))}</summary>
+          <div class="puzzle-word-choices" id="puzzleWordChoices">${puzzleCreatorWordReviewMarkup(evaluation)}</div>
+          <p>${gameType === "crossword" ? `Allow at least ${evaluation.required || 0} words. The generator chooses the connected entries that fit best.` : `Choose exactly ${evaluation.required || 0} words. Only words from this passage are available.`}</p>
+        </details>
+      ` : `
+        <p class="puzzle-creator-random-note">Big Screen Bible will choose a fresh passage from the built-in puzzle collection.</p>
+      `}
+    </section>
+  `;
+}
+
+function persistPuzzleCreatorPreferences({ sync = true } = {}) {
+  state.puzzlePassageSource = normalizedPuzzlePassageSource(state.puzzlePassageSource);
+  state.puzzleCustomReference = normalizedPuzzleCustomReference(state.puzzleCustomReference);
+  state.puzzleCustomVersion = puzzleCreatorVersion();
+  localStorage.setItem(puzzlePassageSourceStorageKey, state.puzzlePassageSource);
+  localStorage.setItem(puzzleCustomReferenceStorageKey, state.puzzleCustomReference);
+  localStorage.setItem(puzzleCustomVersionStorageKey, state.puzzleCustomVersion);
+  if (sync) scheduleCloudSync();
+}
+
+function updatePuzzleCreatorDom() {
+  const root = document.getElementById("puzzleCreator");
+  if (!root || state.puzzlePassageSource !== "custom") return;
+  const evaluation = puzzleCreatorEvaluation();
+  const status = document.getElementById("puzzleCreatorStatus");
+  if (status) {
+    status.className = `puzzle-creator-status ${evaluation.valid ? "is-ready" : evaluation.pending ? "is-loading" : "is-error"}`;
+    status.innerHTML = puzzleCreatorStatusMarkup(evaluation);
+  }
+  const review = document.getElementById("puzzleWordReview");
+  const summary = document.getElementById("puzzleWordReviewSummary");
+  const choices = document.getElementById("puzzleWordChoices");
+  const reviewVisible = !evaluation.pending && Boolean(evaluation.candidates?.length);
+  if (review) review.hidden = !reviewVisible;
+  if (summary) summary.textContent = puzzleCreatorReviewSummary(evaluation);
+  if (choices) choices.innerHTML = puzzleCreatorWordReviewMarkup(evaluation);
+  const start = document.getElementById("startTriviaGame");
+  if (start) {
+    start.disabled = !evaluation.valid;
+    start.setAttribute("aria-disabled", String(!evaluation.valid));
+  }
+  const bestLabel = document.getElementById("puzzleSetupBestLabel");
+  const bestValue = document.getElementById("puzzleSetupBestValue");
+  if (bestLabel) bestLabel.textContent = evaluation.reference ? "Best for this passage" : `Best ${state.triviaDifficulty} time`;
+  if (bestValue) {
+    const context = puzzleCreatorBestContext(evaluation);
+    const best = state.triviaGameType === "crossword"
+      ? savedCrosswordBest(state.triviaDifficulty, context)
+      : savedWordSearchBest(state.triviaDifficulty, context);
+    bestValue.textContent = best ? formatGameTime(best.elapsedMs) : "No best yet";
+  }
+}
 
 function normalizeWordSearchRecentPassages(entries = []) {
   const normalized = (Array.isArray(entries) ? entries : [])
@@ -10146,8 +10482,8 @@ function savedWordSearchBests() {
   }
 }
 
-function savedWordSearchBest(difficulty) {
-  return savedWordSearchBests()[difficulty || "Medium"] || null;
+function savedWordSearchBest(difficulty, context = {}) {
+  return savedWordSearchBests()[puzzleBestKey(difficulty, context)] || null;
 }
 
 function recordWordSearchBest(game) {
@@ -10158,15 +10494,16 @@ function recordWordSearchBest(game) {
     completedAt: new Date(game.finishedAt).toISOString(),
   };
   const bests = savedWordSearchBests();
-  const previous = bests[game.difficulty];
+  const bestKey = puzzleBestKey(game.difficulty, game);
+  const previous = bests[bestKey];
   const beatPrevious = Boolean(previous && result.elapsedMs < previous.elapsedMs);
   const isNewBest = !previous || beatPrevious;
   if (isNewBest) {
-    bests[game.difficulty] = result;
+    bests[bestKey] = result;
     localStorage.setItem(wordSearchBestStorageKey, JSON.stringify(bests));
   }
   return {
-    best: bests[game.difficulty] || previous || result,
+    best: bests[bestKey] || previous || result,
     isNewBest,
     beatPrevious,
     hadPrevious: Boolean(previous),
@@ -10221,8 +10558,8 @@ function savedCrosswordBests() {
   }
 }
 
-function savedCrosswordBest(difficulty) {
-  return savedCrosswordBests()[difficulty || "Medium"] || null;
+function savedCrosswordBest(difficulty, context = {}) {
+  return savedCrosswordBests()[puzzleBestKey(difficulty, context)] || null;
 }
 
 function recordCrosswordBest(game) {
@@ -10233,13 +10570,14 @@ function recordCrosswordBest(game) {
     completedAt: new Date(game.finishedAt).toISOString(),
   };
   const bests = savedCrosswordBests();
-  const previous = bests[game.difficulty];
+  const bestKey = puzzleBestKey(game.difficulty, game);
+  const previous = bests[bestKey];
   const isNewBest = !previous || result.elapsedMs < previous.elapsedMs;
   if (isNewBest) {
-    bests[game.difficulty] = result;
+    bests[bestKey] = result;
     localStorage.setItem(crosswordBestStorageKey, JSON.stringify(bests));
   }
-  return { best: bests[game.difficulty] || previous || result, isNewBest, hadPrevious: Boolean(previous) };
+  return { best: bests[bestKey] || previous || result, isNewBest, hadPrevious: Boolean(previous) };
 }
 
 function updateCrosswordTimerDisplay() {
@@ -10885,12 +11223,20 @@ function closePuzzleRestartPrompt() {
 }
 
 function restartPuzzleAtDifficulty(difficulty) {
-  const gameType = state.triviaGame?.type;
+  const currentGame = state.triviaGame;
+  const gameType = currentGame?.type;
   const difficulties = gameType === "crossword" ? crosswordDifficulties() : wordSearchDifficulties();
   if (!["word-search", "crossword"].includes(gameType) || !difficulties.includes(difficulty)) return;
   state.puzzleRestartPromptOpen = false;
   state.triviaDifficulty = difficulty;
+  state.puzzlePassageSource = currentGame.customPassage ? "custom" : "random";
+  if (currentGame.customPassage) {
+    state.puzzleCustomReference = currentGame.reference;
+    state.puzzleCustomVersion = currentGame.version;
+  }
+  resetPuzzleCustomWordChoices();
   localStorage.setItem("lw_trivia_difficulty", difficulty);
+  persistPuzzleCreatorPreferences({ sync: false });
   scheduleCloudSync();
   if (gameType === "crossword") startCrosswordGame();
   else startWordSearchGame();
@@ -11060,10 +11406,14 @@ function triviaView() {
   const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
   const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : isCrossword ? "Crossword" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
+  const puzzleEvaluation = isWordSearch || isCrossword
+    ? puzzleCreatorEvaluation(state.triviaGameType, state.triviaDifficulty)
+    : null;
+  const puzzleBestContext = puzzleCreatorBestContext(puzzleEvaluation);
   const wordSearchConfig = wordSearchDifficultyConfig(state.triviaDifficulty);
-  const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty) : null;
+  const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty, puzzleBestContext) : null;
   const crosswordConfig = crosswordDifficultyConfig(state.triviaDifficulty);
-  const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty) : null;
+  const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty, puzzleBestContext) : null;
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
@@ -11073,8 +11423,14 @@ function triviaView() {
     isVerseOrder ? "Progressive" : difficultyLabel,
     isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : `${selectedCount} ${countLabel}`,
     isReferenceRush ? state.referenceRushTimed ? "Timed" : "Untimed" : "",
+    puzzleEvaluation?.custom
+      ? puzzleEvaluation.pack
+        ? `${puzzlePassageLabel(puzzleEvaluation.pack)} ${translationDisplayCode(puzzleEvaluation.version)}`
+        : "Choose passage"
+      : isWordSearch || isCrossword ? "Surprise passage" : "",
     isWordSearch || isCrossword ? "Solo" : "",
   ].filter(Boolean).join(" · ");
+  const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
   const socialSupported = !isWordSearch && !isCrossword;
@@ -11089,9 +11445,9 @@ function triviaView() {
         : isWhoSaidIt
           ? "Read the quote, then choose who said it before opening the reference."
           : isWordSearch
-            ? "Find words drawn from one Scripture passage. Your first finish at each level sets a best time; later puzzles count down toward it."
+            ? "Find words drawn from one Scripture passage—choose your own reference or let Big Screen Bible surprise you."
             : isCrossword
-              ? "Solve connected Across and Down entries using verse excerpts from one well-known Scripture passage."
+              ? "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : "";
   return `
@@ -11152,7 +11508,7 @@ function triviaView() {
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
                 <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
-                <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" aria-label="Crossword, new" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span><small class="game-new-badge">New</small></button>
+                <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
                 <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
                 <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
                 <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
@@ -11203,6 +11559,7 @@ function triviaView() {
                       <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
                     </label>
                   </div>
+                  ${isWordSearch || isCrossword ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
                   ${isReferenceRush ? `
                     <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
@@ -11221,15 +11578,15 @@ function triviaView() {
                   ` : ""}
                   ${isWordSearch ? `
                     <div class="book-sprint-best-card word-search-best-card">
-                      <span>Best ${escapeHtml(state.triviaDifficulty)} time</span>
-                      <strong>${wordSearchBest ? formatGameTime(wordSearchBest.elapsedMs) : "No best yet"}</strong>
+                      <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} time`}</span>
+                      <strong id="puzzleSetupBestValue">${wordSearchBest ? formatGameTime(wordSearchBest.elapsedMs) : "No best yet"}</strong>
                     </div>
                     <p class="word-search-solo-note">Word Search is a solo game in this first release.</p>
                   ` : ""}
                   ${isCrossword ? `
                     <div class="book-sprint-best-card word-search-best-card">
-                      <span>Best ${escapeHtml(state.triviaDifficulty)} time</span>
-                      <strong>${crosswordBest ? formatGameTime(crosswordBest.elapsedMs) : "No best yet"}</strong>
+                      <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} time`}</span>
+                      <strong id="puzzleSetupBestValue">${crosswordBest ? formatGameTime(crosswordBest.elapsedMs) : "No best yet"}</strong>
                     </div>
                     <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
                   ` : ""}
@@ -11254,7 +11611,7 @@ function triviaView() {
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
-                : `<button class="primary-btn trivia-start" id="startTriviaGame">${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+                : `<button class="primary-btn trivia-start" id="startTriviaGame" ${puzzleStartDisabled ? 'disabled aria-disabled="true"' : ""}>${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : icons.trivia}<span>Start ${gameTitle}</span></button>`}
               <small>${escapeHtml(setupSummary)}</small>
             </div>
           </div>
@@ -11466,7 +11823,7 @@ function wordSearchGameView(game) {
   const remainingMs = Math.max(0, targetMs - wordSearchElapsedMs(game));
   const timerLabel = game.complete ? "Finished" : targetMs ? (remainingMs > 0 ? "Time to beat" : "Best time passed") : "Time";
   const timerValue = game.complete || !targetMs ? elapsed : formatCountdownTime(remainingMs);
-  const best = game.wordSearchBest || savedWordSearchBest(game.difficulty);
+  const best = game.wordSearchBest || savedWordSearchBest(game.difficulty, game);
   return `
     <div class="trivia-game word-search-game ${game.complete ? "is-complete" : ""}">
       <div class="word-search-toolbar">
@@ -11516,8 +11873,8 @@ function wordSearchGameView(game) {
               <span>${game.wordSearchBeatBest ? "New fastest time" : game.wordSearchHadPrevious ? "Completed in" : "Best time set"}</span>
               <strong>${elapsed}</strong>
               ${game.wordSearchHadPrevious && game.wordSearchTarget
-                ? `<small>${game.wordSearchBeatBest ? "Previous time to beat" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(game.wordSearchBeatBest ? game.wordSearchTarget.elapsedMs : best?.elapsedMs)}</small>`
-                : `<small>The next ${escapeHtml(game.difficulty)} puzzle will count down from this time.</small>`}
+                ? `<small>${game.wordSearchBeatBest ? "Previous time to beat" : game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(game.wordSearchBeatBest ? game.wordSearchTarget.elapsedMs : best?.elapsedMs)}</small>`
+                : `<small>${game.customPassage ? "The next puzzle from this passage" : `The next ${escapeHtml(game.difficulty)} puzzle`} will count down from this time.</small>`}
             </div>
             ${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
@@ -11558,7 +11915,7 @@ function crosswordGameView(game) {
     .filter((entry) => completedEntries.has(entry.id))
     .flatMap((entry) => entry.cells.map(wordSearchCellKey)));
   const elapsed = formatGameTime(crosswordElapsedMs(game));
-  const best = game.crosswordBest || savedCrosswordBest(game.difficulty);
+  const best = game.crosswordBest || savedCrosswordBest(game.difficulty, game);
   const clueGroup = (direction) => game.entries.filter((entry) => entry.direction === direction).map((entry) => `
     <button
       class="crossword-clue ${entry.id === activeEntry?.id ? "is-active" : ""} ${completedEntries.has(entry.id) ? "is-complete" : ""}"
@@ -11644,7 +12001,7 @@ function crosswordGameView(game) {
             <div class="word-search-complete-summary">
               <span>${game.crosswordIsNewBest ? "New best time" : "Completed in"}</span>
               <strong>${elapsed}</strong>
-              ${best ? `<small>Best ${escapeHtml(game.difficulty)} time · ${formatGameTime(best.elapsedMs)}</small>` : ""}
+              ${best ? `<small>${game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(best.elapsedMs)}</small>` : ""}
             </div>
             ${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
@@ -14948,6 +15305,68 @@ function bindEvents() {
   document.querySelectorAll(".games-drawer").forEach((drawer) => {
     drawer.addEventListener("keydown", trapGamesDrawerFocus);
   });
+  document.querySelectorAll("[data-puzzle-passage-source]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.puzzlePassageSource = normalizedPuzzlePassageSource(button.dataset.puzzlePassageSource);
+      resetPuzzleCustomWordChoices();
+      persistPuzzleCreatorPreferences();
+      renderPreservingReaderScroll();
+      if (state.puzzlePassageSource === "custom") {
+        requestAnimationFrame(() => document.getElementById("puzzleCustomReferenceInput")?.focus({ preventScroll: true }));
+      }
+    });
+  });
+  const puzzleReferenceInput = document.getElementById("puzzleCustomReferenceInput");
+  puzzleReferenceInput?.addEventListener("input", (event) => {
+    const nextReference = String(event.target.value || "").slice(0, 80);
+    if (nextReference !== state.puzzleCustomReference) resetPuzzleCustomWordChoices();
+    state.puzzleCustomReference = nextReference;
+    localStorage.setItem(puzzleCustomReferenceStorageKey, nextReference);
+    updatePuzzleCreatorDom();
+  });
+  puzzleReferenceInput?.addEventListener("change", (event) => {
+    state.puzzleCustomReference = normalizedPuzzleCustomReference(event.target.value);
+    event.target.value = state.puzzleCustomReference;
+    persistPuzzleCreatorPreferences();
+    updatePuzzleCreatorDom();
+  });
+  document.getElementById("useCurrentPuzzlePassage")?.addEventListener("click", () => {
+    const input = document.getElementById("puzzleCustomReferenceInput");
+    const reference = currentReaderPuzzleReference();
+    state.puzzleCustomReference = reference;
+    resetPuzzleCustomWordChoices();
+    if (input) input.value = reference;
+    persistPuzzleCreatorPreferences();
+    updatePuzzleCreatorDom();
+    input?.focus({ preventScroll: true });
+  });
+  document.getElementById("puzzleCustomVersionSelect")?.addEventListener("change", async (event) => {
+    const version = normalizedPuzzleCustomVersion(event.target.value);
+    if (!version) return;
+    state.puzzleCustomVersion = version;
+    resetPuzzleCustomWordChoices();
+    persistPuzzleCreatorPreferences();
+    updatePuzzleCreatorDom();
+    if (!loadedVersionData.has(version)) {
+      event.target.disabled = true;
+      await loadBibleVersion(version);
+      rebuildBibleData();
+      event.target.disabled = false;
+      if (!loadedVersionData.has(version)) showToast(`${translationDisplayCode(version)} could not be loaded for this puzzle`);
+    }
+    updatePuzzleCreatorDom();
+  });
+  document.getElementById("puzzleCreator")?.addEventListener("change", (event) => {
+    const input = event.target.closest?.("[data-puzzle-custom-word]");
+    if (!input) return;
+    const word = normalizeWordSearchWord(input.dataset.puzzleCustomWord);
+    const selected = new Set(puzzleCreatorEvaluation().selectedWords || []);
+    if (input.checked) selected.add(word);
+    else selected.delete(word);
+    state.puzzleCustomWordChoices = [...selected];
+    state.puzzleCustomWordsEdited = true;
+    updatePuzzleCreatorDom();
+  });
   document.querySelector(".trivia-mode-tabs")?.addEventListener("scroll", updateTriviaModeScrollControls, { passive: true });
   document.querySelectorAll("[data-trivia-mode-scroll]").forEach((button) => {
     button.addEventListener("click", () => scrollTriviaModes(Number(button.dataset.triviaModeScroll) || 1));
@@ -14963,6 +15382,7 @@ function bindEvents() {
       state.triviaGameType = button.dataset.triviaMode || "trivia";
       state.triviaGame = null;
       state.puzzleRestartPromptOpen = false;
+      resetPuzzleCustomWordChoices();
       if (state.triviaGameType === "reference-rush") {
         state.triviaDifficulty = "Easy";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
@@ -15004,6 +15424,7 @@ function bindEvents() {
       return showToast("This setup is locked for the waiting room");
     }
     state.triviaDifficulty = event.target.value;
+    resetPuzzleCustomWordChoices();
     localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
     scheduleCloudSync();
     renderPreservingReaderScroll();
@@ -15771,24 +16192,43 @@ function startTriviaGame({ render = true } = {}) {
 function startWordSearchGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
   const config = wordSearchDifficultyConfig(difficulty);
-  const target = savedWordSearchBest(difficulty);
-  const version = wordSearchVersion();
-  const passageOptions = orderedWordSearchPassages().map((pack) => ({
-    pack,
-    verses: wordSearchPassageVerses(pack, version),
-    words: wordSearchPassageWords(pack, version, difficulty),
-  })).filter((option) => option.verses.length && option.words.length >= config.wordCount);
+  const customEvaluation = puzzleCreatorEvaluation("word-search", difficulty);
+  const customPassage = Boolean(customEvaluation.custom);
+  if (customPassage && !customEvaluation.valid) {
+    showToast(customEvaluation.message || "Choose a longer passage for this Word Search.");
+    return;
+  }
+  const version = customPassage ? customEvaluation.version : wordSearchVersion();
+  const bestContext = customPassage
+    ? { customPassage: true, reference: customEvaluation.reference, version }
+    : {};
+  const target = savedWordSearchBest(difficulty, bestContext);
+  const passageOptions = customPassage
+    ? [{ pack: customEvaluation.pack, verses: customEvaluation.verses, words: customEvaluation.selectedWords }]
+    : orderedWordSearchPassages().map((pack) => ({
+      pack,
+      verses: wordSearchPassageVerses(pack, version),
+      words: wordSearchPassageWords(pack, version, difficulty),
+    })).filter((option) => option.verses.length && option.words.length >= config.wordCount);
   let selected = null;
   let generated = null;
   for (const option of passageOptions) {
     generated = createWordSearchGrid(option.words.slice(0, config.wordCount), config.size, difficulty);
+    if (!generated && customPassage && !state.puzzleCustomWordsEdited) {
+      for (let attempt = 0; attempt < 20 && !generated; attempt += 1) {
+        const alternateWords = shuffleItems(customEvaluation.candidates).slice(0, config.wordCount);
+        generated = createWordSearchGrid(alternateWords, config.size, difficulty);
+      }
+    }
     if (generated) {
       selected = option;
       break;
     }
   }
   if (!selected || !generated) {
-    showToast("A Word Search puzzle could not be built yet. Try another difficulty.");
+    showToast(customPassage
+      ? "Those passage words would not fit this grid. Review the words, choose a longer passage, or try another difficulty."
+      : "A Word Search puzzle could not be built yet. Try another difficulty.");
     return;
   }
   state.triviaDifficulty = difficulty;
@@ -15797,10 +16237,11 @@ function startWordSearchGame({ render = true } = {}) {
   if (target) primeWordSearchAudio();
   state.triviaGame = {
     type: "word-search",
+    customPassage,
     difficulty,
     version,
-    reference: `${selected.pack.chapterKey}:${selected.pack.start}-${selected.pack.end}`,
-    referenceLabel: selected.pack.label,
+    reference: puzzlePassageReference(selected.pack),
+    referenceLabel: selected.pack.label || puzzlePassageLabel(selected.pack),
     verses: selected.verses,
     size: config.size,
     cells: generated.cells,
@@ -15829,12 +16270,20 @@ function startWordSearchGame({ render = true } = {}) {
 function startCrosswordGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
   const config = crosswordDifficultyConfig(difficulty);
-  const version = wordSearchVersion();
-  const passageOptions = orderedWordSearchPassages().map((pack) => ({
-    pack,
-    verses: wordSearchPassageVerses(pack, version),
-    words: crosswordPassageWords(pack, version, difficulty),
-  })).filter((option) => option.verses.length && option.words.length >= config.entryCount);
+  const customEvaluation = puzzleCreatorEvaluation("crossword", difficulty);
+  const customPassage = Boolean(customEvaluation.custom);
+  if (customPassage && !customEvaluation.valid) {
+    showToast(customEvaluation.message || "Choose a longer passage for this Crossword.");
+    return;
+  }
+  const version = customPassage ? customEvaluation.version : wordSearchVersion();
+  const passageOptions = customPassage
+    ? [{ pack: customEvaluation.pack, verses: customEvaluation.verses, words: customEvaluation.selectedWords }]
+    : orderedWordSearchPassages().map((pack) => ({
+      pack,
+      verses: wordSearchPassageVerses(pack, version),
+      words: crosswordPassageWords(pack, version, difficulty),
+    })).filter((option) => option.verses.length && option.words.length >= config.entryCount);
   let selected = null;
   let generated = null;
   for (const option of passageOptions) {
@@ -15845,7 +16294,9 @@ function startCrosswordGame({ render = true } = {}) {
     }
   }
   if (!selected || !generated) {
-    showToast("A Crossword puzzle could not be built yet. Try another difficulty.");
+    showToast(customPassage
+      ? "A connected Crossword could not be built from those words. Allow more words, choose a longer passage, or try another difficulty."
+      : "A Crossword puzzle could not be built yet. Try another difficulty.");
     return;
   }
   const entries = generated.entries.map((entry) => ({
@@ -15854,13 +16305,15 @@ function startCrosswordGame({ render = true } = {}) {
   }));
   const firstEntry = entries[0];
   state.triviaDifficulty = difficulty;
+  state.puzzleRestartPromptOpen = false;
   localStorage.setItem("lw_trivia_difficulty", difficulty);
   state.triviaGame = {
     type: "crossword",
+    customPassage,
     difficulty,
     version,
-    reference: `${selected.pack.chapterKey}:${selected.pack.start}-${selected.pack.end}`,
-    referenceLabel: selected.pack.label,
+    reference: puzzlePassageReference(selected.pack),
+    referenceLabel: selected.pack.label || puzzlePassageLabel(selected.pack),
     verses: selected.verses,
     rows: generated.rows,
     columns: generated.columns,
@@ -22251,7 +22704,11 @@ async function initializeBibleData() {
       loadBibleSectionHeadingMetadata(),
       loadBibleRedLetterMetadata(),
     ]);
-    const bundledVersions = new Set(["BSB", ...state.versions.filter(isBundledTranslation)]);
+    const bundledVersions = new Set([
+      "BSB",
+      ...state.versions.filter(isBundledTranslation),
+      ...(state.puzzleCustomVersion ? [state.puzzleCustomVersion] : []),
+    ]);
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
     await applyStartupExperience();
