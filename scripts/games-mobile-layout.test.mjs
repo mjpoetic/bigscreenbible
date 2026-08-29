@@ -65,10 +65,10 @@ assert.match(extractFunction("startTriviaGame"), /state\.gamesDrawerOpen = ""/);
 assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\.gamesDrawerOpen = ""/);
 
 assert.match(styles, /\.games-drawer-shell,[\s\S]*?\.games-drawer-scroll \{[\s\S]*?display: contents;/);
-assert.match(styles, /#gameSocialToggle \{[\s\S]*?display: inline-flex;/);
-assert.match(styles, /\.games-drawer-shell\[data-games-drawer="social"\] \{[\s\S]*?display: none;/);
-assert.match(styles, /\.games-drawer-shell\[data-games-drawer="social"\]\.open \{[\s\S]*?position: fixed;[\s\S]*?display: block;/);
-assert.match(styles, /\.games-drawer-shell\[data-games-drawer="social"\] \.games-social-drawer \{[\s\S]*?position: fixed;[\s\S]*?animation: gamesDrawerInRight/);
+assert.match(styles, /#gameSocialToggle,\s*#gameControlsToggle \{[\s\S]*?display: inline-flex;/);
+assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\) \{[\s\S]*?display: none;/);
+assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\)\.open \{[\s\S]*?position: fixed;[\s\S]*?display: block;/);
+assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\) \.games-drawer \{[\s\S]*?position: fixed;[\s\S]*?animation: gamesDrawerInRight/);
 assert.match(styles, /\.trivia-reader\.is-setup \{[\s\S]*?overflow: hidden;/);
 assert.match(source, /state\.focusMode && !state\.settingsOpen[\s\S]*?mobileFloatingSettings/);
 assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings\s*\{[^}]*display:\s*(?:inline-)?flex;/);

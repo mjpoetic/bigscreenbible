@@ -39,13 +39,16 @@ assert.match(appSource, /gameMusicEnabled: localStorage\.getItem\("lw_game_music
 assert.match(appSource, /gameMusicEnabled: state\.gameMusicEnabled/, "Game music preference must enter cloud snapshots");
 assert.match(appSource, /state\.gameMusicEnabled = typeof settings\.gameMusicEnabled === "boolean"/, "Game music preference must restore from cloud snapshots");
 assert.match(appSource, /localStorage\.setItem\("lw_game_music_enabled"/, "Game music preference must persist locally");
-assert.match(appSource, /gameMusicToggleMarkup\("gameMusicInlineToggle"\)/, "Desktop games must expose the music control inline");
-assert.match(appSource, /gameMusicToggleMarkup\("gameMusicDrawerToggle"\)/, "Responsive games must expose the music control in Controls");
+assert.doesNotMatch(appSource, /gameMusicInlineToggle/, "Games must not place the music control inline");
+assert.match(appSource, /gameMusicToggleMarkup\("gameMusicDrawerToggle"\)/, "Every game must expose the music control in Controls");
+assert.match(appSource, /id="gamesControlsDrawer" role="dialog" aria-modal="true"/, "Game controls must remain a hidden drawer at every breakpoint");
 assert.match(appSource, /state\.mode === "trivia"[\s\S]*!game\.complete[\s\S]*!document\.hidden/, "Music playback must be limited to a visible active game");
 assert.match(appSource, /gameMusicAudio\.loop = true/, "Game music must loop");
+assert.match(appSource, /navigator\.audioSession\.type = "ambient"/, "Supported devices must receive an ambient audio-session hint");
 assert.match(appSource, /pauseGameMusic\(\{ fade: false \}\)[\s\S]*pauseReaderAutoScroll/, "Backgrounding must stop music immediately");
 assert.match(appSource, /resumeTriviaGameAfterReference\(target\.game\)[\s\S]*render\(\)/, "Returning from Scripture must preserve the same game for music resumption");
-assert.match(cssSource, /\.game-music-inline-control[\s\S]*\.game-music-drawer-control/, "Desktop and responsive music-control layouts must be styled");
+assert.match(cssSource, /\.game-music-drawer-control\s*\{\s*display: contents;/, "The music control must render inside the Controls drawer");
+assert.match(cssSource, /games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\)/, "Desktop Controls must use the hidden drawer shell");
 assert.match(generatorSource, /process\.argv\.includes\("--production"\)/, "The generator must have an explicit production mode");
 
 console.log("Game music checks passed");

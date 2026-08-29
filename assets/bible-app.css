@@ -6639,79 +6639,70 @@ select {
   border-color: var(--teal);
 }
 
-.game-music-inline-control {
-  display: flex;
-  justify-content: flex-end;
-  width: min(900px, 100%);
-  margin: -2px 0 2px;
-}
-
 .game-music-drawer-control {
-  display: none;
+  display: contents;
 }
 
-.game-music-inline-control .game-music-toggle {
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+.games-active-controls .book-sprint-sound-toggle {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  width: min(250px, 100%);
+  justify-self: end;
+  gap: 11px;
+  width: min(260px, 100%);
   min-width: 0;
-  padding: 9px 11px;
-  border-color: color-mix(in srgb, var(--teal) 36%, var(--line));
-  background: color-mix(in srgb, var(--teal) 7%, var(--paper));
+  min-height: 62px;
+  padding: 10px 12px;
+  border-color: color-mix(in srgb, var(--teal) 38%, var(--line));
+  background: color-mix(in srgb, var(--teal) 8%, var(--paper));
   box-shadow: inset 3px 0 var(--teal);
+  text-align: left;
 }
 
-.game-music-inline-control .book-sprint-sound-icon {
+.games-active-controls .book-sprint-sound-icon {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   place-items: center;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--teal) 14%, var(--paper));
-  color: var(--teal);
+  border-radius: 10px;
+  background: var(--teal);
+  color: var(--accent-ink);
 }
 
-.game-music-inline-control .book-sprint-sound-icon svg {
-  width: 19px;
-  height: 19px;
+.games-active-controls .book-sprint-sound-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
-.game-music-inline-control .book-sprint-sound-copy {
+.games-active-controls .book-sprint-sound-copy {
   display: grid;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
-.game-music-inline-control .book-sprint-sound-copy > span {
-  font-size: 14px;
+.games-active-controls .book-sprint-sound-copy > span {
   font-weight: 850;
 }
 
-.game-music-inline-control .book-sprint-sound-copy small {
+.games-active-controls .book-sprint-sound-copy small {
   display: block;
-  overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.game-music-inline-control .book-sprint-sound-state {
-  min-width: 42px;
+.games-active-controls .book-sprint-sound-state {
+  min-width: 46px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
-  padding: 5px 8px;
+  padding: 6px 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
   text-align: center;
 }
 
-.game-music-inline-control .game-music-toggle[aria-pressed="true"] .book-sprint-sound-icon,
-.game-music-inline-control .game-music-toggle[aria-pressed="true"] .book-sprint-sound-state {
+.games-active-controls .book-sprint-sound-toggle[aria-pressed="true"] .book-sprint-sound-state {
   border-color: var(--teal);
   background: var(--teal);
   color: var(--accent-ink);
@@ -18877,7 +18868,8 @@ svg {
   display: none;
 }
 
-#gameSocialToggle {
+#gameSocialToggle,
+#gameControlsToggle {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -18895,13 +18887,17 @@ svg {
 
 #gameSocialToggle.active,
 #gameSocialToggle:hover,
-#gameSocialToggle:focus-visible {
+#gameSocialToggle:focus-visible,
+#gameControlsToggle.active,
+#gameControlsToggle:hover,
+#gameControlsToggle:focus-visible {
   border-color: color-mix(in srgb, var(--teal) 55%, var(--line));
   background: color-mix(in srgb, var(--teal) 10%, var(--panel));
   outline: 0;
 }
 
-#gameSocialToggle svg {
+#gameSocialToggle svg,
+#gameControlsToggle svg {
   width: 18px;
   height: 18px;
 }
@@ -18924,18 +18920,18 @@ svg {
   font-weight: 900;
 }
 
-.games-drawer-shell[data-games-drawer="social"] {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) {
   display: none;
 }
 
-.games-drawer-shell[data-games-drawer="social"].open {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]).open {
   position: fixed;
   inset: 0;
   z-index: 170;
   display: block;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-backdrop {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-backdrop {
   position: fixed;
   inset: 0;
   z-index: 170;
@@ -18949,7 +18945,7 @@ svg {
   backdrop-filter: blur(3px);
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-social-drawer {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer {
   position: fixed;
   top: 0;
   right: 0;
@@ -18966,7 +18962,7 @@ svg {
   animation: gamesDrawerInRight var(--motion-drawer) var(--motion-ease) both;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-header {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18975,13 +18971,13 @@ svg {
   padding: 0 0 13px;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-header > div {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-header > div {
   display: grid;
   min-width: 0;
   gap: 3px;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-header span {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-header span {
   color: var(--gold);
   font-size: 10px;
   font-weight: 900;
@@ -18989,12 +18985,12 @@ svg {
   text-transform: uppercase;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-header strong {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-header strong {
   font-family: "Libre Baskerville", Georgia, serif;
   font-size: 22px;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-close {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -19008,19 +19004,19 @@ svg {
   padding: 0;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-close:hover,
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-close:focus-visible {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-close:hover,
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-close:focus-visible {
   border-color: color-mix(in srgb, var(--teal) 56%, var(--line));
   background: color-mix(in srgb, var(--teal) 10%, var(--paper));
   outline: 0;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-close svg {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-close svg {
   width: 18px;
   height: 18px;
 }
 
-.games-drawer-shell[data-games-drawer="social"] .games-drawer-scroll {
+.games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) .games-drawer-scroll {
   display: grid;
   align-content: start;
   gap: 16px;
@@ -19532,14 +19528,6 @@ svg {
     align-content: start;
   }
 
-  .game-music-inline-control {
-    display: none;
-  }
-
-  .game-music-drawer-control {
-    display: contents;
-  }
-
   .games-active-controls .reference-rush-hints,
   .games-active-controls .trivia-actions {
     display: grid;
@@ -19557,71 +19545,6 @@ svg {
   .games-active-controls .trivia-live-lock {
     margin: 0;
     text-align: center;
-  }
-
-  .games-active-controls .book-sprint-sound-toggle {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    align-items: center;
-    justify-self: end;
-    gap: 11px;
-    width: min(260px, 100%);
-    min-width: 0;
-    min-height: 62px;
-    padding: 10px 12px;
-    border-color: color-mix(in srgb, var(--teal) 38%, var(--line));
-    background: color-mix(in srgb, var(--teal) 8%, var(--paper));
-    box-shadow: inset 3px 0 var(--teal);
-    text-align: left;
-  }
-
-  .games-active-controls .book-sprint-sound-icon {
-    display: grid;
-    width: 40px;
-    height: 40px;
-    place-items: center;
-    border-radius: 10px;
-    background: var(--teal);
-    color: var(--accent-ink);
-  }
-
-  .games-active-controls .book-sprint-sound-icon svg {
-    width: 22px;
-    height: 22px;
-  }
-
-  .games-active-controls .book-sprint-sound-copy {
-    display: grid;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .games-active-controls .book-sprint-sound-copy > span {
-    font-weight: 850;
-  }
-
-  .games-active-controls .book-sprint-sound-copy small {
-    display: block;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 750;
-  }
-
-  .games-active-controls .book-sprint-sound-state {
-    min-width: 46px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--panel);
-    padding: 6px 10px;
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1;
-    text-align: center;
-  }
-
-  .games-active-controls .book-sprint-sound-toggle[aria-pressed="true"] .book-sprint-sound-state {
-    border-color: var(--teal);
-    background: var(--teal);
-    color: var(--accent-ink);
   }
 
   .ordering-check-dock {

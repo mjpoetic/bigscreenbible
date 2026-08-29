@@ -10778,9 +10778,19 @@ function gameMusicToggleMarkup(controlId) {
   `;
 }
 
+function configureAmbientGameAudioSession() {
+  if (!("audioSession" in navigator) || !navigator.audioSession) return;
+  try {
+    navigator.audioSession.type = "ambient";
+  } catch {
+    // Unsupported audio-session values fall back to the browser's normal routing.
+  }
+}
+
 function ensureGameMusicAudio() {
   if (gameMusicAudio || typeof window.Audio !== "function") return gameMusicAudio;
   try {
+    configureAmbientGameAudioSession();
     gameMusicAudio = new window.Audio();
     gameMusicAudio.loop = true;
     gameMusicAudio.preload = "auto";
@@ -11586,15 +11596,6 @@ function centerActiveTriviaMode() {
   updateTriviaModeScrollControls();
 }
 
-function activeTriviaGameMarkup() {
-  return `
-    <div class="game-music-inline-control">
-      ${gameMusicToggleMarkup("gameMusicInlineToggle")}
-    </div>
-    ${triviaGameView()}
-  `;
-}
-
 function triviaView() {
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
@@ -11716,7 +11717,7 @@ function triviaView() {
           </div>
         </div>
         ${liveGameChallengeScoreboard()}
-        ${state.triviaGame ? activeTriviaGameMarkup() : `
+        ${state.triviaGame ? triviaGameView() : `
           <div class="trivia-setup">
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
@@ -11833,7 +11834,7 @@ function triviaView() {
         ${state.triviaGame && !state.triviaGame.complete ? `
           <div class="games-drawer-shell ${state.gamesDrawerOpen === "controls" ? "open" : ""}" data-games-drawer="controls">
             <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close game controls" tabindex="-1"></button>
-            <aside class="games-drawer games-controls-drawer" id="gamesControlsDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesControlsTitle" tabindex="-1">
+            <aside class="games-drawer games-controls-drawer" id="gamesControlsDrawer" role="dialog" aria-modal="true" aria-labelledby="gamesControlsTitle" tabindex="-1">
               <div class="games-drawer-header">
                 <div>
                   <span>Current round</span>
@@ -15696,8 +15697,8 @@ function bindEvents() {
     });
   });
   document.getElementById("sendGameChallenge")?.addEventListener("click", () => sendGameChallenge());
-  ["gameMusicInlineToggle", "gameMusicDrawerToggle"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("click", () => setGameMusicEnabled(!state.gameMusicEnabled));
+  document.getElementById("gameMusicDrawerToggle")?.addEventListener("click", () => {
+    setGameMusicEnabled(!state.gameMusicEnabled);
   });
   document.getElementById("bookSprintSoundToggle")?.addEventListener("click", () => {
     state.bookSprintSound = !state.bookSprintSound;
