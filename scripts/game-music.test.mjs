@@ -67,9 +67,21 @@ assert.match(appSource, /state\.mode === "trivia"[\s\S]*!game\.complete[\s\S]*!d
 assert.match(appSource, /gameMusicAudio\.loop = true/, "Game music must loop");
 assert.match(appSource, /function gameOutcomeSoundKey\(game\)[\s\S]*game\.lost \|\| game\.timedOut[\s\S]*accuracy >= 1[\s\S]*accuracy < 0\.5/, "Completion sounds must distinguish perfect, ordinary, and low or lost results");
 assert.match(appSource, /game\.outcomeSoundPending = gameOutcomeSoundKey\(game\)/, "Every completed game must queue its matching outcome sound");
-assert.match(appSource, /if \(game\.outcomeSoundPending\)[\s\S]*playGameOutcomeSound\(soundKey\)[\s\S]*if \(!game\.celebrationPending\) return/, "Outcome sounds must play for every result tier, including confetti celebrations");
 assert.match(appSource, /function playGameOutcomeSound\(key\)[\s\S]*!state\.gameMusicEnabled[\s\S]*audio\.loop = false/, "Outcome sounds must honor the game music switch and play once");
 assert.match(appSource, /cleanupTriviaCelebration\(\{ stopAudio: false \}\)/, "Visual celebration cleanup must allow the outcome cue to finish");
+
+const pendingCelebrationSource = appSource.slice(
+  appSource.indexOf("function runPendingTriviaCelebration"),
+  appSource.indexOf("function revealTriviaMotionSuccess"),
+);
+const confettiLaunchSource = appSource.slice(
+  appSource.indexOf("async function launchTriviaConfetti"),
+  appSource.indexOf("function cleanupTriviaCelebration"),
+);
+assert.match(pendingCelebrationSource, /if \(!game\.celebrationPending\) \{[\s\S]*playGameOutcomeSound\(soundKey\)/, "Non-confetti outcomes must still play immediately");
+assert.match(pendingCelebrationSource, /launchTriviaConfetti\(game, soundKey\)/, "Perfect-score audio must travel with the pending confetti launch");
+assert.match(confettiLaunchSource, /playGameOutcomeSound\(soundKey\);\s*confetti\(\{ particleCount: 70/, "Perfect-score audio must start beside the first visible confetti burst");
+assert.match(confettiLaunchSource, /catch \{[\s\S]*playGameOutcomeSound\(soundKey\)[\s\S]*revealTriviaMotionSuccess/, "The perfect-score cue must survive a blocked confetti import");
 
 const outcomeSelectorSource = appSource.match(/function gameOutcomeSoundKey\(game\) \{[\s\S]*?\n\}/)?.[0];
 assert.ok(outcomeSelectorSource, "Outcome selector must remain testable");
@@ -85,5 +97,7 @@ assert.match(appSource, /resumeTriviaGameAfterReference\(target\.game\)[\s\S]*re
 assert.match(cssSource, /\.game-music-drawer-control\s*\{\s*display: contents;/, "The music control must render inside the Controls drawer");
 assert.match(cssSource, /games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\)/, "Desktop Controls must use the hidden drawer shell");
 assert.match(generatorSource, /process\.argv\.includes\("--production"\)/, "The generator must have an explicit production mode");
+assert.match(generatorSource, /const starts = \[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\.5, 14\]/, "Ode to Joy must keep its recognizable quarter-note phrase and closing cadence");
+assert.match(generatorSource, /\[0\.35, 1\.75, 3\.25, 5\.1\]\.forEach\(\(beat, index\) => synth\.addFirework/, "Firework transients must stay inside the visible confetti window");
 
 console.log("Game music checks passed");

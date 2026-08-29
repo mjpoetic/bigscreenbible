@@ -12697,18 +12697,23 @@ function completeTriviaGame(game) {
 function runPendingTriviaCelebration() {
   const game = state.triviaGame;
   if (state.mode !== "trivia" || !game?.complete) return;
+  let soundKey = "";
   if (game.outcomeSoundPending) {
-    const soundKey = game.outcomeSoundPending;
+    soundKey = game.outcomeSoundPending;
     game.outcomeSoundPending = "";
-    playGameOutcomeSound(soundKey);
   }
-  if (!game.celebrationPending) return;
+  if (!game.celebrationPending) {
+    playGameOutcomeSound(soundKey);
+    return;
+  }
   game.celebrationPending = false;
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+    playGameOutcomeSound(soundKey);
     revealTriviaMotionSuccess();
     return;
   }
-  launchTriviaConfetti(game).catch(() => {
+  launchTriviaConfetti(game, soundKey).catch(() => {
+    playGameOutcomeSound(soundKey);
     cleanupTriviaCelebration({ stopAudio: false });
     if (state.triviaGame === game) revealTriviaMotionSuccess(game);
   });
@@ -12722,14 +12727,17 @@ function revealTriviaMotionSuccess(game = state.triviaGame) {
   requestAnimationFrame(() => message.classList.add("visible"));
 }
 
-async function launchTriviaConfetti(game) {
+async function launchTriviaConfetti(game, soundKey = "") {
   cleanupTriviaCelebration({ stopAudio: false });
   const token = triviaCelebrationToken;
   let confettiModule;
   try {
     confettiModule = await import(confettiModuleUrl);
   } catch {
-    if (token === triviaCelebrationToken && state.triviaGame === game) revealTriviaMotionSuccess(game);
+    if (token === triviaCelebrationToken && state.triviaGame === game) {
+      playGameOutcomeSound(soundKey);
+      revealTriviaMotionSuccess(game);
+    }
     return;
   }
   if (token !== triviaCelebrationToken || state.triviaGame !== game || state.mode !== "trivia") return;
@@ -12781,6 +12789,7 @@ async function launchTriviaConfetti(game) {
       clearTimeout(cleanupTimer);
     },
   };
+  playGameOutcomeSound(soundKey);
   confetti({ particleCount: 70, spread: 82, startVelocity: 48, origin: { y: 0.7 } });
   fire();
 }

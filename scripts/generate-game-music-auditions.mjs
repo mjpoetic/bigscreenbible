@@ -523,7 +523,7 @@ function createJoyfulComplete() {
     const beat = bar * 4;
     addChord(synth, beat, chord.notes, {
       beats: 3.8,
-      amplitude: 0.17,
+      amplitude: 0.125,
       type: "pulse",
       attack: 0.018,
       release: 0.22,
@@ -534,39 +534,38 @@ function createJoyfulComplete() {
         beat: beat + step * 0.5,
         beats: 0.34,
         note: chord.notes[step % chord.notes.length] + 12,
-        amplitude: 0.036,
+        amplitude: 0.024,
         type: "pulse",
         pulseWidth: step % 2 ? 0.3 : 0.42,
         release: 0.05,
         pan: step % 2 ? 0.52 : -0.52,
       });
     }
-    synth.addKick(beat, 0.28);
-    synth.addKick(beat + 2, 0.24);
-    synth.addSnare(beat + 1, 0.17, 0.08);
-    synth.addSnare(beat + 3, 0.19, -0.08);
-    for (let step = 0; step < 8; step += 1) synth.addHat(beat + step * 0.5, step % 2 ? 0.033 : 0.048, step % 2 ? 0.3 : -0.3);
+    synth.addKick(beat, 0.24);
+    synth.addKick(beat + 2.5, 0.2);
+    synth.addSnare(beat + 1.5, 0.14, 0.08);
+    synth.addSnare(beat + 3.5, 0.17, -0.08);
+    for (let step = 0; step < 8; step += 1) synth.addHat(beat + step * 0.5, step % 2 ? 0.045 : 0.026, step % 2 ? 0.3 : -0.3);
   });
 
   const joyfulPhrase = [64, 64, 65, 67, 67, 65, 64, 62, 60, 60, 62, 64, 64, 62, 62];
-  const lengths = [0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.62, 0.28, 0.8];
-  let melodyBeat = 1;
+  const starts = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13.5, 14];
+  const lengths = [0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 0.86, 1.34, 0.42, 1.72];
   joyfulPhrase.forEach((note, index) => {
     synth.addTone({
-      beat: melodyBeat,
+      beat: starts[index],
       beats: lengths[index],
       note: note + 12,
-      amplitude: 0.095,
+      amplitude: 0.12,
       type: "square",
       attack: 0.004,
-      release: 0.07,
+      release: index >= 12 ? 0.12 : 0.08,
       pan: index % 2 ? 0.08 : -0.08,
       octaveLayer: index >= 12 ? 0.25 : 0.12,
     });
-    melodyBeat += index === 12 ? 0.72 : index === 14 ? 0.9 : 0.5;
   });
-  [10.2, 11.5, 12.7, 14.1].forEach((beat, index) => synth.addFirework(beat, 0.2 + index * 0.018, index % 2 ? 0.58 : -0.58));
-  addChord(synth, 12, [48, 55, 60, 64, 67], { beats: 3.5, amplitude: 0.23, type: "square", attack: 0.01, release: 0.48, width: 1.4 });
+  [0.35, 1.75, 3.25, 5.1].forEach((beat, index) => synth.addFirework(beat, 0.15 + index * 0.012, index % 2 ? 0.58 : -0.58));
+  addChord(synth, 12, [48, 55, 60, 64, 67], { beats: 3.5, amplitude: 0.18, type: "square", attack: 0.01, release: 0.48, width: 1.4 });
   synth.addCircularDelay(synth.beatSeconds * 0.5, 0.09, 0.28);
   synth.master({ peak: 0.88, bitDepth: 12, sampleHold: 1 });
   return synth;
