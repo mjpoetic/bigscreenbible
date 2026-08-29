@@ -6639,6 +6639,84 @@ select {
   border-color: var(--teal);
 }
 
+.game-music-inline-control {
+  display: flex;
+  justify-content: flex-end;
+  width: min(900px, 100%);
+  margin: -2px 0 2px;
+}
+
+.game-music-drawer-control {
+  display: none;
+}
+
+.game-music-inline-control .game-music-toggle {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: min(250px, 100%);
+  min-width: 0;
+  padding: 9px 11px;
+  border-color: color-mix(in srgb, var(--teal) 36%, var(--line));
+  background: color-mix(in srgb, var(--teal) 7%, var(--paper));
+  box-shadow: inset 3px 0 var(--teal);
+}
+
+.game-music-inline-control .book-sprint-sound-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--teal) 14%, var(--paper));
+  color: var(--teal);
+}
+
+.game-music-inline-control .book-sprint-sound-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.game-music-inline-control .book-sprint-sound-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.game-music-inline-control .book-sprint-sound-copy > span {
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.game-music-inline-control .book-sprint-sound-copy small {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-music-inline-control .book-sprint-sound-state {
+  min-width: 42px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  padding: 5px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+}
+
+.game-music-inline-control .game-music-toggle[aria-pressed="true"] .book-sprint-sound-icon,
+.game-music-inline-control .game-music-toggle[aria-pressed="true"] .book-sprint-sound-state {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: var(--accent-ink);
+}
+
 .book-sprint-sound-icon,
 .book-sprint-sound-copy small {
   display: none;
@@ -19452,6 +19530,14 @@ svg {
 
   .games-active-controls {
     align-content: start;
+  }
+
+  .game-music-inline-control {
+    display: none;
+  }
+
+  .game-music-drawer-control {
+    display: contents;
   }
 
   .games-active-controls .reference-rush-hints,

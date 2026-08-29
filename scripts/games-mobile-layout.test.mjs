@@ -25,7 +25,7 @@ assert.match(source, /data-trivia-mode="trivia"[\s\S]*?icons\.trivia/);
 assert.match(source, /id="gameSocialToggle"[\s\S]*?aria-controls="gamesSocialDrawer"/);
 assert.match(source, /id="gameOptionsToggle"[\s\S]*?aria-controls="gamesOptionsDrawer"/);
 assert.match(source, /id="gameControlsToggle"[\s\S]*?aria-controls="gamesControlsDrawer"/);
-assert.match(source, /id="gameControlsToggle"[\s\S]{0,300}?\$\{icons\.controls\}/);
+assert.match(source, /id="gameControlsToggle"[\s\S]{0,450}?\$\{icons\.controls\}/);
 assert.match(source, /controls: '<svg[\s\S]*?<circle cx="15" cy="12" r="2"\/>/);
 assert.match(source, /id="gameHintsToggle"[\s\S]*?aria-controls="gamesHintsDrawer"/);
 assert.match(source, /class="trivia-start-dock"[\s\S]*?id="startTriviaGame"/);

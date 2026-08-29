@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Big Screen Bible · Game Music Auditions</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #163a3a;
+        --muted: #667777;
+        --teal: #0f6b6b;
+        --gold: #c79639;
+        --paper: #fbf8f0;
+        --panel: #ffffff;
+        --line: #d9ded8;
+        --shadow: 0 18px 50px rgb(23 56 56 / 12%);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at 10% 10%, rgb(15 107 107 / 12%), transparent 36rem),
+          radial-gradient(circle at 90% 90%, rgb(199 150 57 / 14%), transparent 34rem),
+          var(--paper);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1040px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 56px 0 72px;
+      }
+
+      header {
+        max-width: 760px;
+        margin-bottom: 30px;
+      }
+
+      .eyebrow {
+        color: var(--gold);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 8px 0 12px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(34px, 6vw, 58px);
+        line-height: 1.02;
+      }
+
+      header p,
+      .note {
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.6;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin: 0 0 22px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgb(255 255 255 / 70%);
+      }
+
+      .controls label {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 800;
+      }
+
+      .controls span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .auditions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+      }
+
+      article {
+        display: grid;
+        align-content: start;
+        gap: 16px;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        padding: clamp(22px, 4vw, 32px);
+      }
+
+      article.pressure {
+        background:
+          linear-gradient(145deg, rgb(15 107 107 / 9%), transparent 55%),
+          var(--panel);
+      }
+
+      .track-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .track-kicker span:first-child {
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .track-kicker span:last-child {
+        border-radius: 999px;
+        background: rgb(15 107 107 / 10%);
+        padding: 6px 9px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      h2 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 28px;
+      }
+
+      article p {
+        min-height: 76px;
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .tags span {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 9px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      audio { width: 100%; }
+
+      .note {
+        margin: 24px 0 0;
+        font-size: 14px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #edf7f5;
+          --muted: #a9bcb9;
+          --paper: #071a1b;
+          --panel: #102728;
+          --line: #315051;
+          --shadow: 0 18px 50px rgb(0 0 0 / 28%);
+        }
+
+        .controls { background: rgb(16 39 40 / 72%); }
+      }
+
+      @media (max-width: 720px) {
+        main { padding-top: 34px; }
+        .auditions { grid-template-columns: 1fr; }
+        .controls { align-items: flex-start; flex-direction: column; }
+        article p { min-height: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="eyebrow">Big Screen Bible · Prototype</span>
+        <h1>Game music auditions</h1>
+        <p>Two sample-free directions for the first soundtrack pass. Listen at a comfortable device volume; the final in-game mix would sit quietly underneath controls and sound effects.</p>
+      </header>
+
+      <div class="controls">
+        <label><input id="loopPreviews" type="checkbox" checked /> Loop previews</label>
+        <span>Starting one track automatically pauses the other.</span>
+      </div>
+
+      <section class="auditions" aria-label="Music auditions">
+        <article>
+          <div class="track-kicker"><span>Mellow 16-bit lo-fi</span><span>32 seconds</span></div>
+          <h2>Still Waters</h2>
+          <p>A warm, unhurried puzzle loop for Verse Order and Crossword, with soft chip melody, brushed noise percussion, and restrained bass.</p>
+          <div class="tags"><span>Verse Order</span><span>Crossword</span><span>Untimed play</span></div>
+          <audio controls loop preload="metadata">
+            <source src="./audio/still-waters-16bit.mp3" type="audio/mpeg" />
+            Your browser does not support audio playback.
+          </audio>
+        </article>
+
+        <article class="pressure">
+          <div class="track-kicker"><span>Dramatic 8/16-bit</span><span>25.6 seconds</span></div>
+          <h2>Final Run</h2>
+          <p>A driving Reference Rush loop that introduces its lead after the opening bars and adds denser percussion halfway through for countdown pressure.</p>
+          <div class="tags"><span>Reference Rush</span><span>Timed play</span><span>Dynamic layers</span></div>
+          <audio controls loop preload="metadata">
+            <source src="./audio/reference-rush-final-run.mp3" type="audio/mpeg" />
+            Your browser does not support audio playback.
+          </audio>
+        </article>
+      </section>
+
+      <p class="note">These are musical direction prototypes, not production masters. They use only generated oscillators and deterministic noise—no downloaded samples or third-party music.</p>
+    </main>
+
+    <script>
+      const players = [...document.querySelectorAll("audio")];
+      const loopToggle = document.getElementById("loopPreviews");
+      players.forEach((player) => player.addEventListener("play", () => {
+        players.filter((other) => other !== player).forEach((other) => other.pause());
+      }));
+      loopToggle.addEventListener("change", () => {
+        players.forEach((player) => { player.loop = loopToggle.checked; });
+      });
+    </script>
+  </body>
+</html>

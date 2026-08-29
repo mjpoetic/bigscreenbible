@@ -284,6 +284,10 @@ const crossReferenceHoldMoveTolerancePx = mobileControlsHoldMoveTolerancePx;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
+let gameMusicAudio = null;
+let gameMusicTrackKey = "";
+let gameMusicFadeFrame = 0;
+let gameMusicRestartPending = false;
 let modeTransitionAudioContext = null;
 let modeTransitionAudioResumePromise = null;
 let referenceRushTimer = 0;
@@ -318,6 +322,16 @@ const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
+const gameMusicTracks = Object.freeze({
+  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3", volume: 0.15 },
+  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3", volume: 0.14 },
+  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3", volume: 0.14 },
+  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3", volume: 0.14 },
+  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3", volume: 0.13 },
+  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.mp3", volume: 0.15 },
+  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3", volume: 0.14 },
+  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", volume: 0.14 },
+});
 const crosswordKeyboardVisibleStorageKey = "lw_crossword_keyboard_visible";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
 const puzzlePassageSourceStorageKey = "lw_puzzle_passage_source";
@@ -642,6 +656,7 @@ const state = {
   triviaCategory: localStorage.getItem("lw_trivia_category") || "Mixed",
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
+  gameMusicEnabled: localStorage.getItem("lw_game_music_enabled") !== "false",
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
@@ -983,6 +998,7 @@ const icons = {
   wordSearch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="m5.3 18.2 3.4-3.4 3.2 3.2 6.8-7" stroke-width="2.2"/></svg>',
   crossword: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM15 3h6v6h-6zM9 9h6v6H9zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
+  music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><path d="M9 8l10-2"/><ellipse cx="6" cy="18" rx="3" ry="2.2"/><ellipse cx="16" cy="16" rx="3" ry="2.2"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
   lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.7A7 7 0 1 1 15.8 14.7c-.9.7-1.3 1.5-1.4 2.3H9.6c-.1-.8-.5-1.6-1.4-2.3z"/><path d="M12 3v2"/></svg>',
   quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4v6c0 4-2 7-5 8"/><path d="M21 11h-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4v6c0 4-2 7-5 8"/></svg>',
@@ -1368,6 +1384,7 @@ function render() {
   if (state.startupApplied) syncModeUrl();
   syncPresentationShell();
   if (dataLoading || dataError) {
+    pauseGameMusic({ fade: false });
     clearInterval(bookSprintTimer);
     bookSprintTimer = 0;
     clearInterval(referenceRushTimer);
@@ -1486,6 +1503,7 @@ function render() {
   scheduleReferenceRushTimer();
   scheduleWordSearchTimer();
   scheduleCrosswordTimer();
+  syncGameMusicPlayback();
 }
 
 function chapterChangeIndicator(change) {
@@ -9057,6 +9075,7 @@ function captureCloudSnapshot() {
       triviaCategory: state.triviaCategory,
       triviaDifficulty: state.triviaDifficulty,
       triviaCount: state.triviaCount,
+      gameMusicEnabled: state.gameMusicEnabled,
       bookSprintSound: state.bookSprintSound,
       referenceRushTimed: state.referenceRushTimed,
       wordSearchSounds: state.wordSearchSounds,
@@ -9298,6 +9317,9 @@ function applyCloudSnapshot(snapshot) {
   state.triviaCategory = settings.triviaCategory || state.triviaCategory;
   state.triviaDifficulty = settings.triviaDifficulty || state.triviaDifficulty;
   state.triviaCount = normalizedTriviaCount(state.triviaGameType, Number(settings.triviaCount) || state.triviaCount);
+  state.gameMusicEnabled = typeof settings.gameMusicEnabled === "boolean"
+    ? settings.gameMusicEnabled
+    : localStorage.getItem("lw_game_music_enabled") !== "false";
   state.bookSprintSound = settings.bookSprintSound !== false;
   state.referenceRushTimed = settings.referenceRushTimed !== false;
   state.wordSearchSounds = settings.wordSearchSounds !== false;
@@ -9382,6 +9404,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_trivia_category", state.triviaCategory);
   localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
   localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+  localStorage.setItem("lw_game_music_enabled", state.gameMusicEnabled ? "true" : "false");
   localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
   localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
   localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
@@ -10732,6 +10755,130 @@ function setWordSearchSounds(enabled, options = {}) {
   renderPreservingReaderScroll();
 }
 
+function gameMusicTrackForGame(game = state.triviaGame) {
+  if (!game) return null;
+  const key = game.type === "reference-rush" && game.timed
+    ? "reference-rush-timed"
+    : game.type || "trivia";
+  return gameMusicTracks[key] || null;
+}
+
+function gameMusicToggleMarkup(controlId) {
+  const track = gameMusicTrackForGame();
+  const enabled = Boolean(state.gameMusicEnabled);
+  return `
+    <button class="book-sprint-sound-toggle game-music-toggle" id="${controlId}" type="button" aria-pressed="${enabled}" aria-label="Turn game music ${enabled ? "off" : "on"}">
+      <span class="book-sprint-sound-icon" aria-hidden="true">${icons.music}</span>
+      <span class="book-sprint-sound-copy">
+        <span>Music</span>
+        <small>${escapeHtml(track?.name || "Game soundtrack")}</small>
+      </span>
+      <strong class="book-sprint-sound-state">${enabled ? "On" : "Off"}</strong>
+    </button>
+  `;
+}
+
+function ensureGameMusicAudio() {
+  if (gameMusicAudio || typeof window.Audio !== "function") return gameMusicAudio;
+  try {
+    gameMusicAudio = new window.Audio();
+    gameMusicAudio.loop = true;
+    gameMusicAudio.preload = "auto";
+    gameMusicAudio.setAttribute("playsinline", "");
+  } catch {
+    gameMusicAudio = null;
+  }
+  return gameMusicAudio;
+}
+
+function cancelGameMusicFade() {
+  if (!gameMusicFadeFrame) return;
+  cancelAnimationFrame(gameMusicFadeFrame);
+  gameMusicFadeFrame = 0;
+}
+
+function pauseGameMusic({ fade = true } = {}) {
+  const audio = gameMusicAudio;
+  if (!audio || audio.paused) {
+    cancelGameMusicFade();
+    return;
+  }
+  if (!fade || document.hidden) {
+    cancelGameMusicFade();
+    audio.pause();
+    return;
+  }
+  if (gameMusicFadeFrame) return;
+  const startedAt = performance.now();
+  const startingVolume = audio.volume;
+  const duration = 240;
+  const step = (timestamp) => {
+    if (!gameMusicAudio || gameMusicAudio !== audio) {
+      gameMusicFadeFrame = 0;
+      return;
+    }
+    const progress = Math.min(1, Math.max(0, (timestamp - startedAt) / duration));
+    audio.volume = startingVolume * (1 - progress);
+    if (progress < 1) {
+      gameMusicFadeFrame = requestAnimationFrame(step);
+      return;
+    }
+    audio.pause();
+    gameMusicFadeFrame = 0;
+  };
+  gameMusicFadeFrame = requestAnimationFrame(step);
+}
+
+function requestGameMusicRestart() {
+  gameMusicRestartPending = true;
+}
+
+function syncGameMusicPlayback() {
+  const game = state.triviaGame;
+  const track = gameMusicTrackForGame(game);
+  const shouldPlay = Boolean(
+    state.gameMusicEnabled
+    && state.mode === "trivia"
+    && game
+    && !game.complete
+    && !document.hidden
+    && track,
+  );
+  if (!shouldPlay) {
+    pauseGameMusic({ fade: !document.hidden });
+    return;
+  }
+  const audio = ensureGameMusicAudio();
+  if (!audio) return;
+  cancelGameMusicFade();
+  const changedTrack = gameMusicTrackKey !== track.key;
+  if (changedTrack) {
+    audio.pause();
+    audio.src = track.src;
+    audio.load();
+    gameMusicTrackKey = track.key;
+  }
+  audio.volume = track.volume;
+  if (changedTrack || gameMusicRestartPending) {
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // Some engines wait for metadata before accepting a seek; playback still starts at zero.
+    }
+    gameMusicRestartPending = false;
+  }
+  if (!audio.paused) return;
+  const playback = audio.play();
+  playback?.catch?.(() => {});
+}
+
+function setGameMusicEnabled(enabled) {
+  state.gameMusicEnabled = Boolean(enabled);
+  localStorage.setItem("lw_game_music_enabled", state.gameMusicEnabled ? "true" : "false");
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+}
+
 function normalizedTriviaCount(gameType = state.triviaGameType, count = state.triviaCount) {
   const values = gameType === "book-sprint" ? bookSprintRoundLengths : triviaRoundLengths;
   const requested = Number(count) || values[0];
@@ -11294,6 +11441,7 @@ function restartPuzzleAtDifficulty(difficulty) {
   localStorage.setItem("lw_trivia_difficulty", difficulty);
   persistPuzzleCreatorPreferences({ sync: false });
   scheduleCloudSync();
+  requestGameMusicRestart();
   if (gameType === "crossword") startCrosswordGame();
   else startWordSearchGame();
 }
@@ -11438,6 +11586,15 @@ function centerActiveTriviaMode() {
   updateTriviaModeScrollControls();
 }
 
+function activeTriviaGameMarkup() {
+  return `
+    <div class="game-music-inline-control">
+      ${gameMusicToggleMarkup("gameMusicInlineToggle")}
+    </div>
+    ${triviaGameView()}
+  `;
+}
+
 function triviaView() {
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
@@ -11534,6 +11691,7 @@ function triviaView() {
                 class="games-header-action ${state.gamesDrawerOpen === "controls" ? "active" : ""}"
                 id="gameControlsToggle"
                 type="button"
+                aria-label="${state.gamesDrawerOpen === "controls" ? "Close game controls" : "Open game controls"}"
                 aria-controls="gamesControlsDrawer"
                 aria-expanded="${state.gamesDrawerOpen === "controls"}"
               >
@@ -11558,7 +11716,7 @@ function triviaView() {
           </div>
         </div>
         ${liveGameChallengeScoreboard()}
-        ${state.triviaGame ? triviaGameView() : `
+        ${state.triviaGame ? activeTriviaGameMarkup() : `
           <div class="trivia-setup">
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
@@ -11683,7 +11841,9 @@ function triviaView() {
                 </div>
                 <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game controls">${icons.clear}</button>
               </div>
-              <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody"></div>
+              <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody">
+                <div class="game-music-drawer-control">${gameMusicToggleMarkup("gameMusicDrawerToggle")}</div>
+              </div>
             </aside>
           </div>
           <div class="games-drawer-shell ${state.gamesDrawerOpen === "hints" ? "open" : ""}" data-games-drawer="hints">
@@ -15536,6 +15696,9 @@ function bindEvents() {
     });
   });
   document.getElementById("sendGameChallenge")?.addEventListener("click", () => sendGameChallenge());
+  ["gameMusicInlineToggle", "gameMusicDrawerToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => setGameMusicEnabled(!state.gameMusicEnabled));
+  });
   document.getElementById("bookSprintSoundToggle")?.addEventListener("click", () => {
     state.bookSprintSound = !state.bookSprintSound;
     localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
@@ -15555,6 +15718,7 @@ function bindEvents() {
   });
   document.getElementById("startTriviaGame")?.addEventListener("click", () => {
     state.gamesDrawerOpen = "";
+    requestGameMusicRestart();
     startTriviaGame();
   });
   document.querySelectorAll("[data-puzzle-restart-difficulty]").forEach((button) => {
@@ -15567,6 +15731,7 @@ function bindEvents() {
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
     if (["word-search", "crossword"].includes(state.triviaGame?.type)) return openPuzzleRestartPrompt();
+    requestGameMusicRestart();
     startTriviaGame();
   });
   document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
@@ -23472,17 +23637,21 @@ document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") {
+    pauseGameMusic({ fade: false });
     pauseReaderAutoScroll();
     rememberReaderScrollBeforeAppSwitch();
     return;
   }
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
+  syncGameMusicPlayback();
   notePushVisit();
   maybeCheckForAppUpdate();
 });
+window.addEventListener("pagehide", () => pauseGameMusic({ fade: false }));
 window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);
 window.addEventListener("pageshow", () => {
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
+  syncGameMusicPlayback();
   notePushVisit();
   maybeCheckForAppUpdate();
 });
