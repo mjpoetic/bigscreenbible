@@ -19,11 +19,23 @@ const tracks = [
   ["hidden-voice.mp3", "Hidden Voice"],
 ];
 
+const outcomeSounds = [
+  ["joyful-complete.mp3", "perfect"],
+  ["level-complete.mp3", "complete"],
+  ["whomp-whomp.mp3", "low"],
+];
+
 const manifestStart = appSource.indexOf("const gameMusicTracks");
 const manifestEnd = appSource.indexOf("});", manifestStart);
 assert.ok(manifestStart >= 0 && manifestEnd > manifestStart, "Game music track manifest must exist");
 const manifestSource = appSource.slice(manifestStart, manifestEnd + 3);
 assert.doesNotMatch(manifestSource, /https?:\/\//, "Game music must use bundled local assets");
+
+const outcomeManifestStart = appSource.indexOf("const gameOutcomeSounds");
+const outcomeManifestEnd = appSource.indexOf("});", outcomeManifestStart);
+assert.ok(outcomeManifestStart >= 0 && outcomeManifestEnd > outcomeManifestStart, "Game outcome sound manifest must exist");
+const outcomeManifestSource = appSource.slice(outcomeManifestStart, outcomeManifestEnd + 3);
+assert.doesNotMatch(outcomeManifestSource, /https?:\/\//, "Game outcome sounds must use bundled local assets");
 
 for (const [fileName, trackName] of tracks) {
   const assetPath = path.join(rootDir, "assets", "audio", "game-music", fileName);
@@ -31,6 +43,15 @@ for (const [fileName, trackName] of tracks) {
   assert.ok(statSync(assetPath).size > 300_000, `${fileName} must contain a complete encoded loop`);
   assert.match(manifestSource, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be mapped`);
   assert.match(manifestSource, new RegExp(trackName), `${trackName} must be named in controls`);
+  assert.match(generatorSource, new RegExp(fileName.replace(/\.mp3$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);
+}
+
+for (const [fileName, outcomeKey] of outcomeSounds) {
+  const assetPath = path.join(rootDir, "assets", "audio", "game-music", fileName);
+  assert.ok(existsSync(assetPath), `${fileName} must be generated`);
+  assert.ok(statSync(assetPath).size > 35_000, `${fileName} must contain a complete encoded outcome cue`);
+  assert.match(outcomeManifestSource, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be mapped`);
+  assert.match(outcomeManifestSource, new RegExp(`\\b${outcomeKey}\\b`), `${fileName} must map to the ${outcomeKey} outcome`);
   assert.match(generatorSource, new RegExp(fileName.replace(/\.mp3$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);
 }
 
@@ -44,6 +65,20 @@ assert.match(appSource, /gameMusicToggleMarkup\("gameMusicDrawerToggle"\)/, "Eve
 assert.match(appSource, /id="gamesControlsDrawer" role="dialog" aria-modal="true"/, "Game controls must remain a hidden drawer at every breakpoint");
 assert.match(appSource, /state\.mode === "trivia"[\s\S]*!game\.complete[\s\S]*!document\.hidden/, "Music playback must be limited to a visible active game");
 assert.match(appSource, /gameMusicAudio\.loop = true/, "Game music must loop");
+assert.match(appSource, /function gameOutcomeSoundKey\(game\)[\s\S]*game\.lost \|\| game\.timedOut[\s\S]*accuracy >= 1[\s\S]*accuracy < 0\.5/, "Completion sounds must distinguish perfect, ordinary, and low or lost results");
+assert.match(appSource, /game\.outcomeSoundPending = gameOutcomeSoundKey\(game\)/, "Every completed game must queue its matching outcome sound");
+assert.match(appSource, /if \(game\.outcomeSoundPending\)[\s\S]*playGameOutcomeSound\(soundKey\)[\s\S]*if \(!game\.celebrationPending\) return/, "Outcome sounds must play for every result tier, including confetti celebrations");
+assert.match(appSource, /function playGameOutcomeSound\(key\)[\s\S]*!state\.gameMusicEnabled[\s\S]*audio\.loop = false/, "Outcome sounds must honor the game music switch and play once");
+assert.match(appSource, /cleanupTriviaCelebration\(\{ stopAudio: false \}\)/, "Visual celebration cleanup must allow the outcome cue to finish");
+
+const outcomeSelectorSource = appSource.match(/function gameOutcomeSoundKey\(game\) \{[\s\S]*?\n\}/)?.[0];
+assert.ok(outcomeSelectorSource, "Outcome selector must remain testable");
+const selectOutcomeSound = Function("triviaRoundLength", `return (${outcomeSelectorSource});`)((game) => game.roundLength);
+assert.equal(selectOutcomeSound({ complete: true, score: 5, roundLength: 5, type: "trivia" }), "perfect", "A perfect score must receive the joyful cue");
+assert.equal(selectOutcomeSound({ complete: true, score: 3, roundLength: 5, type: "trivia" }), "complete", "An ordinary completion must receive the level-complete cue");
+assert.equal(selectOutcomeSound({ complete: true, score: 2, roundLength: 5, type: "trivia" }), "low", "A score below 50 percent must receive the playful low cue");
+assert.equal(selectOutcomeSound({ complete: true, score: 2.5, roundLength: 5, type: "trivia" }), "complete", "Exactly 50 percent must remain an ordinary completion");
+assert.equal(selectOutcomeSound({ complete: true, score: 5, roundLength: 5, type: "reference-rush", timedOut: true }), "low", "A timed-out game must receive the low cue regardless of score");
 assert.match(appSource, /navigator\.audioSession\.type = "ambient"/, "Supported devices must receive an ambient audio-session hint");
 assert.match(appSource, /pauseGameMusic\(\{ fade: false \}\)[\s\S]*pauseReaderAutoScroll/, "Backgrounding must stop music immediately");
 assert.match(appSource, /resumeTriviaGameAfterReference\(target\.game\)[\s\S]*render\(\)/, "Returning from Scripture must preserve the same game for music resumption");

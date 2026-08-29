@@ -143,6 +143,72 @@ class LoopSynth {
     }
   }
 
+  addSweep({
+    beat,
+    beats,
+    startNote,
+    endNote,
+    type = "saw",
+    amplitude = 0.1,
+    pan = 0,
+    attack = 0.008,
+    release = 0.16,
+    pulseWidth = 0.5,
+  }) {
+    const start = Math.round(this.beatTime(beat) * sampleRate);
+    const durationSeconds = Math.max(0.04, this.beatTime(beats));
+    const samples = Math.round(durationSeconds * sampleRate);
+    const attackSamples = Math.max(1, Math.round(attack * sampleRate));
+    const releaseSamples = Math.max(1, Math.min(samples, Math.round(release * sampleRate)));
+    let phase = 0;
+    for (let offset = 0; offset < samples; offset += 1) {
+      const progress = offset / Math.max(1, samples - 1);
+      const eased = progress * progress * (3 - 2 * progress);
+      const note = startNote + (endNote - startNote) * eased;
+      phase += (Math.PI * 2 * midiFrequency(note)) / sampleRate;
+      const attackEnvelope = Math.min(1, offset / attackSamples);
+      const releaseEnvelope = Math.min(1, (samples - offset) / releaseSamples);
+      const envelope = attackEnvelope * releaseEnvelope * (0.86 + 0.14 * Math.sin(progress * Math.PI));
+      this.mixSample(start + offset, waveform(type, phase, pulseWidth) * amplitude * envelope, pan);
+    }
+  }
+
+  addFirework(beat, amplitude = 0.22, pan = 0) {
+    this.addSweep({
+      beat: Math.max(0, beat - 0.8),
+      beats: 0.72,
+      startNote: 77,
+      endNote: 96,
+      type: "pulse",
+      pulseWidth: 0.28,
+      amplitude: amplitude * 0.17,
+      pan,
+      release: 0.035,
+    });
+    const start = Math.round(this.beatTime(beat) * sampleRate);
+    const samples = Math.round(0.72 * sampleRate);
+    let bodyPhase = 0;
+    let previousNoise = 0;
+    for (let offset = 0; offset < samples; offset += 1) {
+      const time = offset / sampleRate;
+      const noise = this.random() * 2 - 1;
+      const sparkle = noise - previousNoise * 0.74;
+      previousNoise = noise;
+      bodyPhase += (Math.PI * 2 * (72 - time * 38)) / sampleRate;
+      const burstEnvelope = Math.exp(-time * 6.2);
+      const popEnvelope = Math.exp(-time * 25);
+      const crackle = this.random() > 0.992 + time * 0.008
+        ? (this.random() * 2 - 1) * Math.exp(-time * 2.8)
+        : 0;
+      const value = (
+        sparkle * 0.7 * burstEnvelope
+        + Math.sin(bodyPhase) * 0.55 * popEnvelope
+        + crackle * 0.5
+      ) * amplitude;
+      this.mixSample(start + offset, value, pan + Math.sin(offset / 2100) * 0.12);
+    }
+  }
+
   addNoiseBed(amplitude = 0.0015) {
     let smoothed = 0;
     for (let index = 0; index < this.length; index += 1) {
@@ -445,6 +511,106 @@ function createHiddenVoice() {
   });
 }
 
+function createJoyfulComplete() {
+  const synth = new LoopSynth({ bpm: 150, beats: 16, seed: 0x0de70 });
+  const chords = [
+    { notes: [48, 55, 60, 64], bass: 36 },
+    { notes: [43, 50, 55, 59], bass: 31 },
+    { notes: [48, 55, 60, 64], bass: 36 },
+    { notes: [53, 57, 60, 65], bass: 41 },
+  ];
+  chords.forEach((chord, bar) => {
+    const beat = bar * 4;
+    addChord(synth, beat, chord.notes, {
+      beats: 3.8,
+      amplitude: 0.17,
+      type: "pulse",
+      attack: 0.018,
+      release: 0.22,
+      width: 1.25,
+    });
+    for (let step = 0; step < 8; step += 1) {
+      synth.addTone({
+        beat: beat + step * 0.5,
+        beats: 0.34,
+        note: chord.notes[step % chord.notes.length] + 12,
+        amplitude: 0.036,
+        type: "pulse",
+        pulseWidth: step % 2 ? 0.3 : 0.42,
+        release: 0.05,
+        pan: step % 2 ? 0.52 : -0.52,
+      });
+    }
+    synth.addKick(beat, 0.28);
+    synth.addKick(beat + 2, 0.24);
+    synth.addSnare(beat + 1, 0.17, 0.08);
+    synth.addSnare(beat + 3, 0.19, -0.08);
+    for (let step = 0; step < 8; step += 1) synth.addHat(beat + step * 0.5, step % 2 ? 0.033 : 0.048, step % 2 ? 0.3 : -0.3);
+  });
+
+  const joyfulPhrase = [64, 64, 65, 67, 67, 65, 64, 62, 60, 60, 62, 64, 64, 62, 62];
+  const lengths = [0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.42, 0.62, 0.28, 0.8];
+  let melodyBeat = 1;
+  joyfulPhrase.forEach((note, index) => {
+    synth.addTone({
+      beat: melodyBeat,
+      beats: lengths[index],
+      note: note + 12,
+      amplitude: 0.095,
+      type: "square",
+      attack: 0.004,
+      release: 0.07,
+      pan: index % 2 ? 0.08 : -0.08,
+      octaveLayer: index >= 12 ? 0.25 : 0.12,
+    });
+    melodyBeat += index === 12 ? 0.72 : index === 14 ? 0.9 : 0.5;
+  });
+  [10.2, 11.5, 12.7, 14.1].forEach((beat, index) => synth.addFirework(beat, 0.2 + index * 0.018, index % 2 ? 0.58 : -0.58));
+  addChord(synth, 12, [48, 55, 60, 64, 67], { beats: 3.5, amplitude: 0.23, type: "square", attack: 0.01, release: 0.48, width: 1.4 });
+  synth.addCircularDelay(synth.beatSeconds * 0.5, 0.09, 0.28);
+  synth.master({ peak: 0.88, bitDepth: 12, sampleHold: 1 });
+  return synth;
+}
+
+function createLevelComplete() {
+  const synth = new LoopSynth({ bpm: 148, beats: 8, seed: 0x1eae1 });
+  [60, 64, 67, 72, 76, 79].forEach((note, index) => synth.addTone({
+    beat: index * 0.5,
+    beats: index === 5 ? 1.4 : 0.38,
+    note,
+    amplitude: index === 5 ? 0.11 : 0.08,
+    type: "square",
+    attack: 0.004,
+    release: index === 5 ? 0.28 : 0.06,
+    pan: index % 2 ? 0.22 : -0.22,
+    octaveLayer: index === 5 ? 0.24 : 0,
+  }));
+  addChord(synth, 3, [48, 55, 60, 64, 67], { beats: 3.5, amplitude: 0.23, type: "pulse", attack: 0.01, release: 0.5, width: 1.3 });
+  synth.addKick(0, 0.24);
+  synth.addKick(2, 0.2);
+  synth.addSnare(1, 0.14);
+  synth.addSnare(3, 0.18);
+  for (let step = 0; step < 10; step += 1) synth.addHat(step * 0.4, step % 2 ? 0.035 : 0.048, step % 2 ? 0.35 : -0.35);
+  synth.addCircularDelay(synth.beatSeconds * 0.5, 0.11, 0.3);
+  synth.master({ peak: 0.82, bitDepth: 12, sampleHold: 1 });
+  return synth;
+}
+
+function createWhompWhomp() {
+  const synth = new LoopSynth({ bpm: 100, beats: 6, seed: 0xb00b0 });
+  synth.addSweep({ beat: 0.2, beats: 1.35, startNote: 55, endNote: 48, type: "saw", amplitude: 0.13, pan: -0.18, attack: 0.015, release: 0.24 });
+  synth.addSweep({ beat: 2, beats: 1.65, startNote: 52, endNote: 43, type: "saw", amplitude: 0.15, pan: 0.18, attack: 0.015, release: 0.34 });
+  synth.addTone({ beat: 0.2, beats: 1.35, note: 43, type: "triangle", amplitude: 0.075, pan: -0.16, release: 0.25 });
+  synth.addTone({ beat: 2, beats: 1.65, note: 36, type: "triangle", amplitude: 0.085, pan: 0.16, release: 0.36 });
+  synth.addKick(0.2, 0.18, -0.08);
+  synth.addKick(2, 0.2, 0.08);
+  synth.addHat(4.1, 0.04, -0.35, true);
+  synth.addHat(4.45, 0.032, 0.35, true);
+  synth.addCircularDelay(0.17, 0.075, 0.22);
+  synth.master({ peak: 0.76, bitDepth: 13, sampleHold: 1 });
+  return synth;
+}
+
 function createStillWaters() {
   const synth = new LoopSynth({ bpm: 90, beats: 48, seed: 0x16b17 });
   const chords = [
@@ -616,6 +782,9 @@ const tracks = productionMode
       encodeTrack("reference-rush-final-run", createFinalRun()),
       encodeTrack("canon-run", createCanonRun()),
       encodeTrack("hidden-voice", createHiddenVoice()),
+      encodeTrack("joyful-complete", createJoyfulComplete()),
+      encodeTrack("level-complete", createLevelComplete()),
+      encodeTrack("whomp-whomp", createWhompWhomp()),
     ]
   : [
       encodeTrack("still-waters-16bit", createStillWaters()),

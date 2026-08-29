@@ -332,6 +332,11 @@ const gameMusicTracks = Object.freeze({
   "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3", volume: 0.14 },
   "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", volume: 0.14 },
 });
+const gameOutcomeSounds = Object.freeze({
+  perfect: { key: "perfect", src: "./assets/audio/game-music/joyful-complete.mp3", volume: 0.34 },
+  complete: { key: "complete", src: "./assets/audio/game-music/level-complete.mp3", volume: 0.28 },
+  low: { key: "low", src: "./assets/audio/game-music/whomp-whomp.mp3", volume: 0.27 },
+});
 const crosswordKeyboardVisibleStorageKey = "lw_crossword_keyboard_visible";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
 const puzzlePassageSourceStorageKey = "lw_puzzle_passage_source";
@@ -10861,6 +10866,7 @@ function syncGameMusicPlayback() {
   const audio = ensureGameMusicAudio();
   if (!audio) return;
   cancelGameMusicFade();
+  audio.loop = true;
   const changedTrack = gameMusicTrackKey !== track.key;
   if (changedTrack) {
     audio.pause();
@@ -10880,6 +10886,49 @@ function syncGameMusicPlayback() {
   if (!audio.paused) return;
   const playback = audio.play();
   playback?.catch?.(() => {});
+}
+
+function gameOutcomeSoundKey(game) {
+  const roundLength = triviaRoundLength(game);
+  if (!game?.complete || !roundLength) return "";
+  if (game.lost || game.timedOut) return "low";
+  const accuracy = Math.max(0, Number(game.score) || 0) / roundLength;
+  if (accuracy >= 1 || ["word-search", "crossword", "book-sprint"].includes(game.type)) return "perfect";
+  if (accuracy < 0.5) return "low";
+  return "complete";
+}
+
+function playGameOutcomeSound(key) {
+  const sound = gameOutcomeSounds[key];
+  if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden) return;
+  const audio = ensureGameMusicAudio();
+  if (!audio) return;
+  cancelGameMusicFade();
+  audio.pause();
+  audio.loop = false;
+  audio.src = sound.src;
+  audio.load();
+  audio.volume = sound.volume;
+  gameMusicTrackKey = `outcome:${sound.key}`;
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Some engines wait for metadata before accepting a seek.
+  }
+  const playback = audio.play();
+  playback?.catch?.(() => {});
+}
+
+function stopGameOutcomeSound() {
+  if (!gameMusicTrackKey.startsWith("outcome:")) return;
+  cancelGameMusicFade();
+  gameMusicAudio?.pause();
+  try {
+    if (gameMusicAudio) gameMusicAudio.currentTime = 0;
+  } catch {
+    // A fresh game track will replace the source even if seeking is unavailable.
+  }
+  gameMusicTrackKey = "";
 }
 
 function setGameMusicEnabled(enabled) {
@@ -12639,6 +12688,7 @@ function completeTriviaGame(game) {
   game.celebrationPending = game.type === "book-sprint"
     ? Boolean(game.bookSprintBeatBest)
     : roundLength > 0 && game.score === roundLength;
+  game.outcomeSoundPending = gameOutcomeSoundKey(game);
   if (game.challengeId) {
     syncActiveChallengeProgress({ completed: true }).catch((error) => console.warn("Challenge completion update failed", error));
   }
@@ -12646,14 +12696,20 @@ function completeTriviaGame(game) {
 
 function runPendingTriviaCelebration() {
   const game = state.triviaGame;
-  if (state.mode !== "trivia" || !game?.complete || !game.celebrationPending) return;
+  if (state.mode !== "trivia" || !game?.complete) return;
+  if (game.outcomeSoundPending) {
+    const soundKey = game.outcomeSoundPending;
+    game.outcomeSoundPending = "";
+    playGameOutcomeSound(soundKey);
+  }
+  if (!game.celebrationPending) return;
   game.celebrationPending = false;
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
     revealTriviaMotionSuccess();
     return;
   }
   launchTriviaConfetti(game).catch(() => {
-    cleanupTriviaCelebration();
+    cleanupTriviaCelebration({ stopAudio: false });
     if (state.triviaGame === game) revealTriviaMotionSuccess(game);
   });
 }
@@ -12667,7 +12723,7 @@ function revealTriviaMotionSuccess(game = state.triviaGame) {
 }
 
 async function launchTriviaConfetti(game) {
-  cleanupTriviaCelebration();
+  cleanupTriviaCelebration({ stopAudio: false });
   const token = triviaCelebrationToken;
   let confettiModule;
   try {
@@ -12714,7 +12770,7 @@ async function launchTriviaConfetti(game) {
       frameId = requestAnimationFrame(fire);
       return;
     }
-    cleanupTimer = window.setTimeout(cleanupTriviaCelebration, 700);
+    cleanupTimer = window.setTimeout(() => cleanupTriviaCelebration({ stopAudio: false }), 700);
   };
 
   activeTriviaCelebration = {
@@ -12729,8 +12785,9 @@ async function launchTriviaConfetti(game) {
   fire();
 }
 
-function cleanupTriviaCelebration() {
+function cleanupTriviaCelebration({ stopAudio = true } = {}) {
   triviaCelebrationToken += 1;
+  if (stopAudio) stopGameOutcomeSound();
   if (!activeTriviaCelebration) return;
   activeTriviaCelebration.cancel();
   activeTriviaCelebration.confetti.reset();
