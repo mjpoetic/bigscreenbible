@@ -9840,7 +9840,7 @@ function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = s
   const required = gameType === "crossword" ? config.entryCount : config.wordCount;
   const candidates = customPuzzleCandidateWords(verses, config.size);
   const defaultCount = gameType === "crossword"
-    ? Math.min(candidates.length, Math.max(required + 6, 12))
+    ? candidates.length
     : Math.min(candidates.length, required);
   const selectedWords = state.puzzleCustomWordsEdited
     ? uniqueList(state.puzzleCustomWordChoices).filter((word) => candidates.includes(word))
@@ -10232,25 +10232,46 @@ function finalizeCrosswordGrid(grid, placements) {
   return { rows, columns, cells, entries, numbers };
 }
 
-function createCrosswordGrid(words, size, entryCount) {
+function createCrosswordGrid(words, size, entryCount, verses = []) {
   const normalizedWords = [...new Set(words.map(normalizeWordSearchWord))]
     .filter((word) => word.length >= 3 && word.length <= size);
   if (normalizedWords.length < entryCount) return null;
-  for (let restart = 0; restart < 180; restart += 1) {
+  const verseOptionsByWord = new Map(normalizedWords.map((word) => [word, crosswordVersesForWord(verses, word)]));
+  const distinctVerseTarget = Math.min(entryCount, new Set(
+    normalizedWords.flatMap((word) => (verseOptionsByWord.get(word) || []).map((verse) => verse.n)),
+  ).size);
+  const verseAware = distinctVerseTarget > 0;
+  let bestGrid = null;
+  let bestDistinctVerseCount = -1;
+  for (let restart = 0; restart < (verseAware ? 360 : 180); restart += 1) {
     const ordered = shuffleItems(normalizedWords).sort((first, second) => second.length - first.length + (triviaRandomSource() - 0.5));
     const firstWord = ordered[Math.min(restart % Math.min(5, ordered.length), ordered.length - 1)];
     const grid = Array.from({ length: size }, () => Array(size).fill(null));
     const firstColumn = Math.floor((size - firstWord.length) / 2);
     const firstPlacement = crosswordCanPlaceWord(grid, firstWord, Math.floor(size / 2), firstColumn, "across", false);
     if (!firstPlacement) continue;
+    const firstVerseOptions = verseOptionsByWord.get(firstWord) || [];
+    firstPlacement.verse = firstVerseOptions[Math.floor(triviaRandomSource() * firstVerseOptions.length)] || null;
     crosswordPlaceWord(grid, firstPlacement);
     const placements = [firstPlacement];
     const remaining = ordered.filter((word) => word !== firstWord);
     while (placements.length < entryCount && remaining.length) {
-      const options = remaining.flatMap((word) => crosswordPlacementCandidates(grid, word).map((placement) => ({
-        placement,
-        score: placement.intersections * 100 - Math.abs(size / 2 - placement.row) - Math.abs(size / 2 - placement.column),
-      })));
+      const usedVerseNumbers = new Set(placements.map((placement) => placement.verse?.n).filter(Number.isFinite));
+      const options = remaining.flatMap((word) => {
+        const verseOptions = verseOptionsByWord.get(word) || [];
+        const unusedVerseOptions = verseOptions.filter((verse) => !usedVerseNumbers.has(verse.n));
+        const clueVerseOptions = unusedVerseOptions.length ? unusedVerseOptions : verseOptions;
+        return crosswordPlacementCandidates(grid, word).map((placement) => ({
+          placement: {
+            ...placement,
+            verse: clueVerseOptions[Math.floor(triviaRandomSource() * clueVerseOptions.length)] || null,
+          },
+          score: placement.intersections * 100
+            + (unusedVerseOptions.length ? 1000 : 0)
+            - Math.abs(size / 2 - placement.row)
+            - Math.abs(size / 2 - placement.column),
+        }));
+      });
       if (!options.length) break;
       options.sort((first, second) => second.score - first.score);
       const bestScore = options[0].score;
@@ -10260,9 +10281,17 @@ function createCrosswordGrid(words, size, entryCount) {
       placements.push(selected);
       remaining.splice(remaining.indexOf(selected.word), 1);
     }
-    if (placements.length >= entryCount) return finalizeCrosswordGrid(grid, placements.slice(0, entryCount));
+    if (placements.length < entryCount) continue;
+    const finalized = finalizeCrosswordGrid(grid, placements.slice(0, entryCount));
+    if (!verseAware) return finalized;
+    const distinctVerseCount = new Set(finalized.entries.map((entry) => entry.verse?.n).filter(Number.isFinite)).size;
+    if (distinctVerseCount > bestDistinctVerseCount) {
+      bestGrid = finalized;
+      bestDistinctVerseCount = distinctVerseCount;
+    }
+    if (distinctVerseCount >= distinctVerseTarget) return finalized;
   }
-  return null;
+  return bestGrid;
 }
 
 function crosswordClueForWord(verses, answer) {
@@ -10281,6 +10310,11 @@ function crosswordClueForWord(verses, answer) {
   }
   const excerpt = verse.text.slice(start, end).replace(replacementPattern, "_____");
   return `Verse ${verse.n}: ${start > 0 ? "…" : ""}${excerpt}${end < verse.text.length ? "…" : ""}`;
+}
+
+function crosswordVersesForWord(verses, answer) {
+  const pattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "i");
+  return (verses || []).filter((verse) => pattern.test(verse.text));
 }
 
 function normalizeWordSearchWord(value) {
@@ -16287,7 +16321,7 @@ function startCrosswordGame({ render = true } = {}) {
   let selected = null;
   let generated = null;
   for (const option of passageOptions) {
-    generated = createCrosswordGrid(option.words, config.size, config.entryCount);
+    generated = createCrosswordGrid(option.words, config.size, config.entryCount, option.verses);
     if (generated) {
       selected = option;
       break;
@@ -16301,7 +16335,7 @@ function startCrosswordGame({ render = true } = {}) {
   }
   const entries = generated.entries.map((entry) => ({
     ...entry,
-    clue: crosswordClueForWord(selected.verses, entry.word),
+    clue: crosswordClueForWord(entry.verse ? [entry.verse] : selected.verses, entry.word),
   }));
   const firstEntry = entries[0];
   state.triviaDifficulty = difficulty;

@@ -45,6 +45,7 @@ vm.runInContext(`
   ${extractFunction("crosswordPlaceWord")}
   ${extractFunction("crosswordPlacementCandidates")}
   ${extractFunction("finalizeCrosswordGrid")}
+  ${extractFunction("crosswordVersesForWord")}
   ${extractFunction("createCrosswordGrid")}
   ${extractFunction("crosswordClueForWord")}
   ${extractFunction("wordSearchCellKey")}
@@ -104,6 +105,36 @@ assert.match(clue, /^Verse 4:/);
 assert.match(clue, /_____/);
 assert.doesNotMatch(clue, /valley/i);
 
+const distinctVerseWords = ["FAITH", "EARTH", "HEART", "TRUTH", "HOPE", "PATH", "FATHER", "SPIRIT"];
+const distinctVersePuzzle = api.createCrosswordGrid(
+  distinctVerseWords,
+  9,
+  5,
+  distinctVerseWords.map((word, index) => ({ n: index + 1, text: `A clue for ${word.toLowerCase()} appears here.` })),
+);
+assert.ok(distinctVersePuzzle, "Verse-aware crossword should generate");
+assert.equal(
+  new Set(distinctVersePuzzle.entries.map((entry) => entry.verse?.n)).size,
+  distinctVersePuzzle.entries.length,
+  "Each clue should use a different verse when enough verses are available",
+);
+
+const limitedVersePuzzle = api.createCrosswordGrid(
+  distinctVerseWords,
+  9,
+  5,
+  [
+    { n: 1, text: "Faith, earth, heart, and truth are in this verse." },
+    { n: 2, text: "Hope, path, father, and spirit are in this verse." },
+  ],
+);
+assert.ok(limitedVersePuzzle, "Crossword should still generate when distinct verses are limited");
+assert.equal(
+  new Set(limitedVersePuzzle.entries.map((entry) => entry.verse?.n)).size,
+  2,
+  "Fallback should use every available source verse before repeating one",
+);
+
 const interactionGame = {
   answers: { "0:0": "F", "0:1": "A", "0:2": "I", "0:3": "T", "0:4": "H" },
   entries: [
@@ -129,6 +160,27 @@ const passageContext = {};
 vm.createContext(passageContext);
 vm.runInContext(`${source.slice(passageStart, passageEnd)}; globalThis.packs = wordSearchPassages;`, passageContext);
 const bsbChapters = bsbContext.window.BIGSCREEN_BIBLE_BSB.chapters;
+const exodusPack = passageContext.packs.find((pack) => pack.chapterKey === "Exodus 20");
+const exodusVerses = bsbChapters[exodusPack.chapterKey].verses
+  .filter((verse) => verse.n >= exodusPack.start && verse.n <= exodusPack.end);
+const stopWordSetsStart = source.indexOf("const wordSearchStopWords = new Set(");
+const stopWordSetsEnd = source.indexOf("function normalizedPuzzlePassageSource", stopWordSetsStart);
+const customCandidateContext = {};
+vm.createContext(customCandidateContext);
+vm.runInContext(`
+  ${source.slice(stopWordSetsStart, stopWordSetsEnd)}
+  const normalizeWordSearchWord = (value) => String(value || "").toUpperCase().replace(/[^A-Z]/g, "");
+  ${extractFunction("customPuzzleCandidateWords")}
+  globalThis.customPuzzleCandidateWords = customPuzzleCandidateWords;
+`, customCandidateContext);
+const exodusCandidateWords = customCandidateContext.customPuzzleCandidateWords(exodusVerses, 15);
+const exodusPuzzle = api.createCrosswordGrid(exodusCandidateWords, 15, 11, exodusVerses);
+assert.ok(exodusPuzzle, "Exodus 20:1-17 Expert crossword should generate");
+assert.equal(
+  new Set(exodusPuzzle.entries.map((entry) => entry.verse?.n)).size,
+  exodusPuzzle.entries.length,
+  "Exodus 20:1-17 should not repeat a clue verse",
+);
 const stopWords = new Set(["about", "after", "again", "against", "also", "among", "because", "before", "being", "between", "could", "every", "from", "have", "having", "into", "itself", "shall", "should", "their", "there", "these", "they", "thing", "those", "through", "under", "until", "upon", "very", "were", "what", "when", "where", "which", "while", "with", "would", "your", "yours"]);
 const passageCandidates = (pack, config) => {
   const verses = (bsbChapters[pack.chapterKey]?.verses || []).filter((verse) => verse.n >= pack.start && verse.n <= pack.end);
@@ -164,8 +216,10 @@ assert.doesNotMatch(triviaViewSource, /aria-label="Crossword, new"/);
 assert.doesNotMatch(source, /game-new-badge/);
 assert.match(triviaViewSource, /isCrossword \? crosswordDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startCrosswordGame/);
+assert.match(extractFunction("puzzleCreatorEvaluation"), /const defaultCount = gameType === "crossword"\s*\? candidates\.length/);
 assert.match(extractFunction("startCrosswordGame"), /orderedWordSearchPassages\(\)/);
 assert.match(extractFunction("startCrosswordGame"), /crosswordClueForWord/);
+assert.match(extractFunction("startCrosswordGame"), /createCrosswordGrid\(option\.words, config\.size, config\.entryCount, option\.verses\)/);
 assert.match(extractFunction("startCrosswordGame"), /recordWordSearchPassage/);
 assert.match(extractFunction("triviaGameView"), /crosswordGameView/);
 assert.match(extractFunction("crosswordGameView"), /role="grid"/);
