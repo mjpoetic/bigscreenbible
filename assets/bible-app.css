@@ -14834,7 +14834,16 @@ svg {
 
   .selection-bar {
     top: calc(var(--topbar-height) + var(--reader-chrome-height) + 12px);
-    width: min(820px, calc(100vw - 72px));
+    width: min(1040px, calc(100vw - 32px));
+    flex-wrap: nowrap;
+  }
+
+  .selection-bar-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .focus-shell .selection-bar {
