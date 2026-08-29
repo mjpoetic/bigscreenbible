@@ -14794,6 +14794,21 @@ svg {
   }
 }
 
+@media (min-width: 841px) {
+  .selection-bar {
+    width: min(1040px, calc(100vw - 32px));
+    flex-wrap: nowrap;
+  }
+
+  .selection-bar-summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 @media (min-width: 841px) and (max-width: 1180px) {
   :root {
     --brand-title-size: 19px;
@@ -14834,16 +14849,6 @@ svg {
 
   .selection-bar {
     top: calc(var(--topbar-height) + var(--reader-chrome-height) + 12px);
-    width: min(1040px, calc(100vw - 32px));
-    flex-wrap: nowrap;
-  }
-
-  .selection-bar-summary {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .focus-shell .selection-bar {

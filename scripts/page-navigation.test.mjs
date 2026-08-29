@@ -131,7 +131,7 @@ assert.match(styles, /\.reader-page-controls \.reader-page-button \{[\s\S]*?posi
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-page-controls/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-return-button \{[\s\S]*?right: max\(7px, env\(safe-area-inset-right, 0px\)\) !important;/);
 assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\) \{[\s\S]*?\.reader-selection-tools-button \{[\s\S]*?right: max\(7px, env\(safe-area-inset-right, 0px\)\) !important;/);
-assert.match(styles, /@media \(min-width: 841px\) and \(max-width: 1180px\) \{[\s\S]*?\.selection-bar \{[\s\S]*?width: min\(1040px, calc\(100vw - 32px\)\);[\s\S]*?flex-wrap: nowrap;/);
-assert.match(styles, /@media \(min-width: 841px\) and \(max-width: 1180px\) \{[\s\S]*?\.selection-bar-summary \{[\s\S]*?min-width: 0;[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/);
+assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.selection-bar \{[\s\S]*?width: min\(1040px, calc\(100vw - 32px\)\);[\s\S]*?flex-wrap: nowrap;/);
+assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.selection-bar-summary \{[\s\S]*?min-width: 0;[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/);
 
 console.log("Page navigation tests passed");
