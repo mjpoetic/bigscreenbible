@@ -10237,10 +10237,8 @@ function createCrosswordGrid(words, size, entryCount, verses = []) {
     .filter((word) => word.length >= 3 && word.length <= size);
   if (normalizedWords.length < entryCount) return null;
   const verseOptionsByWord = new Map(normalizedWords.map((word) => [word, crosswordVersesForWord(verses, word)]));
-  const distinctVerseTarget = Math.min(entryCount, new Set(
-    normalizedWords.flatMap((word) => (verseOptionsByWord.get(word) || []).map((verse) => verse.n)),
-  ).size);
-  const verseAware = distinctVerseTarget > 0;
+  const distinctVerseCount = crosswordVerseCapacity(verses, normalizedWords);
+  const verseAware = distinctVerseCount > 0;
   let bestGrid = null;
   let bestDistinctVerseCount = -1;
   for (let restart = 0; restart < (verseAware ? 360 : 180); restart += 1) {
@@ -10284,17 +10282,17 @@ function createCrosswordGrid(words, size, entryCount, verses = []) {
     if (placements.length < entryCount) continue;
     const finalized = finalizeCrosswordGrid(grid, placements.slice(0, entryCount));
     if (!verseAware) return finalized;
-    const distinctVerseCount = new Set(finalized.entries.map((entry) => entry.verse?.n).filter(Number.isFinite)).size;
-    if (distinctVerseCount > bestDistinctVerseCount) {
+    const finalizedDistinctVerseCount = new Set(finalized.entries.map((entry) => entry.verse?.n).filter(Number.isFinite)).size;
+    if (finalizedDistinctVerseCount > bestDistinctVerseCount) {
       bestGrid = finalized;
-      bestDistinctVerseCount = distinctVerseCount;
+      bestDistinctVerseCount = finalizedDistinctVerseCount;
     }
-    if (distinctVerseCount >= distinctVerseTarget) return finalized;
+    if (finalizedDistinctVerseCount >= Math.min(entryCount, distinctVerseCount)) return finalized;
   }
   return bestGrid;
 }
 
-function crosswordClueForWord(verses, answer) {
+function crosswordClueForWord(verses, answer, hiddenAnswers = []) {
   const pattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "i");
   const replacementPattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "gi");
   const verse = verses.find((candidate) => pattern.test(candidate.text));
@@ -10303,7 +10301,18 @@ function crosswordClueForWord(verses, answer) {
   const matchIndex = match?.index || 0;
   let start = Math.max(0, matchIndex - 58);
   let end = Math.min(verse.text.length, matchIndex + answer.length + 76);
-  if (start > 0) start = verse.text.indexOf(" ", start) + 1;
+  (hiddenAnswers || []).forEach((hiddenAnswer) => {
+    const hiddenPattern = new RegExp(`\\b${escapeRegExp(hiddenAnswer)}\\b`, "gi");
+    for (const hiddenMatch of verse.text.matchAll(hiddenPattern)) {
+      const hiddenIndex = hiddenMatch.index || 0;
+      if (hiddenIndex < matchIndex) start = Math.max(start, hiddenIndex + hiddenMatch[0].length);
+      if (hiddenIndex > matchIndex) end = Math.min(end, hiddenIndex);
+    }
+  });
+  if (start > 0) {
+    const nextSpace = verse.text.indexOf(" ", start);
+    if (nextSpace >= 0 && nextSpace < matchIndex) start = nextSpace + 1;
+  }
   if (end < verse.text.length) {
     const nextSpace = verse.text.lastIndexOf(" ", end);
     if (nextSpace > matchIndex) end = nextSpace;
@@ -10315,6 +10324,12 @@ function crosswordClueForWord(verses, answer) {
 function crosswordVersesForWord(verses, answer) {
   const pattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "i");
   return (verses || []).filter((verse) => pattern.test(verse.text));
+}
+
+function crosswordVerseCapacity(verses, words) {
+  return new Set((words || []).flatMap((word) => (
+    crosswordVersesForWord(verses, normalizeWordSearchWord(word)).map((verse) => verse.n)
+  ))).size;
 }
 
 function normalizeWordSearchWord(value) {
@@ -16333,10 +16348,15 @@ function startCrosswordGame({ render = true } = {}) {
       : "A Crossword puzzle could not be built yet. Try another difficulty.");
     return;
   }
-  const entries = generated.entries.map((entry) => ({
-    ...entry,
-    clue: crosswordClueForWord(entry.verse ? [entry.verse] : selected.verses, entry.word),
-  }));
+  const entries = generated.entries.map((entry) => {
+    const hiddenAnswers = generated.entries
+      .filter((candidate) => candidate !== entry && candidate.verse?.n === entry.verse?.n)
+      .map((candidate) => candidate.word);
+    return {
+      ...entry,
+      clue: crosswordClueForWord(entry.verse ? [entry.verse] : selected.verses, entry.word, hiddenAnswers),
+    };
+  });
   const firstEntry = entries[0];
   state.triviaDifficulty = difficulty;
   state.puzzleRestartPromptOpen = false;

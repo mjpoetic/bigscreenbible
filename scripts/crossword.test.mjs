@@ -46,6 +46,7 @@ vm.runInContext(`
   ${extractFunction("crosswordPlacementCandidates")}
   ${extractFunction("finalizeCrosswordGrid")}
   ${extractFunction("crosswordVersesForWord")}
+  ${extractFunction("crosswordVerseCapacity")}
   ${extractFunction("createCrosswordGrid")}
   ${extractFunction("crosswordClueForWord")}
   ${extractFunction("wordSearchCellKey")}
@@ -59,6 +60,7 @@ vm.runInContext(`
     crosswordDifficultyDescription,
     createCrosswordGrid,
     crosswordClueForWord,
+    crosswordVerseCapacity,
     crosswordEntryIsCorrect,
     crosswordEntryIsFilled,
     reconcileCrosswordCompletedEntries,
@@ -135,6 +137,17 @@ assert.equal(
   "Fallback should use every available source verse before repeating one",
 );
 
+const sharedVerse = {
+  n: 26,
+  text: "Look at the birds of the air: They do not sow or reap or gather into barns, and yet your heavenly Father feeds them.",
+};
+const birdsClue = api.crosswordClueForWord([sharedVerse], "BIRDS", ["REAP"]);
+const reapClue = api.crosswordClueForWord([sharedVerse], "REAP", ["BIRDS"]);
+assert.doesNotMatch(birdsClue, /\breap\b/i, "Earlier clue must not reveal a later answer from the same verse");
+assert.doesNotMatch(reapClue, /\bbirds\b/i, "Later clue must not reveal an earlier answer from the same verse");
+assert.match(birdsClue, /_____/);
+assert.match(reapClue, /_____/);
+
 const interactionGame = {
   answers: { "0:0": "F", "0:1": "A", "0:2": "I", "0:3": "T", "0:4": "H" },
   entries: [
@@ -181,6 +194,27 @@ assert.equal(
   exodusPuzzle.entries.length,
   "Exodus 20:1-17 should not repeat a clue verse",
 );
+const matthewPack = passageContext.packs.find((pack) => pack.chapterKey === "Matthew 6");
+const matthewVerses = bsbChapters[matthewPack.chapterKey].verses
+  .filter((verse) => verse.n >= matthewPack.start && verse.n <= matthewPack.end);
+const matthewCandidateWords = customCandidateContext.customPuzzleCandidateWords(matthewVerses, 15);
+assert.equal(matthewVerses.length, 10, "Matthew 6:25-34 fixture should contain ten verses");
+const matthewPuzzle = api.createCrosswordGrid(matthewCandidateWords, 15, 11, matthewVerses);
+assert.ok(matthewPuzzle, "Matthew 6:25-34 should still generate an 11-clue puzzle");
+assert.equal(
+  new Set(matthewPuzzle.entries.map((entry) => entry.verse?.n)).size,
+  10,
+  "Matthew 6:25-34 should use all ten verses before repeating one",
+);
+for (const entry of matthewPuzzle.entries) {
+  const hiddenAnswers = matthewPuzzle.entries
+    .filter((candidate) => candidate !== entry && candidate.verse?.n === entry.verse?.n)
+    .map((candidate) => candidate.word);
+  const clue = api.crosswordClueForWord([entry.verse], entry.word, hiddenAnswers);
+  hiddenAnswers.forEach((hiddenAnswer) => {
+    assert.doesNotMatch(clue, new RegExp(`\\b${hiddenAnswer}\\b`, "i"), `${entry.word} clue must hide ${hiddenAnswer}`);
+  });
+}
 const stopWords = new Set(["about", "after", "again", "against", "also", "among", "because", "before", "being", "between", "could", "every", "from", "have", "having", "into", "itself", "shall", "should", "their", "there", "these", "they", "thing", "those", "through", "under", "until", "upon", "very", "were", "what", "when", "where", "which", "while", "with", "would", "your", "yours"]);
 const passageCandidates = (pack, config) => {
   const verses = (bsbChapters[pack.chapterKey]?.verses || []).filter((verse) => verse.n >= pack.start && verse.n <= pack.end);
@@ -193,14 +227,27 @@ const passageCandidates = (pack, config) => {
 
 for (const difficulty of api.crosswordDifficulties()) {
   const config = api.crosswordDifficultyConfig(difficulty);
+  const minimumPassageCount = 6;
   let generatedCount = 0;
   for (const pack of passageContext.packs) {
     const words = passageCandidates(pack, config);
+    const verses = (bsbChapters[pack.chapterKey]?.verses || []).filter((verse) => verse.n >= pack.start && verse.n <= pack.end);
     if (words.length < config.entryCount) continue;
-    if (api.createCrosswordGrid(words, config.size, config.entryCount)) generatedCount += 1;
-    if (generatedCount >= 6) break;
+    const puzzle = api.createCrosswordGrid(words, config.size, config.entryCount, verses);
+    if (puzzle) {
+      assert.equal(
+        new Set(puzzle.entries.map((entry) => entry.verse?.n)).size,
+        Math.min(config.entryCount, api.crosswordVerseCapacity(verses, words)),
+        `${difficulty} ${pack.label} should maximize distinct clue verses`,
+      );
+      generatedCount += 1;
+    }
+    if (generatedCount >= minimumPassageCount) break;
   }
-  assert.ok(generatedCount >= 6, `${difficulty} should generate from at least six real passage packs`);
+  assert.ok(
+    generatedCount >= minimumPassageCount,
+    `${difficulty} generated from ${generatedCount} real passage packs; expected at least ${minimumPassageCount}`,
+  );
 }
 
 const triviaViewSource = extractFunction("triviaView");
@@ -220,6 +267,7 @@ assert.match(extractFunction("puzzleCreatorEvaluation"), /const defaultCount = g
 assert.match(extractFunction("startCrosswordGame"), /orderedWordSearchPassages\(\)/);
 assert.match(extractFunction("startCrosswordGame"), /crosswordClueForWord/);
 assert.match(extractFunction("startCrosswordGame"), /createCrosswordGrid\(option\.words, config\.size, config\.entryCount, option\.verses\)/);
+assert.match(extractFunction("startCrosswordGame"), /candidate\.verse\?\.n === entry\.verse\?\.n/);
 assert.match(extractFunction("startCrosswordGame"), /recordWordSearchPassage/);
 assert.match(extractFunction("triviaGameView"), /crosswordGameView/);
 assert.match(extractFunction("crosswordGameView"), /role="grid"/);
