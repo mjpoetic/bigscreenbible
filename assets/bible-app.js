@@ -231,6 +231,10 @@ function soundVolumeScalar(value) {
   return normalizedSoundVolume(value) / 100;
 }
 
+function modeTransitionVolumeScalar(value) {
+  return soundVolumeScalar(value) * 1.75;
+}
+
 let bibleData = {};
 let bibleIndex = null;
 let bibleParagraphs = null;
@@ -1879,7 +1883,7 @@ function playModePaperSweep(context, startAt, duration, peakGain = 0.018) {
   filter.frequency.setValueAtTime(1750, startAt);
   filter.frequency.exponentialRampToValueAtTime(520, endAt);
   gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(peakGain * soundVolumeScalar(state.modeTransitionVolume), startAt + 0.018);
+  gain.gain.exponentialRampToValueAtTime(peakGain * modeTransitionVolumeScalar(state.modeTransitionVolume), startAt + 0.018);
   gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
   source.connect(filter);
   filter.connect(gain);
@@ -1925,7 +1929,7 @@ function playReadyModeTransitionSound(context, mode) {
       startFrequency: 196,
       endFrequency: 294,
       peakGain: 0.014,
-      volume: soundVolumeScalar(state.modeTransitionVolume),
+      volume: modeTransitionVolumeScalar(state.modeTransitionVolume),
       type: "sine",
     });
     playModeTone(context, {
@@ -1934,7 +1938,7 @@ function playReadyModeTransitionSound(context, mode) {
       startFrequency: 587,
       endFrequency: 740,
       peakGain: 0.009,
-      volume: soundVolumeScalar(state.modeTransitionVolume),
+      volume: modeTransitionVolumeScalar(state.modeTransitionVolume),
       type: "sine",
     });
     return;
@@ -1945,7 +1949,7 @@ function playReadyModeTransitionSound(context, mode) {
       duration: 0.075,
       startFrequency: 523.25,
       peakGain: 0.022,
-      volume: soundVolumeScalar(state.modeTransitionVolume),
+      volume: modeTransitionVolumeScalar(state.modeTransitionVolume),
       type: "triangle",
     });
     playModeTone(context, {
@@ -1953,7 +1957,7 @@ function playReadyModeTransitionSound(context, mode) {
       duration: 0.1,
       startFrequency: 659.25,
       peakGain: 0.018,
-      volume: soundVolumeScalar(state.modeTransitionVolume),
+      volume: modeTransitionVolumeScalar(state.modeTransitionVolume),
       type: "triangle",
     });
   }

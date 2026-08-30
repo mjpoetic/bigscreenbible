@@ -40,8 +40,10 @@ vm.createContext(volumeContext);
 vm.runInContext(`
   ${extractFunction("normalizedSoundVolume")}
   ${extractFunction("soundVolumeScalar")}
+  ${extractFunction("modeTransitionVolumeScalar")}
   globalThis.normalizeVolume = normalizedSoundVolume;
   globalThis.volumeScalar = soundVolumeScalar;
+  globalThis.modeVolumeScalar = modeTransitionVolumeScalar;
 `, volumeContext);
 assert.equal(volumeContext.normalizeVolume(null), 100);
 assert.equal(volumeContext.normalizeVolume(""), 100);
@@ -49,6 +51,8 @@ assert.equal(volumeContext.normalizeVolume(-20), 0);
 assert.equal(volumeContext.normalizeVolume(55), 55);
 assert.equal(volumeContext.normalizeVolume(150), 100);
 assert.equal(volumeContext.volumeScalar(25), 0.25);
+assert.equal(volumeContext.modeVolumeScalar(100), 1.75);
+assert.equal(volumeContext.modeVolumeScalar(50), 0.875);
 
 const switchModeSource = extractFunction("switchMode");
 const setSoundsSource = extractFunction("setModeTransitionSounds");
@@ -77,8 +81,9 @@ assert.match(readySoundSource, /mode === "trivia"/);
 assert.match(readySoundSource, /playModePaperSweep/);
 assert.match(readySoundSource, /type: "triangle"/);
 assert.match(extractFunction("playModePaperSweep"), /context\.createBuffer/);
-assert.match(extractFunction("playModePaperSweep"), /soundVolumeScalar\(state\.modeTransitionVolume\)/);
+assert.match(extractFunction("playModePaperSweep"), /modeTransitionVolumeScalar\(state\.modeTransitionVolume\)/);
 assert.match(extractFunction("playModeTone"), /options\.peakGain \* \(options\.volume \?\? 1\)/);
+assert.match(readySoundSource, /volume: modeTransitionVolumeScalar\(state\.modeTransitionVolume\)/);
 assert.doesNotMatch(source, /mode-transition[^\n]+\.(?:mp3|m4a|ogg|wav)/i);
 
 assert.match(soundsSource, /settingsDisclosure\("sounds", "Sounds"/);
