@@ -57,14 +57,20 @@ for (const [fileName, outcomeKey] of outcomeSounds) {
 
 assert.match(appSource, /game\.type === "reference-rush" && game\.timed\s*\? "reference-rush-timed"/, "Timed Reference Rush must select Final Run");
 assert.match(appSource, /gameMusicEnabled: localStorage\.getItem\("lw_game_music_enabled"\) !== "false"/, "Game music should default on and remember a local opt-out");
+assert.match(appSource, /gameVolume: normalizedSoundVolume\(localStorage\.getItem\("lw_game_volume"\)\)/, "Game volume should default to the established mix and remember a local level");
 assert.match(appSource, /gameMusicEnabled: state\.gameMusicEnabled/, "Game music preference must enter cloud snapshots");
+assert.match(appSource, /gameVolume: state\.gameVolume/, "Game volume must enter cloud snapshots");
 assert.match(appSource, /state\.gameMusicEnabled = typeof settings\.gameMusicEnabled === "boolean"/, "Game music preference must restore from cloud snapshots");
 assert.match(appSource, /localStorage\.setItem\("lw_game_music_enabled"/, "Game music preference must persist locally");
+assert.match(appSource, /localStorage\.setItem\("lw_game_volume"/, "Game volume must persist locally");
 assert.doesNotMatch(appSource, /gameMusicInlineToggle/, "Games must not place the music control inline");
 assert.match(appSource, /gameMusicToggleMarkup\("gameMusicDrawerToggle"\)/, "Every game must expose the music control in Controls");
+assert.match(appSource, /soundVolumeControlMarkup\("game", "gameDrawer"/, "Every game must expose the shared game volume in Controls");
 assert.match(appSource, /id="gamesControlsDrawer" role="dialog" aria-modal="true"/, "Game controls must remain a hidden drawer at every breakpoint");
 assert.match(appSource, /state\.mode === "trivia"[\s\S]*!game\.complete[\s\S]*!document\.hidden/, "Music playback must be limited to a visible active game");
 assert.match(appSource, /gameMusicAudio\.loop = true/, "Game music must loop");
+assert.match(appSource, /track\.volume \* soundVolumeScalar\(state\.gameVolume\)/, "Game music must honor the shared game volume");
+assert.match(appSource, /sound\.volume \* soundVolumeScalar\(state\.gameVolume\)/, "Game result sounds must honor the shared game volume");
 assert.match(appSource, /function gameOutcomeSoundKey\(game\)[\s\S]*game\.lost \|\| game\.timedOut[\s\S]*accuracy >= 1[\s\S]*accuracy < 0\.5/, "Completion sounds must distinguish perfect, ordinary, and low or lost results");
 assert.match(appSource, /game\.outcomeSoundPending = gameOutcomeSoundKey\(game\)/, "Every completed game must queue its matching outcome sound");
 assert.match(appSource, /function playGameOutcomeSound\(key\)[\s\S]*!state\.gameMusicEnabled[\s\S]*audio\.loop = false/, "Outcome sounds must honor the game music switch and play once");
@@ -95,6 +101,7 @@ assert.match(appSource, /navigator\.audioSession\.type = "ambient"/, "Supported 
 assert.match(appSource, /pauseGameMusic\(\{ fade: false \}\)[\s\S]*pauseReaderAutoScroll/, "Backgrounding must stop music immediately");
 assert.match(appSource, /resumeTriviaGameAfterReference\(target\.game\)[\s\S]*render\(\)/, "Returning from Scripture must preserve the same game for music resumption");
 assert.match(cssSource, /\.game-music-drawer-control\s*\{\s*display: contents;/, "The music control must render inside the Controls drawer");
+assert.match(cssSource, /\.game-volume-drawer-control\s*\{/, "The shared game volume must be styled inside the Controls drawer");
 assert.match(cssSource, /games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\)/, "Desktop Controls must use the hidden drawer shell");
 assert.match(generatorSource, /process\.argv\.includes\("--production"\)/, "The generator must have an explicit production mode");
 assert.match(generatorSource, /const starts = \[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\.5, 14\]/, "Ode to Joy must keep its recognizable quarter-note phrase and closing cadence");

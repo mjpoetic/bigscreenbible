@@ -4170,6 +4170,89 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   display: none;
 }
 
+:is(.settings-popover, .mobile-settings-popover) [hidden] {
+  display: none !important;
+}
+
+.settings-search {
+  position: sticky;
+  top: -14px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 6px;
+  margin: 0 -4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 94%, var(--soft));
+  padding: 7px 8px;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.settings-search-icon {
+  display: grid;
+  color: var(--muted);
+  place-items: center;
+}
+
+.settings-search-icon svg,
+.settings-search-clear svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: 0;
+}
+
+.settings-search input::placeholder {
+  color: var(--muted);
+}
+
+.settings-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.settings-search:focus-within {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent);
+}
+
+.settings-search-clear {
+  display: grid;
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  place-items: center;
+}
+
+.settings-search-empty {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 24px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.settings-search-empty strong {
+  color: var(--ink);
+}
+
 .setting-group,
 .setting-row {
   display: grid;
@@ -4196,6 +4279,51 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   height: 18px;
   accent-color: var(--teal);
   flex-shrink: 0;
+}
+
+.sounds-settings {
+  gap: 10px;
+}
+
+.sound-volume-control {
+  display: grid;
+  gap: 7px;
+}
+
+.sound-volume-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sound-volume-heading output {
+  min-width: 40px;
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.sound-volume-slider {
+  width: 100%;
+  min-height: 30px;
+  margin: 0;
+  accent-color: var(--teal);
+  cursor: pointer;
+}
+
+.game-volume-drawer-control {
+  width: min(260px, 100%);
+  justify-self: end;
+  border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--teal) 5%, var(--paper));
+  padding: 12px;
+}
+
+.games-active-controls .game-volume-drawer-control .sound-volume-heading output {
+  color: var(--teal);
 }
 
 .words-of-jesus {
@@ -11344,6 +11472,25 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   letter-spacing: 0;
   line-height: 1.35;
   text-transform: none;
+}
+
+.presentation-settings-disclosure .sound-volume-control {
+  gap: 6px;
+}
+
+.presentation-settings-disclosure .sound-volume-heading .setting-label,
+.presentation-settings-disclosure .sound-volume-heading output {
+  color: var(--presentation-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.presentation-settings-disclosure .sound-volume-heading output {
+  color: var(--presentation-accent);
+}
+
+.presentation-settings-disclosure .sound-volume-slider {
+  accent-color: var(--presentation-accent);
 }
 
 .presentation-settings-popover .presentation-setting-checkbox {

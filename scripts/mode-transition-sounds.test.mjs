@@ -35,10 +35,25 @@ assert.equal(durationContext.durationFor("parallel"), 0.24);
 assert.equal(durationContext.durationFor("big"), 0.28);
 assert.equal(durationContext.durationFor("trivia"), 0.18);
 
+const volumeContext = {};
+vm.createContext(volumeContext);
+vm.runInContext(`
+  ${extractFunction("normalizedSoundVolume")}
+  ${extractFunction("soundVolumeScalar")}
+  globalThis.normalizeVolume = normalizedSoundVolume;
+  globalThis.volumeScalar = soundVolumeScalar;
+`, volumeContext);
+assert.equal(volumeContext.normalizeVolume(null), 100);
+assert.equal(volumeContext.normalizeVolume(""), 100);
+assert.equal(volumeContext.normalizeVolume(-20), 0);
+assert.equal(volumeContext.normalizeVolume(55), 55);
+assert.equal(volumeContext.normalizeVolume(150), 100);
+assert.equal(volumeContext.volumeScalar(25), 0.25);
+
 const switchModeSource = extractFunction("switchMode");
 const setSoundsSource = extractFunction("setModeTransitionSounds");
 const readySoundSource = extractFunction("playReadyModeTransitionSound");
-const accessibilitySource = extractFunction("accessibilitySettings");
+const soundsSource = extractFunction("soundsSettings");
 const presentationSource = extractFunction("presentation");
 const bindEventsSource = extractFunction("bindEvents");
 const captureSource = extractFunction("captureCloudSnapshot");
@@ -46,6 +61,7 @@ const applySource = extractFunction("applyCloudSnapshot");
 const persistSource = extractFunction("persistCloudSnapshotLocally");
 
 assert.match(source, /modeTransitionSounds: localStorage\.getItem\("lw_mode_transition_sounds"\) === "true"/);
+assert.match(source, /modeTransitionVolume: normalizedSoundVolume\(localStorage\.getItem\("lw_mode_transition_volume"\)\)/);
 assert.match(switchModeSource, /options\.audible && state\.modeTransitionSounds/);
 assert.match(switchModeSource, /if \(audible\) primeModeTransitionAudio\(\)/);
 assert.match(switchModeSource, /if \(audible\) playModeTransitionSound\(nextMode\)/);
@@ -61,10 +77,14 @@ assert.match(readySoundSource, /mode === "trivia"/);
 assert.match(readySoundSource, /playModePaperSweep/);
 assert.match(readySoundSource, /type: "triangle"/);
 assert.match(extractFunction("playModePaperSweep"), /context\.createBuffer/);
+assert.match(extractFunction("playModePaperSweep"), /soundVolumeScalar\(state\.modeTransitionVolume\)/);
+assert.match(extractFunction("playModeTone"), /options\.peakGain \* \(options\.volume \?\? 1\)/);
 assert.doesNotMatch(source, /mode-transition[^\n]+\.(?:mp3|m4a|ogg|wav)/i);
 
-assert.match(accessibilitySource, /ModeTransitionSoundsToggle/);
-assert.match(accessibilitySource, /Mode transition sounds/);
+assert.match(soundsSource, /settingsDisclosure\("sounds", "Sounds"/);
+assert.match(soundsSource, /ModeTransitionSoundsToggle/);
+assert.match(soundsSource, /Mode transition sounds/);
+assert.match(soundsSource, /soundVolumeControlMarkup\("mode", prefix\)/);
 assert.match(presentationSource, /presentationSettingsDisclosure\("sound", "Sound"/);
 assert.match(presentationSource, /presentationModeTransitionSoundsToggle/);
 for (const id of [
@@ -76,8 +96,11 @@ for (const id of [
 }
 
 assert.match(captureSource, /modeTransitionSounds: state\.modeTransitionSounds/);
+assert.match(captureSource, /modeTransitionVolume: state\.modeTransitionVolume/);
 assert.match(applySource, /state\.modeTransitionSounds = typeof settings\.modeTransitionSounds === "boolean"/);
+assert.match(applySource, /state\.modeTransitionVolume = normalizedSoundVolume/);
 assert.match(persistSource, /lw_mode_transition_sounds/);
+assert.match(persistSource, /lw_mode_transition_volume/);
 assert.match(styles, /\.presentation-settings-popover \.presentation-setting-checkbox \{/);
 assert.match(styles, /accent-color: var\(--presentation-accent\)/);
 

@@ -30,9 +30,10 @@ vm.createContext(context);
 vm.runInContext(`
   const wordSearchRecentPassageLimit = 12;
   const shuffleItems = (items) => [...items];
-  const state = { wordSearchSounds: true, wordSearchRecentPassages: [] };
+  const state = { wordSearchSounds: true, wordSearchRecentPassages: [], gameVolume: 100 };
   const document = { hidden: false };
   const soundEvents = [];
+  const soundVolumeScalar = (value) => value / 100;
   const playModeTone = (_context, options) => soundEvents.push(options);
   ${extractFunction("normalizeWordSearchWord")}
   ${extractFunction("normalizedVersionsUpdatedAt")}
@@ -264,7 +265,7 @@ assert.ok((passageBlock.match(/chapterKey:/g) || []).length >= 40, "Word Search 
 assert.match(extractFunction("captureCloudSnapshot"), /wordSearchRecentPassages/);
 assert.match(extractFunction("applyCloudSnapshot"), /wordSearchRecentPassages/);
 assert.match(source, /wordSearchSounds: localStorage\.getItem\("lw_word_search_sounds"\) !== "false"/);
-assert.match(extractFunction("accessibilitySettings"), /WordSearchSoundsToggle/);
+assert.match(extractFunction("soundsSettings"), /WordSearchSoundsToggle/);
 assert.match(extractFunction("captureCloudSnapshot"), /wordSearchSounds: state\.wordSearchSounds/);
 assert.match(extractFunction("applyCloudSnapshot"), /state\.wordSearchSounds = settings\.wordSearchSounds !== false/);
 

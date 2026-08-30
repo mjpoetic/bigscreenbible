@@ -220,6 +220,17 @@ function normalizedReaderPageScrollSpeed(speed) {
   return readerPageScrollSpeedCodes.includes(speed) ? speed : defaultReaderPageScrollSpeed;
 }
 
+function normalizedSoundVolume(value, fallback = 100) {
+  if (value === null || value === undefined || String(value).trim() === "") return fallback;
+  const volume = Number(value);
+  if (!Number.isFinite(volume)) return fallback;
+  return Math.round(Math.min(100, Math.max(0, volume)));
+}
+
+function soundVolumeScalar(value) {
+  return normalizedSoundVolume(value) / 100;
+}
+
 let bibleData = {};
 let bibleIndex = null;
 let bibleParagraphs = null;
@@ -351,8 +362,9 @@ const gameChallengePopupDismissedStorageKey = "lw_dismissed_game_challenge_popup
 const socialConnectionsOpenStorageKey = "lw_social_connections_open";
 const settingsSectionsOpenStorageKey = "lw_settings_sections_open";
 const settingsSectionsOpenUpdatedAtStorageKey = "lw_settings_sections_open_updated_at";
-const settingsSectionKeys = ["accessibility", "display", "reading", "sharing", "startup", "printing", "updates"];
+const settingsSectionKeys = ["sounds", "accessibility", "display", "reading", "sharing", "startup", "printing", "updates"];
 const defaultSettingsSectionsOpen = {
+  sounds: false,
   accessibility: false,
   display: true,
   reading: true,
@@ -524,6 +536,7 @@ const state = {
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
   modeTransitionSounds: localStorage.getItem("lw_mode_transition_sounds") === "true",
+  modeTransitionVolume: normalizedSoundVolume(localStorage.getItem("lw_mode_transition_volume")),
   autoScrollActive: false,
   autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
@@ -580,6 +593,7 @@ const state = {
   appUpdateStatus: "Check for a newly published version without closing the app.",
   startupApplied: false,
   settingsOpen: false,
+  settingsSearchQuery: "",
   focusReferenceOpen: false,
   focusSearchResultsOpen: false,
   focusToolsOpen: false,
@@ -662,6 +676,7 @@ const state = {
   triviaDifficulty: localStorage.getItem("lw_trivia_difficulty") || "All",
   triviaCount: Number(localStorage.getItem("lw_trivia_count") || 10),
   gameMusicEnabled: localStorage.getItem("lw_game_music_enabled") !== "false",
+  gameVolume: normalizedSoundVolume(localStorage.getItem("lw_game_volume")),
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
@@ -1864,7 +1879,7 @@ function playModePaperSweep(context, startAt, duration, peakGain = 0.018) {
   filter.frequency.setValueAtTime(1750, startAt);
   filter.frequency.exponentialRampToValueAtTime(520, endAt);
   gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(peakGain, startAt + 0.018);
+  gain.gain.exponentialRampToValueAtTime(peakGain * soundVolumeScalar(state.modeTransitionVolume), startAt + 0.018);
   gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
   source.connect(filter);
   filter.connect(gain);
@@ -1882,7 +1897,7 @@ function playModeTone(context, options) {
   oscillator.frequency.setValueAtTime(options.startFrequency, startAt);
   oscillator.frequency.exponentialRampToValueAtTime(options.endFrequency || options.startFrequency, endAt);
   gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(options.peakGain, startAt + Math.min(0.025, options.duration * 0.3));
+  gain.gain.exponentialRampToValueAtTime(options.peakGain * (options.volume ?? 1), startAt + Math.min(0.025, options.duration * 0.3));
   gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
   oscillator.connect(gain);
   gain.connect(context.destination);
@@ -1891,7 +1906,7 @@ function playModeTone(context, options) {
 }
 
 function playReadyModeTransitionSound(context, mode) {
-  if (!state.modeTransitionSounds || !context || context.state !== "running") return;
+  if (!state.modeTransitionSounds || state.modeTransitionVolume <= 0 || !context || context.state !== "running") return;
   const now = context.currentTime + 0.006;
   const duration = modeTransitionSoundDuration(mode);
   if (mode === "reader") {
@@ -1910,6 +1925,7 @@ function playReadyModeTransitionSound(context, mode) {
       startFrequency: 196,
       endFrequency: 294,
       peakGain: 0.014,
+      volume: soundVolumeScalar(state.modeTransitionVolume),
       type: "sine",
     });
     playModeTone(context, {
@@ -1918,6 +1934,7 @@ function playReadyModeTransitionSound(context, mode) {
       startFrequency: 587,
       endFrequency: 740,
       peakGain: 0.009,
+      volume: soundVolumeScalar(state.modeTransitionVolume),
       type: "sine",
     });
     return;
@@ -1928,6 +1945,7 @@ function playReadyModeTransitionSound(context, mode) {
       duration: 0.075,
       startFrequency: 523.25,
       peakGain: 0.022,
+      volume: soundVolumeScalar(state.modeTransitionVolume),
       type: "triangle",
     });
     playModeTone(context, {
@@ -1935,6 +1953,7 @@ function playReadyModeTransitionSound(context, mode) {
       duration: 0.1,
       startFrequency: 659.25,
       peakGain: 0.018,
+      volume: soundVolumeScalar(state.modeTransitionVolume),
       type: "triangle",
     });
   }
@@ -1951,6 +1970,24 @@ function setModeTransitionSounds(enabled, options = {}) {
   scheduleCloudSync();
   if (state.modeTransitionSounds && options.preview !== false) playModeTransitionSound(state.mode);
   renderPreservingReaderScroll();
+}
+
+function updateSoundVolumeControls(kind, value) {
+  document.querySelectorAll(`[data-sound-volume="${kind}"]`).forEach((input) => {
+    input.value = String(value);
+    input.setAttribute("aria-label", `${kind === "game" ? "Game" : "Mode transition"} volume, ${value} percent`);
+  });
+  document.querySelectorAll(`[data-sound-volume-output="${kind}"]`).forEach((output) => {
+    output.textContent = `${value}%`;
+  });
+}
+
+function setModeTransitionVolume(value, options = {}) {
+  state.modeTransitionVolume = normalizedSoundVolume(value);
+  localStorage.setItem("lw_mode_transition_volume", String(state.modeTransitionVolume));
+  updateSoundVolumeControls("mode", state.modeTransitionVolume);
+  scheduleCloudSync();
+  if (options.preview && state.modeTransitionSounds) playModeTransitionSound(state.mode);
 }
 
 function switchMode(nextMode, options = {}) {
@@ -2820,6 +2857,7 @@ function pushReminderSettings(prefix = "") {
 function rememberDisclosureState(details, open = details.open) {
   const settingsKey = details.dataset.settingsSection;
   const helpKey = details.dataset.helpSection;
+  if (settingsKey && state.settingsSearchQuery) return;
   if (settingsKey && settingsSectionKeys.includes(settingsKey)) {
     const nextOpen = Boolean(open);
     if (state.settingsSectionsOpen[settingsKey] !== nextOpen) {
@@ -2906,6 +2944,155 @@ function settingsDisclosure(key, label, content) {
       </div>
     </details>
   `;
+}
+
+function settingsSearchMarkup(prefix = "") {
+  const inputId = prefix ? `${prefix}SettingsSearch` : "settingsSearch";
+  const clearId = prefix ? `${prefix}SettingsSearchClear` : "settingsSearchClear";
+  return `
+    <div class="settings-search" role="search">
+      <label class="sr-only" for="${inputId}">Search settings</label>
+      <span class="settings-search-icon" aria-hidden="true">${icons.search}</span>
+      <input id="${inputId}" type="search" value="${escapeHtml(state.settingsSearchQuery)}" placeholder="Search settings" autocomplete="off" spellcheck="false" />
+      <button class="settings-search-clear" id="${clearId}" type="button" aria-label="Clear settings search" ${state.settingsSearchQuery ? "" : "hidden"}>${icons.clear}</button>
+    </div>
+    <p class="settings-search-status sr-only" aria-live="polite"></p>
+    <div class="settings-search-empty" hidden>
+      <strong>No settings found</strong>
+      <span>Try a different word or phrase.</span>
+    </div>
+  `;
+}
+
+function normalizedSettingsSearchText(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function applySettingsSearch(root, query = state.settingsSearchQuery) {
+  if (!root) return;
+  const normalizedQuery = normalizedSettingsSearchText(query);
+  const input = root.querySelector('.settings-search input[type="search"]');
+  const clear = root.querySelector(".settings-search-clear");
+  const status = root.querySelector(".settings-search-status");
+  const empty = root.querySelector(".settings-search-empty");
+  if (input && input.value !== query) input.value = query;
+  if (clear) clear.hidden = !normalizedQuery;
+  root.classList.toggle("settings-search-active", Boolean(normalizedQuery));
+
+  let visibleCount = 0;
+  Array.from(root.children).filter((child) => child.matches?.(".setting-group")).forEach((group) => {
+    const matches = !normalizedQuery || normalizedSettingsSearchText(group.textContent).includes(normalizedQuery);
+    group.hidden = !matches;
+    if (matches && normalizedQuery) visibleCount += 1;
+  });
+
+  root.querySelectorAll(":scope > .settings-section").forEach((section) => {
+    const summary = section.querySelector(":scope > summary");
+    const groups = Array.from(section.querySelectorAll(":scope > .settings-section-content > .setting-group"));
+    const summaryMatches = normalizedQuery
+      && normalizedSettingsSearchText(summary?.textContent).includes(normalizedQuery);
+    let sectionMatches = false;
+    groups.forEach((group) => {
+      const matches = !normalizedQuery
+        || summaryMatches
+        || normalizedSettingsSearchText(group.textContent).includes(normalizedQuery);
+      group.hidden = !matches;
+      if (matches && normalizedQuery) {
+        sectionMatches = true;
+        visibleCount += 1;
+      }
+    });
+    section.hidden = Boolean(normalizedQuery && !summaryMatches && !sectionMatches);
+    if (normalizedQuery && !section.hidden) section.open = true;
+    if (!normalizedQuery) section.open = Boolean(state.settingsSectionsOpen[section.dataset.settingsSection]);
+  });
+
+  const legalLinks = root.querySelector(":scope > .settings-legal-links");
+  if (legalLinks) {
+    const matches = !normalizedQuery || normalizedSettingsSearchText(legalLinks.textContent).includes(normalizedQuery);
+    legalLinks.hidden = !matches;
+    if (matches && normalizedQuery) visibleCount += 1;
+  }
+  if (empty) empty.hidden = !normalizedQuery || visibleCount > 0;
+  if (status) status.textContent = normalizedQuery
+    ? `${visibleCount} ${visibleCount === 1 ? "setting" : "settings"} found`
+    : "";
+}
+
+function bindSettingsSearchControls() {
+  document.querySelectorAll(".settings-popover.open, .mobile-settings-popover").forEach((root) => {
+    const input = root.querySelector('.settings-search input[type="search"]');
+    const clear = root.querySelector(".settings-search-clear");
+    input?.addEventListener("input", () => {
+      state.settingsSearchQuery = input.value;
+      applySettingsSearch(root, state.settingsSearchQuery);
+    });
+    input?.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !state.settingsSearchQuery) return;
+      event.preventDefault();
+      state.settingsSearchQuery = "";
+      applySettingsSearch(root, "");
+    });
+    clear?.addEventListener("click", () => {
+      state.settingsSearchQuery = "";
+      applySettingsSearch(root, "");
+      input?.focus();
+    });
+    applySettingsSearch(root, state.settingsSearchQuery);
+  });
+}
+
+function soundVolumeControlMarkup(kind, prefix = "", options = {}) {
+  const isGame = kind === "game";
+  const controlName = isGame ? "GameVolume" : "ModeTransitionVolume";
+  const controlId = prefix ? `${prefix}${controlName}` : `${controlName[0].toLowerCase()}${controlName.slice(1)}`;
+  const value = isGame ? state.gameVolume : state.modeTransitionVolume;
+  const label = isGame ? "Game volume" : "Mode transition volume";
+  const help = isGame
+    ? "Controls game music, result sounds, feedback tones, and countdown cues."
+    : "Controls the short cue played when you choose a different mode.";
+  return `
+    <div class="sound-volume-control ${options.compact ? "compact" : ""}">
+      <div class="sound-volume-heading">
+        <label class="setting-label" for="${controlId}">${label}</label>
+        <output for="${controlId}" data-sound-volume-output="${kind}">${value}%</output>
+      </div>
+      <input class="sound-volume-slider" id="${controlId}" type="range" min="0" max="100" step="5" value="${value}" data-sound-volume="${kind}" aria-label="${label}, ${value} percent" />
+      ${options.compact ? "" : `<p class="setting-help">${help}</p>`}
+    </div>
+  `;
+}
+
+function soundsSettings(prefix = "") {
+  const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+  return settingsDisclosure("sounds", "Sounds", `
+    <div class="setting-group sounds-settings">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("ModeTransitionSoundsToggle")}" ${state.modeTransitionSounds ? "checked" : ""} />
+        <span>Mode transition sounds</span>
+      </label>
+      ${soundVolumeControlMarkup("mode", prefix)}
+    </div>
+    <div class="setting-group settings-section-subgroup sounds-settings">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("GameMusicToggle")}" ${state.gameMusicEnabled ? "checked" : ""} />
+        <span>Game music and result sounds</span>
+      </label>
+      ${soundVolumeControlMarkup("game", prefix)}
+    </div>
+    <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("WordSearchSoundsToggle")}" ${state.wordSearchSounds ? "checked" : ""} />
+        <span>Word Search feedback sounds</span>
+      </label>
+      <p class="setting-help">Plays confirmation tones and ticks through the final 10 seconds of a personal-best countdown.</p>
+    </div>
+  `);
 }
 
 function displaySettings(prefix = "") {
@@ -3000,20 +3187,6 @@ function accessibilitySettings(prefix = "") {
         `).join("")}
       </div>
       <p class="setting-help" aria-live="polite">${selectedSize.name} (${selectedSize.percent}%). Enlarges navigation, Bible picker, Settings, and study-panel text. Scripture size stays separate.</p>
-    </div>
-    <div class="setting-group settings-section-subgroup">
-      <label class="setting-checkbox">
-        <input type="checkbox" id="${controlId("ModeTransitionSoundsToggle")}" ${state.modeTransitionSounds ? "checked" : ""} />
-        <span>Mode transition sounds</span>
-      </label>
-      <p class="setting-help">Plays a short cue only when you choose a different mode. Turning this on previews the current mode sound.</p>
-    </div>
-    <div class="setting-group settings-section-subgroup">
-      <label class="setting-checkbox">
-        <input type="checkbox" id="${controlId("WordSearchSoundsToggle")}" ${state.wordSearchSounds ? "checked" : ""} />
-        <span>Word Search sounds</span>
-      </label>
-      <p class="setting-help">Plays quiet confirmation tones and ticks through the final 10 seconds of a personal-best countdown.</p>
     </div>
   `);
 }
@@ -3412,6 +3585,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
         <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
         <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
       </div>
+      ${settingsSearchMarkup("mobile")}
       <div class="setting-group">
         <label class="setting-label" for="mobileThemeFamilySelect">Theme family</label>
         <select class="theme-preset-select" id="mobileThemeFamilySelect" aria-label="Theme family">
@@ -3447,6 +3621,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
           <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
         </div>
       </div>
+      ${soundsSettings("mobile")}
       ${accessibilitySettings("mobile")}
       ${displaySettings("mobile")}
       ${readingSettings("mobile")}
@@ -3612,6 +3787,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
             <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
             <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           </div>
+          ${settingsSearchMarkup()}
           <div class="setting-group">
             <label class="setting-label" for="themeFamilySelect">Theme family</label>
             <select class="theme-preset-select" id="themeFamilySelect" aria-label="Theme family">
@@ -3647,6 +3823,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
               <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
             </div>
           </div>
+          ${soundsSettings()}
           ${accessibilitySettings()}
           ${displaySettings()}
           ${readingSettings()}
@@ -9054,6 +9231,7 @@ function captureCloudSnapshot() {
       textScale: state.textScale,
       interfaceTextSize: state.interfaceTextSize,
       modeTransitionSounds: state.modeTransitionSounds,
+      modeTransitionVolume: state.modeTransitionVolume,
       settingsSectionsOpen: { ...state.settingsSectionsOpen },
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
       autoScrollEnabled: state.autoScrollEnabled,
@@ -9081,6 +9259,7 @@ function captureCloudSnapshot() {
       triviaDifficulty: state.triviaDifficulty,
       triviaCount: state.triviaCount,
       gameMusicEnabled: state.gameMusicEnabled,
+      gameVolume: state.gameVolume,
       bookSprintSound: state.bookSprintSound,
       referenceRushTimed: state.referenceRushTimed,
       wordSearchSounds: state.wordSearchSounds,
@@ -9272,6 +9451,9 @@ function applyCloudSnapshot(snapshot) {
   state.modeTransitionSounds = typeof settings.modeTransitionSounds === "boolean"
     ? settings.modeTransitionSounds
     : localStorage.getItem("lw_mode_transition_sounds") === "true";
+  state.modeTransitionVolume = normalizedSoundVolume(
+    settings.modeTransitionVolume ?? localStorage.getItem("lw_mode_transition_volume"),
+  );
   state.settingsSectionsOpen = normalizedSettingsSectionsOpen(
     settings.settingsSectionsOpen || savedSettingsSectionsOpen(),
   );
@@ -9325,6 +9507,9 @@ function applyCloudSnapshot(snapshot) {
   state.gameMusicEnabled = typeof settings.gameMusicEnabled === "boolean"
     ? settings.gameMusicEnabled
     : localStorage.getItem("lw_game_music_enabled") !== "false";
+  state.gameVolume = normalizedSoundVolume(
+    settings.gameVolume ?? localStorage.getItem("lw_game_volume"),
+  );
   state.bookSprintSound = settings.bookSprintSound !== false;
   state.referenceRushTimed = settings.referenceRushTimed !== false;
   state.wordSearchSounds = settings.wordSearchSounds !== false;
@@ -9378,6 +9563,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
   localStorage.setItem("lw_mode_transition_sounds", String(state.modeTransitionSounds));
+  localStorage.setItem("lw_mode_transition_volume", String(state.modeTransitionVolume));
   localStorage.setItem(settingsSectionsOpenStorageKey, JSON.stringify(state.settingsSectionsOpen));
   if (state.settingsSectionsOpenUpdatedAt) {
     localStorage.setItem(settingsSectionsOpenUpdatedAtStorageKey, state.settingsSectionsOpenUpdatedAt);
@@ -9410,6 +9596,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
   localStorage.setItem("lw_trivia_count", String(state.triviaCount));
   localStorage.setItem("lw_game_music_enabled", state.gameMusicEnabled ? "true" : "false");
+  localStorage.setItem("lw_game_volume", String(state.gameVolume));
   localStorage.setItem("lw_book_sprint_sound", state.bookSprintSound ? "true" : "false");
   localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
   localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
@@ -10699,7 +10886,7 @@ function primeWordSearchAudio() {
 }
 
 function playReadyWordSearchFeedbackSound(context, result) {
-  if (!state.wordSearchSounds || document.hidden || !context || context.state !== "running") return;
+  if (!state.wordSearchSounds || state.gameVolume <= 0 || document.hidden || !context || context.state !== "running") return;
   const now = context.currentTime + 0.004;
   if (result === "found") {
     playModeTone(context, {
@@ -10708,6 +10895,7 @@ function playReadyWordSearchFeedbackSound(context, result) {
       startFrequency: 523.25,
       endFrequency: 622.25,
       peakGain: 0.014,
+      volume: soundVolumeScalar(state.gameVolume),
       type: "sine",
     });
     playModeTone(context, {
@@ -10716,6 +10904,7 @@ function playReadyWordSearchFeedbackSound(context, result) {
       startFrequency: 659.25,
       endFrequency: 783.99,
       peakGain: 0.011,
+      volume: soundVolumeScalar(state.gameVolume),
       type: "sine",
     });
     return;
@@ -10726,18 +10915,20 @@ function playReadyWordSearchFeedbackSound(context, result) {
     startFrequency: 220,
     endFrequency: 174.61,
     peakGain: 0.012,
+    volume: soundVolumeScalar(state.gameVolume),
     type: "triangle",
   });
 }
 
 function playReadyWordSearchCountdownTick(context, secondsRemaining) {
-  if (!state.wordSearchSounds || document.hidden || !context || context.state !== "running") return;
+  if (!state.wordSearchSounds || state.gameVolume <= 0 || document.hidden || !context || context.state !== "running") return;
   playModeTone(context, {
     startAt: context.currentTime + 0.004,
     duration: 0.05,
     startFrequency: secondsRemaining <= 3 ? 1180 : 920,
     endFrequency: secondsRemaining <= 3 ? 1180 : 920,
     peakGain: secondsRemaining <= 3 ? 0.027 : 0.018,
+    volume: soundVolumeScalar(state.gameVolume),
     type: "square",
   });
 }
@@ -10874,7 +11065,7 @@ function syncGameMusicPlayback() {
     audio.load();
     gameMusicTrackKey = track.key;
   }
-  audio.volume = track.volume;
+  audio.volume = track.volume * soundVolumeScalar(state.gameVolume);
   if (changedTrack || gameMusicRestartPending) {
     try {
       audio.currentTime = 0;
@@ -10908,7 +11099,7 @@ function playGameOutcomeSound(key) {
   audio.loop = false;
   audio.src = sound.src;
   audio.load();
-  audio.volume = sound.volume;
+  audio.volume = sound.volume * soundVolumeScalar(state.gameVolume);
   gameMusicTrackKey = `outcome:${sound.key}`;
   try {
     audio.currentTime = 0;
@@ -10936,6 +11127,21 @@ function setGameMusicEnabled(enabled) {
   localStorage.setItem("lw_game_music_enabled", state.gameMusicEnabled ? "true" : "false");
   scheduleCloudSync();
   renderPreservingReaderScroll();
+}
+
+function syncActiveGameAudioVolume() {
+  if (!gameMusicAudio) return;
+  const outcomeKey = gameMusicTrackKey.startsWith("outcome:") ? gameMusicTrackKey.slice(8) : "";
+  const source = outcomeKey ? gameOutcomeSounds[outcomeKey] : gameMusicTrackForGame();
+  if (source) gameMusicAudio.volume = source.volume * soundVolumeScalar(state.gameVolume);
+}
+
+function setGameVolume(value) {
+  state.gameVolume = normalizedSoundVolume(value);
+  localStorage.setItem("lw_game_volume", String(state.gameVolume));
+  updateSoundVolumeControls("game", state.gameVolume);
+  syncActiveGameAudioVolume();
+  scheduleCloudSync();
 }
 
 function normalizedTriviaCount(gameType = state.triviaGameType, count = state.triviaCount) {
@@ -11045,14 +11251,14 @@ function primeBookSprintAudio() {
 }
 
 function playBookSprintTick(secondsRemaining) {
-  if (!state.bookSprintSound || !bookSprintAudioContext || bookSprintAudioContext.state !== "running") return;
+  if (!state.bookSprintSound || state.gameVolume <= 0 || !bookSprintAudioContext || bookSprintAudioContext.state !== "running") return;
   const now = bookSprintAudioContext.currentTime;
   const oscillator = bookSprintAudioContext.createOscillator();
   const gain = bookSprintAudioContext.createGain();
   oscillator.type = "square";
   oscillator.frequency.setValueAtTime(secondsRemaining <= 3 ? 1180 : 920, now);
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(secondsRemaining <= 3 ? 0.045 : 0.028, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime((secondsRemaining <= 3 ? 0.045 : 0.028) * soundVolumeScalar(state.gameVolume), now + 0.004);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
   oscillator.connect(gain);
   gain.connect(bookSprintAudioContext.destination);
@@ -11120,14 +11326,14 @@ function primeReferenceRushAudio() {
 }
 
 function playReferenceRushTick(secondsRemaining) {
-  if (!referenceRushAudioContext || referenceRushAudioContext.state !== "running") return;
+  if (state.gameVolume <= 0 || !referenceRushAudioContext || referenceRushAudioContext.state !== "running") return;
   const now = referenceRushAudioContext.currentTime;
   const oscillator = referenceRushAudioContext.createOscillator();
   const gain = referenceRushAudioContext.createGain();
   oscillator.type = "square";
   oscillator.frequency.setValueAtTime(secondsRemaining <= 3 ? 1180 : 920, now);
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(secondsRemaining <= 3 ? 0.045 : 0.028, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime((secondsRemaining <= 3 ? 0.045 : 0.028) * soundVolumeScalar(state.gameVolume), now + 0.004);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
   oscillator.connect(gain);
   gain.connect(referenceRushAudioContext.destination);
@@ -11893,6 +12099,7 @@ function triviaView() {
               </div>
               <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody">
                 <div class="game-music-drawer-control">${gameMusicToggleMarkup("gameMusicDrawerToggle")}</div>
+                <div class="game-volume-drawer-control">${soundVolumeControlMarkup("game", "gameDrawer", { compact: true })}</div>
               </div>
             </aside>
           </div>
@@ -14494,7 +14701,7 @@ function presentation(accountPanelRerender = false) {
             <input type="checkbox" id="presentationModeTransitionSoundsToggle" ${state.modeTransitionSounds ? "checked" : ""} />
             <span>Mode transition sounds</span>
           </label>
-          <p class="setting-help">Plays a short cue only when you choose a different mode. Turning this on previews Big Screen.</p>
+          ${soundVolumeControlMarkup("mode", "presentation")}
         `)}
         ${presentationSettingsDisclosure("updates", "App update", appUpdateControls("presentation"))}
         ${presentationSettingsDisclosure("keyboard", "Keyboard", `
@@ -15209,6 +15416,7 @@ function bindEvents() {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
   });
+  bindSettingsSearchControls();
   document.querySelectorAll("[data-help-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
@@ -15349,6 +15557,20 @@ function bindEvents() {
   ["modeTransitionSoundsToggle", "mobileModeTransitionSoundsToggle", "presentationModeTransitionSoundsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       setModeTransitionSounds(event.target.checked);
+    });
+  });
+  ["gameMusicToggle", "mobileGameMusicToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      setGameMusicEnabled(event.target.checked);
+    });
+  });
+  document.querySelectorAll("[data-sound-volume]").forEach((input) => {
+    input.addEventListener("input", () => {
+      if (input.dataset.soundVolume === "game") setGameVolume(input.value);
+      else setModeTransitionVolume(input.value);
+    });
+    input.addEventListener("change", () => {
+      if (input.dataset.soundVolume === "mode") setModeTransitionVolume(input.value, { preview: true });
     });
   });
   ["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle"].forEach((id) => {
@@ -20632,6 +20854,7 @@ function closeSettingsPopover() {
   if (!state.settingsOpen) return;
   animateBeforeRemoval(".settings-popover.open, .mobile-settings-popover", () => {
     state.settingsOpen = false;
+    state.settingsSearchQuery = "";
     renderPreservingReaderScroll();
   }, { duration: 190 });
 }

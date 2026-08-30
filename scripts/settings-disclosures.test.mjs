@@ -22,8 +22,9 @@ function extractFunction(name) {
 const context = {};
 vm.createContext(context);
 vm.runInContext(`
-  const settingsSectionKeys = ["accessibility", "display", "reading", "sharing", "startup", "printing", "updates"];
+  const settingsSectionKeys = ["sounds", "accessibility", "display", "reading", "sharing", "startup", "printing", "updates"];
   const defaultSettingsSectionsOpen = {
+    sounds: false,
     accessibility: false,
     display: true,
     reading: true,
@@ -45,6 +46,7 @@ vm.runInContext(`
 assert.deepEqual(
   JSON.parse(JSON.stringify(context.normalize())),
   {
+    sounds: false,
     accessibility: false,
     display: true,
     reading: true,
@@ -57,6 +59,7 @@ assert.deepEqual(
 assert.deepEqual(
   JSON.parse(JSON.stringify(context.normalize({ display: false, reading: false, printing: true, unknown: true }))),
   {
+    sounds: false,
     accessibility: false,
     display: false,
     reading: false,
@@ -84,6 +87,10 @@ assert.equal(localNewer.settingsSectionsOpenUpdatedAt, "2026-08-03T12:02:00.000Z
 const displaySource = extractFunction("displaySettings");
 const readingSource = extractFunction("readingSettings");
 const sharingSource = extractFunction("sharingSettings");
+const soundsSource = extractFunction("soundsSettings");
+const settingsSearchMarkupSource = extractFunction("settingsSearchMarkup");
+const applySettingsSearchSource = extractFunction("applySettingsSearch");
+const bindSettingsSearchSource = extractFunction("bindSettingsSearchControls");
 const rememberSource = extractFunction("rememberDisclosureState");
 const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
@@ -117,6 +124,18 @@ assert.match(readingSource, /Enable auto-scroll controls/);
 assert.doesNotMatch(readingSource, /Paragraph layout when available/);
 assert.match(sharingSource, /settingsDisclosure\("sharing", "Copy & sharing"/);
 assert.match(sharingSource, /Copied and shared Bible text format/);
+assert.match(soundsSource, /settingsDisclosure\("sounds", "Sounds"/);
+assert.match(soundsSource, /Mode transition sounds/);
+assert.match(soundsSource, /Game music and result sounds/);
+assert.match(settingsSearchMarkupSource, /placeholder="Search settings"/);
+assert.match(applySettingsSearchSource, /settings-search-empty/);
+assert.match(applySettingsSearchSource, /section\.hidden/);
+assert.match(bindSettingsSearchSource, /addEventListener\("input"/);
+assert.match(bindEventsSource, /bindSettingsSearchControls\(\)/);
+assert.match(source, /\$\{settingsSearchMarkup\("mobile"\)\}/);
+assert.match(source, /\$\{settingsSearchMarkup\(\)\}/);
+assert.match(source, /\$\{soundsSettings\("mobile"\)\}[\s\S]*?\$\{accessibilitySettings\("mobile"\)\}/);
+assert.match(source, /\$\{soundsSettings\(\)\}[\s\S]*?\$\{accessibilitySettings\(\)\}/);
 assert.match(source, /\$\{displaySettings\("mobile"\)\}[\s\S]*?\$\{readingSettings\("mobile"\)\}[\s\S]*?\$\{sharingSettings\("mobile"\)\}/);
 assert.match(source, /\$\{displaySettings\(\)\}[\s\S]*?\$\{readingSettings\(\)\}[\s\S]*?\$\{sharingSettings\(\)\}/);
 
