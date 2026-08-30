@@ -278,7 +278,7 @@ assert.match(extractFunction("crosswordGameView"), /id="crosswordKeyboardToggle"
 assert.match(extractFunction("crosswordGameView"), /state\.crosswordKeyboardVisible \? "" : "hidden"/);
 assert.match(extractFunction("crosswordGameView"), /Across/);
 assert.match(extractFunction("crosswordGameView"), /Down/);
-assert.match(extractFunction("crosswordGameView"), /class="ghost-btn crossword-menu-control" id="exitTriviaGame"/);
+assert.match(extractFunction("crosswordGameView"), /class="ghost-btn games-menu-control crossword-menu-control" id="exitTriviaGame"[\s\S]*?icons\.returnBack/);
 assert.match(extractFunction("crosswordGameView"), /puzzleRestartDialog\(game\)/);
 assert.match(extractFunction("puzzleRestartDialog"), /crosswordDifficulties\(\)/);
 assert.match(extractFunction("puzzleRestartDialog"), /crosswordDifficultyDescription/);

@@ -7602,18 +7602,9 @@ select {
 }
 
 .crossword-menu-control {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
   min-height: 44px;
   padding-inline: 12px;
   white-space: nowrap;
-}
-
-.crossword-menu-control svg {
-  width: 16px;
-  height: 16px;
 }
 
 .crossword-game.is-complete .crossword-sidebar {
@@ -7865,6 +7856,19 @@ select {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.games-menu-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.games-menu-control svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
 }
 
 .trivia-end-challenge {

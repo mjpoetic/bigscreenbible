@@ -27,6 +27,7 @@ assert.match(source, /id="gameOptionsToggle"[\s\S]*?aria-controls="gamesOptionsD
 assert.match(source, /id="gameControlsToggle"[\s\S]*?aria-controls="gamesControlsDrawer"/);
 assert.match(source, /id="gameControlsToggle"[\s\S]{0,450}?\$\{icons\.controls\}/);
 assert.match(source, /controls: '<svg[\s\S]*?<circle cx="15" cy="12" r="2"\/>/);
+assert.match(source, /returnBack: '<svg[\s\S]*?M4 12h9a7 7 0 0 1 7 7/);
 assert.match(source, /id="gameHintsToggle"[\s\S]*?aria-controls="gamesHintsDrawer"/);
 assert.match(source, /class="trivia-start-dock"[\s\S]*?id="startTriviaGame"/);
 assert.match(source, /class="games-drawer games-options-drawer"[\s\S]*?role="dialog"/);
@@ -63,8 +64,12 @@ assert.match(source, /class="book-sprint-sound-icon"[\s\S]*?icons\.timer/);
 assert.match(source, /class="book-sprint-sound-copy"[\s\S]*?Audible countdown/);
 assert.match(extractFunction("startTriviaGame"), /state\.gamesDrawerOpen = ""/);
 assert.match(extractFunction("switchMode"), /nextMode !== "trivia"[\s\S]*?state\.gamesDrawerOpen = ""/);
+assert.match(extractFunction("triviaExitControl"), /games-menu-control[\s\S]*?icons\.returnBack[\s\S]*?Games menu/);
+assert.match(extractFunction("crosswordGameView"), /games-menu-control crossword-menu-control[\s\S]*?icons\.returnBack[\s\S]*?Games menu/);
 
 assert.match(styles, /\.games-drawer-shell,[\s\S]*?\.games-drawer-scroll \{[\s\S]*?display: contents;/);
+assert.match(styles, /\.games-menu-control \{[\s\S]*?display: inline-flex;[\s\S]*?gap: 7px;/);
+assert.match(styles, /\.games-menu-control svg \{[\s\S]*?width: 18px;[\s\S]*?height: 18px;/);
 assert.match(styles, /#gameSocialToggle,\s*#gameControlsToggle \{[\s\S]*?display: inline-flex;/);
 assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\) \{[\s\S]*?display: none;/);
 assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\)\.open \{[\s\S]*?position: fixed;[\s\S]*?display: block;/);
