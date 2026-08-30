@@ -232,7 +232,7 @@ function soundVolumeScalar(value) {
 }
 
 function modeTransitionVolumeScalar(value) {
-  return soundVolumeScalar(value) * 1.75;
+  return soundVolumeScalar(value) * 4;
 }
 
 let bibleData = {};

@@ -51,8 +51,8 @@ assert.equal(volumeContext.normalizeVolume(-20), 0);
 assert.equal(volumeContext.normalizeVolume(55), 55);
 assert.equal(volumeContext.normalizeVolume(150), 100);
 assert.equal(volumeContext.volumeScalar(25), 0.25);
-assert.equal(volumeContext.modeVolumeScalar(100), 1.75);
-assert.equal(volumeContext.modeVolumeScalar(50), 0.875);
+assert.equal(volumeContext.modeVolumeScalar(100), 4);
+assert.equal(volumeContext.modeVolumeScalar(50), 2);
 
 const switchModeSource = extractFunction("switchMode");
 const setSoundsSource = extractFunction("setModeTransitionSounds");
