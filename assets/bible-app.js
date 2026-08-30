@@ -11758,7 +11758,7 @@ function mountMobileGameControls() {
     });
     return;
   }
-  const hints = game.querySelector(":scope > .reference-rush-hints");
+  const hints = game.querySelector(":scope > .reference-rush-hints, .crossword-hints");
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
   if (bookSprintSound) destination.append(bookSprintSound);
@@ -11781,6 +11781,7 @@ function mountMobileGameControls() {
 function activeGameHintContext() {
   const game = state.triviaGame;
   if (!game || game.complete) return null;
+  if (game.type === "crossword") return crosswordRevealCandidate(game) ? game : null;
   if (game.type === "reference-rush") {
     const puzzle = game.puzzles?.[game.index];
     return puzzle && puzzle.selectedReference === null ? puzzle : null;
@@ -12114,7 +12115,7 @@ function triviaView() {
             <aside class="games-drawer games-hints-drawer" id="gamesHintsDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesHintsTitle" tabindex="-1">
               <div class="games-drawer-header">
                 <div>
-                  <span>Current question</span>
+                  <span>${isCrossword ? "Current clue" : "Current question"}</span>
                   <strong id="gamesHintsTitle">Choose a hint</strong>
                 </div>
                 <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game hints">${icons.clear}</button>
@@ -12387,9 +12388,36 @@ function crosswordEntryLabel(entry) {
   return entry ? `${entry.number} ${entry.direction === "across" ? "Across" : "Down"}` : "Crossword clue";
 }
 
+function crosswordRevealCandidate(game) {
+  if (!game || game.type !== "crossword" || game.complete) return null;
+  const activeEntry = crosswordEntryById(game, game.activeEntryId);
+  const entries = [activeEntry, ...(game.entries || []).filter((entry) => entry !== activeEntry)].filter(Boolean);
+  for (const entry of entries) {
+    const activeIndex = entry.cells.findIndex((cell) => wordSearchCellKey(cell) === game.activeCellKey);
+    const unresolvedIndex = entry.cells.findIndex((cell, index) => (
+      game.answers[wordSearchCellKey(cell)] !== entry.word[index]
+    ));
+    const index = activeIndex >= 0
+      && game.answers[wordSearchCellKey(entry.cells[activeIndex])] !== entry.word[activeIndex]
+      ? activeIndex
+      : unresolvedIndex;
+    if (index < 0) continue;
+    const cell = entry.cells[index];
+    return {
+      entry,
+      cell,
+      index,
+      key: wordSearchCellKey(cell),
+      letter: entry.word[index],
+    };
+  }
+  return null;
+}
+
 function crosswordGameView(game) {
   const completedEntries = new Set(game.completedEntryIds || []);
   const errorCells = new Set(game.errorCellKeys || []);
+  const hintedCells = new Set(game.hintedCellKeys || []);
   const activeEntry = crosswordEntryById(game, game.activeEntryId) || game.entries[0];
   const activeCells = new Set((activeEntry?.cells || []).map(wordSearchCellKey));
   const completedCells = new Set(game.entries
@@ -12457,8 +12485,9 @@ function crosswordGameView(game) {
                   game.activeCellKey === key ? "is-active" : "",
                   completedCells.has(key) ? "is-complete" : "",
                   errorCells.has(key) ? "is-error" : "",
+                  hintedCells.has(key) ? "is-hint" : "",
                 ].filter(Boolean).join(" ");
-                return `<button class="${classes}" type="button" role="gridcell" data-crossword-cell="${key}" data-row="${rowIndex}" data-column="${columnIndex}" aria-rowindex="${rowIndex + 1}" aria-colindex="${columnIndex + 1}" aria-label="${number ? `${number}, ` : ""}row ${rowIndex + 1}, column ${columnIndex + 1}${answer ? `, ${answer}` : ", blank"}" tabindex="${game.activeCellKey === key ? "0" : "-1"}" ${game.complete ? "disabled" : ""}>${number ? `<small>${number}</small>` : ""}<span class="crossword-cell-letter">${escapeHtml(answer)}</span></button>`;
+                return `<button class="${classes}" type="button" role="gridcell" data-crossword-cell="${key}" data-row="${rowIndex}" data-column="${columnIndex}" aria-rowindex="${rowIndex + 1}" aria-colindex="${columnIndex + 1}" aria-label="${number ? `${number}, ` : ""}row ${rowIndex + 1}, column ${columnIndex + 1}${answer ? `, ${answer}` : ", blank"}${hintedCells.has(key) ? ", revealed by hint" : ""}" tabindex="${game.activeCellKey === key ? "0" : "-1"}" ${game.complete ? "disabled" : ""}>${number ? `<small>${number}</small>` : ""}<span class="crossword-cell-letter">${escapeHtml(answer)}</span></button>`;
               })).join("")}
             </div>
           </div>
@@ -12488,6 +12517,25 @@ function crosswordGameView(game) {
             `}
           </div>
           ${game.complete ? "" : `
+            <div class="reference-rush-hints crossword-hints">
+              ${game.hintMenuOpen ? `
+                <div class="reference-rush-hint-menu" role="group" aria-label="Crossword hint">
+                  <div>
+                    <strong>Need a little help?</strong>
+                    <span>Reveal the selected square, or the next unresolved letter in this clue.</span>
+                  </div>
+                  <button type="button" data-crossword-hint="reveal-letter">
+                    <strong>Reveal a letter</strong>
+                    <span>Fill one square with its correct letter.</span>
+                  </button>
+                  <button class="reference-rush-hint-cancel" id="closeCrosswordHints" type="button">Cancel</button>
+                </div>
+              ` : `
+                <button class="ghost-btn crossword-hint-button" id="crosswordHint" type="button">${icons.lightbulb}<span>Reveal a letter</span></button>
+              `}
+            </div>
+          `}
+          ${game.complete ? "" : `
             <div class="crossword-keyboard" id="crosswordKeyboard" aria-label="Crossword letter keyboard" ${state.crosswordKeyboardVisible ? "" : "hidden"}>
               ${["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].map((row) => `<div>${[...row].map((letter) => `<button type="button" data-crossword-key="${letter}" aria-label="Enter ${letter}">${letter}</button>`).join("")}</div>`).join("")}
               <div class="crossword-keyboard-actions">
@@ -12507,6 +12555,7 @@ function crosswordGameView(game) {
               <span>${game.crosswordIsNewBest ? "New best time" : "Completed in"}</span>
               <strong>${elapsed}</strong>
               ${best ? `<small>${game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(best.elapsedMs)}</small>` : ""}
+              ${game.hintCount ? `<small>${game.hintCount} letter ${game.hintCount === 1 ? "hint" : "hints"} used</small>` : ""}
             </div>
             ${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
@@ -16877,6 +16926,9 @@ function startCrosswordGame({ render = true } = {}) {
     numbers: generated.numbers,
     entries,
     answers: {},
+    hintedCellKeys: [],
+    hintCount: 0,
+    hintMenuOpen: false,
     completedEntryIds: [],
     errorCellKeys: [],
     activeEntryId: firstEntry.id,
@@ -18344,6 +18396,7 @@ function updateCrosswordDom({ focus = false } = {}) {
     .filter((entry) => completedEntries.has(entry.id))
     .flatMap((entry) => entry.cells.map(wordSearchCellKey)));
   const errorCells = new Set(game.errorCellKeys || []);
+  const hintedCells = new Set(game.hintedCellKeys || []);
   document.querySelectorAll("[data-crossword-cell]").forEach((cell) => {
     const key = cell.dataset.crosswordCell;
     const answer = game.answers[key] || "";
@@ -18352,11 +18405,12 @@ function updateCrosswordDom({ focus = false } = {}) {
     cell.classList.toggle("is-active", game.activeCellKey === key);
     cell.classList.toggle("is-complete", completedCells.has(key));
     cell.classList.toggle("is-error", errorCells.has(key));
+    cell.classList.toggle("is-hint", hintedCells.has(key));
     cell.tabIndex = game.activeCellKey === key ? 0 : -1;
     const number = game.numbers[key];
     const row = Number(cell.dataset.row) + 1;
     const column = Number(cell.dataset.column) + 1;
-    cell.setAttribute("aria-label", `${number ? `${number}, ` : ""}row ${row}, column ${column}${answer ? `, ${answer}` : ", blank"}`);
+    cell.setAttribute("aria-label", `${number ? `${number}, ` : ""}row ${row}, column ${column}${answer ? `, ${answer}` : ", blank"}${hintedCells.has(key) ? ", revealed by hint" : ""}`);
   });
   document.querySelectorAll("[data-crossword-entry]").forEach((clue) => {
     const entryId = clue.dataset.crosswordEntry;
@@ -18458,6 +18512,7 @@ function enterCrosswordLetter(letter) {
   const entry = crosswordEntryById(game, game?.activeEntryId);
   const normalized = String(letter || "").toUpperCase();
   if (!game || game.type !== "crossword" || game.complete || !entry || !/^[A-Z]$/.test(normalized)) return;
+  game.hintedCellKeys = (game.hintedCellKeys || []).filter((key) => key !== game.activeCellKey);
   game.answers[game.activeCellKey] = normalized;
   game.errorCellKeys = [];
   reconcileCrosswordCompletedEntries(game);
@@ -18474,7 +18529,10 @@ function eraseCrosswordLetter() {
   const game = state.triviaGame;
   const entry = crosswordEntryById(game, game?.activeEntryId);
   if (!game || game.type !== "crossword" || game.complete || !entry) return;
-  if (game.answers[game.activeCellKey]) game.answers[game.activeCellKey] = "";
+  if (game.answers[game.activeCellKey]) {
+    game.hintedCellKeys = (game.hintedCellKeys || []).filter((key) => key !== game.activeCellKey);
+    game.answers[game.activeCellKey] = "";
+  }
   else advanceCrosswordCell(game, entry, -1);
   reconcileCrosswordCompletedEntries(game);
   game.errorCellKeys = [];
@@ -18506,6 +18564,32 @@ function checkCrosswordEntry() {
     game.errorCellKeys = [];
     updateCrosswordDom();
   }, 700);
+}
+
+function revealCrosswordLetterHint() {
+  const game = state.triviaGame;
+  const hint = crosswordRevealCandidate(game);
+  if (!hint) return;
+  game.activeEntryId = hint.entry.id;
+  game.activeCellKey = hint.key;
+  game.answers[hint.key] = hint.letter;
+  game.hintedCellKeys = [...new Set([...(game.hintedCellKeys || []), hint.key])];
+  game.hintCount = (game.hintCount || 0) + 1;
+  game.hintMenuOpen = false;
+  game.errorCellKeys = [];
+  state.gamesDrawerOpen = "";
+  reconcileCrosswordCompletedEntries(game);
+  if (crosswordEntryIsCorrect(game, hint.entry)) {
+    completeCrosswordEntry(game, hint.entry);
+    if (game.complete) return;
+  } else {
+    const nextCell = hint.entry.cells.find((cell, index) => (
+      game.answers[wordSearchCellKey(cell)] !== hint.entry.word[index]
+    ));
+    if (nextCell) game.activeCellKey = wordSearchCellKey(nextCell);
+  }
+  game.lastMessage = `${crosswordEntryLabel(hint.entry)} hint · ${hint.letter} revealed.`;
+  renderPreservingReaderScroll();
 }
 
 function moveCrosswordSelection(rowDelta, columnDelta) {
@@ -18598,6 +18682,17 @@ function bindCrosswordGrid() {
   nativeInput?.addEventListener("input", handleCrosswordNativeInput);
   document.getElementById("crosswordKeyboardToggle")?.addEventListener("click", () => {
     setCrosswordKeyboardVisible(!state.crosswordKeyboardVisible);
+  });
+  document.getElementById("crosswordHint")?.addEventListener("click", revealCrosswordLetterHint);
+  document.querySelectorAll("[data-crossword-hint]").forEach((button) => {
+    button.addEventListener("click", revealCrosswordLetterHint);
+  });
+  document.getElementById("closeCrosswordHints")?.addEventListener("click", () => {
+    if (state.gamesDrawerOpen === "hints") closeGamesHints();
+    else {
+      state.triviaGame.hintMenuOpen = false;
+      renderPreservingReaderScroll();
+    }
   });
 }
 

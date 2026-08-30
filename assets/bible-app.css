@@ -7399,6 +7399,14 @@ select {
   animation: crosswordMistake 240ms ease-out;
 }
 
+.crossword-cell.is-hint .crossword-cell-letter {
+  color: var(--gold);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--gold) 68%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 @keyframes crosswordMistake {
   35% { transform: translateX(-2px); }
   70% { transform: translateX(2px); }
@@ -7424,6 +7432,21 @@ select {
   flex: 0 0 auto;
   min-height: 36px;
   white-space: nowrap;
+}
+
+.crossword-hints {
+  width: min(100%, 620px);
+}
+
+.crossword-hint-button {
+  grid-auto-flow: column;
+  gap: 7px;
+  min-height: 44px;
+}
+
+.crossword-hint-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .crossword-native-input {

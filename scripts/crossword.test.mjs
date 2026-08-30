@@ -51,6 +51,7 @@ vm.runInContext(`
   ${extractFunction("crosswordClueForWord")}
   ${extractFunction("wordSearchCellKey")}
   ${extractFunction("crosswordEntryById")}
+  ${extractFunction("crosswordRevealCandidate")}
   ${extractFunction("crosswordEntryIsCorrect")}
   ${extractFunction("crosswordEntryIsFilled")}
   ${extractFunction("reconcileCrosswordCompletedEntries")}
@@ -64,6 +65,7 @@ vm.runInContext(`
     crosswordEntryIsCorrect,
     crosswordEntryIsFilled,
     reconcileCrosswordCompletedEntries,
+    crosswordRevealCandidate,
   };
 `, context);
 
@@ -159,6 +161,26 @@ const interactionGame = {
 };
 assert.equal(api.crosswordEntryIsFilled(interactionGame, interactionGame.entries[0]), true);
 assert.equal(api.crosswordEntryIsCorrect(interactionGame, interactionGame.entries[0]), true);
+interactionGame.type = "crossword";
+interactionGame.activeEntryId = "2-down";
+interactionGame.activeCellKey = "1:4";
+assert.deepEqual(
+  { ...api.crosswordRevealCandidate(interactionGame) },
+  {
+    entry: interactionGame.entries[1],
+    cell: interactionGame.entries[1].cells[1],
+    index: 1,
+    key: "1:4",
+    letter: "O",
+  },
+  "A hint should reveal the selected unresolved square",
+);
+interactionGame.answers["1:4"] = "O";
+assert.equal(
+  api.crosswordRevealCandidate(interactionGame).key,
+  "2:4",
+  "A correct selected square should advance the hint to the next unresolved letter",
+);
 interactionGame.answers["0:4"] = "X";
 api.reconcileCrosswordCompletedEntries(interactionGame);
 assert.deepEqual(Array.from(interactionGame.completedEntryIds), []);
@@ -275,6 +297,8 @@ assert.match(extractFunction("crosswordGameView"), /data-crossword-key/);
 assert.match(extractFunction("crosswordGameView"), /id="crosswordNativeInput"/);
 assert.match(extractFunction("crosswordGameView"), /inputmode="text"/);
 assert.match(extractFunction("crosswordGameView"), /id="crosswordKeyboardToggle"/);
+assert.match(extractFunction("crosswordGameView"), /data-crossword-hint="reveal-letter"/);
+assert.match(extractFunction("crosswordGameView"), /revealed by hint/);
 assert.match(extractFunction("crosswordGameView"), /state\.crosswordKeyboardVisible \? "" : "hidden"/);
 assert.match(extractFunction("crosswordGameView"), /Across/);
 assert.match(extractFunction("crosswordGameView"), /Down/);
@@ -287,6 +311,9 @@ assert.match(extractFunction("bindCrosswordGrid"), /keydown/);
 assert.match(extractFunction("bindCrosswordGrid"), /beforeinput/);
 assert.match(extractFunction("bindCrosswordGrid"), /focusCrosswordNativeInput/);
 assert.match(extractFunction("bindCrosswordGrid"), /setCrosswordKeyboardVisible/);
+assert.match(extractFunction("bindCrosswordGrid"), /revealCrosswordLetterHint/);
+assert.match(extractFunction("activeGameHintContext"), /crosswordRevealCandidate/);
+assert.match(extractFunction("mountMobileGameControls"), /crossword-hints/);
 assert.match(extractFunction("handleCrosswordKeydown"), /Backspace/);
 assert.match(extractFunction("handleCrosswordKeydown"), /ArrowRight/);
 assert.match(extractFunction("handleCrosswordKeydown"), /stopPropagation/);
@@ -306,7 +333,11 @@ assert.ok(
 );
 assert.match(globalShortcutsSource, /!event\.shiftKey && \/\^\[a-z\]\$\/i\.test\(event\.key\)/);
 assert.match(extractFunction("enterCrosswordLetter"), /updateCrosswordDom/);
+assert.match(extractFunction("enterCrosswordLetter"), /hintedCellKeys/);
 assert.doesNotMatch(extractFunction("enterCrosswordLetter"), /renderPreservingReaderScroll\(\)/);
+assert.match(extractFunction("eraseCrosswordLetter"), /hintedCellKeys/);
+assert.match(extractFunction("revealCrosswordLetterHint"), /hintedCellKeys/);
+assert.match(extractFunction("revealCrosswordLetterHint"), /renderPreservingReaderScroll/);
 assert.match(extractFunction("checkCrosswordEntry"), /errorCellKeys/);
 assert.match(extractFunction("completeCrosswordEntry"), /recordCrosswordBest/);
 assert.match(extractFunction("openTriviaReference"), /game\?\.type === "crossword"/);
@@ -314,6 +345,8 @@ assert.match(extractFunction("mountMobileGameControls"), /crossword-actions/);
 assert.match(styles, /\.crossword-grid \{[\s\S]*?touch-action: manipulation;/);
 assert.match(styles, /\.crossword-keyboard button \{[\s\S]*?min-height: 42px;/);
 assert.match(styles, /\.crossword-keyboard\[hidden\] \{[\s\S]*?display: none;/);
+assert.match(styles, /\.crossword-cell\.is-hint \.crossword-cell-letter \{/);
+assert.match(styles, /\.crossword-hint-button \{[\s\S]*?min-height: 44px;/);
 assert.match(styles, /\.crossword-native-input \{[\s\S]*?opacity: 0;[\s\S]*?pointer-events: none;/);
 assert.match(styles, /\.crossword-sidebar \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
 assert.match(styles, /\.crossword-clue-columns \{[\s\S]*?overflow-y: auto;[\s\S]*?scrollbar-gutter: stable;/);
