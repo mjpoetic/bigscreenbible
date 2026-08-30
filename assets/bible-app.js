@@ -14526,11 +14526,14 @@ function presentation(accountPanelRerender = false) {
                 ${presentationReferencePicker("chapter", chapters, presentationChapter)}
                 <span class="presentation-reference-colon" aria-hidden="true">:</span>
                 ${presentationReferencePicker("verse", verses, state.verse)}`}
-            <button class="ghost-btn presentation-reference-share" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
+            <button class="ghost-btn presentation-reference-share presentation-reference-share-inline" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
           ${verseOfDayItem
             ? `<span class="presentation-version-label">(${verseOfDayTranslationCode})</span>`
             : presentationVersionPicker("title", version)}
+          <div class="presentation-reference-mobile-share">
+            <button class="ghost-btn presentation-reference-share presentation-reference-share-mobile" id="presentationShareMobile" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
+          </div>
           ${sharedVersionReturnButton("presentation")}
           ${presentationPosition ? `<span class="presentation-part-position">${escapeHtml(presentationPosition)}</span>` : ""}
         </div>
@@ -16270,7 +16273,9 @@ function bindEvents() {
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
   document.getElementById("shareSelection")?.addEventListener("click", shareSelectedPassage);
-  document.getElementById("presentationShare")?.addEventListener("click", sharePresentationPassage);
+  document.querySelectorAll("[data-presentation-share]").forEach((button) => {
+    button.addEventListener("click", sharePresentationPassage);
+  });
   document.getElementById("copySelectionLink")?.addEventListener("click", copySelectedPassageLink);
   document.getElementById("printSelection")?.addEventListener("click", printSelectedPassage);
   document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
@@ -20833,6 +20838,50 @@ function resolveTutorialSpotlightRect(step = currentTutorialStep()) {
   return tutorialVisibleElementRect(target);
 }
 
+function tutorialCardTopForTarget({
+  targetTop,
+  targetBottom,
+  cardHeight,
+  viewportHeight,
+  gap = 12,
+  gutter = 12,
+}) {
+  const minTop = gutter;
+  const maxTop = Math.max(minTop, viewportHeight - cardHeight - gutter);
+  const belowTop = targetBottom + gap;
+  const aboveTop = targetTop - cardHeight - gap;
+  const fitsBelow = belowTop <= maxTop;
+  const fitsAbove = aboveTop >= minTop;
+  if (fitsBelow) return Math.min(Math.max(minTop, belowTop), maxTop);
+  if (fitsAbove) return Math.min(Math.max(minTop, aboveTop), maxTop);
+  const spaceBelow = viewportHeight - targetBottom;
+  const spaceAbove = targetTop;
+  const preferredTop = spaceBelow >= spaceAbove ? belowTop : aboveTop;
+  return Math.min(Math.max(minTop, preferredTop), maxTop);
+}
+
+function tutorialCompactCardSide({
+  targetLeft,
+  targetTop,
+  targetRight,
+  targetBottom,
+  cardHeight,
+  viewportWidth,
+  viewportHeight,
+  gap = 12,
+  gutter = 12,
+  minSideWidth = 260,
+}) {
+  const spaceBelow = viewportHeight - targetBottom - gap - gutter;
+  const spaceAbove = targetTop - gap - gutter;
+  if (spaceBelow >= cardHeight) return "below";
+  if (spaceAbove >= cardHeight) return "above";
+  const spaceRight = viewportWidth - targetRight - gap - gutter;
+  const spaceLeft = targetLeft - gap - gutter;
+  if (Math.max(spaceRight, spaceLeft) >= minSideWidth) return spaceRight >= spaceLeft ? "right" : "left";
+  return spaceBelow >= spaceAbove ? "below" : "above";
+}
+
 function updateTutorialSpotlight() {
   if (!state.tutorialActive) return;
   const spotlight = document.getElementById("tutorialSpotlight");
@@ -20862,11 +20911,55 @@ function updateTutorialSpotlight() {
   spotlight.style.width = `${width}px`;
   spotlight.style.height = `${height}px`;
 
-  if (isCompactScreen()) {
+  if (isCompactScreen() || isShortLandscapeScreen()) {
+    const compactWidth = isCompactScreen();
     card.style.removeProperty("left");
-    card.style.removeProperty("top");
     card.style.removeProperty("right");
-    card.style.removeProperty("bottom");
+    let cardRect = card.getBoundingClientRect();
+    const gap = 12;
+    const gutter = 12;
+    const spotlightRight = left + width;
+    const spotlightBottom = top + height;
+    const cardSide = tutorialCompactCardSide({
+      targetLeft: left,
+      targetTop: top,
+      targetRight: spotlightRight,
+      targetBottom: spotlightBottom,
+      cardHeight: cardRect.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      gap,
+      gutter,
+    });
+    if (!compactWidth && cardSide !== "right" && cardSide !== "left") {
+      const desiredLeft = rect.left + rectWidth / 2 - cardRect.width / 2;
+      const cardLeft = Math.min(Math.max(gutter, desiredLeft), window.innerWidth - cardRect.width - gutter);
+      card.style.setProperty("left", `${cardLeft}px`, "important");
+      card.style.setProperty("right", "auto", "important");
+    }
+    if (cardSide === "right" || cardSide === "left") {
+      const sideLeft = cardSide === "right" ? spotlightRight + gap : gutter;
+      const sideRight = cardSide === "right" ? gutter : window.innerWidth - left + gap;
+      card.style.setProperty("left", `${sideLeft}px`, "important");
+      card.style.setProperty("right", `${sideRight}px`, "important");
+      cardRect = card.getBoundingClientRect();
+      const maxTop = Math.max(gutter, window.innerHeight - cardRect.height - gutter);
+      const centeredTop = top + height / 2 - cardRect.height / 2;
+      const cardTop = Math.min(Math.max(gutter, centeredTop), maxTop);
+      card.style.setProperty("top", `${cardTop}px`, "important");
+      card.style.setProperty("bottom", "auto", "important");
+      return;
+    }
+    const cardTop = tutorialCardTopForTarget({
+      targetTop: top,
+      targetBottom: spotlightBottom,
+      cardHeight: cardRect.height,
+      viewportHeight: window.innerHeight,
+      gap,
+      gutter,
+    });
+    card.style.setProperty("top", `${cardTop}px`, "important");
+    card.style.setProperty("bottom", "auto", "important");
     return;
   }
 

@@ -142,6 +142,8 @@ assert.equal(
 );
 
 assert.match(source, /id="presentationShare"/);
+assert.match(source, /id="presentationShareMobile"/);
+assert.match(source, /querySelectorAll\("\[data-presentation-share\]"\)/);
 assert.match(source, /presentation-reference-share-glyph/);
 assert.match(source, /M12\.5 8\.25C8\.8 8\.8 6\.55 11 5\.75 15/);
 assert.match(source, /data-return-shared-version/);
@@ -153,6 +155,7 @@ assert.match(extractFunction("persistentVersions"), /sharedVersionOverride\?\.re
 assert.match(styles, /\.presentation \.presentation-reference-share \{[\s\S]*?opacity: 0;/);
 assert.match(styles, /\.presentation-reference-share-glyph \{[\s\S]*?width: 24px;[\s\S]*?height: 24px;/);
 assert.match(styles, /\.presentation\.controls-visible \.presentation-reference-share,[\s\S]*?opacity: 1;/);
+assert.match(styles, /@media \(max-width: 560px\) and \(orientation: portrait\) \{[\s\S]*?\.presentation \.presentation-reference-share-inline \{[\s\S]*?display: none;[\s\S]*?\.presentation-reference-mobile-share \{[\s\S]*?display: flex;/);
 
 const versionUrlContext = {
   URLSearchParams,

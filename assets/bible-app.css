@@ -10693,6 +10693,10 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   height: 15px;
 }
 
+.presentation-reference-mobile-share {
+  display: none;
+}
+
 .presentation .presentation-reference-share:not(:disabled):hover,
 .presentation .presentation-reference-share:not(:disabled):focus-visible {
   box-shadow: none;
@@ -17073,6 +17077,39 @@ svg {
 }
 
 @media (max-width: 560px) and (orientation: portrait) {
+  .presentation-top {
+    align-items: start;
+  }
+
+  .presentation .presentation-reference-share-inline {
+    display: none;
+  }
+
+  .presentation-reference-mobile-share {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    margin-top: -5px;
+    margin-bottom: -3px;
+  }
+
+  .presentation .presentation-reference-share-mobile {
+    position: static;
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    height: 42px;
+    transform: scale(0.92);
+  }
+
+  .presentation.controls-visible .presentation-reference-share-mobile,
+  .presentation-reference-share-mobile:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+
   .chapter-tools-clip {
     max-height: 62px;
   }
