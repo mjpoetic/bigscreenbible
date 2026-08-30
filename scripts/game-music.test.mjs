@@ -97,6 +97,18 @@ assert.equal(selectOutcomeSound({ complete: true, score: 3, roundLength: 5, type
 assert.equal(selectOutcomeSound({ complete: true, score: 2, roundLength: 5, type: "trivia" }), "low", "A score below 50 percent must receive the playful low cue");
 assert.equal(selectOutcomeSound({ complete: true, score: 2.5, roundLength: 5, type: "trivia" }), "complete", "Exactly 50 percent must remain an ordinary completion");
 assert.equal(selectOutcomeSound({ complete: true, score: 5, roundLength: 5, type: "reference-rush", timedOut: true }), "low", "A timed-out game must receive the low cue regardless of score");
+assert.equal(selectOutcomeSound({ complete: true, score: 5, roundLength: 5, type: "book-sprint", bookSprintBeatBest: false }), "complete", "A completed Book Sprint that does not beat the best time must receive the level-complete cue");
+assert.equal(selectOutcomeSound({ complete: true, score: 5, roundLength: 5, type: "book-sprint", bookSprintBeatBest: true }), "perfect", "A record-setting Book Sprint must retain the perfect celebration cue");
+const bookSprintTickSource = appSource.slice(
+  appSource.indexOf("function playBookSprintTick"),
+  appSource.indexOf("function updateBookSprintTimerDisplay"),
+);
+const referenceRushTickSource = appSource.slice(
+  appSource.indexOf("function playReferenceRushTick"),
+  appSource.indexOf("function scheduleReferenceRushTimer"),
+);
+assert.match(bookSprintTickSource, /secondsRemaining <= 3 \? 0\.1 : 0\.065/, "Book Sprint ticking must sit above the game soundtrack");
+assert.match(referenceRushTickSource, /secondsRemaining <= 3 \? 0\.1 : 0\.065/, "Reference Rush ticking must sit above the game soundtrack");
 assert.match(appSource, /navigator\.audioSession\.type = "ambient"/, "Supported devices must receive an ambient audio-session hint");
 assert.match(appSource, /pauseGameMusic\(\{ fade: false \}\)[\s\S]*pauseReaderAutoScroll/, "Backgrounding must stop music immediately");
 assert.match(appSource, /resumeTriviaGameAfterReference\(target\.game\)[\s\S]*render\(\)/, "Returning from Scripture must preserve the same game for music resumption");

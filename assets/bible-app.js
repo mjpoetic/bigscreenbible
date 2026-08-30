@@ -10898,7 +10898,7 @@ function playReadyWordSearchFeedbackSound(context, result) {
       duration: 0.09,
       startFrequency: 523.25,
       endFrequency: 622.25,
-      peakGain: 0.014,
+      peakGain: 0.045,
       volume: soundVolumeScalar(state.gameVolume),
       type: "sine",
     });
@@ -10907,7 +10907,7 @@ function playReadyWordSearchFeedbackSound(context, result) {
       duration: 0.105,
       startFrequency: 659.25,
       endFrequency: 783.99,
-      peakGain: 0.011,
+      peakGain: 0.038,
       volume: soundVolumeScalar(state.gameVolume),
       type: "sine",
     });
@@ -10918,7 +10918,7 @@ function playReadyWordSearchFeedbackSound(context, result) {
     duration: 0.12,
     startFrequency: 220,
     endFrequency: 174.61,
-    peakGain: 0.012,
+    peakGain: 0.04,
     volume: soundVolumeScalar(state.gameVolume),
     type: "triangle",
   });
@@ -10931,7 +10931,7 @@ function playReadyWordSearchCountdownTick(context, secondsRemaining) {
     duration: 0.05,
     startFrequency: secondsRemaining <= 3 ? 1180 : 920,
     endFrequency: secondsRemaining <= 3 ? 1180 : 920,
-    peakGain: secondsRemaining <= 3 ? 0.027 : 0.018,
+    peakGain: secondsRemaining <= 3 ? 0.1 : 0.065,
     volume: soundVolumeScalar(state.gameVolume),
     type: "square",
   });
@@ -11087,8 +11087,9 @@ function gameOutcomeSoundKey(game) {
   const roundLength = triviaRoundLength(game);
   if (!game?.complete || !roundLength) return "";
   if (game.lost || game.timedOut) return "low";
+  if (game.type === "book-sprint") return game.bookSprintBeatBest ? "perfect" : "complete";
   const accuracy = Math.max(0, Number(game.score) || 0) / roundLength;
-  if (accuracy >= 1 || ["word-search", "crossword", "book-sprint"].includes(game.type)) return "perfect";
+  if (accuracy >= 1 || ["word-search", "crossword"].includes(game.type)) return "perfect";
   if (accuracy < 0.5) return "low";
   return "complete";
 }
@@ -11262,7 +11263,7 @@ function playBookSprintTick(secondsRemaining) {
   oscillator.type = "square";
   oscillator.frequency.setValueAtTime(secondsRemaining <= 3 ? 1180 : 920, now);
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime((secondsRemaining <= 3 ? 0.045 : 0.028) * soundVolumeScalar(state.gameVolume), now + 0.004);
+  gain.gain.exponentialRampToValueAtTime((secondsRemaining <= 3 ? 0.1 : 0.065) * soundVolumeScalar(state.gameVolume), now + 0.004);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
   oscillator.connect(gain);
   gain.connect(bookSprintAudioContext.destination);
@@ -11337,7 +11338,7 @@ function playReferenceRushTick(secondsRemaining) {
   oscillator.type = "square";
   oscillator.frequency.setValueAtTime(secondsRemaining <= 3 ? 1180 : 920, now);
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime((secondsRemaining <= 3 ? 0.045 : 0.028) * soundVolumeScalar(state.gameVolume), now + 0.004);
+  gain.gain.exponentialRampToValueAtTime((secondsRemaining <= 3 ? 0.1 : 0.065) * soundVolumeScalar(state.gameVolume), now + 0.004);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
   oscillator.connect(gain);
   gain.connect(referenceRushAudioContext.destination);

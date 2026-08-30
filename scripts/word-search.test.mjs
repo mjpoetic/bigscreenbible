@@ -96,19 +96,21 @@ assert.deepEqual({ ...api.wordSearchDifficultyConfig("Expert") }, { size: 12, wo
 assert.match(api.wordSearchDifficultyDescription("Expert"), /mostly diagonal and backward/);
 const foundSound = JSON.parse(JSON.stringify(api.feedbackSound("found")));
 assert.equal(foundSound.length, 2);
-assert.ok(foundSound.every((event) => event.duration <= 0.105 && event.peakGain <= 0.014));
+assert.deepEqual(foundSound.map((event) => event.peakGain), [0.045, 0.038]);
 const mistakeSound = JSON.parse(JSON.stringify(api.feedbackSound("mistake")));
 assert.equal(mistakeSound.length, 1);
 assert.equal(mistakeSound[0].type, "triangle");
 assert.ok(mistakeSound[0].endFrequency < mistakeSound[0].startFrequency);
+assert.equal(mistakeSound[0].peakGain, 0.04);
 const countdownTick = JSON.parse(JSON.stringify(api.countdownTick(10)));
 assert.equal(countdownTick.length, 1);
 assert.equal(countdownTick[0].type, "square");
 assert.equal(countdownTick[0].startFrequency, 920);
-assert.ok(countdownTick[0].duration <= 0.05 && countdownTick[0].peakGain <= 0.018);
+assert.ok(countdownTick[0].duration <= 0.05);
+assert.equal(countdownTick[0].peakGain, 0.065);
 const criticalCountdownTick = JSON.parse(JSON.stringify(api.countdownTick(3)));
 assert.equal(criticalCountdownTick[0].startFrequency, 1180);
-assert.ok(criticalCountdownTick[0].peakGain <= 0.027);
+assert.equal(criticalCountdownTick[0].peakGain, 0.1);
 
 const recentPacks = [
   { chapterKey: "Psalm 1", start: 1, end: 6 },
@@ -240,12 +242,14 @@ assert.match(extractFunction("chooseWordSearchCell"), /playWordSearchFeedbackSou
 assert.match(extractFunction("primeWordSearchAudio"), /wordSearchAudioContext\.resume\(\)/);
 const feedbackSoundSource = extractFunction("playReadyWordSearchFeedbackSound");
 assert.match(feedbackSoundSource, /result === "found"/);
-assert.match(feedbackSoundSource, /peakGain: 0\.014/);
+assert.match(feedbackSoundSource, /peakGain: 0\.045/);
+assert.match(feedbackSoundSource, /peakGain: 0\.038/);
+assert.match(feedbackSoundSource, /peakGain: 0\.04/);
 assert.match(feedbackSoundSource, /startFrequency: 220/);
 assert.match(feedbackSoundSource, /endFrequency: 174\.61/);
 const countdownSoundSource = extractFunction("playReadyWordSearchCountdownTick");
 assert.match(countdownSoundSource, /secondsRemaining <= 3 \? 1180 : 920/);
-assert.match(countdownSoundSource, /secondsRemaining <= 3 \? 0\.027 : 0\.018/);
+assert.match(countdownSoundSource, /secondsRemaining <= 3 \? 0\.1 : 0\.065/);
 assert.match(countdownSoundSource, /type: "square"/);
 assert.match(extractFunction("setWordSearchSounds"), /lw_word_search_sounds/);
 const timerDisplaySource = extractFunction("updateWordSearchTimerDisplay");
