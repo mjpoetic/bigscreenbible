@@ -36,6 +36,9 @@ const outcomeManifestEnd = appSource.indexOf("});", outcomeManifestStart);
 assert.ok(outcomeManifestStart >= 0 && outcomeManifestEnd > outcomeManifestStart, "Game outcome sound manifest must exist");
 const outcomeManifestSource = appSource.slice(outcomeManifestStart, outcomeManifestEnd + 3);
 assert.doesNotMatch(outcomeManifestSource, /https?:\/\//, "Game outcome sounds must use bundled local assets");
+assert.match(outcomeManifestSource, /perfect: \{[^}]*volume: 0\.105 \}/, "The perfect cue must be loudness-matched to the game soundtracks");
+assert.match(outcomeManifestSource, /complete: \{[^}]*volume: 0\.13 \}/, "The level-complete cue must be loudness-matched to the game soundtracks");
+assert.match(outcomeManifestSource, /low: \{[^}]*volume: 0\.14 \}/, "The low-result cue must be loudness-matched to the game soundtracks");
 
 for (const [fileName, trackName] of tracks) {
   const assetPath = path.join(rootDir, "assets", "audio", "game-music", fileName);

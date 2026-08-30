@@ -348,9 +348,9 @@ const gameMusicTracks = Object.freeze({
   "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", volume: 0.14 },
 });
 const gameOutcomeSounds = Object.freeze({
-  perfect: { key: "perfect", src: "./assets/audio/game-music/joyful-complete.mp3", volume: 0.34 },
-  complete: { key: "complete", src: "./assets/audio/game-music/level-complete.mp3", volume: 0.28 },
-  low: { key: "low", src: "./assets/audio/game-music/whomp-whomp.mp3", volume: 0.27 },
+  perfect: { key: "perfect", src: "./assets/audio/game-music/joyful-complete.mp3", volume: 0.105 },
+  complete: { key: "complete", src: "./assets/audio/game-music/level-complete.mp3", volume: 0.13 },
+  low: { key: "low", src: "./assets/audio/game-music/whomp-whomp.mp3", volume: 0.14 },
 });
 const crosswordKeyboardVisibleStorageKey = "lw_crossword_keyboard_visible";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
