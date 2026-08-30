@@ -6739,6 +6739,23 @@ select {
   font-weight: 900;
 }
 
+.puzzle-best-score {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.puzzle-best-score small {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.puzzle-best-score small[hidden] {
+  display: none;
+}
+
 .book-sprint-meter,
 .book-sprint-result-stats {
   flex-wrap: wrap;
@@ -7237,6 +7254,10 @@ select {
 .word-search-complete-summary small {
   color: var(--muted);
   font-weight: 750;
+}
+
+.word-search-complete-summary .crossword-assist-note {
+  color: var(--gold);
 }
 
 .word-search-passage-text {

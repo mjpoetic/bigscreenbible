@@ -337,6 +337,7 @@ const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
+const crosswordHintLimit = 3;
 const gameMusicTracks = Object.freeze({
   "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3", volume: 0.15 },
   crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3", volume: 0.14 },
@@ -10246,7 +10247,14 @@ function updatePuzzleCreatorDom() {
     const best = state.triviaGameType === "crossword"
       ? savedCrosswordBest(state.triviaDifficulty, context)
       : savedWordSearchBest(state.triviaDifficulty, context);
-    bestValue.textContent = best ? formatGameTime(best.elapsedMs) : "No best yet";
+    bestValue.textContent = best
+      ? state.triviaGameType === "crossword" ? formatCrosswordBestTime(best) : formatGameTime(best.elapsedMs)
+      : "No best yet";
+    const bestAssist = document.getElementById("puzzleSetupBestAssist");
+    if (bestAssist) {
+      bestAssist.hidden = !best?.hintCount;
+      bestAssist.textContent = best?.hintCount ? `* Assisted with ${best.hintCount} letter ${best.hintCount === 1 ? "hint" : "hints"}` : "";
+    }
   }
 }
 
@@ -10838,11 +10846,17 @@ function savedCrosswordBest(difficulty, context = {}) {
   return savedCrosswordBests()[puzzleBestKey(difficulty, context)] || null;
 }
 
+function formatCrosswordBestTime(best) {
+  if (!best) return "No best yet";
+  return `${formatGameTime(best.elapsedMs)}${best.hintCount ? "*" : ""}`;
+}
+
 function recordCrosswordBest(game) {
   if (!game || game.type !== "crossword" || !game.finishedAt) return null;
   const result = {
     difficulty: game.difficulty,
     elapsedMs: crosswordElapsedMs(game),
+    hintCount: Math.min(crosswordHintLimit, Math.max(0, Number(game.hintCount) || 0)),
     completedAt: new Date(game.finishedAt).toISOString(),
   };
   const bests = savedCrosswordBests();
@@ -10858,7 +10872,10 @@ function recordCrosswordBest(game) {
 
 function updateCrosswordTimerDisplay() {
   const timer = document.getElementById("crosswordTimer");
-  if (timer && state.triviaGame?.type === "crossword") timer.textContent = formatGameTime(crosswordElapsedMs());
+  if (timer && state.triviaGame?.type === "crossword") {
+    const assisted = state.triviaGame.complete && state.triviaGame.hintCount;
+    timer.textContent = `${formatGameTime(crosswordElapsedMs())}${assisted ? "*" : ""}`;
+  }
 }
 
 function scheduleCrosswordTimer() {
@@ -11778,10 +11795,14 @@ function mountMobileGameControls() {
   });
 }
 
+function crosswordHintsRemaining(game = state.triviaGame) {
+  return Math.max(0, crosswordHintLimit - (Number(game?.hintCount) || 0));
+}
+
 function activeGameHintContext() {
   const game = state.triviaGame;
   if (!game || game.complete) return null;
-  if (game.type === "crossword") return crosswordRevealCandidate(game) ? game : null;
+  if (game.type === "crossword") return crosswordHintsRemaining(game) && crosswordRevealCandidate(game) ? game : null;
   if (game.type === "reference-rush") {
     const puzzle = game.puzzles?.[game.index];
     return puzzle && puzzle.selectedReference === null ? puzzle : null;
@@ -11912,6 +11933,7 @@ function triviaView() {
   const socialSupported = !isWordSearch && !isCrossword;
   const gamesUseDrawers = isGamesResponsiveScreen();
   const gameHintsAvailable = Boolean(activeGameHintContext());
+  const crosswordHintsLeft = state.triviaGame?.type === "crossword" ? crosswordHintsRemaining(state.triviaGame) : 0;
   const setupCopy = isVerseOrder
     ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
@@ -11942,12 +11964,12 @@ function triviaView() {
                   class="games-header-action games-hint-action ${state.gamesDrawerOpen === "hints" ? "active" : ""}"
                   id="gameHintsToggle"
                   type="button"
-                  aria-label="Open game hints"
+                  aria-label="Open game hints${crosswordHintsLeft ? `, ${crosswordHintsLeft} remaining` : ""}"
                   aria-controls="gamesHintsDrawer"
                   aria-expanded="${state.gamesDrawerOpen === "hints"}"
                 >
                   ${icons.lightbulb}
-                  <span>Hint</span>
+                  <span>${crosswordHintsLeft ? `Hint · ${crosswordHintsLeft} left` : "Hint"}</span>
                 </button>
               ` : ""}
               <button
@@ -12063,7 +12085,10 @@ function triviaView() {
                   ${isCrossword ? `
                     <div class="book-sprint-best-card word-search-best-card">
                       <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} time`}</span>
-                      <strong id="puzzleSetupBestValue">${crosswordBest ? formatGameTime(crosswordBest.elapsedMs) : "No best yet"}</strong>
+                      <div class="puzzle-best-score">
+                        <strong id="puzzleSetupBestValue">${formatCrosswordBestTime(crosswordBest)}</strong>
+                        <small id="puzzleSetupBestAssist" ${crosswordBest?.hintCount ? "" : "hidden"}>${crosswordBest?.hintCount ? `* Assisted with ${crosswordBest.hintCount} letter ${crosswordBest.hintCount === 1 ? "hint" : "hints"}` : ""}</small>
+                      </div>
                     </div>
                     <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
                   ` : ""}
@@ -12425,6 +12450,9 @@ function crosswordGameView(game) {
     .flatMap((entry) => entry.cells.map(wordSearchCellKey)));
   const elapsed = formatGameTime(crosswordElapsedMs(game));
   const best = game.crosswordBest || savedCrosswordBest(game.difficulty, game);
+  const hintsRemaining = crosswordHintsRemaining(game);
+  const currentAssisted = Boolean(game.hintCount);
+  const bestAssistedIsCurrent = Boolean(game.crosswordIsNewBest && currentAssisted);
   const clueGroup = (direction) => game.entries.filter((entry) => entry.direction === direction).map((entry) => `
     <button
       class="crossword-clue ${entry.id === activeEntry?.id ? "is-active" : ""} ${completedEntries.has(entry.id) ? "is-complete" : ""}"
@@ -12448,7 +12476,7 @@ function crosswordGameView(game) {
           <div class="word-search-timer" aria-label="Crossword elapsed time">
             ${icons.timer}
             <span>${game.complete ? "Finished" : "Time"}</span>
-            <strong id="crosswordTimer">${elapsed}</strong>
+            <strong id="crosswordTimer">${elapsed}${game.complete && currentAssisted ? "*" : ""}</strong>
           </div>
           <button class="ghost-btn games-menu-control crossword-menu-control" id="exitTriviaGame" type="button">
             ${icons.returnBack}<span>Games menu</span>
@@ -12518,11 +12546,16 @@ function crosswordGameView(game) {
           </div>
           ${game.complete ? "" : `
             <div class="reference-rush-hints crossword-hints">
-              ${game.hintMenuOpen ? `
+              ${!hintsRemaining ? `
+                <div class="reference-rush-hint-result" role="status">
+                  <strong>All 3 hints used</strong>
+                  <p>Each Crossword allows up to three revealed letters.</p>
+                </div>
+              ` : game.hintMenuOpen ? `
                 <div class="reference-rush-hint-menu" role="group" aria-label="Crossword hint">
                   <div>
                     <strong>Need a little help?</strong>
-                    <span>Reveal the selected square, or the next unresolved letter in this clue.</span>
+                    <span>Reveal the selected square, or the next unresolved letter in this clue. ${hintsRemaining} of 3 ${hintsRemaining === 1 ? "hint remains" : "hints remain"}.</span>
                   </div>
                   <button type="button" data-crossword-hint="reveal-letter">
                     <strong>Reveal a letter</strong>
@@ -12531,7 +12564,7 @@ function crosswordGameView(game) {
                   <button class="reference-rush-hint-cancel" id="closeCrosswordHints" type="button">Cancel</button>
                 </div>
               ` : `
-                <button class="ghost-btn crossword-hint-button" id="crosswordHint" type="button">${icons.lightbulb}<span>Reveal a letter</span></button>
+                <button class="ghost-btn crossword-hint-button" id="crosswordHint" type="button">${icons.lightbulb}<span>Reveal a letter · ${hintsRemaining} left</span></button>
               `}
             </div>
           `}
@@ -12553,9 +12586,10 @@ function crosswordGameView(game) {
           ${game.complete ? `
             <div class="word-search-complete-summary">
               <span>${game.crosswordIsNewBest ? "New best time" : "Completed in"}</span>
-              <strong>${elapsed}</strong>
-              ${best ? `<small>${game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(best.elapsedMs)}</small>` : ""}
-              ${game.hintCount ? `<small>${game.hintCount} letter ${game.hintCount === 1 ? "hint" : "hints"} used</small>` : ""}
+              <strong>${elapsed}${currentAssisted ? "*" : ""}</strong>
+              ${best ? `<small>${game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatCrosswordBestTime(best)}</small>` : ""}
+              ${currentAssisted ? `<small class="crossword-assist-note">* Assisted with ${game.hintCount} of 3 letter hints</small>` : ""}
+              ${best?.hintCount && !bestAssistedIsCurrent ? `<small class="crossword-assist-note">* Best time used ${best.hintCount} letter ${best.hintCount === 1 ? "hint" : "hints"}</small>` : ""}
             </div>
             ${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
@@ -13092,7 +13126,9 @@ function triviaScoreLabel() {
   if (state.triviaGame.complete) {
     if (state.triviaGame.type === "book-sprint") return formatGameTime(bookSprintElapsedMs(state.triviaGame));
     if (state.triviaGame.type === "word-search") return formatGameTime(wordSearchElapsedMs(state.triviaGame));
-    if (state.triviaGame.type === "crossword") return formatGameTime(crosswordElapsedMs(state.triviaGame));
+    if (state.triviaGame.type === "crossword") {
+      return `${formatGameTime(crosswordElapsedMs(state.triviaGame))}${state.triviaGame.hintCount ? "*" : ""}`;
+    }
     return `${state.triviaGame.score} / ${roundLength}`;
   }
   if (state.triviaGame.type === "verse-order") return `${state.triviaGame.score} ordered`;
@@ -18568,13 +18604,21 @@ function checkCrosswordEntry() {
 
 function revealCrosswordLetterHint() {
   const game = state.triviaGame;
+  if (!game || game.type !== "crossword" || game.complete) return;
+  if (!crosswordHintsRemaining(game)) {
+    game.hintMenuOpen = false;
+    game.lastMessage = "All 3 letter hints have been used for this puzzle.";
+    state.gamesDrawerOpen = "";
+    renderPreservingReaderScroll();
+    return;
+  }
   const hint = crosswordRevealCandidate(game);
   if (!hint) return;
   game.activeEntryId = hint.entry.id;
   game.activeCellKey = hint.key;
   game.answers[hint.key] = hint.letter;
   game.hintedCellKeys = [...new Set([...(game.hintedCellKeys || []), hint.key])];
-  game.hintCount = (game.hintCount || 0) + 1;
+  game.hintCount = Math.min(crosswordHintLimit, (game.hintCount || 0) + 1);
   game.hintMenuOpen = false;
   game.errorCellKeys = [];
   state.gamesDrawerOpen = "";
@@ -18588,7 +18632,8 @@ function revealCrosswordLetterHint() {
     ));
     if (nextCell) game.activeCellKey = wordSearchCellKey(nextCell);
   }
-  game.lastMessage = `${crosswordEntryLabel(hint.entry)} hint · ${hint.letter} revealed.`;
+  const hintsLeft = crosswordHintsRemaining(game);
+  game.lastMessage = `${crosswordEntryLabel(hint.entry)} hint · ${hint.letter} revealed · ${hintsLeft ? `${hintsLeft} ${hintsLeft === 1 ? "hint" : "hints"} left` : "all 3 hints used"}.`;
   renderPreservingReaderScroll();
 }
 
