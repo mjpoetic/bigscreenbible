@@ -10186,6 +10186,7 @@ function puzzleCreatorBestContext(evaluation = puzzleCreatorEvaluation()) {
 function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
   const evaluation = puzzleCreatorEvaluation(gameType, difficulty);
   const custom = state.puzzlePassageSource === "custom";
+  const hiddenWord = gameType === "hidden-word";
   const version = puzzleCreatorVersion();
   const versionOptions = bundledPuzzleVersions().map((code) => `
     <option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)} · ${escapeHtml(translationLookup[code]?.name || code)}</option>
@@ -10194,11 +10195,11 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
   return `
     <section class="puzzle-creator" id="puzzleCreator" aria-labelledby="puzzleCreatorTitle">
       <div class="puzzle-creator-heading">
-        <span>Passage</span>
-        <strong id="puzzleCreatorTitle">Choose how this puzzle begins</strong>
+        <span>${hiddenWord ? "Puzzle source" : "Passage"}</span>
+        <strong id="puzzleCreatorTitle">Choose how this ${hiddenWord ? "round" : "puzzle"} begins</strong>
       </div>
-      <div class="puzzle-source-options" role="group" aria-label="Puzzle passage source">
-        <button class="${custom ? "" : "active"}" type="button" data-puzzle-passage-source="random" aria-pressed="${!custom}" ${challengeSetupLock}>Surprise me</button>
+      <div class="puzzle-source-options" role="group" aria-label="Puzzle ${hiddenWord ? "source" : "passage source"}">
+        <button class="${custom ? "" : "active"}" type="button" data-puzzle-passage-source="random" aria-pressed="${!custom}" ${challengeSetupLock}>${hiddenWord ? "Curated mix" : "Surprise me"}</button>
         <button class="${custom ? "active" : ""}" type="button" data-puzzle-passage-source="custom" aria-pressed="${custom}" ${challengeSetupLock}>Choose passage</button>
       </div>
       ${custom ? `
@@ -10222,7 +10223,9 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
           <p>${gameType === "crossword" ? `Allow at least ${evaluation.required || 0} words. The generator chooses the connected entries that fit best.` : `Choose exactly ${evaluation.required || 0} words. Only words from this passage are available.`}</p>
         </details>
       ` : `
-        <p class="puzzle-creator-random-note">Big Screen Bible will choose a fresh passage from the built-in puzzle collection.</p>
+        <p class="puzzle-creator-random-note">${hiddenWord
+          ? `Each round draws from ${hiddenWordCategories.length} familiar Bible categories with no duplicate answers.`
+          : "Big Screen Bible will choose a fresh passage from the built-in puzzle collection."}</p>
       `}
     </section>
   `;
@@ -10380,11 +10383,160 @@ function hiddenWordDifficulties() {
 function hiddenWordDifficultyDescription(difficulty) {
   const config = hiddenWordDifficultyConfig(difficulty);
   return {
-    Easy: `Familiar words · ${config.attempts} attempts`,
-    Medium: `Broader Bible vocabulary · ${config.attempts} attempts`,
-    Hard: `Longer names and words · ${config.attempts} attempts`,
+    Easy: `Most forgiving · ${config.attempts} attempts`,
+    Medium: `Balanced play · ${config.attempts} attempts`,
+    Hard: `Tighter margin · ${config.attempts} attempts`,
   }[difficulty] || `${config.attempts} attempts`;
 }
+
+const hiddenWordCategories = [
+  "People",
+  "Places",
+  "Books of the Bible",
+  "Bible Vocabulary",
+  "Famous Phrases",
+  "Bible Events",
+  "Objects & Things",
+  "Miracles",
+  "Bible Quotes",
+  "Parables",
+  "Titles of Jesus",
+  "Food & Animals",
+];
+
+const hiddenWordPuzzleCatalog = [
+  { answer: "ADAM AND EVE", category: "People", reference: "Genesis 3:20", clue: "The first man and woman lived in the Garden of Eden." },
+  { answer: "NOAH", category: "People", reference: "Genesis 6:9", clue: "This righteous man built the ark before the flood." },
+  { answer: "ABRAHAM", category: "People", reference: "Genesis 17:5", clue: "God promised that he would become the father of many nations." },
+  { answer: "SARAH", category: "People", reference: "Genesis 17:15", clue: "God gave Abraham's wife a new name and promised her a son." },
+  { answer: "JOSEPH", category: "People", reference: "Genesis 41:41", clue: "Pharaoh placed this son of Jacob over all the land of Egypt." },
+  { answer: "MOSES", category: "People", reference: "Exodus 3:10", clue: "God called him to lead the Israelites out of Egypt." },
+  { answer: "RUTH", category: "People", reference: "Ruth 1:16", clue: "This loyal Moabite woman chose Naomi's people and God." },
+  { answer: "KING DAVID", category: "People", reference: "1 Samuel 16:13", clue: "Samuel anointed this shepherd who later ruled Israel." },
+  { answer: "QUEEN ESTHER", category: "People", reference: "Esther 4:14", clue: "She risked approaching the king to help save her people." },
+  { answer: "APOSTLE PAUL", category: "People", reference: "Acts 9:15", clue: "Jesus chose this former persecutor to carry His name to the nations." },
+
+  { answer: "GARDEN OF EDEN", category: "Places", reference: "Genesis 2:8", clue: "God planted this garden as the first home of Adam and Eve." },
+  { answer: "MOUNT SINAI", category: "Places", reference: "Exodus 19:20", clue: "Moses met with God on this mountain in the wilderness." },
+  { answer: "LAND OF CANAAN", category: "Places", reference: "Genesis 12:5", clue: "Abraham journeyed to this land of promise." },
+  { answer: "JERICHO", category: "Places", reference: "Joshua 6:20", clue: "The walls of this city fell after Israel shouted." },
+  { answer: "BETHLEHEM", category: "Places", reference: "Micah 5:2", clue: "The promised ruler and Messiah was to come from this town." },
+  { answer: "NAZARETH", category: "Places", reference: "Matthew 2:23", clue: "Jesus grew up in this Galilean town." },
+  { answer: "SEA OF GALILEE", category: "Places", reference: "Matthew 4:18", clue: "Jesus called fishermen to follow Him beside this lake." },
+  { answer: "JERUSALEM", category: "Places", reference: "Psalm 122:6", clue: "Pilgrims were told to pray for the peace of this city." },
+  { answer: "JORDAN RIVER", category: "Places", reference: "Joshua 3:17", clue: "Israel crossed this river on dry ground to enter the promised land." },
+  { answer: "MOUNT OF OLIVES", category: "Places", reference: "Acts 1:12", clue: "The disciples returned from this mountain after Jesus ascended." },
+
+  { answer: "GENESIS", category: "Books of the Bible", reference: "Genesis 1:1", clue: "The Bible's first book begins with the creation of the heavens and earth." },
+  { answer: "EXODUS", category: "Books of the Bible", reference: "Exodus 1:1", clue: "This book tells how God delivered Israel from slavery in Egypt." },
+  { answer: "PSALMS", category: "Books of the Bible", reference: "Psalm 1:1", clue: "This collection of songs and prayers opens with the blessed person." },
+  { answer: "PROVERBS", category: "Books of the Bible", reference: "Proverbs 1:1", clue: "This wisdom book contains sayings associated with Solomon." },
+  { answer: "ISAIAH", category: "Books of the Bible", reference: "Isaiah 1:1", clue: "This prophetic book includes visions of the suffering servant." },
+  { answer: "DANIEL", category: "Books of the Bible", reference: "Daniel 1:1", clue: "This book follows a faithful exile who interpreted dreams." },
+  { answer: "MATTHEW", category: "Books of the Bible", reference: "Matthew 1:1", clue: "This Gospel begins by tracing the genealogy of Jesus the Messiah." },
+  { answer: "JOHN", category: "Books of the Bible", reference: "John 1:1", clue: "This Gospel opens by declaring that the Word was with God." },
+  { answer: "ACTS", category: "Books of the Bible", reference: "Acts 1:1", clue: "This New Testament history follows the early church and its mission." },
+  { answer: "REVELATION", category: "Books of the Bible", reference: "Revelation 1:1", clue: "This final Bible book records the revelation given to John." },
+
+  { answer: "COVENANT", category: "Bible Vocabulary", reference: "Genesis 9:9", clue: "God used this binding promise when speaking to Noah and his descendants." },
+  { answer: "REDEMPTION", category: "Bible Vocabulary", reference: "Ephesians 1:7", clue: "In Christ, believers have this freedom through His blood." },
+  { answer: "TABERNACLE", category: "Bible Vocabulary", reference: "Exodus 25:9", clue: "Israel built this portable sanctuary according to God's pattern." },
+  { answer: "SABBATH", category: "Bible Vocabulary", reference: "Exodus 20:8", clue: "The fourth commandment says to remember and keep this day holy." },
+  { answer: "PENTECOST", category: "Bible Vocabulary", reference: "Acts 2:1", clue: "The Holy Spirit came upon the gathered disciples on this feast day." },
+  { answer: "ATONEMENT", category: "Bible Vocabulary", reference: "Leviticus 16:30", clue: "This describes cleansing and reconciliation from sin." },
+  { answer: "JUSTIFICATION", category: "Bible Vocabulary", reference: "Romans 5:1", clue: "Paul used this concept for being declared righteous through faith." },
+  { answer: "GRACE", category: "Bible Vocabulary", reference: "Ephesians 2:8", clue: "Salvation is God's gift received through faith, not something earned." },
+  { answer: "SALVATION", category: "Bible Vocabulary", reference: "Acts 4:12", clue: "Peter said this is found in no one other than Jesus." },
+  { answer: "MESSIAH", category: "Bible Vocabulary", reference: "John 1:41", clue: "Andrew told Simon that he had found the Christ, the Anointed One." },
+
+  { answer: "SALT OF THE EARTH", category: "Famous Phrases", reference: "Matthew 5:13", clue: "Jesus used this expression for His disciples in the Sermon on the Mount." },
+  { answer: "WRITING ON THE WALL", category: "Famous Phrases", reference: "Daniel 5:5", clue: "A mysterious hand announced judgment during Belshazzar's feast." },
+  { answer: "A HOUSE DIVIDED", category: "Famous Phrases", reference: "Mark 3:25", clue: "Jesus said a household split against itself cannot stand." },
+  { answer: "SKIN OF YOUR TEETH", category: "Famous Phrases", reference: "Job 19:20", clue: "Job used this vivid expression while describing his narrow survival." },
+  { answer: "AN EYE FOR AN EYE", category: "Famous Phrases", reference: "Exodus 21:24", clue: "This legal expression appears in the law given to Israel." },
+  { answer: "NOTHING NEW UNDER THE SUN", category: "Famous Phrases", reference: "Ecclesiastes 1:9", clue: "Ecclesiastes uses this line to describe life's repeating patterns." },
+  { answer: "A THORN IN THE FLESH", category: "Famous Phrases", reference: "2 Corinthians 12:7", clue: "Paul used this expression for a persistent affliction that kept him humble." },
+  { answer: "BLIND LEADING THE BLIND", category: "Famous Phrases", reference: "Matthew 15:14", clue: "Jesus warned that both guide and follower would fall into a pit." },
+  { answer: "BY THE SWEAT OF YOUR BROW", category: "Famous Phrases", reference: "Genesis 3:19", clue: "This expression comes from God's words about the hardship of work." },
+  { answer: "GO THE EXTRA MILE", category: "Famous Phrases", reference: "Matthew 5:41", clue: "Jesus taught His followers to go farther than someone compels them." },
+
+  { answer: "CREATION OF THE WORLD", category: "Bible Events", reference: "Genesis 1:1", clue: "The Bible opens with God making the heavens and the earth." },
+  { answer: "THE GREAT FLOOD", category: "Bible Events", reference: "Genesis 7:17", clue: "Waters rose while Noah, his family, and the animals were safe in the ark." },
+  { answer: "EXODUS FROM EGYPT", category: "Bible Events", reference: "Exodus 12:41", clue: "The Israelites departed after generations of slavery." },
+  { answer: "PARTING THE RED SEA", category: "Bible Events", reference: "Exodus 14:21", clue: "God opened a path through the water while Moses stretched out his hand." },
+  { answer: "DEDICATION OF THE TEMPLE", category: "Bible Events", reference: "1 Kings 8:63", clue: "Solomon and all Israel celebrated as the new temple was presented to the Lord." },
+  { answer: "ELIJAH TAKEN TO HEAVEN", category: "Bible Events", reference: "2 Kings 2:11", clue: "A chariot of fire appeared before this prophet went up in a whirlwind." },
+  { answer: "DAVID DEFEATS GOLIATH", category: "Bible Events", reference: "1 Samuel 17:50", clue: "A young shepherd overcame the Philistine champion with a sling and stone." },
+  { answer: "BIRTH OF JESUS", category: "Bible Events", reference: "Luke 2:7", clue: "Mary wrapped her firstborn son and laid Him in a manger." },
+  { answer: "THE LAST SUPPER", category: "Bible Events", reference: "Luke 22:14", clue: "Jesus shared the Passover meal with His apostles before His arrest." },
+  { answer: "RESURRECTION OF JESUS", category: "Bible Events", reference: "Matthew 28:6", clue: "The angel announced that Jesus was not in the tomb because He had risen." },
+
+  { answer: "ARK OF THE COVENANT", category: "Objects & Things", reference: "Exodus 25:10", clue: "This sacred chest was built to hold the testimony of God's covenant." },
+  { answer: "BURNING BUSH", category: "Objects & Things", reference: "Exodus 3:2", clue: "Moses saw flames in this plant, yet it was not consumed." },
+  { answer: "BRONZE SERPENT", category: "Objects & Things", reference: "Numbers 21:9", clue: "Moses lifted this object so bitten Israelites could look and live." },
+  { answer: "TEN COMMANDMENTS", category: "Objects & Things", reference: "Exodus 34:28", clue: "God's covenant words were written on two stone tablets." },
+  { answer: "JACOB'S LADDER", category: "Objects & Things", reference: "Genesis 28:12", clue: "Jacob dreamed of this reaching from earth toward heaven." },
+  { answer: "NOAH'S ARK", category: "Objects & Things", reference: "Genesis 6:14", clue: "God told Noah to build this vessel from gopher wood." },
+  { answer: "GOLDEN CALF", category: "Objects & Things", reference: "Exodus 32:4", clue: "The Israelites worshiped this idol while Moses was on the mountain." },
+  { answer: "CROWN OF THORNS", category: "Objects & Things", reference: "Matthew 27:29", clue: "Roman soldiers twisted this together and placed it on Jesus' head." },
+  { answer: "THIRTY PIECES OF SILVER", category: "Objects & Things", reference: "Matthew 26:15", clue: "Judas agreed to betray Jesus for this payment." },
+  { answer: "DAVID'S SLING", category: "Objects & Things", reference: "1 Samuel 17:40", clue: "The young shepherd carried this weapon when he approached Goliath." },
+
+  { answer: "WATER INTO WINE", category: "Miracles", reference: "John 2:9", clue: "At a wedding in Cana, Jesus transformed the contents of six stone jars." },
+  { answer: "WALKING ON WATER", category: "Miracles", reference: "Matthew 14:25", clue: "Jesus came to the disciples' boat during the night in this extraordinary way." },
+  { answer: "FEEDING THE FIVE THOUSAND", category: "Miracles", reference: "Matthew 14:21", clue: "Jesus satisfied a vast crowd with a small supply of bread and fish." },
+  { answer: "CALMING THE STORM", category: "Miracles", reference: "Mark 4:39", clue: "Jesus rebuked the wind and told the sea to be still." },
+  { answer: "RAISING LAZARUS", category: "Miracles", reference: "John 11:44", clue: "Jesus called His friend out of the tomb after four days." },
+  { answer: "HEALING THE BLIND MAN", category: "Miracles", reference: "John 9:7", clue: "After washing in the Pool of Siloam, this man came back seeing." },
+  { answer: "MIRACULOUS CATCH OF FISH", category: "Miracles", reference: "Luke 5:6", clue: "At Jesus' direction, the fishermen enclosed so many fish their nets began to tear." },
+  { answer: "HEALING THE TEN LEPERS", category: "Miracles", reference: "Luke 17:14", clue: "Ten men were cleansed as they went to show themselves to the priests." },
+  { answer: "COIN IN THE FISH", category: "Miracles", reference: "Matthew 17:27", clue: "Peter found money for the temple tax in an unexpected place." },
+  { answer: "HEALING THE PARALYTIC", category: "Miracles", reference: "Mark 2:11", clue: "Jesus told this man to rise, take his mat, and go home." },
+
+  { answer: "LET THERE BE LIGHT", category: "Bible Quotes", reference: "Genesis 1:3", clue: "God spoke these words on the first day of creation." },
+  { answer: "AM I MY BROTHER'S KEEPER", category: "Bible Quotes", reference: "Genesis 4:9", clue: "Cain asked this question after God confronted him about Abel." },
+  { answer: "THE LORD IS MY SHEPHERD", category: "Bible Quotes", reference: "Psalm 23:1", clue: "This beloved psalm opens with a picture of God's personal care." },
+  { answer: "BE STILL AND KNOW", category: "Bible Quotes", reference: "Psalm 46:10", clue: "This invitation calls people to recognize that the Lord is God." },
+  { answer: "CREATE IN ME A CLEAN HEART", category: "Bible Quotes", reference: "Psalm 51:10", clue: "David prayed these words while asking God for inner renewal." },
+  { answer: "TRUST IN THE LORD", category: "Bible Quotes", reference: "Proverbs 3:5", clue: "This wisdom saying continues by warning against leaning on your own understanding." },
+  { answer: "HERE I AM SEND ME", category: "Bible Quotes", reference: "Isaiah 6:8", clue: "Isaiah answered God's call with this willing response." },
+  { answer: "FOR GOD SO LOVED THE WORLD", category: "Bible Quotes", reference: "John 3:16", clue: "This familiar line introduces God's gift of His only Son." },
+  { answer: "THE TRUTH WILL SET YOU FREE", category: "Bible Quotes", reference: "John 8:32", clue: "Jesus connected knowing the truth with genuine freedom." },
+  { answer: "PRAY WITHOUT CEASING", category: "Bible Quotes", reference: "1 Thessalonians 5:17", clue: "Paul gave this brief instruction about continual prayer." },
+
+  { answer: "THE SOWER", category: "Parables", reference: "Matthew 13:3", clue: "Seed fell on several kinds of soil in this teaching story." },
+  { answer: "THE MUSTARD SEED", category: "Parables", reference: "Matthew 13:31", clue: "Jesus compared the kingdom of heaven to a tiny seed that becomes large." },
+  { answer: "THE GOOD SAMARITAN", category: "Parables", reference: "Luke 10:30", clue: "A compassionate traveler cared for a man attacked by robbers." },
+  { answer: "THE PRODIGAL SON", category: "Parables", reference: "Luke 15:11", clue: "A father welcomed home the younger son who had wasted his inheritance." },
+  { answer: "THE LOST SHEEP", category: "Parables", reference: "Luke 15:4", clue: "A shepherd left ninety-nine to search for the one that wandered away." },
+  { answer: "THE LOST COIN", category: "Parables", reference: "Luke 15:8", clue: "A woman searched carefully and celebrated when she found one missing coin." },
+  { answer: "THE TEN VIRGINS", category: "Parables", reference: "Matthew 25:1", clue: "Five attendants were wise and prepared with oil for their lamps." },
+  { answer: "THE TALENTS", category: "Parables", reference: "Matthew 25:14", clue: "Servants were entrusted with different amounts while their master traveled." },
+  { answer: "THE RICH FOOL", category: "Parables", reference: "Luke 12:16", clue: "A wealthy man built larger barns but was not rich toward God." },
+  { answer: "THE WISE BUILDER", category: "Parables", reference: "Matthew 7:24", clue: "Jesus compared the person who obeys His words to someone building on rock." },
+
+  { answer: "LAMB OF GOD", category: "Titles of Jesus", reference: "John 1:29", clue: "John the Baptist used this title when Jesus approached him." },
+  { answer: "SON OF MAN", category: "Titles of Jesus", reference: "Matthew 8:20", clue: "Jesus often used this title when speaking about Himself." },
+  { answer: "PRINCE OF PEACE", category: "Titles of Jesus", reference: "Isaiah 9:6", clue: "Isaiah included this royal title in his prophecy of the coming child." },
+  { answer: "GOOD SHEPHERD", category: "Titles of Jesus", reference: "John 10:11", clue: "Jesus used this title when describing the One who lays down His life for the sheep." },
+  { answer: "BREAD OF LIFE", category: "Titles of Jesus", reference: "John 6:35", clue: "Jesus used this title after feeding the crowd." },
+  { answer: "LIGHT OF THE WORLD", category: "Titles of Jesus", reference: "John 8:12", clue: "Jesus promised that whoever follows Him will not walk in darkness." },
+  { answer: "KING OF KINGS", category: "Titles of Jesus", reference: "Revelation 19:16", clue: "This supreme royal title is written on the victorious rider." },
+  { answer: "ALPHA AND OMEGA", category: "Titles of Jesus", reference: "Revelation 22:13", clue: "This title uses the first and last letters of the Greek alphabet." },
+  { answer: "TRUE VINE", category: "Titles of Jesus", reference: "John 15:1", clue: "Jesus used this title while teaching His disciples to remain in Him." },
+  { answer: "IMMANUEL", category: "Titles of Jesus", reference: "Matthew 1:23", clue: "This prophetic name means God with us." },
+
+  { answer: "MANNA AND QUAIL", category: "Food & Animals", reference: "Exodus 16:13", clue: "God provided these foods for Israel in the wilderness." },
+  { answer: "BREAD AND FISH", category: "Food & Animals", reference: "John 21:13", clue: "The risen Jesus served this breakfast to His disciples beside the sea." },
+  { answer: "MILK AND HONEY", category: "Food & Animals", reference: "Exodus 3:8", clue: "God described the promised land as flowing with these foods." },
+  { answer: "LOCUSTS AND WILD HONEY", category: "Food & Animals", reference: "Matthew 3:4", clue: "John the Baptist ate this unusual wilderness diet." },
+  { answer: "PASSOVER LAMB", category: "Food & Animals", reference: "Exodus 12:3", clue: "Each Israelite household selected this animal before leaving Egypt." },
+  { answer: "FATTENED CALF", category: "Food & Animals", reference: "Luke 15:23", clue: "The welcoming father prepared this for the celebration when his son returned." },
+  { answer: "RAVENS FEED ELIJAH", category: "Food & Animals", reference: "1 Kings 17:6", clue: "These birds brought bread and meat to the prophet by the brook." },
+  { answer: "BALAAM'S DONKEY", category: "Food & Animals", reference: "Numbers 22:28", clue: "God opened this animal's mouth after it saw the angel in the road." },
+  { answer: "DOVE WITH AN OLIVE LEAF", category: "Food & Animals", reference: "Genesis 8:11", clue: "This returning bird showed Noah that the floodwaters were receding." },
+  { answer: "GREAT FISH", category: "Food & Animals", reference: "Jonah 1:17", clue: "The Lord appointed this creature to swallow Jonah." },
+];
 
 const hiddenWordPeople = new Set([
   "ABRAHAM", "ISAAC", "JACOB", "JOSEPH", "MOSES", "JOSHUA", "RUTH", "DAVID", "SOLOMON", "ELIJAH",
@@ -10398,10 +10550,39 @@ const hiddenWordPlaces = new Set([
 
 function hiddenWordCategory(word) {
   const normalized = normalizeWordSearchWord(word);
-  if (hiddenWordPeople.has(normalized)) return "Person or name";
-  if (hiddenWordPlaces.has(normalized)) return "Place";
-  if (books.some((book) => normalizeWordSearchWord(book) === normalized)) return "Book of the Bible";
-  return "Bible word or idea";
+  if (hiddenWordPeople.has(normalized)) return "People";
+  if (hiddenWordPlaces.has(normalized)) return "Places";
+  if (books.some((book) => normalizeWordSearchWord(book) === normalized)) return "Books of the Bible";
+  return "Bible Vocabulary";
+}
+
+function hiddenWordAnswerLetters(answer) {
+  return [...String(answer || "").toUpperCase()].filter((character) => /^[A-Z]$/.test(character));
+}
+
+function hiddenWordCatalogCandidates() {
+  return hiddenWordPuzzleCatalog.slice();
+}
+
+function hiddenWordSelectCatalogPuzzles(count) {
+  const groups = new Map(hiddenWordCategories.map((category) => [
+    category,
+    shuffleItems(hiddenWordPuzzleCatalog.filter((puzzle) => puzzle.category === category)),
+  ]));
+  const categoryOrder = shuffleItems(hiddenWordCategories);
+  const selected = [];
+  while (selected.length < count) {
+    let added = false;
+    categoryOrder.forEach((category) => {
+      if (selected.length >= count) return;
+      const candidate = groups.get(category)?.shift();
+      if (!candidate) return;
+      selected.push(candidate);
+      added = true;
+    });
+    if (!added) break;
+  }
+  return selected;
 }
 
 function hiddenWordPassageCandidates(pack, version, difficulty, preferredWords = []) {
@@ -12030,7 +12211,7 @@ function triviaView() {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
     return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
-  const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : isHiddenWord ? "words" : "questions";
+  const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : isHiddenWord ? "puzzles" : "questions";
   const countValues = isBookSprint ? bookSprintRoundLengths : triviaRoundLengths;
   const selectedCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
   const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
@@ -12059,7 +12240,7 @@ function triviaView() {
       ? puzzleEvaluation.pack
         ? `${puzzlePassageLabel(puzzleEvaluation.pack)} ${translationDisplayCode(puzzleEvaluation.version)}`
         : "Choose passage"
-      : isWordSearch || isCrossword || isHiddenWord ? "Surprise passage" : "",
+      : isHiddenWord ? "Curated categories" : isWordSearch || isCrossword ? "Surprise passage" : "",
     isWordSearch || isCrossword || isHiddenWord ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
@@ -12086,7 +12267,7 @@ function triviaView() {
             : isCrossword
               ? "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
               : isHiddenWord
-                ? "Guess Scripture words one letter at a time as the passage unfolds."
+                ? "Solve Wheel of Fortune–style Bible words and phrases. Every puzzle starts with a familiar category and source passage."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : state.triviaGame?.type === "hidden-word" ? "Hidden Word" : "";
   return `
@@ -12242,7 +12423,7 @@ function triviaView() {
                         <small id="puzzleSetupBestAssist" ${hiddenWordBest?.hintCount ? "" : "hidden"}>${hiddenWordBest?.hintCount ? `* Assisted with ${hiddenWordBest.hintCount} ${hiddenWordBest.hintCount === 1 ? "hint" : "hints"}` : ""}</small>
                       </div>
                     </div>
-                    <p class="word-search-solo-note">Hidden Word is a solo Scripture word game.</p>
+                    <p class="word-search-solo-note">Hidden Word is a solo Bible word-and-phrase game.</p>
                   ` : ""}
                 </div>
               </aside>
@@ -12778,7 +12959,8 @@ function hiddenWordCurrentRound(game = state.triviaGame) {
 
 function hiddenWordIsSolved(round) {
   const guessed = new Set(round?.guessedLetters || []);
-  return Boolean(round?.word && [...round.word].every((letter) => guessed.has(letter)));
+  const letters = hiddenWordAnswerLetters(round?.word);
+  return Boolean(letters.length && letters.every((letter) => guessed.has(letter)));
 }
 
 function hiddenWordHintsRemaining(game = state.triviaGame) {
@@ -12789,17 +12971,30 @@ function hiddenWordHintsRemaining(game = state.triviaGame) {
 function hiddenWordHintOptions(game = state.triviaGame) {
   const used = new Set(game?.usedHintTypes || []);
   return [
-    { type: "context", label: "Scripture Context", description: "Read the verse with the hidden word blanked out." },
+    { type: "context", label: "Bible Clue", description: "Read a short clue tied to the source passage." },
     { type: "letter", label: "Reveal a Letter", description: "Uncover one useful unguessed letter." },
   ].filter((hint) => !used.has(hint.type));
 }
 
 function hiddenWordDisplayMarkup(round) {
   const guessed = new Set(round.guessedLetters || []);
-  return [...round.word].map((letter, index) => {
-    const revealed = guessed.has(letter) || round.complete;
-    return `<span class="hidden-word-letter ${revealed ? "is-revealed" : ""} ${round.hintedLetters?.includes(letter) ? "is-hint" : ""}" aria-label="${revealed ? letter : `Blank ${index + 1}`}">${revealed ? escapeHtml(letter) : ""}</span>`;
-  }).join("");
+  let letterIndex = 0;
+  return String(round.word || "").split(/\s+/).filter(Boolean).map((term) => `
+    <span class="hidden-word-term">
+      ${[...term].map((character) => {
+        if (!/^[A-Z]$/.test(character)) {
+          return `<span class="hidden-word-punctuation" aria-hidden="true">${escapeHtml(character)}</span>`;
+        }
+        letterIndex += 1;
+        const revealed = guessed.has(character) || round.complete;
+        return `<span class="hidden-word-letter ${revealed ? "is-revealed" : ""} ${round.hintedLetters?.includes(character) ? "is-hint" : ""}" aria-label="${revealed ? character : `Blank ${letterIndex}`}">${revealed ? escapeHtml(character) : ""}</span>`;
+      }).join("")}
+    </span>
+  `).join("");
+}
+
+function hiddenWordContextText(round) {
+  return round?.clue || hiddenWordMaskedVerse(round?.verse, round?.word);
 }
 
 function hiddenWordHintsMarkup(game, round) {
@@ -12841,25 +13036,30 @@ function hiddenWordGameView(game) {
   const attemptsLeft = Math.max(0, round.maxMisses - misses);
   const progress = Math.min(100, Math.round((misses / round.maxMisses) * 100));
   const alphabetRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+  const answerLetters = hiddenWordAnswerLetters(round.word);
+  const answerTerms = String(round.word || "").trim().split(/\s+/).filter(Boolean);
+  const wordCount = answerTerms.length;
+  const longestTerm = Math.max(...answerTerms.map((term) => hiddenWordAnswerLetters(term).length), 1);
+  const answerKind = wordCount > 1 ? "phrase" : "word";
   return `
     <div class="trivia-game hidden-word-game ${round.complete ? "is-round-complete" : ""}">
       <div class="trivia-progress">
         <span>Hidden Word · ${escapeHtml(game.difficulty)}</span>
-        <strong>Word ${game.index + 1} / ${game.rounds.length}</strong>
+        <strong>Puzzle ${game.index + 1} / ${game.rounds.length}</strong>
       </div>
       <div class="hidden-word-layout">
         <section class="hidden-word-stage" aria-labelledby="hiddenWordPrompt">
-          <div class="hidden-word-source" aria-label="Word category and source passage">
+          <div class="hidden-word-source" aria-label="Puzzle category and source passage">
             <span>Category</span>
             <strong>${escapeHtml(round.category)}</strong>
             <i aria-hidden="true"></i>
             <span>From</span>
-            <strong>${escapeHtml(round.passageReference)} · ${translationDisplayCode(game.version)}</strong>
+            <strong>${escapeHtml(round.passageReference)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</strong>
           </div>
           <div class="hidden-word-scroll" style="--hidden-word-progress:${progress}%">
             <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
             <div class="hidden-word-scroll-paper">
-              <span>${round.complete ? round.solved ? "Word revealed" : "Scroll revealed" : "Unroll the Scripture clue"}</span>
+              <span>${round.complete ? round.solved ? "Puzzle solved" : "Answer revealed" : "Reveal the Bible puzzle"}</span>
               <strong>${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left</strong>
               <div class="hidden-word-scroll-track" aria-label="${misses} of ${round.maxMisses} incorrect attempts">
                 ${Array.from({ length: round.maxMisses }, (_, index) => `<i class="${index < misses ? "is-open" : ""}"></i>`).join("")}
@@ -12867,14 +13067,14 @@ function hiddenWordGameView(game) {
             </div>
             <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
           </div>
-          <h2 class="sr-only" id="hiddenWordPrompt">Guess the hidden ${round.word.length}-letter Bible word</h2>
-          <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${round.word.length}-letter hidden word. Tap to use the device keyboard." style="--hidden-word-length:${round.word.length}" ${round.complete ? "disabled" : ""}>
+          <h2 class="sr-only" id="hiddenWordPrompt">Guess the hidden ${answerLetters.length}-letter Bible ${answerKind}</h2>
+          <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${answerLetters.length}-letter hidden ${answerKind}. Tap to use the device keyboard." style="--hidden-word-length:${answerLetters.length};--hidden-word-longest-term:${longestTerm}" ${round.complete ? "disabled" : ""}>
             ${hiddenWordDisplayMarkup(round)}
           </button>
           <p class="word-search-status hidden-word-status" id="hiddenWordStatus" role="status" aria-live="polite">${escapeHtml(round.lastMessage)}</p>
           ${round.contextRevealed ? `
             <div class="hidden-word-clues" aria-label="Revealed hints">
-              ${round.contextRevealed ? `<p><span>Scripture context</span><strong>“${escapeHtml(hiddenWordMaskedVerse(round.verse, round.word))}”</strong></p>` : ""}
+              ${round.contextRevealed ? `<p><span>Bible clue</span><strong>${escapeHtml(hiddenWordContextText(round))}</strong></p>` : ""}
             </div>
           ` : ""}
         </section>
@@ -12887,24 +13087,24 @@ function hiddenWordGameView(game) {
           <button class="text-btn hidden-word-device-keyboard" id="hiddenWordDeviceKeyboard" type="button" ${round.complete ? "disabled" : ""}>Use device keyboard</button>
           <input class="hidden-word-native-input" id="hiddenWordNativeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Type Hidden Word letters" ${round.complete ? "disabled" : ""} />
           <div class="hidden-word-misses" aria-label="Incorrect letters">
-            <span>Not in this word</span>
+            <span>Not in this puzzle</span>
             <strong>${round.missedLetters.length ? round.missedLetters.join(" · ") : "None yet"}</strong>
           </div>
         </section>
       </div>
       ${round.complete ? `
         <div class="trivia-feedback ${round.solved ? "correct" : "incorrect"}">
-          <strong>${round.solved ? `You found ${escapeHtml(round.word)}!` : `The word was ${escapeHtml(round.word)}.`}</strong>
-          <p>“${escapeHtml(round.verse.text)}”</p>
+          <strong>${round.solved ? `You solved ${escapeHtml(round.word)}!` : `The answer was ${escapeHtml(round.word)}.`}</strong>
+          <p>${escapeHtml(round.clue || round.verse.text)}</p>
           <div class="trivia-reference">
-            <span>${escapeHtml(round.referenceLabel)} · ${translationDisplayCode(game.version)}</span>
+            <span>${escapeHtml(round.referenceLabel)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</span>
             <button class="text-btn" id="openTriviaReference" type="button">Read in Bible</button>
           </div>
         </div>
         <div class="trivia-actions">
           ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>
-          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.rounds.length - 1 ? "Finish round" : "Next word"}</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.rounds.length - 1 ? "Finish round" : "Next puzzle"}</button>
         </div>
       ` : `
         ${hiddenWordHintsMarkup(game, round)}
@@ -13255,7 +13455,7 @@ function triviaResultsView(game) {
       : game.type === "who-said-it"
           ? `You identified ${game.score} of ${roundLength} speakers correctly.`
           : game.type === "hidden-word"
-            ? `You revealed ${game.score} of ${roundLength} Scripture words${game.hintCount ? ` with ${game.hintCount} ${game.hintCount === 1 ? "hint" : "hints"}` : " without hints"}.`
+            ? `You solved ${game.score} of ${roundLength} Bible puzzles${game.hintCount ? ` with ${game.hintCount} ${game.hintCount === 1 ? "hint" : "hints"}` : " without hints"}.`
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
     <div class="trivia-results ${perfect ? "perfect" : ""}">
@@ -13421,7 +13621,7 @@ function triviaScoreLabel() {
       return `${config.wordCount} words`;
     }
     if (state.triviaGameType === "crossword") return `${crosswordDifficultyConfig(state.triviaDifficulty).entryCount} clues`;
-    if (state.triviaGameType === "hidden-word") return `${normalizedTriviaCount("hidden-word", state.triviaCount)} words`;
+    if (state.triviaGameType === "hidden-word") return `${normalizedTriviaCount("hidden-word", state.triviaCount)} puzzles`;
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
     if (state.triviaGameType === "reference-rush") return `${referenceRushAvailableCount()} verses`;
     if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, normalizedTriviaCount("book-sprint", state.triviaCount)))}`;
@@ -13443,7 +13643,7 @@ function triviaScoreLabel() {
   if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
   if (state.triviaGame.type === "word-search") return `${state.triviaGame.score} of ${roundLength} found`;
   if (state.triviaGame.type === "crossword") return `${state.triviaGame.score} of ${roundLength} solved`;
-  if (state.triviaGame.type === "hidden-word") return `${state.triviaGame.score} of ${roundLength} revealed${state.triviaGame.hintCount ? "*" : ""}`;
+  if (state.triviaGame.type === "hidden-word") return `${state.triviaGame.score} of ${roundLength} solved${state.triviaGame.hintCount ? "*" : ""}`;
   return `${state.triviaGame.score} correct`;
 }
 
@@ -17148,13 +17348,12 @@ function startHiddenWordGame({ render = true } = {}) {
     ? hiddenWordPassageCandidates(customEvaluation.pack, version, difficulty, customEvaluation.selectedWords)
       .filter((candidate) => customEvaluation.selectedWords.includes(candidate.word))
       .map((candidate) => ({ ...candidate, pack: customEvaluation.pack }))
-    : shuffleItems(orderedWordSearchPassages().flatMap((pack) => (
-      hiddenWordPassageCandidates(pack, version, difficulty).map((candidate) => ({ ...candidate, pack }))
-    )));
+    : hiddenWordSelectCatalogPuzzles(roundCount);
   const seenWords = new Set();
   const selected = candidateRounds.filter((candidate) => {
-    if (seenWords.has(candidate.word)) return false;
-    seenWords.add(candidate.word);
+    const answer = candidate.answer || candidate.word;
+    if (seenWords.has(answer)) return false;
+    seenWords.add(answer);
     return true;
   }).slice(0, roundCount);
   if (selected.length < roundCount) {
@@ -17175,25 +17374,34 @@ function startHiddenWordGame({ render = true } = {}) {
     customPassage,
     difficulty,
     version,
-    category: "Scripture words",
-    rounds: selected.map((candidate) => ({
-      word: candidate.word,
-      verse: candidate.verse,
-      verses: candidate.verses,
-      reference: `${candidate.pack.chapterKey}:${candidate.verse.n}`,
-      referenceLabel: `${candidate.pack.chapterKey}:${candidate.verse.n}`,
-      passageReference: puzzlePassageReference(candidate.pack),
-      guessedLetters: [],
-      missedLetters: [],
-      hintedLetters: [],
-      category: hiddenWordCategory(candidate.word),
-      contextRevealed: false,
-      hintMenuOpen: false,
-      complete: false,
-      solved: false,
-      maxMisses: config.attempts,
-      lastMessage: `${candidate.word.length} letters · choose a letter`,
-    })),
+    category: "Bible puzzles",
+    rounds: selected.map((candidate) => {
+      const curated = Boolean(candidate.answer);
+      const answer = candidate.answer || candidate.word;
+      const reference = candidate.reference || `${candidate.pack.chapterKey}:${candidate.verse.n}`;
+      const letterCount = hiddenWordAnswerLetters(answer).length;
+      const wordCount = String(answer).trim().split(/\s+/).filter(Boolean).length;
+      return {
+        word: answer,
+        verse: candidate.verse || { text: candidate.clue || "", n: Number(String(reference).match(/:(\d+)/)?.[1]) || 1 },
+        verses: candidate.verses,
+        reference,
+        referenceLabel: reference,
+        passageReference: curated ? reference : puzzlePassageReference(candidate.pack),
+        guessedLetters: [],
+        missedLetters: [],
+        hintedLetters: [],
+        category: candidate.category || hiddenWordCategory(candidate.word),
+        clue: candidate.clue || "",
+        curated,
+        contextRevealed: false,
+        hintMenuOpen: false,
+        complete: false,
+        solved: false,
+        maxMisses: config.attempts,
+        lastMessage: `${letterCount} letters${wordCount > 1 ? ` · ${wordCount} words` : ""} · choose a letter`,
+      };
+    }),
     index: 0,
     score: 0,
     hintCount: 0,
@@ -17202,7 +17410,7 @@ function startHiddenWordGame({ render = true } = {}) {
     hiddenWordBest: savedHiddenWordBest(difficulty, roundCount, bestContext),
     ...bestContext,
   };
-  recordWordSearchPassage(selected[0].pack);
+  if (selected[0].pack) recordWordSearchPassage(selected[0].pack);
   if (render) renderPreservingReaderScroll();
 }
 
@@ -19131,9 +19339,9 @@ function finishHiddenWordRound(game, round, solved) {
   state.gamesDrawerOpen = "";
   if (round.solved) {
     game.score += 1;
-    round.lastMessage = `${round.word} revealed. Read it in context below.`;
+    round.lastMessage = `${round.word} solved. Read the Bible clue below.`;
   } else {
-    round.lastMessage = `The scroll opened: ${round.word}. Read it in context below.`;
+    round.lastMessage = `The answer is ${round.word}. Read the Bible clue below.`;
   }
 }
 
@@ -19151,13 +19359,13 @@ function guessHiddenWordLetter(value) {
     round.guessedLetters.push(letter);
     playWordSearchFeedbackSound("found");
     if (hiddenWordIsSolved(round)) finishHiddenWordRound(game, round, true);
-    else round.lastMessage = `${letter} is in the word. Keep going.`;
+    else round.lastMessage = `${letter} is in the puzzle. Keep going.`;
   } else {
     round.missedLetters.push(letter);
     playWordSearchFeedbackSound("miss");
     const attemptsLeft = Math.max(0, round.maxMisses - round.missedLetters.length);
     if (!attemptsLeft) finishHiddenWordRound(game, round, false);
-    else round.lastMessage = `${letter} is not in the word. ${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left.`;
+    else round.lastMessage = `${letter} is not in the puzzle. ${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left.`;
   }
   renderPreservingReaderScroll();
 }
@@ -19173,10 +19381,10 @@ function useHiddenWordHint(type) {
   state.gamesDrawerOpen = "";
   if (type === "context") {
     round.contextRevealed = true;
-    round.lastMessage = "The Scripture context is now visible.";
+    round.lastMessage = "The Bible clue is now visible.";
   } else {
     const guessed = new Set(round.guessedLetters);
-    const candidates = [...new Set(round.word)].filter((letter) => !guessed.has(letter));
+    const candidates = [...new Set(hiddenWordAnswerLetters(round.word))].filter((letter) => !guessed.has(letter));
     const letter = shuffleItems(candidates)[0];
     if (letter) {
       round.guessedLetters.push(letter);
