@@ -411,6 +411,28 @@ function createWordGarden() {
   });
 }
 
+function createUnfoldingMystery() {
+  return createGameTheme({
+    bpm: 94,
+    beats: 64,
+    seed: 0x51c011,
+    chords: [
+      { notes: [45, 52, 57, 60], bass: 33 },
+      { notes: [41, 48, 53, 57], bass: 29 },
+      { notes: [48, 55, 60, 64], bass: 36 },
+      { notes: [43, 50, 55, 59], bass: 31 },
+    ],
+    melody: [76, null, 79, 81, 79, 74, 76, null],
+    energy: 0.5,
+    leadType: "triangle",
+    chordType: "triangle",
+    brightness: 0.34,
+    noiseBed: 0.0028,
+    peak: 0.72,
+    bitDepth: 14,
+  });
+}
+
 function createBrightAnswers() {
   return createGameTheme({
     bpm: 132,
@@ -774,6 +796,7 @@ mkdirSync(outputDir, { recursive: true });
 const tracks = productionMode
   ? [
       encodeTrack("word-garden", createWordGarden()),
+      encodeTrack("unfolding-mystery", createUnfoldingMystery()),
       encodeTrack("still-waters-16bit", createStillWaters()),
       encodeTrack("bright-answers", createBrightAnswers()),
       encodeTrack("ordered-light", createOrderedLight()),

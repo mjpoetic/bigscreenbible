@@ -200,7 +200,7 @@ assert.equal(api.wordSearchSelectionCells(0, 0, 2, 1).length, 0, "Bent selection
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 5, 9) }, { row: 6, column: 4 });
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 6, 9) }, { row: 6, column: 6 });
 
-assert.doesNotMatch(source, /game-new-badge/);
+assert.match(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
 assert.doesNotMatch(source, /aria-label="Crossword, new"/);
 assert.doesNotMatch(source, /aria-label="Word Search, new"/);
 const triviaViewSource = extractFunction("triviaView");
@@ -208,7 +208,7 @@ assert.ok(
   triviaViewSource.indexOf('data-trivia-mode="word-search"') < triviaViewSource.indexOf('data-trivia-mode="trivia"'),
   "Word Search must be first in the Games list",
 );
-assert.match(triviaViewSource, /isWordSearch \? wordSearchDifficulties\(\) : isCrossword \? crosswordDifficulties\(\) : triviaDifficulties\(\)/);
+assert.match(triviaViewSource, /isWordSearch \? wordSearchDifficulties\(\) : isCrossword \? crosswordDifficulties\(\) : isHiddenWord \? hiddenWordDifficulties\(\) : triviaDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startWordSearchGame/);
 const startWordSearchSource = extractFunction("startWordSearchGame");
 assert.match(startWordSearchSource, /orderedWordSearchPassages\(\)/);
@@ -228,7 +228,7 @@ assert.match(extractFunction("wordSearchGameView"), /Best time set/);
 assert.match(extractFunction("puzzleRestartDialog"), /data-puzzle-restart-difficulty/);
 assert.match(extractFunction("openPuzzleRestartPrompt"), /state\.puzzleRestartPromptOpen = true/);
 assert.match(extractFunction("restartPuzzleAtDifficulty"), /startWordSearchGame\(\)/);
-assert.match(source, /\["word-search", "crossword"\]\.includes\(state\.triviaGame\?\.type\)[\s\S]*?openPuzzleRestartPrompt\(\)/);
+assert.match(source, /\["word-search", "crossword", "hidden-word"\]\.includes\(state\.triviaGame\?\.type\)[\s\S]*?openPuzzleRestartPrompt\(\)/);
 assert.match(extractFunction("bindWordSearchGrid"), /pointerdown/);
 assert.match(extractFunction("bindWordSearchGrid"), /keydown/);
 assert.match(extractFunction("handleWordSearchGridKeydown"), /ArrowUp/);
@@ -273,7 +273,7 @@ assert.match(extractFunction("soundsSettings"), /WordSearchSoundsToggle/);
 assert.match(extractFunction("captureCloudSnapshot"), /wordSearchSounds: state\.wordSearchSounds/);
 assert.match(extractFunction("applyCloudSnapshot"), /state\.wordSearchSounds = settings\.wordSearchSounds !== false/);
 
-assert.doesNotMatch(styles, /\.game-new-badge \{/);
+assert.match(styles, /\.game-new-badge \{/);
 assert.match(styles, /\.word-search-grid \{[\s\S]*?touch-action: none;/);
 assert.match(styles, /\.word-search-cell \{[\s\S]*?font-family: "Atkinson Hyperlegible Next"/);
 assert.match(styles, /\.word-search-found-outlines \{[\s\S]*?pointer-events: none;/);

@@ -337,10 +337,13 @@ const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
+const hiddenWordBestStorageKey = "lw_hidden_word_bests";
 const crosswordHintLimit = 3;
+const hiddenWordHintTypes = ["context", "letter"];
 const gameMusicTracks = Object.freeze({
   "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3", volume: 0.15 },
   crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3", volume: 0.14 },
+  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.mp3", volume: 0.14 },
   trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3", volume: 0.14 },
   "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3", volume: 0.14 },
   "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3", volume: 0.13 },
@@ -744,6 +747,7 @@ let activePopupDrag = null;
 let pendingNoteComposerFocus = false;
 
 if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
+if (state.triviaGameType === "hidden-word" && !hiddenWordDifficulties().includes(state.triviaDifficulty)) state.triviaDifficulty = "Medium";
 if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") state.triviaDifficulty = "Hard";
 state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
 
@@ -1022,6 +1026,7 @@ const icons = {
   games: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5c0-1.7 1.3-3 3-3s3 1.3 3 3h4a1 1 0 0 1 1 1v3c1.7 0 3 1.3 3 3s-1.3 3-3 3v4a1 1 0 0 1-1 1h-4c0 1.7-1.3 3-3 3s-3-1.3-3-3H5a1 1 0 0 1-1-1v-4h1.5c1.7 0 3-1.3 3-3s-1.3-3-3-3H4V6a1 1 0 0 1 1-1z"/></svg>',
   wordSearch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="m5.3 18.2 3.4-3.4 3.2 3.2 6.8-7" stroke-width="2.2"/></svg>',
   crossword: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/><path d="M3 3h6v6H3zM15 3h6v6h-6zM9 9h6v6H9zM3 15h6v6H3zM15 15h6v6h-6z" fill="currentColor" stroke="none"/></svg>',
+  hiddenWord: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v16H6z"/><path d="M6 7H3.5V4A2.5 2.5 0 0 1 6 1.5h12A2.5 2.5 0 0 1 20.5 4v3H18M6 17H3.5v3A2.5 2.5 0 0 0 6 22.5h12a2.5 2.5 0 0 0 2.5-2.5v-3H18"/><path d="M9 9h6M9 13h2M13 13h2"/></svg>',
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><path d="M9 8l10-2"/><ellipse cx="6" cy="18" rx="3" ry="2.2"/><ellipse cx="16" cy="16" rx="3" ry="2.2"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
@@ -3094,9 +3099,9 @@ function soundsSettings(prefix = "") {
     <div class="setting-group settings-section-subgroup">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("WordSearchSoundsToggle")}" ${state.wordSearchSounds ? "checked" : ""} />
-        <span>Word Search feedback sounds</span>
+        <span>Word game feedback sounds</span>
       </label>
-      <p class="setting-help">Plays confirmation tones and ticks through the final 10 seconds of a personal-best countdown.</p>
+      <p class="setting-help">Plays letter and word confirmation tones, plus Word Search countdown ticks.</p>
     </div>
   `);
 }
@@ -10034,7 +10039,7 @@ function resetPuzzleCustomWordChoices() {
 }
 
 function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = state.triviaDifficulty) {
-  if (state.puzzlePassageSource !== "custom" || !["word-search", "crossword"].includes(gameType)) {
+  if (state.puzzlePassageSource !== "custom" || !["word-search", "crossword", "hidden-word"].includes(gameType)) {
     return { custom: false, valid: true, title: "Surprise passage", message: "A passage will be selected for you." };
   }
   const pack = parsePuzzlePassageReference(state.puzzleCustomReference);
@@ -10064,9 +10069,20 @@ function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = s
     };
   }
   const verses = wordSearchPassageVerses(pack, version);
-  const config = gameType === "crossword" ? crosswordDifficultyConfig(difficulty) : wordSearchDifficultyConfig(difficulty);
-  const required = gameType === "crossword" ? config.entryCount : config.wordCount;
-  const candidates = customPuzzleCandidateWords(verses, config.size);
+  const config = gameType === "crossword"
+    ? crosswordDifficultyConfig(difficulty)
+    : gameType === "hidden-word"
+      ? hiddenWordDifficultyConfig(difficulty)
+      : wordSearchDifficultyConfig(difficulty);
+  const required = gameType === "crossword"
+    ? config.entryCount
+    : gameType === "hidden-word"
+      ? normalizedTriviaCount("hidden-word", state.triviaCount)
+      : config.wordCount;
+  const candidates = customPuzzleCandidateWords(verses, config.size).filter((word) => (
+    gameType !== "hidden-word"
+    || (word.length >= config.minLength && word.length <= config.maxLength)
+  ));
   const defaultCount = gameType === "crossword"
     ? candidates.length
     : Math.min(candidates.length, required);
@@ -10108,7 +10124,9 @@ function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = s
       title: "Review your words",
       message: gameType === "crossword"
         ? `Select at least ${required} words so ${required} connected entries can be built.`
-        : `Select exactly ${required} words for this ${difficulty} grid.`,
+        : gameType === "hidden-word"
+          ? `Select exactly ${required} words for this round.`
+          : `Select exactly ${required} words for this ${difficulty} grid.`,
     };
   }
   return {
@@ -10124,7 +10142,9 @@ function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = s
     title: "Ready to create",
     message: gameType === "crossword"
       ? `${passageLabel} has ${candidates.length} usable words. The puzzle will place ${required} connected entries.`
-      : `${passageLabel} has ${candidates.length} usable words. This grid will hide ${required}.`,
+      : gameType === "hidden-word"
+        ? `${passageLabel} has ${candidates.length} usable words. This round will use ${required}.`
+        : `${passageLabel} has ${candidates.length} usable words. This grid will hide ${required}.`,
   };
 }
 
@@ -10241,19 +10261,29 @@ function updatePuzzleCreatorDom() {
   }
   const bestLabel = document.getElementById("puzzleSetupBestLabel");
   const bestValue = document.getElementById("puzzleSetupBestValue");
-  if (bestLabel) bestLabel.textContent = evaluation.reference ? "Best for this passage" : `Best ${state.triviaDifficulty} time`;
+  if (bestLabel) bestLabel.textContent = evaluation.reference
+    ? "Best for this passage"
+    : state.triviaGameType === "hidden-word"
+      ? `Best ${state.triviaDifficulty} score`
+      : `Best ${state.triviaDifficulty} time`;
   if (bestValue) {
     const context = puzzleCreatorBestContext(evaluation);
     const best = state.triviaGameType === "crossword"
       ? savedCrosswordBest(state.triviaDifficulty, context)
-      : savedWordSearchBest(state.triviaDifficulty, context);
+      : state.triviaGameType === "hidden-word"
+        ? savedHiddenWordBest(state.triviaDifficulty, normalizedTriviaCount("hidden-word", state.triviaCount), context)
+        : savedWordSearchBest(state.triviaDifficulty, context);
     bestValue.textContent = best
-      ? state.triviaGameType === "crossword" ? formatCrosswordBestTime(best) : formatGameTime(best.elapsedMs)
+      ? state.triviaGameType === "crossword"
+        ? formatCrosswordBestTime(best)
+        : state.triviaGameType === "hidden-word"
+          ? `${best.score} of ${normalizedTriviaCount("hidden-word", state.triviaCount)}`
+          : formatGameTime(best.elapsedMs)
       : "No best yet";
     const bestAssist = document.getElementById("puzzleSetupBestAssist");
     if (bestAssist) {
       bestAssist.hidden = !best?.hintCount;
-      bestAssist.textContent = best?.hintCount ? `* Assisted with ${best.hintCount} letter ${best.hintCount === 1 ? "hint" : "hints"}` : "";
+      bestAssist.textContent = best?.hintCount ? `* Assisted with ${best.hintCount} ${state.triviaGameType === "crossword" ? "letter " : ""}${best.hintCount === 1 ? "hint" : "hints"}` : "";
     }
   }
 }
@@ -10332,6 +10362,103 @@ function wordSearchDifficultyDescription(difficulty) {
     Hard: `${config.size}×${config.size} · ${config.wordCount} words · more diagonal and backward`,
     Expert: `${config.size}×${config.size} · ${config.wordCount} words · mostly diagonal and backward`,
   }[difficulty] || `${config.size}×${config.size} · ${config.wordCount} words`;
+}
+
+function hiddenWordDifficultyConfig(difficulty = state.triviaDifficulty) {
+  return {
+    Easy: { size: 8, minLength: 4, maxLength: 7, attempts: 8 },
+    Medium: { size: 11, minLength: 5, maxLength: 10, attempts: 7 },
+    Hard: { size: 15, minLength: 6, maxLength: 15, attempts: 6 },
+    All: { size: 11, minLength: 5, maxLength: 10, attempts: 7 },
+  }[difficulty] || { size: 11, minLength: 5, maxLength: 10, attempts: 7 };
+}
+
+function hiddenWordDifficulties() {
+  return ["Easy", "Medium", "Hard"];
+}
+
+function hiddenWordDifficultyDescription(difficulty) {
+  const config = hiddenWordDifficultyConfig(difficulty);
+  return {
+    Easy: `Familiar words · ${config.attempts} attempts`,
+    Medium: `Broader Bible vocabulary · ${config.attempts} attempts`,
+    Hard: `Longer names and words · ${config.attempts} attempts`,
+  }[difficulty] || `${config.attempts} attempts`;
+}
+
+const hiddenWordPeople = new Set([
+  "ABRAHAM", "ISAAC", "JACOB", "JOSEPH", "MOSES", "JOSHUA", "RUTH", "DAVID", "SOLOMON", "ELIJAH",
+  "ISAIAH", "JEREMIAH", "DANIEL", "JONAH", "MARY", "JOSEPH", "JESUS", "PETER", "PAUL", "TIMOTHY",
+  "SHADRACH", "MESHACH", "ABEDNEGO",
+]);
+const hiddenWordPlaces = new Set([
+  "CANAAN", "EGYPT", "JERUSALEM", "GALILEE", "BETHLEHEM", "NAZARETH", "MORIAH", "JORDAN", "EDEN",
+  "JERICHO", "SAMARIA", "ROME", "CORINTH", "EPHESUS", "PHILIPPI",
+]);
+
+function hiddenWordCategory(word) {
+  const normalized = normalizeWordSearchWord(word);
+  if (hiddenWordPeople.has(normalized)) return "Person or name";
+  if (hiddenWordPlaces.has(normalized)) return "Place";
+  if (books.some((book) => normalizeWordSearchWord(book) === normalized)) return "Book of the Bible";
+  return "Bible word or idea";
+}
+
+function hiddenWordPassageCandidates(pack, version, difficulty, preferredWords = []) {
+  const config = hiddenWordDifficultyConfig(difficulty);
+  const verses = wordSearchPassageVerses(pack, version);
+  const tokens = verses.flatMap((verse) => verse.text.match(/[A-Za-z]+/g) || []).map(normalizeWordSearchWord);
+  const tokenSet = new Set(tokens);
+  const preferred = uniqueList((preferredWords.length ? preferredWords : pack.words || [])
+    .map(normalizeWordSearchWord))
+    .filter((word) => tokenSet.has(word));
+  const fallback = uniqueList(tokens).filter((word) => !customPuzzleStopWords.has(word.toLowerCase()));
+  const eligible = uniqueList([...preferred, ...fallback]).filter((word) => (
+    word.length >= config.minLength && word.length <= config.maxLength
+  ));
+  return eligible.map((word) => {
+    const pattern = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
+    const verse = verses.find((item) => pattern.test(item.text));
+    return verse ? { word, verse, verses } : null;
+  }).filter(Boolean);
+}
+
+function hiddenWordMaskedVerse(verse, word) {
+  if (!verse?.text || !word) return "";
+  return verse.text.replace(new RegExp(`\\b${escapeRegExp(word)}\\b`, "gi"), "_____");
+}
+
+function savedHiddenWordBests() {
+  try {
+    const bests = JSON.parse(localStorage.getItem(hiddenWordBestStorageKey) || "{}");
+    return bests && typeof bests === "object" ? bests : {};
+  } catch {
+    return {};
+  }
+}
+
+function savedHiddenWordBest(difficulty, roundCount, context = {}) {
+  return savedHiddenWordBests()[`${puzzleBestKey(difficulty, context)}:${roundCount}`] || null;
+}
+
+function recordHiddenWordBest(game) {
+  const key = `${puzzleBestKey(game.difficulty, game)}:${game.rounds.length}`;
+  const bests = savedHiddenWordBests();
+  const result = {
+    score: Number(game.score) || 0,
+    hintCount: Number(game.hintCount) || 0,
+    misses: (game.rounds || []).reduce((total, round) => total + (round.missedLetters?.length || 0), 0),
+  };
+  const previous = bests[key];
+  const isNewBest = !previous
+    || result.score > previous.score
+    || (result.score === previous.score && result.hintCount < previous.hintCount)
+    || (result.score === previous.score && result.hintCount === previous.hintCount && result.misses < previous.misses);
+  if (isNewBest) {
+    bests[key] = result;
+    localStorage.setItem(hiddenWordBestStorageKey, JSON.stringify(bests));
+  }
+  return { best: isNewBest ? result : previous, isNewBest, hadPrevious: Boolean(previous) };
 }
 
 function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
@@ -11693,7 +11820,7 @@ function setGamesDrawer(drawer = "") {
 }
 
 function openPuzzleRestartPrompt() {
-  if (!["word-search", "crossword"].includes(state.triviaGame?.type)) return;
+  if (!["word-search", "crossword", "hidden-word"].includes(state.triviaGame?.type)) return;
   state.gamesDrawerOpen = "";
   state.puzzleRestartPromptOpen = true;
   renderPreservingReaderScroll();
@@ -11716,8 +11843,8 @@ function closePuzzleRestartPrompt() {
 function restartPuzzleAtDifficulty(difficulty) {
   const currentGame = state.triviaGame;
   const gameType = currentGame?.type;
-  const difficulties = gameType === "crossword" ? crosswordDifficulties() : wordSearchDifficulties();
-  if (!["word-search", "crossword"].includes(gameType) || !difficulties.includes(difficulty)) return;
+  const difficulties = gameType === "crossword" ? crosswordDifficulties() : gameType === "hidden-word" ? hiddenWordDifficulties() : wordSearchDifficulties();
+  if (!["word-search", "crossword", "hidden-word"].includes(gameType) || !difficulties.includes(difficulty)) return;
   state.puzzleRestartPromptOpen = false;
   state.triviaDifficulty = difficulty;
   state.puzzlePassageSource = currentGame.customPassage ? "custom" : "random";
@@ -11731,6 +11858,7 @@ function restartPuzzleAtDifficulty(difficulty) {
   scheduleCloudSync();
   requestGameMusicRestart();
   if (gameType === "crossword") startCrosswordGame();
+  else if (gameType === "hidden-word") startHiddenWordGame();
   else startWordSearchGame();
 }
 
@@ -11803,6 +11931,10 @@ function activeGameHintContext() {
   const game = state.triviaGame;
   if (!game || game.complete) return null;
   if (game.type === "crossword") return crosswordHintsRemaining(game) && crosswordRevealCandidate(game) ? game : null;
+  if (game.type === "hidden-word") {
+    const round = hiddenWordCurrentRound(game);
+    return round && !round.complete && hiddenWordHintOptions(game).length ? round : null;
+  }
   if (game.type === "reference-rush") {
     const puzzle = game.puzzles?.[game.index];
     return puzzle && puzzle.selectedReference === null ? puzzle : null;
@@ -11890,20 +12022,21 @@ function triviaView() {
   const isWhoSaidIt = state.triviaGameType === "who-said-it";
   const isWordSearch = state.triviaGameType === "word-search";
   const isCrossword = state.triviaGameType === "crossword";
+  const isHiddenWord = state.triviaGameType === "hidden-word";
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const difficultyOptions = (isWordSearch ? wordSearchDifficulties() : isCrossword ? crosswordDifficulties() : triviaDifficulties()).map((difficulty) => {
+  const difficultyOptions = (isWordSearch ? wordSearchDifficulties() : isCrossword ? crosswordDifficulties() : isHiddenWord ? hiddenWordDifficulties() : triviaDifficulties()).map((difficulty) => {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
     return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
-  const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : "questions";
+  const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : isHiddenWord ? "words" : "questions";
   const countValues = isBookSprint ? bookSprintRoundLengths : triviaRoundLengths;
   const selectedCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
   const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
-  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : isCrossword ? "Crossword" : "Bible Trivia";
+  const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : isCrossword ? "Crossword" : isHiddenWord ? "Hidden Word" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
-  const puzzleEvaluation = isWordSearch || isCrossword
+  const puzzleEvaluation = isWordSearch || isCrossword || isHiddenWord
     ? puzzleCreatorEvaluation(state.triviaGameType, state.triviaDifficulty)
     : null;
   const puzzleBestContext = puzzleCreatorBestContext(puzzleEvaluation);
@@ -11911,6 +12044,8 @@ function triviaView() {
   const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty, puzzleBestContext) : null;
   const crosswordConfig = crosswordDifficultyConfig(state.triviaDifficulty);
   const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty, puzzleBestContext) : null;
+  const hiddenWordConfig = hiddenWordDifficultyConfig(state.triviaDifficulty);
+  const hiddenWordBest = isHiddenWord ? savedHiddenWordBest(state.triviaDifficulty, selectedCount, puzzleBestContext) : null;
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
@@ -11918,22 +12053,26 @@ function triviaView() {
   const setupSummary = [
     state.triviaGameType === "trivia" ? state.triviaCategory : "",
     isVerseOrder ? "Progressive" : difficultyLabel,
-    isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : `${selectedCount} ${countLabel}`,
+    isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : isHiddenWord ? `${hiddenWordConfig.attempts} attempts each` : `${selectedCount} ${countLabel}`,
     isReferenceRush ? state.referenceRushTimed ? "Timed" : "Untimed" : "",
     puzzleEvaluation?.custom
       ? puzzleEvaluation.pack
         ? `${puzzlePassageLabel(puzzleEvaluation.pack)} ${translationDisplayCode(puzzleEvaluation.version)}`
         : "Choose passage"
-      : isWordSearch || isCrossword ? "Surprise passage" : "",
-    isWordSearch || isCrossword ? "Solo" : "",
+      : isWordSearch || isCrossword || isHiddenWord ? "Surprise passage" : "",
+    isWordSearch || isCrossword || isHiddenWord ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
-  const socialSupported = !isWordSearch && !isCrossword;
+  const socialSupported = !isWordSearch && !isCrossword && !isHiddenWord;
   const gamesUseDrawers = isGamesResponsiveScreen();
   const gameHintsAvailable = Boolean(activeGameHintContext());
-  const crosswordHintsLeft = state.triviaGame?.type === "crossword" ? crosswordHintsRemaining(state.triviaGame) : 0;
+  const visibleHintsLeft = state.triviaGame?.type === "crossword"
+    ? crosswordHintsRemaining(state.triviaGame)
+    : state.triviaGame?.type === "hidden-word"
+      ? hiddenWordHintsRemaining(state.triviaGame)
+      : 0;
   const setupCopy = isVerseOrder
     ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
@@ -11946,11 +12085,13 @@ function triviaView() {
             ? "Find words drawn from one Scripture passage—choose your own reference or let Big Screen Bible surprise you."
             : isCrossword
               ? "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
+              : isHiddenWord
+                ? "Guess Scripture words one letter at a time as the passage unfolds."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
-  const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : "";
+  const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : state.triviaGame?.type === "hidden-word" ? "Hidden Word" : "";
   return `
     <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
-      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""} ${state.triviaGame?.type === "crossword" ? "has-crossword" : ""}">
+      <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""} ${state.triviaGame?.type === "crossword" ? "has-crossword" : ""} ${state.triviaGame?.type === "hidden-word" ? "has-hidden-word" : ""}">
         <div class="trivia-header">
           <div class="trivia-header-copy">
             <div class="trivia-eyebrow">${activePuzzleTitle ? "Games" : gameTitle}</div>
@@ -11964,12 +12105,12 @@ function triviaView() {
                   class="games-header-action games-hint-action ${state.gamesDrawerOpen === "hints" ? "active" : ""}"
                   id="gameHintsToggle"
                   type="button"
-                  aria-label="Open game hints${crosswordHintsLeft ? `, ${crosswordHintsLeft} remaining` : ""}"
+                  aria-label="Open game hints${visibleHintsLeft ? `, ${visibleHintsLeft} remaining` : ""}"
                   aria-controls="gamesHintsDrawer"
                   aria-expanded="${state.gamesDrawerOpen === "hints"}"
                 >
                   ${icons.lightbulb}
-                  <span>${crosswordHintsLeft ? `Hint · ${crosswordHintsLeft} left` : "Hint"}</span>
+                  <span>${visibleHintsLeft ? `Hint · ${visibleHintsLeft} left` : "Hint"}</span>
                 </button>
               ` : ""}
               <button
@@ -12008,6 +12149,7 @@ function triviaView() {
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
                 <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
                 <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
+                <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span><small class="game-new-badge">New</small></button>
                 <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
                 <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
                 <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
@@ -12044,8 +12186,8 @@ function triviaView() {
                   <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
-                  <div class="trivia-setup-controls ${isVerseOrder || isWordSearch || isCrossword ? "single-control" : isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
-                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword ? "is-hidden" : ""}">
+                  <div class="trivia-setup-controls ${isVerseOrder || isWordSearch || isCrossword ? "single-control" : isHiddenWord || isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
+                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword || isHiddenWord ? "is-hidden" : ""}">
                       <span>Category</span>
                       <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
                     </label>
@@ -12058,7 +12200,7 @@ function triviaView() {
                       <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
                     </label>
                   </div>
-                  ${isWordSearch || isCrossword ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
+                  ${isWordSearch || isCrossword || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
                   ${isReferenceRush ? `
                     <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
@@ -12092,6 +12234,16 @@ function triviaView() {
                     </div>
                     <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
                   ` : ""}
+                  ${isHiddenWord ? `
+                    <div class="book-sprint-best-card word-search-best-card">
+                      <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} score`}</span>
+                      <div class="puzzle-best-score">
+                        <strong id="puzzleSetupBestValue">${hiddenWordBest ? `${hiddenWordBest.score} of ${selectedCount}` : "No best yet"}</strong>
+                        <small id="puzzleSetupBestAssist" ${hiddenWordBest?.hintCount ? "" : "hidden"}>${hiddenWordBest?.hintCount ? `* Assisted with ${hiddenWordBest.hintCount} ${hiddenWordBest.hintCount === 1 ? "hint" : "hints"}` : ""}</small>
+                      </div>
+                    </div>
+                    <p class="word-search-solo-note">Hidden Word is a solo Scripture word game.</p>
+                  ` : ""}
                 </div>
               </aside>
             </div>
@@ -12113,7 +12265,7 @@ function triviaView() {
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
-                : `<button class="primary-btn trivia-start" id="startTriviaGame" ${puzzleStartDisabled ? 'disabled aria-disabled="true"' : ""}>${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+                : `<button class="primary-btn trivia-start" id="startTriviaGame" ${puzzleStartDisabled ? 'disabled aria-disabled="true"' : ""}>${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : isHiddenWord ? icons.hiddenWord : icons.trivia}<span>Start ${gameTitle}</span></button>`}
               <small>${escapeHtml(setupSummary)}</small>
             </div>
           </div>
@@ -12140,7 +12292,7 @@ function triviaView() {
             <aside class="games-drawer games-hints-drawer" id="gamesHintsDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesHintsTitle" tabindex="-1">
               <div class="games-drawer-header">
                 <div>
-                  <span>${isCrossword ? "Current clue" : "Current question"}</span>
+                  <span>${isCrossword ? "Current clue" : isHiddenWord ? "Current word" : "Current question"}</span>
                   <strong id="gamesHintsTitle">Choose a hint</strong>
                 </div>
                 <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game hints">${icons.clear}</button>
@@ -12194,6 +12346,7 @@ function triviaGameView() {
   const game = state.triviaGame;
   if (game?.type === "word-search") return wordSearchGameView(game);
   if (game?.type === "crossword") return crosswordGameView(game);
+  if (game?.type === "hidden-word") return hiddenWordGameView(game);
   if (game?.type === "verse-order") return verseOrderGameView(game);
   if (game?.type === "reference-rush") return referenceRushGameView(game);
   if (game?.type === "book-sprint") return bookSprintGameView(game);
@@ -12292,14 +12445,15 @@ function wordSearchPassageMarkup(game) {
 function puzzleRestartDialog(game) {
   if (!state.puzzleRestartPromptOpen) return "";
   const isCrossword = game.type === "crossword";
-  const gameLabel = isCrossword ? "Crossword" : "Word Search";
-  const difficulties = isCrossword ? crosswordDifficulties() : wordSearchDifficulties();
-  const difficultyDescription = isCrossword ? crosswordDifficultyDescription : wordSearchDifficultyDescription;
+  const isHiddenWord = game.type === "hidden-word";
+  const gameLabel = isCrossword ? "Crossword" : isHiddenWord ? "Hidden Word" : "Word Search";
+  const difficulties = isCrossword ? crosswordDifficulties() : isHiddenWord ? hiddenWordDifficulties() : wordSearchDifficulties();
+  const difficultyDescription = isCrossword ? crosswordDifficultyDescription : isHiddenWord ? hiddenWordDifficultyDescription : wordSearchDifficultyDescription;
   return `
     <section class="puzzle-restart-overlay">
       <button class="puzzle-restart-backdrop" type="button" data-puzzle-restart-dismiss aria-label="Keep current puzzle"></button>
       <article class="puzzle-restart-dialog" id="puzzleRestartDialog" role="dialog" aria-modal="true" aria-labelledby="puzzleRestartTitle" aria-describedby="puzzleRestartDescription" tabindex="-1">
-        <div class="puzzle-restart-icon" aria-hidden="true">${isCrossword ? icons.crossword : icons.wordSearch}</div>
+        <div class="puzzle-restart-icon" aria-hidden="true">${isCrossword ? icons.crossword : isHiddenWord ? icons.hiddenWord : icons.wordSearch}</div>
         <span class="trivia-eyebrow">Choose your next challenge</span>
         <h2 id="puzzleRestartTitle">Select a difficulty</h2>
         <p id="puzzleRestartDescription">Your current ${gameLabel} stays here until you choose a new level.</p>
@@ -12618,6 +12772,152 @@ function crosswordGameView(game) {
   `;
 }
 
+function hiddenWordCurrentRound(game = state.triviaGame) {
+  return game?.type === "hidden-word" ? game.rounds?.[game.index] : null;
+}
+
+function hiddenWordIsSolved(round) {
+  const guessed = new Set(round?.guessedLetters || []);
+  return Boolean(round?.word && [...round.word].every((letter) => guessed.has(letter)));
+}
+
+function hiddenWordHintsRemaining(game = state.triviaGame) {
+  const used = new Set(game?.usedHintTypes || []);
+  return hiddenWordHintTypes.filter((type) => !used.has(type)).length;
+}
+
+function hiddenWordHintOptions(game = state.triviaGame) {
+  const used = new Set(game?.usedHintTypes || []);
+  return [
+    { type: "context", label: "Scripture Context", description: "Read the verse with the hidden word blanked out." },
+    { type: "letter", label: "Reveal a Letter", description: "Uncover one useful unguessed letter." },
+  ].filter((hint) => !used.has(hint.type));
+}
+
+function hiddenWordDisplayMarkup(round) {
+  const guessed = new Set(round.guessedLetters || []);
+  return [...round.word].map((letter, index) => {
+    const revealed = guessed.has(letter) || round.complete;
+    return `<span class="hidden-word-letter ${revealed ? "is-revealed" : ""} ${round.hintedLetters?.includes(letter) ? "is-hint" : ""}" aria-label="${revealed ? letter : `Blank ${index + 1}`}">${revealed ? escapeHtml(letter) : ""}</span>`;
+  }).join("");
+}
+
+function hiddenWordHintsMarkup(game, round) {
+  const options = hiddenWordHintOptions(game);
+  return `
+    <div class="reference-rush-hints hidden-word-hints">
+      ${round.hintMenuOpen && options.length ? `
+        <div class="reference-rush-hint-menu" role="group" aria-label="Choose a Hidden Word hint">
+          <div>
+            <strong>Choose a hint</strong>
+            <span>Each kind can be used once per game. Assisted scores are marked.</span>
+          </div>
+          ${options.map((hint) => `
+            <button type="button" data-hidden-word-hint="${hint.type}">
+              <strong>${hint.label}</strong>
+              <span>${hint.description}</span>
+            </button>
+          `).join("")}
+          <button class="reference-rush-hint-cancel" id="closeHiddenWordHints" type="button">Cancel</button>
+        </div>
+      ` : options.length ? `
+        <button class="ghost-btn hidden-word-hint-button" id="hiddenWordHint" type="button">${icons.lightbulb}<span>Choose a hint · ${options.length} left</span></button>
+      ` : `
+        <div class="reference-rush-hint-result" role="status">
+          <strong>All hints used</strong>
+          <p>Keep guessing—the scroll still has room.</p>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function hiddenWordGameView(game) {
+  if (game.complete) return triviaResultsView(game);
+  const round = hiddenWordCurrentRound(game);
+  const guessed = new Set(round.guessedLetters || []);
+  const missed = new Set(round.missedLetters || []);
+  const misses = round.missedLetters.length;
+  const attemptsLeft = Math.max(0, round.maxMisses - misses);
+  const progress = Math.min(100, Math.round((misses / round.maxMisses) * 100));
+  const alphabetRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+  return `
+    <div class="trivia-game hidden-word-game ${round.complete ? "is-round-complete" : ""}">
+      <div class="trivia-progress">
+        <span>Hidden Word · ${escapeHtml(game.difficulty)}</span>
+        <strong>Word ${game.index + 1} / ${game.rounds.length}</strong>
+      </div>
+      <div class="hidden-word-layout">
+        <section class="hidden-word-stage" aria-labelledby="hiddenWordPrompt">
+          <div class="hidden-word-source" aria-label="Word category and source passage">
+            <span>Category</span>
+            <strong>${escapeHtml(round.category)}</strong>
+            <i aria-hidden="true"></i>
+            <span>From</span>
+            <strong>${escapeHtml(round.passageReference)} · ${translationDisplayCode(game.version)}</strong>
+          </div>
+          <div class="hidden-word-scroll" style="--hidden-word-progress:${progress}%">
+            <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
+            <div class="hidden-word-scroll-paper">
+              <span>${round.complete ? round.solved ? "Word revealed" : "Scroll revealed" : "Unroll the Scripture clue"}</span>
+              <strong>${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left</strong>
+              <div class="hidden-word-scroll-track" aria-label="${misses} of ${round.maxMisses} incorrect attempts">
+                ${Array.from({ length: round.maxMisses }, (_, index) => `<i class="${index < misses ? "is-open" : ""}"></i>`).join("")}
+              </div>
+            </div>
+            <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
+          </div>
+          <h2 class="sr-only" id="hiddenWordPrompt">Guess the hidden ${round.word.length}-letter Bible word</h2>
+          <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${round.word.length}-letter hidden word. Tap to use the device keyboard." style="--hidden-word-length:${round.word.length}" ${round.complete ? "disabled" : ""}>
+            ${hiddenWordDisplayMarkup(round)}
+          </button>
+          <p class="word-search-status hidden-word-status" id="hiddenWordStatus" role="status" aria-live="polite">${escapeHtml(round.lastMessage)}</p>
+          ${round.contextRevealed ? `
+            <div class="hidden-word-clues" aria-label="Revealed hints">
+              ${round.contextRevealed ? `<p><span>Scripture context</span><strong>“${escapeHtml(hiddenWordMaskedVerse(round.verse, round.word))}”</strong></p>` : ""}
+            </div>
+          ` : ""}
+        </section>
+        <section class="hidden-word-input" aria-label="Letter keyboard">
+          <div class="hidden-word-keyboard">
+            ${alphabetRows.map((row) => `<div>${[...row].map((letter) => `
+              <button type="button" data-hidden-word-key="${letter}" class="${missed.has(letter) ? "is-miss" : guessed.has(letter) ? "is-hit" : ""}" ${round.complete || guessed.has(letter) || missed.has(letter) ? "disabled" : ""} aria-label="Guess ${letter}">${letter}</button>
+            `).join("")}</div>`).join("")}
+          </div>
+          <button class="text-btn hidden-word-device-keyboard" id="hiddenWordDeviceKeyboard" type="button" ${round.complete ? "disabled" : ""}>Use device keyboard</button>
+          <input class="hidden-word-native-input" id="hiddenWordNativeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Type Hidden Word letters" ${round.complete ? "disabled" : ""} />
+          <div class="hidden-word-misses" aria-label="Incorrect letters">
+            <span>Not in this word</span>
+            <strong>${round.missedLetters.length ? round.missedLetters.join(" · ") : "None yet"}</strong>
+          </div>
+        </section>
+      </div>
+      ${round.complete ? `
+        <div class="trivia-feedback ${round.solved ? "correct" : "incorrect"}">
+          <strong>${round.solved ? `You found ${escapeHtml(round.word)}!` : `The word was ${escapeHtml(round.word)}.`}</strong>
+          <p>“${escapeHtml(round.verse.text)}”</p>
+          <div class="trivia-reference">
+            <span>${escapeHtml(round.referenceLabel)} · ${translationDisplayCode(game.version)}</span>
+            <button class="text-btn" id="openTriviaReference" type="button">Read in Bible</button>
+          </div>
+        </div>
+        <div class="trivia-actions">
+          ${triviaExitControl(game)}
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+          <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.rounds.length - 1 ? "Finish round" : "Next word"}</button>
+        </div>
+      ` : `
+        ${hiddenWordHintsMarkup(game, round)}
+        <div class="trivia-actions hidden-word-actions">
+          ${triviaExitControl(game)}
+          <button class="ghost-btn" id="restartTriviaGame">Restart</button>
+        </div>
+      `}
+      ${puzzleRestartDialog(game)}
+    </div>
+  `;
+}
+
 function verseOrderGameView(game) {
   if (game.complete) return triviaResultsView(game);
   const puzzle = game.puzzles[game.index];
@@ -12903,7 +13203,7 @@ function whoSaidItChoiceButton(question, choice, answered) {
 }
 
 function triviaResultsView(game) {
-  const roundLength = game.questions?.length || game.puzzles?.length || 1;
+  const roundLength = triviaRoundLength(game) || 1;
   const percent = Math.round((game.score / roundLength) * 100);
   const perfect = game.score === roundLength;
   const isBookSprint = game.type === "book-sprint";
@@ -12954,6 +13254,8 @@ function triviaResultsView(game) {
         : `You matched ${game.score} of ${roundLength} references correctly.`
       : game.type === "who-said-it"
           ? `You identified ${game.score} of ${roundLength} speakers correctly.`
+          : game.type === "hidden-word"
+            ? `You revealed ${game.score} of ${roundLength} Scripture words${game.hintCount ? ` with ${game.hintCount} ${game.hintCount === 1 ? "hint" : "hints"}` : " without hints"}.`
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
     <div class="trivia-results ${perfect ? "perfect" : ""}">
@@ -12961,6 +13263,7 @@ function triviaResultsView(game) {
         <div class="trivia-result-ring">${percent}%</div>
         <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
         <p>${resultText}</p>
+        ${game.type === "hidden-word" && game.hiddenWordBest ? `<p class="crossword-assist-note">${game.hiddenWordIsNewBest ? "New best" : "Best"} · ${game.hiddenWordBest.score} of ${roundLength}${game.hiddenWordBest.hintCount ? ` · assisted with ${game.hiddenWordBest.hintCount}` : " · no hints"}</p>` : ""}
         ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       </div>
       <div class="trivia-actions">
@@ -12968,6 +13271,7 @@ function triviaResultsView(game) {
         <button class="ghost-btn" id="restartTriviaGame">Try again</button>
         <button class="primary-btn" id="newTriviaGame">${game.type === "trivia" || !game.type ? "New category" : "New round"}</button>
       </div>
+      ${game.type === "hidden-word" ? puzzleRestartDialog(game) : ""}
     </div>
   `;
 }
@@ -12975,6 +13279,7 @@ function triviaResultsView(game) {
 function triviaRoundLength(game) {
   if (game?.type === "word-search") return game.words?.length || 0;
   if (game?.type === "crossword") return game.entries?.length || 0;
+  if (game?.type === "hidden-word") return game.rounds?.length || 0;
   return game?.questions?.length || game?.puzzles?.length || 0;
 }
 
@@ -13116,6 +13421,7 @@ function triviaScoreLabel() {
       return `${config.wordCount} words`;
     }
     if (state.triviaGameType === "crossword") return `${crosswordDifficultyConfig(state.triviaDifficulty).entryCount} clues`;
+    if (state.triviaGameType === "hidden-word") return `${normalizedTriviaCount("hidden-word", state.triviaCount)} words`;
     if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
     if (state.triviaGameType === "reference-rush") return `${referenceRushAvailableCount()} verses`;
     if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, normalizedTriviaCount("book-sprint", state.triviaCount)))}`;
@@ -13137,6 +13443,7 @@ function triviaScoreLabel() {
   if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
   if (state.triviaGame.type === "word-search") return `${state.triviaGame.score} of ${roundLength} found`;
   if (state.triviaGame.type === "crossword") return `${state.triviaGame.score} of ${roundLength} solved`;
+  if (state.triviaGame.type === "hidden-word") return `${state.triviaGame.score} of ${roundLength} revealed${state.triviaGame.hintCount ? "*" : ""}`;
   return `${state.triviaGame.score} correct`;
 }
 
@@ -15254,6 +15561,7 @@ function bindEvents() {
   bindReaderSelectionToolsButton();
   bindWordSearchGrid();
   bindCrosswordGrid();
+  bindHiddenWordGame();
   document.querySelector(".topbar")?.addEventListener("click", handleTopbarScrollTap);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -16016,7 +16324,7 @@ function bindEvents() {
         state.triviaDifficulty = "Easy";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
-      if (["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "All") {
+      if (["word-search", "crossword", "hidden-word"].includes(state.triviaGameType) && state.triviaDifficulty === "All") {
         state.triviaDifficulty = "Medium";
         localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
       }
@@ -16119,7 +16427,7 @@ function bindEvents() {
   document.getElementById("puzzleRestartDialog")?.addEventListener("keydown", trapPuzzleRestartDialog);
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
-    if (["word-search", "crossword"].includes(state.triviaGame?.type)) return openPuzzleRestartPrompt();
+    if (["word-search", "crossword", "hidden-word"].includes(state.triviaGame?.type)) return openPuzzleRestartPrompt();
     requestGameMusicRestart();
     startTriviaGame();
   });
@@ -16794,6 +17102,7 @@ function startTriviaGame({ render = true } = {}) {
   state.gamesDrawerOpen = "";
   if (state.triviaGameType === "word-search") return startWordSearchGame({ render });
   if (state.triviaGameType === "crossword") return startCrosswordGame({ render });
+  if (state.triviaGameType === "hidden-word") return startHiddenWordGame({ render });
   if (state.triviaGameType === "verse-order") return startVerseOrderGame({ render });
   if (state.triviaGameType === "reference-rush") return startReferenceRushGame({ render });
   if (state.triviaGameType === "book-sprint") return startBookSprintGame({ render });
@@ -16822,6 +17131,78 @@ function startTriviaGame({ render = true } = {}) {
     usedHintTypes: [],
     complete: false,
   };
+  if (render) renderPreservingReaderScroll();
+}
+
+function startHiddenWordGame({ render = true } = {}) {
+  const difficulty = hiddenWordDifficulties().includes(state.triviaDifficulty) ? state.triviaDifficulty : "Medium";
+  const roundCount = normalizedTriviaCount("hidden-word", state.triviaCount);
+  const customEvaluation = puzzleCreatorEvaluation("hidden-word", difficulty);
+  const customPassage = Boolean(customEvaluation.custom);
+  if (customPassage && !customEvaluation.valid) {
+    showToast(customEvaluation.message || "Choose a longer passage for Hidden Word.");
+    return;
+  }
+  const version = customPassage ? customEvaluation.version : wordSearchVersion();
+  const candidateRounds = customPassage
+    ? hiddenWordPassageCandidates(customEvaluation.pack, version, difficulty, customEvaluation.selectedWords)
+      .filter((candidate) => customEvaluation.selectedWords.includes(candidate.word))
+      .map((candidate) => ({ ...candidate, pack: customEvaluation.pack }))
+    : shuffleItems(orderedWordSearchPassages().flatMap((pack) => (
+      hiddenWordPassageCandidates(pack, version, difficulty).map((candidate) => ({ ...candidate, pack }))
+    )));
+  const seenWords = new Set();
+  const selected = candidateRounds.filter((candidate) => {
+    if (seenWords.has(candidate.word)) return false;
+    seenWords.add(candidate.word);
+    return true;
+  }).slice(0, roundCount);
+  if (selected.length < roundCount) {
+    showToast(customPassage
+      ? `Choose a longer passage with at least ${roundCount} usable words for this round.`
+      : "A Hidden Word round could not be built yet. Try another difficulty.");
+    return;
+  }
+  const config = hiddenWordDifficultyConfig(difficulty);
+  const bestContext = customPassage
+    ? { customPassage: true, reference: customEvaluation.reference, version }
+    : {};
+  state.triviaDifficulty = difficulty;
+  state.puzzleRestartPromptOpen = false;
+  localStorage.setItem("lw_trivia_difficulty", difficulty);
+  state.triviaGame = {
+    type: "hidden-word",
+    customPassage,
+    difficulty,
+    version,
+    category: "Scripture words",
+    rounds: selected.map((candidate) => ({
+      word: candidate.word,
+      verse: candidate.verse,
+      verses: candidate.verses,
+      reference: `${candidate.pack.chapterKey}:${candidate.verse.n}`,
+      referenceLabel: `${candidate.pack.chapterKey}:${candidate.verse.n}`,
+      passageReference: puzzlePassageReference(candidate.pack),
+      guessedLetters: [],
+      missedLetters: [],
+      hintedLetters: [],
+      category: hiddenWordCategory(candidate.word),
+      contextRevealed: false,
+      hintMenuOpen: false,
+      complete: false,
+      solved: false,
+      maxMisses: config.attempts,
+      lastMessage: `${candidate.word.length} letters · choose a letter`,
+    })),
+    index: 0,
+    score: 0,
+    hintCount: 0,
+    usedHintTypes: [],
+    complete: false,
+    hiddenWordBest: savedHiddenWordBest(difficulty, roundCount, bestContext),
+    ...bestContext,
+  };
+  recordWordSearchPassage(selected[0].pack);
   if (render) renderPreservingReaderScroll();
 }
 
@@ -18091,6 +18472,7 @@ function nextTriviaQuestion() {
   const game = state.triviaGame;
   if (!game) return;
   state.gamesDrawerOpen = "";
+  if (game.type === "hidden-word") return nextHiddenWordRound();
   if (game.type === "verse-order") return nextVerseOrderPuzzle();
   if (game.type === "reference-rush") return nextReferenceRushPuzzle();
   if (game.type === "book-sprint") return nextBookSprintPuzzle();
@@ -18741,6 +19123,137 @@ function bindCrosswordGrid() {
   });
 }
 
+function finishHiddenWordRound(game, round, solved) {
+  if (!game || !round || round.complete) return;
+  round.complete = true;
+  round.solved = Boolean(solved);
+  round.hintMenuOpen = false;
+  state.gamesDrawerOpen = "";
+  if (round.solved) {
+    game.score += 1;
+    round.lastMessage = `${round.word} revealed. Read it in context below.`;
+  } else {
+    round.lastMessage = `The scroll opened: ${round.word}. Read it in context below.`;
+  }
+}
+
+function guessHiddenWordLetter(value) {
+  const game = state.triviaGame;
+  const round = hiddenWordCurrentRound(game);
+  const letter = normalizeWordSearchWord(value).slice(0, 1);
+  if (!game || !round || round.complete || !/^[A-Z]$/.test(letter)) return;
+  if (round.guessedLetters.includes(letter) || round.missedLetters.includes(letter)) {
+    round.lastMessage = `${letter} was already tried. Choose another letter.`;
+    renderPreservingReaderScroll();
+    return;
+  }
+  if (round.word.includes(letter)) {
+    round.guessedLetters.push(letter);
+    playWordSearchFeedbackSound("found");
+    if (hiddenWordIsSolved(round)) finishHiddenWordRound(game, round, true);
+    else round.lastMessage = `${letter} is in the word. Keep going.`;
+  } else {
+    round.missedLetters.push(letter);
+    playWordSearchFeedbackSound("miss");
+    const attemptsLeft = Math.max(0, round.maxMisses - round.missedLetters.length);
+    if (!attemptsLeft) finishHiddenWordRound(game, round, false);
+    else round.lastMessage = `${letter} is not in the word. ${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left.`;
+  }
+  renderPreservingReaderScroll();
+}
+
+function useHiddenWordHint(type) {
+  const game = state.triviaGame;
+  const round = hiddenWordCurrentRound(game);
+  const available = new Set(hiddenWordHintOptions(game).map((hint) => hint.type));
+  if (!game || !round || round.complete || !available.has(type)) return;
+  game.usedHintTypes.push(type);
+  game.hintCount += 1;
+  round.hintMenuOpen = false;
+  state.gamesDrawerOpen = "";
+  if (type === "context") {
+    round.contextRevealed = true;
+    round.lastMessage = "The Scripture context is now visible.";
+  } else {
+    const guessed = new Set(round.guessedLetters);
+    const candidates = [...new Set(round.word)].filter((letter) => !guessed.has(letter));
+    const letter = shuffleItems(candidates)[0];
+    if (letter) {
+      round.guessedLetters.push(letter);
+      round.hintedLetters.push(letter);
+      playWordSearchFeedbackSound("found");
+      if (hiddenWordIsSolved(round)) finishHiddenWordRound(game, round, true);
+      else round.lastMessage = `${letter} was revealed. ${hiddenWordHintsRemaining(game)} hints remain.`;
+    }
+  }
+  renderPreservingReaderScroll();
+}
+
+function toggleHiddenWordHintMenu() {
+  const game = state.triviaGame;
+  const round = hiddenWordCurrentRound(game);
+  if (!game || !round || round.complete || !hiddenWordHintOptions(game).length) return;
+  round.hintMenuOpen = !round.hintMenuOpen;
+  renderPreservingReaderScroll();
+}
+
+function focusHiddenWordNativeInput() {
+  const input = document.getElementById("hiddenWordNativeInput");
+  if (!input || hiddenWordCurrentRound()?.complete) return;
+  input.value = "";
+  input.focus({ preventScroll: true });
+}
+
+function handleHiddenWordKeydown(event) {
+  if (!/^[a-z]$/i.test(event.key)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  guessHiddenWordLetter(event.key);
+}
+
+function handleHiddenWordNativeInput(event) {
+  const letters = String(event.currentTarget.value || "").match(/[a-z]/gi) || [];
+  event.currentTarget.value = "";
+  letters.forEach(guessHiddenWordLetter);
+}
+
+function bindHiddenWordGame() {
+  const game = state.triviaGame;
+  const round = hiddenWordCurrentRound(game);
+  if (!game || !round || game.complete) return;
+  document.querySelectorAll("[data-hidden-word-key]").forEach((button) => {
+    button.addEventListener("click", () => guessHiddenWordLetter(button.dataset.hiddenWordKey));
+  });
+  document.getElementById("hiddenWordAnswer")?.addEventListener("click", focusHiddenWordNativeInput);
+  document.getElementById("hiddenWordDeviceKeyboard")?.addEventListener("click", focusHiddenWordNativeInput);
+  const nativeInput = document.getElementById("hiddenWordNativeInput");
+  nativeInput?.addEventListener("keydown", handleHiddenWordKeydown);
+  nativeInput?.addEventListener("input", handleHiddenWordNativeInput);
+  document.getElementById("hiddenWordHint")?.addEventListener("click", toggleHiddenWordHintMenu);
+  document.querySelectorAll("[data-hidden-word-hint]").forEach((button) => {
+    button.addEventListener("click", () => useHiddenWordHint(button.dataset.hiddenWordHint));
+  });
+  document.getElementById("closeHiddenWordHints")?.addEventListener("click", () => {
+    if (state.gamesDrawerOpen === "hints") closeGamesHints();
+    else toggleHiddenWordHintMenu();
+  });
+}
+
+function nextHiddenWordRound() {
+  const game = state.triviaGame;
+  if (!game || game.type !== "hidden-word" || game.complete) return;
+  state.gamesDrawerOpen = "";
+  if (game.index >= game.rounds.length - 1) {
+    const result = recordHiddenWordBest(game);
+    game.hiddenWordBest = result.best;
+    game.hiddenWordIsNewBest = result.isNewBest;
+    completeTriviaGame(game);
+  } else {
+    game.index += 1;
+  }
+  renderPreservingReaderScroll();
+}
+
 function selectBookSprintBook(book) {
   const puzzle = currentBookSprintPuzzle();
   if (!puzzle || puzzle.answered || puzzle.selectedBooks.includes(book)) return;
@@ -19080,6 +19593,8 @@ function openTriviaReference() {
   const game = state.triviaGame;
   const reference = game?.type === "word-search" || game?.type === "crossword"
     ? game.reference
+    : game?.type === "hidden-word"
+      ? game.rounds?.[game.index]?.reference
     : game?.type === "verse-order" || game?.type === "reference-rush"
     ? game.puzzles?.[game.index]?.reference
     : game?.type === "who-said-it"
@@ -22564,9 +23079,12 @@ function handleGlobalShortcuts(event) {
     else showFeedback();
     return;
   }
-  if (!event.shiftKey && /^[a-z]$/i.test(event.key) && state.mode === "trivia" && state.triviaGame?.type === "crossword") {
+  if (!event.shiftKey && /^[a-z]$/i.test(event.key) && state.mode === "trivia" && ["crossword", "hidden-word"].includes(state.triviaGame?.type)) {
     event.preventDefault();
-    if (!state.triviaGame.complete) enterCrosswordLetter(event.key);
+    if (!state.triviaGame.complete) {
+      if (state.triviaGame.type === "crossword") enterCrosswordLetter(event.key);
+      else guessHiddenWordLetter(event.key);
+    }
     return;
   }
   if (!event.shiftKey && key === "a" && canUseReaderKeyboardNavigation()) {

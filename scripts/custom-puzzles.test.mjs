@@ -90,9 +90,11 @@ assert.match(source, /id="puzzleCustomVersionSelect"/);
 assert.match(source, /data-puzzle-custom-word/);
 assert.match(extractFunction("startWordSearchGame"), /customPassage/);
 assert.match(extractFunction("startCrosswordGame"), /customPassage/);
+assert.match(extractFunction("startHiddenWordGame"), /customPassage/);
 assert.match(extractFunction("restartPuzzleAtDifficulty"), /currentGame\.customPassage/);
 assert.match(extractFunction("captureCloudSnapshot"), /puzzleCustomReference/);
-assert.doesNotMatch(source, /game-new-badge/);
+assert.match(triviaViewSource, /data-trivia-mode="hidden-word"[\s\S]*game-new-badge/);
+assert.doesNotMatch(triviaViewSource, /data-trivia-mode="(?:word-search|crossword)"[^\n]*game-new-badge/);
 
 assert.match(styles, /\.puzzle-creator \{/);
 assert.match(styles, /\.puzzle-source-options button \{/);

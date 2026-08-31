@@ -10,6 +10,7 @@ const generatorSource = readFileSync(path.join(rootDir, "scripts", "generate-gam
 
 const tracks = [
   ["word-garden.mp3", "Word Garden"],
+  ["unfolding-mystery.mp3", "Unfolding Mystery"],
   ["still-waters-16bit.mp3", "Still Waters"],
   ["bright-answers.mp3", "Bright Answers"],
   ["ordered-light.mp3", "Ordered Light"],

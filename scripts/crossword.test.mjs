@@ -293,7 +293,7 @@ assert.ok(
   "Crossword should be prominent before Trivia",
 );
 assert.doesNotMatch(triviaViewSource, /aria-label="Crossword, new"/);
-assert.doesNotMatch(source, /game-new-badge/);
+assert.match(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
 assert.match(triviaViewSource, /isCrossword \? crosswordDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startCrosswordGame/);
 assert.match(extractFunction("puzzleCreatorEvaluation"), /const defaultCount = gameType === "crossword"\s*\? candidates\.length/);
@@ -339,7 +339,7 @@ assert.match(extractFunction("captureCloudSnapshot"), /crosswordKeyboardVisible/
 assert.match(extractFunction("applyCloudSnapshot"), /settings\.crosswordKeyboardVisible/);
 assert.match(extractFunction("persistCloudSnapshotLocally"), /crosswordKeyboardVisibleStorageKey/);
 const globalShortcutsSource = extractFunction("handleGlobalShortcuts");
-const crosswordLetterOwnershipIndex = globalShortcutsSource.indexOf('state.triviaGame?.type === "crossword"');
+const crosswordLetterOwnershipIndex = globalShortcutsSource.indexOf('["crossword", "hidden-word"].includes(state.triviaGame?.type)');
 assert.ok(crosswordLetterOwnershipIndex >= 0, "Crossword should own unmodified letter keys");
 assert.ok(
   crosswordLetterOwnershipIndex < globalShortcutsSource.indexOf('if (key === "p")'),
