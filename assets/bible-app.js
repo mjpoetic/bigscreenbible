@@ -12065,7 +12065,8 @@ function trapPuzzleRestartDialog(event) {
 }
 
 function mountMobileGameControls() {
-  if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete || !isGamesResponsiveScreen()) return;
+  const hiddenWordRoundComplete = state.triviaGame?.type === "hidden-word" && Boolean(hiddenWordCurrentRound()?.complete);
+  if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete || (!isGamesResponsiveScreen() && !hiddenWordRoundComplete)) return;
   const destination = document.getElementById("gamesActiveControlsBody");
   const hintDestination = document.getElementById("gamesHintDrawerBody");
   const answerDestination = document.getElementById("gamesAnswerDialogBody");
@@ -12481,7 +12482,7 @@ function triviaView() {
               <div class="games-drawer-scroll games-hint-drawer-body" id="gamesHintDrawerBody"></div>
             </aside>
           </div>
-          <div class="games-answer-overlay" id="gamesAnswerOverlay" hidden>
+          <div class="games-answer-overlay ${isHiddenWord ? "is-hidden-word-result" : ""}" id="gamesAnswerOverlay" hidden>
             <div class="games-answer-backdrop" aria-hidden="true"></div>
             <section class="games-answer-dialog" role="dialog" aria-modal="true" aria-labelledby="gamesAnswerTitle">
               <span class="games-answer-eyebrow">Answer</span>
@@ -13056,19 +13057,25 @@ function hiddenWordGameView(game) {
             <span>From</span>
             <strong>${escapeHtml(round.passageReference)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</strong>
           </div>
-          <div class="hidden-word-scroll" style="--hidden-word-progress:${progress}%">
-            <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
-            <div class="hidden-word-scroll-paper">
-              <span>${round.complete ? round.solved ? "Puzzle solved" : "Answer revealed" : "Reveal the Bible puzzle"}</span>
-              <strong>${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left</strong>
-              <div class="hidden-word-scroll-track" aria-label="${misses} of ${round.maxMisses} incorrect attempts">
-                ${Array.from({ length: round.maxMisses }, (_, index) => `<i class="${index < misses ? "is-open" : ""}"></i>`).join("")}
+          <div class="hidden-word-attempts">
+            <div class="hidden-word-scroll" style="--hidden-word-progress:${progress}%">
+              <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
+              <div class="hidden-word-scroll-paper">
+                <span>${round.complete ? round.solved ? "Puzzle solved" : "Answer revealed" : "Reveal the Bible puzzle"}</span>
+                <strong>${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left</strong>
+                <div class="hidden-word-scroll-track" aria-label="${misses} of ${round.maxMisses} incorrect attempts">
+                  ${Array.from({ length: round.maxMisses }, (_, index) => `<i class="${index < misses ? "is-open" : ""}"></i>`).join("")}
+                </div>
               </div>
+              <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
             </div>
-            <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
+            <div class="hidden-word-misses" aria-label="Incorrect letters" aria-live="polite">
+              <span>Not in this puzzle</span>
+              <strong>${round.missedLetters.length ? round.missedLetters.join(" · ") : "None yet"}</strong>
+            </div>
           </div>
           <h2 class="sr-only" id="hiddenWordPrompt">Guess the hidden ${answerLetters.length}-letter Bible ${answerKind}</h2>
-          <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${answerLetters.length}-letter hidden ${answerKind}. Tap to use the device keyboard." style="--hidden-word-length:${answerLetters.length};--hidden-word-longest-term:${longestTerm}" ${round.complete ? "disabled" : ""}>
+          <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${answerLetters.length}-letter hidden ${answerKind}. Tap to use the device keyboard." style="--hidden-word-length:${answerLetters.length};--hidden-word-longest-term:${longestTerm};--hidden-word-term-count:${wordCount}" ${round.complete ? "disabled" : ""}>
             ${hiddenWordDisplayMarkup(round)}
           </button>
           <p class="word-search-status hidden-word-status" id="hiddenWordStatus" role="status" aria-live="polite">${escapeHtml(round.lastMessage)}</p>
@@ -13086,10 +13093,6 @@ function hiddenWordGameView(game) {
           </div>
           <button class="text-btn hidden-word-device-keyboard" id="hiddenWordDeviceKeyboard" type="button" ${round.complete ? "disabled" : ""}>Use device keyboard</button>
           <input class="hidden-word-native-input" id="hiddenWordNativeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Type Hidden Word letters" ${round.complete ? "disabled" : ""} />
-          <div class="hidden-word-misses" aria-label="Incorrect letters">
-            <span>Not in this puzzle</span>
-            <strong>${round.missedLetters.length ? round.missedLetters.join(" · ") : "None yet"}</strong>
-          </div>
         </section>
       </div>
       ${round.complete ? `
