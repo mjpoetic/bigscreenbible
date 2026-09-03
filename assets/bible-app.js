@@ -106,8 +106,6 @@ function translationOptionDetailsMarkup(version) {
   `;
 }
 
-const nirvRecommendationHelp = "NIrV uses clear, shorter sentences at about a third-grade reading level—a strong choice for children and new readers.";
-
 const printLayouts = [
   { code: "standard", name: "Standard", description: "One verse per line, matching the current print layout." },
   { code: "paragraph", name: "Paragraph", description: "Natural paragraph flow when paragraph breaks are available for the selected Bible version." },
@@ -3871,7 +3869,6 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
           selectClass: "primary-version-select",
           wide: true,
         })}
-        <p class="setting-help">${nirvRecommendationHelp}</p>
       </div>
       <div class="setting-group">
         <span class="setting-label">Theme family</span>
@@ -4071,7 +4068,6 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
               selectClass: "primary-version-select",
               wide: true,
             })}
-            <p class="setting-help">${nirvRecommendationHelp}</p>
           </div>
           <div class="setting-group">
             <span class="setting-label">Theme family</span>
