@@ -3126,11 +3126,9 @@ function bibleVersionSettingsChoices() {
 function themeFamilyPreviewColors(family) {
   const lightPreset = resolveThemeFamilyPreset(family, "light");
   const darkPreset = resolveThemeFamilyPreset(family, "dark");
-  const bigScreenTheme = resolveThemeFamilyPresentation(family, state.theme);
   return [
     themeChromeColor(lightPreset, "light"),
     themeChromeColor(darkPreset, "dark"),
-    presentationThemeColor(bigScreenTheme),
   ];
 }
 
@@ -3138,11 +3136,9 @@ function currentAppearancePreviewColors() {
   const appearance = normalizeAppearance(state.appearance);
   const lightPreset = appearance.overrides.light || resolveThemeFamilyPreset(appearance.themeFamily, "light");
   const darkPreset = appearance.overrides.dark || resolveThemeFamilyPreset(appearance.themeFamily, "dark");
-  const bigScreenTheme = appearance.overrides.bigScreen || resolveThemeFamilyPresentation(appearance.themeFamily, state.theme);
   return [
     themeChromeColor(lightPreset, "light"),
     themeChromeColor(darkPreset, "dark"),
-    presentationThemeColor(bigScreenTheme),
   ];
 }
 
@@ -3198,7 +3194,7 @@ function closeSettingsChoiceMenu(options = {}) {
   trigger?.setAttribute("aria-expanded", "false");
   document.removeEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
   window.removeEventListener("resize", closeSettingsChoiceMenu);
-  window.removeEventListener("scroll", closeSettingsChoiceMenu, true);
+  window.removeEventListener("scroll", closeSettingsChoiceMenuOnScroll, true);
   activeSettingsChoiceMenu = null;
   if (options.restoreFocus && trigger?.isConnected) trigger.focus({ preventScroll: true });
 }
@@ -3208,6 +3204,15 @@ function closeSettingsChoiceMenuOnOutsidePointerDown(event) {
   if (
     activeSettingsChoiceMenu.menu.contains(event.target)
     || activeSettingsChoiceMenu.trigger.contains(event.target)
+  ) return;
+  closeSettingsChoiceMenu();
+}
+
+function closeSettingsChoiceMenuOnScroll(event) {
+  if (!activeSettingsChoiceMenu) return;
+  if (
+    event.target === activeSettingsChoiceMenu.menu
+    || activeSettingsChoiceMenu.menu.contains(event.target)
   ) return;
   closeSettingsChoiceMenu();
 }
@@ -3322,7 +3327,7 @@ function openSettingsChoiceMenu(trigger) {
   activeSettingsChoiceMenu = { menu, trigger, select };
   document.addEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
   window.addEventListener("resize", closeSettingsChoiceMenu);
-  window.addEventListener("scroll", closeSettingsChoiceMenu, true);
+  window.addEventListener("scroll", closeSettingsChoiceMenuOnScroll, true);
   requestAnimationFrame(() => selectedButton?.focus({ preventScroll: true }));
 }
 

@@ -94,6 +94,8 @@ const bindSettingsSearchSource = extractFunction("bindSettingsSearchControls");
 const settingsChoiceMarkupSource = extractFunction("settingsChoiceMarkup");
 const openSettingsChoiceMenuSource = extractFunction("openSettingsChoiceMenu");
 const bindSettingsChoiceMenusSource = extractFunction("bindSettingsChoiceMenus");
+const closeSettingsChoiceMenuSource = extractFunction("closeSettingsChoiceMenu");
+const closeSettingsChoiceMenuOnScrollSource = extractFunction("closeSettingsChoiceMenuOnScroll");
 const rememberSource = extractFunction("rememberDisclosureState");
 const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
@@ -147,11 +149,16 @@ assert.match(openSettingsChoiceMenuSource, /ArrowDown/);
 assert.match(openSettingsChoiceMenuSource, /ArrowUp/);
 assert.match(openSettingsChoiceMenuSource, /Escape/);
 assert.match(openSettingsChoiceMenuSource, /event\.stopPropagation\(\)/);
+assert.match(openSettingsChoiceMenuSource, /window\.addEventListener\("scroll", closeSettingsChoiceMenuOnScroll, true\)/);
+assert.match(closeSettingsChoiceMenuSource, /window\.removeEventListener\("scroll", closeSettingsChoiceMenuOnScroll, true\)/);
+assert.match(closeSettingsChoiceMenuOnScrollSource, /event\.target === activeSettingsChoiceMenu\.menu/);
+assert.match(closeSettingsChoiceMenuOnScrollSource, /activeSettingsChoiceMenu\.menu\.contains\(event\.target\)/);
 assert.match(bindSettingsChoiceMenusSource, /data-settings-choice-toggle/);
 assert.match(mobileSettingsPanelSource, /settingsSearchMarkup\("mobile"\)[\s\S]*?Bible version[\s\S]*?Theme family/);
 assert.match(topbarSource, /settingsSearchMarkup\(\)[\s\S]*?Bible version[\s\S]*?Theme family/);
 assert.match(presentationSource, /presentationSettingsClose[\s\S]*?Bible version[\s\S]*?Theme family/);
-assert.match(styles, /\.settings-color-preview-3 \{[\s\S]*?linear-gradient/);
+assert.match(styles, /\.settings-color-preview-2 \{[\s\S]*?linear-gradient\(135deg, var\(--settings-preview-1\) 0%, var\(--settings-preview-2\) 100%\)/);
+assert.match(styles, /\.settings-choice-menu \{[\s\S]*?touch-action:\s*pan-y/);
 assert.match(styles, /\.settings-choice-menu \{[\s\S]*?position:\s*fixed/);
 assert.match(source, /\$\{settingsSearchMarkup\("mobile"\)\}/);
 assert.match(source, /\$\{settingsSearchMarkup\(\)\}/);
@@ -159,6 +166,36 @@ assert.match(source, /\$\{soundsSettings\("mobile"\)\}[\s\S]*?\$\{accessibilityS
 assert.match(source, /\$\{soundsSettings\(\)\}[\s\S]*?\$\{accessibilitySettings\(\)\}/);
 assert.match(source, /\$\{displaySettings\("mobile"\)\}[\s\S]*?\$\{readingSettings\("mobile"\)\}[\s\S]*?\$\{sharingSettings\("mobile"\)\}/);
 assert.match(source, /\$\{displaySettings\(\)\}[\s\S]*?\$\{readingSettings\(\)\}[\s\S]*?\$\{sharingSettings\(\)\}/);
+
+const menuDescendant = {};
+const choiceMenu = {
+  contains(target) {
+    return target === menuDescendant;
+  },
+};
+let choiceMenuCloseCalls = 0;
+const choiceMenuScrollContext = {
+  choiceMenu,
+  menuDescendant,
+  closeSettingsChoiceMenu() {
+    choiceMenuCloseCalls += 1;
+  },
+};
+vm.createContext(choiceMenuScrollContext);
+vm.runInContext(`
+  let activeSettingsChoiceMenu = {
+    menu: choiceMenu,
+  };
+  ${closeSettingsChoiceMenuOnScrollSource}
+  globalThis.handleChoiceMenuScroll = closeSettingsChoiceMenuOnScroll;
+`, choiceMenuScrollContext);
+
+choiceMenuScrollContext.handleChoiceMenuScroll({ target: choiceMenuScrollContext.choiceMenu });
+assert.equal(choiceMenuCloseCalls, 0, "Scrolling the choice menu itself keeps it open");
+choiceMenuScrollContext.handleChoiceMenuScroll({ target: choiceMenuScrollContext.menuDescendant });
+assert.equal(choiceMenuCloseCalls, 0, "Scrolling a descendant inside the choice menu keeps it open");
+choiceMenuScrollContext.handleChoiceMenuScroll({ target: {} });
+assert.equal(choiceMenuCloseCalls, 1, "Scrolling outside the choice menu closes it");
 
 assert.match(rememberSource, /settingsSectionsOpenUpdatedAt = new Date\(\)\.toISOString\(\)/);
 assert.match(rememberSource, /settingsSectionsOpenStorageKey/);

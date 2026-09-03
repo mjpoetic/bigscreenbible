@@ -404,7 +404,7 @@ assert.match(extractFunction("themeFamilySettingsChoices"), /Custom mix/);
 assert.match(extractFunction("themeFamilySettingsChoices"), /themeFamilies\.map/);
 assert.match(extractFunction("themeFamilyPreviewColors"), /themeChromeColor\(lightPreset, "light"\)/);
 assert.match(extractFunction("themeFamilyPreviewColors"), /themeChromeColor\(darkPreset, "dark"\)/);
-assert.match(extractFunction("themeFamilyPreviewColors"), /presentationThemeColor\(bigScreenTheme\)/);
+assert.doesNotMatch(extractFunction("themeFamilyPreviewColors"), /presentationThemeColor/);
 assert.match(extractFunction("themePresetSettingsChoices"), /previewColors: \[themeChromeColor/);
 assert.match(extractFunction("presentationThemeSettingsChoices"), /previewColors: \[presentationThemeColor/);
 assert.match(appSource, /settingsChoiceMarkup\("themeFamilySelect"/);

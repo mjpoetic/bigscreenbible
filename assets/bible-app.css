@@ -2090,15 +2090,15 @@ button {
 }
 
 .settings-color-preview-2 {
-  background: linear-gradient(135deg, var(--settings-preview-1) 0 50%, var(--settings-preview-2) 50% 100%);
+  background: linear-gradient(135deg, var(--settings-preview-1) 0%, var(--settings-preview-2) 100%);
 }
 
 .settings-color-preview-3 {
   background: linear-gradient(
     135deg,
-    var(--settings-preview-1) 0 33.333%,
-    var(--settings-preview-2) 33.333% 66.666%,
-    var(--settings-preview-3) 66.666% 100%
+    var(--settings-preview-1) 0%,
+    var(--settings-preview-3) 50%,
+    var(--settings-preview-2) 100%
   );
 }
 
@@ -2131,6 +2131,8 @@ button {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   border: 1px solid var(--settings-choice-menu-border);
   border-radius: 11px;
   background: var(--settings-choice-menu-bg);
