@@ -529,6 +529,7 @@ const strongs = {
 
 let searchRequestId = 0;
 let activeSearchScopeMenu = null;
+let activeSettingsChoiceMenu = null;
 
 const state = {
   mode: "reader",
@@ -1395,6 +1396,7 @@ function restoreAccountPanelScroll(scrollState) {
 function render() {
   pauseReaderAutoScroll({ updateControl: false });
   closeSearchScopeMenu();
+  closeSettingsChoiceMenu();
   if (!noteSearchAvailable() && normalizedSearchSource(state.searchSource) === "notes") {
     state.searchSource = "scripture";
     resetSearchForSource("scripture");
@@ -3058,6 +3060,285 @@ function bindSettingsSearchControls() {
   });
 }
 
+function settingsColorPreviewMarkup(colors = []) {
+  const previewColors = colors.filter(Boolean).slice(0, 3);
+  if (!previewColors.length) return "";
+  const style = previewColors
+    .map((color, index) => `--settings-preview-${index + 1}: ${escapeHtml(color)}`)
+    .join("; ");
+  return `<span class="settings-color-preview settings-color-preview-${previewColors.length}" style="${style}" aria-hidden="true"></span>`;
+}
+
+function settingsChoiceOptionContent(choice, options = {}) {
+  if (choice.code) {
+    return `
+      <span class="settings-choice-option-content settings-choice-option-content-version">
+        <strong class="settings-choice-version-code">${escapeHtml(choice.code)}</strong>
+        <span class="settings-choice-option-label">${escapeHtml(choice.label)}</span>
+        ${choice.detail && !options.compact ? `<small class="settings-choice-option-detail">${escapeHtml(choice.detail)}</small>` : ""}
+      </span>
+    `;
+  }
+  return `
+    <span class="settings-choice-option-content">
+      ${settingsColorPreviewMarkup(choice.previewColors)}
+      <span class="settings-choice-option-label">${escapeHtml(choice.label)}</span>
+    </span>
+  `;
+}
+
+function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
+  const normalizedValue = String(selectedValue ?? "");
+  const selectedChoice = choices.find((choice) => String(choice.value) === normalizedValue) || choices[0];
+  const menuId = `${id}Menu`;
+  const legacyClasses = config.selectClass ? ` ${config.selectClass}` : "";
+  return `
+    <div class="settings-choice ${config.wide ? "settings-choice-wide" : ""}" data-settings-choice>
+      <select class="settings-native-choice${legacyClasses}" id="${id}" aria-hidden="true" tabindex="-1" data-settings-choice-select ${config.wide ? 'data-choice-menu-wide="true"' : ""}>
+        ${choices.map((choice) => `
+          <option value="${escapeHtml(choice.value)}" ${String(choice.value) === normalizedValue ? "selected" : ""} ${choice.disabled ? "disabled" : ""}
+            data-choice-label="${escapeHtml(choice.label)}"
+            ${choice.code ? `data-choice-code="${escapeHtml(choice.code)}"` : ""}
+            ${choice.detail ? `data-choice-detail="${escapeHtml(choice.detail)}"` : ""}
+            ${choice.previewColors?.length ? `data-preview-colors="${escapeHtml(choice.previewColors.join(","))}"` : ""}>${escapeHtml(choice.nativeLabel || choice.label)}</option>
+        `).join("")}
+      </select>
+      <button class="settings-choice-toggle" type="button" data-settings-choice-toggle aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}, ${escapeHtml(selectedChoice?.nativeLabel || selectedChoice?.label || "")}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}">
+        <span class="settings-choice-selected">${settingsChoiceOptionContent(selectedChoice || { label: "" }, { compact: true })}</span>
+        <span class="settings-choice-chevron" aria-hidden="true"></span>
+      </button>
+    </div>
+  `;
+}
+
+function plainSettingsChoices(items) {
+  return items.map((item) => ({ value: item.code, label: item.name }));
+}
+
+function bibleVersionSettingsChoices() {
+  return translationCodes.map((version) => ({
+    value: version,
+    code: translationDisplayCode(version),
+    label: translationLookup[version]?.name || version,
+    detail: translationRecommendation(version),
+    nativeLabel: `${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}`,
+  }));
+}
+
+function themeFamilyPreviewColors(family) {
+  const lightPreset = resolveThemeFamilyPreset(family, "light");
+  const darkPreset = resolveThemeFamilyPreset(family, "dark");
+  const bigScreenTheme = resolveThemeFamilyPresentation(family, state.theme);
+  return [
+    themeChromeColor(lightPreset, "light"),
+    themeChromeColor(darkPreset, "dark"),
+    presentationThemeColor(bigScreenTheme),
+  ];
+}
+
+function currentAppearancePreviewColors() {
+  const appearance = normalizeAppearance(state.appearance);
+  const lightPreset = appearance.overrides.light || resolveThemeFamilyPreset(appearance.themeFamily, "light");
+  const darkPreset = appearance.overrides.dark || resolveThemeFamilyPreset(appearance.themeFamily, "dark");
+  const bigScreenTheme = appearance.overrides.bigScreen || resolveThemeFamilyPresentation(appearance.themeFamily, state.theme);
+  return [
+    themeChromeColor(lightPreset, "light"),
+    themeChromeColor(darkPreset, "dark"),
+    presentationThemeColor(bigScreenTheme),
+  ];
+}
+
+function themeFamilySettingsChoices() {
+  const customized = hasAppearanceOverrides(state.appearance);
+  return [
+    ...(customized ? [{
+      value: "",
+      label: "Custom mix",
+      previewColors: currentAppearancePreviewColors(),
+      disabled: true,
+    }] : []),
+    ...themeFamilies.map((family) => ({
+      value: family.code,
+      label: family.name,
+      previewColors: themeFamilyPreviewColors(family.code),
+    })),
+  ];
+}
+
+function themePresetSettingsChoices() {
+  return themePresets
+    .filter((preset) => preset.mode === state.theme)
+    .map((preset) => ({
+      value: preset.code,
+      label: preset.name,
+      previewColors: [themeChromeColor(preset.code, preset.mode)],
+    }));
+}
+
+function presentationThemeSettingsChoices() {
+  return presentationThemes.map((theme) => ({
+    value: theme.code,
+    label: theme.name,
+    previewColors: [presentationThemeColor(theme.code)],
+  }));
+}
+
+function settingsChoiceFromOption(option) {
+  return {
+    value: option.value,
+    label: option.dataset.choiceLabel || option.textContent || option.value,
+    code: option.dataset.choiceCode || "",
+    detail: option.dataset.choiceDetail || "",
+    previewColors: (option.dataset.previewColors || "").split(",").filter(Boolean),
+  };
+}
+
+function closeSettingsChoiceMenu(options = {}) {
+  if (!activeSettingsChoiceMenu) return;
+  const { menu, trigger } = activeSettingsChoiceMenu;
+  menu.remove();
+  trigger?.setAttribute("aria-expanded", "false");
+  document.removeEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
+  window.removeEventListener("resize", closeSettingsChoiceMenu);
+  window.removeEventListener("scroll", closeSettingsChoiceMenu, true);
+  activeSettingsChoiceMenu = null;
+  if (options.restoreFocus && trigger?.isConnected) trigger.focus({ preventScroll: true });
+}
+
+function closeSettingsChoiceMenuOnOutsidePointerDown(event) {
+  if (!activeSettingsChoiceMenu) return;
+  if (
+    activeSettingsChoiceMenu.menu.contains(event.target)
+    || activeSettingsChoiceMenu.trigger.contains(event.target)
+  ) return;
+  closeSettingsChoiceMenu();
+}
+
+function positionSettingsChoiceMenu(trigger, menu, wide = false) {
+  const viewportPadding = 8;
+  const bounds = trigger.getBoundingClientRect();
+  const preferredWidth = wide ? Math.max(bounds.width, 310) : bounds.width;
+  const width = Math.min(preferredWidth, window.innerWidth - (viewportPadding * 2));
+  menu.style.width = `${width}px`;
+  menu.style.maxHeight = `${Math.max(120, window.innerHeight - (viewportPadding * 2))}px`;
+  const measuredHeight = menu.getBoundingClientRect().height;
+  const spaceBelow = window.innerHeight - bounds.bottom - 8 - viewportPadding;
+  const spaceAbove = bounds.top - 8 - viewportPadding;
+  const openAbove = spaceBelow < Math.min(measuredHeight, 180) && spaceAbove > spaceBelow;
+  const availableHeight = Math.max(120, openAbove ? spaceAbove : spaceBelow);
+  menu.style.maxHeight = `${availableHeight}px`;
+  const left = Math.min(
+    Math.max(viewportPadding, bounds.left),
+    window.innerWidth - width - viewportPadding,
+  );
+  const top = openAbove
+    ? Math.max(viewportPadding, bounds.top - Math.min(measuredHeight, availableHeight) - 8)
+    : Math.min(window.innerHeight - viewportPadding, bounds.bottom + 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.classList.toggle("opens-above", openAbove);
+}
+
+function openSettingsChoiceMenu(trigger) {
+  const root = trigger.closest("[data-settings-choice]");
+  const select = root?.querySelector("[data-settings-choice-select]");
+  if (!select) return;
+  if (activeSettingsChoiceMenu?.trigger === trigger) {
+    closeSettingsChoiceMenu({ restoreFocus: true });
+    return;
+  }
+  closeSettingsChoiceMenu();
+  const menu = document.createElement("div");
+  menu.className = "settings-choice-menu";
+  menu.id = `${select.id}Menu`;
+  menu.setAttribute("role", "listbox");
+  menu.setAttribute("aria-label", select.getAttribute("aria-label") || "Choose an option");
+  if (trigger.closest(".presentation-settings-popover")) {
+    menu.classList.add("presentation-settings-choice-menu");
+    const popupStyle = getComputedStyle(trigger.closest(".presentation-settings-popover"));
+    menu.style.setProperty("--settings-choice-menu-bg", popupStyle.backgroundColor);
+    menu.style.setProperty("--settings-choice-menu-color", popupStyle.color);
+    menu.style.setProperty("--settings-choice-menu-border", popupStyle.getPropertyValue("--presentation-button-border"));
+    menu.style.setProperty("--settings-choice-menu-accent", popupStyle.getPropertyValue("--presentation-accent"));
+  }
+  const choices = Array.from(select.options);
+  menu.innerHTML = choices.map((option) => {
+    const choice = settingsChoiceFromOption(option);
+    const selected = option.value === select.value;
+    return `
+      <button class="settings-choice-option ${selected ? "active" : ""}" type="button" role="option" aria-selected="${selected ? "true" : "false"}" data-settings-choice-value="${escapeHtml(option.value)}" ${option.disabled ? "disabled" : ""}>
+        ${settingsChoiceOptionContent(choice)}
+        <span class="settings-choice-check" aria-hidden="true">${selected ? "✓" : ""}</span>
+      </button>
+    `;
+  }).join("");
+  document.body.appendChild(menu);
+  trigger.setAttribute("aria-expanded", "true");
+  positionSettingsChoiceMenu(trigger, menu, select.dataset.choiceMenuWide === "true");
+
+  const optionButtons = Array.from(menu.querySelectorAll(".settings-choice-option:not(:disabled)"));
+  const selectedButton = menu.querySelector(".settings-choice-option.active:not(:disabled)") || optionButtons[0];
+  optionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextValue = button.dataset.settingsChoiceValue;
+      closeSettingsChoiceMenu();
+      if (select.value === nextValue) return;
+      select.value = nextValue;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
+  menu.addEventListener("keydown", (event) => {
+    const index = optionButtons.indexOf(document.activeElement);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSettingsChoiceMenu({ restoreFocus: true });
+      return;
+    }
+    if (event.key === "Tab") {
+      closeSettingsChoiceMenu();
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      document.activeElement?.click();
+      return;
+    }
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? optionButtons.length - 1
+        : event.key === "ArrowDown"
+          ? Math.min(optionButtons.length - 1, Math.max(0, index + 1))
+          : event.key === "ArrowUp"
+            ? Math.max(0, index < 0 ? optionButtons.length - 1 : index - 1)
+            : -1;
+    if (nextIndex < 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    optionButtons[nextIndex]?.focus({ preventScroll: true });
+    optionButtons[nextIndex]?.scrollIntoView({ block: "nearest" });
+  });
+
+  activeSettingsChoiceMenu = { menu, trigger, select };
+  document.addEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
+  window.addEventListener("resize", closeSettingsChoiceMenu);
+  window.addEventListener("scroll", closeSettingsChoiceMenu, true);
+  requestAnimationFrame(() => selectedButton?.focus({ preventScroll: true }));
+}
+
+function bindSettingsChoiceMenus() {
+  document.querySelectorAll("[data-settings-choice-toggle]").forEach((trigger) => {
+    trigger.addEventListener("click", () => openSettingsChoiceMenu(trigger));
+    trigger.addEventListener("keydown", (event) => {
+      if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return;
+      event.preventDefault();
+      openSettingsChoiceMenu(trigger);
+    });
+  });
+}
+
 function soundVolumeControlMarkup(kind, prefix = "", options = {}) {
   const isGame = kind === "game";
   const controlName = isGame ? "GameVolume" : "ModeTransitionVolume";
@@ -3228,12 +3509,6 @@ function printingSettings(prefix = "") {
   `);
 }
 
-function passageShareFormatOptions() {
-  return passageShareFormats
-    .map((format) => `<option value="${format.code}" ${format.code === state.passageShareFormat ? "selected" : ""}>${format.name}</option>`)
-    .join("");
-}
-
 function passageShareFormatHelp() {
   return passageShareFormats.find((format) => format.code === state.passageShareFormat)?.description
     || passageShareFormats[0].description;
@@ -3243,10 +3518,12 @@ function sharingSettings(prefix = "") {
   const controlId = prefix ? `${prefix}PassageShareFormatSelect` : "passageShareFormatSelect";
   return settingsDisclosure("sharing", "Copy & sharing", `
     <div class="setting-group">
-      <label class="setting-label" for="${controlId}">Bible text format</label>
-      <select class="primary-version-select passage-share-format-select" id="${controlId}" aria-label="Copied and shared Bible text format">
-        ${passageShareFormatOptions()}
-      </select>
+      <span class="setting-label">Bible text format</span>
+      ${settingsChoiceMarkup(controlId, state.passageShareFormat, plainSettingsChoices(passageShareFormats), {
+        label: "Bible text format",
+        ariaLabel: "Copied and shared Bible text format",
+        selectClass: "primary-version-select passage-share-format-select",
+      })}
       <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
     </div>
   `);
@@ -3574,19 +3851,8 @@ function stageAppUpdatePositionRestore(scrollState, restoredVersion) {
 function mobileSettingsPanel(settingsPanelRerender = false) {
   if (state.mode === "big" || !state.settingsOpen) return "";
   const primaryVersion = state.versions[0] || "BSB";
-  const primaryVersionOptions = translationCodes
-    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}</option>`)
-    .join("");
   const followsSystemTheme = !localStorage.getItem("lw_theme");
-  const themeFamilyOptions = themeFamilyOptionsMarkup();
-  const currentColorLabel = `Current ${state.theme} color`;
-  const themePresetOptions = themePresets
-    .filter((preset) => preset.mode === state.theme)
-    .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
-    .join("");
-  const scriptureFontOptions = scriptureFonts
-    .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
-    .join("");
+  const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
   const customFontField = state.scriptureFont === "custom"
     ? customScriptureFontField("mobileCustomScriptureFontInput")
     : "";
@@ -3598,30 +3864,39 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
       </div>
       ${settingsSearchMarkup("mobile")}
       <div class="setting-group">
-        <label class="setting-label" for="mobileThemeFamilySelect">Theme family</label>
-        <select class="theme-preset-select" id="mobileThemeFamilySelect" aria-label="Theme family">
-          ${themeFamilyOptions}
-        </select>
-        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
-      </div>
-      <div class="setting-group">
-        <label class="setting-label" for="mobileThemePresetSelect">${currentColorLabel}</label>
-        <select class="theme-preset-select" id="mobileThemePresetSelect" aria-label="${currentColorLabel}">
-          ${themePresetOptions}
-        </select>
-      </div>
-      <div class="setting-group">
-        <label class="setting-label" for="mobileSettingsPrimaryVersionSelect">Bible version</label>
-        <select class="primary-version-select" id="mobileSettingsPrimaryVersionSelect" aria-label="Bible version">
-          ${primaryVersionOptions}
-        </select>
+        <span class="setting-label">Bible version</span>
+        ${settingsChoiceMarkup("mobileSettingsPrimaryVersionSelect", primaryVersion, bibleVersionSettingsChoices(), {
+          label: "Bible version",
+          ariaLabel: "Bible version",
+          selectClass: "primary-version-select",
+          wide: true,
+        })}
         <p class="setting-help">${nirvRecommendationHelp}</p>
       </div>
       <div class="setting-group">
-        <label class="setting-label" for="mobileScriptureFontSelect">Scripture font</label>
-        <select class="scripture-font-select" id="mobileScriptureFontSelect" aria-label="Scripture font">
-          ${scriptureFontOptions}
-        </select>
+        <span class="setting-label">Theme family</span>
+        ${settingsChoiceMarkup("mobileThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
+          label: "Theme family",
+          ariaLabel: "Theme family",
+          selectClass: "theme-preset-select",
+        })}
+        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
+      </div>
+      <div class="setting-group">
+        <span class="setting-label">${currentColorLabel}</span>
+        ${settingsChoiceMarkup("mobileThemePresetSelect", state.themePreset, themePresetSettingsChoices(), {
+          label: currentColorLabel,
+          ariaLabel: currentColorLabel,
+          selectClass: "theme-preset-select",
+        })}
+      </div>
+      <div class="setting-group">
+        <span class="setting-label">Scripture font</span>
+        ${settingsChoiceMarkup("mobileScriptureFontSelect", state.scriptureFont, plainSettingsChoices(scriptureFonts), {
+          label: "Scripture font",
+          ariaLabel: "Scripture font",
+          selectClass: "scripture-font-select",
+        })}
         ${customFontField}
       </div>
       <div class="setting-group">
@@ -3679,9 +3954,6 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
   const primaryVersion = state.versions[0] || "BSB";
-  const primaryVersionOptions = translationCodes
-    .map((version) => `<option value="${version}" ${version === primaryVersion ? "selected" : ""}>${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}</option>`)
-    .join("");
   const primaryVersionHeaderOptions = translationCodes
     .map((version) => `
       <button class="primary-version-option ${translationRecommendation(version) ? "recommended" : ""} ${version === primaryVersion ? "active" : ""}" type="button" data-primary-version-option="${version}" role="option" aria-selected="${version === primaryVersion ? "true" : "false"}">
@@ -3734,15 +4006,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     ["trivia", "Games", icons.games],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
-  const themePresetOptions = themePresets
-    .filter((preset) => preset.mode === state.theme)
-    .map((preset) => `<option value="${preset.code}" ${preset.code === state.themePreset ? "selected" : ""}>${preset.name}</option>`)
-    .join("");
-  const themeFamilyOptions = themeFamilyOptionsMarkup();
-  const currentColorLabel = `Current ${state.theme} color`;
-  const scriptureFontOptions = scriptureFonts
-    .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
-    .join("");
+  const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
   const customFontField = state.scriptureFont === "custom"
     ? customScriptureFontField("customScriptureFontInput")
     : "";
@@ -3800,30 +4064,39 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           </div>
           ${settingsSearchMarkup()}
           <div class="setting-group">
-            <label class="setting-label" for="themeFamilySelect">Theme family</label>
-            <select class="theme-preset-select" id="themeFamilySelect" aria-label="Theme family">
-              ${themeFamilyOptions}
-            </select>
-            <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
-          </div>
-          <div class="setting-group">
-            <label class="setting-label" for="themePresetSelect">${currentColorLabel}</label>
-            <select class="theme-preset-select" id="themePresetSelect" aria-label="${currentColorLabel}">
-              ${themePresetOptions}
-            </select>
-          </div>
-          <div class="setting-group">
-            <label class="setting-label" for="settingsPrimaryVersionSelect">Bible version</label>
-            <select class="primary-version-select" id="settingsPrimaryVersionSelect" aria-label="Bible version">
-              ${primaryVersionOptions}
-            </select>
+            <span class="setting-label">Bible version</span>
+            ${settingsChoiceMarkup("settingsPrimaryVersionSelect", primaryVersion, bibleVersionSettingsChoices(), {
+              label: "Bible version",
+              ariaLabel: "Bible version",
+              selectClass: "primary-version-select",
+              wide: true,
+            })}
             <p class="setting-help">${nirvRecommendationHelp}</p>
           </div>
           <div class="setting-group">
-            <label class="setting-label" for="scriptureFontSelect">Scripture font</label>
-            <select class="scripture-font-select" id="scriptureFontSelect" aria-label="Scripture font">
-              ${scriptureFontOptions}
-            </select>
+            <span class="setting-label">Theme family</span>
+            ${settingsChoiceMarkup("themeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
+              label: "Theme family",
+              ariaLabel: "Theme family",
+              selectClass: "theme-preset-select",
+            })}
+            <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
+          </div>
+          <div class="setting-group">
+            <span class="setting-label">${currentColorLabel}</span>
+            ${settingsChoiceMarkup("themePresetSelect", state.themePreset, themePresetSettingsChoices(), {
+              label: currentColorLabel,
+              ariaLabel: currentColorLabel,
+              selectClass: "theme-preset-select",
+            })}
+          </div>
+          <div class="setting-group">
+            <span class="setting-label">Scripture font</span>
+            ${settingsChoiceMarkup("scriptureFontSelect", state.scriptureFont, plainSettingsChoices(scriptureFonts), {
+              label: "Scripture font",
+              ariaLabel: "Scripture font",
+              selectClass: "scripture-font-select",
+            })}
             ${customFontField}
           </div>
           <div class="setting-group">
@@ -15162,16 +15435,6 @@ function sharedVersionReturnButton(surface) {
   `;
 }
 
-function themeFamilyOptionsMarkup() {
-  const customized = hasAppearanceOverrides(state.appearance);
-  return `
-    ${customized ? '<option value="" selected>Custom mix</option>' : ""}
-    ${themeFamilies.map((family) => `
-      <option value="${family.code}" ${!customized && family.code === state.appearance.themeFamily ? "selected" : ""}>${family.name}</option>
-    `).join("")}
-  `;
-}
-
 function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -15235,16 +15498,6 @@ function presentation(accountPanelRerender = false) {
     : enterDirection < 0
       ? "presentation-enter-previous"
       : "";
-  const versionOptions = translationCodes
-    .map((code) => `<option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)}</option>`)
-    .join("");
-  const themeOptions = presentationThemes
-    .map((theme) => `<option value="${theme.code}" ${theme.code === state.presentationTheme ? "selected" : ""}>${theme.name}</option>`)
-    .join("");
-  const themeFamilyOptions = themeFamilyOptionsMarkup();
-  const scriptureFontOptions = scriptureFonts
-    .map((font) => `<option value="${font.code}" ${font.code === state.scriptureFont ? "selected" : ""}>${font.name}</option>`)
-    .join("");
   const customFontField = state.scriptureFont === "custom"
     ? customScriptureFontField("presentationCustomScriptureFontInput")
     : "";
@@ -15254,32 +15507,41 @@ function presentation(accountPanelRerender = false) {
       <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
-        <label>
-          <span>Theme family</span>
-          <select id="presentationThemeFamilySelect" class="presentation-theme-select" aria-label="Theme family">
-            ${themeFamilyOptions}
-          </select>
-        </label>
-        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize Big Screen.</p>
-        <label>
-          <span>Big Screen color</span>
-          <select id="presentationThemeSelect" class="presentation-theme-select" aria-label="Change Big Screen theme">
-            ${themeOptions}
-          </select>
-        </label>
-        <label>
+        <div class="presentation-settings-choice-field">
           <span>Bible version</span>
-          <select id="presentationVersionSelect" class="presentation-version-select" aria-label="Change Bible version">
-            ${versionOptions}
-          </select>
-        </label>
-        <label>
+          ${settingsChoiceMarkup("presentationVersionSelect", version, bibleVersionSettingsChoices(), {
+            label: "Bible version",
+            ariaLabel: "Change Bible version",
+            selectClass: "presentation-version-select",
+            wide: true,
+          })}
+        </div>
+        <div class="presentation-settings-choice-field">
+          <span>Theme family</span>
+          ${settingsChoiceMarkup("presentationThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
+            label: "Theme family",
+            ariaLabel: "Theme family",
+            selectClass: "presentation-theme-select",
+          })}
+        </div>
+        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize Big Screen.</p>
+        <div class="presentation-settings-choice-field">
+          <span>Big Screen color</span>
+          ${settingsChoiceMarkup("presentationThemeSelect", state.presentationTheme, presentationThemeSettingsChoices(), {
+            label: "Big Screen color",
+            ariaLabel: "Change Big Screen color",
+            selectClass: "presentation-theme-select",
+          })}
+        </div>
+        <div class="presentation-settings-choice-field">
           <span>Scripture font</span>
-          <select id="presentationScriptureFontSelect" class="scripture-font-select" aria-label="Change scripture font">
-            ${scriptureFontOptions}
-          </select>
+          ${settingsChoiceMarkup("presentationScriptureFontSelect", state.scriptureFont, plainSettingsChoices(scriptureFonts), {
+            label: "Scripture font",
+            ariaLabel: "Change scripture font",
+            selectClass: "scripture-font-select",
+          })}
           ${customFontField}
-        </label>
+        </div>
         <div class="presentation-text-size-setting">
           <span>Text size</span>
           <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
@@ -15291,12 +15553,14 @@ function presentation(accountPanelRerender = false) {
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
         ${presentationSettingsDisclosure("sharing", "Copy & sharing", `
-          <label>
+          <div class="presentation-settings-choice-field">
             <span>Bible text format</span>
-            <select id="presentationPassageShareFormatSelect" class="presentation-version-select passage-share-format-select" aria-label="Copied and shared Bible text format">
-              ${passageShareFormatOptions()}
-            </select>
-          </label>
+            ${settingsChoiceMarkup("presentationPassageShareFormatSelect", state.passageShareFormat, plainSettingsChoices(passageShareFormats), {
+              label: "Bible text format",
+              ariaLabel: "Copied and shared Bible text format",
+              selectClass: "presentation-version-select passage-share-format-select",
+            })}
+          </div>
           <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
         `)}
         ${presentationSettingsDisclosure("sound", "Sound", `
@@ -16021,6 +16285,7 @@ function bindEvents() {
     bindDisclosureAnimation(section);
   });
   bindSettingsSearchControls();
+  bindSettingsChoiceMenus();
   document.querySelectorAll("[data-help-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
@@ -21725,6 +21990,7 @@ function closeFooterVersionMenu() {
 }
 
 function closeSettingsPopover() {
+  closeSettingsChoiceMenu();
   if (!state.settingsOpen) return;
   animateBeforeRemoval(".settings-popover.open, .mobile-settings-popover", () => {
     state.settingsOpen = false;
@@ -21736,12 +22002,13 @@ function closeSettingsPopover() {
 function closeSettingsPopoverOnOutsidePointerDown(event) {
   if (
     !state.settingsOpen
-    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, #settingsToggle, #mobileFloatingSettings")
+    || event.target.closest?.(".settings-popover.open, .mobile-settings-popover, .settings-choice-menu, #settingsToggle, #mobileFloatingSettings")
   ) return;
   closeSettingsPopover();
 }
 
 function closePresentationSettings() {
+  closeSettingsChoiceMenu();
   if (!state.presentationSettingsOpen) return;
   animateBeforeRemoval(".presentation-settings-popover.open", () => {
     state.presentationSettingsOpen = false;
@@ -21754,7 +22021,7 @@ function closePresentationSettings() {
 function closePresentationSettingsOnOutsidePointerDown(event) {
   if (
     !state.presentationSettingsOpen
-    || event.target.closest?.(".presentation-settings-popover.open, #presentationSettingsToggle")
+    || event.target.closest?.(".presentation-settings-popover.open, .settings-choice-menu, #presentationSettingsToggle")
   ) return;
   closePresentationSettings();
 }

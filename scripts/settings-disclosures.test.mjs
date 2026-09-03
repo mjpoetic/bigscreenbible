@@ -91,6 +91,9 @@ const soundsSource = extractFunction("soundsSettings");
 const settingsSearchMarkupSource = extractFunction("settingsSearchMarkup");
 const applySettingsSearchSource = extractFunction("applySettingsSearch");
 const bindSettingsSearchSource = extractFunction("bindSettingsSearchControls");
+const settingsChoiceMarkupSource = extractFunction("settingsChoiceMarkup");
+const openSettingsChoiceMenuSource = extractFunction("openSettingsChoiceMenu");
+const bindSettingsChoiceMenusSource = extractFunction("bindSettingsChoiceMenus");
 const rememberSource = extractFunction("rememberDisclosureState");
 const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
@@ -114,6 +117,9 @@ const endMobileControlsHoldSource = extractFunction("endMobileControlsHold");
 const cancelMobileControlsHoldSource = extractFunction("cancelMobileControlsHold");
 const suppressMobileControlsContextMenuSource = extractFunction("suppressMobileControlsContextMenu");
 const openSettingsFromMobileControlsSource = extractFunction("openSettingsFromMobileControls");
+const mobileSettingsPanelSource = extractFunction("mobileSettingsPanel");
+const topbarSource = extractFunction("topbar");
+const presentationSource = extractFunction("presentation");
 
 assert.match(displaySource, /settingsDisclosure\("display", "Display"/);
 assert.match(displaySource, /Paragraph layout when available/);
@@ -132,6 +138,21 @@ assert.match(applySettingsSearchSource, /settings-search-empty/);
 assert.match(applySettingsSearchSource, /section\.hidden/);
 assert.match(bindSettingsSearchSource, /addEventListener\("input"/);
 assert.match(bindEventsSource, /bindSettingsSearchControls\(\)/);
+assert.match(bindEventsSource, /bindSettingsChoiceMenus\(\)/);
+assert.match(settingsChoiceMarkupSource, /data-settings-choice-toggle/);
+assert.match(settingsChoiceMarkupSource, /data-settings-choice-select/);
+assert.match(openSettingsChoiceMenuSource, /role", "listbox"/);
+assert.match(openSettingsChoiceMenuSource, /new Event\("change", \{ bubbles: true \}\)/);
+assert.match(openSettingsChoiceMenuSource, /ArrowDown/);
+assert.match(openSettingsChoiceMenuSource, /ArrowUp/);
+assert.match(openSettingsChoiceMenuSource, /Escape/);
+assert.match(openSettingsChoiceMenuSource, /event\.stopPropagation\(\)/);
+assert.match(bindSettingsChoiceMenusSource, /data-settings-choice-toggle/);
+assert.match(mobileSettingsPanelSource, /settingsSearchMarkup\("mobile"\)[\s\S]*?Bible version[\s\S]*?Theme family/);
+assert.match(topbarSource, /settingsSearchMarkup\(\)[\s\S]*?Bible version[\s\S]*?Theme family/);
+assert.match(presentationSource, /presentationSettingsClose[\s\S]*?Bible version[\s\S]*?Theme family/);
+assert.match(styles, /\.settings-color-preview-3 \{[\s\S]*?linear-gradient/);
+assert.match(styles, /\.settings-choice-menu \{[\s\S]*?position:\s*fixed/);
 assert.match(source, /\$\{settingsSearchMarkup\("mobile"\)\}/);
 assert.match(source, /\$\{settingsSearchMarkup\(\)\}/);
 assert.match(source, /\$\{soundsSettings\("mobile"\)\}[\s\S]*?\$\{accessibilitySettings\("mobile"\)\}/);
@@ -173,6 +194,7 @@ pointerDownOn({ className: "settings-popover open" });
 pointerDownOn({ id: "mobileSettingsPopover" });
 pointerDownOn({ id: "settingsToggle" });
 pointerDownOn({ id: "mobileFloatingSettings" });
+pointerDownOn({ className: "settings-choice-menu" });
 assert.equal(closeCalls, 0, "Settings stays open for pointer presses inside the popup or on its toggles");
 
 pointerDownOn(null);
@@ -205,6 +227,7 @@ const presentationPointerDownOn = (closestMatch) => presentationOutsidePointerDo
 
 presentationPointerDownOn({ className: "presentation-settings-popover open" });
 presentationPointerDownOn({ id: "presentationSettingsToggle" });
+presentationPointerDownOn({ className: "settings-choice-menu" });
 assert.equal(presentationCloseCalls, 0, "Big Screen Settings stays open for pointer presses inside the popup or on its toggle");
 
 presentationPointerDownOn(null);

@@ -91,7 +91,7 @@ assert.match(source, /id="presentationAccountButton"/);
 assert.match(source, /id="presentationAccountPopover"/);
 assert.match(extractFunction("presentationReferencePicker"), /type\.charAt\(0\)\.toUpperCase\(\) \+ type\.slice\(1\)/);
 assert.match(extractFunction("presentationReferencePicker"), /presentation-reference-toggle/);
-assert.match(source, /id="presentationVersionSelect"/);
+assert.match(source, /settingsChoiceMarkup\("presentationVersionSelect"/);
 assert.match(source, /presentationVersionPicker\("title", version\)/);
 assert.match(extractFunction("presentation"), /presentation-version-label">\(\$\{verseOfDayTranslationCode\}\)<\/span>/);
 assert.match(extractFunction("verseOfDayReaderView"), /verseOfDayReferenceLabel\(item\)/);

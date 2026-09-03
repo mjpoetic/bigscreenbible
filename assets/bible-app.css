@@ -1985,6 +1985,213 @@ button {
   flex-shrink: 0;
 }
 
+.settings-choice {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-native-choice {
+  position: absolute !important;
+  width: 1px !important;
+  min-width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 0 !important;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.settings-choice-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 6px 10px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-choice-toggle:hover,
+.settings-choice-toggle:focus-visible,
+.settings-choice-toggle[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--teal) 52%, var(--line));
+  background: color-mix(in srgb, var(--teal) 6%, var(--panel));
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 13%, transparent);
+}
+
+.settings-choice-selected,
+.settings-choice-option-content {
+  min-width: 0;
+}
+
+.settings-choice-option-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-choice-option-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-choice-option-content-version {
+  display: grid;
+  grid-template-columns: minmax(42px, auto) minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+}
+
+.settings-choice-version-code {
+  color: currentColor;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.settings-choice-option-detail {
+  grid-column: 2;
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.settings-color-preview {
+  width: 24px;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  flex: 0 0 24px;
+}
+
+.settings-color-preview-1 {
+  background: var(--settings-preview-1);
+}
+
+.settings-color-preview-2 {
+  background: linear-gradient(135deg, var(--settings-preview-1) 0 50%, var(--settings-preview-2) 50% 100%);
+}
+
+.settings-color-preview-3 {
+  background: linear-gradient(
+    135deg,
+    var(--settings-preview-1) 0 33.333%,
+    var(--settings-preview-2) 33.333% 66.666%,
+    var(--settings-preview-3) 66.666% 100%
+  );
+}
+
+.settings-choice-chevron {
+  width: 8px;
+  height: 8px;
+  justify-self: center;
+  margin-top: -4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0.68;
+  transform: rotate(45deg);
+  transition: transform var(--motion-fast) ease;
+}
+
+.settings-choice-toggle[aria-expanded="true"] .settings-choice-chevron {
+  margin-top: 4px;
+  transform: rotate(225deg);
+}
+
+.settings-choice-menu {
+  --settings-choice-menu-bg: color-mix(in srgb, var(--panel) 97%, transparent);
+  --settings-choice-menu-color: var(--ink);
+  --settings-choice-menu-border: color-mix(in srgb, var(--teal) 30%, var(--line));
+  --settings-choice-menu-accent: var(--teal);
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--settings-choice-menu-border);
+  border-radius: 11px;
+  background: var(--settings-choice-menu-bg);
+  color: var(--settings-choice-menu-color);
+  padding: 6px;
+  box-shadow:
+    0 0 28px color-mix(in srgb, var(--settings-choice-menu-accent) 12%, transparent),
+    0 18px 46px color-mix(in srgb, #000 24%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
+  scrollbar-gutter: stable;
+  animation: surfaceIn var(--motion-fast) var(--motion-ease) both;
+}
+
+.settings-choice-menu.opens-above {
+  transform-origin: bottom center;
+}
+
+.settings-choice-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  padding: 7px 9px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-choice-option:hover,
+.settings-choice-option:focus-visible {
+  background: color-mix(in srgb, var(--settings-choice-menu-accent) 12%, transparent);
+  outline: 0;
+}
+
+.settings-choice-option.active {
+  background: color-mix(in srgb, var(--settings-choice-menu-accent) 15%, transparent);
+}
+
+.settings-choice-option:disabled {
+  cursor: default;
+  opacity: 0.78;
+}
+
+.settings-choice-check {
+  color: var(--settings-choice-menu-accent);
+  font-size: 15px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.presentation-settings-choice-menu .settings-choice-option-detail {
+  color: var(--settings-choice-menu-accent);
+}
+
 .custom-font-help {
   margin-top: 6px;
 }
@@ -11723,6 +11930,36 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   gap: 6px;
 }
 
+.presentation-settings-choice-field {
+  display: grid;
+  gap: 6px;
+}
+
+.presentation-settings-popover .settings-choice-toggle {
+  min-height: 42px;
+  border-color: var(--presentation-button-border);
+  background: var(--presentation-button-bg);
+  color: inherit;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.presentation-settings-popover .settings-choice-toggle:hover,
+.presentation-settings-popover .settings-choice-toggle:focus-visible,
+.presentation-settings-popover .settings-choice-toggle[aria-expanded="true"] {
+  border-color: var(--presentation-accent);
+  background: color-mix(in srgb, var(--presentation-button-bg) 78%, var(--presentation-accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--presentation-accent) 16%, transparent);
+}
+
+.presentation-settings-popover .settings-choice-option-label,
+.presentation-settings-popover .settings-choice-version-code {
+  color: inherit;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .presentation-settings-popover > .setting-help {
   color: var(--presentation-muted);
   font-size: 11px;
@@ -11973,7 +12210,8 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   .presentation-settings-popover :is(
     .presentation-theme-select,
     .presentation-version-select,
-    .scripture-font-select
+    .scripture-font-select,
+    .settings-choice-toggle
   ) {
     min-height: 36px;
     font-size: 12px;
