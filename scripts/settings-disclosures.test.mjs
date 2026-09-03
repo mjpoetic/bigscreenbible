@@ -157,7 +157,15 @@ assert.match(bindSettingsChoiceMenusSource, /data-settings-choice-toggle/);
 assert.match(mobileSettingsPanelSource, /settingsSearchMarkup\("mobile"\)[\s\S]*?Bible version[\s\S]*?Theme family/);
 assert.match(topbarSource, /settingsSearchMarkup\(\)[\s\S]*?Bible version[\s\S]*?Theme family/);
 assert.match(presentationSource, /presentationSettingsClose[\s\S]*?Bible version[\s\S]*?Theme family/);
-assert.match(styles, /\.settings-color-preview-2 \{[\s\S]*?linear-gradient\(135deg, var\(--settings-preview-1\) 0%, var\(--settings-preview-2\) 100%\)/);
+assert.match(styles, /\.settings-color-preview \{[\s\S]*?border-radius:\s*7px;[\s\S]*?overflow:\s*hidden/);
+assert.match(
+  styles,
+  /\[data-theme="light"\] \.settings-color-preview-2 \{[\s\S]*?border-color:[\s\S]*?var\(--settings-preview-1\) 46%[\s\S]*?var\(--settings-preview-2\) 100%/,
+);
+assert.match(
+  styles,
+  /\[data-theme="dark"\] \.settings-color-preview-2 \{[\s\S]*?border-color:[\s\S]*?var\(--settings-preview-2\) 56%[\s\S]*?var\(--settings-preview-2\) 100%/,
+);
 assert.match(styles, /\.settings-choice-menu \{[\s\S]*?touch-action:\s*pan-y/);
 assert.match(styles, /\.settings-choice-menu \{[\s\S]*?position:\s*fixed/);
 assert.match(source, /\$\{settingsSearchMarkup\("mobile"\)\}/);
