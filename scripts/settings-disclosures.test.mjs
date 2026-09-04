@@ -92,6 +92,7 @@ const settingsSearchMarkupSource = extractFunction("settingsSearchMarkup");
 const applySettingsSearchSource = extractFunction("applySettingsSearch");
 const bindSettingsSearchSource = extractFunction("bindSettingsSearchControls");
 const settingsChoiceMarkupSource = extractFunction("settingsChoiceMarkup");
+const scriptureFontSettingsChoicesSource = extractFunction("scriptureFontSettingsChoices");
 const openSettingsChoiceMenuSource = extractFunction("openSettingsChoiceMenu");
 const bindSettingsChoiceMenusSource = extractFunction("bindSettingsChoiceMenus");
 const closeSettingsChoiceMenuSource = extractFunction("closeSettingsChoiceMenu");
@@ -143,6 +144,8 @@ assert.match(bindEventsSource, /bindSettingsSearchControls\(\)/);
 assert.match(bindEventsSource, /bindSettingsChoiceMenus\(\)/);
 assert.match(settingsChoiceMarkupSource, /data-settings-choice-toggle/);
 assert.match(settingsChoiceMarkupSource, /data-settings-choice-select/);
+assert.match(settingsChoiceMarkupSource, /data-choice-font-preview/);
+assert.match(scriptureFontSettingsChoicesSource, /fontPreview:\s*font\.code/);
 assert.match(openSettingsChoiceMenuSource, /role", "listbox"/);
 assert.match(openSettingsChoiceMenuSource, /new Event\("change", \{ bubbles: true \}\)/);
 assert.match(openSettingsChoiceMenuSource, /ArrowDown/);
@@ -157,6 +160,14 @@ assert.match(bindSettingsChoiceMenusSource, /data-settings-choice-toggle/);
 assert.match(mobileSettingsPanelSource, /settingsSearchMarkup\("mobile"\)[\s\S]*?Bible version[\s\S]*?Theme family/);
 assert.match(topbarSource, /settingsSearchMarkup\(\)[\s\S]*?Bible version[\s\S]*?Theme family/);
 assert.match(presentationSource, /presentationSettingsClose[\s\S]*?Bible version[\s\S]*?Theme family/);
+assert.match(mobileSettingsPanelSource, /mobileScriptureFontSelect[\s\S]*?scriptureFontSettingsChoices\(\)/);
+assert.match(topbarSource, /scriptureFontSelect[\s\S]*?scriptureFontSettingsChoices\(\)/);
+assert.match(presentationSource, /presentationScriptureFontSelect[\s\S]*?scriptureFontSettingsChoices\(\)/);
+assert.match(styles, /\.settings-choice-option-content\[data-font-preview\] \.settings-choice-option-label \{[\s\S]*?font-family:\s*var\(--settings-choice-preview-font\)/);
+assert.match(styles, /\.presentation-settings-popover \.settings-choice-option-content\[data-font-preview\] \.settings-choice-option-label \{\s*font-size:\s*12px/);
+for (const font of ["literata", "libre", "lora", "crimson", "noto-sans", "figtree", "source-sans", "manrope", "atkinson-hyperlegible-next", "custom"]) {
+  assert.ok(styles.includes(`data-font-preview="${font}"`), `Missing ${font} settings preview font`);
+}
 assert.match(styles, /\.settings-color-preview \{[\s\S]*?border-radius:\s*7px;[\s\S]*?overflow:\s*hidden/);
 assert.match(
   styles,

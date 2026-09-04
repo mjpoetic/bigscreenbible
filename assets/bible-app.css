@@ -78,6 +78,10 @@
   --scripture-font: "Lora", Georgia, serif;
 }
 
+[data-scripture-font="libre"] {
+  --scripture-font: "Libre Baskerville", Georgia, serif;
+}
+
 [data-scripture-font="literata"] {
   --scripture-font: "Literata", Georgia, serif;
 }
@@ -2052,6 +2056,55 @@ button {
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settings-choice-option-content[data-font-preview] .settings-choice-option-label {
+  font-family: var(--settings-choice-preview-font);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.settings-choice-option-content[data-font-preview="literata"] {
+  --settings-choice-preview-font: "Literata", Georgia, serif;
+}
+
+.settings-choice-option-content[data-font-preview="libre"] {
+  --settings-choice-preview-font: "Libre Baskerville", Georgia, serif;
+}
+
+.settings-choice-option-content[data-font-preview="lora"] {
+  --settings-choice-preview-font: "Lora", Georgia, serif;
+}
+
+.settings-choice-option-content[data-font-preview="crimson"] {
+  --settings-choice-preview-font: "Crimson Text", Georgia, serif;
+}
+
+.settings-choice-option-content[data-font-preview="noto-sans"] {
+  --settings-choice-preview-font: "Noto Sans", Arial, sans-serif;
+}
+
+.settings-choice-option-content[data-font-preview="figtree"] {
+  --settings-choice-preview-font: "Figtree", Arial, sans-serif;
+}
+
+.settings-choice-option-content[data-font-preview="source-sans"] {
+  --settings-choice-preview-font: "Source Sans 3", Arial, sans-serif;
+}
+
+.settings-choice-option-content[data-font-preview="manrope"] {
+  --settings-choice-preview-font: "Manrope", Arial, sans-serif;
+}
+
+.settings-choice-option-content[data-font-preview="atkinson-hyperlegible-next"] {
+  --settings-choice-preview-font: "Atkinson Hyperlegible Next", Arial, sans-serif;
+}
+
+.settings-choice-option-content[data-font-preview="custom"] {
+  --settings-choice-preview-font: var(--custom-scripture-font, Georgia, serif);
 }
 
 .settings-choice-option-content-version {
@@ -11995,6 +12048,10 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.presentation-settings-popover .settings-choice-option-content[data-font-preview] .settings-choice-option-label {
+  font-size: 12px;
 }
 
 .presentation-settings-popover > .setting-help {

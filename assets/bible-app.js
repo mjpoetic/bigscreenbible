@@ -3078,7 +3078,7 @@ function settingsChoiceOptionContent(choice, options = {}) {
     `;
   }
   return `
-    <span class="settings-choice-option-content">
+    <span class="settings-choice-option-content" ${choice.fontPreview ? `data-font-preview="${escapeHtml(choice.fontPreview)}"` : ""}>
       ${settingsColorPreviewMarkup(choice.previewColors)}
       <span class="settings-choice-option-label">${escapeHtml(choice.label)}</span>
     </span>
@@ -3098,6 +3098,7 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
             data-choice-label="${escapeHtml(choice.label)}"
             ${choice.code ? `data-choice-code="${escapeHtml(choice.code)}"` : ""}
             ${choice.detail ? `data-choice-detail="${escapeHtml(choice.detail)}"` : ""}
+            ${choice.fontPreview ? `data-choice-font-preview="${escapeHtml(choice.fontPreview)}"` : ""}
             ${choice.previewColors?.length ? `data-preview-colors="${escapeHtml(choice.previewColors.join(","))}"` : ""}>${escapeHtml(choice.nativeLabel || choice.label)}</option>
         `).join("")}
       </select>
@@ -3111,6 +3112,14 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
 
 function plainSettingsChoices(items) {
   return items.map((item) => ({ value: item.code, label: item.name }));
+}
+
+function scriptureFontSettingsChoices() {
+  return scriptureFonts.map((font) => ({
+    value: font.code,
+    label: font.name,
+    fontPreview: font.code,
+  }));
 }
 
 function bibleVersionSettingsChoices() {
@@ -3183,6 +3192,7 @@ function settingsChoiceFromOption(option) {
     label: option.dataset.choiceLabel || option.textContent || option.value,
     code: option.dataset.choiceCode || "",
     detail: option.dataset.choiceDetail || "",
+    fontPreview: option.dataset.choiceFontPreview || "",
     previewColors: (option.dataset.previewColors || "").split(",").filter(Boolean),
   };
 }
@@ -3894,7 +3904,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
       </div>
       <div class="setting-group">
         <span class="setting-label">Scripture font</span>
-        ${settingsChoiceMarkup("mobileScriptureFontSelect", state.scriptureFont, plainSettingsChoices(scriptureFonts), {
+        ${settingsChoiceMarkup("mobileScriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
           label: "Scripture font",
           ariaLabel: "Scripture font",
           selectClass: "scripture-font-select",
@@ -4093,7 +4103,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           </div>
           <div class="setting-group">
             <span class="setting-label">Scripture font</span>
-            ${settingsChoiceMarkup("scriptureFontSelect", state.scriptureFont, plainSettingsChoices(scriptureFonts), {
+            ${settingsChoiceMarkup("scriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
               label: "Scripture font",
               ariaLabel: "Scripture font",
               selectClass: "scripture-font-select",
@@ -15536,7 +15546,7 @@ function presentation(accountPanelRerender = false) {
         </div>
         <div class="presentation-settings-choice-field">
           <span>Scripture font</span>
-          ${settingsChoiceMarkup("presentationScriptureFontSelect", state.scriptureFont, plainSettingsChoices(scriptureFonts), {
+          ${settingsChoiceMarkup("presentationScriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
             label: "Scripture font",
             ariaLabel: "Change scripture font",
             selectClass: "scripture-font-select",
@@ -20307,7 +20317,9 @@ async function loadCustomScriptureFont() {
 }
 
 function applyCustomScriptureFont() {
-  document.querySelector(".app-shell")?.style.setProperty("--custom-scripture-font", customScriptureFontStack());
+  const fontStack = customScriptureFontStack();
+  document.documentElement.style.setProperty("--custom-scripture-font", fontStack);
+  document.querySelector(".app-shell")?.style.setProperty("--custom-scripture-font", fontStack);
   loadCustomScriptureFont();
 }
 

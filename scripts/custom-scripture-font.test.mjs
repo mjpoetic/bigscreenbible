@@ -59,6 +59,7 @@ assert.match(source, /Loaded \$\{font\} from Google Fonts/);
 assert.match(source, /bindCustomScriptureFontInput\("presentationCustomScriptureFontInput"\)/);
 assert.match(source, /retryFailedFont/);
 assert.match(source, /Custom device or Google font/);
+assert.match(source, /document\.documentElement\.style\.setProperty\("--custom-scripture-font", fontStack\)/);
 assert.match(styles, /\.custom-font-status\[data-font-status="google"\]/);
 assert.match(styles, /\.custom-font-status\[data-font-status="error"\]/);
 
