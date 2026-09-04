@@ -4980,6 +4980,21 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   transition-delay: var(--tooltip-delay);
 }
 
+:is(.settings-popover, .mobile-settings-popover, .presentation-settings-popover) .setting-tooltip-area[data-tooltip]::after {
+  width: max-content;
+  max-width: min(260px, 100%);
+  box-sizing: border-box;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+
+:is(.settings-popover, .mobile-settings-popover, .presentation-settings-popover) .setting-tooltip-area[data-tooltip]:focus-within::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: var(--tooltip-delay);
+}
+
 .topbar .search[data-tooltip]:has([data-tooltip]:hover)::after,
 .topbar .search[data-tooltip]:has([data-tooltip]:focus-visible)::after {
   opacity: 0;

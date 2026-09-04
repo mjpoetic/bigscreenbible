@@ -3186,6 +3186,14 @@ function presentationThemeSettingsChoices() {
   }));
 }
 
+function themeFamilySettingsTooltip(modeLabel = "this mode") {
+  return `Links Light, Dark, and Big Screen colors. Choose a color below to customize ${modeLabel}.`;
+}
+
+function currentThemeColorTooltip(modeLabel) {
+  return `Sets the color used in ${modeLabel} mode without changing the other modes.`;
+}
+
 function settingsChoiceFromOption(option) {
   return {
     value: option.value,
@@ -3885,16 +3893,15 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
           wide: true,
         })}
       </div>
-      <div class="setting-group">
+      <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}">
         <span class="setting-label">Theme family</span>
         ${settingsChoiceMarkup("mobileThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
           label: "Theme family",
           ariaLabel: "Theme family",
           selectClass: "theme-preset-select",
         })}
-        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
       </div>
-      <div class="setting-group">
+      <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip(state.theme === "dark" ? "Dark" : "Light"))}">
         <span class="setting-label">${currentColorLabel}</span>
         ${settingsChoiceMarkup("mobileThemePresetSelect", state.themePreset, themePresetSettingsChoices(), {
           label: currentColorLabel,
@@ -4084,16 +4091,15 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
               wide: true,
             })}
           </div>
-          <div class="setting-group">
+          <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}">
             <span class="setting-label">Theme family</span>
             ${settingsChoiceMarkup("themeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
               label: "Theme family",
               ariaLabel: "Theme family",
               selectClass: "theme-preset-select",
             })}
-            <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize this mode.</p>
           </div>
-          <div class="setting-group">
+          <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip(state.theme === "dark" ? "Dark" : "Light"))}">
             <span class="setting-label">${currentColorLabel}</span>
             ${settingsChoiceMarkup("themePresetSelect", state.themePreset, themePresetSettingsChoices(), {
               label: currentColorLabel,
@@ -15527,7 +15533,7 @@ function presentation(accountPanelRerender = false) {
             wide: true,
           })}
         </div>
-        <div class="presentation-settings-choice-field">
+        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip("Big Screen"))}">
           <span>Theme family</span>
           ${settingsChoiceMarkup("presentationThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
             label: "Theme family",
@@ -15535,8 +15541,7 @@ function presentation(accountPanelRerender = false) {
             selectClass: "presentation-theme-select",
           })}
         </div>
-        <p class="setting-help">Links Light, Dark, and Big Screen colors. Choose a color below to customize Big Screen.</p>
-        <div class="presentation-settings-choice-field">
+        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip("Big Screen"))}">
           <span>Big Screen color</span>
           ${settingsChoiceMarkup("presentationThemeSelect", state.presentationTheme, presentationThemeSettingsChoices(), {
             label: "Big Screen color",

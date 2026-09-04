@@ -410,7 +410,10 @@ assert.match(extractFunction("presentationThemeSettingsChoices"), /previewColors
 assert.match(appSource, /settingsChoiceMarkup\("themeFamilySelect"/);
 assert.match(appSource, /settingsChoiceMarkup\("mobileThemeFamilySelect"/);
 assert.match(appSource, /settingsChoiceMarkup\("presentationThemeFamilySelect"/);
-assert.match(appSource, /Links Light, Dark, and Big Screen colors/);
+assert.match(extractFunction("themeFamilySettingsTooltip"), /Links Light, Dark, and Big Screen colors/);
+assert.match(extractFunction("currentThemeColorTooltip"), /without changing the other modes/);
+assert.doesNotMatch(appSource, /<p class="setting-help">Links Light, Dark, and Big Screen colors/);
+assert.equal((appSource.match(/setting-tooltip-area/g) || []).length, 6);
 assert.match(appSource, /getElementById\("themeFamilySelect"\).*setThemeFamily/s);
 assert.match(appSource, /getElementById\("mobileThemeFamilySelect"\).*setThemeFamily/s);
 assert.match(appSource, /getElementById\("presentationThemeFamilySelect"\).*setThemeFamily/s);
