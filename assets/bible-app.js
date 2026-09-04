@@ -1359,6 +1359,24 @@ function visibleSettingsPanel() {
   return panels.find((panel) => panel.getClientRects().length) || panels[0] || null;
 }
 
+function focusSettingsSearchTarget(prefix, targetName) {
+  const target = document.getElementById(settingsControlId(prefix, targetName));
+  if (!target) return;
+  const setting = target.closest(".setting-group, .settings-page-actions") || target;
+  const focusTarget = target.matches(".settings-native-choice")
+    ? target.closest("[data-settings-choice]")?.querySelector("[data-settings-choice-toggle]")
+    : target.matches("button, input, select, textarea, a[href], [tabindex]")
+      ? target
+      : setting.querySelector("button, input:not([tabindex='-1']), select:not([tabindex='-1']), textarea, a[href], [tabindex]:not([tabindex='-1'])");
+  setting.classList.add("settings-search-target-focus");
+  setting.scrollIntoView({
+    block: "center",
+    behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth",
+  });
+  requestAnimationFrame(() => focusTarget?.focus({ preventScroll: true }));
+  window.setTimeout(() => setting.classList.remove("settings-search-target-focus"), 1800);
+}
+
 function captureSettingsPanelScroll() {
   if (!state.settingsOpen) return null;
   const panel = visibleSettingsPanel();
@@ -3014,12 +3032,23 @@ function applySettingsSearch(root, query = state.settingsSearchQuery) {
   let visibleCount = 0;
   root.querySelectorAll("[data-settings-search-item]").forEach((item) => {
     const searchableText = item.dataset.settingsSearchText || item.textContent;
-    const matches = !normalizedQuery || normalizedSettingsSearchText(searchableText).includes(normalizedQuery);
+    const searchOnly = item.hasAttribute("data-settings-search-only");
+    const browseOnly = Boolean(item.closest("[data-settings-browse-only]"));
+    const matches = normalizedQuery
+      ? !browseOnly && normalizedSettingsSearchText(searchableText).includes(normalizedQuery)
+      : !searchOnly;
     item.hidden = !matches;
     if (matches && normalizedQuery) visibleCount += 1;
   });
   root.querySelectorAll("[data-settings-search-group]").forEach((group) => {
-    group.hidden = Boolean(normalizedQuery && !group.querySelector("[data-settings-search-item]:not([hidden])"));
+    const searchOnly = group.hasAttribute("data-settings-search-only");
+    const browseOnly = group.hasAttribute("data-settings-browse-only");
+    const hasVisibleItem = Boolean(group.querySelector("[data-settings-search-item]:not([hidden])"));
+    group.hidden = browseOnly && normalizedQuery
+      ? true
+      : searchOnly && !normalizedQuery
+      ? true
+      : Boolean(normalizedQuery && !hasVisibleItem);
   });
   if (empty) empty.hidden = !normalizedQuery || visibleCount > 0;
   if (status) status.textContent = normalizedQuery
@@ -3401,20 +3430,9 @@ function soundsSettings(prefix = "", options = {}) {
 }
 
 function displaySettings(prefix = "", options = {}) {
-  const fullscreenActive = isFullscreenActive();
-  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
-  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("display", "Scripture display", `
     <div class="setting-group">
-      <div class="settings-control-row">
-        <div class="text-size-control" aria-label="Text size controls">
-          <button class="icon-btn" id="${controlId("DecreaseText")}" aria-label="Decrease text size" data-tooltip="Decrease text size">A-</button>
-          <button class="text-size-reset" id="${controlId("ResetText")}" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
-          <button class="icon-btn" id="${controlId("IncreaseText")}" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
-        </div>
-        <button class="ghost-btn fullscreen-btn" id="${controlId("FullscreenButton")}" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
-      </div>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ParagraphLayoutToggle")}" ${state.paragraphLayout ? "checked" : ""} />
         <span>Paragraph layout when available</span>
@@ -3875,14 +3893,37 @@ function settingsControlId(prefix, name) {
 }
 
 function settingsTextSizeMarkup(prefix = "") {
+  const fullscreenActive = isFullscreenActive();
+  const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
+  const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   return `
-    <div class="setting-group settings-quick-text-size" data-settings-search-item data-settings-search-text="text size scripture reading zoom font size">
+    <div class="setting-group settings-quick-text-size" data-settings-search-item data-settings-search-text="text size scripture reading zoom font size fullscreen full screen">
       <span class="setting-label">Text size</span>
-      <div class="text-size-control" aria-label="Text size controls">
-        <button class="icon-btn" id="${settingsControlId(prefix, "DecreaseText")}" aria-label="Decrease text size" data-tooltip="Decrease text size">A−</button>
-        <button class="text-size-reset" id="${settingsControlId(prefix, "ResetText")}" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
-        <button class="icon-btn" id="${settingsControlId(prefix, "IncreaseText")}" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+      <div class="settings-quick-text-actions">
+        <div class="text-size-control" aria-label="Text size controls">
+          <button class="icon-btn" id="${settingsControlId(prefix, "DecreaseText")}" aria-label="Decrease text size" data-tooltip="Decrease text size">A−</button>
+          <button class="text-size-reset" id="${settingsControlId(prefix, "ResetText")}" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
+          <button class="icon-btn" id="${settingsControlId(prefix, "IncreaseText")}" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+        </div>
+        <button class="ghost-btn fullscreen-btn settings-quick-fullscreen" id="${settingsControlId(prefix, "FullscreenButton")}" type="button" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
       </div>
+    </div>
+  `;
+}
+
+function settingsScriptureFontMarkup(prefix = "", options = {}) {
+  const scriptureFontId = prefix ? `${prefix}ScriptureFontSelect` : "scriptureFontSelect";
+  const customFontId = prefix ? `${prefix}CustomScriptureFontInput` : "customScriptureFontInput";
+  const customFontField = state.scriptureFont === "custom" ? customScriptureFontField(customFontId) : "";
+  return `
+    <div class="setting-group settings-scripture-font" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="scripture font typeface typography custom Google font"' : ""}>
+      <span class="setting-label">Scripture font</span>
+      ${settingsChoiceMarkup(scriptureFontId, state.scriptureFont, scriptureFontSettingsChoices(), {
+        label: "Scripture font",
+        ariaLabel: "Scripture font",
+        selectClass: "scripture-font-select",
+      })}
+      ${customFontField}
     </div>
   `;
 }
@@ -3892,9 +3933,6 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
   const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
   const themeFamilyId = prefix ? `${prefix}ThemeFamilySelect` : "themeFamilySelect";
   const themePresetId = prefix ? `${prefix}ThemePresetSelect` : "themePresetSelect";
-  const scriptureFontId = prefix ? `${prefix}ScriptureFontSelect` : "scriptureFontSelect";
-  const customFontId = prefix ? `${prefix}CustomScriptureFontInput` : "customScriptureFontInput";
-  const customFontField = state.scriptureFont === "custom" ? customScriptureFontField(customFontId) : "";
   return `
     ${options.includeFamily ? `
       <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}">
@@ -3914,17 +3952,7 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
         selectClass: "theme-preset-select",
       })}
     </div>
-    ${options.includeFont ? `
-      <div class="setting-group">
-        <span class="setting-label">Scripture font</span>
-        ${settingsChoiceMarkup(scriptureFontId, state.scriptureFont, scriptureFontSettingsChoices(), {
-          label: "Scripture font",
-          ariaLabel: "Scripture font",
-          selectClass: "scripture-font-select",
-        })}
-        ${customFontField}
-      </div>
-    ` : ""}
+    ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
     <div class="setting-group" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="appearance mode light dark system theme"' : ""}>
       <span class="setting-label">Appearance</span>
       <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
@@ -3948,11 +3976,69 @@ function settingsDestinationRow(page, title, summary, searchText) {
   `;
 }
 
+function settingsSearchDestinationRow(prefix, page, target, title, category, searchText) {
+  return `
+    <button class="settings-destination-row settings-search-destination" type="button"
+      data-settings-page="${page}" data-settings-target="${target}" data-settings-prefix="${prefix}"
+      data-settings-search-item data-settings-search-only data-settings-search-text="${escapeHtml(`${title} ${category} ${searchText}`)}" hidden>
+      <span class="settings-destination-copy">
+        <strong>${title}</strong>
+        <small>${category}</small>
+      </span>
+      <span class="settings-destination-chevron" aria-hidden="true"></span>
+    </button>
+  `;
+}
+
+function settingsDeepSearchResultsMarkup(prefix = "") {
+  const result = (page, target, title, category, searchText = "") => (
+    settingsSearchDestinationRow(prefix, page, target, title, category, searchText)
+  );
+  return `
+    <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
+      ${result("appearance", "ThemeFamilySelect", "Theme family", "Appearance & Text", "palette colors linked themes")}
+      ${result("appearance", "InterfaceTextSizeLabel", "Interface text size", "Appearance & Text", "accessibility navigation menus")}
+      ${result("reading", "ParagraphLayoutToggle", "Paragraph layout", "Scripture & Reading", "scripture display")}
+      ${result("reading", "SectionHeadingsToggle", "Section headings", "Scripture & Reading", "scripture display")}
+      ${result("reading", "RedLettersToggle", "Words of Jesus in red", "Scripture & Reading", "red letters")}
+      ${result("reading", "StrongNumbersToggle", "Strong's number lookups", "Scripture & Reading", "Strong numbers")}
+      ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
+      ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
+      ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
+      ${result("reading", "AutoScrollSpeedLabel", "Auto-scroll speed", "Scripture & Reading", "automatic scrolling")}
+      ${result("reading", "SideToolbarPositionLabel", "Landscape toolbar position", "Scripture & Reading", "left right side")}
+      ${result("sounds", "ModeTransitionSoundsToggle", "Mode transition sounds", "Sounds", "audio cue")}
+      ${result("sounds", "ModeTransitionVolume", "Mode transition volume", "Sounds", "audio loudness")}
+      ${result("sounds", "GameMusicToggle", "Game music and result sounds", "Sounds", "audio")}
+      ${result("sounds", "GameVolume", "Game volume", "Sounds", "music result feedback countdown loudness")}
+      ${result("sounds", "WordSearchSoundsToggle", "Word game feedback sounds", "Sounds", "letter word confirmation countdown")}
+      ${result("sharing", "PassageShareFormatSelect", "Bible text format", "Sharing & Printing", "copy share quotation plain")}
+      ${result("sharing", "PrintLayoutLabel", "Print layout", "Sharing & Printing", "reader big screen study")}
+      ${result("sharing", "PrintVerseNumbersToggle", "Print verse numbers", "Sharing & Printing", "printing")}
+      ${result("sharing", "PrintFullVersionNameToggle", "Full Bible version name in print", "Sharing & Printing", "printing")}
+      ${result("startup", "StartBigScreenToggle", "Start in Big Screen Mode", "Startup & Notifications", "launch opening")}
+      ${result("startup", "StartVerseOfDayToggle", "Start with Verse of the Day", "Startup & Notifications", "launch opening")}
+      ${result("startup", "ShowStreakPopupToggle", "Daily streak popup", "Startup & Notifications", "reading streak")}
+      ${result("startup", "ChallengeQuietModeToggle", "Challenge Quiet Mode", "Startup & Notifications", "game popup")}
+      ${result("startup", "PushNotificationsToggle", "Allow notifications", "Startup & Notifications", "push device")}
+      ${result("startup", "PushMorningTime", "Morning reading reminder", "Startup & Notifications", "daily time")}
+      ${result("startup", "PushEveningToggle", "Evening reading nudge", "Startup & Notifications", "daily reminder")}
+      ${result("startup", state.authUser ? "PushFriendRequestToggle" : "PushNotificationsToggle", "Friend request notifications", "Startup & Notifications", "social activity sign in")}
+      ${result("startup", state.authUser ? "PushGameChallengeToggle" : "PushNotificationsToggle", "Game challenge notifications", "Startup & Notifications", "social activity sign in")}
+      ${result("startup", state.authUser ? "PushChallengeAcceptedToggle" : "PushNotificationsToggle", "Accepted challenge notifications", "Startup & Notifications", "social activity sign in")}
+      ${result("app", "AppUpdateButton", "Check for app updates", "App, Help & Legal", "refresh installed version")}
+      ${result("app", "SettingsHelpButton", "Help & Tour", "App, Help & Legal", "keyboard shortcuts guidance")}
+      ${result("app", "SettingsAboutButton", "About Big Screen Bible", "App, Help & Legal", "information")}
+      ${result("app", "SettingsPrivacyLink", "Privacy Policy", "App, Help & Legal", "legal")}
+      ${result("app", "SettingsTermsLink", "Terms of Service", "App, Help & Legal", "legal")}
+    </nav>
+  `;
+}
+
 function mainSettingsRootMarkup(prefix = "") {
   const primaryVersion = state.versions[0] || "BSB";
   const versionSelectId = prefix ? `${prefix}SettingsPrimaryVersionSelect` : "settingsPrimaryVersionSelect";
   const selectedColor = themePresets.find((preset) => preset.code === state.themePreset)?.name || state.themePreset;
-  const selectedFont = scriptureFonts.find((font) => font.code === state.scriptureFont)?.name || state.scriptureFont;
   const selectedShareFormat = passageShareFormats.find((format) => format.code === state.passageShareFormat)?.name || "Bible text";
   const selectedPrintLayout = printLayouts.find((layout) => layout.code === state.printLayout)?.name || "Print";
   const startupSummary = [
@@ -3973,16 +4059,18 @@ function mainSettingsRootMarkup(prefix = "") {
         })}
       </div>
       ${settingsTextSizeMarkup(prefix)}
+      ${settingsScriptureFontMarkup(prefix, { searchItem: true })}
       ${settingsAppearanceMarkup(prefix, { searchItem: true })}
     </div>
-    <nav class="settings-destinations" aria-label="More settings" data-settings-search-group>
-      ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system scripture font interface text accessibility")}
-      ${settingsDestinationRow("reading", "Scripture & Reading", `${Math.round(state.textScale * 100)}% · ${selectedFont}`, "scripture display reading paragraph headings red letters words of Jesus Strong numbers fullscreen chapter navigation page speed auto scroll landscape toolbar")}
+    <nav class="settings-destinations" aria-label="More settings" data-settings-search-group data-settings-browse-only>
+      ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system interface text accessibility")}
+      ${settingsDestinationRow("reading", "Scripture & Reading", `${Math.round(state.textScale * 100)}% · ${state.paragraphLayout ? "Paragraph" : "Verse-by-verse"}`, "scripture display reading paragraph headings red letters words of Jesus Strong numbers chapter navigation page speed auto scroll landscape toolbar")}
       ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds audio volume transition game music result feedback word search")}
       ${settingsDestinationRow("sharing", "Sharing & Printing", `${selectedShareFormat} · ${selectedPrintLayout}`, "copy sharing share format printing print layout verse numbers version name")}
       ${settingsDestinationRow("startup", "Startup & Notifications", startupSummary, "startup reminders notifications morning evening friend requests game challenges streak quiet mode verse of the day")}
       ${settingsDestinationRow("app", "App, Help & Legal", `Version ${appVersion}`, "app updates check refresh help tour keyboard shortcuts about legal privacy terms")}
     </nav>
+    ${settingsDeepSearchResultsMarkup(prefix)}
   `;
 }
 
@@ -3993,7 +4081,7 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
       <section class="settings-page-section">
         <h3>Look & feel</h3>
         <div class="settings-page-section-content">
-          ${settingsAppearanceMarkup(prefix, { includeFamily: true, includeFont: true })}
+          ${settingsAppearanceMarkup(prefix, { includeFamily: true })}
         </div>
       </section>
       ${accessibilitySettings(prefix, drilldown)}
@@ -4006,6 +4094,8 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
   if (page === "app") {
     const helpId = prefix ? `${prefix}SettingsHelpButton` : "settingsHelpButton";
     const aboutId = prefix ? `${prefix}SettingsAboutButton` : "settingsAboutButton";
+    const privacyId = prefix ? `${prefix}SettingsPrivacyLink` : "settingsPrivacyLink";
+    const termsId = prefix ? `${prefix}SettingsTermsLink` : "settingsTermsLink";
     return `
       ${appUpdateSettings(prefix, drilldown)}
       <section class="settings-page-section">
@@ -4015,9 +4105,9 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
           <button class="ghost-btn" id="${aboutId}" type="button">${icons.info}<span>About Big Screen Bible</span></button>
         </div>
         <nav class="settings-legal-links" aria-label="Legal information">
-          <a href="./privacy/">Privacy Policy</a>
+          <a id="${privacyId}" href="./privacy/">Privacy Policy</a>
           <span aria-hidden="true">·</span>
-          <a href="./terms/">Terms of Service</a>
+          <a id="${termsId}" href="./terms/">Terms of Service</a>
         </nav>
       </section>
     `;
@@ -16420,13 +16510,18 @@ function bindEvents() {
   document.querySelectorAll("[data-settings-page]").forEach((button) => {
     button.addEventListener("click", () => {
       if (!settingsPages[button.dataset.settingsPage]) return;
+      const targetName = button.dataset.settingsTarget || "";
+      const targetPrefix = button.dataset.settingsPrefix || "";
       const panel = visibleSettingsPanel();
       if (panel) panel.scrollTop = 0;
       state.settingsPage = button.dataset.settingsPage;
       state.settingsSearchQuery = "";
       settingsPageTransition = "forward";
       renderPreservingReaderScroll();
-      requestAnimationFrame(() => positionSettingsPopover(state.settingsAnchor));
+      requestAnimationFrame(() => {
+        positionSettingsPopover(state.settingsAnchor);
+        if (targetName) focusSettingsSearchTarget(targetPrefix, targetName);
+      });
     });
   });
   document.querySelectorAll("[data-settings-back]").forEach((button) => {

@@ -4573,8 +4573,49 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
 }
 
-.settings-quick-text-size .text-size-control {
+.settings-quick-text-actions {
+  display: grid;
+  grid-template-columns: minmax(154px, 190px) minmax(104px, 122px);
+  align-items: stretch;
+  gap: 8px;
+}
+
+:is(.settings-popover, .mobile-settings-popover) .settings-quick-text-actions .text-size-control {
+  display: grid;
+  grid-template-columns: 36px minmax(58px, 1fr) 36px;
   width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding-inline: 4px;
+}
+
+.settings-quick-text-actions .text-size-control .icon-btn {
+  width: 36px;
+  min-width: 36px;
+}
+
+.settings-quick-text-actions .text-size-reset {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-quick-fullscreen {
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 40px;
+  padding-inline: 9px;
+}
+
+.settings-quick-fullscreen svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-quick-fullscreen span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-destinations {
@@ -4718,6 +4759,23 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 .settings-page-section-content > .setting-group + .setting-group {
   padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+
+.settings-search-target-focus {
+  scroll-margin-block: 72px 20px;
+  border-radius: 8px;
+  animation: settingsSearchTargetFocus 1.8s var(--motion-ease) both;
+}
+
+@keyframes settingsSearchTargetFocus {
+  0%, 100% {
+    background: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  18%, 72% {
+    background: color-mix(in srgb, var(--teal) 13%, transparent);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--teal) 13%, transparent);
+  }
 }
 
 .settings-page-actions .ghost-btn {
@@ -4921,6 +4979,12 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   .presentation-settings-page-forward,
   .presentation-settings-page-back {
     animation: none;
+  }
+
+  .settings-search-target-focus {
+    animation: none;
+    outline: 3px solid color-mix(in srgb, var(--teal) 24%, transparent);
+    outline-offset: 3px;
   }
 
   .settings-section,
