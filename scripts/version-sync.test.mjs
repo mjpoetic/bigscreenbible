@@ -72,6 +72,5 @@ assert.match(
   /code: "NIRV", displayCode: "NIrV", name: "New International Reader's Version", provider: "youVersion"/,
 );
 assert.match(source, /recommendation: "Great for children & new readers"/);
-assert.match(source, /NIrV uses clear, shorter sentences at about a third-grade reading level/);
 
 console.log("Version sync tests passed");

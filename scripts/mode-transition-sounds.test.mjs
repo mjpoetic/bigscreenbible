@@ -59,6 +59,7 @@ const setSoundsSource = extractFunction("setModeTransitionSounds");
 const readySoundSource = extractFunction("playReadyModeTransitionSound");
 const soundsSource = extractFunction("soundsSettings");
 const presentationSource = extractFunction("presentation");
+const presentationSettingsPanelSource = extractFunction("presentationSettingsPanelMarkup");
 const bindEventsSource = extractFunction("bindEvents");
 const captureSource = extractFunction("captureCloudSnapshot");
 const applySource = extractFunction("applyCloudSnapshot");
@@ -90,8 +91,8 @@ assert.match(soundsSource, /settingsDisclosure\("sounds", "Sounds"/);
 assert.match(soundsSource, /ModeTransitionSoundsToggle/);
 assert.match(soundsSource, /Mode transition sounds/);
 assert.match(soundsSource, /soundVolumeControlMarkup\("mode", prefix\)/);
-assert.match(presentationSource, /presentationSettingsDisclosure\("sound", "Sound"/);
-assert.match(presentationSource, /presentationModeTransitionSoundsToggle/);
+assert.match(presentationSettingsPanelSource, /<h3>Sound<\/h3>/);
+assert.match(presentationSettingsPanelSource, /presentationModeTransitionSoundsToggle/);
 for (const id of [
   "modeTransitionSoundsToggle",
   "mobileModeTransitionSoundsToggle",

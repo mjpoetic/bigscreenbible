@@ -407,13 +407,13 @@ assert.match(extractFunction("themeFamilyPreviewColors"), /themeChromeColor\(dar
 assert.doesNotMatch(extractFunction("themeFamilyPreviewColors"), /presentationThemeColor/);
 assert.match(extractFunction("themePresetSettingsChoices"), /previewColors: \[themeChromeColor/);
 assert.match(extractFunction("presentationThemeSettingsChoices"), /previewColors: \[presentationThemeColor/);
-assert.match(appSource, /settingsChoiceMarkup\("themeFamilySelect"/);
-assert.match(appSource, /settingsChoiceMarkup\("mobileThemeFamilySelect"/);
+assert.match(extractFunction("settingsAppearanceMarkup"), /themeFamilyId[\s\S]*settingsChoiceMarkup\(themeFamilyId/);
+assert.match(extractFunction("mobileSettingsPanel"), /mainSettingsPanelMarkup\("mobile"\)/);
 assert.match(appSource, /settingsChoiceMarkup\("presentationThemeFamilySelect"/);
 assert.match(extractFunction("themeFamilySettingsTooltip"), /Links Light, Dark, and Big Screen colors/);
 assert.match(extractFunction("currentThemeColorTooltip"), /without changing the other modes/);
 assert.doesNotMatch(appSource, /<p class="setting-help">Links Light, Dark, and Big Screen colors/);
-assert.equal((appSource.match(/setting-tooltip-area/g) || []).length, 6);
+assert.equal((appSource.match(/setting-tooltip-area/g) || []).length, 4);
 assert.match(appSource, /getElementById\("themeFamilySelect"\).*setThemeFamily/s);
 assert.match(appSource, /getElementById\("mobileThemeFamilySelect"\).*setThemeFamily/s);
 assert.match(appSource, /getElementById\("presentationThemeFamilySelect"\).*setThemeFamily/s);

@@ -35,8 +35,8 @@ assert.equal(context.normalize("unexpected"), "default");
 assert.equal(context.normalize(null), "default");
 
 assert.match(source, /data-interface-text-size="\$\{state\.interfaceTextSize\}"/);
-assert.match(source, /\$\{accessibilitySettings\("mobile"\)\}/);
-assert.match(source, /\$\{accessibilitySettings\(\)\}/);
+assert.match(extractFunction("mainSettingsPageContent"), /accessibilitySettings\(prefix, drilldown\)/);
+assert.match(extractFunction("mobileSettingsPanel"), /mainSettingsPanelMarkup\("mobile"\)/);
 assert.match(source, /interfaceTextSize: state\.interfaceTextSize/);
 assert.match(source, /localStorage\.setItem\("lw_interface_text_size", state\.interfaceTextSize\)/);
 

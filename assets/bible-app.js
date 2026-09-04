@@ -528,6 +528,8 @@ const strongs = {
 let searchRequestId = 0;
 let activeSearchScopeMenu = null;
 let activeSettingsChoiceMenu = null;
+let settingsPageTransition = "";
+let presentationSettingsPageTransition = "";
 
 const state = {
   mode: "reader",
@@ -601,6 +603,7 @@ const state = {
   startupApplied: false,
   settingsOpen: false,
   settingsSearchQuery: "",
+  settingsPage: "root",
   focusReferenceOpen: false,
   focusSearchResultsOpen: false,
   focusToolsOpen: false,
@@ -626,6 +629,7 @@ const state = {
     updates: false,
     keyboard: false,
   },
+  presentationSettingsPage: "root",
   parallelVersionMenuIndex: null,
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
@@ -1461,6 +1465,8 @@ function render() {
       <div class="status-toast" id="toast"></div>
     </main>
   `;
+  settingsPageTransition = "";
+  presentationSettingsPageTransition = "";
   pendingFocusChromeEnter = false;
   pendingLibraryEnter = false;
   mountMobileGameControls();
@@ -2946,7 +2952,17 @@ function bindDisclosureAnimation(details) {
   });
 }
 
-function settingsDisclosure(key, label, content) {
+function settingsDisclosure(key, label, content, options = {}) {
+  if (options.drilldown) {
+    return `
+      <section class="settings-page-section" data-settings-page-section="${key}">
+        <h3>${label}</h3>
+        <div class="settings-page-section-content">
+          ${content}
+        </div>
+      </section>
+    `;
+  }
   return `
     <details class="settings-section" data-settings-section="${key}" ${state.settingsSectionsOpen[key] ? "open" : ""}>
       <summary>${label}</summary>
@@ -2996,39 +3012,15 @@ function applySettingsSearch(root, query = state.settingsSearchQuery) {
   root.classList.toggle("settings-search-active", Boolean(normalizedQuery));
 
   let visibleCount = 0;
-  Array.from(root.children).filter((child) => child.matches?.(".setting-group")).forEach((group) => {
-    const matches = !normalizedQuery || normalizedSettingsSearchText(group.textContent).includes(normalizedQuery);
-    group.hidden = !matches;
+  root.querySelectorAll("[data-settings-search-item]").forEach((item) => {
+    const searchableText = item.dataset.settingsSearchText || item.textContent;
+    const matches = !normalizedQuery || normalizedSettingsSearchText(searchableText).includes(normalizedQuery);
+    item.hidden = !matches;
     if (matches && normalizedQuery) visibleCount += 1;
   });
-
-  root.querySelectorAll(":scope > .settings-section").forEach((section) => {
-    const summary = section.querySelector(":scope > summary");
-    const groups = Array.from(section.querySelectorAll(":scope > .settings-section-content > .setting-group"));
-    const summaryMatches = normalizedQuery
-      && normalizedSettingsSearchText(summary?.textContent).includes(normalizedQuery);
-    let sectionMatches = false;
-    groups.forEach((group) => {
-      const matches = !normalizedQuery
-        || summaryMatches
-        || normalizedSettingsSearchText(group.textContent).includes(normalizedQuery);
-      group.hidden = !matches;
-      if (matches && normalizedQuery) {
-        sectionMatches = true;
-        visibleCount += 1;
-      }
-    });
-    section.hidden = Boolean(normalizedQuery && !summaryMatches && !sectionMatches);
-    if (normalizedQuery && !section.hidden) section.open = true;
-    if (!normalizedQuery) section.open = Boolean(state.settingsSectionsOpen[section.dataset.settingsSection]);
+  root.querySelectorAll("[data-settings-search-group]").forEach((group) => {
+    group.hidden = Boolean(normalizedQuery && !group.querySelector("[data-settings-search-item]:not([hidden])"));
   });
-
-  const legalLinks = root.querySelector(":scope > .settings-legal-links");
-  if (legalLinks) {
-    const matches = !normalizedQuery || normalizedSettingsSearchText(legalLinks.textContent).includes(normalizedQuery);
-    legalLinks.hidden = !matches;
-    if (matches && normalizedQuery) visibleCount += 1;
-  }
   if (empty) empty.hidden = !normalizedQuery || visibleCount > 0;
   if (status) status.textContent = normalizedQuery
     ? `${visibleCount} ${visibleCount === 1 ? "setting" : "settings"} found`
@@ -3381,7 +3373,7 @@ function soundVolumeControlMarkup(kind, prefix = "", options = {}) {
   `;
 }
 
-function soundsSettings(prefix = "") {
+function soundsSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("sounds", "Sounds", `
     <div class="setting-group sounds-settings">
@@ -3405,15 +3397,15 @@ function soundsSettings(prefix = "") {
       </label>
       <p class="setting-help">Plays letter and word confirmation tones, plus Word Search countdown ticks.</p>
     </div>
-  `);
+  `, options);
 }
 
-function displaySettings(prefix = "") {
+function displaySettings(prefix = "", options = {}) {
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
-  return settingsDisclosure("display", "Display", `
+  return settingsDisclosure("display", "Scripture display", `
     <div class="setting-group">
       <div class="settings-control-row">
         <div class="text-size-control" aria-label="Text size controls">
@@ -3440,14 +3432,14 @@ function displaySettings(prefix = "") {
         <span>Strong's number lookups</span>
       </label>
     </div>
-  `);
+  `, options);
 }
 
-function readingSettings(prefix = "") {
+function readingSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedAutoScrollSpeed = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
   const selectedPageScrollSpeed = readerPageScrollSpeeds.find((speed) => speed.code === state.readerPageScrollSpeed) || readerPageScrollSpeeds[1];
-  return settingsDisclosure("reading", "Reading", `
+  return settingsDisclosure("reading", "Reading & navigation", `
     <div class="setting-group">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("EdgeChapterNavigationToggle")}" ${state.edgeChapterNavigationEnabled ? "checked" : ""} />
@@ -3485,10 +3477,10 @@ function readingSettings(prefix = "") {
         <button class="theme-mode-button ${state.sideToolbarPosition === "right" ? "active" : ""}" type="button" data-side-toolbar-position="right" aria-pressed="${state.sideToolbarPosition === "right" ? "true" : "false"}">Right</button>
       </div>
     </div>
-  `);
+  `, options);
 }
 
-function accessibilitySettings(prefix = "") {
+function accessibilitySettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedSize = interfaceTextSizes.find((size) => size.code === state.interfaceTextSize) || interfaceTextSizes[0];
   return settingsDisclosure("accessibility", "Accessibility", `
@@ -3501,10 +3493,10 @@ function accessibilitySettings(prefix = "") {
       </div>
       <p class="setting-help" aria-live="polite">${selectedSize.name} (${selectedSize.percent}%). Enlarges navigation, Bible picker, Settings, and study-panel text. Scripture size stays separate.</p>
     </div>
-  `);
+  `, options);
 }
 
-function printingSettings(prefix = "") {
+function printingSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedLayout = printLayouts.find((layout) => layout.code === state.printLayout) || printLayouts[0];
   return settingsDisclosure("printing", "Printing", `
@@ -3527,7 +3519,7 @@ function printingSettings(prefix = "") {
         <span>Use full Bible version name</span>
       </label>
     </div>
-  `);
+  `, options);
 }
 
 function passageShareFormatHelp() {
@@ -3535,7 +3527,7 @@ function passageShareFormatHelp() {
     || passageShareFormats[0].description;
 }
 
-function sharingSettings(prefix = "") {
+function sharingSettings(prefix = "", options = {}) {
   const controlId = prefix ? `${prefix}PassageShareFormatSelect` : "passageShareFormatSelect";
   return settingsDisclosure("sharing", "Copy & sharing", `
     <div class="setting-group">
@@ -3547,12 +3539,12 @@ function sharingSettings(prefix = "") {
       })}
       <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
     </div>
-  `);
+  `, options);
 }
 
-function startupReminderSettings(prefix = "") {
+function startupReminderSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
-  return settingsDisclosure("startup", "Startup & reminders", `
+  return settingsDisclosure("startup", "Startup & notifications", `
     <div class="setting-group">
       <span class="setting-label">Startup</span>
       <label class="setting-checkbox">
@@ -3577,7 +3569,7 @@ function startupReminderSettings(prefix = "") {
       <p class="setting-help">Keeps incoming challenge popups in Friends &amp; Challenges while you read, study, or present. Popups still appear in Games.</p>
     </div>
     ${pushReminderSettings(prefix)}
-  `);
+  `, options);
 }
 
 function appUpdateControls(prefix = "") {
@@ -3600,8 +3592,8 @@ function appUpdateControls(prefix = "") {
   `;
 }
 
-function appUpdateSettings(prefix = "") {
-  return settingsDisclosure("updates", "App updates", appUpdateControls(prefix));
+function appUpdateSettings(prefix = "", options = {}) {
+  return settingsDisclosure("updates", "App updates", appUpdateControls(prefix), options);
 }
 
 function appUpdateMetadataUrl() {
@@ -3869,76 +3861,196 @@ function stageAppUpdatePositionRestore(scrollState, restoredVersion) {
   }, 5000);
 }
 
-function mobileSettingsPanel(settingsPanelRerender = false) {
-  if (state.mode === "big" || !state.settingsOpen) return "";
-  const primaryVersion = state.versions[0] || "BSB";
+const settingsPages = Object.freeze({
+  appearance: "Appearance & Text",
+  reading: "Scripture & Reading",
+  sounds: "Sounds",
+  sharing: "Sharing & Printing",
+  startup: "Startup & Notifications",
+  app: "App, Help & Legal",
+});
+
+function settingsControlId(prefix, name) {
+  return prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
+}
+
+function settingsTextSizeMarkup(prefix = "") {
+  return `
+    <div class="setting-group settings-quick-text-size" data-settings-search-item data-settings-search-text="text size scripture reading zoom font size">
+      <span class="setting-label">Text size</span>
+      <div class="text-size-control" aria-label="Text size controls">
+        <button class="icon-btn" id="${settingsControlId(prefix, "DecreaseText")}" aria-label="Decrease text size" data-tooltip="Decrease text size">A−</button>
+        <button class="text-size-reset" id="${settingsControlId(prefix, "ResetText")}" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
+        <button class="icon-btn" id="${settingsControlId(prefix, "IncreaseText")}" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
+      </div>
+    </div>
+  `;
+}
+
+function settingsAppearanceMarkup(prefix = "", options = {}) {
   const followsSystemTheme = !localStorage.getItem("lw_theme");
   const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
-  const customFontField = state.scriptureFont === "custom"
-    ? customScriptureFontField("mobileCustomScriptureFontInput")
-    : "";
+  const themeFamilyId = prefix ? `${prefix}ThemeFamilySelect` : "themeFamilySelect";
+  const themePresetId = prefix ? `${prefix}ThemePresetSelect` : "themePresetSelect";
+  const scriptureFontId = prefix ? `${prefix}ScriptureFontSelect` : "scriptureFontSelect";
+  const customFontId = prefix ? `${prefix}CustomScriptureFontInput` : "customScriptureFontInput";
+  const customFontField = state.scriptureFont === "custom" ? customScriptureFontField(customFontId) : "";
   return `
-    <div class="mobile-settings-popover draggable-popup ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
-      <div class="settings-popover-head">
-        <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
-        <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
-      </div>
-      ${settingsSearchMarkup("mobile")}
-      <div class="setting-group">
-        <span class="setting-label">Bible version</span>
-        ${settingsChoiceMarkup("mobileSettingsPrimaryVersionSelect", primaryVersion, bibleVersionSettingsChoices(), {
-          label: "Bible version",
-          ariaLabel: "Bible version",
-          selectClass: "primary-version-select",
-          wide: true,
-        })}
-      </div>
+    ${options.includeFamily ? `
       <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}">
         <span class="setting-label">Theme family</span>
-        ${settingsChoiceMarkup("mobileThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
+        ${settingsChoiceMarkup(themeFamilyId, hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
           label: "Theme family",
           ariaLabel: "Theme family",
           selectClass: "theme-preset-select",
         })}
       </div>
-      <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip(state.theme === "dark" ? "Dark" : "Light"))}">
-        <span class="setting-label">${currentColorLabel}</span>
-        ${settingsChoiceMarkup("mobileThemePresetSelect", state.themePreset, themePresetSettingsChoices(), {
-          label: currentColorLabel,
-          ariaLabel: currentColorLabel,
-          selectClass: "theme-preset-select",
-        })}
-      </div>
+    ` : ""}
+    <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip(state.theme === "dark" ? "Dark" : "Light"))}" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="theme color palette light dark appearance"' : ""}>
+      <span class="setting-label">${currentColorLabel}</span>
+      ${settingsChoiceMarkup(themePresetId, state.themePreset, themePresetSettingsChoices(), {
+        label: currentColorLabel,
+        ariaLabel: currentColorLabel,
+        selectClass: "theme-preset-select",
+      })}
+    </div>
+    ${options.includeFont ? `
       <div class="setting-group">
         <span class="setting-label">Scripture font</span>
-        ${settingsChoiceMarkup("mobileScriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
+        ${settingsChoiceMarkup(scriptureFontId, state.scriptureFont, scriptureFontSettingsChoices(), {
           label: "Scripture font",
           ariaLabel: "Scripture font",
           selectClass: "scripture-font-select",
         })}
         ${customFontField}
       </div>
-      <div class="setting-group">
-        <span class="setting-label">Appearance</span>
-        <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
-          <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
-          <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
-          <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
-        </div>
+    ` : ""}
+    <div class="setting-group" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="appearance mode light dark system theme"' : ""}>
+      <span class="setting-label">Appearance</span>
+      <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
+        <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
+        <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
+        <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
       </div>
-      ${soundsSettings("mobile")}
-      ${accessibilitySettings("mobile")}
-      ${displaySettings("mobile")}
-      ${readingSettings("mobile")}
-      ${sharingSettings("mobile")}
-      ${printingSettings("mobile")}
-      ${startupReminderSettings("mobile")}
-      ${appUpdateSettings("mobile")}
-      <nav class="settings-legal-links" aria-label="Legal information">
-        <a href="./privacy/">Privacy Policy</a>
-        <span aria-hidden="true">·</span>
-        <a href="./terms/">Terms of Service</a>
-      </nav>
+    </div>
+  `;
+}
+
+function settingsDestinationRow(page, title, summary, searchText) {
+  return `
+    <button class="settings-destination-row" type="button" data-settings-page="${page}" data-settings-search-item data-settings-search-text="${escapeHtml(searchText)}">
+      <span class="settings-destination-copy">
+        <strong>${title}</strong>
+        <small>${escapeHtml(summary)}</small>
+      </span>
+      <span class="settings-destination-chevron" aria-hidden="true"></span>
+    </button>
+  `;
+}
+
+function mainSettingsRootMarkup(prefix = "") {
+  const primaryVersion = state.versions[0] || "BSB";
+  const versionSelectId = prefix ? `${prefix}SettingsPrimaryVersionSelect` : "settingsPrimaryVersionSelect";
+  const selectedColor = themePresets.find((preset) => preset.code === state.themePreset)?.name || state.themePreset;
+  const selectedFont = scriptureFonts.find((font) => font.code === state.scriptureFont)?.name || state.scriptureFont;
+  const selectedShareFormat = passageShareFormats.find((format) => format.code === state.passageShareFormat)?.name || "Bible text";
+  const selectedPrintLayout = printLayouts.find((layout) => layout.code === state.printLayout)?.name || "Print";
+  const startupSummary = [
+    state.startBigScreen ? "Big Screen" : "Reader",
+    state.startVerseOfDay ? "Verse of the Day" : "Last passage",
+    state.pushEnabled ? "Notifications on" : "Notifications off",
+  ].join(" · ");
+  return `
+    ${settingsSearchMarkup(prefix)}
+    <div class="settings-quick-controls" aria-label="Quick settings" data-settings-search-group>
+      <div class="setting-group" data-settings-search-item data-settings-search-text="Bible version translation">
+        <span class="setting-label">Bible version</span>
+        ${settingsChoiceMarkup(versionSelectId, primaryVersion, bibleVersionSettingsChoices(), {
+          label: "Bible version",
+          ariaLabel: "Bible version",
+          selectClass: "primary-version-select",
+          wide: true,
+        })}
+      </div>
+      ${settingsTextSizeMarkup(prefix)}
+      ${settingsAppearanceMarkup(prefix, { searchItem: true })}
+    </div>
+    <nav class="settings-destinations" aria-label="More settings" data-settings-search-group>
+      ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system scripture font interface text accessibility")}
+      ${settingsDestinationRow("reading", "Scripture & Reading", `${Math.round(state.textScale * 100)}% · ${selectedFont}`, "scripture display reading paragraph headings red letters words of Jesus Strong numbers fullscreen chapter navigation page speed auto scroll landscape toolbar")}
+      ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds audio volume transition game music result feedback word search")}
+      ${settingsDestinationRow("sharing", "Sharing & Printing", `${selectedShareFormat} · ${selectedPrintLayout}`, "copy sharing share format printing print layout verse numbers version name")}
+      ${settingsDestinationRow("startup", "Startup & Notifications", startupSummary, "startup reminders notifications morning evening friend requests game challenges streak quiet mode verse of the day")}
+      ${settingsDestinationRow("app", "App, Help & Legal", `Version ${appVersion}`, "app updates check refresh help tour keyboard shortcuts about legal privacy terms")}
+    </nav>
+  `;
+}
+
+function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
+  const drilldown = { drilldown: true };
+  if (page === "appearance") {
+    return `
+      <section class="settings-page-section">
+        <h3>Look & feel</h3>
+        <div class="settings-page-section-content">
+          ${settingsAppearanceMarkup(prefix, { includeFamily: true, includeFont: true })}
+        </div>
+      </section>
+      ${accessibilitySettings(prefix, drilldown)}
+    `;
+  }
+  if (page === "reading") return `${displaySettings(prefix, drilldown)}${readingSettings(prefix, drilldown)}`;
+  if (page === "sounds") return soundsSettings(prefix, drilldown);
+  if (page === "sharing") return `${sharingSettings(prefix, drilldown)}${printingSettings(prefix, drilldown)}`;
+  if (page === "startup") return startupReminderSettings(prefix, drilldown);
+  if (page === "app") {
+    const helpId = prefix ? `${prefix}SettingsHelpButton` : "settingsHelpButton";
+    const aboutId = prefix ? `${prefix}SettingsAboutButton` : "settingsAboutButton";
+    return `
+      ${appUpdateSettings(prefix, drilldown)}
+      <section class="settings-page-section">
+        <h3>Help & legal</h3>
+        <div class="settings-page-actions">
+          <button class="ghost-btn" id="${helpId}" type="button">?<span>Help & Tour</span></button>
+          <button class="ghost-btn" id="${aboutId}" type="button">${icons.info}<span>About Big Screen Bible</span></button>
+        </div>
+        <nav class="settings-legal-links" aria-label="Legal information">
+          <a href="./privacy/">Privacy Policy</a>
+          <span aria-hidden="true">·</span>
+          <a href="./terms/">Terms of Service</a>
+        </nav>
+      </section>
+    `;
+  }
+  return mainSettingsRootMarkup(prefix);
+}
+
+function mainSettingsPanelMarkup(prefix = "") {
+  const page = settingsPages[state.settingsPage] ? state.settingsPage : "root";
+  const transitionClass = settingsPageTransition ? `settings-page-enter-${settingsPageTransition}` : "";
+  if (page === "root") return `<div class="settings-page settings-page-root ${transitionClass}">${mainSettingsRootMarkup(prefix)}</div>`;
+  return `
+    <div class="settings-page settings-page-detail ${transitionClass}" data-settings-current-page="${page}">
+      <div class="settings-page-titlebar">
+        <button class="settings-page-back" type="button" data-settings-back aria-label="Back to Settings"><span aria-hidden="true">‹</span><span>Settings</span></button>
+        <strong>${settingsPages[page]}</strong>
+      </div>
+      <div class="settings-page-body">
+        ${mainSettingsPageContent(prefix, page)}
+      </div>
+    </div>
+  `;
+}
+
+function mobileSettingsPanel(settingsPanelRerender = false) {
+  if (state.mode === "big" || !state.settingsOpen) return "";
+  return `
+    <div class="mobile-settings-popover draggable-popup ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
+      <div class="settings-popover-head">
+        <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
+        <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+      </div>
+      ${mainSettingsPanelMarkup("mobile")}
     </div>
   `;
 }
@@ -4015,7 +4127,6 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           ${primaryVersionHeaderOptions}
         </div>
       </div>`;
-  const followsSystemTheme = !localStorage.getItem("lw_theme");
   const accountButton = accountQuickButtonContent();
   const headerAccountOpen = state.accountOpen && state.mode !== "big";
   const modeOptions = [
@@ -4025,10 +4136,6 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     ["trivia", "Games", icons.games],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
-  const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
-  const customFontField = state.scriptureFont === "custom"
-    ? customScriptureFontField("customScriptureFontInput")
-    : "";
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
   const activeSearchLabel = activeSearchSourceLabel();
   return `
@@ -4081,62 +4188,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
             <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
             <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           </div>
-          ${settingsSearchMarkup()}
-          <div class="setting-group">
-            <span class="setting-label">Bible version</span>
-            ${settingsChoiceMarkup("settingsPrimaryVersionSelect", primaryVersion, bibleVersionSettingsChoices(), {
-              label: "Bible version",
-              ariaLabel: "Bible version",
-              selectClass: "primary-version-select",
-              wide: true,
-            })}
-          </div>
-          <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}">
-            <span class="setting-label">Theme family</span>
-            ${settingsChoiceMarkup("themeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
-              label: "Theme family",
-              ariaLabel: "Theme family",
-              selectClass: "theme-preset-select",
-            })}
-          </div>
-          <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip(state.theme === "dark" ? "Dark" : "Light"))}">
-            <span class="setting-label">${currentColorLabel}</span>
-            ${settingsChoiceMarkup("themePresetSelect", state.themePreset, themePresetSettingsChoices(), {
-              label: currentColorLabel,
-              ariaLabel: currentColorLabel,
-              selectClass: "theme-preset-select",
-            })}
-          </div>
-          <div class="setting-group">
-            <span class="setting-label">Scripture font</span>
-            ${settingsChoiceMarkup("scriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
-              label: "Scripture font",
-              ariaLabel: "Scripture font",
-              selectClass: "scripture-font-select",
-            })}
-            ${customFontField}
-          </div>
-          <div class="setting-group">
-            <span class="setting-label">Appearance</span>
-            <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
-              <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
-              <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
-              <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
-            </div>
-          </div>
-          ${soundsSettings()}
-          ${accessibilitySettings()}
-          ${displaySettings()}
-          ${readingSettings()}
-          ${sharingSettings()}
-          ${printingSettings()}
-          ${startupReminderSettings()}
-          ${appUpdateSettings()}
-          <nav class="settings-legal-links" aria-label="Legal information">
-            <a href="./privacy/">Privacy Policy</a>
-            <span aria-hidden="true">·</span>
-            <a href="./terms/">Terms of Service</a>
-          </nav>
+          ${mainSettingsPanelMarkup()}
         </div>
       </div>
     </header>
@@ -15441,6 +15493,136 @@ function presentationSettingsDisclosure(key, label, content) {
   `;
 }
 
+const presentationSettingsPages = Object.freeze({
+  look: "Look & Feel",
+  presenting: "Presenting",
+  app: "Help & App",
+});
+
+function presentationSettingsDestinationRow(page, title, summary) {
+  return `
+    <button class="presentation-settings-destination" type="button" data-presentation-settings-page="${page}">
+      <span><strong>${title}</strong><small>${escapeHtml(summary)}</small></span>
+      <span class="presentation-settings-destination-chevron" aria-hidden="true"></span>
+    </button>
+  `;
+}
+
+function presentationSettingsPanelMarkup(version, customFontField = "") {
+  const page = presentationSettingsPages[state.presentationSettingsPage] ? state.presentationSettingsPage : "root";
+  const transitionClass = presentationSettingsPageTransition ? `presentation-settings-page-${presentationSettingsPageTransition}` : "";
+  if (page === "root") {
+    const selectedFont = scriptureFonts.find((font) => font.code === state.scriptureFont)?.name || state.scriptureFont;
+    return `
+      <div class="presentation-settings-page presentation-settings-page-root ${transitionClass}">
+        <div class="presentation-settings-choice-field">
+          <span>Bible version</span>
+          ${settingsChoiceMarkup("presentationVersionSelect", version, bibleVersionSettingsChoices(), {
+            label: "Bible version",
+            ariaLabel: "Change Bible version",
+            selectClass: "presentation-version-select",
+            wide: true,
+          })}
+        </div>
+        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip("Big Screen"))}">
+          <span>Big Screen color</span>
+          ${settingsChoiceMarkup("presentationThemeSelect", state.presentationTheme, presentationThemeSettingsChoices(), {
+            label: "Big Screen color",
+            ariaLabel: "Change Big Screen color",
+            selectClass: "presentation-theme-select",
+          })}
+        </div>
+        <div class="presentation-text-size-setting">
+          <span>Text size</span>
+          <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
+            <button type="button" id="presentationDecreaseText" aria-label="Decrease Big Screen text size">A−</button>
+            <button type="button" class="presentation-text-size-reset" id="presentationResetText" aria-label="Reset Big Screen text size to 100%"><span>Aa</span><strong>${Math.round(state.presentationTextScale * 100)}%</strong></button>
+            <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
+          </div>
+        </div>
+        <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
+        <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
+          ${presentationSettingsDestinationRow("look", "Look & Feel", selectedFont)}
+          ${presentationSettingsDestinationRow("presenting", "Presenting", `Sharing · Sound ${state.modeTransitionSounds ? "on" : "off"}`)}
+          ${presentationSettingsDestinationRow("app", "Help & App", `Version ${appVersion}`)}
+        </nav>
+      </div>
+    `;
+  }
+
+  let content = "";
+  if (page === "look") {
+    content = `
+      <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip("Big Screen"))}">
+        <span>Theme family</span>
+        ${settingsChoiceMarkup("presentationThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
+          label: "Theme family",
+          ariaLabel: "Theme family",
+          selectClass: "presentation-theme-select",
+        })}
+      </div>
+      <div class="presentation-settings-choice-field">
+        <span>Scripture font</span>
+        ${settingsChoiceMarkup("presentationScriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
+          label: "Scripture font",
+          ariaLabel: "Change scripture font",
+          selectClass: "scripture-font-select",
+        })}
+        ${customFontField}
+      </div>
+    `;
+  } else if (page === "presenting") {
+    content = `
+      <section class="presentation-settings-page-section">
+        <h3>Copy & sharing</h3>
+        <div class="presentation-settings-choice-field">
+          <span>Bible text format</span>
+          ${settingsChoiceMarkup("presentationPassageShareFormatSelect", state.passageShareFormat, plainSettingsChoices(passageShareFormats), {
+            label: "Bible text format",
+            ariaLabel: "Copied and shared Bible text format",
+            selectClass: "presentation-version-select passage-share-format-select",
+          })}
+        </div>
+        <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
+      </section>
+      <section class="presentation-settings-page-section">
+        <h3>Sound</h3>
+        <label class="presentation-setting-checkbox">
+          <input type="checkbox" id="presentationModeTransitionSoundsToggle" ${state.modeTransitionSounds ? "checked" : ""} />
+          <span>Mode transition sounds</span>
+        </label>
+        ${soundVolumeControlMarkup("mode", "presentation")}
+      </section>
+    `;
+  } else {
+    content = `
+      <section class="presentation-settings-page-section">
+        <h3>App update</h3>
+        ${appUpdateControls("presentation")}
+      </section>
+      <section class="presentation-settings-page-section">
+        <h3>Keyboard</h3>
+        <div class="presentation-help">
+          <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
+          <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
+          <div><kbd>Esc</kbd> Back to Bible</div>
+        </div>
+      </section>
+      <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
+    `;
+  }
+
+  return `
+    <div class="presentation-settings-page presentation-settings-page-detail ${transitionClass}" data-presentation-settings-current-page="${page}">
+      <div class="presentation-settings-page-titlebar">
+        <button type="button" data-presentation-settings-back aria-label="Back to Big Screen settings"><span aria-hidden="true">‹</span><span>Settings</span></button>
+        <strong>${presentationSettingsPages[page]}</strong>
+      </div>
+      <div class="presentation-settings-page-body">${content}</div>
+    </div>
+  `;
+}
+
 function sharedVersionReturnButton(surface) {
   const version = state.sharedVersionOverride?.returnVersions?.[0];
   if (!version || version === state.versions[0]) return "";
@@ -15524,76 +15706,7 @@ function presentation(accountPanelRerender = false) {
       <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
-        <div class="presentation-settings-choice-field">
-          <span>Bible version</span>
-          ${settingsChoiceMarkup("presentationVersionSelect", version, bibleVersionSettingsChoices(), {
-            label: "Bible version",
-            ariaLabel: "Change Bible version",
-            selectClass: "presentation-version-select",
-            wide: true,
-          })}
-        </div>
-        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip("Big Screen"))}">
-          <span>Theme family</span>
-          ${settingsChoiceMarkup("presentationThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
-            label: "Theme family",
-            ariaLabel: "Theme family",
-            selectClass: "presentation-theme-select",
-          })}
-        </div>
-        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip("Big Screen"))}">
-          <span>Big Screen color</span>
-          ${settingsChoiceMarkup("presentationThemeSelect", state.presentationTheme, presentationThemeSettingsChoices(), {
-            label: "Big Screen color",
-            ariaLabel: "Change Big Screen color",
-            selectClass: "presentation-theme-select",
-          })}
-        </div>
-        <div class="presentation-settings-choice-field">
-          <span>Scripture font</span>
-          ${settingsChoiceMarkup("presentationScriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
-            label: "Scripture font",
-            ariaLabel: "Change scripture font",
-            selectClass: "scripture-font-select",
-          })}
-          ${customFontField}
-        </div>
-        <div class="presentation-text-size-setting">
-          <span>Text size</span>
-          <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
-            <button type="button" id="presentationDecreaseText" aria-label="Decrease Big Screen text size">A−</button>
-            <button type="button" class="presentation-text-size-reset" id="presentationResetText" aria-label="Reset Big Screen text size to 100%"><span>Aa</span><strong>${Math.round(state.presentationTextScale * 100)}%</strong></button>
-            <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
-          </div>
-        </div>
-        <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
-        <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
-        ${presentationSettingsDisclosure("sharing", "Copy & sharing", `
-          <div class="presentation-settings-choice-field">
-            <span>Bible text format</span>
-            ${settingsChoiceMarkup("presentationPassageShareFormatSelect", state.passageShareFormat, plainSettingsChoices(passageShareFormats), {
-              label: "Bible text format",
-              ariaLabel: "Copied and shared Bible text format",
-              selectClass: "presentation-version-select passage-share-format-select",
-            })}
-          </div>
-          <p class="setting-help">${escapeHtml(passageShareFormatHelp())} The Scripture reference and Bible version always follow the text.</p>
-        `)}
-        ${presentationSettingsDisclosure("sound", "Sound", `
-          <label class="presentation-setting-checkbox">
-            <input type="checkbox" id="presentationModeTransitionSoundsToggle" ${state.modeTransitionSounds ? "checked" : ""} />
-            <span>Mode transition sounds</span>
-          </label>
-          ${soundVolumeControlMarkup("mode", "presentation")}
-        `)}
-        ${presentationSettingsDisclosure("updates", "App update", appUpdateControls("presentation"))}
-        ${presentationSettingsDisclosure("keyboard", "Keyboard", `
-          <div class="presentation-help">
-            <div><kbd>←</kbd><kbd>→</kbd> Move through parts and verses</div>
-            <div><kbd>Shift</kbd><kbd>+</kbd><kbd>−</kbd> Change text size</div>
-            <div><kbd>Esc</kbd> Back to Bible</div>
-          </div>
-        `)}
+        ${presentationSettingsPanelMarkup(version, customFontField)}
       </div>
     </div>
   `;
@@ -16187,6 +16300,8 @@ function bindEvents() {
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
     state.settingsOpen = !state.settingsOpen;
+    state.settingsPage = "root";
+    state.settingsSearchQuery = "";
     state.settingsAnchor = "header";
     if (state.settingsOpen) state.accountOpen = false;
     renderPreservingReaderScroll();
@@ -16202,6 +16317,8 @@ function bindEvents() {
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
     state.settingsOpen = true;
+    state.settingsPage = "root";
+    state.settingsSearchQuery = "";
     state.settingsAnchor = "floating";
     state.accountOpen = false;
     renderPreservingReaderScroll();
@@ -16299,6 +16416,29 @@ function bindEvents() {
   document.querySelectorAll("[data-settings-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
+  });
+  document.querySelectorAll("[data-settings-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!settingsPages[button.dataset.settingsPage]) return;
+      const panel = visibleSettingsPanel();
+      if (panel) panel.scrollTop = 0;
+      state.settingsPage = button.dataset.settingsPage;
+      state.settingsSearchQuery = "";
+      settingsPageTransition = "forward";
+      renderPreservingReaderScroll();
+      requestAnimationFrame(() => positionSettingsPopover(state.settingsAnchor));
+    });
+  });
+  document.querySelectorAll("[data-settings-back]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const panel = visibleSettingsPanel();
+      if (panel) panel.scrollTop = 0;
+      state.settingsPage = "root";
+      state.settingsSearchQuery = "";
+      settingsPageTransition = "back";
+      renderPreservingReaderScroll();
+      requestAnimationFrame(() => positionSettingsPopover(state.settingsAnchor));
+    });
   });
   bindSettingsSearchControls();
   bindSettingsChoiceMenus();
@@ -16650,6 +16790,16 @@ function bindEvents() {
   document.getElementById("mobileIncreaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("mobileResetText")?.addEventListener("click", resetTextScale);
   document.getElementById("shortcutsButton")?.addEventListener("click", () => toggleShortcuts(true));
+  ["settingsHelpButton", "mobileSettingsHelpButton"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      state.settingsOpen = false;
+      state.settingsPage = "root";
+      toggleShortcuts(true);
+    });
+  });
+  ["settingsAboutButton", "mobileSettingsAboutButton"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => toggleAboutMenu(true, id));
+  });
   document.getElementById("closeShortcuts")?.addEventListener("click", () => toggleShortcuts(false));
   document.getElementById("startHelpTour")?.addEventListener("click", startTutorial);
   document.querySelectorAll("[data-popup-drag-handle]").forEach((handle) => {
@@ -17289,6 +17439,7 @@ function bindEvents() {
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     if (state.presentationSettingsOpen) return closePresentationSettings();
     state.presentationSettingsOpen = true;
+    state.presentationSettingsPage = "root";
     state.presentationVersionMenuOpen = "";
     state.presentationReferenceMenuOpen = "";
     state.accountOpen = false;
@@ -17297,6 +17448,19 @@ function bindEvents() {
     render();
   });
   document.getElementById("presentationSettingsClose")?.addEventListener("click", closePresentationSettings);
+  document.querySelectorAll("[data-presentation-settings-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!presentationSettingsPages[button.dataset.presentationSettingsPage]) return;
+      state.presentationSettingsPage = button.dataset.presentationSettingsPage;
+      presentationSettingsPageTransition = "forward";
+      render();
+    });
+  });
+  document.querySelector("[data-presentation-settings-back]")?.addEventListener("click", () => {
+    state.presentationSettingsPage = "root";
+    presentationSettingsPageTransition = "back";
+    render();
+  });
   document.getElementById("presentationDecreaseText")?.addEventListener("click", () => adjustPresentationTextScale(-0.1, { feedback: true }));
   document.getElementById("presentationIncreaseText")?.addEventListener("click", () => adjustPresentationTextScale(0.1, { feedback: true }));
   document.getElementById("presentationResetText")?.addEventListener("click", () => resetPresentationTextScale({ feedback: true }));
@@ -21787,6 +21951,8 @@ function openSettingsFromMobileControls() {
   state.focusSearchResultsOpen = false;
   resetFocusToolSurfaces();
   state.settingsOpen = true;
+  state.settingsPage = "root";
+  state.settingsSearchQuery = "";
   state.settingsAnchor = "header";
   state.accountOpen = false;
   renderPreservingReaderScroll();
@@ -22013,6 +22179,7 @@ function closeSettingsPopover() {
   animateBeforeRemoval(".settings-popover.open, .mobile-settings-popover", () => {
     state.settingsOpen = false;
     state.settingsSearchQuery = "";
+    state.settingsPage = "root";
     renderPreservingReaderScroll();
   }, { duration: 190 });
 }
@@ -22030,6 +22197,7 @@ function closePresentationSettings() {
   if (!state.presentationSettingsOpen) return;
   animateBeforeRemoval(".presentation-settings-popover.open", () => {
     state.presentationSettingsOpen = false;
+    state.presentationSettingsPage = "root";
     state.presentationVersionMenuOpen = "";
     state.presentationReferenceMenuOpen = "";
     render();
@@ -23479,6 +23647,11 @@ function handleGlobalShortcuts(event) {
     }
     if (state.settingsOpen) {
       event.preventDefault();
+      if (state.settingsPage !== "root") {
+        state.settingsPage = "root";
+        settingsPageTransition = "back";
+        return renderPreservingReaderScroll();
+      }
       return closeSettingsPopover();
     }
     if (state.focusReferenceOpen) {
@@ -23541,6 +23714,11 @@ function handleGlobalShortcuts(event) {
     }
     if (state.presentationSettingsOpen) {
       event.preventDefault();
+      if (state.presentationSettingsPage !== "root") {
+        state.presentationSettingsPage = "root";
+        presentationSettingsPageTransition = "back";
+        return render();
+      }
       return closePresentationSettings();
     }
     if (state.mode === "big") {
