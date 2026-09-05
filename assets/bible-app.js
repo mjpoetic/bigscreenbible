@@ -187,14 +187,15 @@ function clampPopupTextScale(value) {
 }
 
 function popupTextSettingsMarkup(prefix = "") {
-  return `<div class="setting-group popup-text-setting" data-settings-search-item data-settings-search-text="popup text font size pinch zoom dialogs search Strong cross references preview">
+  const presenting = prefix === "presentation";
+  return `<div class="${presenting ? "presentation-text-size-setting" : "setting-group"} popup-text-setting" data-settings-search-item data-settings-search-text="popup text font size pinch zoom dialogs search Strong cross references preview">
     <span class="setting-label" id="${settingsControlId(prefix, "PopupTextSizeLabel")}">Popup text size</span>
-    <div class="text-size-control" role="group" aria-label="Popup text size">
-      <button type="button" class="icon-btn" data-popup-size="-0.1" aria-label="Decrease popup text size" ${state.popupTextScale <= 0.8 ? "disabled" : ""}>A−</button>
-      <button type="button" class="text-size-reset" data-popup-size="reset" aria-label="Reset popup text size to 100%"><span>Aa</span><span data-popup-size-value>${Math.round(state.popupTextScale * 100)}%</span></button>
-      <button type="button" class="icon-btn" data-popup-size="0.1" aria-label="Increase popup text size" ${state.popupTextScale >= 2 ? "disabled" : ""}>A+</button>
+    <div class="${presenting ? "presentation-text-size-control" : "text-size-control"}" role="group" aria-label="Popup text size">
+      <button type="button" class="${presenting ? "" : "icon-btn"}" data-popup-size="-0.1" aria-label="Decrease popup text size" ${state.popupTextScale <= 0.8 ? "disabled" : ""}>A−</button>
+      <button type="button" class="${presenting ? "presentation-text-size-reset" : "text-size-reset"}" data-popup-size="reset" aria-label="Reset popup text size to 100%"><span>Aa</span><span data-popup-size-value>${Math.round(state.popupTextScale * 100)}%</span></button>
+      <button type="button" class="${presenting ? "" : "icon-btn"}" data-popup-size="0.1" aria-label="Increase popup text size" ${state.popupTextScale >= 2 ? "disabled" : ""}>A+</button>
     </div>
-    <label class="setting-checkbox"><input type="checkbox" data-popup-pinch ${state.popupPinchEnabled ? "checked" : ""} /><span>Pinch to resize popup text</span></label>
+    <label class="${presenting ? "presentation-setting-checkbox" : "setting-checkbox"}"><input type="checkbox" data-popup-pinch ${state.popupPinchEnabled ? "checked" : ""} /><span>Pinch to resize popup text</span></label>
     <p class="setting-help">Search, Strong’s, references, previews, notes, and help. Pinch changes the saved size for all these popups.</p>
   </div>`;
 }
@@ -15763,7 +15764,6 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
-        ${popupTextSettingsMarkup("presentation")}
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", selectedFont)}
@@ -15794,6 +15794,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         })}
         ${customFontField}
       </div>
+      ${popupTextSettingsMarkup("presentation")}
     `;
   } else if (page === "presenting") {
     content = `
