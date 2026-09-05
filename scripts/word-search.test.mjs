@@ -182,6 +182,27 @@ for (const example of [
   }
 }
 
+// Substrings must have their own placement, including reversed and interior
+// matches. No word may be completely covered by earlier found outlines.
+for (const difficulty of api.wordSearchDifficulties()) {
+  for (let generation = 0; generation < 24; generation += 1) {
+    const words = ["STONES", "STONE", "ONE", "ONES", "ENOTS", "SHEPHERD", "HER", "DAVID", "SLING"];
+    const puzzle = api.createWordSearchGrid(words, 12, difficulty);
+    assert.ok(puzzle, `${difficulty} substring puzzle should generate`);
+    assert.deepEqual(new Set(puzzle.placements.map(({ word }) => word)), new Set(words));
+    const occupied = new Set();
+    puzzle.placements.forEach(({ word, cells }) => {
+      const keys = cells.map(({ row, column }) => `${row}:${column}`);
+      assert.ok(keys.some((key) => !occupied.has(key)), `${word} must not be fully covered by earlier words`);
+      keys.forEach((key) => occupied.add(key));
+      puzzle.placements.filter((other) => other.word !== word).forEach((other) => {
+        const shared = other.cells.filter(({ row, column }) => keys.includes(`${row}:${column}`));
+        assert.ok(shared.length <= 1, `${word} and ${other.word} may only share a single crossing letter`);
+      });
+    });
+  }
+}
+
 const outlineMarkup = api.wordSearchFoundOutlines({
   size: 9,
   foundWords: ["FAITH", "HOPE"],

@@ -11518,7 +11518,15 @@ function createWordSearchGrid(words, size, difficulty) {
               if (existing === word[index]) overlap += 1;
               wordCells.push({ row: nextRow, column: nextColumn });
             }
-            if (valid) candidates.push({ cells: wordCells, overlap });
+            if (!valid || overlap === word.length) continue;
+            // Allow single-letter crossings, but never shared runs of letters
+            // (including prefixes, suffixes, interior words, and reversals).
+            const sharesRun = overlap > 1 && placements.some((placement) => (
+              placement.cells.filter((placedCell) => wordCells.some((cell) => (
+                cell.row === placedCell.row && cell.column === placedCell.column
+              ))).length > 1
+            ));
+            if (!sharesRun) candidates.push({ cells: wordCells, overlap });
           }
         }
       });
