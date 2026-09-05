@@ -15008,7 +15008,6 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
   const requestId = ++referencePreviewRequestId;
   popup.dataset.referencePreviewRequest = String(requestId);
   popup.dataset.referencePreview = normalizedReference;
-  bindPopupTextGestures(popup);
   bindStudyPopupGotoLinks(popup);
   bindReferencePreviewBack(popup);
   if (!needsRemoteText) return;
@@ -15165,6 +15164,7 @@ function setStudyPopupContent(popup, content, label, options = {}) {
   popup.querySelector(".study-popup-close")?.addEventListener("click", () => {
     closeStudyPopup(false, true);
   });
+  bindPopupTextGestures(popup);
   bindStudyPopupGotoLinks(popup);
 }
 

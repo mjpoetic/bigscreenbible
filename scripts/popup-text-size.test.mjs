@@ -22,7 +22,6 @@ context.state.popupPinchEnabled=false; listeners.touchstart(event(100)); listene
 context.setPopupTextScale(1); assert.equal(storage.get('lw_popup_text_scale'),'1');
 context.setPopupTextScale(NaN); assert.equal(context.state.popupTextScale,1);
 assert.match(source,/popupTextScale: state.popupTextScale/); assert.match(source,/popupPinchEnabled: state.popupPinchEnabled/);
-console.log('Popup text size and pinch tests passed');
 // Long previews must remain inside portrait and short landscape viewports.
 const positioning = source.slice(source.indexOf('function positionStudyPopup('), source.indexOf('function closeStudyPopupOnOutside('));
 context.window = {innerWidth:390,innerHeight:844};
@@ -35,3 +34,36 @@ context.window.innerHeight=390;
 popup.getBoundingClientRect=()=>({width:366,height:366});
 context.positionStudyPopup(anchor,popup);
 assert.equal(parseFloat(popup.style.top),12);
+
+// Opening Strong's must wire gestures without a render or Scripture preview.
+const strongListeners = {};
+let listenerCount = 0;
+const strongPopup = {
+  dataset: {}, matches: () => true, contains: target => target === strongPopup,
+  setAttribute() {}, querySelector: () => null, querySelectorAll: () => [],
+  addEventListener(name, fn) { strongListeners[name] = fn; listenerCount++; },
+};
+Object.assign(context, {
+  normalizeStrongCodes: codes => codes, strongEntry: () => ({ code: 'G1401' }),
+  strongLookupCard: () => '<div class="strong-card">Servant</div>',
+  strongLexiconStatus: 'ready', escapeHtml: value => value,
+  closeStudyPopup() {}, positionStudyPopup() {}, requestAnimationFrame() {},
+});
+context.document.createElement = () => strongPopup;
+context.document.querySelector = () => ({ appendChild() {}, style: { setProperty() {} } });
+vm.runInContext(source.slice(source.indexOf('function bindStudyPopupGotoLinks('), source.indexOf('function positionStudyPopup(')), context);
+vm.runInContext(source.slice(source.indexOf('function openStrongPopup('), source.indexOf('function openCrossReferencePopup(')), context);
+context.state.popupPinchEnabled = true;
+context.openStrongPopup({dataset:{strong:'G1401',strongWord:'a servant'},setAttribute(){},getBoundingClientRect:()=>({})});
+assert.match(strongPopup.innerHTML, /Servant/);
+assert.equal(typeof strongListeners.touchmove, 'function');
+const strongEvent = distance => { const e = event(distance); e.touches.forEach(t => { t.target = strongPopup; }); return e; };
+strongListeners.touchstart(strongEvent(100));
+strongListeners.touchmove(strongEvent(150));
+assert.equal(context.state.popupTextScale, 1.5);
+strongListeners.touchend(strongEvent(0));
+assert.equal(storage.get('lw_popup_text_scale'), '1.5');
+const countBefore = listenerCount;
+context.setStudyPopupContent(strongPopup, 'Updated lookup', "Strong's");
+assert.equal(listenerCount, countBefore, 'Refreshing content must not duplicate pinch listeners');
+console.log('Popup text size, Strong lookup binding, and pinch tests passed');
