@@ -1,3 +1,9 @@
+/* Suppress accidental double-tap zoom while retaining browser pinch zoom.
+   Descendant touch-action rules still own Scripture and game gestures. */
+html {
+  touch-action: manipulation;
+}
+
 :root {
   --bg: #f8f7f3;
   --browser-chrome: #f8f7f3;
@@ -22005,4 +22011,15 @@ svg {
   background: color-mix(in srgb, var(--paper) 92%, transparent);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
+}
+
+/* iOS zooms small form controls on focus. Cover phones, landscape, and
+   touch tablets, including dynamically opened search/settings dialogs.
+   Keep the interface accessibility size preference effective. */
+@media (max-width: 840px), (any-pointer: coarse) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: max(16px, var(--interface-text-16, 16px)) !important;
+  }
 }
