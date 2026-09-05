@@ -178,6 +178,81 @@ const legacyScriptureFontCodes = {
   merriweather: "literata",
   "ibm-plex-sans": "manrope",
 };
+// Shared by study dialogs, search results, and reference previews.
+const popupTextSelector = ".study-popup, .mobile-focus-search-results, .mobile-focus-workspace, .note-composer, .streak-popover, .shortcut-panel";
+
+function clampPopupTextScale(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(2, Math.max(0.8, number)) : 1;
+}
+
+function popupTextSettingsMarkup(prefix = "") {
+  return `<div class="setting-group popup-text-setting" data-settings-search-item data-settings-search-text="popup text font size pinch zoom dialogs search Strong cross references preview">
+    <span class="setting-label" id="${settingsControlId(prefix, "PopupTextSizeLabel")}">Popup text size</span>
+    <div class="text-size-control" role="group" aria-label="Popup text size">
+      <button type="button" class="icon-btn" data-popup-size="-0.1" aria-label="Decrease popup text size" ${state.popupTextScale <= 0.8 ? "disabled" : ""}>A−</button>
+      <button type="button" class="text-size-reset" data-popup-size="reset" aria-label="Reset popup text size to 100%"><span>Aa</span><span data-popup-size-value>${Math.round(state.popupTextScale * 100)}%</span></button>
+      <button type="button" class="icon-btn" data-popup-size="0.1" aria-label="Increase popup text size" ${state.popupTextScale >= 2 ? "disabled" : ""}>A+</button>
+    </div>
+    <label class="setting-checkbox"><input type="checkbox" data-popup-pinch ${state.popupPinchEnabled ? "checked" : ""} /><span>Pinch to resize popup text</span></label>
+    <p class="setting-help">Search, Strong’s, references, previews, notes, and help. Pinch changes the saved size for all these popups.</p>
+  </div>`;
+}
+
+function setPopupTextScale(value, { persist = true } = {}) {
+  state.popupTextScale = Math.round(clampPopupTextScale(value) * 100) / 100;
+  document.querySelector(".app-shell")?.style.setProperty("--popup-text-scale", state.popupTextScale);
+  document.querySelectorAll("[data-popup-size-value]").forEach((label) => { label.textContent = `${Math.round(state.popupTextScale * 100)}%`; });
+  document.querySelectorAll("[data-popup-size]").forEach((button) => {
+    button.disabled = button.dataset.popupSize === "-0.1" ? state.popupTextScale <= 0.8 : button.dataset.popupSize === "0.1" ? state.popupTextScale >= 2 : false;
+  });
+  const popup = document.getElementById("studyPopup");
+  if (popup) positionStudyPopup(popup.studyPopupAnchor, popup);
+  if (persist) {
+    localStorage.setItem("lw_popup_text_scale", String(state.popupTextScale));
+    scheduleCloudSync();
+  }
+}
+
+function bindPopupTextGestures(root = document) {
+  const surfaces = root.matches?.(popupTextSelector) ? [root] : root.querySelectorAll(popupTextSelector);
+  surfaces.forEach((surface) => {
+    if (surface.dataset.popupPinchBound) return;
+    surface.dataset.popupPinchBound = "true";
+    let gesture = null;
+    let suppressClickUntil = 0;
+    surface.addEventListener("touchstart", (event) => {
+      event.stopPropagation();
+      if (!state.popupPinchEnabled || event.touches.length !== 2 || !Array.from(event.touches).every((touch) => surface.contains(touch.target))) return;
+      const distance = touchDistance(event.touches[0], event.touches[1]);
+      gesture = { distance, scale: state.popupTextScale, active: false };
+    }, { passive: true });
+    surface.addEventListener("touchmove", (event) => {
+      event.stopPropagation();
+      if (!gesture || event.touches.length !== 2 || !gesture.distance) return;
+      const distance = touchDistance(event.touches[0], event.touches[1]);
+      if (Math.abs(distance - gesture.distance) >= 6) gesture.active = true;
+      if (!gesture.active) return;
+      if (event.cancelable) event.preventDefault();
+      setPopupTextScale(gesture.scale * distance / gesture.distance, { persist: false });
+    }, { passive: false });
+    const finish = (event) => {
+      event.stopPropagation();
+      if (gesture?.active) {
+        if (event.cancelable) event.preventDefault();
+        suppressClickUntil = Date.now() + 500;
+        setPopupTextScale(state.popupTextScale);
+      }
+      gesture = null;
+    };
+    surface.addEventListener("touchend", finish, { passive: false });
+    surface.addEventListener("touchcancel", finish, { passive: false });
+    surface.addEventListener("click", (event) => {
+      if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }, true);
+  });
+}
+
 const defaultInterfaceTextSize = "default";
 const defaultPresentationTextScale = 1;
 const interfaceTextSizes = [
@@ -542,6 +617,8 @@ const state = {
   themePreset: initialResolvedAppearance.preset,
   scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
+  popupTextScale: clampPopupTextScale(localStorage.getItem("lw_popup_text_scale") || 1),
+  popupPinchEnabled: localStorage.getItem("lw_popup_pinch_enabled") !== "false",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
   interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
   modeTransitionSounds: localStorage.getItem("lw_mode_transition_sounds") === "true",
@@ -1454,7 +1531,7 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -3504,6 +3581,7 @@ function accessibilitySettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedSize = interfaceTextSizes.find((size) => size.code === state.interfaceTextSize) || interfaceTextSizes[0];
   return settingsDisclosure("accessibility", "Accessibility", `
+    ${popupTextSettingsMarkup(prefix)}
     <div class="setting-group accessibility-settings">
       <span class="setting-label" id="${controlId("InterfaceTextSizeLabel")}">Interface text</span>
       <div class="theme-mode-segment accessibility-size-segment" role="group" aria-labelledby="${controlId("InterfaceTextSizeLabel")}">
@@ -4036,6 +4114,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
   return `
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
       ${result("appearance", "ThemeFamilySelect", "Theme family", "Appearance & Text", "palette colors linked themes")}
+      ${result("appearance", "PopupTextSizeLabel", "Popup text size", "Appearance & Text", "pinch zoom dialogs search Strong cross references preview")}
       ${result("appearance", "InterfaceTextSizeLabel", "Interface text size", "Appearance & Text", "accessibility navigation menus")}
       ${result("reading", "ParagraphLayoutToggle", "Paragraph layout", "Scripture & Reading", "scripture display")}
       ${result("reading", "SectionHeadingsToggle", "Section headings", "Scripture & Reading", "scripture display")}
@@ -9710,6 +9789,8 @@ function captureCloudSnapshot() {
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
       customHighlightColor: state.customHighlightColor,
+      popupTextScale: state.popupTextScale,
+      popupPinchEnabled: state.popupPinchEnabled,
       textScale: state.textScale,
       interfaceTextSize: state.interfaceTextSize,
       modeTransitionSounds: state.modeTransitionSounds,
@@ -9926,6 +10007,8 @@ function applyCloudSnapshot(snapshot) {
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
+  state.popupTextScale = clampPopupTextScale(settings.popupTextScale ?? 1);
+  state.popupPinchEnabled = settings.popupPinchEnabled !== false;
   state.textScale = clampTextScale(Number(settings.textScale) || 1);
   state.interfaceTextSize = normalizedInterfaceTextSize(
     settings.interfaceTextSize || localStorage.getItem("lw_interface_text_size"),
@@ -10043,6 +10126,8 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
+  localStorage.setItem("lw_popup_text_scale", String(state.popupTextScale));
+  localStorage.setItem("lw_popup_pinch_enabled", String(state.popupPinchEnabled));
   localStorage.setItem("lw_interface_text_size", state.interfaceTextSize);
   localStorage.setItem("lw_mode_transition_sounds", String(state.modeTransitionSounds));
   localStorage.setItem("lw_mode_transition_volume", String(state.modeTransitionVolume));
@@ -14923,6 +15008,7 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
   const requestId = ++referencePreviewRequestId;
   popup.dataset.referencePreviewRequest = String(requestId);
   popup.dataset.referencePreview = normalizedReference;
+  bindPopupTextGestures(popup);
   bindStudyPopupGotoLinks(popup);
   bindReferencePreviewBack(popup);
   if (!needsRemoteText) return;
@@ -15132,7 +15218,7 @@ function positionStudyPopup(anchor, popup) {
   popup.dataset.placement = canFitBelow ? "below" : "above";
   popup.style.setProperty("--study-popup-anchor-x", `${anchorX}px`);
   popup.style.left = `${left}px`;
-  popup.style.top = `${top}px`;
+  popup.style.top = `${Math.max(12, Math.min(top, window.innerHeight - popupRect.height - 12))}px`;
 }
 
 function closeStudyPopupOnOutside(event) {
@@ -15669,6 +15755,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
+        ${popupTextSettingsMarkup("presentation")}
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", selectedFont)}
@@ -16281,6 +16368,18 @@ function tutorialOverlay() {
 }
 
 function bindEvents() {
+  bindPopupTextGestures();
+  document.querySelectorAll("[data-popup-size]").forEach((button) => {
+    button.addEventListener("click", () => setPopupTextScale(button.dataset.popupSize === "reset" ? 1 : state.popupTextScale + Number(button.dataset.popupSize)));
+  });
+  document.querySelectorAll("[data-popup-pinch]").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.popupPinchEnabled = input.checked;
+      localStorage.setItem("lw_popup_pinch_enabled", String(input.checked));
+      document.querySelectorAll("[data-popup-pinch]").forEach((other) => { other.checked = input.checked; });
+      scheduleCloudSync();
+    });
+  });
   prepareSettingsInlineResults();
   bindReaderTopButton();
   bindReaderReturnButton();

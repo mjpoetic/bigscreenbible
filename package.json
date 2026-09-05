@@ -9,6 +9,7 @@
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
     "test:accounts": "node scripts/account-switching.test.mjs",
+    "test:popup-text": "node scripts/popup-text-size.test.mjs",
     "test:accessibility": "node scripts/interface-text-size.test.mjs",
     "test:auto-scroll": "node scripts/auto-scroll.test.mjs",
     "test:chapter-pull": "node scripts/chapter-pull.test.mjs",

@@ -1241,7 +1241,7 @@ button {
 .streak-popover-head strong {
   display: block;
   color: var(--ink);
-  font-size: 23px;
+  font-size: calc(23px * var(--popup-text-scale, 1));
   line-height: 1;
 }
 
@@ -1261,13 +1261,13 @@ button {
 }
 
 .streak-popover-stats strong {
-  font-size: 18px;
+  font-size: calc(18px * var(--popup-text-scale, 1));
   line-height: 1;
 }
 
 .streak-popover-stats small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--popup-text-scale, 1));
   font-weight: 800;
   letter-spacing: 0.08em;
   line-height: 1;
@@ -3954,7 +3954,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 .mobile-focus-search-results-head span,
 .mobile-focus-workspace-head > div > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--popup-text-scale, 1));
   font-weight: 900;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -3964,7 +3964,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 .mobile-focus-workspace-head strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 15px;
+  font-size: calc(15px * var(--popup-text-scale, 1));
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4021,7 +4021,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .mobile-focus-workspace-body .study-heading {
   margin-bottom: 12px;
-  font-size: 14px;
+  font-size: calc(14px * var(--popup-text-scale, 1));
 }
 
 .mobile-focus-workspace-body .note-box {
@@ -4122,13 +4122,13 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .mobile-focus-search-results .ref-title {
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: calc(13px * var(--popup-text-scale, 1));
 }
 
 .mobile-focus-search-results .ref-copy {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 13px;
+  font-size: calc(13px * var(--popup-text-scale, 1));
   line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -4140,18 +4140,18 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 }
 
 .mobile-focus-search-results .verified-answer-text {
-  font-size: 20px;
+  font-size: calc(20px * var(--popup-text-scale, 1));
 }
 
 .mobile-focus-search-results .verified-answer p {
-  font-size: 12px;
+  font-size: calc(12px * var(--popup-text-scale, 1));
   line-height: 1.4;
 }
 
 .mobile-focus-search-results .verified-answer-reference {
   gap: 8px;
   padding-top: 9px;
-  font-size: 12px;
+  font-size: calc(12px * var(--popup-text-scale, 1));
 }
 
 .mobile-focus-search-results .empty-state {
@@ -11276,7 +11276,7 @@ select {
 
 .study-popup-title {
   color: var(--muted);
-  font-size: 12px;
+  font-size: calc(12px * var(--popup-text-scale, 1));
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -11343,13 +11343,13 @@ select {
 
 .reference-preview-meta strong {
   color: var(--ink);
-  font: 800 19px / 1.25 var(--scripture-font);
+  font: 800 calc(19px * var(--popup-text-scale, 1)) / 1.25 var(--scripture-font);
 }
 
 .reference-preview-meta span {
   flex: 0 0 auto;
   color: var(--muted);
-  font: 800 11px / 1 var(--ui-font);
+  font: 800 calc(11px * var(--popup-text-scale, 1)) / 1 var(--ui-font);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -11357,7 +11357,7 @@ select {
 .reference-preview-notice {
   margin: 0 0 10px;
   color: var(--muted);
-  font: 650 12px / 1.45 var(--ui-font);
+  font: 650 calc(12px * var(--popup-text-scale, 1)) / 1.45 var(--ui-font);
 }
 
 .reference-preview-text {
@@ -11383,7 +11383,7 @@ select {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   margin: 0 0 0.8em;
-  font: 400 16px / 1.62 var(--scripture-font);
+  font: 400 calc(16px * var(--popup-text-scale, 1)) / 1.62 var(--scripture-font);
 }
 
 .reference-preview-verse:last-child {
@@ -11394,13 +11394,13 @@ select {
   min-width: 1.4em;
   padding-top: 0.24em;
   color: var(--muted);
-  font: 800 10px / 1 var(--ui-font);
+  font: 800 calc(10px * var(--popup-text-scale, 1)) / 1 var(--ui-font);
   text-align: right;
 }
 
 .reference-preview-attribution {
   margin: 8px 4px 0;
-  font-size: 10px;
+  font-size: calc(10px * var(--popup-text-scale, 1));
 }
 
 .reference-preview-actions {
@@ -11427,7 +11427,7 @@ select {
   padding: 0 8px;
   background: transparent;
   color: var(--muted);
-  font: 800 12px / 1 var(--ui-font);
+  font: 800 calc(12px * var(--popup-text-scale, 1)) / 1 var(--ui-font);
 }
 
 .reference-preview-back:hover,
@@ -11447,7 +11447,7 @@ select {
   padding: 0 13px;
   background: color-mix(in srgb, var(--teal) 12%, transparent);
   color: var(--teal);
-  font: 850 13px / 1 var(--ui-font);
+  font: 850 calc(13px * var(--popup-text-scale, 1)) / 1 var(--ui-font);
   text-decoration: none;
 }
 
@@ -11466,7 +11466,7 @@ select {
   gap: 10px;
   min-height: 150px;
   color: var(--muted);
-  font: 750 13px / 1.4 var(--ui-font);
+  font: 750 calc(13px * var(--popup-text-scale, 1)) / 1.4 var(--ui-font);
 }
 
 .reference-preview-loading-mark {
@@ -11556,7 +11556,7 @@ select {
 
 .note-composer-eyebrow {
   color: var(--muted);
-  font-size: 10px;
+  font-size: calc(10px * var(--popup-text-scale, 1));
   font-weight: 900;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -11566,7 +11566,7 @@ select {
   overflow: hidden;
   margin: 0;
   color: var(--ink);
-  font-size: 17px;
+  font-size: calc(17px * var(--popup-text-scale, 1));
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -11591,7 +11591,7 @@ select {
   margin: 0;
   padding: 13px 16px 0;
   color: var(--muted);
-  font: italic 500 13px/1.5 var(--scripture-font);
+  font: italic 500 calc(13px * var(--popup-text-scale, 1))/1.5 var(--scripture-font);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -11613,7 +11613,7 @@ select {
   border-radius: 8px;
   background: var(--paper);
   color: var(--ink);
-  font: 500 14px/1.55 var(--ui-font);
+  font: 500 calc(14px * var(--popup-text-scale, 1))/1.55 var(--ui-font);
 }
 
 .note-composer textarea:focus {
@@ -22023,3 +22023,41 @@ svg {
     font-size: max(16px, var(--interface-text-16, 16px)) !important;
   }
 }
+
+/* Popup text uses its own scale; controls retain their touch targets. */
+:is(.study-popup, .mobile-focus-search-results, .mobile-focus-workspace, .note-composer, .streak-popover, .shortcut-panel) {
+  font-size: calc(14px * var(--popup-text-scale, 1));
+  touch-action: pan-y;
+  overflow-wrap: anywhere;
+}
+:is(.study-popup, .mobile-focus-search-results, .mobile-focus-workspace) :is(.ref-title, .ref-item, .strong-card, .search-result, .note-title, .panel-action) {
+  font-size: calc(14px * var(--popup-text-scale, 1));
+}
+:is(.study-popup, .mobile-focus-search-results, .mobile-focus-workspace) :is(.ref-copy, .note-copy, .muted, .empty-state) {
+  font-size: calc(13px * var(--popup-text-scale, 1));
+}
+:is(.study-popup, .mobile-focus-search-results, .mobile-focus-workspace) :is(.strong-meta, .source-note) {
+  font-size: calc(12px * var(--popup-text-scale, 1));
+}
+.study-popup .study-heading {
+  font-size: calc(16px * var(--popup-text-scale, 1));
+}
+.reference-preview-popup {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.reference-preview-actions { flex-wrap: wrap; }
+.reference-preview-meta { flex-wrap: wrap; gap: 8px; }
+.popup-text-setting { display: grid; gap: 8px; }
+.popup-text-setting .text-size-control { max-width: 260px; }
+.popup-text-setting button:disabled { opacity: 0.45; cursor: default; }
+
+.shortcut-panel .shortcut-head h2 { font: 700 calc(24px * var(--popup-text-scale, 1))/1.2 "Libre Baskerville", Georgia, serif; }
+.shortcut-panel .shortcut-eyebrow { font-size: calc(11px * var(--popup-text-scale, 1)); }
+.shortcut-panel .help-tour-card strong, .shortcut-panel .help-grid strong { font-size: calc(15px * var(--popup-text-scale, 1)); }
+.shortcut-panel .help-tour-card p, .shortcut-panel .help-grid span { font-size: calc(13px * var(--popup-text-scale, 1)); }
+.shortcut-panel .help-about-link { font-size: calc(14px * var(--popup-text-scale, 1)); }
+.shortcut-panel .shortcut-row { font-size: calc(14px * var(--popup-text-scale, 1)); }
+.shortcut-panel kbd { font-size: calc(12px * var(--popup-text-scale, 1)); }
+.note-composer-form { overflow-y: auto; }
+.streak-popover { max-height: calc(100dvh - 24px); overflow-y: auto; }
