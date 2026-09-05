@@ -2593,7 +2593,9 @@ function mobileFocusOverlayControls() {
               )}"
               placeholder="${notesSearchSource ? "Search saved notes" : "John 3:16"}"
               autocomplete="off"
-              autocapitalize="sentences"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
               enterkeyhint="go"
             />
             ${activeInlineSearchQuery() ? `<button class="mobile-focus-inline-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" title="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
@@ -4250,7 +4252,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
         </button>
-        <input id="referenceInput" value="${escapeHtml(notesSearchSource ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${notesSearchSource ? "Search your saved notes" : "Search Bible reference or phrase"}" placeholder="${notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" />
+        <input id="referenceInput" value="${escapeHtml(notesSearchSource ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${notesSearchSource ? "Search your saved notes" : "Search Bible reference or phrase"}" placeholder="${notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
         ${desktopFocusTools()}
       </div>
@@ -6443,7 +6445,7 @@ function searchPanel() {
   return `
     <section class="study-section panel-section" id="searchSection">
       <form class="study-search ${canClearResults ? "has-clear" : ""} ${inlineSearchActive ? "has-inline-clear" : ""}" id="studySearchForm">
-        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="${notesSource ? "Search your saved notes" : "Search words, phrases, or questions"}" aria-label="${notesSource ? "Search your saved notes" : "Search Bible words, phrases, or questions"}" />
+        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="${notesSource ? "Search your saved notes" : "Search words, phrases, or questions"}" aria-label="${notesSource ? "Search your saved notes" : "Search Bible words, phrases, or questions"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         <div class="search-submit-control">
           <button class="ghost-btn search-submit-button" id="studySearchButton" type="submit" aria-label="Search ${escapeHtml(scopeLabel)}">
             <span>Search</span>
@@ -15806,7 +15808,7 @@ function presentation(accountPanelRerender = false) {
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
-            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 or love" autocomplete="off" />
+            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
