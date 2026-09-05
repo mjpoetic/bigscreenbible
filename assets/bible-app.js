@@ -24853,7 +24853,11 @@ function fitPresentationText() {
     presentation.style.setProperty("--presentation-font-size", `${baseFontSize * maxScale}px`);
   }
 
-  const fits = () => passage.scrollHeight <= viewport.clientHeight * 0.92 && passage.scrollWidth <= viewport.clientWidth * 0.98;
+  // Only the content box is available: client dimensions include stage padding.
+  const viewportStyle = getComputedStyle(viewport);
+  const availableHeight = Math.max(0, viewport.clientHeight - parseFloat(viewportStyle.paddingTop) - parseFloat(viewportStyle.paddingBottom));
+  const availableWidth = Math.max(0, viewport.clientWidth - parseFloat(viewportStyle.paddingLeft) - parseFloat(viewportStyle.paddingRight));
+  const fits = () => passage.scrollHeight <= availableHeight * 0.92 && passage.scrollWidth <= Math.ceil(availableWidth);
   if (fits()) return;
 
   let low = readableMinimum;

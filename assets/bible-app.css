@@ -11795,11 +11795,11 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--presentation-accent);
-  transform: translateY(6px);
+  margin-top: 6px;
 }
 
 .presentation-ref.paginated {
-  transform: translateY(13px);
+  margin-top: 13px;
 }
 
 .presentation-reference-label,
@@ -13085,6 +13085,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 }
 
 .presentation.presentation-overflow .presentation-text {
+  align-items: flex-start;
   overflow-y: auto;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
@@ -17751,7 +17752,7 @@ svg {
   }
 
   .presentation-ref.paginated {
-    transform: translateY(17px);
+    margin-top: 17px;
   }
 
   .presentation-version-label {

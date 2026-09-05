@@ -193,7 +193,35 @@ assert.match(styles, /\.presentation-brand:hover,[\s\S]*?drop-shadow/);
 assert.match(styles, /\.presentation-settings-disclosure > summary/);
 assert.match(styles, /\.presentation-top \{[\s\S]*?position: relative;[\s\S]*?z-index: 70;/);
 assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.presentation-settings-popover :is\([\s\S]*?\.presentation-theme-select,[\s\S]*?min-height: 36px;[\s\S]*?font-size: 12px;/);
-assert.match(styles, /\.presentation-ref \{[\s\S]*?font-size: 20px;[\s\S]*?transform: translateY\(6px\);/);
-assert.match(styles, /\.presentation-ref\.paginated \{[\s\S]*?transform: translateY\(13px\);/);
+assert.match(styles, /\.presentation-ref \{[\s\S]*?font-size: 20px;[\s\S]*?margin-top: 6px;/);
+assert.match(styles, /\.presentation-ref\.paginated \{[\s\S]*?margin-top: 13px;/);
+
+// A passage can fit clientHeight while still intruding into the stage padding.
+for (const height of [220, 500]) {
+  const properties = new Map();
+  const classes = new Set(["open"]);
+  const viewport = { clientHeight: height, clientWidth: 844 };
+  const copy = { textContent: "A long verse with a part label" };
+  const passage = {
+    get scrollHeight() { return (parseFloat(properties.get("--presentation-font-size")) || 64) * 3; },
+    scrollWidth: 796,
+  };
+  const presentation = {
+    classList: { contains: key => classes.has(key), add: key => classes.add(key), remove: key => classes.delete(key) },
+    style: { setProperty: (key, value) => properties.set(key, value), removeProperty: key => properties.delete(key) },
+    querySelector: selector => ({ ".presentation-text": viewport, ".presentation-passage": passage, ".presentation-copy": copy })[selector],
+  };
+  const context = {
+    document: { getElementById: () => presentation },
+    getComputedStyle: element => element === copy ? { fontSize: "64px" } : {
+      paddingTop: "24px", paddingBottom: "24px", paddingLeft: "24px", paddingRight: "24px",
+    },
+    state: { presentationTextScale: 1 }, defaultPresentationTextScale: 1,
+    clamp: (value, low, high) => Math.min(high, Math.max(low, value)),
+  };
+  vm.runInNewContext(`${extractFunction("fitPresentationText")}\nfitPresentationText();`, context);
+  assert.ok(passage.scrollHeight <= (height - 48) * 0.92, "Text fits inside the padded stage");
+  assert.equal(classes.has("presentation-overflow"), false, "Full content width does not force false overflow");
+}
 
 console.log("Presentation display tests passed");
