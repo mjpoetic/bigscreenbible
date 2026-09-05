@@ -15,6 +15,7 @@
   --gold-soft: #f5ead3;
   --success: #266d4f;
   --red-letter: #a4262c;
+  --overlay-blur: blur(18px) saturate(120%);
   --shadow: 0 18px 48px rgba(31, 26, 16, 0.08);
   --games-overlay-tint: rgba(255, 255, 255, 0.52);
   --reader-chrome-height: 38px;
@@ -2208,7 +2209,7 @@ button {
 }
 
 .settings-choice-menu {
-  --settings-choice-menu-bg: color-mix(in srgb, var(--panel) 97%, transparent);
+  --settings-choice-menu-bg: color-mix(in srgb, var(--panel) 82%, transparent);
   --settings-choice-menu-color: var(--ink);
   --settings-choice-menu-border: color-mix(in srgb, var(--teal) 30%, var(--line));
   --settings-choice-menu-accent: var(--teal);
@@ -5275,6 +5276,15 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 .chapter-tools [data-tooltip]::after {
   top: calc(100% + 9px);
   bottom: auto;
+}
+
+.streak-chip[data-tooltip]::after {
+  width: max-content;
+  max-width: min(260px, calc(100vw - 24px));
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .topbar > [data-tooltip]:last-child::after {
@@ -10896,7 +10906,7 @@ select {
 #searchSection .study-search::before {
   content: "";
   position: absolute;
-  inset: -15px -14px -10px;
+  inset: 0 -14px -10px;
   z-index: -1;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   background: color-mix(in srgb, var(--panel) 94%, var(--paper));
@@ -21952,4 +21962,47 @@ svg {
   .word-search-game .word-search-sidebar {
     padding-top: 40px;
   }
+}
+
+/* Keep floating menus consistent with the library drawer, including WebKit. */
+.library,
+.settings-popover,
+.mobile-settings-popover,
+.primary-version-menu,
+.parallel-version-menu,
+.presentation-reference-menu,
+.search-scope-popover,
+.mobile-verse-nav-menu,
+.verse-action-menu {
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+  -webkit-backdrop-filter: var(--overlay-blur);
+  backdrop-filter: var(--overlay-blur);
+}
+
+.settings-choice-menu,
+.presentation-reference-menu,
+.presentation-version-menu,
+.presentation-settings-popover {
+  -webkit-backdrop-filter: var(--overlay-blur);
+  backdrop-filter: var(--overlay-blur);
+}
+
+/* A filtered ancestor limits backdrop sampling for its floating children. */
+.topbar,
+.bottombar {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.topbar::before,
+.bottombar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
 }
