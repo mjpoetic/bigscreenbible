@@ -4623,6 +4623,43 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   padding-top: 2px;
 }
 
+.settings-inline-result {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+}
+
+.settings-inline-result > strong {
+  font-size: 13px;
+}
+
+.settings-inline-control {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-inline-path {
+  justify-self: start;
+  min-height: 36px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--teal);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.settings-inline-path:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
 .settings-destination-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 12px;

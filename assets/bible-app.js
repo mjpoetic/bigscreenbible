@@ -1360,7 +1360,7 @@ function visibleSettingsPanel() {
 }
 
 function focusSettingsSearchTarget(prefix, targetName) {
-  const target = document.getElementById(settingsControlId(prefix, targetName));
+  const target = document.getElementById(targetName.startsWith("Push") ? `${prefix}${targetName}` : settingsControlId(prefix, targetName));
   if (!target) return;
   const setting = target.closest(".setting-group, .settings-page-actions") || target;
   const focusTarget = target.matches(".settings-native-choice")
@@ -3980,16 +3980,53 @@ function settingsDestinationRow(page, title, summary, searchText) {
 
 function settingsSearchDestinationRow(prefix, page, target, title, category, searchText) {
   return `
-    <button class="settings-destination-row settings-search-destination" type="button"
-      data-settings-page="${page}" data-settings-target="${target}" data-settings-prefix="${prefix}"
+    <section class="settings-inline-result"
+      data-inline-settings-page="${page}" data-inline-settings-target="${target}" data-inline-settings-prefix="${prefix}"
       data-settings-search-item data-settings-search-only data-settings-search-text="${escapeHtml(`${title} ${category} ${searchText}`)}" hidden>
-      <span class="settings-destination-copy">
-        <strong>${title}</strong>
-        <small>${category}</small>
-      </span>
-      <span class="settings-destination-chevron" aria-hidden="true"></span>
-    </button>
+      <strong>${title}</strong>
+      <div class="settings-inline-control"></div>
+      <button class="settings-inline-path" type="button" data-settings-page="${page}" data-settings-target="${target}" data-settings-prefix="${prefix}" aria-label="Open ${escapeHtml(title)} in ${escapeHtml(category)}">Settings › ${category}</button>
+    </section>
   `;
+}
+
+// Reuse the real controls before binding events so inline edits use the same
+// handlers and persistence as their normal Settings pages.
+function prepareSettingsInlineResults() {
+  const pages = new Map();
+  document.querySelectorAll("[data-inline-settings-target]").forEach((card) => {
+    const prefix = card.dataset.inlineSettingsPrefix;
+    const page = card.dataset.inlineSettingsPage;
+    const name = card.dataset.inlineSettingsTarget;
+    const key = `${prefix}:${page}`;
+    if (!pages.has(key)) {
+      const template = document.createElement("template");
+      template.innerHTML = mainSettingsPageContent(prefix, page);
+      pages.set(key, template.content);
+    }
+    const id = name.startsWith("Push") ? `${prefix}${name}` : settingsControlId(prefix, name);
+    const target = pages.get(key).querySelector(`[id="${id}"]`);
+    const host = card.querySelector(".settings-inline-control");
+    if (!target) {
+      host.textContent = "Sign in to manage this notification.";
+      return;
+    }
+    const sectionName = target.closest(".settings-page-section")?.querySelector("h3")?.textContent;
+    let control = target.closest(".sound-volume-control, .push-reminder-row, .setting-checkbox, [data-settings-choice]");
+    if (!control && name.endsWith("Label")) {
+      control = document.createElement("div");
+      const segment = target.nextElementSibling;
+      const help = segment?.nextElementSibling;
+      if (segment) control.append(segment);
+      if (help?.matches(".setting-help")) control.append(help);
+      control.prepend(target);
+    }
+    if (!control) control = target.matches("button, a") ? target : target.closest(".setting-group") || target;
+    const help = control.nextElementSibling?.matches(".setting-help") ? control.nextElementSibling : null;
+    if (sectionName) card.querySelector(".settings-inline-path").textContent += ` › ${sectionName}`;
+    host.append(control);
+    if (help) host.append(help);
+  });
 }
 
 function settingsDeepSearchResultsMarkup(prefix = "") {
@@ -4025,9 +4062,9 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("startup", "PushNotificationsToggle", "Allow notifications", "Startup & Notifications", "push device")}
       ${result("startup", "PushMorningTime", "Morning reading reminder", "Startup & Notifications", "daily time")}
       ${result("startup", "PushEveningToggle", "Evening reading nudge", "Startup & Notifications", "daily reminder")}
-      ${result("startup", state.authUser ? "PushFriendRequestToggle" : "PushNotificationsToggle", "Friend request notifications", "Startup & Notifications", "social activity sign in")}
-      ${result("startup", state.authUser ? "PushGameChallengeToggle" : "PushNotificationsToggle", "Game challenge notifications", "Startup & Notifications", "social activity sign in")}
-      ${result("startup", state.authUser ? "PushChallengeAcceptedToggle" : "PushNotificationsToggle", "Accepted challenge notifications", "Startup & Notifications", "social activity sign in")}
+      ${result("startup", "PushFriendRequestToggle", "Friend request notifications", "Startup & Notifications", "social activity sign in")}
+      ${result("startup", "PushGameChallengeToggle", "Game challenge notifications", "Startup & Notifications", "social activity sign in")}
+      ${result("startup", "PushChallengeAcceptedToggle", "Accepted challenge notifications", "Startup & Notifications", "social activity sign in")}
       ${result("app", "AppUpdateButton", "Check for app updates", "App, Help & Legal", "refresh installed version")}
       ${result("app", "SettingsHelpButton", "Help & Tour", "App, Help & Legal", "keyboard shortcuts guidance")}
       ${result("app", "SettingsAboutButton", "About Big Screen Bible", "App, Help & Legal", "information")}
@@ -16244,6 +16281,7 @@ function tutorialOverlay() {
 }
 
 function bindEvents() {
+  prepareSettingsInlineResults();
   bindReaderTopButton();
   bindReaderReturnButton();
   bindReaderSelectionToolsButton();
