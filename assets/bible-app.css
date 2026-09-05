@@ -4575,7 +4575,9 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .settings-quick-text-actions {
   display: grid;
-  grid-template-columns: minmax(154px, 190px) minmax(104px, 122px);
+  grid-template-columns: minmax(0, 190px) minmax(0, 122px);
+  min-width: 0;
+  width: 100%;
   align-items: stretch;
   gap: 8px;
 }
@@ -4599,10 +4601,12 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   min-width: 0;
 }
 
-.settings-quick-fullscreen {
+:is(.settings-popover, .mobile-settings-popover) .settings-quick-text-actions .settings-quick-fullscreen {
   justify-content: center;
   gap: 6px;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 40px;
   padding-inline: 9px;
 }
