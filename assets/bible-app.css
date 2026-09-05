@@ -4480,18 +4480,19 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .settings-search {
   position: sticky;
-  top: -14px;
+  top: 0;
   z-index: 3;
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) 30px;
   align-items: center;
   gap: 6px;
-  margin: 0 -4px;
+  min-width: 0;
+  margin: 0 2px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: color-mix(in srgb, var(--panel) 94%, var(--soft));
   padding: 7px 8px;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 7%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--ink) 4%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -4529,7 +4530,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .settings-search:focus-within {
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 16%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--teal) 16%, transparent);
 }
 
 .settings-search-clear {
