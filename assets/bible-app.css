@@ -22175,14 +22175,64 @@ svg {
   .best-time-rocket, .best-time-ray b { animation: none; }
 }
 
-.hidden-word-leaderboard { width: 100%; margin: 12px 0; text-align: left; }
-.hidden-word-leaderboard h3 { margin: 0; font-size: 1rem; }
-.hidden-word-leaderboard p, .hidden-word-score-rules p { font-size: .8rem; line-height: 1.5; }
-.hidden-word-leaderboard ol { padding-left: 24px; margin: 8px 0; }
-.hidden-word-leaderboard li { padding: 5px 0; }
-.hidden-word-leaderboard li span { display: block; font-size: .75rem; opacity: .75; }
+.arcade-scoreboard {
+  width: 100%; min-width: 0; box-sizing: border-box; margin: 12px 0; padding: 16px;
+  color: #e5f6ff; text-align: left; border: 2px solid #6698b3; border-radius: 8px;
+  background: repeating-linear-gradient(0deg, #ffffff03 0 1px, transparent 1px 4px), #101e32;
+  box-shadow: inset 0 0 0 3px #101e32, inset 0 0 0 4px #304860, 0 5px 0 #080f1c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.arcade-scoreboard-header { display: flex; align-items: center; gap: 10px; }
+.arcade-scoreboard-star { color: #ffd875; font-size: 1.7rem; text-shadow: 2px 2px #8c5927; }
+.arcade-scoreboard-kicker { color: #9ab5cf; font-size: .6rem; letter-spacing: .14em; }
+.arcade-scoreboard h3 { margin: 3px 0 0; color: #7ee5e0; font-size: clamp(.95rem, 3vw, 1.2rem); letter-spacing: .1em; text-shadow: 2px 2px #234959; }
+.arcade-scoreboard-badge { margin-left: auto; flex-shrink: 0; padding: 5px 6px; border: 1px solid #7ee5e0; color: #7ee5e0; font-size: .65rem; font-weight: 800; }
+.arcade-scoreboard .arcade-scoreboard-context { margin: 12px 0; color: #b1c5da; font-family: var(--ui-font); font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
+.arcade-scoreboard-columns { display: grid; grid-template-columns: 42px 1fr; gap: 10px; padding: 0 10px 7px; color: #92adc7; font-size: .58rem; letter-spacing: .08em; }
+.arcade-scoreboard ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 5px; }
+.arcade-scoreboard .arcade-score-row { display: flex; gap: 10px; align-items: center; min-width: 0; padding: 9px 10px; border: 1px solid #30455f; background: #192a41; }
+.arcade-score-row.is-filled:first-child { border-color: #c9a259; background: linear-gradient(100deg, #403724, #202b3a); }
+.arcade-score-rank { flex: 0 0 32px; color: #a9c6e1; font-size: 1.1rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.arcade-score-row.is-filled:first-child .arcade-score-rank, .arcade-score-row.is-filled:first-child strong { color: #ffe09a; }
+.arcade-score-record { flex: 1; min-width: 0; }
+.arcade-score-record strong { display: block; color: #ecf7ff; font-size: 1.05rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; letter-spacing: .04em; }
+.arcade-score-record small { font-size: .6rem; color: #adc6db; }
+.arcade-score-detail { display: block; margin-top: 3px; color: #b1c5da; font-family: var(--ui-font); font-size: .7rem; line-height: 1.4; overflow-wrap: anywhere; }
+.arcade-score-row.is-empty { background: #122136; border-style: dashed; }
+.arcade-score-row.is-empty strong { color: #708aa5; }
+.arcade-score-row.is-empty .arcade-score-detail { color: #91a9bf; font-family: inherit; font-size: .55rem; letter-spacing: .07em; }
+.arcade-score-crown { color: #ffda7f; font-size: 1.1rem; }
+.arcade-scoreboard .arcade-scoreboard-footer { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #30455f; text-align: center; color: #7ee5e0; font-size: .6rem; line-height: 1.6; letter-spacing: .07em; }
+.hidden-word-score-rules p { font-size: .8rem; line-height: 1.5; }
 .hidden-word-score-rules { text-align: left; margin: 12px 0; }
 .hidden-word-score-rules summary { cursor: pointer; font-size: .85rem; }
 .trivia-result-ring:has(small) { flex-direction: column; font-size: clamp(1.3rem, 4vw, 2rem); }
 .trivia-result-ring small { font-size: .8rem; }
 .hidden-word-round-score { font-size: .85rem; line-height: 1.5; }
+
+/* Compact, optional arcade scores share one placement across scored games. */
+.scoreboard-disclosure { width: min(290px, 100%); min-width: 0; margin: 0 0 0 auto; text-align: right; }
+.scoreboard-disclosure > summary { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; color: var(--ink); font-size: .75rem; cursor: pointer; border: 1px solid var(--line); border-radius: 6px; list-style: none; }
+.scoreboard-disclosure > summary::-webkit-details-marker { display: none; }
+.scoreboard-disclosure > summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.scoreboard-disclosure[open] .scoreboard-show, .scoreboard-disclosure:not([open]) .scoreboard-hide { display: none; }
+.scoreboard-disclosure .arcade-scoreboard { margin: 6px 0; padding: 10px; }
+.scoreboard-disclosure .arcade-scoreboard-header { gap: 6px; }
+.scoreboard-disclosure .arcade-scoreboard h3 { font-size: .85rem; }
+.scoreboard-disclosure .arcade-scoreboard-star { font-size: 1.2rem; }
+.scoreboard-disclosure .arcade-scoreboard-kicker, .scoreboard-disclosure .arcade-scoreboard-columns, .scoreboard-disclosure .arcade-scoreboard-footer { display: none; }
+.scoreboard-disclosure .arcade-scoreboard-context { margin: 8px 0; font-size: .7rem; }
+.scoreboard-disclosure .arcade-score-row { gap: 6px; padding: 5px 7px; }
+.scoreboard-disclosure .arcade-score-rank { flex-basis: 24px; font-size: .85rem; }
+.scoreboard-disclosure .arcade-score-record strong { font-size: .9rem; }
+.scoreboard-disclosure .arcade-score-detail { font-size: .65rem; }
+.scoreboard-disclosure .is-empty .arcade-score-detail { display: none; }
+.trivia-setup-content { display: contents; }
+.trivia-setup-main.has-scoreboard { display: grid; align-content: start; align-items: start; gap: 16px; min-width: 0; }
+.trivia-setup-main.has-scoreboard > .trivia-setup-content { display: grid; align-content: start; gap: 16px; min-width: 0; }
+.trivia-setup-main.has-scoreboard .trivia-setup-copy { margin: 0; }
+.trivia-setup-main.has-scoreboard > .scoreboard-disclosure { align-self: start; }
+@media (min-width: 841px) {
+  .trivia-setup-main.has-scoreboard { grid-template-columns: minmax(0, 1fr) 260px; }
+  .trivia-setup-main.has-scoreboard > .scoreboard-disclosure { width: 100%; min-height: 360px; }
+}

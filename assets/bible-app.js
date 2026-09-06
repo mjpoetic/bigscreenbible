@@ -11195,9 +11195,25 @@ function hiddenWordScoreRules() {
   return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Solved puzzle +1,000 · Perfect puzzle +500 (no misses or hints) · Missed letter −200 · Hint −100 · Failed puzzle −500.</p><p>Speed bonus: +500 for solving in under 10 seconds, then 100 fewer points every 10 seconds, reaching zero at 50 seconds. Time starts when each puzzle opens. Scores can go below zero.</p></details>`;
 }
 
+function arcadeScoreboard(scores, subtitle, detail, label) {
+  let visible = true;
+  try { visible = localStorage.getItem("lw_scoreboard_visible") !== "false"; } catch {}
+  return `<details class="scoreboard-disclosure" ${visible ? "open" : ""}><summary><span class="scoreboard-show">Show scoreboard</span><span class="scoreboard-hide">Hide scoreboard</span></summary><section class="hidden-word-leaderboard arcade-scoreboard" aria-label="${escapeHtml(label)}">
+    <header class="arcade-scoreboard-header"><span class="arcade-scoreboard-star" aria-hidden="true">★</span><div><span class="arcade-scoreboard-kicker">PERSONAL BESTS</span><h3>HIGH SCORES</h3></div><span class="arcade-scoreboard-badge">TOP 5</span></header>
+    <p class="arcade-scoreboard-context">${escapeHtml(subtitle)}</p>
+    <div class="arcade-scoreboard-columns" aria-hidden="true"><span>RANK</span><span>SCORE / RECORD</span></div>
+    <ol role="list">${Array.from({ length: 5 }, (_, index) => {
+      const entry = scores[index];
+      return `<li class="arcade-score-row ${entry ? "is-filled" : "is-empty"}"><span class="arcade-score-rank" aria-label="Rank ${index + 1}">${String(index + 1).padStart(2, "0")}</span><div class="arcade-score-record"><strong>${entry ? `${entry.points.toLocaleString()} <small>PTS</small>` : "<span aria-label='No score yet'>— — —</span>"}</strong><span class="arcade-score-detail">${entry ? escapeHtml(detail(entry)) : "YOUR NEXT HIGH SCORE"}</span></div>${index === 0 && entry ? '<span class="arcade-score-crown" aria-label="Personal best">★</span>' : ""}</li>`;
+    }).join("")}</ol>
+    <p class="arcade-scoreboard-footer">${scores.length ? "PLAY AGAIN · CHASE YOUR BEST" : "READY, PLAYER? SET YOUR FIRST SCORE"}</p>
+  </section></details>`;
+}
+
 function hiddenWordLeaderboard(difficulty, count, context = {}) {
-  const scores = savedHiddenWordScores(difficulty, count, context);
-  return `<section class="hidden-word-leaderboard" aria-label="Top five Hidden Word scores"><h3>Top 5 scores</h3><p>${escapeHtml(difficulty)} · ${count} puzzles${context.customPassage ? " · this passage" : " · curated mix"}</p>${scores.length ? `<ol>${scores.map((entry) => `<li><strong>${entry.points.toLocaleString()} pts</strong><span>${entry.score}/${count} solved · ${entry.hintCount} hints</span></li>`).join("")}</ol>` : "<p>Complete a game to set your first score.</p>"}</section>`;
+  return arcadeScoreboard(savedHiddenWordScores(difficulty, count, context),
+    `${difficulty} · ${count} puzzles · ${context.customPassage ? "this passage" : "curated mix"}`,
+    (entry) => `${entry.score}/${count} solved · ${entry.hintCount} hints`, "Top five Hidden Word scores");
 }
 
 function recordHiddenWordBest(game) {
@@ -11272,9 +11288,11 @@ function quizScoreRules(type) {
 }
 
 function quizLeaderboard(game) {
-  const scores = savedQuizScores(game);
   const count = game.questions?.length || game.count;
-  return `<section class="hidden-word-leaderboard" aria-label="Top five personal scores"><h3>Top 5 scores</h3><p>${escapeHtml(game.difficulty)} · ${count} questions${game.type === "trivia" ? ` · ${escapeHtml(game.category)}` : ""}</p>${scores.length ? `<ol>${scores.map((entry) => `<li><strong>${entry.points.toLocaleString()} pts</strong><span>${entry.score}/${count} correct · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}</span></li>`).join("")}</ol>` : "<p>Complete a round to set your first score.</p>"}${game.quizScoreSaveFailed ? "<p>This score could not be saved on this device.</p>" : ""}</section>`;
+  return arcadeScoreboard(savedQuizScores(game),
+    `${game.difficulty} · ${count} questions${game.type === "trivia" ? ` · ${game.category}` : ""}`,
+    (entry) => `${entry.score}/${count} correct · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}`, "Top five personal scores")
+    + (game.quizScoreSaveFailed ? "<p>This score could not be saved on this device.</p>" : "");
 }
 
 function quizAnswerPoints(question) {
@@ -12874,7 +12892,6 @@ function triviaView() {
   const crosswordConfig = crosswordDifficultyConfig(state.triviaDifficulty);
   const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty, puzzleBestContext) : null;
   const hiddenWordConfig = hiddenWordDifficultyConfig(state.triviaDifficulty);
-  const hiddenWordBest = isHiddenWord ? savedHiddenWordBest(state.triviaDifficulty, selectedCount, puzzleBestContext) : null;
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
@@ -12915,7 +12932,7 @@ function triviaView() {
             : isCrossword
               ? "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
               : isHiddenWord
-                ? "Solve Wheel of Fortune–style Bible words and phrases. Every puzzle starts with a familiar category and source passage."
+                ? "Solve hidden Bible words and phrases, one letter at a time. Every puzzle starts with a familiar category and source passage."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
   const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : state.triviaGame?.type === "hidden-word" ? "Hidden Word" : "";
   return `
@@ -12987,7 +13004,8 @@ function triviaView() {
               </div>
               <button class="trivia-mode-scroll trivia-mode-scroll-next" type="button" data-trivia-mode-scroll="1" aria-label="Show more games" hidden>${icons.chevron}</button>
             </div>
-            <div class="trivia-setup-main">
+            <div class="trivia-setup-main ${isHiddenWord || ["trivia", "who-said-it"].includes(state.triviaGameType) ? "has-scoreboard" : ""}">
+              <div class="trivia-setup-content">
               <p class="trivia-setup-copy">${setupCopy}</p>
               <button
                 class="trivia-mobile-options ${state.gamesDrawerOpen === "options" ? "active" : ""}"
@@ -13003,7 +13021,6 @@ function triviaView() {
                 </span>
                 <span class="trivia-mobile-options-chevron" aria-hidden="true">${icons.chevron}</span>
               </button>
-            </div>
             <div class="games-drawer-shell ${state.gamesDrawerOpen === "options" ? "open" : ""}" data-games-drawer="options">
               <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close game options" tabindex="-1"></button>
               <aside class="games-drawer games-options-drawer" id="gamesOptionsDrawer" ${gamesUseDrawers ? 'role="dialog" aria-modal="true"' : 'role="region"'} aria-labelledby="gamesOptionsTitle" tabindex="-1">
@@ -13063,19 +13080,13 @@ function triviaView() {
                     </div>
                     <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
                   ` : ""}
-                  ${isHiddenWord ? `
-                    <div class="book-sprint-best-card word-search-best-card">
-                      <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} score`}</span>
-                      <div class="puzzle-best-score">
-                        <strong id="puzzleSetupBestValue">${hiddenWordBest ? `${hiddenWordBest.points.toLocaleString()} pts` : "No best yet"}</strong>
-                        <small id="puzzleSetupBestAssist" ${hiddenWordBest?.hintCount ? "" : "hidden"}>${hiddenWordBest?.hintCount ? `* Assisted with ${hiddenWordBest.hintCount} ${hiddenWordBest.hintCount === 1 ? "hint" : "hints"}` : ""}</small>
-                      </div>
-                    </div>
-                    ${hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext)}
-                    ${hiddenWordScoreRules()}
-                  ` : ""}
+                  ${isHiddenWord ? hiddenWordScoreRules() : ""}
+                  ${["trivia", "who-said-it"].includes(state.triviaGameType) ? quizScoreRules(state.triviaGameType) : ""}
                 </div>
               </aside>
+            </div>
+              </div>
+              ${isHiddenWord ? hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext) : ["trivia", "who-said-it"].includes(state.triviaGameType) ? quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount }) : ""}
             </div>
             ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
               <button class="games-drawer-backdrop" type="button" data-games-drawer-dismiss aria-label="Close social games" tabindex="-1"></button>
@@ -13092,7 +13103,6 @@ function triviaView() {
                 </div>
               </aside>
             </div>` : ""}
-            ${["trivia", "who-said-it"].includes(state.triviaGameType) ? `${quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount })}${quizScoreRules(state.triviaGameType)}` : ""}
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
@@ -17287,6 +17297,11 @@ function bindEvents() {
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   document.querySelector(".library")?.addEventListener("scroll", () => rememberLibraryScroll(), { passive: true });
+  document.querySelectorAll(".scoreboard-disclosure").forEach((panel) => {
+    panel.addEventListener("toggle", () => {
+      try { localStorage.setItem("lw_scoreboard_visible", String(panel.open)); } catch {}
+    });
+  });
   document.getElementById("gameOptionsToggle")?.addEventListener("click", () => {
     setGamesDrawer(state.gamesDrawerOpen === "options" ? "" : "options");
   });
