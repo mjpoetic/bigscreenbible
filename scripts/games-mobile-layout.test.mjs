@@ -182,3 +182,24 @@ for (const responsive of [false, true]) {
   }
 }
 console.log("All six games mount answer popups on desktop and responsive layouts");
+
+// Switching games preserves the rail unless the selected tab needs revealing.
+{
+  const tabs = {
+    scrollLeft: 0,
+    getBoundingClientRect: () => ({ left: 50, right: 350 }),
+    querySelector: () => active,
+  };
+  let left = 160;
+  const active = { getBoundingClientRect: () => ({ left: left - tabs.scrollLeft, right: left + 100 - tabs.scrollLeft }) };
+  const context = vm.createContext({ document: { querySelector: () => tabs }, updateTriviaModeScrollControls() {} });
+  vm.runInContext(extractFunction("centerActiveTriviaMode"), context);
+  context.centerActiveTriviaMode(80);
+  assert.equal(tabs.scrollLeft, 80, "A visible selection must not recenter the rail");
+  left = 400;
+  context.centerActiveTriviaMode(80);
+  assert.equal(tabs.scrollLeft, 150, "Reveal only the obscured right edge");
+  left = 90;
+  context.centerActiveTriviaMode(80);
+  assert.equal(tabs.scrollLeft, 40, "Reveal only the obscured left edge");
+}

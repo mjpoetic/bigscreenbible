@@ -1533,6 +1533,7 @@ function render() {
   pendingChapterChange = null;
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
+  const gamesTabScroll = document.querySelector(".trivia-mode-tabs")?.scrollLeft || 0;
   app.innerHTML = `
     <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
@@ -1572,7 +1573,7 @@ function render() {
   restoreSettingsPanelScroll(settingsScrollState);
   restoreAccountPanelScroll(accountScrollState);
   requestAnimationFrame(() => {
-    centerActiveTriviaMode();
+    centerActiveTriviaMode(gamesTabScroll);
     positionAccountPopover();
     positionSettingsPopover();
     positionFocusSearchResults();
@@ -11198,7 +11199,11 @@ function hiddenWordScoreRules() {
 function arcadeScoreboard(scores, subtitle, detail, label) {
   let visible = true;
   try { visible = localStorage.getItem("lw_scoreboard_visible") !== "false"; } catch {}
-  return `<details class="scoreboard-disclosure" ${visible ? "open" : ""}><summary><span class="scoreboard-show">Show scoreboard</span><span class="scoreboard-hide">Hide scoreboard</span></summary><section class="hidden-word-leaderboard arcade-scoreboard" aria-label="${escapeHtml(label)}">
+  const setup = !state.triviaGame && state.mode === "trivia";
+  const summary = setup
+    ? `<strong>Your records</strong><small>${scores.length ? `${scores[0].points.toLocaleString()} pts · Personal best` : "No score yet"}</small><span aria-hidden="true">${icons.chevron}</span>`
+    : `<span class="scoreboard-show">Show scoreboard</span><span class="scoreboard-hide">Hide scoreboard</span>`;
+  return `<details class="${setup ? "games-records" : "scoreboard-disclosure"}" ${!setup && visible ? "open" : ""}><summary>${summary}</summary><section class="hidden-word-leaderboard arcade-scoreboard" aria-label="${escapeHtml(label)}">
     <header class="arcade-scoreboard-header"><span class="arcade-scoreboard-star" aria-hidden="true">★</span><div><span class="arcade-scoreboard-kicker">PERSONAL BESTS</span><h3>HIGH SCORES</h3></div><span class="arcade-scoreboard-badge">TOP 5</span></header>
     <p class="arcade-scoreboard-context">${escapeHtml(subtitle)}</p>
     <div class="arcade-scoreboard-columns" aria-hidden="true"><span>RANK</span><span>SCORE / RECORD</span></div>
@@ -12860,7 +12865,7 @@ function trapGamesDrawerFocus(event) {
     setGamesDrawer("");
     return;
   }
-  if (event.key !== "Tab") return;
+  if (event.key !== "Tab" || event.currentTarget.getAttribute("role") !== "dialog") return;
   const focusable = Array.from(event.currentTarget.querySelectorAll(
     'button:not([disabled]), select:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
   )).filter((element) => !element.hidden && element.getClientRects().length);
@@ -12876,11 +12881,15 @@ function trapGamesDrawerFocus(event) {
   }
 }
 
-function centerActiveTriviaMode() {
+function centerActiveTriviaMode(previousScroll = 0) {
   const tabs = document.querySelector(".trivia-mode-tabs");
   const active = tabs?.querySelector("button.active");
   if (!tabs || !active) return;
-  tabs.scrollLeft = Math.max(0, active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2);
+  tabs.scrollLeft = previousScroll;
+  const viewport = tabs.getBoundingClientRect();
+  const selected = active.getBoundingClientRect();
+  if (selected.left < viewport.left) tabs.scrollLeft -= viewport.left - selected.left;
+  else if (selected.right > viewport.right) tabs.scrollLeft += selected.right - viewport.right;
   updateTriviaModeScrollControls();
 }
 
@@ -12945,7 +12954,7 @@ function triviaView() {
     : state.triviaGame?.type === "hidden-word"
       ? hiddenWordHintsRemaining(state.triviaGame)
       : 0;
-  const setupCopy = isVerseOrder
+  const setupHelp = isVerseOrder
     ? "Tap or drag shuffled verse fragments back into order. Rounds progress from 3 to 7 pieces, then reveal the reference."
     : isReferenceRush
       ? "Read the verse and follow its clues. Easy asks for the book; Medium and Hard move toward the exact reference."
@@ -12960,6 +12969,15 @@ function triviaView() {
               : isHiddenWord
                 ? "Solve hidden Bible words and phrases, one letter at a time. Every puzzle starts with a familiar category and source passage."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
+  const setupCopy = isVerseOrder
+    ? "Put shuffled Scripture fragments back into verse order."
+    : isReferenceRush ? "Read a verse and use its clues to find the reference."
+    : isBookSprint ? "Put Bible books in order and try to beat your best time."
+    : isWhoSaidIt ? "Read a Bible quote and choose who said it."
+    : isWordSearch ? "Find hidden words from a chosen or surprise Scripture passage."
+    : isCrossword ? "Solve crossing words with clues from a Scripture passage."
+    : isHiddenWord ? "Uncover Bible words and phrases, one letter at a time."
+    : "Test your Bible knowledge with multiple-choice questions.";
   const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : state.triviaGame?.type === "hidden-word" ? "Hidden Word" : "";
   return `
     <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
@@ -12997,7 +13015,7 @@ function triviaView() {
                 <span>Controls</span>
               </button>
             ` : ""}
-            ${state.triviaGame || !socialSupported ? "" : `
+            ${state.triviaGame ? "" : !socialSupported ? `<span class="games-social-placeholder" aria-hidden="true"></span>` : `
               <button
                 class="games-header-action ${state.gamesDrawerOpen === "social" ? "active" : ""}"
                 id="gameSocialToggle"
@@ -13030,7 +13048,7 @@ function triviaView() {
               </div>
               <button class="trivia-mode-scroll trivia-mode-scroll-next" type="button" data-trivia-mode-scroll="1" aria-label="Show more games" hidden>${icons.chevron}</button>
             </div>
-            <div class="trivia-setup-main ${isHiddenWord || ["trivia", "who-said-it"].includes(state.triviaGameType) ? "has-scoreboard" : ""}">
+            <div class="trivia-setup-main">
               <div class="trivia-setup-content">
               <p class="trivia-setup-copy">${setupCopy}</p>
               <button
@@ -13058,6 +13076,7 @@ function triviaView() {
                   <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
+                  <p class="games-setup-help">${setupHelp}</p>
                   <div class="trivia-setup-controls ${isVerseOrder || isWordSearch || isCrossword ? "single-control" : isHiddenWord || isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
                     <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword || isHiddenWord ? "is-hidden" : ""}">
                       <span>Category</span>
@@ -13112,6 +13131,7 @@ function triviaView() {
               </aside>
             </div>
               </div>
+              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
               ${isHiddenWord ? hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext) : ["trivia", "who-said-it"].includes(state.triviaGameType) ? quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount }) : ""}
             </div>
             ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
@@ -14415,11 +14435,9 @@ function triviaScoreLabel() {
     }
     if (state.triviaGameType === "crossword") return `${crosswordDifficultyConfig(state.triviaDifficulty).entryCount} clues`;
     if (state.triviaGameType === "hidden-word") return `${normalizedTriviaCount("hidden-word", state.triviaCount)} puzzles`;
-    if (state.triviaGameType === "verse-order") return `${verseOrderPool().length} verses`;
-    if (state.triviaGameType === "reference-rush") return `${referenceRushAvailableCount()} verses`;
-    if (state.triviaGameType === "book-sprint") return `${bookSprintBestLabel(savedBookSprintBest(state.triviaDifficulty, normalizedTriviaCount("book-sprint", state.triviaCount)))}`;
-    if (state.triviaGameType === "who-said-it") return `${whoSaidItPool().length} quotes`;
-    return `${triviaPool().length} questions`;
+    const count = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
+    const unit = state.triviaGameType === "book-sprint" ? "rounds" : ["verse-order", "reference-rush"].includes(state.triviaGameType) ? "verses" : "questions";
+    return `${count} ${unit}`;
   }
   if (isQuizPointsGame(state.triviaGame)) return `${(state.triviaGame.points || 0).toLocaleString()} pts · ${state.triviaGame.score} correct`;
   const roundLength = triviaRoundLength(state.triviaGame);
