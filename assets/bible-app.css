@@ -22088,17 +22088,17 @@ svg {
   text-align: center;
 }
 .best-time-celebration::backdrop { background: #03091bd9; backdrop-filter: blur(7px); }
-.best-time-art { position: relative; overflow: hidden; isolation: isolate; background: #103f94; }
+.best-time-art { position: relative; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at bottom, #173c72, #060f2a 85%); }
 .best-time-wall {
   position: absolute; inset: -24px -90px; z-index: -1;
   display: flex; flex-direction: column; justify-content: space-around;
-  transform: rotate(-8deg); opacity: .28; color: #63efff;
+  transform: rotate(-8deg); opacity: .1; color: #63efff;
   font: 900 25px/1.5 ui-monospace, monospace; white-space: nowrap;
   text-shadow: 2px 2px #001944, 0 0 9px currentColor;
   animation: best-time-colors 5s linear infinite;
 }
 .best-time-wall span:nth-child(even) { transform: translateX(65px); }
-.best-time-hero { padding: 28px 18px 26px; }
+.best-time-hero { position: relative; padding: 28px 18px 26px; }
 .best-time-badge { display: inline-grid; place-items: center; width: 48px; height: 48px; color: #ffe67c; }
 .best-time-badge svg { width: 38px; height: 38px; }
 .best-time-eyebrow { margin: 6px 0 12px; font: 800 12px/1.4 ui-monospace, monospace; letter-spacing: .23em; color: #ddfaff; }
@@ -22116,7 +22116,6 @@ svg {
 .best-time-actions button { min-height: 48px; white-space: normal; flex: 1; }
 .best-time-actions .primary-btn { background: #ffe67c; color: #101a36; border: 1px solid #ffe67c; }
 .best-time-actions .ghost-btn { background: #ffffff0d; color: #fff; border: 1px solid #7182a5; }
-.best-time-actions button:disabled { opacity: .5; cursor: wait; }
 .best-time-actions button:focus-visible { outline: 3px solid #6beaff; outline-offset: 3px; }
 @keyframes best-time-colors { to { filter: hue-rotate(360deg); } }
 @keyframes best-time-title { 0%, 100% { color: #fff07c; } 33% { color: #83f4ff; } 66% { color: #ffb5ee; } }
@@ -22128,4 +22127,39 @@ svg {
 }
 @media (prefers-reduced-motion: reduce) {
   .best-time-wall, .best-time-hero h2 { animation: none; }
+}
+
+
+/* Rockets rise, then expand into staggered rings of falling sparks. */
+.best-time-fireworks { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.best-time-firework {
+  position: absolute; left: var(--firework-x); top: var(--firework-y);
+  color: var(--firework-color);
+}
+.best-time-rocket {
+  position: absolute; width: 3px; height: 34px; left: -1px; bottom: 0;
+  border-radius: 50%; background: linear-gradient(to top, transparent, currentColor);
+  opacity: 0; animation: best-time-rocket-rise 3.6s var(--firework-delay) ease-out infinite;
+}
+.best-time-ray { position: absolute; width: 0; height: 0; transform: rotate(var(--spark-angle)); }
+.best-time-ray b {
+  display: block; width: 4px; height: 4px; border-radius: 50%; background: currentColor;
+  box-shadow: 0 0 6px currentColor, -6px 0 3px currentColor;
+  opacity: 0; animation: best-time-spark-burst 3.6s var(--firework-delay) ease-out infinite;
+}
+@keyframes best-time-rocket-rise {
+  0% { opacity: 0; transform: translateY(190px) scaleY(1.5); }
+  3% { opacity: 1; }
+  18% { opacity: 1; transform: translateY(0) scaleY(.7); }
+  20%, 100% { opacity: 0; transform: translateY(0) scaleY(0); }
+}
+@keyframes best-time-spark-burst {
+  0%, 18% { opacity: 0; transform: translateX(0) scale(.3); }
+  21% { opacity: 1; }
+  38% { opacity: .95; transform: translateX(var(--spark-reach)) scale(1); }
+  65%, 100% { opacity: 0; transform: translateX(calc(var(--spark-reach) * 1.25)) translateY(22px) scale(.2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .best-time-fireworks { display: none; }
+  .best-time-rocket, .best-time-ray b { animation: none; }
 }

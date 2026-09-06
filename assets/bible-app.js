@@ -14065,8 +14065,6 @@ function completeTriviaGame(game) {
   }
 }
 
-// The bundled joyful-complete cue is 6.4 seconds, including its tail.
-const bestTimeCelebrationDurationMs = 6400;
 let bestTimeCelebrationCleanup = null;
 
 function newBestTimeResult(game) {
@@ -14075,6 +14073,19 @@ function newBestTimeResult(game) {
   if (game.type === "crossword" && game.crosswordIsNewBest) return game.crosswordBest;
   if (game.type === "book-sprint" && game.bookSprintNewBest) return game.bookSprintBest;
   return null;
+}
+
+function bestTimeFireworksMarkup() {
+  const bursts = [
+    [18, 28, 0, "#ffd76a"], [80, 32, 0.65, "#7bedff"],
+    [48, 20, 1.3, "#ff8ad8"], [24, 58, 1.95, "#b9a0ff"],
+    [77, 62, 2.6, "#85ffbe"],
+  ];
+  return `<div class="best-time-fireworks" aria-hidden="true">${bursts.map(([x, y, delay, color]) => `
+    <div class="best-time-firework" style="--firework-x:${x}%;--firework-y:${y}%;--firework-delay:${delay}s;--firework-color:${color}">
+      <i class="best-time-rocket"></i>
+      ${Array.from({ length: 24 }, (_, index) => `<i class="best-time-ray" style="--spark-angle:${index * 15}deg;--spark-reach:${index % 2 ? 54 : 82}px"><b></b></i>`).join("")}
+    </div>`).join("")}</div>`;
 }
 
 function showBestTimeCelebration(game, best) {
@@ -14088,6 +14099,7 @@ function showBestTimeCelebration(game, best) {
   const assisted = game.type === "crossword" && best.hintCount > 0;
   dialog.innerHTML = `
     <div class="best-time-art">
+      ${bestTimeFireworksMarkup()}
       <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>NEW BEST TIME · NEW BEST TIME · NEW BEST TIME</span>`).join("")}</div>
       <div class="best-time-hero">
         <span class="best-time-badge" aria-hidden="true">${icons.timer}</span>
@@ -14098,10 +14110,10 @@ function showBestTimeCelebration(game, best) {
     </div>
     <div class="best-time-footer">
       <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}That’s your fastest yet. Can you beat it?</p>
-      <p class="best-time-status" role="status">Enjoy your victory! Options unlock after the celebration.</p>
+      <p class="best-time-status" role="status">Ready for another round?</p>
       <div class="best-time-actions">
-        <button type="button" class="primary-btn" data-best-time-action="retry" disabled>Try again · Beat this time</button>
-        <button type="button" class="ghost-btn" data-best-time-action="menu" disabled>Games menu</button>
+        <button type="button" class="primary-btn" data-best-time-action="retry">Try again · Beat this time</button>
+        <button type="button" class="ghost-btn" data-best-time-action="menu">Games menu</button>
       </div>
     </div>`;
   document.body.append(dialog);
@@ -14110,19 +14122,8 @@ function showBestTimeCelebration(game, best) {
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   dialog.showModal();
   playGameOutcomeSound("perfect");
-  const startedAt = performance.now();
-  const unlockTimer = window.setInterval(() => {
-    if (performance.now() - startedAt < bestTimeCelebrationDurationMs) return;
-    // Account for delayed playback as well as the known cue length. Muted or
-    // failed playback still gets the full visual celebration, then unlocks.
-    if (gameMusicTrackKey === "outcome:perfect" && gameMusicAudio && !gameMusicAudio.paused && !gameMusicAudio.ended) return;
-    clearInterval(unlockTimer);
-    dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
-    dialog.querySelector(".best-time-status").textContent = "Ready for another round?";
-    dialog.querySelector("button")?.focus({ preventScroll: true });
-  }, 100);
+  dialog.querySelector("button")?.focus({ preventScroll: true });
   bestTimeCelebrationCleanup = () => {
-    clearInterval(unlockTimer);
     dialog.close();
     dialog.remove();
     bestTimeCelebrationCleanup = null;
