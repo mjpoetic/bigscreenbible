@@ -9,8 +9,9 @@ const events = {};
 const status = {};
 const dialog = { setAttribute() {}, addEventListener(name, fn) { events[name] = fn; }, showModal() {}, close() {}, remove() { removed = true; }, querySelectorAll() { return buttons; }, querySelector(selector) { return selector === 'button' ? buttons[0] : status; } };
 const context = vm.createContext({ document: { createElement: () => dialog, body: { append() {} } }, window: { setInterval() { assert.fail("Record actions must not wait for a timer"); } }, icons: { timer: '' }, formatGameTime: () => '1:05', crosswordHintLimit: 3, playGameOutcomeSound() {}, gameMusicTrackKey: 'outcome:perfect', gameMusicAudio: { paused: false, ended: false }, state: {}, cleanupTriviaCelebration() { vm.runInContext('bestTimeCelebrationCleanup()', context); }, exitTriviaGame() { menu++; }, restartPuzzleAtDifficulty() { retry++; }, requestGameMusicRestart() {}, startTriviaGame() { retry++; } });
+vm.runInContext(source.slice(source.indexOf("function isQuizPointsGame("), source.indexOf("function quizScoreKey(")), context);
 vm.runInContext(section, context);
-for (const [type, flag, field] of [['word-search', 'wordSearchIsNewBest', 'wordSearchBest'], ['crossword', 'crosswordIsNewBest', 'crosswordBest'], ['book-sprint', 'bookSprintNewBest', 'bookSprintBest'], ['hidden-word', 'hiddenWordIsNewBest', 'hiddenWordBest']]) {
+for (const [type, flag, field] of [['word-search', 'wordSearchIsNewBest', 'wordSearchBest'], ['crossword', 'crosswordIsNewBest', 'crosswordBest'], ['book-sprint', 'bookSprintNewBest', 'bookSprintBest'], ['hidden-word', 'hiddenWordIsNewBest', 'hiddenWordBest'], ['trivia', 'quizIsNewBest', 'quizBest'], ['who-said-it', 'quizIsNewBest', 'quizBest']]) {
   const best = { elapsedMs: 65000 };
   const game = { type, complete: true, [flag]: true, [field]: best };
   assert.equal(context.newBestTimeResult(game), best);

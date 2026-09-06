@@ -43,7 +43,7 @@
     "test:themes": "node scripts/theme-catalog.test.mjs",
     "test:tooltips": "node scripts/tooltip-delay.test.mjs",
     "test:tutorial": "node scripts/tutorial-layout.test.mjs",
-    "test:trivia": "node scripts/trivia-question-quality.test.mjs",
+    "test:trivia": "node scripts/trivia-question-quality.test.mjs && node scripts/quiz-scoring.test.mjs",
     "test:version-loading": "node scripts/bible-version-loading.test.mjs",
     "test:verse-of-day": "node scripts/verse-of-day-presentation.test.mjs",
     "test:version-sync": "node scripts/version-sync.test.mjs",

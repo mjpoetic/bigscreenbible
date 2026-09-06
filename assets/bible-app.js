@@ -11212,6 +11212,68 @@ function recordHiddenWordBest(game) {
   return game.hiddenWordScoreRecorded;
 }
 
+function isQuizPointsGame(game) {
+  return game?.type === "trivia" || game?.type === "who-said-it";
+}
+
+function quizScoreKey(game) {
+  return JSON.stringify([game.type, game.difficulty, game.questions?.length || game.count, game.type === "trivia" ? game.category : ""]);
+}
+
+function savedQuizScores(game) {
+  try {
+    const scores = JSON.parse(localStorage.getItem("lw_quiz_scores_v1") || "{}")[quizScoreKey(game)];
+    return Array.isArray(scores) ? scores.filter((entry) => Number.isFinite(entry?.points)).sort((a, b) => b.points - a.points).slice(0, 5) : [];
+  } catch {
+    return [];
+  }
+}
+
+function awardQuizPoints(game, question, correct) {
+  if (question.points !== undefined) return;
+  const unassisted = correct && !question.hintUsed;
+  game.streak = unassisted ? (game.streak || 0) + 1 : 0;
+  game.bestStreak = Math.max(game.bestStreak || 0, game.streak);
+  const bonus = unassisted ? Math.min(500, (game.streak - 1) * 100) : 0;
+  question.points = correct ? 1000 + bonus : 0;
+  question.scoreSummary = correct ? `Correct +1,000${bonus ? ` · Streak +${bonus}` : ""}` : "No points · Streak reset";
+  game.points = (game.points || 0) + question.points;
+}
+
+function recordQuizScore(game) {
+  if (game.quizScoreRecorded) return;
+  if (!game.questions.length || game.questions.some((question) => question.points === undefined)) return;
+  game.perfectBonus = game.score === game.questions.length && !game.questions.some((question) => question.hintUsed) ? 1000 : 0;
+  game.points = (game.points || 0) + game.perfectBonus;
+  const scores = savedQuizScores(game);
+  const result = { points: game.points, score: game.score, bestStreak: game.bestStreak || 0, hintCount: game.questions.filter((question) => question.hintUsed).length, achievedAt: Date.now() };
+  game.quizIsNewBest = !scores.length || result.points > scores[0].points;
+  game.quizBest = game.quizIsNewBest ? result : scores[0];
+  game.quizScoreRecorded = true;
+  try {
+    let bests = JSON.parse(localStorage.getItem("lw_quiz_scores_v1") || "{}");
+    if (!bests || typeof bests !== "object" || Array.isArray(bests)) bests = {};
+    bests[quizScoreKey(game)] = [...scores, result].sort((a, b) => b.points - a.points).slice(0, 5);
+    localStorage.setItem("lw_quiz_scores_v1", JSON.stringify(bests));
+  } catch {
+    game.quizScoreSaveFailed = true;
+  }
+}
+
+function quizScoreRules(type) {
+  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Correct answer +1,000. Consecutive unassisted answers add +100 for the second, +200 for the third, up to +500 per answer from the sixth onward. A wrong answer earns zero and resets the streak.</p><p>Perfect unassisted round +1,000. ${type === "trivia" ? "Each hint costs 100 points, resets the streak, and forfeits the perfect round bonus. Assisted correct answers still earn 1,000. Scores can go below zero. " : ""}No timer or speed bonus. Top scores are saved on this device for matching settings.</p></details>`;
+}
+
+function quizLeaderboard(game) {
+  const scores = savedQuizScores(game);
+  const count = game.questions?.length || game.count;
+  return `<section class="hidden-word-leaderboard" aria-label="Top five personal scores"><h3>Top 5 scores</h3><p>${escapeHtml(game.difficulty)} · ${count} questions${game.type === "trivia" ? ` · ${escapeHtml(game.category)}` : ""}</p>${scores.length ? `<ol>${scores.map((entry) => `<li><strong>${entry.points.toLocaleString()} pts</strong><span>${entry.score}/${count} correct · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}</span></li>`).join("")}</ol>` : "<p>Complete a round to set your first score.</p>"}${game.quizScoreSaveFailed ? "<p>This score could not be saved on this device.</p>" : ""}</section>`;
+}
+
+function quizAnswerPoints(question) {
+  return `<p class="hidden-word-round-score">${escapeHtml(question.scoreSummary || "")}${question.hintUsed ? " · Hint −100" : ""}</p>`;
+}
+
 function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
   return {
     Easy: { size: 9, entryCount: 5 },
@@ -13023,6 +13085,7 @@ function triviaView() {
                 </div>
               </aside>
             </div>` : ""}
+            ${["trivia", "who-said-it"].includes(state.triviaGameType) ? `${quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount })}${quizScoreRules(state.triviaGameType)}` : ""}
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
@@ -13138,7 +13201,7 @@ function triviaGameView() {
             <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
               <div>
                 <strong>Choose one hint</strong>
-                <span>Each hint type can be used once per round.</span>
+                <span>Each hint costs 100 points, resets the streak, and forfeits the perfect round bonus. Each type can be used once per round.</span>
               </div>
               ${hintOptions.map((hint) => `
                 <button type="button" data-trivia-hint="${escapeHtml(hint.type)}">
@@ -13161,6 +13224,7 @@ function triviaGameView() {
       ${answered ? `
         <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
           <strong>${correct ? "Correct" : "Not quite"}</strong>
+          ${quizAnswerPoints(question)}
           <p>${escapeHtml(question.explanation)}</p>
           <div class="trivia-reference">
             <span>${escapeHtml(question.reference)}</span>
@@ -13953,6 +14017,7 @@ function whoSaidItGameView(game) {
       ${answered ? `
         <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
           <strong>${correct ? "Correct" : "Not quite"}</strong>
+          ${quizAnswerPoints(question)}
           <p>${escapeHtml(question.explanation)}</p>
           <div class="trivia-reference">
             <span>${escapeHtml(question.reference)}</span>
@@ -14043,10 +14108,11 @@ function triviaResultsView(game) {
   return `
     <div class="trivia-results ${perfect ? "perfect" : ""}">
       <div class="trivia-results-summary">
-        <div class="trivia-result-ring">${game.type === "hidden-word" ? `${(game.points || 0).toLocaleString()}<small>points</small>` : `${percent}%`}</div>
+        <div class="trivia-result-ring">${(game.type === "hidden-word" || isQuizPointsGame(game)) ? `${(game.points || 0).toLocaleString()}<small>points</small>` : `${percent}%`}</div>
         <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
         <p>${resultText}</p>
         ${game.type === "hidden-word" ? `${hiddenWordLeaderboard(game.difficulty, roundLength, game)}${hiddenWordScoreRules()}` : ""}
+        ${isQuizPointsGame(game) ? `<p>Best streak: ${game.bestStreak || 0}${game.perfectBonus ? " · Perfect round +1,000" : ""}</p>${quizLeaderboard(game)}${quizScoreRules(game.type)}` : ""}
         ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       </div>
       <div class="trivia-actions">
@@ -14069,6 +14135,7 @@ function triviaRoundLength(game) {
 function completeTriviaGame(game) {
   if (!game || game.complete) return;
   if (game.type === "reference-rush" && game.timed && !game.finishedAt) game.finishedAt = Date.now();
+  if (isQuizPointsGame(game)) recordQuizScore(game);
   game.complete = true;
   const roundLength = triviaRoundLength(game);
   game.celebrationPending = game.type === "book-sprint"
@@ -14084,6 +14151,7 @@ let bestTimeCelebrationCleanup = null;
 
 function newBestTimeResult(game) {
   if (!game?.complete || game.lost || game.timedOut) return null;
+  if (isQuizPointsGame(game) && game.quizIsNewBest) return game.quizBest || null;
   if (game.type === "hidden-word" && game.hiddenWordIsNewBest) return game.hiddenWordBest || null;
   if (game.type === "word-search" && game.wordSearchIsNewBest) return game.wordSearchBest;
   if (game.type === "crossword" && game.crosswordIsNewBest) return game.crosswordBest;
@@ -14112,14 +14180,14 @@ function showBestTimeCelebration(game, best) {
   dialog.className = "best-time-celebration";
   dialog.setAttribute("aria-labelledby", "bestTimeTitle");
   dialog.setAttribute("aria-describedby", "bestTimeDescription");
-  const highScore = game.type === "hidden-word";
+  const highScore = game.type === "hidden-word" || isQuizPointsGame(game);
   const assisted = game.type === "crossword" && best.hintCount > 0;
   dialog.innerHTML = `
     <div class="best-time-art">
       ${bestTimeFireworksMarkup()}
       <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>${highScore ? "NEW HIGH SCORE · NEW HIGH SCORE · NEW HIGH SCORE" : "NEW BEST TIME · NEW BEST TIME · NEW BEST TIME"}</span>`).join("")}</div>
       <div class="best-time-hero">
-        <span class="best-time-badge" aria-hidden="true">${highScore ? icons.hiddenWord : icons.timer}</span>
+        <span class="best-time-badge" aria-hidden="true">${highScore ? (game.type === "hidden-word" ? icons.hiddenWord : icons.trivia) : icons.timer}</span>
         <p class="best-time-eyebrow">PERSONAL RECORD</p>
         <h2 id="bestTimeTitle">${highScore ? "New High Score!" : "New Best Time!"}</h2>
         <p class="best-time-value">${highScore ? `${best.points.toLocaleString()} pts` : formatGameTime(best.elapsedMs)}${assisted ? "*" : ""}</p>
@@ -14307,6 +14375,7 @@ function triviaScoreLabel() {
     if (state.triviaGameType === "who-said-it") return `${whoSaidItPool().length} quotes`;
     return `${triviaPool().length} questions`;
   }
+  if (isQuizPointsGame(state.triviaGame)) return `${(state.triviaGame.points || 0).toLocaleString()} pts · ${state.triviaGame.score} correct`;
   const roundLength = triviaRoundLength(state.triviaGame);
   if (state.triviaGame.complete) {
     if (state.triviaGame.type === "hidden-word") return `${(state.triviaGame.points || 0).toLocaleString()} pts`;
@@ -18130,6 +18199,9 @@ function startTriviaGame({ render = true } = {}) {
     })),
     index: 0,
     score: 0,
+    points: 0,
+    streak: 0,
+    bestStreak: 0,
     selectedAnswer: null,
     usedHintTypes: [],
     complete: false,
@@ -19306,6 +19378,9 @@ function startWhoSaidItGame({ render = true } = {}) {
     questions: pool.slice(0, questionCount).map((question) => ({ ...question, choices: shuffleItems(question.choices), selectedAnswer: null })),
     index: 0,
     score: 0,
+    points: 0,
+    streak: 0,
+    bestStreak: 0,
     complete: false,
   };
   if (render) renderPreservingReaderScroll();
@@ -19427,8 +19502,10 @@ function answerTriviaQuestion(answer) {
   if (!game || game.complete || game.selectedAnswer !== null) return;
   const question = game.questions[game.index];
   if (question.eliminatedChoices.includes(answer)) return;
+  if (!question.choices.includes(answer)) return;
   game.selectedAnswer = answer;
   if (answer === question.answer) game.score += 1;
+  awardQuizPoints(game, question, answer === question.answer);
   renderTriviaAnswerAndScroll();
 }
 
@@ -19476,6 +19553,8 @@ function useTriviaHint(type) {
     ? "Two possibilities remain."
     : "One incorrect answer has been removed.";
   question.hintUsed = type;
+  game.points = (game.points || 0) - 100;
+  game.streak = 0;
   question.hintMenuOpen = false;
   game.usedHintTypes = [...new Set([...(game.usedHintTypes || []), type])];
   renderPreservingReaderScroll();
@@ -20502,8 +20581,10 @@ function answerWhoSaidIt(answer) {
   if (!game || game.type !== "who-said-it" || game.complete) return;
   const question = game.questions[game.index];
   if (!question || question.selectedAnswer !== null) return;
+  if (!question.choices.includes(answer)) return;
   question.selectedAnswer = answer;
   if (answer === question.answer) game.score += 1;
+  awardQuizPoints(game, question, answer === question.answer);
   renderTriviaAnswerAndScroll();
 }
 
