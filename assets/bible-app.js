@@ -411,7 +411,7 @@ const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
-const hiddenWordBestStorageKey = "lw_hidden_word_bests";
+const hiddenWordBestStorageKey = "lw_hidden_word_scores_v1";
 const crosswordHintLimit = 3;
 const hiddenWordHintTypes = ["context", "letter"];
 const gameMusicTracks = Object.freeze({
@@ -11175,28 +11175,41 @@ function savedHiddenWordBests() {
   }
 }
 
+function savedHiddenWordScores(difficulty, roundCount, context = {}) {
+  const scores = savedHiddenWordBests()[`${puzzleBestKey(difficulty, context)}:${roundCount}`];
+  return Array.isArray(scores) ? scores.filter((entry) => Number.isFinite(entry?.points)).sort((a, b) => b.points - a.points).slice(0, 5) : [];
+}
+
 function savedHiddenWordBest(difficulty, roundCount, context = {}) {
-  return savedHiddenWordBests()[`${puzzleBestKey(difficulty, context)}:${roundCount}`] || null;
+  return savedHiddenWordScores(difficulty, roundCount, context)[0] || null;
+}
+
+function hiddenWordScoreRules() {
+  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Solved puzzle +1,000 · Perfect puzzle +500 (no misses or hints) · Missed letter −200 · Hint −100 · Failed puzzle −500.</p><p>Speed bonus: +500 for solving in under 10 seconds, then 100 fewer points every 10 seconds, reaching zero at 50 seconds. Time starts when each puzzle opens. Scores can go below zero.</p></details>`;
+}
+
+function hiddenWordLeaderboard(difficulty, count, context = {}) {
+  const scores = savedHiddenWordScores(difficulty, count, context);
+  return `<section class="hidden-word-leaderboard" aria-label="Top five Hidden Word scores"><h3>Top 5 scores</h3><p>${escapeHtml(difficulty)} · ${count} puzzles${context.customPassage ? " · this passage" : " · curated mix"}</p>${scores.length ? `<ol>${scores.map((entry) => `<li><strong>${entry.points.toLocaleString()} pts</strong><span>${entry.score}/${count} solved · ${entry.hintCount} hints</span></li>`).join("")}</ol>` : "<p>Complete a game to set your first score.</p>"}</section>`;
 }
 
 function recordHiddenWordBest(game) {
+  if (game.hiddenWordScoreRecorded) return game.hiddenWordScoreRecorded;
   const key = `${puzzleBestKey(game.difficulty, game)}:${game.rounds.length}`;
   const bests = savedHiddenWordBests();
+  const scores = savedHiddenWordScores(game.difficulty, game.rounds.length, game);
+  const previous = scores[0];
   const result = {
+    points: Number(game.points) || 0,
     score: Number(game.score) || 0,
     hintCount: Number(game.hintCount) || 0,
-    misses: (game.rounds || []).reduce((total, round) => total + (round.missedLetters?.length || 0), 0),
+    achievedAt: Date.now(),
   };
-  const previous = bests[key];
-  const isNewBest = !previous
-    || result.score > previous.score
-    || (result.score === previous.score && result.hintCount < previous.hintCount)
-    || (result.score === previous.score && result.hintCount === previous.hintCount && result.misses < previous.misses);
-  if (isNewBest) {
-    bests[key] = result;
-    localStorage.setItem(hiddenWordBestStorageKey, JSON.stringify(bests));
-  }
-  return { best: isNewBest ? result : previous, isNewBest, hadPrevious: Boolean(previous) };
+  const isNewBest = !previous || result.points > previous.points;
+  bests[key] = [...scores, result].sort((a, b) => b.points - a.points).slice(0, 5);
+  localStorage.setItem(hiddenWordBestStorageKey, JSON.stringify(bests));
+  game.hiddenWordScoreRecorded = { best: bests[key][0], isNewBest, hadPrevious: Boolean(previous) };
+  return game.hiddenWordScoreRecorded;
 }
 
 function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
@@ -12985,11 +12998,12 @@ function triviaView() {
                     <div class="book-sprint-best-card word-search-best-card">
                       <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} score`}</span>
                       <div class="puzzle-best-score">
-                        <strong id="puzzleSetupBestValue">${hiddenWordBest ? `${hiddenWordBest.score} of ${selectedCount}` : "No best yet"}</strong>
+                        <strong id="puzzleSetupBestValue">${hiddenWordBest ? `${hiddenWordBest.points.toLocaleString()} pts` : "No best yet"}</strong>
                         <small id="puzzleSetupBestAssist" ${hiddenWordBest?.hintCount ? "" : "hidden"}>${hiddenWordBest?.hintCount ? `* Assisted with ${hiddenWordBest.hintCount} ${hiddenWordBest.hintCount === 1 ? "hint" : "hints"}` : ""}</small>
                       </div>
                     </div>
-                    <p class="word-search-solo-note">Hidden Word is a solo Bible word-and-phrase game.</p>
+                    ${hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext)}
+                    ${hiddenWordScoreRules()}
                   ` : ""}
                 </div>
               </aside>
@@ -13571,7 +13585,7 @@ function hiddenWordHintsMarkup(game, round) {
         <div class="reference-rush-hint-menu" role="group" aria-label="Choose a Hidden Word hint">
           <div>
             <strong>Choose a hint</strong>
-            <span>Each kind can be used once per game. Assisted scores are marked.</span>
+            <span>Each kind costs 100 points and can be used once per game. Hints forfeit the perfect puzzle bonus.</span>
           </div>
           ${options.map((hint) => `
             <button type="button" data-hidden-word-hint="${hint.type}">
@@ -13663,6 +13677,7 @@ function hiddenWordGameView(game) {
       ${round.complete ? `
         <div class="trivia-feedback ${round.solved ? "correct" : "incorrect"}">
           <strong>${round.solved ? `You solved ${escapeHtml(round.word)}!` : `The answer was ${escapeHtml(round.word)}.`}</strong>
+          <p class="hidden-word-round-score">${round.points >= 0 ? "+" : ""}${round.points.toLocaleString()} pts · ${escapeHtml(round.scoreSummary)}</p>
           <p>${escapeHtml(round.clue || round.verse.text)}</p>
           <div class="trivia-reference">
             <span>${escapeHtml(round.referenceLabel)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</span>
@@ -14028,10 +14043,10 @@ function triviaResultsView(game) {
   return `
     <div class="trivia-results ${perfect ? "perfect" : ""}">
       <div class="trivia-results-summary">
-        <div class="trivia-result-ring">${percent}%</div>
+        <div class="trivia-result-ring">${game.type === "hidden-word" ? `${(game.points || 0).toLocaleString()}<small>points</small>` : `${percent}%`}</div>
         <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
         <p>${resultText}</p>
-        ${game.type === "hidden-word" && game.hiddenWordBest ? `<p class="crossword-assist-note">${game.hiddenWordIsNewBest ? "New best" : "Best"} · ${game.hiddenWordBest.score} of ${roundLength}${game.hiddenWordBest.hintCount ? ` · assisted with ${game.hiddenWordBest.hintCount}` : " · no hints"}</p>` : ""}
+        ${game.type === "hidden-word" ? `${hiddenWordLeaderboard(game.difficulty, roundLength, game)}${hiddenWordScoreRules()}` : ""}
         ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       </div>
       <div class="trivia-actions">
@@ -14069,6 +14084,7 @@ let bestTimeCelebrationCleanup = null;
 
 function newBestTimeResult(game) {
   if (!game?.complete || game.lost || game.timedOut) return null;
+  if (game.type === "hidden-word" && game.hiddenWordIsNewBest) return game.hiddenWordBest || null;
   if (game.type === "word-search" && game.wordSearchIsNewBest) return game.wordSearchBest;
   if (game.type === "crossword" && game.crosswordIsNewBest) return game.crosswordBest;
   if (game.type === "book-sprint" && game.bookSprintNewBest) return game.bookSprintBest;
@@ -14096,23 +14112,24 @@ function showBestTimeCelebration(game, best) {
   dialog.className = "best-time-celebration";
   dialog.setAttribute("aria-labelledby", "bestTimeTitle");
   dialog.setAttribute("aria-describedby", "bestTimeDescription");
+  const highScore = game.type === "hidden-word";
   const assisted = game.type === "crossword" && best.hintCount > 0;
   dialog.innerHTML = `
     <div class="best-time-art">
       ${bestTimeFireworksMarkup()}
-      <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>NEW BEST TIME · NEW BEST TIME · NEW BEST TIME</span>`).join("")}</div>
+      <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>${highScore ? "NEW HIGH SCORE · NEW HIGH SCORE · NEW HIGH SCORE" : "NEW BEST TIME · NEW BEST TIME · NEW BEST TIME"}</span>`).join("")}</div>
       <div class="best-time-hero">
-        <span class="best-time-badge" aria-hidden="true">${icons.timer}</span>
+        <span class="best-time-badge" aria-hidden="true">${highScore ? icons.hiddenWord : icons.timer}</span>
         <p class="best-time-eyebrow">PERSONAL RECORD</p>
-        <h2 id="bestTimeTitle">New Best Time!</h2>
-        <p class="best-time-value">${formatGameTime(best.elapsedMs)}${assisted ? "*" : ""}</p>
+        <h2 id="bestTimeTitle">${highScore ? "New High Score!" : "New Best Time!"}</h2>
+        <p class="best-time-value">${highScore ? `${best.points.toLocaleString()} pts` : formatGameTime(best.elapsedMs)}${assisted ? "*" : ""}</p>
       </div>
     </div>
     <div class="best-time-footer">
-      <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}That’s your fastest yet. Can you beat it?</p>
+      <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}${highScore ? "That’s your highest score yet. Can you beat it?" : "That’s your fastest yet. Can you beat it?"}</p>
       <p class="best-time-status" role="status">Ready for another round?</p>
       <div class="best-time-actions">
-        <button type="button" class="primary-btn" data-best-time-action="retry">Try again · Beat this time</button>
+        <button type="button" class="primary-btn" data-best-time-action="retry">Try again · ${highScore ? "Beat this score" : "Beat this time"}</button>
         <button type="button" class="ghost-btn" data-best-time-action="menu">Games menu</button>
       </div>
     </div>`;
@@ -14138,7 +14155,7 @@ function showBestTimeCelebration(game, best) {
     } else {
       state.activeGameChallengeId = "";
       state.triviaGameType = game.type;
-      if (["word-search", "crossword"].includes(game.type)) restartPuzzleAtDifficulty(game.difficulty);
+      if (["word-search", "crossword", "hidden-word"].includes(game.type)) restartPuzzleAtDifficulty(game.difficulty);
       else {
         state.triviaDifficulty = game.difficulty;
         state.triviaCount = game.puzzles.length;
@@ -14292,6 +14309,7 @@ function triviaScoreLabel() {
   }
   const roundLength = triviaRoundLength(state.triviaGame);
   if (state.triviaGame.complete) {
+    if (state.triviaGame.type === "hidden-word") return `${(state.triviaGame.points || 0).toLocaleString()} pts`;
     if (state.triviaGame.type === "book-sprint") return formatGameTime(bookSprintElapsedMs(state.triviaGame));
     if (state.triviaGame.type === "word-search") return formatGameTime(wordSearchElapsedMs(state.triviaGame));
     if (state.triviaGame.type === "crossword") {
@@ -14305,7 +14323,7 @@ function triviaScoreLabel() {
   if (state.triviaGame.type === "who-said-it") return `${state.triviaGame.score} speakers`;
   if (state.triviaGame.type === "word-search") return `${state.triviaGame.score} of ${roundLength} found`;
   if (state.triviaGame.type === "crossword") return `${state.triviaGame.score} of ${roundLength} solved`;
-  if (state.triviaGame.type === "hidden-word") return `${state.triviaGame.score} of ${roundLength} solved${state.triviaGame.hintCount ? "*" : ""}`;
+  if (state.triviaGame.type === "hidden-word") return `${(state.triviaGame.points || 0).toLocaleString()} pts`;
   return `${state.triviaGame.score} correct`;
 }
 
@@ -18189,12 +18207,14 @@ function startHiddenWordGame({ render = true } = {}) {
     }),
     index: 0,
     score: 0,
+    points: 0,
     hintCount: 0,
     usedHintTypes: [],
     complete: false,
     hiddenWordBest: savedHiddenWordBest(difficulty, roundCount, bestContext),
     ...bestContext,
   };
+  state.triviaGame.rounds[0].startedAt = Date.now();
   if (selected[0].pack) recordWordSearchPassage(selected[0].pack);
   if (render) renderPreservingReaderScroll();
 }
@@ -20118,6 +20138,14 @@ function bindCrosswordGrid() {
 
 function finishHiddenWordRound(game, round, solved) {
   if (!game || !round || round.complete) return;
+  round.finishedAt = Date.now();
+  const elapsed = Math.max(0, round.finishedAt - (round.startedAt ?? round.finishedAt));
+  const speed = solved ? Math.max(0, 500 - Math.floor(elapsed / 10000) * 100) : 0;
+  const perfect = solved && !round.missedLetters.length && !round.hintCount;
+  const reward = (solved ? 1000 : -500) + (perfect ? 500 : 0) + speed;
+  round.points = reward - round.missedLetters.length * 200 - (round.hintCount || 0) * 100;
+  game.points = (game.points || 0) + reward;
+  round.scoreSummary = `${solved ? "Solved +1,000" : "Failed −500"}${perfect ? " · Perfect +500" : ""} · Speed +${speed} · Misses −${round.missedLetters.length * 200} · Hints −${(round.hintCount || 0) * 100}`;
   round.complete = true;
   round.solved = Boolean(solved);
   round.hintMenuOpen = false;
@@ -20147,6 +20175,7 @@ function guessHiddenWordLetter(value) {
     else round.lastMessage = `${letter} is in the puzzle. Keep going.`;
   } else {
     round.missedLetters.push(letter);
+    game.points = (game.points || 0) - 200;
     playWordSearchFeedbackSound("miss");
     const attemptsLeft = Math.max(0, round.maxMisses - round.missedLetters.length);
     if (!attemptsLeft) finishHiddenWordRound(game, round, false);
@@ -20161,6 +20190,8 @@ function useHiddenWordHint(type) {
   const available = new Set(hiddenWordHintOptions(game).map((hint) => hint.type));
   if (!game || !round || round.complete || !available.has(type)) return;
   game.usedHintTypes.push(type);
+  round.hintCount = (round.hintCount || 0) + 1;
+  game.points = (game.points || 0) - 100;
   game.hintCount += 1;
   round.hintMenuOpen = false;
   state.gamesDrawerOpen = "";
@@ -20234,7 +20265,7 @@ function bindHiddenWordGame() {
 
 function nextHiddenWordRound() {
   const game = state.triviaGame;
-  if (!game || game.type !== "hidden-word" || game.complete) return;
+  if (!game || game.type !== "hidden-word" || game.complete || !hiddenWordCurrentRound(game)?.complete) return;
   state.gamesDrawerOpen = "";
   if (game.index >= game.rounds.length - 1) {
     const result = recordHiddenWordBest(game);
@@ -20243,6 +20274,7 @@ function nextHiddenWordRound() {
     completeTriviaGame(game);
   } else {
     game.index += 1;
+    game.rounds[game.index].startedAt = Date.now();
   }
   renderPreservingReaderScroll();
 }

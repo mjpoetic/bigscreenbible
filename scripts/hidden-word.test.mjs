@@ -136,3 +136,40 @@ assert.match(styles, /@media \(max-width: 840px\) and \(orientation: portrait\)[
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\)[\s\S]*\.hidden-word-layout/, "Hidden Word must have a short-landscape layout");
 
 console.log("Hidden Word checks passed");
+
+// Exercise scoring through real guesses/hints, including repeat inputs and completion guards.
+const scoring = vm.createContext({ Date: { now: () => 20000 }, state: {}, localStorage: { data: {}, getItem(key) { return this.data[key] || null; }, setItem(key, value) { this.data[key] = value; } }, hiddenWordBestStorageKey: 'scores', puzzleBestKey: (difficulty, context) => `${difficulty}:${context.customPassage ? context.reference : 'mix'}`, renderPreservingReaderScroll() {}, playWordSearchFeedbackSound() {}, normalizeWordSearchWord: (s) => s.toUpperCase(), shuffleItems: (items) => items, hiddenWordHintTypes: ['context', 'letter'] });
+for (const name of ['hiddenWordAnswerLetters', 'hiddenWordCurrentRound', 'hiddenWordIsSolved', 'hiddenWordHintsRemaining', 'hiddenWordHintOptions', 'finishHiddenWordRound', 'guessHiddenWordLetter', 'useHiddenWordHint', 'savedHiddenWordBests', 'savedHiddenWordScores', 'recordHiddenWordBest']) vm.runInContext(extractFunction(name), scoring);
+function scoringGame(startedAt = 19000) {
+  const round = { word: 'AB', startedAt, guessedLetters: [], missedLetters: [], hintedLetters: [], maxMisses: 2 };
+  const game = { type: 'hidden-word', difficulty: 'Medium', rounds: [round], index: 0, score: 0, points: 0, hintCount: 0, usedHintTypes: [] };
+  scoring.state.triviaGame = game;
+  return game;
+}
+let scored = scoringGame();
+scoring.guessHiddenWordLetter('A'); scoring.guessHiddenWordLetter('B');
+assert.equal(scored.points, 2000);
+scoring.finishHiddenWordRound(scored, scored.rounds[0], true);
+assert.equal(scored.points, 2000, 'Completion must not award points twice');
+scored = scoringGame(10000);
+scoring.guessHiddenWordLetter('Z'); scoring.guessHiddenWordLetter('Z');
+assert.equal(scored.points, -200, 'Repeated misses are free');
+scoring.useHiddenWordHint('letter'); scoring.useHiddenWordHint('letter');
+assert.equal(scored.points, -300, 'Each hint is charged only once');
+scoring.guessHiddenWordLetter('B');
+assert.equal(scored.points, 1100);
+assert.equal(scored.rounds[0].points, 1100);
+scored = scoringGame(); scoring.guessHiddenWordLetter('Z'); scoring.guessHiddenWordLetter('Y');
+assert.equal(scored.points, -900, 'Failure includes misses and failed puzzle penalty');
+scored = scoringGame(-40000); scoring.guessHiddenWordLetter('A'); scoring.guessHiddenWordLetter('B');
+assert.equal(scored.points, 1500, 'Speed bonus floors at zero');
+for (const points of [100, 500, 300, 200, 400, 600]) {
+  const game = { ...scoringGame(), points };
+  scoring.recordHiddenWordBest(game); scoring.recordHiddenWordBest(game);
+}
+assert.deepEqual(Array.from(scoring.savedHiddenWordScores('Medium', 1), (entry) => entry.points), [600, 500, 400, 300, 200]);
+assert.equal(scoring.recordHiddenWordBest({ ...scoringGame(), points: 600 }).isNewBest, false, 'Ties do not trigger a record');
+assert.equal(scoring.savedHiddenWordScores('Hard', 1).length, 0);
+assert.equal(scoring.savedHiddenWordScores('Medium', 5).length, 0);
+assert.equal(scoring.savedHiddenWordScores('Medium', 1, { customPassage: true, reference: 'John 1' }).length, 0);
+console.log('Hidden Word scoring and leaderboard checks passed');

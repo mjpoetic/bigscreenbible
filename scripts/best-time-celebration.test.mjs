@@ -10,7 +10,7 @@ const status = {};
 const dialog = { setAttribute() {}, addEventListener(name, fn) { events[name] = fn; }, showModal() {}, close() {}, remove() { removed = true; }, querySelectorAll() { return buttons; }, querySelector(selector) { return selector === 'button' ? buttons[0] : status; } };
 const context = vm.createContext({ document: { createElement: () => dialog, body: { append() {} } }, window: { setInterval() { assert.fail("Record actions must not wait for a timer"); } }, icons: { timer: '' }, formatGameTime: () => '1:05', crosswordHintLimit: 3, playGameOutcomeSound() {}, gameMusicTrackKey: 'outcome:perfect', gameMusicAudio: { paused: false, ended: false }, state: {}, cleanupTriviaCelebration() { vm.runInContext('bestTimeCelebrationCleanup()', context); }, exitTriviaGame() { menu++; }, restartPuzzleAtDifficulty() { retry++; }, requestGameMusicRestart() {}, startTriviaGame() { retry++; } });
 vm.runInContext(section, context);
-for (const [type, flag, field] of [['word-search', 'wordSearchIsNewBest', 'wordSearchBest'], ['crossword', 'crosswordIsNewBest', 'crosswordBest'], ['book-sprint', 'bookSprintNewBest', 'bookSprintBest']]) {
+for (const [type, flag, field] of [['word-search', 'wordSearchIsNewBest', 'wordSearchBest'], ['crossword', 'crosswordIsNewBest', 'crosswordBest'], ['book-sprint', 'bookSprintNewBest', 'bookSprintBest'], ['hidden-word', 'hiddenWordIsNewBest', 'hiddenWordBest']]) {
   const best = { elapsedMs: 65000 };
   const game = { type, complete: true, [flag]: true, [field]: best };
   assert.equal(context.newBestTimeResult(game), best);
@@ -32,3 +32,10 @@ context.showBestTimeCelebration({ type: 'book-sprint' }, { elapsedMs: 65000 });
 events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'menu' } }) } });
 assert.equal(menu, 1);
 console.log('Best time celebration checks passed');
+
+context.showBestTimeCelebration({ type: 'hidden-word', difficulty: 'Hard' }, { points: 8500 });
+assert.match(dialog.innerHTML, /New High Score!/);
+assert.match(dialog.innerHTML, /8,500 pts/);
+assert.doesNotMatch(dialog.innerHTML, /New Best Time!/);
+events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'retry' } }) } });
+assert.equal(retry, 2);

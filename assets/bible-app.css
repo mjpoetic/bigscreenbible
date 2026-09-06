@@ -22163,3 +22163,15 @@ svg {
   .best-time-fireworks { display: none; }
   .best-time-rocket, .best-time-ray b { animation: none; }
 }
+
+.hidden-word-leaderboard { width: 100%; margin: 12px 0; text-align: left; }
+.hidden-word-leaderboard h3 { margin: 0; font-size: 1rem; }
+.hidden-word-leaderboard p, .hidden-word-score-rules p { font-size: .8rem; line-height: 1.5; }
+.hidden-word-leaderboard ol { padding-left: 24px; margin: 8px 0; }
+.hidden-word-leaderboard li { padding: 5px 0; }
+.hidden-word-leaderboard li span { display: block; font-size: .75rem; opacity: .75; }
+.hidden-word-score-rules { text-align: left; margin: 12px 0; }
+.hidden-word-score-rules summary { cursor: pointer; font-size: .85rem; }
+.trivia-result-ring:has(small) { flex-direction: column; font-size: clamp(1.3rem, 4vw, 2rem); }
+.trivia-result-ring small { font-size: .8rem; }
+.hidden-word-round-score { font-size: .85rem; line-height: 1.5; }
