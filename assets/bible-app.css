@@ -8557,6 +8557,17 @@ select {
   padding-top: 8px;
 }
 
+.hidden-word-keyboard[hidden] {
+  display: none;
+}
+
+.hidden-word-keyboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+}
+
 .hidden-word-keyboard > div {
   display: flex;
   justify-content: center;

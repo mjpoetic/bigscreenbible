@@ -431,6 +431,7 @@ const gameOutcomeSounds = Object.freeze({
   low: { key: "low", src: "./assets/audio/game-music/whomp-whomp.mp3", volume: 0.14 },
 });
 const crosswordKeyboardVisibleStorageKey = "lw_crossword_keyboard_visible";
+const hiddenWordKeyboardVisibleStorageKey = "lw_hidden_word_keyboard_visible";
 const wordSearchRecentStorageKey = "lw_word_search_recent_passages";
 const puzzlePassageSourceStorageKey = "lw_puzzle_passage_source";
 const puzzleCustomReferenceStorageKey = "lw_puzzle_custom_reference";
@@ -770,6 +771,7 @@ const state = {
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
   crosswordKeyboardVisible: localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false",
+  hiddenWordKeyboardVisible: localStorage.getItem(hiddenWordKeyboardVisibleStorageKey) !== "false",
   wordSearchRecentPassages: savedWordSearchRecentPassages(),
   puzzlePassageSource: normalizedPuzzlePassageSource(localStorage.getItem(puzzlePassageSourceStorageKey)),
   puzzleCustomReference: normalizedPuzzleCustomReference(localStorage.getItem(puzzleCustomReferenceStorageKey)),
@@ -9828,6 +9830,7 @@ function captureCloudSnapshot() {
       referenceRushTimed: state.referenceRushTimed,
       wordSearchSounds: state.wordSearchSounds,
       crosswordKeyboardVisible: state.crosswordKeyboardVisible,
+      hiddenWordKeyboardVisible: state.hiddenWordKeyboardVisible,
       wordSearchRecentPassages: state.wordSearchRecentPassages,
       puzzlePassageSource: state.puzzlePassageSource,
       puzzleCustomReference: state.puzzleCustomReference,
@@ -10082,6 +10085,9 @@ function applyCloudSnapshot(snapshot) {
   state.crosswordKeyboardVisible = typeof settings.crosswordKeyboardVisible === "boolean"
     ? settings.crosswordKeyboardVisible
     : localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false";
+  state.hiddenWordKeyboardVisible = typeof settings.hiddenWordKeyboardVisible === "boolean"
+    ? settings.hiddenWordKeyboardVisible
+    : localStorage.getItem(hiddenWordKeyboardVisibleStorageKey) !== "false";
   state.wordSearchRecentPassages = mergeWordSearchRecentPassages(
     settings.wordSearchRecentPassages,
     savedWordSearchRecentPassages(),
@@ -10169,6 +10175,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_reference_rush_timed", state.referenceRushTimed ? "true" : "false");
   localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
   localStorage.setItem(crosswordKeyboardVisibleStorageKey, String(state.crosswordKeyboardVisible));
+  localStorage.setItem(hiddenWordKeyboardVisibleStorageKey, String(state.hiddenWordKeyboardVisible));
   localStorage.setItem(wordSearchRecentStorageKey, JSON.stringify(state.wordSearchRecentPassages));
   localStorage.setItem(puzzlePassageSourceStorageKey, state.puzzlePassageSource);
   localStorage.setItem(puzzleCustomReferenceStorageKey, state.puzzleCustomReference);
@@ -13729,12 +13736,15 @@ function hiddenWordGameView(game) {
           ` : ""}
         </section>
         <section class="hidden-word-input" aria-label="Letter keyboard">
-          <div class="hidden-word-keyboard">
+          <div class="hidden-word-keyboard" id="hiddenWordKeyboard" ${state.hiddenWordKeyboardVisible ? "" : "hidden"}>
             ${alphabetRows.map((row) => `<div>${[...row].map((letter) => `
               <button type="button" data-hidden-word-key="${letter}" class="${missed.has(letter) ? "is-miss" : guessed.has(letter) ? "is-hit" : ""}" ${round.complete || guessed.has(letter) || missed.has(letter) ? "disabled" : ""} aria-label="Guess ${letter}">${letter}</button>
             `).join("")}</div>`).join("")}
           </div>
-          <button class="text-btn hidden-word-device-keyboard" id="hiddenWordDeviceKeyboard" type="button" ${round.complete ? "disabled" : ""}>Use device keyboard</button>
+          <div class="hidden-word-keyboard-controls">
+            <button class="text-btn" id="hiddenWordKeyboardToggle" type="button" aria-controls="hiddenWordKeyboard" aria-expanded="${state.hiddenWordKeyboardVisible}">${state.hiddenWordKeyboardVisible ? "Hide keyboard" : "Show keyboard"}</button>
+            <button class="text-btn hidden-word-device-keyboard" id="hiddenWordDeviceKeyboard" type="button" ${round.complete ? "disabled" : ""}>Use device keyboard</button>
+          </div>
           <input class="hidden-word-native-input" id="hiddenWordNativeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Type Hidden Word letters" ${round.complete ? "disabled" : ""} />
         </section>
       </div>
@@ -20300,6 +20310,19 @@ function toggleHiddenWordHintMenu() {
   renderPreservingReaderScroll();
 }
 
+function setHiddenWordKeyboardVisible(visible) {
+  state.hiddenWordKeyboardVisible = Boolean(visible);
+  localStorage.setItem(hiddenWordKeyboardVisibleStorageKey, String(state.hiddenWordKeyboardVisible));
+  scheduleCloudSync();
+  const keyboard = document.getElementById("hiddenWordKeyboard");
+  const toggle = document.getElementById("hiddenWordKeyboardToggle");
+  if (keyboard) keyboard.hidden = !state.hiddenWordKeyboardVisible;
+  if (toggle) {
+    toggle.textContent = state.hiddenWordKeyboardVisible ? "Hide keyboard" : "Show keyboard";
+    toggle.setAttribute("aria-expanded", String(state.hiddenWordKeyboardVisible));
+  }
+}
+
 function focusHiddenWordNativeInput() {
   const input = document.getElementById("hiddenWordNativeInput");
   if (!input || hiddenWordCurrentRound()?.complete) return;
@@ -20329,6 +20352,9 @@ function bindHiddenWordGame() {
   });
   document.getElementById("hiddenWordAnswer")?.addEventListener("click", focusHiddenWordNativeInput);
   document.getElementById("hiddenWordDeviceKeyboard")?.addEventListener("click", focusHiddenWordNativeInput);
+  document.getElementById("hiddenWordKeyboardToggle")?.addEventListener("click", () => {
+    setHiddenWordKeyboardVisible(!state.hiddenWordKeyboardVisible);
+  });
   const nativeInput = document.getElementById("hiddenWordNativeInput");
   nativeInput?.addEventListener("keydown", handleHiddenWordKeydown);
   nativeInput?.addEventListener("input", handleHiddenWordNativeInput);
