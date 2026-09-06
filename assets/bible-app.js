@@ -14065,9 +14065,99 @@ function completeTriviaGame(game) {
   }
 }
 
+// The bundled joyful-complete cue is 6.4 seconds, including its tail.
+const bestTimeCelebrationDurationMs = 6400;
+let bestTimeCelebrationCleanup = null;
+
+function newBestTimeResult(game) {
+  if (!game?.complete || game.lost || game.timedOut) return null;
+  if (game.type === "word-search" && game.wordSearchIsNewBest) return game.wordSearchBest;
+  if (game.type === "crossword" && game.crosswordIsNewBest) return game.crosswordBest;
+  if (game.type === "book-sprint" && game.bookSprintNewBest) return game.bookSprintBest;
+  return null;
+}
+
+function showBestTimeCelebration(game, best) {
+  if (game.bestTimeCelebrationShown) return;
+  game.bestTimeCelebrationShown = true;
+  const dialog = document.createElement("dialog");
+  dialog.id = "bestTimeCelebration";
+  dialog.className = "best-time-celebration";
+  dialog.setAttribute("aria-labelledby", "bestTimeTitle");
+  dialog.setAttribute("aria-describedby", "bestTimeDescription");
+  const assisted = game.type === "crossword" && best.hintCount > 0;
+  dialog.innerHTML = `
+    <div class="best-time-art">
+      <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>NEW BEST TIME · NEW BEST TIME · NEW BEST TIME</span>`).join("")}</div>
+      <div class="best-time-hero">
+        <span class="best-time-badge" aria-hidden="true">${icons.timer}</span>
+        <p class="best-time-eyebrow">PERSONAL RECORD</p>
+        <h2 id="bestTimeTitle">New Best Time!</h2>
+        <p class="best-time-value">${formatGameTime(best.elapsedMs)}${assisted ? "*" : ""}</p>
+      </div>
+    </div>
+    <div class="best-time-footer">
+      <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}That’s your fastest yet. Can you beat it?</p>
+      <p class="best-time-status" role="status">Enjoy your victory! Options unlock after the celebration.</p>
+      <div class="best-time-actions">
+        <button type="button" class="primary-btn" data-best-time-action="retry" disabled>Try again · Beat this time</button>
+        <button type="button" class="ghost-btn" data-best-time-action="menu" disabled>Games menu</button>
+      </div>
+    </div>`;
+  document.body.append(dialog);
+  // Native modality keeps pointer and keyboard input inside the celebration.
+  dialog.addEventListener("cancel", (event) => event.preventDefault());
+  dialog.addEventListener("keydown", (event) => event.stopPropagation());
+  dialog.showModal();
+  playGameOutcomeSound("perfect");
+  const startedAt = performance.now();
+  const unlockTimer = window.setInterval(() => {
+    if (performance.now() - startedAt < bestTimeCelebrationDurationMs) return;
+    // Account for delayed playback as well as the known cue length. Muted or
+    // failed playback still gets the full visual celebration, then unlocks.
+    if (gameMusicTrackKey === "outcome:perfect" && gameMusicAudio && !gameMusicAudio.paused && !gameMusicAudio.ended) return;
+    clearInterval(unlockTimer);
+    dialog.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+    dialog.querySelector(".best-time-status").textContent = "Ready for another round?";
+    dialog.querySelector("button")?.focus({ preventScroll: true });
+  }, 100);
+  bestTimeCelebrationCleanup = () => {
+    clearInterval(unlockTimer);
+    dialog.close();
+    dialog.remove();
+    bestTimeCelebrationCleanup = null;
+  };
+  dialog.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-best-time-action]");
+    if (!button || button.disabled) return;
+    const action = button.dataset.bestTimeAction;
+    cleanupTriviaCelebration();
+    if (action === "menu") {
+      exitTriviaGame();
+    } else {
+      state.activeGameChallengeId = "";
+      state.triviaGameType = game.type;
+      if (["word-search", "crossword"].includes(game.type)) restartPuzzleAtDifficulty(game.difficulty);
+      else {
+        state.triviaDifficulty = game.difficulty;
+        state.triviaCount = game.puzzles.length;
+        requestGameMusicRestart();
+        startTriviaGame();
+      }
+    }
+  });
+}
+
 function runPendingTriviaCelebration() {
   const game = state.triviaGame;
   if (state.mode !== "trivia" || !game?.complete) return;
+  const best = newBestTimeResult(game);
+  if (best && !game.bestTimeCelebrationShown) {
+    game.outcomeSoundPending = "";
+    game.celebrationPending = false;
+    showBestTimeCelebration(game, best);
+    return;
+  }
   let soundKey = "";
   if (game.outcomeSoundPending) {
     soundKey = game.outcomeSoundPending;
@@ -14167,7 +14257,10 @@ async function launchTriviaConfetti(game, soundKey = "") {
 
 function cleanupTriviaCelebration({ stopAudio = true } = {}) {
   triviaCelebrationToken += 1;
-  if (stopAudio) stopGameOutcomeSound();
+  if (stopAudio) {
+    bestTimeCelebrationCleanup?.();
+    stopGameOutcomeSound();
+  }
   if (!activeTriviaCelebration) return;
   activeTriviaCelebration.cancel();
   activeTriviaCelebration.confetti.reset();
@@ -23827,6 +23920,7 @@ function cancelReaderTouchGesture() {
 }
 
 function handleGlobalShortcuts(event) {
+  if (document.getElementById("bestTimeCelebration")?.open) return;
   const key = event.key.toLowerCase();
   const modifiedSlash = (event.metaKey || event.ctrlKey) && event.key === "/";
   const typing = isTypingTarget(event.target);

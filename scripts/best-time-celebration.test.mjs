@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
+const section = source.slice(source.indexOf('const bestTimeCelebrationDurationMs'), source.indexOf('function runPendingTriviaCelebration'));
+let tick, now = 0, removed = false, retry = 0, menu = 0;
+const buttons = [{ disabled: true, focus() {} }, { disabled: true }];
+const events = {};
+const status = {};
+const dialog = { setAttribute() {}, addEventListener(name, fn) { events[name] = fn; }, showModal() {}, close() {}, remove() { removed = true; }, querySelectorAll() { return buttons; }, querySelector(selector) { return selector === 'button' ? buttons[0] : status; } };
+const context = vm.createContext({ document: { createElement: () => dialog, body: { append() {} } }, performance: { now: () => now }, window: { setInterval(fn) { tick = fn; return 1; } }, clearInterval() {}, icons: { timer: '' }, formatGameTime: () => '1:05', crosswordHintLimit: 3, playGameOutcomeSound() {}, gameMusicTrackKey: 'outcome:perfect', gameMusicAudio: { paused: false, ended: false }, state: {}, cleanupTriviaCelebration() { vm.runInContext('bestTimeCelebrationCleanup()', context); }, exitTriviaGame() { menu++; }, restartPuzzleAtDifficulty() { retry++; }, requestGameMusicRestart() {}, startTriviaGame() { retry++; } });
+vm.runInContext(section, context);
+for (const [type, flag, field] of [['word-search', 'wordSearchIsNewBest', 'wordSearchBest'], ['crossword', 'crosswordIsNewBest', 'crosswordBest'], ['book-sprint', 'bookSprintNewBest', 'bookSprintBest']]) {
+  const best = { elapsedMs: 65000 };
+  const game = { type, complete: true, [flag]: true, [field]: best };
+  assert.equal(context.newBestTimeResult(game), best);
+  assert.equal(context.newBestTimeResult({ ...game, [flag]: false }), null);
+  assert.equal(context.newBestTimeResult({ ...game, complete: false }), null);
+  assert.equal(context.newBestTimeResult({ ...game, timedOut: true }), null);
+}
+assert.equal(context.newBestTimeResult({ type: 'hidden-word', complete: true, hiddenWordIsNewBest: true }), null);
+const game = { type: 'crossword', difficulty: 'Medium' };
+context.showBestTimeCelebration(game, { elapsedMs: 65000, hintCount: 2 });
+assert.match(dialog.innerHTML, /Assisted with 2 of 3/);
+let prevented = false; events.cancel({ preventDefault() { prevented = true; } }); assert(prevented);
+now = 6399; tick(); assert(buttons.every(b => b.disabled));
+now = 6500; tick(); assert(buttons.every(b => b.disabled), 'Delayed audio must finish before unlocking');
+context.gameMusicAudio.ended = true; tick(); assert(buttons.every(b => !b.disabled));
+assert.equal(removed, false, 'Finishing the cue must not dismiss the popup');
+events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'retry' } }) } });
+assert.equal(retry, 1); assert(removed);
+context.showBestTimeCelebration({ type: 'book-sprint' }, { elapsedMs: 65000 });
+events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'menu' } }) } });
+assert.equal(menu, 1);
+console.log('Best time celebration checks passed');

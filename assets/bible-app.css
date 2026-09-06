@@ -22070,3 +22070,62 @@ svg {
   font-size: 11px;
   line-height: 1.45;
 }
+
+
+/* Arcade record celebration: live text stays crisp at every screen size. */
+.best-time-celebration {
+  width: min(620px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 2px solid #74edff;
+  border-radius: 24px;
+  background: #101a36;
+  color: #fff;
+  box-shadow: 0 0 55px #27cbff55, 0 30px 100px #0009;
+  text-align: center;
+}
+.best-time-celebration::backdrop { background: #03091bd9; backdrop-filter: blur(7px); }
+.best-time-art { position: relative; overflow: hidden; isolation: isolate; background: #103f94; }
+.best-time-wall {
+  position: absolute; inset: -24px -90px; z-index: -1;
+  display: flex; flex-direction: column; justify-content: space-around;
+  transform: rotate(-8deg); opacity: .28; color: #63efff;
+  font: 900 25px/1.5 ui-monospace, monospace; white-space: nowrap;
+  text-shadow: 2px 2px #001944, 0 0 9px currentColor;
+  animation: best-time-colors 5s linear infinite;
+}
+.best-time-wall span:nth-child(even) { transform: translateX(65px); }
+.best-time-hero { padding: 28px 18px 26px; }
+.best-time-badge { display: inline-grid; place-items: center; width: 48px; height: 48px; color: #ffe67c; }
+.best-time-badge svg { width: 38px; height: 38px; }
+.best-time-eyebrow { margin: 6px 0 12px; font: 800 12px/1.4 ui-monospace, monospace; letter-spacing: .23em; color: #ddfaff; }
+.best-time-hero h2 {
+  margin: 0; color: #fff07c; font: 1000 clamp(32px, 7vw, 58px)/1.08 ui-monospace, monospace;
+  letter-spacing: -.065em; text-transform: uppercase;
+  text-shadow: 3px 3px #c23074, 6px 6px #060f35, 0 0 24px #ffdd4655;
+  animation: best-time-title 4s ease-in-out infinite;
+}
+.best-time-value { margin: 20px 0 0; font: 900 clamp(42px, 9vw, 68px)/1 ui-monospace, monospace; font-variant-numeric: tabular-nums; text-shadow: 3px 3px #071229; }
+.best-time-footer { padding: 20px 24px 24px; }
+.best-time-footer > p { margin: 0; font-size: 15px; line-height: 1.5; }
+.best-time-footer .best-time-status { margin: 8px 0 18px; min-height: 2.8em; font-size: 12px; color: #bed0ee; }
+.best-time-actions { display: flex; gap: 10px; justify-content: center; }
+.best-time-actions button { min-height: 48px; white-space: normal; flex: 1; }
+.best-time-actions .primary-btn { background: #ffe67c; color: #101a36; border: 1px solid #ffe67c; }
+.best-time-actions .ghost-btn { background: #ffffff0d; color: #fff; border: 1px solid #7182a5; }
+.best-time-actions button:disabled { opacity: .5; cursor: wait; }
+.best-time-actions button:focus-visible { outline: 3px solid #6beaff; outline-offset: 3px; }
+@keyframes best-time-colors { to { filter: hue-rotate(360deg); } }
+@keyframes best-time-title { 0%, 100% { color: #fff07c; } 33% { color: #83f4ff; } 66% { color: #ffb5ee; } }
+@media (max-width: 480px) { .best-time-actions { flex-direction: column; } .best-time-footer { padding: 18px; } }
+@media (max-height: 500px) and (min-width: 600px) {
+  .best-time-hero { padding: 15px; } .best-time-badge { display: none; }
+  .best-time-hero h2 { font-size: 38px; } .best-time-value { margin-top: 12px; font-size: 42px; }
+  .best-time-footer { padding: 12px 20px; } .best-time-footer .best-time-status { min-height: 0; margin: 5px 0 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .best-time-wall, .best-time-hero h2 { animation: none; }
+}
