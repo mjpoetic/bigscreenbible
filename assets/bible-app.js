@@ -11300,8 +11300,17 @@ function quizLeaderboard(game) {
     + (game.quizScoreSaveFailed ? "<p>This score could not be saved on this device.</p>" : "");
 }
 
+function gamePointsReward(points, breakdown) {
+  const amount = Number(points) || 0;
+  const label = amount > 0 ? "POINTS EARNED" : amount < 0 ? "ROUND POINTS" : "KEEP GOING";
+  return `<div class="game-points-reward ${amount > 0 ? "is-gain" : "is-neutral"}">
+    <div class="game-points-badge"><span class="game-points-spark" aria-hidden="true">${amount > 0 ? "✦" : "◇"}</span><div><span class="game-points-label">${label}</span><span class="game-points-amount">${amount > 0 ? "+" : amount < 0 ? "−" : ""}${Math.abs(amount).toLocaleString()}<small>PTS</small></span></div></div>
+    ${breakdown ? `<p class="game-points-breakdown">${escapeHtml(breakdown)}</p>` : ""}
+  </div>`;
+}
+
 function quizAnswerPoints(question) {
-  return `<p class="hidden-word-round-score">${escapeHtml(question.scoreSummary || "")}${question.hintUsed ? " · Hint −100" : ""}</p>`;
+  return gamePointsReward((question.points || 0) - (question.hintUsed ? 100 : 0), question.points === 1000 && !question.hintUsed ? "" : `${question.scoreSummary || ""}${question.hintUsed ? " · Hint −100" : ""}`);
 }
 
 function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
@@ -13807,7 +13816,7 @@ function hiddenWordGameView(game) {
       ${round.complete ? `
         <div class="trivia-feedback ${round.solved ? "correct" : "incorrect"}">
           <strong>${round.solved ? `You solved ${escapeHtml(round.word)}!` : `The answer was ${escapeHtml(round.word)}.`}</strong>
-          <p class="hidden-word-round-score">${round.points >= 0 ? "+" : ""}${round.points.toLocaleString()} pts · ${escapeHtml(round.scoreSummary)}</p>
+          ${gamePointsReward(round.points, round.scoreSummary)}
           <p>${escapeHtml(round.clue || round.verse.text)}</p>
           <div class="trivia-reference">
             <span>${escapeHtml(round.referenceLabel)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</span>

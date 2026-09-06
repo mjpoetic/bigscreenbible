@@ -22350,3 +22350,20 @@ svg {
   .trivia-reader.is-setup .trivia-mobile-options strong, .games-records strong { line-height: 16px; }
   .trivia-reader.is-setup .trivia-mobile-options small, .games-records small { line-height: 12px; }
 }
+
+/* Compact arcade reward shared by all point-scored answer reveals. */
+.game-points-reward { margin: 14px 0; min-width: 0; }
+.game-points-badge { display: inline-flex; align-items: center; gap: 12px; max-width: 100%; box-sizing: border-box; padding: 10px 16px; border: 1px solid #70dce4; border-radius: 10px; background: radial-gradient(ellipse at top left, #253d67, #101a36 80%); box-shadow: 0 3px 0 #071229, inset 0 0 16px #78eeff0d; }
+.game-points-spark { color: #83f4ff; font-size: 1.6rem; text-shadow: 2px 2px #c23074; }
+.game-points-badge > div { min-width: 0; }
+.game-points-label { display: block; color: #c5eafa; font: 800 .6rem/1.4 ui-monospace, monospace; letter-spacing: .14em; }
+.game-points-amount { display: block; margin-top: 3px; color: #fff07c; font: 1000 clamp(1.55rem, 4vw, 2.2rem)/1.15 ui-monospace, monospace; letter-spacing: -.045em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-shadow: 2px 2px #c23074, 4px 4px #060f35; }
+.game-points-amount small { display: inline-block; margin-left: 10px; color: #83f4ff; font-size: .55em; letter-spacing: .06em; vertical-align: baseline; }
+.game-points-reward.is-neutral .game-points-amount { color: #d4dfef; text-shadow: 2px 2px #071229; }
+.game-points-reward.is-neutral .game-points-spark { color: #a9bed8; text-shadow: none; }
+.trivia-feedback .game-points-breakdown { margin: 9px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.5; }
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-points-reward { margin: 8px 0; }
+  .game-points-badge { padding: 7px 12px; }
+  .game-points-amount { font-size: 1.5rem; }
+}
