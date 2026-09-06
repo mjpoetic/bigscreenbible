@@ -22320,17 +22320,24 @@ svg {
   .trivia-mobile-options svg { width: 20px; height: 20px; color: var(--teal); }
   .trivia-mobile-options:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
   .trivia-reader.is-setup [data-games-drawer="options"] { display: none; }
-  .trivia-reader.is-setup [data-games-drawer="options"].open { display: block; }
+  .trivia-mobile-options[aria-expanded="true"] {
+    border-bottom-color: transparent;
+    border-radius: 10px 10px 0 0;
+  }
+  .trivia-mobile-options[aria-expanded="true"] .trivia-mobile-options-chevron svg { transform: rotate(90deg); }
+  .trivia-reader.is-setup [data-games-drawer="options"].open {
+    display: block;
+    margin-top: -12px;
+  }
   .trivia-reader.is-setup .games-options-drawer {
     display: block;
     padding: 16px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    background: color-mix(in srgb, var(--teal) 6%, var(--panel));
   }
-  .games-options-drawer .games-drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .games-options-drawer .games-drawer-header span { display: none; }
-  .games-options-drawer .games-drawer-close { width: 36px; height: 36px; }
-  .games-options-drawer .games-drawer-close svg { width: 18px; height: 18px; }
+  .games-options-drawer .games-drawer-header { display: none; }
   .games-options-drawer .games-drawer-scroll { display: grid; gap: 12px; }
 }
 .trivia-mode-picker .trivia-mode-tabs { width: 100%; min-width: 0; max-width: 100%; }

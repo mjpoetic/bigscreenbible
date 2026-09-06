@@ -12672,9 +12672,11 @@ function setGamesDrawer(drawer = "") {
   state.gamesDrawerOpen = nextDrawer;
   renderPreservingReaderScroll();
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const focusTarget = nextDrawer
-      ? document.querySelector(`.games-drawer-shell[data-games-drawer="${nextDrawer}"] .games-drawer-close`)
-      : document.getElementById(gamesDrawerToggleId(previousDrawer));
+    const focusTarget = nextDrawer === "options" && !isGamesResponsiveScreen()
+      ? document.getElementById("gameOptionsToggle")
+      : nextDrawer
+        ? document.querySelector(`.games-drawer-shell[data-games-drawer="${nextDrawer}"] .games-drawer-close`)
+        : document.getElementById(gamesDrawerToggleId(previousDrawer));
     focusTarget?.focus({ preventScroll: true });
   }));
 }
