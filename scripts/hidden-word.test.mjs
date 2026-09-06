@@ -124,7 +124,7 @@ assert.match(source, /function hiddenWordContextText\([\s\S]*round\?\.clue \|\| 
 assert.match(source, /class="hidden-word-term"/, "Multi-word answers must keep each word grouped on the board");
 assert.match(source, /class="hidden-word-attempts"[\s\S]*class="hidden-word-misses"[\s\S]*id="hiddenWordAnswer"/, "Missed letters must stay in the visible play area above the answer");
 assert.match(source, /games-answer-overlay \$\{isHiddenWord \? "is-hidden-word-result"/, "Hidden Word must opt into the centered round-result overlay");
-assert.match(extractFunction("mountMobileGameControls"), /hiddenWordRoundComplete[\s\S]*!isGamesResponsiveScreen\(\) && !hiddenWordRoundComplete/, "Completed Hidden Word rounds must mount the result overlay on desktop too");
+assert.ok(extractFunction("mountMobileGameControls").indexOf("answerDestination.append") < extractFunction("mountMobileGameControls").indexOf("if (!isGamesResponsiveScreen()) return"), "Round results must mount before the responsive controls guard");
 assert.doesNotMatch(source.slice(source.indexOf("function hiddenWordGameView"), source.indexOf("function verseOrderGameView")), /gallows|hangman/i, "Hidden Word must not use gallows or Hangman imagery");
 assert.match(styles, /\.hidden-word-scroll\s*\{/, "Hidden Word must use the Scripture scroll visual");
 assert.match(styles, /\.hidden-word-attempts\s*\{[\s\S]*grid-template-columns: minmax\(0, 620px\) minmax\(190px, 250px\)/, "Desktop Hidden Word must keep misses beside the attempt scroll");

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
@@ -121,3 +122,63 @@ assert.match(styles, /--games-overlay-tint: rgba\(0, 0, 0, 0\.58\);/);
 assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?animation-duration: 1ms !important;/);
 
 console.log("Games mobile layout tests passed");
+
+// Exercise the keyboard behavior without relying on browser default activation.
+let advances = 0;
+const nextAction = { click() { advances += 1; }, focus() {} };
+const otherAction = { focus() {} };
+const keyboardContext = vm.createContext({
+  isTypingTarget: target => Boolean(target.typing),
+  document: { activeElement: nextAction },
+});
+vm.runInContext(extractFunction("handleGamesAnswerKeydown"), keyboardContext);
+function answerKey(overrides = {}, action = nextAction) {
+  const event = {
+    key: "Enter", target: { closest: () => action },
+    currentTarget: { querySelector: () => nextAction, querySelectorAll: () => [nextAction, otherAction] },
+    preventDefault() { this.prevented = true; }, stopPropagation() {}, ...overrides,
+  };
+  keyboardContext.handleGamesAnswerKeydown(event);
+  return event;
+}
+assert.equal(answerKey().prevented, true);
+assert.equal(advances, 1);
+assert.equal(answerKey({ repeat: true }).prevented, true);
+assert.equal(advances, 1, "Holding Enter must not advance repeatedly");
+for (const flag of ["isComposing", "metaKey", "ctrlKey", "altKey"]) answerKey({ [flag]: true });
+answerKey({}, otherAction);
+answerKey({ target: { typing: true } });
+assert.equal(advances, 1, "Other controls, typing and modified Enter keep their own behavior");
+answerKey({}, null);
+assert.equal(advances, 2, "Enter from popup content activates Next");
+assert.equal(answerKey({ key: "Tab", shiftKey: true }).prevented, true);
+keyboardContext.document.activeElement = otherAction;
+assert.equal(answerKey({ key: "Tab" }).prevented, true);
+console.log("Game answer popup keyboard checks passed");
+
+for (const responsive of [false, true]) {
+  for (const type of ["trivia", "who-said-it", "reference-rush", "verse-order", "book-sprint", "hidden-word"]) {
+    const feedback = {};
+    const actions = {};
+    const overlay = { hidden: true };
+    let mounted = [];
+    const nodes = {
+      gamesActiveControlsBody: {}, gamesHintDrawerBody: {}, gamesAnswerOverlay: overlay,
+      gamesAnswerDialogBody: { append(...items) { mounted = items; } },
+    };
+    const context = vm.createContext({
+      state: { mode: "trivia", triviaGame: { type, complete: false } },
+      isGamesResponsiveScreen: () => responsive,
+      requestAnimationFrame() {},
+      document: {
+        getElementById: id => nodes[id],
+        querySelector: () => ({ querySelector: selector => selector.includes("trivia-feedback") ? feedback : actions }),
+      },
+    });
+    vm.runInContext(extractFunction("mountMobileGameControls"), context);
+    context.mountMobileGameControls();
+    assert.equal(overlay.hidden, false, `${type} answer popup on responsive=${responsive}`);
+    assert.deepEqual(mounted, [feedback, actions]);
+  }
+}
+console.log("All six games mount answer popups on desktop and responsive layouts");

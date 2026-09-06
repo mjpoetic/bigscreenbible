@@ -12730,8 +12730,7 @@ function trapPuzzleRestartDialog(event) {
 }
 
 function mountMobileGameControls() {
-  const hiddenWordRoundComplete = state.triviaGame?.type === "hidden-word" && Boolean(hiddenWordCurrentRound()?.complete);
-  if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete || (!isGamesResponsiveScreen() && !hiddenWordRoundComplete)) return;
+  if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete) return;
   const destination = document.getElementById("gamesActiveControlsBody");
   const hintDestination = document.getElementById("gamesHintDrawerBody");
   const answerDestination = document.getElementById("gamesAnswerDialogBody");
@@ -12750,6 +12749,7 @@ function mountMobileGameControls() {
     });
     return;
   }
+  if (!isGamesResponsiveScreen()) return;
   const hints = game.querySelector(":scope > .reference-rush-hints, .crossword-hints");
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
@@ -12768,6 +12768,32 @@ function mountMobileGameControls() {
   game.querySelectorAll(":scope > .trivia-actions").forEach((controls) => {
     destination.append(controls);
   });
+}
+
+function handleGamesAnswerKeydown(event) {
+  if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+  const dialog = event.currentTarget;
+  if (event.key === "Enter" && !isTypingTarget(event.target)) {
+    const next = dialog.querySelector("#nextTriviaQuestion:not(:disabled)");
+    const action = event.target.closest("button, a, input, select, textarea");
+    // Preserve keyboard activation of reference and exit controls.
+    if (!next || (action && action !== next)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) next.click();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const controls = [...dialog.querySelectorAll("button:not(:disabled), a[href], [tabindex='0']")];
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
 }
 
 function crosswordHintsRemaining(game = state.triviaGame) {
@@ -17523,6 +17549,7 @@ function bindEvents() {
     state.puzzleRestartPromptOpen = false;
     renderPreservingReaderScroll();
   });
+  document.getElementById("gamesAnswerDialogBody")?.addEventListener("keydown", handleGamesAnswerKeydown);
   document.getElementById("nextTriviaQuestion")?.addEventListener("click", nextTriviaQuestion);
   document.getElementById("openTriviaReference")?.addEventListener("click", openTriviaReference);
   document.querySelectorAll("[data-trivia-answer]").forEach((button) => {
