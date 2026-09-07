@@ -221,7 +221,7 @@ assert.equal(api.wordSearchSelectionCells(0, 0, 2, 1).length, 0, "Bent selection
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 5, 9) }, { row: 6, column: 4 });
 assert.deepEqual({ ...api.wordSearchSnappedEnd(4, 4, 6, 6, 9) }, { row: 6, column: 6 });
 
-assert.match(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
+assert.doesNotMatch(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
 assert.doesNotMatch(source, /aria-label="Crossword, new"/);
 assert.doesNotMatch(source, /aria-label="Word Search, new"/);
 const triviaViewSource = extractFunction("triviaView");

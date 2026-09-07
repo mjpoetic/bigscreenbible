@@ -293,7 +293,7 @@ assert.ok(
   "Crossword should be prominent before Trivia",
 );
 assert.doesNotMatch(triviaViewSource, /aria-label="Crossword, new"/);
-assert.match(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
+assert.doesNotMatch(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
 assert.match(triviaViewSource, /isCrossword \? crosswordDifficulties\(\)/);
 assert.match(extractFunction("startTriviaGame"), /startCrosswordGame/);
 assert.match(extractFunction("puzzleCreatorEvaluation"), /const defaultCount = gameType === "crossword"\s*\? candidates\.length/);

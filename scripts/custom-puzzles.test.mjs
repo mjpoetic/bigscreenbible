@@ -93,7 +93,7 @@ assert.match(extractFunction("startCrosswordGame"), /customPassage/);
 assert.match(extractFunction("startHiddenWordGame"), /customPassage/);
 assert.match(extractFunction("restartPuzzleAtDifficulty"), /currentGame\.customPassage/);
 assert.match(extractFunction("captureCloudSnapshot"), /puzzleCustomReference/);
-assert.match(triviaViewSource, /data-trivia-mode="hidden-word"[\s\S]*game-new-badge/);
+assert.doesNotMatch(triviaViewSource, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/);
 assert.doesNotMatch(triviaViewSource, /data-trivia-mode="(?:word-search|crossword)"[^\n]*game-new-badge/);
 
 assert.match(styles, /\.puzzle-creator \{/);

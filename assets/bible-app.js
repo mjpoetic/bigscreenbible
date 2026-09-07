@@ -13050,7 +13050,7 @@ function triviaView() {
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
                 <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
                 <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
-                <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span><small class="game-new-badge">New</small></button>
+                <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span></button>
                 <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
                 <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
                 <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>

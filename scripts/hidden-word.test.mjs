@@ -111,7 +111,7 @@ assert.equal(api.hiddenWordIsSolved({ word: "JACOB'S LADDER", guessedLetters: ["
 assert.equal(api.hiddenWordHintsRemaining({ usedHintTypes: [] }), 2);
 assert.equal(api.hiddenWordHintsRemaining({ usedHintTypes: ["context"] }), 1);
 
-assert.match(source, /data-trivia-mode="hidden-word"[\s\S]*Hidden Word[\s\S]*game-new-badge/, "Hidden Word must appear in the Games rail with a New badge");
+assert.match(source, /data-trivia-mode="hidden-word"[^\n]*<span>Hidden Word<\/span><\/button>/, "Hidden Word must appear in the Games rail without a New badge");
 assert.match(source, /"hidden-word": \{ key: "hidden-word", name: "Unfolding Mystery"/, "Hidden Word must have a dedicated soundtrack");
 assert.match(source, /function startHiddenWordGame\([\s\S]*puzzleCreatorEvaluation\("hidden-word"/, "Hidden Word must support the shared passage creator");
 assert.match(source, /data-hidden-word-hint="\$\{hint\.type\}"/, "Hidden Word must render selectable hint types");
