@@ -15213,9 +15213,10 @@ function passagePreviewForReference(ref) {
   const parsed = parsePassageReference(ref);
   if (!parsed) return "";
   const selected = new Set(parsed.verses);
-  const lines = (bibleData[parsed.key]?.verses || [])
-    .filter((verse) => selected.has(verse.n))
-    .map((verse) => getVerseText(verse, state.versions[0] || "BSB"));
+  const version = state.versions[0] || "BSB";
+  const lines = uniqueVersionVerses((bibleData[parsed.key]?.verses || [])
+    .filter((verse) => selected.has(verse.n)), version)
+    .map((verse) => getVerseText(verse, version, parsed.key));
   return lines.join(" ");
 }
 

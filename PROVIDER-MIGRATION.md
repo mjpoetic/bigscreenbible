@@ -1,4 +1,18 @@
-# NIV / NASB provider migration
+# Bible provider migration
+
+## Current status (CEV / NKJV release)
+
+The user has replaced the API.Bible NIV/NASB licenses with CEV and NKJV, keeping NLT. The live catalog confirms CEV `555fef9a6cb31151-01` (2006 second edition), NKJV `63097d2a0a2f7db3-01`, and NLT `d6e14a625393b4da-01`. Missing NIV/NASB entries in the API.Bible catalog are now expected. Both continue through YouVersion.
+
+CEV/NKJV backend support and combined-verse parsing are deployed. Live John 3 and Psalm 42 requests returned text, copyright, and FUMS tokens for both translations. Both provider searches returned results. NLT John 3 also passed.
+
+CEV combines some source verses, including John 3:23–24. The parser preserves that range; the frontend makes either verse addressable, labels the range, and avoids duplicate passages in Reader, reference previews, and copied selections. Parallel uses a continuation notice while keeping the other translations aligned to their verse numbers.
+
+The user committed and pushed `86c2f72` while validation was ongoing. Final follow-up changes advance the app to `2026.09.07.9`; commit and publish those changes to complete the release.
+
+For rollback of this addition, remove CEV/NKJV selector entries and publish a new app version. Leave NIV/NASB on YouVersion and NLT on API.Bible. To restore the prior backend, recover its source files from `34327e76c958cc681e1663c95b5a0f33b7cf701f` in an isolated checkout and deploy only `api-bible-passage`. Reverting the original NIV/NASB migration now requires restoring their API.Bible licenses first.
+
+The original migration record follows for historical reference.
 
 ## Checkpoint (2026-09-07)
 
