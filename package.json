@@ -37,7 +37,7 @@
     "test:sharing": "node scripts/passage-sharing.test.mjs",
     "test:social": "node scripts/social-profile.test.mjs",
     "test:social-connections": "node scripts/social-connections.test.mjs",
-    "test:sounds": "node scripts/mode-transition-sounds.test.mjs && node scripts/game-music.test.mjs",
+    "test:sounds": "node scripts/mode-transition-sounds.test.mjs && node scripts/game-music.test.mjs && node scripts/ios-audio-volume.test.mjs",
     "test:streak": "node scripts/streak-popup.test.mjs",
     "test:strongs": "node scripts/strongs.test.mjs",
     "test:themes": "node scripts/theme-catalog.test.mjs",

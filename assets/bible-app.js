@@ -374,6 +374,8 @@ let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
 let bookSprintAudioContext = null;
 let gameMusicAudio = null;
+let gameMusicAudioContext = null;
+let gameMusicGain = null;
 let gameMusicTrackKey = "";
 let gameMusicFadeFrame = 0;
 let gameMusicRestartPending = false;
@@ -1964,7 +1966,7 @@ function primeModeTransitionAudio() {
   if (modeTransitionAudioContext.state === "running") {
     return Promise.resolve(modeTransitionAudioContext);
   }
-  if (modeTransitionAudioContext.state !== "suspended") return null;
+  if (!["suspended", "interrupted"].includes(modeTransitionAudioContext.state)) return null;
   if (!modeTransitionAudioResumePromise) {
     modeTransitionAudioResumePromise = modeTransitionAudioContext.resume()
       .then(() => modeTransitionAudioContext)
@@ -11885,7 +11887,7 @@ function primeWordSearchAudio() {
     return null;
   }
   if (wordSearchAudioContext.state === "running") return Promise.resolve(wordSearchAudioContext);
-  if (wordSearchAudioContext.state !== "suspended") return null;
+  if (!["suspended", "interrupted"].includes(wordSearchAudioContext.state)) return null;
   if (!wordSearchAudioResumePromise) {
     wordSearchAudioResumePromise = wordSearchAudioContext.resume()
       .then(() => wordSearchAudioContext)
@@ -12024,6 +12026,41 @@ function ensureGameMusicAudio() {
   return gameMusicAudio;
 }
 
+// iOS ignores HTMLMediaElement.volume. Route the reused music/outcome element
+// through Web Audio so the same gain controls volume and fades on every device.
+function primeGameMusicAudio() {
+  const audio = ensureGameMusicAudio();
+  if (!audio) return null;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!gameMusicGain && AudioContext) {
+    try {
+      if (!gameMusicAudioContext) gameMusicAudioContext = new AudioContext();
+      const gain = gameMusicAudioContext.createGain();
+      gain.gain.value = 0;
+      gain.connect(gameMusicAudioContext.destination);
+      const source = gameMusicAudioContext.createMediaElementSource(audio);
+      source.connect(gain);
+      gameMusicGain = gain;
+      audio.volume = 1;
+      audio.muted = false;
+    } catch {
+      // Keep native playback available when Web Audio is unavailable.
+    }
+  }
+  if (["suspended", "interrupted"].includes(gameMusicAudioContext?.state)) {
+    gameMusicAudioContext.resume().catch(() => {});
+  }
+  return audio;
+}
+
+function setGameMusicOutputVolume(volume) {
+  if (gameMusicGain) gameMusicGain.gain.value = volume;
+  else if (gameMusicAudio) {
+    gameMusicAudio.volume = volume;
+    gameMusicAudio.muted = volume === 0;
+  }
+}
+
 function cancelGameMusicFade() {
   if (!gameMusicFadeFrame) return;
   cancelAnimationFrame(gameMusicFadeFrame);
@@ -12043,7 +12080,7 @@ function pauseGameMusic({ fade = true } = {}) {
   }
   if (gameMusicFadeFrame) return;
   const startedAt = performance.now();
-  const startingVolume = audio.volume;
+  const startingVolume = gameMusicGain ? gameMusicGain.gain.value : audio.volume;
   const duration = 240;
   const step = (timestamp) => {
     if (!gameMusicAudio || gameMusicAudio !== audio) {
@@ -12051,7 +12088,7 @@ function pauseGameMusic({ fade = true } = {}) {
       return;
     }
     const progress = Math.min(1, Math.max(0, (timestamp - startedAt) / duration));
-    audio.volume = startingVolume * (1 - progress);
+    setGameMusicOutputVolume(startingVolume * (1 - progress));
     if (progress < 1) {
       gameMusicFadeFrame = requestAnimationFrame(step);
       return;
@@ -12081,7 +12118,7 @@ function syncGameMusicPlayback() {
     pauseGameMusic({ fade: !document.hidden });
     return;
   }
-  const audio = ensureGameMusicAudio();
+  const audio = primeGameMusicAudio();
   if (!audio) return;
   cancelGameMusicFade();
   audio.loop = true;
@@ -12092,7 +12129,7 @@ function syncGameMusicPlayback() {
     audio.load();
     gameMusicTrackKey = track.key;
   }
-  audio.volume = track.volume * soundVolumeScalar(state.gameVolume);
+  setGameMusicOutputVolume(track.volume * soundVolumeScalar(state.gameVolume));
   if (changedTrack || gameMusicRestartPending) {
     try {
       audio.currentTime = 0;
@@ -12125,7 +12162,7 @@ function playGameOutcomeSound(key) {
   }
   const sound = gameOutcomeSounds[key];
   if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden) return;
-  const audio = ensureGameMusicAudio();
+  const audio = primeGameMusicAudio();
   if (!audio) return;
   if (key === "perfect" || key === "heaven") lastPerfectCelebration = key;
   cancelGameMusicFade();
@@ -12133,7 +12170,7 @@ function playGameOutcomeSound(key) {
   audio.loop = false;
   audio.src = sound.src;
   audio.load();
-  audio.volume = sound.volume * soundVolumeScalar(state.gameVolume);
+  setGameMusicOutputVolume(sound.volume * soundVolumeScalar(state.gameVolume));
   gameMusicTrackKey = `outcome:${sound.key}`;
   try {
     audio.currentTime = 0;
@@ -12167,13 +12204,14 @@ function syncActiveGameAudioVolume() {
   if (!gameMusicAudio) return;
   const outcomeKey = gameMusicTrackKey.startsWith("outcome:") ? gameMusicTrackKey.slice(8) : "";
   const source = outcomeKey ? gameOutcomeSounds[outcomeKey] : gameMusicTrackForGame();
-  if (source) gameMusicAudio.volume = source.volume * soundVolumeScalar(state.gameVolume);
+  if (source) setGameMusicOutputVolume(source.volume * soundVolumeScalar(state.gameVolume));
 }
 
 function setGameVolume(value) {
   state.gameVolume = normalizedSoundVolume(value);
   localStorage.setItem("lw_game_volume", String(state.gameVolume));
   updateSoundVolumeControls("game", state.gameVolume);
+  if (gameMusicAudio) primeGameMusicAudio();
   syncActiveGameAudioVolume();
   scheduleCloudSync();
 }
@@ -12355,7 +12393,7 @@ function primeBookSprintAudio() {
   } catch {
     return;
   }
-  if (bookSprintAudioContext.state === "suspended") bookSprintAudioContext.resume().catch(() => {});
+  if (["suspended", "interrupted"].includes(bookSprintAudioContext.state)) bookSprintAudioContext.resume().catch(() => {});
 }
 
 function playBookSprintTick(secondsRemaining) {
@@ -12435,7 +12473,7 @@ function primeReferenceRushAudio() {
   } catch {
     return;
   }
-  if (referenceRushAudioContext.state === "suspended") referenceRushAudioContext.resume().catch(() => {});
+  if (["suspended", "interrupted"].includes(referenceRushAudioContext.state)) referenceRushAudioContext.resume().catch(() => {});
 }
 
 function playReferenceRushTick(secondsRemaining) {
@@ -17234,6 +17272,9 @@ function bindEvents() {
     });
   });
   document.querySelectorAll("[data-sound-volume]").forEach((input) => {
+    input.addEventListener("pointerdown", () => {
+      if (input.dataset.soundVolume === "mode") primeModeTransitionAudio();
+    });
     input.addEventListener("input", () => {
       if (input.dataset.soundVolume === "game") setGameVolume(input.value);
       else setModeTransitionVolume(input.value);
