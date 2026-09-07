@@ -13306,7 +13306,11 @@ function triviaView() {
               </div>
               <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody">
                 <div class="game-music-drawer-control">${gameMusicToggleMarkup("gameMusicDrawerToggle")}</div>
-                <label class="setting-checkbox"><input type="checkbox" id="gameFeedbackSoundsToggle" ${state.wordSearchSounds ? "checked" : ""} /><span>Game interaction sounds</span></label>
+                <button class="book-sprint-sound-toggle" id="gameFeedbackSoundsToggle" type="button" aria-pressed="${state.wordSearchSounds}" aria-label="Sound effects">
+                  <span class="book-sprint-sound-icon" aria-hidden="true">${icons.games}</span>
+                  <span class="book-sprint-sound-copy"><span>Sound effects</span><small>Clicks and game feedback</small></span>
+                  <strong class="book-sprint-sound-state">${state.wordSearchSounds ? "On" : "Off"}</strong>
+                </button>
                 <div class="game-volume-drawer-control">${soundVolumeControlMarkup("game", "gameDrawer", { compact: true })}</div>
               </div>
             </aside>
@@ -17238,7 +17242,7 @@ function bindEvents() {
       if (input.dataset.soundVolume === "mode") setModeTransitionVolume(input.value, { preview: true });
     });
   });
-  ["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle", "gameFeedbackSoundsToggle"].forEach((id) => {
+  ["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       setWordSearchSounds(event.target.checked);
     });
@@ -17672,6 +17676,9 @@ function bindEvents() {
     });
   });
   document.getElementById("sendGameChallenge")?.addEventListener("click", () => sendGameChallenge());
+  document.getElementById("gameFeedbackSoundsToggle")?.addEventListener("click", () => {
+    setWordSearchSounds(!state.wordSearchSounds);
+  });
   document.getElementById("gameMusicDrawerToggle")?.addEventListener("click", () => {
     setGameMusicEnabled(!state.gameMusicEnabled);
   });

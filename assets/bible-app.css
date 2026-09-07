@@ -4916,8 +4916,9 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 }
 
 .game-volume-drawer-control {
-  width: min(260px, 100%);
-  justify-self: end;
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
   border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line));
   border-radius: 8px;
   background: color-mix(in srgb, var(--teal) 5%, var(--paper));
@@ -7430,9 +7431,9 @@ select {
 .games-active-controls .book-sprint-sound-toggle {
   grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  justify-self: end;
+  justify-self: stretch;
   gap: 11px;
-  width: min(260px, 100%);
+  width: 100%;
   min-width: 0;
   min-height: 62px;
   padding: 10px 12px;
@@ -22415,3 +22416,24 @@ svg {
 
 /* Keep completion records centered across every Games result layout. */
 .trivia-results-summary > :is(.scoreboard-disclosure, .games-records) { margin-inline: auto; }
+
+/* Drawer actions share the audio cards' edges on every game and screen. */
+.games-active-controls :is(.trivia-actions, .word-search-actions, .crossword-actions) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  justify-items: stretch;
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+}
+
+.games-active-controls :is(.trivia-actions, .word-search-actions, .crossword-actions) :is(button, .primary-btn, .ghost-btn) {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 46px;
+  justify-self: stretch;
+  justify-content: center;
+  margin-inline: 0;
+}

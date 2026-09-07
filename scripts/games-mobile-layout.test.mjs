@@ -107,7 +107,7 @@ assert.match(styles, /\.reference-rush-timer-meter \{[\s\S]*?grid-column: 2;[\s\
 assert.match(styles, /\.trivia-reader\.is-playing \.trivia-results \{[\s\S]*?align-content: start;/);
 assert.match(styles, /\.book-sprint-game \.book-sprint-meter \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
 assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?grid-template-columns: 40px minmax\(0, 1fr\) auto;/);
-assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?width: min\(260px, 100%\);/);
+assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle \{[\s\S]*?width: 100%;/);
 assert.match(styles, /\.games-active-controls \.book-sprint-sound-icon \{[\s\S]*?background: var\(--teal\);/);
 assert.match(styles, /\.games-active-controls \.book-sprint-sound-toggle\[aria-pressed="true"\] \.book-sprint-sound-state/);
 assert.match(styles, /\.ordering-check-dock \{[\s\S]*?flex: 0 0 auto;[\s\S]*?width: 100%;/);
