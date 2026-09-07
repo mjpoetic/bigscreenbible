@@ -47,6 +47,9 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(`
+  ${extractFunction("uniqueVersionVerses")}
+  ${extractFunction("versionVerseLabel")}
+  ${extractFunction("expandedVersionVerseNumbers")}
   ${extractFunction("referencePreviewPassageMarkup")}
   ${extractFunction("crossReferencePopupMarkup")}
   globalThis.previewMarkup = referencePreviewPassageMarkup;
@@ -249,3 +252,11 @@ holdContext.suppressContextMenu({ preventDefault: () => { contextMenuPrevented =
 assert.equal(contextMenuPrevented, true, "Native long-press menus are suppressed on verse numbers");
 
 console.log("Reference preview tests passed");
+
+context.bibleData['John 3'] = { verses: [23,24].map(n => ({n, CEV: 'Combined source passage.', verseRanges: {CEV: {start:23,end:24}}})) };
+context.parsePassageReference = () => ({key:'John 3', verses:[23,24]});
+const bridgePreview = context.previewMarkup('John 3:23-24','CEV');
+assert.equal((bridgePreview.match(/Combined source passage\./g)||[]).length,1);
+assert.match(bridgePreview, /<sup>23–24<\/sup>/);
+context.parsePassageReference = () => ({key:'John 3', verses:[24]});
+assert.match(context.previewMarkup('John 3:24','CEV'), /<sup>23–24<\/sup>/);

@@ -461,3 +461,15 @@ Deno.test("keeps Psalm 119 acrostic labels out of the previous verse text", () =
     },
   ]);
 });
+
+Deno.test("preserves combined verse markers without assigning text to only the last verse", () => {
+  const result = parseVerseContent([{ name: "para", attrs: { style: "p" }, items: [
+    { name: "verse", attrs: { number: "23-24" } },
+    { type: "text", text: "Combined passage.", attrs: { verseId: "JHN.3.24" } },
+    { name: "verse", attrs: { number: "25" } },
+    { type: "text", text: "Next passage.", attrs: { verseId: "JHN.3.25" } },
+  ] }]);
+  if (result.length !== 2 || result[0].n !== 23 || result[0].verseEnd !== 24 || result[0].text !== "Combined passage." || result[1].n !== 25) {
+    throw new Error(JSON.stringify(result));
+  }
+});

@@ -22,6 +22,7 @@ type ParsedVerse = {
   n: number;
   text: string;
   paragraphStart: boolean;
+  verseEnd?: number;
   sectionHeadings?: SectionHeading[];
   wordsOfJesus?: Array<{ start: number; end: number }>;
 };
@@ -276,6 +277,8 @@ export function parseVerseContent(
   let pendingHeadings: SectionHeading[] = [];
   let sawPsalm119Verse = false;
   let lastVerseNumber = 0;
+  const verseEnds = new Map<number, number>();
+  let activeBridge: { start: number; end: number } | null = null;
 
   const appendText = (
     verseNumber: number,
@@ -304,7 +307,12 @@ export function parseVerseContent(
 
     if (node.name === "verse") {
       if (isPsalm119VerseId(node.attrs?.verseId)) sawPsalm119Verse = true;
-      const verseNumber = Number(node.attrs?.number) ||
+      const bridge = String(node.attrs?.number || "").match(/^(\d+)[-–](\d+)$/);
+      const start = bridge ? Number(bridge[1]) : 0;
+      const end = bridge ? Number(bridge[2]) : 0;
+      activeBridge = start > 0 && end > start && end - start < 200 ? { start, end } : null;
+      if (activeBridge) verseEnds.set(start, end);
+      const verseNumber = activeBridge?.start || Number(node.attrs?.number) ||
         verseNumberFromId(node.attrs?.verseId);
       if (verseNumber) {
         paragraphState.currentVerse = verseNumber;
@@ -314,7 +322,7 @@ export function parseVerseContent(
     }
 
     if (node.type === "text" && typeof node.text === "string") {
-      const attributedVerse = verseNumberFromId(node.attrs?.verseId) ||
+      const attributedVerse = activeBridge?.start || verseNumberFromId(node.attrs?.verseId) ||
         verseNumberFromId(node.attrs?.verseOrgIds?.[0]);
       const psalm119Attributed = isPsalm119VerseId(node.attrs?.verseId) ||
         isPsalm119VerseId(node.attrs?.verseOrgIds?.[0]);
@@ -414,6 +422,7 @@ export function parseVerseContent(
         n,
         text,
         paragraphStart: paragraphStarts.has(n),
+        ...(verseEnds.has(n) ? { verseEnd: verseEnds.get(n) } : {}),
         ...(sectionHeadings.has(n)
           ? { sectionHeadings: sectionHeadings.get(n) }
           : {}),

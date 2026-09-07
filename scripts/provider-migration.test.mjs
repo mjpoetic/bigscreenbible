@@ -23,4 +23,11 @@ assert.equal(evaluate("translationDisplayCode('NASB2020')"), 'NASB');
 assert.equal(evaluate("translationProvider('NLT').edgeFunction"), 'api-bible-passage');
 assert.equal(evaluate("translationProvider('AMP').edgeFunction"), 'youversion-passage');
 assert.equal(evaluate("translationProvider('NIRV').edgeFunction"), 'youversion-passage');
+for (const version of ['CEV', 'NKJV']) {
+  assert.equal(evaluate(`translationProvider('${version}').edgeFunction`), 'api-bible-passage');
+  assert.equal(evaluate(`translationProvider('${version}').tracksFums`), true);
+  assert.notEqual(evaluate(`translationProvider('${version}').supportsSearch`), false);
+  assert.equal(evaluate(`isRemoteTranslation('${version}')`), true);
+  assert.equal(evaluate(`isBundledTranslation('${version}')`), false);
+}
 console.log('Provider cutover and independent rollback tests passed');

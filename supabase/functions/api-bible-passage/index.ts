@@ -1,3 +1,4 @@
+import { matchesTranslation, supportedApiBibleTranslations, type ApiBibleTranslationCode, type ApiBibleSummary } from "./translations.ts";
 import { parseVerseContent } from "./content-parser.ts";
 
 const corsHeaders = {
@@ -12,18 +13,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const parserVersion = "2026-06-24-small-caps-lord-continuation-cleanup";
-
-type ApiBibleTranslationCode = "NIV" | "NLT" | "NASB2020";
-
-type ApiBibleSummary = {
-  id: string;
-  abbreviation?: string;
-  abbreviationLocal?: string;
-  name?: string;
-  nameLocal?: string;
-  copyright?: string;
-};
+const parserVersion = "2026-09-07-combined-verses";
 
 type AuthorizedBible = {
   code: ApiBibleTranslationCode;
@@ -145,28 +135,6 @@ function searchPhraseFromQuery(value: string) {
   return normalizeSearchText(quoted?.[1] || value);
 }
 
-function matchesTranslation(
-  bible: ApiBibleSummary,
-  code: ApiBibleTranslationCode,
-) {
-  const abbreviation = normalizedLabel(
-    bible.abbreviationLocal || bible.abbreviation,
-  );
-  const name = normalizedLabel(bible.nameLocal || bible.name);
-  if (code === "NIV") {
-    return abbreviation === "NIV" || name.includes("NEWINTERNATIONALVERSION");
-  }
-  if (code === "NLT") {
-    return abbreviation === "NLT" || name.includes("NEWLIVINGTRANSLATION");
-  }
-  return (
-    ["NASB2020", "NASB20", "NASB"].includes(abbreviation) ||
-    name.includes("NEWAMERICANSTANDARDBIBLE2020") ||
-    (name.includes("NEWAMERICANSTANDARDBIBLE") && name.includes("2020")) ||
-    name === "NEWAMERICANSTANDARDBIBLENASB"
-  );
-}
-
 async function apiBibleRequest(path: string, apiKey: string) {
   const response = await fetch(`${apiBibleBaseUrl}${path}`, {
     headers: {
@@ -197,7 +165,7 @@ async function authorizedBibles(apiKey: string) {
     : [];
   const bibles = new Map<ApiBibleTranslationCode, AuthorizedBible>();
 
-  (["NIV", "NLT", "NASB2020"] as ApiBibleTranslationCode[]).forEach((code) => {
+  supportedApiBibleTranslations.forEach((code) => {
     const bible = available.find((candidate) =>
       matchesTranslation(candidate, code)
     );
@@ -256,7 +224,7 @@ Deno.serve(async (request) => {
       return jsonResponse(
         {
           translations: [...availableBibles.values()],
-          missing: (["NIV", "NLT", "NASB2020"] as ApiBibleTranslationCode[])
+          missing: supportedApiBibleTranslations
             .filter((code) => !availableBibles.has(code)),
         },
         200,
@@ -267,7 +235,7 @@ Deno.serve(async (request) => {
     const version = normalizedLabel(
       url.searchParams.get("version"),
     ) as ApiBibleTranslationCode;
-    if (!["NIV", "NLT", "NASB2020"].includes(version)) {
+    if (!supportedApiBibleTranslations.includes(version)) {
       return jsonResponse({
         error: "A supported API.Bible version is required",
       }, 400);

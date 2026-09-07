@@ -81,11 +81,13 @@ const translations = [
   { code: "ASV", name: "American Standard Version", provider: "local" },
   { code: "BBE", name: "Bible in Basic English", provider: "local" },
   { code: "BSB", name: "Berean Standard Bible", provider: "local" },
+  { code: "CEV", name: "Contemporary English Version", provider: "apiBible" },
   { code: "ESV", name: "English Standard Version", provider: "esv" },
   { code: "KJV", name: "King James Version", provider: "local" },
   { code: "NASB2020", displayCode: "NASB", name: "New American Standard Bible 2020", provider: "youVersion" },
   { code: "NIV", name: "New International Version", provider: "youVersion" },
   { code: "NIRV", displayCode: "NIrV", name: "New International Reader's Version", provider: "youVersion", recommendation: "Great for children & new readers" },
+  { code: "NKJV", name: "New King James Version", provider: "apiBible" },
   { code: "NLT", name: "New Living Translation", provider: "apiBible" },
   { code: "WEB", name: "World English Bible", provider: "local" },
 ];
@@ -1326,7 +1328,7 @@ function initializeFocusVersePickerDraft() {
 }
 
 function referenceLabel() {
-  return `${state.reference}:${state.verse}`;
+  return formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, [state.verse], state.versions[0]));
 }
 
 function activePassageLabel() {
@@ -7134,6 +7136,36 @@ function renderStrongText(verse, version) {
   );
 }
 
+function versionVerseLabel(verse, version) {
+  const range = verse?.verseRanges?.[version];
+  return range ? `${range.start}–${range.end}` : String(verse.n);
+}
+
+function uniqueVersionVerses(verses, version) {
+  const seen = new Set();
+  return verses.filter((verse) => {
+    const key = verse.verseRanges?.[version]?.start || verse.n;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function expandedVersionVerseNumbers(chapterKey, numbers, version) {
+  const chapter = bibleData[chapterKey];
+  return [...new Set(numbers.flatMap((n) => {
+    const range = chapter?.verses.find((verse) => verse.n === n)?.verseRanges?.[version];
+    return range ? Array.from({ length: range.end - range.start + 1 }, (_, i) => range.start + i) : [n];
+  }))].sort((a, b) => a - b);
+}
+
+function parallelVerseMarkup(verse, version) {
+  const range = verse.verseRanges?.[version];
+  if (range && verse.n !== range.start) return `<small class="combined-verse-notice">Included in verses ${versionVerseLabel(verse, version)}.</small>`;
+  const label = range ? `<small class="combined-verse-notice">${versionVerseLabel(verse, version)} </small>` : "";
+  return label + renderStrongText(verse, version);
+}
+
 function getVerseText(verse, version, chapterKey = state.reference) {
   if (verse[version]) return verse[version];
   if (isRemoteTranslation(version)) {
@@ -10295,11 +10327,11 @@ function readerView() {
   return `
     <h1 class="section-title">${chapter.title}</h1>
     ${selectionBar()}
-      ${useParagraphs ? paragraphReaderView(chapter.verses, version) : chapter.verses.map((verse) => `
+      ${useParagraphs ? paragraphReaderView(chapter.verses, version) : uniqueVersionVerses(chapter.verses, version).map((verse) => `
       ${sectionHeadingsMarkup(verse, version)}
       <p class="verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
         <span class="verse-marker">
-          <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
+          <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${versionVerseLabel(verse, version)}</button>
           ${verseNoteIndicatorsMarkup(verse.n)}
         </span>
         <span class="verse-text">${renderStrongText(verse, version)}</span>
@@ -10414,6 +10446,7 @@ function verseCopyButton(verseNumber) {
 }
 
 function paragraphReaderView(verses, version) {
+  verses = uniqueVersionVerses(verses, version);
   const blocks = [];
   let group = [];
   const flushGroup = () => {
@@ -10423,7 +10456,7 @@ function paragraphReaderView(verses, version) {
         ${group.map((verse) => `
           <span class="paragraph-verse ${verseStateClasses(verse.n)}" ${highlightStyleForVerse(verse.n)} data-verse="${verse.n}">
             <span class="paragraph-verse-marker">
-              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" data-cross-ref-hold="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}. Press and hold for cross references" aria-expanded="false">${verse.n}</button>
+              <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" data-cross-ref-hold="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}. Press and hold for cross references" aria-expanded="false">${versionVerseLabel(verse, version)}</button>
               ${verseNoteIndicatorsMarkup(verse.n)}
             </span>
             <span class="verse-text">${renderStrongText(verse, version)}</span>
@@ -14670,7 +14703,7 @@ function parallelView() {
             <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${verse.n}</button>
             ${verseNoteIndicatorsMarkup(verse.n)}
           </div>
-          ${versions.map((version) => `<div class="parallel-copy" data-version="${escapeHtml(version)}">${renderStrongText(verse, version)}</div>`).join("")}
+          ${versions.map((version) => `<div class="parallel-copy" data-version="${escapeHtml(version)}">${parallelVerseMarkup(verse, version)}</div>`).join("")}
         </div>
       `).join("")}
     </div>
@@ -15385,8 +15418,8 @@ function referencePreviewPassageMarkup(reference, requestedVersion, options = {}
   const requestedAvailable = passageVerses.length
     && passageVerses.every((verse) => String(verse[requestedVersion] || "").trim());
   const version = requestedAvailable ? requestedVersion : "BSB";
-  const lines = passageVerses
-    .map((verse) => ({ n: verse.n, text: String(verse[version] || "").trim() }))
+  const lines = uniqueVersionVerses(passageVerses, version)
+    .map((verse) => ({ n: versionVerseLabel(verse, version), text: String(verse[version] || "").trim() }))
     .filter(({ text }) => text);
   const fallbackNotice = version !== requestedVersion
     ? `<p class="reference-preview-notice">${escapeHtml(translationDisplayCode(requestedVersion))} could not be loaded for this preview. Showing ${escapeHtml(translationDisplayCode(version))}.</p>`
@@ -25221,9 +25254,8 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
     return [{ n: state.verse, text: state.verseOfDayItem.verseText }];
   }
   const selected = new Set(verseNumbers);
-  return currentChapter().verses
-    .filter((verse) => selected.has(verse.n))
-    .map((verse) => ({ n: verse.n, text: getVerseText(verse, state.versions[0]), verse }));
+  return uniqueVersionVerses(currentChapter().verses.filter((verse) => selected.has(verse.n)), state.versions[0])
+    .map((verse) => ({ n: verse.n, label: versionVerseLabel(verse, state.versions[0]), text: getVerseText(verse, state.versions[0]), verse }));
 }
 
 function passageText(verseNumbers = selectedVerseNumbers()) {
@@ -25243,12 +25275,12 @@ function passageVersion() {
 function formattedPassageText(verseNumbers = selectedVerseNumbers()) {
   const lines = passageLines(verseNumbers);
   const scripture = lines
-    .map(({ n, text }) => verseNumbers.length > 1 ? `${n}. ${String(text || "").trim()}` : String(text || "").trim())
+    .map(({ n, label, text }) => verseNumbers.length > 1 ? `${label || n}. ${String(text || "").trim()}` : String(text || "").trim())
     .filter(Boolean)
     .join("\n");
   const reference = state.isVerseOfDayActive && state.verseOfDayItem
     ? state.verseOfDayItem.reference
-    : formatReferenceLabel(state.reference, verseNumbers);
+    : formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verseNumbers, state.versions[0]));
   const citation = `${reference} (${passageVersion()})`;
   if (state.passageShareFormat === "plain") return `${scripture}\n${citation}`;
   if (state.passageShareFormat === "compact") return `“${scripture.replace(/\s*\n\s*/g, " ")}” — ${citation}`;
@@ -25299,7 +25331,7 @@ function verseRangeParam(verseNumbers = selectedVerseNumbers()) {
 }
 
 function printReferenceLabel(verseNumbers = selectedVerseNumbers()) {
-  return formatReferenceLabel(state.reference, verseNumbers);
+  return formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verseNumbers, state.versions[0]));
 }
 
 function formatReferenceLabel(chapterKey, verseNumbers = selectedVerseNumbers()) {
@@ -25735,7 +25767,17 @@ function verseOfDayAttributionMarkup(className = "") {
 function mergeRemoteVersionChapter(version, chapterKey, verses) {
   const chapter = bibleData[chapterKey];
   if (!chapter) return;
-  verses.forEach(({ n, text, paragraphStart, sectionHeadings, lineBreaks, wordsOfJesus }) => {
+  verses = verses.flatMap((verse) => {
+    const start = Number(verse.n);
+    const end = Number(verse.verseEnd);
+    if (!Number.isInteger(end) || end <= start || end - start >= 200) return [verse];
+    return Array.from({ length: end - start + 1 }, (_, index) => ({
+      ...verse, n: start + index, verseRange: { start, end },
+      paragraphStart: index === 0 && verse.paragraphStart,
+      sectionHeadings: index === 0 ? verse.sectionHeadings : [],
+    }));
+  });
+  verses.forEach(({ n, text, paragraphStart, sectionHeadings, lineBreaks, wordsOfJesus, verseRange }) => {
     if (!Number.isFinite(Number(n)) || !text) return;
     let verse = chapter.verses.find((item) => item.n === Number(n));
     if (!verse) {
@@ -25743,6 +25785,10 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       chapter.verses.push(verse);
     }
     verse[version] = normalizeRemoteProviderText(version, text);
+    if (verseRange) {
+      verse.verseRanges = verse.verseRanges || {};
+      verse.verseRanges[version] = verseRange;
+    } else if (verse.verseRanges) delete verse.verseRanges[version];
     if (typeof paragraphStart === "boolean") {
       verse.paragraphStart = verse.paragraphStart || {};
       verse.paragraphStart[version] = paragraphStart;

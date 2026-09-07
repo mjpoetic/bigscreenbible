@@ -38,6 +38,7 @@ const context = {
       shareCalls.push(payload);
     },
   },
+  bibleData: {},
   state: {
     isVerseOfDayActive: false,
     mode: "reader",
@@ -71,6 +72,9 @@ const context = {
 
 vm.createContext(context);
 vm.runInContext(`
+  ${extractFunction("uniqueVersionVerses")}
+  ${extractFunction("versionVerseLabel")}
+  ${extractFunction("expandedVersionVerseNumbers")}
   ${extractFunction("selectedVerseNumbers")}
   ${extractFunction("passageLines")}
   ${extractFunction("verseRangeParam")}
@@ -173,3 +177,16 @@ vm.runInContext(`
 assert.equal(versionUrlContext.requestedVersion(), "NASB2020", "Shared links should accept public display codes");
 
 console.log("Passage sharing tests passed");
+
+// A provider-combined passage must be copied once, with its full source range,
+// even when a user selects only the final verse in that range.
+context.state.isVerseOfDayActive = false;
+context.state.verseOfDayItem = null;
+context.state.versions = ['CEV'];
+context.state.reference = 'John 3';
+context.state.passageShareFormat = 'plain';
+const combined = [23, 24].map(n => ({n, text: 'Combined source passage.', verseRanges: {CEV: {start: 23, end: 24}}}));
+context.bibleData['John 3'] = {verses: combined};
+context.currentChapter = () => context.bibleData['John 3'];
+assert.equal(context.copyTextValue([24]), 'Combined source passage.\nJohn 3:23-24 (CEV)');
+assert.equal((context.copyTextValue([23,24]).match(/Combined source passage\./g)||[]).length, 1);
