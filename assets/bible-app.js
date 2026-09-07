@@ -12171,7 +12171,7 @@ function pauseTriviaGameForReference(game = state.triviaGame, pausedAt = Date.no
     && game.timed
     && game.deadlineAt
     && game.deadlineAt > pausedAt;
-  const elapsedTimerRunning = game.type === "book-sprint" && game.startedAt;
+  const elapsedTimerRunning = ["book-sprint", "reference-rush"].includes(game.type) && game.startedAt;
   if (!countdownRunning && !elapsedTimerRunning) return false;
   game.referencePausedAt = pausedAt;
   if (countdownRunning) game.referencePausedRemainingMs = Math.max(0, game.deadlineAt - pausedAt);
@@ -12188,13 +12188,49 @@ function resumeTriviaGameAfterReference(game = state.triviaGame, resumedAt = Dat
       : game.deadlineAt + pausedDuration;
     game.referenceRushLastTick = null;
   }
-  if (game.type === "book-sprint" && game.startedAt) {
+  if (["book-sprint", "reference-rush"].includes(game.type) && game.startedAt) {
     game.startedAt += pausedDuration;
     game.bookSprintLastTick = null;
   }
   game.referencePausedAt = null;
   game.referencePausedRemainingMs = null;
   return pausedDuration;
+}
+
+function referenceRushBestKey(difficulty, rounds, timed) {
+  return `${difficulty}:${rounds}:${timed ? "timed" : "untimed"}`;
+}
+
+function savedReferenceRushBests() {
+  try {
+    return JSON.parse(localStorage.getItem("lw_reference_rush_bests_v1") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function savedReferenceRushBest(difficulty, rounds, timed) {
+  return savedReferenceRushBests()[referenceRushBestKey(difficulty, rounds, timed)] || null;
+}
+
+function recordReferenceRushBest(game) {
+  if (game.referenceRushBestRecorded || game.timedOut || !game.startedAt
+    || !game.puzzles.length || game.score !== game.puzzles.length) return;
+  game.referenceRushBestRecorded = true;
+  const key = referenceRushBestKey(game.difficulty, game.puzzles.length, game.timed);
+  const bests = savedReferenceRushBests();
+  const elapsedMs = Math.max(0, game.finishedAt - game.startedAt);
+  game.referenceRushIsNewBest = !bests[key] || elapsedMs < bests[key].elapsedMs;
+  if (game.referenceRushIsNewBest) {
+    bests[key] = { elapsedMs, completedAt: new Date().toISOString() };
+    localStorage.setItem("lw_reference_rush_bests_v1", JSON.stringify(bests));
+  }
+  game.referenceRushBest = bests[key];
+}
+
+function referenceRushRecords(difficulty, rounds, timed, game = null) {
+  const best = savedReferenceRushBest(difficulty, rounds, timed);
+  return `<div class="games-records games-records-static"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"}</small><small>All references correct · ${timed ? "Timed" : "Untimed"}</small>${game ? `<small>Round time: ${formatGameTime(Math.max(0, game.finishedAt - game.startedAt))}</small>` : ""}</div>`;
 }
 
 function bookSprintBestKey(difficulty = state.triviaDifficulty, rounds = state.triviaCount || 10) {
@@ -13161,7 +13197,8 @@ function triviaView() {
               </aside>
             </div>
               </div>
-              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
+              ${isReferenceRush ? referenceRushRecords(state.triviaDifficulty, selectedCount, state.referenceRushTimed) : ""}
+              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
               ${isHiddenWord ? hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext) : ["trivia", "who-said-it"].includes(state.triviaGameType) ? quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount }) : ""}
             </div>
             ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
@@ -14173,6 +14210,7 @@ function triviaResultsView(game) {
           <div class="trivia-result-ring book-sprint-time-ring">${elapsed}</div>
           <h2>${resultTitle}</h2>
           <p>${resultText}</p>
+        ${game.type === "reference-rush" ? referenceRushRecords(game.difficulty, roundLength, game.timed, game) : ""}
           ${game.bookSprintBeatBest ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">New Book Sprint record! Wonderful work.</p>` : ""}
           <div class="book-sprint-result-stats">
             <div>
@@ -14210,6 +14248,7 @@ function triviaResultsView(game) {
         <div class="trivia-result-ring">${(game.type === "hidden-word" || isQuizPointsGame(game)) ? `${(game.points || 0).toLocaleString()}<small>points</small>` : `${percent}%`}</div>
         <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
         <p>${resultText}</p>
+        ${game.type === "reference-rush" ? referenceRushRecords(game.difficulty, roundLength, game.timed, game) : ""}
         ${game.type === "hidden-word" ? `${hiddenWordLeaderboard(game.difficulty, roundLength, game)}${hiddenWordScoreRules()}` : ""}
         ${isQuizPointsGame(game) ? `<p>Best streak: ${game.bestStreak || 0}${game.perfectBonus ? " · Perfect round +1,000" : ""}</p>${quizLeaderboard(game)}${quizScoreRules(game.type)}` : ""}
         ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
@@ -14233,7 +14272,10 @@ function triviaRoundLength(game) {
 
 function completeTriviaGame(game) {
   if (!game || game.complete) return;
-  if (game.type === "reference-rush" && game.timed && !game.finishedAt) game.finishedAt = Date.now();
+  if (game.type === "reference-rush") {
+    if (!game.finishedAt) game.finishedAt = Date.now();
+    recordReferenceRushBest(game);
+  }
   if (isQuizPointsGame(game)) recordQuizScore(game);
   game.complete = true;
   const roundLength = triviaRoundLength(game);
@@ -14254,6 +14296,7 @@ function newBestTimeResult(game) {
   if (game.type === "hidden-word" && game.hiddenWordIsNewBest) return game.hiddenWordBest || null;
   if (game.type === "word-search" && game.wordSearchIsNewBest) return game.wordSearchBest;
   if (game.type === "crossword" && game.crosswordIsNewBest) return game.crosswordBest;
+  if (game.type === "reference-rush" && game.referenceRushIsNewBest) return game.referenceRushBest;
   if (game.type === "book-sprint" && game.bookSprintNewBest) return game.bookSprintBest;
   return null;
 }
@@ -14325,7 +14368,9 @@ function showBestTimeCelebration(game, best) {
       if (["word-search", "crossword", "hidden-word"].includes(game.type)) restartPuzzleAtDifficulty(game.difficulty);
       else {
         state.triviaDifficulty = game.difficulty;
-        state.triviaCount = game.puzzles.length;
+        state.triviaCount = triviaRoundLength(game);
+        if (game.category) state.triviaCategory = game.category;
+        if (game.type === "reference-rush") state.referenceRushTimed = game.timed;
         requestGameMusicRestart();
         startTriviaGame();
       }
@@ -18097,6 +18142,7 @@ function bindEvents() {
   document.getElementById("closePresentation")?.addEventListener("click", () => {
     returnFromPresentationToBible();
   });
+  window.addEventListener("keydown", handleGamesEscapeKeydown, true);
   window.onkeydown = handleGlobalShortcuts;
 }
 
@@ -18572,7 +18618,7 @@ function startReferenceRushGame({ render = true } = {}) {
     usedHintTypes: [],
     timed,
     durationMs,
-    startedAt: timed ? startedAt : null,
+    startedAt,
     deadlineAt: timed ? startedAt + durationMs : null,
     finishedAt: null,
     timedOut: false,
@@ -19709,7 +19755,7 @@ function answerReferenceRush(reference) {
   if (!puzzle || puzzle.selectedReference !== null) return;
   puzzle.selectedReference = reference;
   if (reference === puzzle.correctAnswer) game.score += 1;
-  if (game.timed && game.index === game.puzzles.length - 1) game.finishedAt = Date.now();
+  if (game.index === game.puzzles.length - 1) game.finishedAt = Date.now();
   renderTriviaAnswerAndScroll();
 }
 
@@ -24151,6 +24197,14 @@ function cancelReaderTouchGesture() {
   readerTouchGesture = null;
   readerBlankTapStart = null;
   readerChapterTouchStart = null;
+}
+
+function handleGamesEscapeKeydown(event) {
+  if (state.mode !== "trivia" || event.key !== "Escape"
+    || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (!event.repeat) exitTriviaGame();
 }
 
 function handleGlobalShortcuts(event) {

@@ -22412,3 +22412,6 @@ svg {
   .game-points-badge { padding: 7px 12px; }
   .game-points-amount { font-size: 1.5rem; }
 }
+
+/* Keep completion records centered across every Games result layout. */
+.trivia-results-summary > :is(.scoreboard-disclosure, .games-records) { margin-inline: auto; }

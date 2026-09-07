@@ -45,7 +45,7 @@ assert.match(scrollSelectedVerse, /options\.behavior/);
 
 const pauseTimer = extractFunction("pauseTriviaGameForReference");
 assert.match(pauseTimer, /game\.type === "reference-rush"[\s\S]*?game\.timed[\s\S]*?game\.deadlineAt/);
-assert.match(pauseTimer, /game\.type === "book-sprint" && game\.startedAt/);
+assert.match(pauseTimer, /\["book-sprint", "reference-rush"\]\.includes\(game\.type\) && game\.startedAt/);
 assert.match(pauseTimer, /game\.referencePausedAt = pausedAt/);
 assert.match(pauseTimer, /game\.referencePausedRemainingMs = Math\.max\(0, game\.deadlineAt - pausedAt\)/);
 
@@ -100,3 +100,8 @@ assert.match(styles, /\.reader-return-button\.game-return-button \{[\s\S]*?width
 assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.reader-return-button\.game-return-button \{[\s\S]*?min-width: 42px;/);
 
 console.log("Game reference return tests passed");
+
+const untimedReference = { type: "reference-rush", timed: false, startedAt: 1000 };
+assert.equal(pauseTriviaGameForReference(untimedReference, 3000), true);
+assert.equal(resumeTriviaGameAfterReference(untimedReference, 8000), 5000);
+assert.equal(untimedReference.startedAt, 6000);
