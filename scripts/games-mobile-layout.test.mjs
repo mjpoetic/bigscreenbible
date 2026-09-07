@@ -156,6 +156,70 @@ keyboardContext.document.activeElement = otherAction;
 assert.equal(answerKey({ key: "Tab" }).prevented, true);
 console.log("Game answer popup keyboard checks passed");
 
+// Number keys use the same buttons as pointer input, including disabled hints.
+let chosen = [];
+let visibleModal = false;
+const choiceButtons = Array.from({ length: 4 }, (_, index) => ({
+  disabled: false,
+  getClientRects: () => [1],
+  click() { chosen.push(index); },
+}));
+const choiceState = { mode: "trivia", triviaGame: { type: "trivia" } };
+const choiceContext = vm.createContext({
+  state: choiceState,
+  isTypingTarget: target => Boolean(target?.typing),
+  document: {
+    querySelectorAll(selector) {
+      if (selector.startsWith("dialog")) return [{ getClientRects: () => visibleModal ? [1] : [] }];
+      const expected = { trivia: "[data-trivia-answer]", "who-said-it": "[data-who-answer]", "reference-rush": "[data-reference-answer]" };
+      assert.equal(selector, expected[choiceState.triviaGame.type || "trivia"]);
+      return choiceButtons;
+    },
+  },
+});
+vm.runInContext(extractFunction("handleGamesChoiceKeydown"), choiceContext);
+assert.match(extractFunction("handleGlobalShortcuts"), /handleGamesChoiceKeydown\(event\)/);
+function choiceKey(overrides = {}) {
+  const event = { key: "1", target: {}, preventDefault() { this.prevented = true; }, ...overrides };
+  choiceContext.handleGamesChoiceKeydown(event);
+  return event;
+}
+for (const type of ["trivia", "who-said-it", "reference-rush", undefined]) {
+  choiceState.triviaGame.type = type;
+  chosen = [];
+  for (const key of ["1", "2", "3", "4"]) assert.equal(choiceKey({ key }).prevented, true);
+  assert.deepEqual(chosen, [0, 1, 2, 3]);
+}
+chosen = [];
+for (const flag of ["repeat", "isComposing", "metaKey", "ctrlKey", "altKey", "shiftKey", "defaultPrevented"]) choiceKey({ [flag]: true });
+choiceKey({ target: { typing: true } });
+for (const key of ["0", "5", "Enter", "ArrowDown"]) choiceKey({ key });
+visibleModal = true;
+choiceKey();
+visibleModal = false;
+for (const flag of ["gamesDrawerOpen", "settingsOpen", "accountOpen"]) {
+  choiceState[flag] = true;
+  choiceKey();
+  choiceState[flag] = false;
+}
+choiceState.mode = "reader";
+choiceKey();
+choiceState.mode = "trivia";
+choiceState.triviaGame.complete = true;
+choiceKey();
+choiceState.triviaGame.complete = false;
+for (const type of ["crossword", "hidden-word", "book-sprint", "verse-order", "word-search"]) {
+  choiceState.triviaGame.type = type;
+  choiceKey();
+}
+choiceState.triviaGame.type = "trivia";
+choiceButtons[0].disabled = true;
+choiceKey();
+assert.deepEqual(chosen, [], "Typing, modifiers, held keys, overlays, other games, and disabled answers are ignored");
+choiceKey({ key: "2", code: "Numpad2" });
+assert.deepEqual(chosen, [1], "Eliminating answer 1 does not remap answer 2, including numpad input");
+console.log("Game number-key answer checks passed");
+
 for (const responsive of [false, true]) {
   for (const type of ["trivia", "who-said-it", "reference-rush", "verse-order", "book-sprint", "hidden-word"]) {
     const feedback = {};

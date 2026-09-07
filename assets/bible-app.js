@@ -12786,6 +12786,25 @@ function mountMobileGameControls() {
   });
 }
 
+function handleGamesChoiceKeydown(event) {
+  if (!/^[1-4]$/.test(event.key) || event.defaultPrevented || event.repeat || event.isComposing || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || isTypingTarget(event.target)) return false;
+  const game = state.triviaGame;
+  if (state.mode !== "trivia" || !game || game.complete || state.gamesDrawerOpen || state.settingsOpen || state.accountOpen) return false;
+  if ([...document.querySelectorAll('dialog[open], [aria-modal="true"]')].some((dialog) => dialog.getClientRects().length)) return false;
+  const selector = {
+    trivia: "[data-trivia-answer]",
+    "who-said-it": "[data-who-answer]",
+    "reference-rush": "[data-reference-answer]",
+  }[game.type || "trivia"];
+  if (!selector) return false;
+  // Keep eliminated choices in the numbering so hints never remap a key.
+  const button = document.querySelectorAll(selector)[Number(event.key) - 1];
+  if (!button || button.disabled || !button.getClientRects().length) return false;
+  event.preventDefault();
+  button.click();
+  return true;
+}
+
 function handleGamesAnswerKeydown(event) {
   if (event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
   const dialog = event.currentTarget;
@@ -13330,7 +13349,8 @@ function triviaChoiceButton(question, choice, answered) {
     answered && selected && !isCorrect ? "incorrect" : "",
     eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
-  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" ${answered || eliminated ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+  const number = question.choices.indexOf(choice) + 1;
+  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered || eliminated ? "disabled" : ""}>${number}. ${escapeHtml(choice)}</button>`;
 }
 
 function wordSearchPassageMarkup(game) {
@@ -13996,7 +14016,8 @@ function referenceRushChoiceButton(puzzle, choice, answered) {
     answered && selected && !isCorrect ? "incorrect" : "",
     eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
-  return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" ${answered || eliminated ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+  const number = puzzle.choices.indexOf(choice) + 1;
+  return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered || eliminated ? "disabled" : ""}>${number}. ${escapeHtml(choice)}</button>`;
 }
 
 function bookSprintGameView(game) {
@@ -14124,7 +14145,8 @@ function whoSaidItChoiceButton(question, choice, answered) {
     answered && isCorrect ? "correct" : "",
     answered && selected && !isCorrect ? "incorrect" : "",
   ].filter(Boolean).join(" ");
-  return `<button class="${classes}" data-who-answer="${escapeHtml(choice)}" ${answered ? "disabled" : ""}>${escapeHtml(choice)}</button>`;
+  const number = question.choices.indexOf(choice) + 1;
+  return `<button class="${classes}" data-who-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered ? "disabled" : ""}>${number}. ${escapeHtml(choice)}</button>`;
 }
 
 function triviaResultsView(game) {
@@ -16378,6 +16400,7 @@ function shortcutOverlay() {
     ["/", "Jump to reference search"],
     ["S", "Open search"],
     ["T", "Open games"],
+    ["1–4", "Choose an answer in Trivia, Who Said It, or Reference Rush"],
     ["V", "Open verse picker"],
     ["N", "Open notes"],
     ["B", "Open bookmarks"],
@@ -24276,6 +24299,8 @@ function handleGlobalShortcuts(event) {
   }
 
   if (typing || state.pushPromptVisible || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
+
+  if (/^[1-4]$/.test(event.key) && handleGamesChoiceKeydown(event)) return;
 
   if (event.shiftKey && event.code === "Equal") {
     event.preventDefault();
