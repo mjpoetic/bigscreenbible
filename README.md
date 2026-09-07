@@ -73,7 +73,8 @@ Red-letter support is also data-driven. KJV and WEB use their source USFM/USX `w
 Licensed remote translations are provider-based:
 
 - ESV uses the Crossway ESV Supabase Edge Function.
-- NIV, NLT, and NASB 2020 use the API.Bible Supabase Edge Function.
+- NLT uses the API.Bible Supabase Edge Function.
+- NIV 2011 and NASB 2020 use the YouVersion Supabase Edge Function. API.Bible support remains available for rollback while its licenses remain active. See [migration and rollback](PROVIDER-MIGRATION.md).
 - AMP and NIrV use the YouVersion Platform Supabase Edge Function. NIrV is identified in the version picker as an easy-reading choice for children and new readers.
 - API keys remain Supabase secrets; the browser only calls the project Edge Functions.
 - Provider copyright notices and API.Bible FUMS view tracking are included in the rendered experience.

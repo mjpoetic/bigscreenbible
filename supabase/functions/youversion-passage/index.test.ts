@@ -160,7 +160,7 @@ Deno.test("preserves explicit breaks and acrostic headings", () => {
 });
 
 Deno.test("recognizes the authorized NIrV edition", () => {
-  assertEquals(supportedYouVersionTranslations, ["AMP", "NIRV"]);
+  assertEquals(supportedYouVersionTranslations, ["AMP", "NIRV", "NIV", "NASB2020"]);
   assertEquals(
     matchesYouVersionTranslation(
       { localized_abbreviation: "NIrV" },
@@ -196,4 +196,13 @@ Deno.test("keeps Amplified Bible matching distinct from AMP Classic", () => {
     ),
     false,
   );
+});
+
+Deno.test("pins NIV 2011 and NASB 2020 without substituting other editions", () => {
+  assertEquals(matchesYouVersionTranslation({ id: 111, abbreviation: "NIV11" }, "NIV"), true);
+  assertEquals(matchesYouVersionTranslation({ id: "2692", abbreviation: "NASB2020" }, "NASB2020"), true);
+  assertEquals(matchesYouVersionTranslation({ id: 113, abbreviation: "NIVUK11" }, "NIV"), false);
+  assertEquals(matchesYouVersionTranslation({ id: 100, title: "New American Standard Bible 1995" }, "NASB2020"), false);
+  assertEquals(matchesYouVersionTranslation({ abbreviation: "NIV11" }, "NIV"), false);
+  assertEquals(matchesYouVersionTranslation({ id: 2692 }, "NIV"), false);
 });
