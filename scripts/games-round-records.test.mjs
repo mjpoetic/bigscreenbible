@@ -41,3 +41,49 @@ context.state.mode = 'reader';
 context.handleGamesEscapeKeydown(event);
 assert.equal(exits, 1);
 console.log('Reference Rush record eligibility, persistence, settings isolation and Games Escape passed.');
+
+let now = 1000;
+context.Date = class extends Date { static now() { return now; } };
+context.renderPreservingReaderScroll = () => {};
+context.renderTriviaAnswerAndScroll = () => {};
+context.isVerseOrderSelectionCorrect = () => true;
+context.completeTriviaGame = game => { context.recordVerseOrderBest(game); game.complete = true; };
+for (const name of ['verseOrderElapsedMs', 'savedVerseOrderBests', 'verseOrderBestKey', 'recordVerseOrderBest', 'currentVerseOrderPuzzle', 'checkVerseOrder', 'nextVerseOrderPuzzle']) {
+  const start = source.indexOf('function ' + name + '(');
+  vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
+}
+const verseRound = elapsedMs => ({type: 'verse-order', version: 'BSB', elapsedMs, score: 2,
+  puzzles: Array.from({length: 2}, () => ({answered: true, correct: true})), complete: false});
+const verseFirst = verseRound(10000);
+context.recordVerseOrderBest(verseFirst);
+assert.equal(verseFirst.verseOrderIsNewBest, true);
+const tie = verseRound(10000);
+context.recordVerseOrderBest(tie);
+assert.equal(tie.verseOrderIsNewBest, false);
+context.recordVerseOrderBest({...verseRound(5000), score: 1});
+context.recordVerseOrderBest({...verseRound(5000), puzzles: [{answered:false},{answered:false}]});
+assert.equal(context.savedVerseOrderBests()['BSB:2'].elapsedMs, 10000);
+context.recordVerseOrderBest({...verseRound(5000), version: 'KJV'});
+assert.equal(context.savedVerseOrderBests()['KJV:2'].elapsedMs, 5000);
+assert.equal(context.savedVerseOrderBests()['BSB:2'].elapsedMs, 10000);
+const game = {type: 'verse-order', version: 'BSB', elapsedMs: 0, puzzleStartedAt: now,
+  index: 0, score: 0, puzzles: Array.from({length: 2}, () => ({selectedIds: ['a'], segments: [{id:'a'}]}))};
+context.state.triviaGame = game;
+now = 4000;
+context.checkVerseOrder();
+assert.equal(game.elapsedMs, 3000);
+now = 64000;
+assert.equal(context.verseOrderElapsedMs(game), 3000, 'Answer reading must not count');
+context.checkVerseOrder();
+assert.equal(game.score, 1, 'Duplicate checking must not add points or time');
+context.nextVerseOrderPuzzle();
+now = 66000;
+context.checkVerseOrder();
+assert.equal(game.elapsedMs, 5000);
+context.nextVerseOrderPuzzle();
+assert.equal(game.complete, true);
+assert.equal(game.verseOrderIsNewBest, true);
+assert.equal(context.savedVerseOrderBests()['BSB:2'].elapsedMs, 5000);
+now = 99000;
+assert.equal(context.verseOrderElapsedMs(game), 5000);
+console.log('Verse Order timing, answer pauses, eligibility, ties and translation isolation passed.');

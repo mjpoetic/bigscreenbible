@@ -426,6 +426,7 @@ const gameMusicTracks = Object.freeze({
   "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", volume: 0.14 },
 });
 const gameOutcomeSounds = Object.freeze({
+  heaven: { key: "heaven", src: "./assets/audio/game-music/heaven-complete.mp3", volume: 0.13 },
   perfect: { key: "perfect", src: "./assets/audio/game-music/joyful-complete.mp3", volume: 0.105 },
   complete: { key: "complete", src: "./assets/audio/game-music/level-complete.mp3", volume: 0.13 },
   low: { key: "low", src: "./assets/audio/game-music/whomp-whomp.mp3", volume: 0.14 },
@@ -3505,9 +3506,9 @@ function soundsSettings(prefix = "", options = {}) {
     <div class="setting-group settings-section-subgroup">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("WordSearchSoundsToggle")}" ${state.wordSearchSounds ? "checked" : ""} />
-        <span>Word game feedback sounds</span>
+        <span>Game interaction and feedback sounds</span>
       </label>
-      <p class="setting-help">Plays letter and word confirmation tones, plus Word Search countdown ticks.</p>
+      <p class="setting-help">Retro clicks for game choices and controls, letter and word feedback, and Word Search countdown ticks.</p>
     </div>
   `, options);
 }
@@ -4133,7 +4134,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("sounds", "ModeTransitionVolume", "Mode transition volume", "Sounds", "audio loudness")}
       ${result("sounds", "GameMusicToggle", "Game music and result sounds", "Sounds", "audio")}
       ${result("sounds", "GameVolume", "Game volume", "Sounds", "music result feedback countdown loudness")}
-      ${result("sounds", "WordSearchSoundsToggle", "Word game feedback sounds", "Sounds", "letter word confirmation countdown")}
+      ${result("sounds", "WordSearchSoundsToggle", "Game interaction and feedback sounds", "Sounds", "letter word confirmation countdown")}
       ${result("sharing", "PassageShareFormatSelect", "Bible text format", "Sharing & Printing", "copy share quotation plain")}
       ${result("sharing", "PrintLayoutLabel", "Print layout", "Sharing & Printing", "reader big screen study")}
       ${result("sharing", "PrintVerseNumbersToggle", "Print verse numbers", "Sharing & Printing", "printing")}
@@ -11947,6 +11948,23 @@ function playWordSearchCountdownTick(secondsRemaining) {
   ready?.then((context) => playReadyWordSearchCountdownTick(context, secondsRemaining));
 }
 
+function handleGamesInteractionSound(event) {
+  if (state.mode !== "trivia" || !state.wordSearchSounds || state.gameVolume <= 0 || document.hidden) return;
+  const control = event.target.closest?.("button, summary, select, input[type=checkbox]");
+  if (!control || control.disabled || control.getAttribute("aria-disabled") === "true"
+    || !control.closest(".trivia-reader, #bestTimeCelebration")
+    || control.matches("[data-hidden-word-key], [data-crossword-key], [data-word-search-cell]")) return;
+  const navigation = control.matches("[data-trivia-mode], #gameOptionsToggle, #gameControlsToggle, #gameSocialToggle, #gameHintsToggle");
+  primeWordSearchAudio()?.then((context) => {
+    if (!context || context.state !== "running" || !state.wordSearchSounds || state.mode !== "trivia" || document.hidden) return;
+    playModeTone(context, {
+      startAt: context.currentTime + 0.004, duration: navigation ? 0.085 : 0.045,
+      startFrequency: navigation ? 660 : 880, endFrequency: navigation ? 990 : 740,
+      peakGain: 0.025, volume: soundVolumeScalar(state.gameVolume), type: "square",
+    });
+  });
+}
+
 function playWordSearchFeedbackSound(result) {
   const ready = primeWordSearchAudio();
   ready?.then((context) => playReadyWordSearchFeedbackSound(context, result));
@@ -12099,11 +12117,17 @@ function gameOutcomeSoundKey(game) {
   return "complete";
 }
 
+let lastPerfectCelebration = "";
+
 function playGameOutcomeSound(key) {
+  if (key === "perfect") {
+    key = lastPerfectCelebration === "perfect" ? "heaven" : "perfect";
+  }
   const sound = gameOutcomeSounds[key];
   if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden) return;
   const audio = ensureGameMusicAudio();
   if (!audio) return;
+  if (key === "perfect" || key === "heaven") lastPerfectCelebration = key;
   cancelGameMusicFade();
   audio.pause();
   audio.loop = false;
@@ -12197,6 +12221,44 @@ function resumeTriviaGameAfterReference(game = state.triviaGame, resumedAt = Dat
   return pausedDuration;
 }
 
+function verseOrderElapsedMs(game = state.triviaGame) {
+  if (game?.type !== "verse-order") return 0;
+  return (game.elapsedMs || 0) + (game.puzzleStartedAt && !game.complete
+    ? Math.max(0, Date.now() - game.puzzleStartedAt) : 0);
+}
+
+function savedVerseOrderBests() {
+  try {
+    const bests = JSON.parse(localStorage.getItem("lw_verse_order_bests_v1") || "{}");
+    return bests && typeof bests === "object" && !Array.isArray(bests) ? bests : {};
+  } catch { return {}; }
+}
+
+function verseOrderBestKey(version, count) {
+  return `${version}:${count}`;
+}
+
+function recordVerseOrderBest(game) {
+  if (game.verseOrderBestRecorded || !game.puzzles.length
+    || game.score !== game.puzzles.length || !game.puzzles.every(puzzle => puzzle.answered && puzzle.correct)) return;
+  const elapsedMs = verseOrderElapsedMs(game);
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return;
+  game.verseOrderBestRecorded = true;
+  const bests = savedVerseOrderBests();
+  const key = verseOrderBestKey(game.version, game.puzzles.length);
+  game.verseOrderIsNewBest = !bests[key] || elapsedMs < bests[key].elapsedMs;
+  if (game.verseOrderIsNewBest) {
+    bests[key] = { elapsedMs, completedAt: new Date().toISOString() };
+    localStorage.setItem("lw_verse_order_bests_v1", JSON.stringify(bests));
+  }
+  game.verseOrderBest = bests[key];
+}
+
+function verseOrderRecords(version, count, game = null) {
+  const best = savedVerseOrderBests()[verseOrderBestKey(version, count)];
+  return `<div class="games-records games-records-static"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"} · ${escapeHtml(version)} · ${count} verses</small>${game ? `<small>Round time: ${formatGameTime(verseOrderElapsedMs(game))}</small>` : ""}</div>`;
+}
+
 function referenceRushBestKey(difficulty, rounds, timed) {
   return `${difficulty}:${rounds}:${timed ? "timed" : "untimed"}`;
 }
@@ -12280,7 +12342,7 @@ function scheduleBookSprintTimer() {
   bookSprintTimer = 0;
   updateBookSprintTimerDisplay();
   const game = state.triviaGame;
-  if (state.mode !== "trivia" || game?.type !== "book-sprint" || game.complete || game.referencePausedAt) return;
+  if (state.mode !== "trivia" || !["book-sprint", "verse-order"].includes(game?.type) || game.complete || game.referencePausedAt) return;
   bookSprintTimer = setInterval(updateBookSprintTimerDisplay, 500);
 }
 
@@ -12314,6 +12376,11 @@ function playBookSprintTick(secondsRemaining) {
 
 function updateBookSprintTimerDisplay() {
   const game = state.triviaGame;
+  if (game?.type === "verse-order") {
+    const timer = document.getElementById("verseOrderTimer");
+    if (timer) timer.textContent = formatGameTime(verseOrderElapsedMs(game));
+    return;
+  }
   const timer = document.getElementById("bookSprintTimer");
   const label = document.getElementById("bookSprintTimerLabel");
   if (game?.type !== "book-sprint") return;
@@ -13191,14 +13258,16 @@ function triviaView() {
                     </div>
                     <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
                   ` : ""}
+                  ${isVerseOrder ? `<p class="setting-help">No time limit. Best times count fully correct rounds and pause between verses. Records are saved separately for each translation and verse count.</p>` : ""}
                   ${isHiddenWord ? hiddenWordScoreRules() : ""}
                   ${["trivia", "who-said-it"].includes(state.triviaGameType) ? quizScoreRules(state.triviaGameType) : ""}
                 </div>
               </aside>
             </div>
               </div>
+              ${isVerseOrder ? verseOrderRecords(verseOrderGameVersion(), selectedCount) : ""}
               ${isReferenceRush ? referenceRushRecords(state.triviaDifficulty, selectedCount, state.referenceRushTimed) : ""}
-              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
+              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush", "verse-order"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
               ${isHiddenWord ? hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext) : ["trivia", "who-said-it"].includes(state.triviaGameType) ? quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount }) : ""}
             </div>
             ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
@@ -13237,6 +13306,7 @@ function triviaView() {
               </div>
               <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody">
                 <div class="game-music-drawer-control">${gameMusicToggleMarkup("gameMusicDrawerToggle")}</div>
+                <label class="setting-checkbox"><input type="checkbox" id="gameFeedbackSoundsToggle" ${state.wordSearchSounds ? "checked" : ""} /><span>Game interaction sounds</span></label>
                 <div class="game-volume-drawer-control">${soundVolumeControlMarkup("game", "gameDrawer", { compact: true })}</div>
               </div>
             </aside>
@@ -13909,7 +13979,7 @@ function verseOrderGameView(game) {
     <div class="trivia-game verse-order-game">
       <div class="trivia-progress">
         <span>Verse Order · ${escapeHtml(game.version)} · ${puzzle.segments.length} pieces</span>
-        <strong>${game.index + 1} / ${game.puzzles.length}</strong>
+        <strong><span id="verseOrderTimer">${formatGameTime(verseOrderElapsedMs(game))}</span> · ${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
       <h2>Put this verse back in order.</h2>
       <p class="book-sprint-instructions" id="verseOrderInstructions">Tap fragments to add them, or drag them into place. Drag placed fragments to reorder them.</p>
@@ -14248,6 +14318,7 @@ function triviaResultsView(game) {
         <div class="trivia-result-ring">${(game.type === "hidden-word" || isQuizPointsGame(game)) ? `${(game.points || 0).toLocaleString()}<small>points</small>` : `${percent}%`}</div>
         <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
         <p>${resultText}</p>
+        ${game.type === "verse-order" ? verseOrderRecords(game.version, roundLength, game) : ""}
         ${game.type === "reference-rush" ? referenceRushRecords(game.difficulty, roundLength, game.timed, game) : ""}
         ${game.type === "hidden-word" ? `${hiddenWordLeaderboard(game.difficulty, roundLength, game)}${hiddenWordScoreRules()}` : ""}
         ${isQuizPointsGame(game) ? `<p>Best streak: ${game.bestStreak || 0}${game.perfectBonus ? " · Perfect round +1,000" : ""}</p>${quizLeaderboard(game)}${quizScoreRules(game.type)}` : ""}
@@ -14276,6 +14347,7 @@ function completeTriviaGame(game) {
     if (!game.finishedAt) game.finishedAt = Date.now();
     recordReferenceRushBest(game);
   }
+  if (game.type === "verse-order") recordVerseOrderBest(game);
   if (isQuizPointsGame(game)) recordQuizScore(game);
   game.complete = true;
   const roundLength = triviaRoundLength(game);
@@ -14296,6 +14368,7 @@ function newBestTimeResult(game) {
   if (game.type === "hidden-word" && game.hiddenWordIsNewBest) return game.hiddenWordBest || null;
   if (game.type === "word-search" && game.wordSearchIsNewBest) return game.wordSearchBest;
   if (game.type === "crossword" && game.crosswordIsNewBest) return game.crosswordBest;
+  if (game.type === "verse-order" && game.verseOrderIsNewBest) return game.verseOrderBest;
   if (game.type === "reference-rush" && game.referenceRushIsNewBest) return game.referenceRushBest;
   if (game.type === "book-sprint" && game.bookSprintNewBest) return game.bookSprintBest;
   return null;
@@ -17165,7 +17238,7 @@ function bindEvents() {
       if (input.dataset.soundVolume === "mode") setModeTransitionVolume(input.value, { preview: true });
     });
   });
-  ["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle"].forEach((id) => {
+  ["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle", "gameFeedbackSoundsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       setWordSearchSounds(event.target.checked);
     });
@@ -19551,6 +19624,8 @@ function startVerseOrderGame({ render = true } = {}) {
   state.triviaGame = {
     type: "verse-order",
     version: verseOrderGameVersion(),
+    elapsedMs: 0,
+    puzzleStartedAt: Date.now(),
     puzzles: selectedVerses.map((item, index) => createVerseOrderPuzzle(item, verseOrderPieceCount(index, puzzleCount))),
     index: 0,
     score: 0,
@@ -20806,6 +20881,8 @@ function checkVerseOrder() {
   const game = state.triviaGame;
   const puzzle = currentVerseOrderPuzzle();
   if (!game || !puzzle || puzzle.answered || puzzle.selectedIds.length !== puzzle.segments.length) return;
+  game.elapsedMs = verseOrderElapsedMs(game);
+  game.puzzleStartedAt = null;
   puzzle.correct = isVerseOrderSelectionCorrect(puzzle);
   puzzle.answered = true;
   if (puzzle.correct) game.score += 1;
@@ -20814,11 +20891,12 @@ function checkVerseOrder() {
 
 function nextVerseOrderPuzzle() {
   const game = state.triviaGame;
-  if (!game) return;
+  if (!game || game.complete || !currentVerseOrderPuzzle()?.answered) return;
   if (game.index >= game.puzzles.length - 1) {
     completeTriviaGame(game);
   } else {
     game.index += 1;
+    game.puzzleStartedAt = Date.now();
   }
   renderPreservingReaderScroll();
 }
@@ -26032,3 +26110,5 @@ if (startupLoaderPreview) {
   initializeSupabaseAuth();
   initializeBibleData();
 }
+
+document.addEventListener("click", handleGamesInteractionSound, true);

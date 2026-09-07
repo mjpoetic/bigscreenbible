@@ -593,6 +593,46 @@ function createJoyfulComplete() {
   return synth;
 }
 
+// HEAVEN, Emily D. Wilson (1898), public domain. Refrain melody transcribed
+// from https://library.timelesstruths.org/music/When_We_All_Get_to_Heaven/ .
+// Original synthesized arrangement; no third-party recording or samples.
+function createHeavenComplete() {
+  const synth = new LoopSynth({ bpm: 176, beats: 34, seed: 0x1898 });
+  const melody = [
+    [64, .75], [67, .25], [72, 3], [71, .75], [69, .25],
+    [67, 2], [64, 1], [67, .75], [67, .25],
+    [72, 1], [72, .75], [72, .25], [72, .75], [72, .25], [71, .75], [72, .25], [74, 3],
+    [67, .75], [72, .25], [76, 3], [72, 1], [72, 2], [69, 1], [69, 1],
+    [67, 1], [72, 1], [72, .75], [71, .25], [69, .75], [71, .25], [72, 4],
+  ];
+  let beat = 0;
+  melody.forEach(([note, length], index) => {
+    synth.addTone({ beat, beats: length * .92, note: note + 12,
+      amplitude: .12, type: "square", attack: .004, release: .06,
+      pan: index % 2 ? .08 : -.08, octaveLayer: .12 });
+    beat += length;
+  });
+  const chords = [[48,55,60,64], [48,55,60,64], [48,55,60,64], [43,50,55,59],
+    [48,55,60,64], [53,57,60,65], [43,50,55,59], [48,55,60,64]];
+  chords.forEach((notes, bar) => {
+    const start = 1 + bar * 4;
+    addChord(synth, start, notes, { beats: 3.7, amplitude: .125, type: "pulse", attack: .018, release: .16, width: 1.25 });
+    for (let step = 0; step < 8; step++) {
+      synth.addTone({ beat: start + step * .5, beats: .32, note: notes[step % 4] + 12,
+        amplitude: .024, type: "pulse", release: .04, pan: step % 2 ? .5 : -.5 });
+      synth.addHat(start + step * .5, step % 2 ? .04 : .025);
+    }
+    synth.addKick(start, .22);
+    synth.addKick(start + 2, .18);
+    synth.addSnare(start + 1, .13);
+    synth.addSnare(start + 3, .15);
+  });
+  [0.35, 1.75, 3.25, 5.1].forEach((beat, index) => synth.addFirework(beat, .15 + index * .012, index % 2 ? .58 : -.58));
+  synth.addCircularDelay(synth.beatSeconds * .5, .09, .28);
+  synth.master({ peak: .88, bitDepth: 12, sampleHold: 1 });
+  return synth;
+}
+
 function createLevelComplete() {
   const synth = new LoopSynth({ bpm: 148, beats: 8, seed: 0x1eae1 });
   [60, 64, 67, 72, 76, 79].forEach((note, index) => synth.addTone({
@@ -793,7 +833,9 @@ function encodeTrack(name, synth) {
 }
 
 mkdirSync(outputDir, { recursive: true });
-const tracks = productionMode
+const tracks = process.argv.includes("--heaven-only")
+  ? [encodeTrack("heaven-complete", createHeavenComplete())]
+  : productionMode
   ? [
       encodeTrack("word-garden", createWordGarden()),
       encodeTrack("unfolding-mystery", createUnfoldingMystery()),
@@ -805,6 +847,7 @@ const tracks = productionMode
       encodeTrack("canon-run", createCanonRun()),
       encodeTrack("hidden-voice", createHiddenVoice()),
       encodeTrack("joyful-complete", createJoyfulComplete()),
+      encodeTrack("heaven-complete", createHeavenComplete()),
       encodeTrack("level-complete", createLevelComplete()),
       encodeTrack("whomp-whomp", createWhompWhomp()),
     ]

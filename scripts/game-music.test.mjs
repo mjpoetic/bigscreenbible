@@ -22,6 +22,7 @@ const tracks = [
 
 const outcomeSounds = [
   ["joyful-complete.mp3", "perfect"],
+  ["heaven-complete.mp3", "heaven"],
   ["level-complete.mp3", "complete"],
   ["whomp-whomp.mp3", "low"],
 ];
