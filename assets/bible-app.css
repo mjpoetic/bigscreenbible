@@ -8838,6 +8838,10 @@ select {
 }
 
 .trivia-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
   min-height: 72px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -8848,6 +8852,38 @@ select {
   font-size: clamp(17px, 1.35vw, 22px);
   font-weight: 750;
   line-height: 1.35;
+}
+
+.trivia-choice-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.9em;
+  border: 1px solid color-mix(in srgb, var(--teal) 22%, transparent);
+  border-radius: 0.65em;
+  background: color-mix(in srgb, var(--teal) 12%, var(--paper));
+  color: var(--teal);
+  font-size: 0.85em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.trivia-choice-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.trivia-choice.correct .trivia-choice-number {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success) 16%, var(--paper));
+  color: var(--success);
+}
+
+.trivia-choice.incorrect .trivia-choice-number {
+  border-color: color-mix(in srgb, currentColor 25%, transparent);
+  background: color-mix(in srgb, #d36c6c 18%, var(--paper));
+  color: var(--ink);
 }
 
 .trivia-choice:not(:disabled):hover {

@@ -13350,7 +13350,7 @@ function triviaChoiceButton(question, choice, answered) {
     eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
   const number = question.choices.indexOf(choice) + 1;
-  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered || eliminated ? "disabled" : ""}>${number}. ${escapeHtml(choice)}</button>`;
+  return `<button class="${classes}" data-trivia-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered || eliminated ? "disabled" : ""}><span class="trivia-choice-number">${number}</span><span class="trivia-choice-label">${escapeHtml(choice)}</span></button>`;
 }
 
 function wordSearchPassageMarkup(game) {
@@ -14017,7 +14017,7 @@ function referenceRushChoiceButton(puzzle, choice, answered) {
     eliminated ? "eliminated" : "",
   ].filter(Boolean).join(" ");
   const number = puzzle.choices.indexOf(choice) + 1;
-  return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered || eliminated ? "disabled" : ""}>${number}. ${escapeHtml(choice)}</button>`;
+  return `<button class="${classes}" data-reference-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered || eliminated ? "disabled" : ""}><span class="trivia-choice-number">${number}</span><span class="trivia-choice-label">${escapeHtml(choice)}</span></button>`;
 }
 
 function bookSprintGameView(game) {
@@ -14146,7 +14146,7 @@ function whoSaidItChoiceButton(question, choice, answered) {
     answered && selected && !isCorrect ? "incorrect" : "",
   ].filter(Boolean).join(" ");
   const number = question.choices.indexOf(choice) + 1;
-  return `<button class="${classes}" data-who-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered ? "disabled" : ""}>${number}. ${escapeHtml(choice)}</button>`;
+  return `<button class="${classes}" data-who-answer="${escapeHtml(choice)}" aria-keyshortcuts="${number}" ${answered ? "disabled" : ""}><span class="trivia-choice-number">${number}</span><span class="trivia-choice-label">${escapeHtml(choice)}</span></button>`;
 }
 
 function triviaResultsView(game) {
