@@ -1,3 +1,4 @@
+let parallelVersionDragCleanup = null;
 const bookDefinitions = [
   ["Genesis", 50], ["Exodus", 40], ["Leviticus", 27], ["Numbers", 36], ["Deuteronomy", 34],
   ["Joshua", 24], ["Judges", 21], ["Ruth", 4], ["1 Samuel", 31], ["2 Samuel", 24],
@@ -1500,6 +1501,7 @@ function restoreAccountPanelScroll(scrollState) {
 }
 
 function render() {
+  parallelVersionDragCleanup?.();
   pauseReaderAutoScroll({ updateControl: false });
   closeSearchScopeMenu();
   closeSettingsChoiceMenu();
@@ -14717,7 +14719,8 @@ function parallelVersionSelectorMarkup(version, index, { mobile = false } = {}) 
     ? `<button class="parallel-version-remove" type="button" data-remove-parallel-version="${version}" aria-label="Remove ${translationDisplayCode(version)} from Parallel Study" data-tooltip="Remove ${translationDisplayCode(version)}">${icons.clear}</button>`
     : "";
   return `
-    <div class="parallel-version-selector">
+    <div class="parallel-version-selector" data-parallel-column="${index}">
+      ${activeVersions().length > 1 ? `<button class="parallel-version-grip" type="button" data-reorder-parallel-version="${version}" aria-label="Reorder ${translationDisplayCode(version)}. Drag or use Left and Right arrow keys. Leftmost version is primary." data-tooltip="Drag to reorder · Leftmost is primary"><svg viewBox="0 0 16 20" width="12" height="18" aria-hidden="true"><path d="M5 4h0M11 4h0M5 10h0M11 10h0M5 16h0M11 16h0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>` : ""}
       <button class="parallel-version-trigger" type="button" data-parallel-version-toggle="${index}" aria-label="Change ${translationDisplayCode(version)} Bible version" aria-haspopup="listbox" aria-expanded="${state.parallelVersionMenuIndex === index ? "true" : "false"}">
         <span>${translationDisplayCode(version)}</span>
         <span class="parallel-version-trigger-chevron" aria-hidden="true">⌄</span>
@@ -16941,6 +16944,7 @@ function bindEvents() {
     state.headerVersionMenuOpen = true;
     renderPreservingReaderScroll();
   });
+  bindParallelVersionReordering();
   document.querySelectorAll("[data-parallel-version-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       const index = Number(button.dataset.parallelVersionToggle);
@@ -18359,6 +18363,141 @@ function setPassageShareFormat(format) {
   scheduleCloudSync();
   if (state.mode === "big") render();
   else renderPreservingReaderScroll();
+}
+
+// Keep a single cleanup hook so unrelated renders cannot leave a drag active.
+
+function reorderParallelVersion(version, targetIndex) {
+  const versions = activeVersions();
+  const sourceIndex = versions.indexOf(version);
+  if (state.mode !== "parallel" || sourceIndex < 0 || !Number.isInteger(targetIndex)
+    || targetIndex < 0 || targetIndex >= versions.length || sourceIndex === targetIndex) return;
+  // An explicit reorder adopts the displayed versions, including a shared-link version.
+  clearSharedVersionOverride();
+  state.versions.splice(sourceIndex, 1);
+  state.versions.splice(targetIndex, 0, version);
+  state.parallelVersionMenuIndex = null;
+  state.parallelVersionMenuPosition = null;
+  state.presentationPart = 0;
+  rebuildBibleData();
+  persistVersions({ changed: true });
+  scheduleCloudSync();
+  renderPreservingReaderScroll();
+  const grip = [...document.querySelectorAll("[data-reorder-parallel-version]")]
+    .find((button) => button.dataset.reorderParallelVersion === version && button.getClientRects().length);
+  grip?.focus({ preventScroll: true });
+  showToast(`${translationDisplayCode(version)} moved to position ${targetIndex + 1}. ${translationDisplayCode(state.versions[0])} is primary.`);
+}
+
+function bindParallelVersionReordering() {
+  document.querySelectorAll("[data-reorder-parallel-version]").forEach((grip) => {
+    grip.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.isComposing || event.repeat) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const version = grip.dataset.reorderParallelVersion;
+      reorderParallelVersion(version, activeVersions().indexOf(version) + (event.key === "ArrowLeft" ? -1 : 1));
+    });
+    grip.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      event.preventDefault();
+      event.stopPropagation();
+      parallelVersionDragCleanup?.();
+      pauseReaderAutoScroll({ updateControl: false });
+      const version = grip.dataset.reorderParallelVersion;
+      const sourceIndex = activeVersions().indexOf(version);
+      const row = grip.closest(".parallel-head, .parallel-mobile-versions");
+      const columns = [...row.querySelectorAll("[data-parallel-column]")];
+      const scripture = grip.closest(".scripture");
+      let targetIndex = sourceIndex;
+      let moved = false;
+      let ghost = null;
+      let frame = 0;
+      let x = event.clientX;
+      let y = event.clientY;
+      const clearPreview = () => document.querySelectorAll(".parallel-drop-target, .parallel-drag-source")
+        .forEach((element) => element.classList.remove("parallel-drop-target", "parallel-drag-source"));
+      const preview = () => {
+        clearPreview();
+        if (targetIndex < 0) return;
+        columns[sourceIndex].classList.add("parallel-drag-source");
+        columns[targetIndex].classList.add("parallel-drop-target");
+        document.querySelectorAll(`.parallel-row > .parallel-copy:nth-child(${targetIndex + 2})`)
+          .forEach((cell) => cell.classList.add("parallel-drop-target"));
+      };
+      const update = () => {
+        if (!moved) return;
+        const bounds = row.getBoundingClientRect();
+        const surface = scripture.getBoundingClientRect();
+        const inside = x >= surface.left && x <= surface.right && y >= bounds.top - 40 && y <= bounds.bottom + 60;
+        targetIndex = inside ? columns.findIndex((column) => x < column.getBoundingClientRect().right) : -1;
+        if (inside && targetIndex < 0) targetIndex = columns.length - 1;
+        ghost.style.left = `${Math.max(8, Math.min(window.innerWidth - 180, x + 12))}px`;
+        ghost.style.top = `${Math.max(8, y + 20)}px`;
+        ghost.textContent = targetIndex < 0 ? "Release to cancel" : `${translationDisplayCode(version)} → ${targetIndex === 0 ? "Primary" : `Position ${targetIndex + 1}`}`;
+        preview();
+      };
+      const autoScroll = () => {
+        if (moved && scripture.scrollWidth > scripture.clientWidth) {
+          const bounds = scripture.getBoundingClientRect();
+          const rowBounds = row.getBoundingClientRect();
+          if (y >= rowBounds.top - 40 && y <= rowBounds.bottom + 60 && x >= bounds.left && x <= bounds.right) {
+            const delta = x > bounds.right - 42 ? 10 : x < bounds.left + 42 ? -10 : 0;
+            if (delta) { scripture.scrollLeft += delta; update(); }
+          }
+        }
+        frame = requestAnimationFrame(autoScroll);
+      };
+      const move = (next) => {
+        if (next.pointerId !== event.pointerId) return;
+        x = next.clientX;
+        y = next.clientY;
+        if (!moved && Math.hypot(x - event.clientX, y - event.clientY) >= 6) {
+          moved = true;
+          ghost = document.createElement("div");
+          ghost.className = "parallel-drag-preview";
+          ghost.setAttribute("aria-hidden", "true");
+          document.body.append(ghost);
+        }
+        update();
+      };
+      const cleanup = () => {
+        parallelVersionDragCleanup = null;
+        cancelAnimationFrame(frame);
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", finish);
+        window.removeEventListener("pointercancel", cancel);
+        window.removeEventListener("keydown", escape, true);
+        window.removeEventListener("blur", cleanup);
+        grip.removeEventListener("lostpointercapture", cleanup);
+        if (grip.hasPointerCapture(event.pointerId)) grip.releasePointerCapture(event.pointerId);
+        ghost?.remove();
+        clearPreview();
+      };
+      const finish = (next) => {
+        if (next.pointerId !== event.pointerId) return;
+        move(next);
+        cleanup();
+        if (moved && targetIndex >= 0) reorderParallelVersion(version, targetIndex);
+      };
+      const cancel = (next) => { if (next.pointerId === event.pointerId) cleanup(); };
+      const escape = (next) => {
+        if (next.key !== "Escape") return;
+        next.preventDefault();
+        next.stopImmediatePropagation();
+        cleanup();
+      };
+      parallelVersionDragCleanup = cleanup;
+      grip.setPointerCapture(event.pointerId);
+      grip.addEventListener("lostpointercapture", cleanup);
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", finish);
+      window.addEventListener("pointercancel", cancel);
+      window.addEventListener("keydown", escape, true);
+      window.addEventListener("blur", cleanup);
+      frame = requestAnimationFrame(autoScroll);
+    });
+  });
 }
 
 async function setParallelVersionAt(index, version) {

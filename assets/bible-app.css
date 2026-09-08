@@ -22437,3 +22437,48 @@ svg {
   justify-content: center;
   margin-inline: 0;
 }
+
+/* Version ordering uses a dedicated touch target, preserving Scripture scrolling. */
+.parallel-version-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  min-height: 40px;
+  padding: 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.parallel-version-grip:hover,
+.parallel-version-grip:focus-visible {
+  background: var(--soft);
+  color: var(--ink);
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+}
+.parallel-version-grip:active { cursor: grabbing; }
+.parallel-drag-source { opacity: .55; }
+.parallel-drop-target {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--teal) 12%, var(--panel)) !important;
+}
+.parallel-drag-preview {
+  position: fixed;
+  z-index: 11000;
+  pointer-events: none;
+  padding: 10px 14px;
+  border: 2px solid var(--teal);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font: 700 13px / 1.4 var(--ui-font, sans-serif);
+}
+.parallel-mobile-versions .parallel-version-trigger { min-width: 0; }
