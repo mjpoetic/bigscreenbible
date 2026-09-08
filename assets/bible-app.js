@@ -90,6 +90,7 @@ const translations = [
   { code: "NKJV", name: "New King James Version", provider: "apiBible" },
   { code: "NLT", name: "New Living Translation", provider: "apiBible" },
   { code: "WEB", name: "World English Bible", provider: "local" },
+  { code: "YLT", name: "Young's Literal Translation", provider: "local" },
 ];
 
 const translationCodes = translations.map((translation) => translation.code).sort((a, b) => a.localeCompare(b));
@@ -6536,7 +6537,7 @@ function versePickerPanel() {
     </div>
     <div class="library-footer">
       <strong>${activeVersions().map(translationDisplayCode).join(" + ")}</strong>
-      <span>KJV, BSB, WEB, ASV, and BBE are bundled as full texts from public-domain/open Scripture sources.</span>
+      <span>KJV, BSB, WEB, ASV, BBE, and YLT are bundled as full texts from public-domain/open Scripture sources.</span>
       <span>Strong's dictionary lookups use the Open Scriptures Strong's dictionaries when the site can load them.</span>
       <span>Verse of the Day comes from VerseoftheDay.com / Heartlight via RSS, with the local curated schedule as a fallback.</span>
     </div>

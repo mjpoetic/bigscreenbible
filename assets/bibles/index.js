@@ -363,6 +363,12 @@ window.BIGSCREEN_BIBLE_INDEX={
       "source": "https://github.com/seven1m/open-bibles/blob/master/eng-bbe.usfx.xml",
       "chapters": 1189,
       "verses": 31102
+    },
+    "YLT": {
+      "name": "Young's Literal Translation",
+      "source": "https://ebible.org/engylt/",
+      "chapters": 1189,
+      "verses": 31102
     }
   }
 };

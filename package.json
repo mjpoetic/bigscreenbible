@@ -46,6 +46,7 @@
     "test:trivia": "node scripts/trivia-question-quality.test.mjs && node scripts/quiz-scoring.test.mjs",
     "test:providers": "node scripts/provider-migration.test.mjs",
     "test:version-loading": "node scripts/bible-version-loading.test.mjs",
+    "test:ylt": "node scripts/ylt.test.mjs",
     "test:verse-of-day": "node scripts/verse-of-day-presentation.test.mjs",
     "test:version-sync": "node scripts/version-sync.test.mjs",
     "test:word-search": "node scripts/word-search.test.mjs",

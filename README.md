@@ -59,8 +59,11 @@ The bundled full-text translations live in `assets/bibles/` as JavaScript data b
 - WEB: World English Bible
 - ASV: American Standard Version (1901)
 - BBE: Bible in Basic English
+- YLT: Young's Literal Translation
 
 The data bundles were generated from eBible.org USFX packages for [KJV](https://ebible.org/eng-kjv/), [BSB](https://ebible.org/engbsb/), [WEB](https://ebible.org/engwebp/), and [ASV](https://ebible.org/eng-asv/). BBE was generated from the public-domain [eng-bbe.usfx.xml](https://github.com/seven1m/open-bibles/blob/master/eng-bbe.usfx.xml) file in the seven1m/open-bibles collection.
+
+YLT is imported from the [eBible.org YLT USFX package](https://ebible.org/Scriptures/engylt_usfx.zip), whose [rights notice confirms public-domain status](https://ebible.org/engylt/copyright.htm). The bundle includes all 66 books, 1,189 chapters, and 31,102 verses, preserving the source's wording, punctuation, and paragraph starts. To regenerate it, download and extract the package, then run `python3 scripts/import-ylt.py /path/to/engylt_usfx.xml`. The bundle records the source XML SHA-256 for reproducibility. This source has no Strong's tags, section headings, or red-letter annotations; YLT does not invent these metadata.
 
 The bundled data also includes Strong's number mappings. KJV, WEB, and ASV retain the word-level tags supplied by their source packages. BSB uses phrase-level Hebrew/Greek alignments generated from the official BSB Translation Tables so multi-word renderings, multiple source words, and proper names remain connected accurately.
 
