@@ -21584,6 +21584,13 @@ function gotoReference(value, options = {}) {
   const shouldTrackReturn = options.returnNavigation !== false;
   const returnTarget = shouldTrackReturn ? captureReaderReturnTarget() : null;
   if (!setReferenceFromString(cleaned)) return false;
+  if (options.focusedPassage) {
+    const parsed = parsePassageReference(cleaned);
+    state.sharedPassage = {
+      verses: cleaned.includes(":") ? [...parsed.verses] : currentChapter().verses.map((verse) => verse.n),
+    };
+    state.mode = "reader";
+  }
   if (shouldTrackReturn && returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
     pushReaderReturnTarget(returnTarget);
     state.returnSelectionToolsOpen = false;
@@ -21598,10 +21605,11 @@ function gotoReference(value, options = {}) {
   if (options.closeLibrary) {
     dismissLibraryAfterAction();
   }
-  state.pendingVerseFocus = true;
+  state.pendingVerseFocus = !state.sharedPassage;
   recordHistory();
   updateShareUrl();
   render();
+  if (state.sharedPassage) document.querySelector(".scripture")?.scrollTo({ top: 0 });
   if (options.libraryScroll) requestAnimationFrame(() => restoreLibraryScroll(options.libraryScroll));
   return true;
 }
@@ -21610,12 +21618,12 @@ function submitFocusReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   state.focusReferenceOpen = false;
-  state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
   if (parseReference(cleaned)) {
-    gotoReference(cleaned);
+    gotoReference(cleaned, { focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive) });
     return;
   }
+  state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   runPhraseSearch(cleaned, {
     focusResults: true,
     sourceInputId: options.sourceInputId || "mobileFocusPassageInput",
@@ -21625,12 +21633,12 @@ function submitFocusReference(value, options = {}) {
 async function runReferenceOrPhraseSearch(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
-  state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
   if (parseReference(cleaned)) {
-    gotoReference(cleaned);
+    gotoReference(cleaned, { focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive) });
     return;
   }
+  state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   await runPhraseSearch(cleaned, {
     focusResults: state.focusMode && state.mode !== "big",
     presentationResults: state.mode === "big",

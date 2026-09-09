@@ -247,3 +247,35 @@ vm.runInContext(extractFunction('openCrossReferencePopup'), popupContext);
 popupContext.openCrossReferencePopup({dataset:{crossRefVerse:'17'}});
 assert.deepEqual(popupContext.state.sharedPassage.verses, [16,17]);
 assert.equal(popupContext.state.verse,17);
+
+const referenceSearch = {
+  state: { mode:'reader', sharedPassage:{verses:[16,17]}, isVerseOfDayActive:false },
+  parseReference: () => ({key:'Proverbs 3',verse:5}),
+  parsePassageReference: () => ({key:'Proverbs 3',verse:5,verses:[5,6]}),
+  setReferenceFromString() { this.state.reference='Proverbs 3'; this.state.sharedPassage=null; return true; },
+  captureReaderReturnTarget: () => null,
+  searchRequestId: 0,
+  clearInlineChapterSearchState: () => {},
+  recordHistory: () => {}, updateShareUrl: () => {}, render: () => {},
+  document: {querySelector: () => null},
+  currentChapter: () => ({verses:[{n:1},{n:2},{n:3}]}),
+};
+// Bind the setter explicitly because extracted app functions call it without a receiver.
+referenceSearch.setReferenceFromString = () => { referenceSearch.state.reference='Proverbs 3'; referenceSearch.state.sharedPassage=null; return true; };
+vm.createContext(referenceSearch);
+vm.runInContext(`${extractFunction('gotoReference')}\n${extractFunction('runReferenceOrPhraseSearch')}\n${extractFunction('submitFocusReference')}`, referenceSearch);
+for (const entry of ['runReferenceOrPhraseSearch','submitFocusReference']) {
+  for (const mode of ['focused','reader','parallel']) {
+    referenceSearch.state.mode = mode === 'focused' ? 'reader' : mode;
+    referenceSearch.state.sharedPassage = mode === 'focused' ? {verses:[16,17]} : null;
+    await referenceSearch[entry]('Proverbs 3:5-6');
+    assert.equal(referenceSearch.state.mode,mode === 'focused' ? 'reader' : mode);
+    assert.equal(Boolean(referenceSearch.state.sharedPassage),mode === 'focused');
+    if (mode === 'focused') assert.deepEqual([...referenceSearch.state.sharedPassage.verses],[5,6]);
+    assert.equal(referenceSearch.state.pendingVerseFocus,mode !== 'focused');
+  }
+}
+referenceSearch.state.sharedPassage={verses:[5,6]};
+await referenceSearch.runReferenceOrPhraseSearch('Proverbs 3');
+assert.deepEqual([...referenceSearch.state.sharedPassage.verses],[1,2,3]);
+console.log('Reference search preserves focused, Reader, and Parallel contexts');

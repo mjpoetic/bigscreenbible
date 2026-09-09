@@ -73,7 +73,7 @@ assert.match(source, /function noteSearchAvailable\(\)[\s\S]*?\["reader", "paral
 assert.match(runPhraseSearch, /if \(source === "notes"\)/);
 assert.match(runPhraseSearch, /state\.searchResults = searchSavedNotes\(query\)/);
 assert.match(runPhraseSearch, /state\.searchResultsSource = "notes"/);
-assert.match(extractFunction("runReferenceOrPhraseSearch"), /if \(parseReference\(cleaned\)\)[\s\S]*?gotoReference\(cleaned\)/);
+assert.match(extractFunction("runReferenceOrPhraseSearch"), /if \(parseReference\(cleaned\)\)[\s\S]*?gotoReference\(cleaned,/);
 assert.match(extractFunction("searchResultsMarkup"), /noteSearchResultsMarkup\(query\)/);
 assert.match(extractFunction("noteSearchResultsMarkup"), /data-edit-note=/);
 assert.match(extractFunction("noteSearchResultsMarkup"), /data-goto=/);
