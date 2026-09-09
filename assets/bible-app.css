@@ -9302,7 +9302,7 @@ select {
 
 .verse-of-day-copy {
   margin: 0;
-  font: 400 clamp(27px, 3.4vw, 46px) / 1.55 var(--scripture-font);
+  font: 400 calc(clamp(27px, 3.4vw, 46px) * var(--text-scale, 1)) / 1.55 var(--scripture-font);
   text-wrap: pretty;
 }
 
@@ -18671,7 +18671,7 @@ svg {
     box-shadow: var(--shadow);
   }
 
-  .main-grid:not(.focus-mode) > .reader {
+  .main-grid:not(.focus-mode) > .reader:not(.shared-passage-active) {
     grid-column: 2 !important;
     min-width: 0;
   }
@@ -18731,7 +18731,7 @@ svg {
     border-left: 1px solid var(--line);
   }
 
-  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) > .reader {
+  .app-shell[data-side-toolbar-position="right"] .main-grid:not(.focus-mode) > .reader:not(.shared-passage-active) {
     grid-column: 1 !important;
     grid-row: 1;
   }

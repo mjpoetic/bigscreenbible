@@ -25007,6 +25007,7 @@ function applyTextScaleVars() {
   const grid = document.querySelector(".main-grid");
   if (!grid) return;
   const { verse, parallel } = computedTextFonts();
+  grid.style.setProperty("--text-scale", state.textScale);
   grid.style.setProperty("--verse-font", `${verse}px`);
   grid.style.setProperty("--parallel-font", `${parallel}px`);
 }
