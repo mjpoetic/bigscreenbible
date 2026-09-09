@@ -8,6 +8,7 @@ const outDir = path.join(rootDir, "www");
 
 const entries = [
   "index.html",
+  "404.html",
   "app-version.json",
   "about.html",
   "privacy",

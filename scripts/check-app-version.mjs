@@ -8,6 +8,7 @@ const rootDir = path.resolve(__dirname, "..");
 const versionPath = path.join(rootDir, "app-version.json");
 const htmlFiles = ["index.html", "about.html", "privacy/index.html", "terms/index.html"];
 const releaseManagedFiles = [
+  "404.html",
   ...htmlFiles,
   "assets/bible-app.css",
   "assets/bible-app.js",

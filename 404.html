@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Open a passage · Big Screen Bible</title>
+    <style>
+      body { margin: 0; padding: 48px 24px; background: #f8fbff; color: #182637; font: 18px/1.6 system-ui, sans-serif; }
+      main { max-width: 620px; margin: auto; }
+      a { color: #225c91; }
+      code { overflow-wrap: anywhere; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Open a Bible passage</h1>
+      <p id="passageLinkStatus">That address could not be opened. Try a passage such as <a href="/Pro3:5-6">Pro3:5-6</a> or <a href="/Proverbs3:5-6/KJV">Proverbs3:5-6/KJV</a>.</p>
+      <p><a href="/">Go to Big Screen Bible</a></p>
+      <noscript><p>Enable JavaScript to open a passage directly.</p></noscript>
+    </main>
+    <script>
+      // GitHub Pages serves this file for direct, human-readable passage paths.
+      // Always redirect to our own root so relative app assets resolve correctly.
+      function passagePathDestination(href) {
+        const source = new URL(href);
+        let passage;
+        try { passage = decodeURIComponent(source.pathname); } catch { return null; }
+        passage = passage.replace(/^\/+|\/+$/g, "").replace(/\+/g, " ")
+          .replace(/[–—]/g, "-").replace(/\s+to\s+/gi, "-")
+          .replace(/\s+chapter\s*/gi, " ").trim();
+        if (passage.length > 180) return null;
+        const match = passage.match(/^((?:[1-3]\s*)?[a-z][a-z. ]*?)\s*(\d{1,3})(?:(?:\s*[:.]\s*|\s+v(?:erses?|v)?\.?\s*)(\d{1,3}(?:\s*[-,]\s*\d{1,3})*))?(?:\s*(?:\/|\s|\()\s*([a-z][a-z0-9]{1,14})\)?)?$/i);
+        if (!match || Number(match[2]) < 1) return null;
+        const reference = `${match[1].trim()} ${Number(match[2])}${match[3] ? `:${match[3].replace(/\s/g, "")}` : ""}`;
+        const destination = new URL("/", source.origin);
+        // Preserve explicit query options; the path supplies the passage itself.
+        destination.search = source.search;
+        destination.searchParams.set("ref", reference);
+        destination.searchParams.delete("reference");
+        destination.searchParams.delete("verses");
+        if (match[4] && !destination.searchParams.has("version") && !destination.searchParams.has("translation")) {
+          destination.searchParams.set("version", match[4]);
+        }
+        return destination.href;
+      }
+      const passageDestination = passagePathDestination(window.location.href);
+      if (passageDestination) {
+        document.getElementById("passageLinkStatus").textContent = "Opening your passage…";
+        window.location.replace(passageDestination);
+      }
+    </script>
+  </body>
+</html>
