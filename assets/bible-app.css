@@ -22547,3 +22547,59 @@ svg {
 .app-shell:has(.shared-passage-active) .main-grid {
   height: calc(100dvh - var(--topbar-height));
 }
+
+.shared-passage-reader {
+  max-width: 1120px;
+  margin-top: clamp(14px, 3vh, 32px);
+}
+.shared-passage-reader .verse-of-day-copy {
+  font-size: calc(clamp(23px, 2.25vw, 34px) * var(--text-scale, 1));
+}
+.focused-verse-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 44px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 0.55em var(--ui-font);
+  vertical-align: 0.25em;
+  cursor: pointer;
+}
+.focused-verse-number:hover,
+.focused-verse-number:focus-visible {
+  color: var(--ink);
+  background: var(--gold-soft);
+}
+.focused-passage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 26px;
+}
+.focused-passage-actions .ghost-btn {
+  min-height: 44px;
+  gap: 7px;
+}
+.focused-passage-actions .verse-of-day-read-button {
+  margin-top: 0;
+}
+.focused-passage-actions svg {
+  width: 17px;
+  height: 17px;
+}
+@media (max-width: 560px) {
+  .focused-passage-actions .ghost-btn:not(.verse-of-day-read-button) {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .focused-passage-actions .ghost-btn:not(.verse-of-day-read-button) > span:not([aria-hidden]) {
+    display: none;
+  }
+}

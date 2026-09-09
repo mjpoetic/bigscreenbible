@@ -15387,8 +15387,7 @@ function openCrossReferencePopup(anchor) {
   const reference = `${state.reference}:${verseNumber}`;
   const refs = crossReferenceItems(reference);
   state.verse = verseNumber;
-  state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
+  if (!state.sharedPassage) state.isVerseOfDayActive = false;
   const popup = showStudyPopup(anchor, crossReferencePopupMarkup(reference, refs), "Cross references");
   popup.dataset.crossRefVerse = String(verseNumber);
   bindCrossReferencePreviewLinks(popup);
@@ -17683,6 +17682,9 @@ function bindEvents() {
   brandVerseOfDay?.addEventListener("pointerleave", endFocusBrandVersionHold);
   brandVerseOfDay?.addEventListener("contextmenu", suppressFocusBrandContextMenu);
   document.getElementById("sharedPassageReadChapter")?.addEventListener("click", openSharedPassageChapter);
+  document.getElementById("focusedPassageCopy")?.addEventListener("click", copySelectedPassage);
+  document.getElementById("focusedPassageShare")?.addEventListener("click", shareSelectedPassage);
+  document.getElementById("focusedPassagePrint")?.addEventListener("click", printSelectedPassage);
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
     event.stopPropagation();
     openVerseOfDayInReader();
@@ -22311,8 +22313,13 @@ function sharedPassageReaderView() {
   return `
     <section class="verse-of-day-reader shared-passage-reader" aria-labelledby="sharedPassageReference">
       <h1 class="section-title" id="sharedPassageReference">${escapeHtml(formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verses, version)))} <span>(${escapeHtml(translationDisplayCode(version))})</span></h1>
-      ${lines.map((verse) => `<p class="verse-of-day-copy">${lines.length > 1 ? `<sup>${versionVerseLabel(verse, version)}</sup> ` : ""}${renderStrongText(verse, version)}</p>`).join("")}
-      <button class="ghost-btn verse-of-day-read-button" id="sharedPassageReadChapter" type="button"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button>
+      ${lines.map((verse) => `<p class="verse-of-day-copy"><button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> ${renderStrongText(verse, version)}</p>`).join("")}
+      <div class="focused-passage-actions" role="group" aria-label="Passage actions">
+        <button class="ghost-btn verse-of-day-read-button" id="sharedPassageReadChapter" type="button"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button>
+        <button class="ghost-btn" id="focusedPassageCopy" type="button" aria-label="Copy passage" data-tooltip="Copy passage"><span aria-hidden="true">${icons.copy}</span><span>Copy</span></button>
+        <button class="ghost-btn" id="focusedPassageShare" type="button" aria-label="Share passage" data-tooltip="Share passage"><span aria-hidden="true">${icons.share}</span><span>Share</span></button>
+        <button class="ghost-btn" id="focusedPassagePrint" type="button" aria-label="Print passage" data-tooltip="Print passage"><span aria-hidden="true">${icons.print}</span><span>Print</span></button>
+      </div>
       ${apiBibleAttributionMarkup([version])}
     </section>
   `;
@@ -25555,6 +25562,7 @@ function applyHighlight(color) {
 }
 
 function selectedVerseNumbers() {
+  if (state.sharedPassage) return [...state.sharedPassage.verses];
   return state.selectedVerses.length ? state.selectedVerses : [state.verse];
 }
 

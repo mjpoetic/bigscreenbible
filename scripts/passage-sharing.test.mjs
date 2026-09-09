@@ -229,3 +229,21 @@ landing.requestedVersionFromUrl = () => '';
 await landing.applySharedVersionFromUrl([16]);
 assert.equal(landing.state.versions[0], 'BSB', 'Unknown versions use BSB');
 console.log('Shared passage landing tests passed');
+
+// Popup navigation must not narrow the copy/share/print target to one verse.
+context.state.sharedPassage = { verses: [16,17] };
+context.state.selectedVerses = [];
+context.state.verse = 17;
+assert.deepEqual([...context.selectedVerseNumbers()], [16,17]);
+const popupContext = {
+  state: { reference: 'John 3', sharedPassage: {verses:[16,17]}, isVerseOfDayActive:false },
+  crossReferenceItems: () => [],
+  crossReferencePopupMarkup: () => '',
+  showStudyPopup: () => ({dataset:{}}),
+  bindCrossReferencePreviewLinks: () => {},
+};
+vm.createContext(popupContext);
+vm.runInContext(extractFunction('openCrossReferencePopup'), popupContext);
+popupContext.openCrossReferencePopup({dataset:{crossRefVerse:'17'}});
+assert.deepEqual(popupContext.state.sharedPassage.verses, [16,17]);
+assert.equal(popupContext.state.verse,17);
