@@ -709,6 +709,7 @@ const state = {
   presentationVersionMenuOpen: "",
   presentationReferenceMenuOpen: "",
   sharedVersionOverride: null,
+  sharedPassage: null,
   presentationSettingsSectionsOpen: {
     sharing: false,
     sound: false,
@@ -2132,6 +2133,7 @@ function switchMode(nextMode, options = {}) {
     : modeScrollStateForTarget(nextMode, previousScrollState);
   const applyModeChange = () => {
     state.mode = nextMode;
+    state.sharedPassage = null;
     if (openVerseOfDayPassage) {
       selectVerseOfDayReference(state.verseOfDayItem.reference);
       state.pendingVerseFocus = true;
@@ -5966,7 +5968,7 @@ function accountPanel(prefix = "") {
 }
 
 function streakPopup() {
-  if (!state.streakPopupVisible) return "";
+  if (state.sharedPassage || !state.streakPopupVisible) return "";
   const continuingPopup = Boolean(document.getElementById("streakPopup"));
   const streak = normalizeReadingStreak(state.streak);
   const title = streak.current > 1 ? `${streak.current}-day streak` : "You started a streak";
@@ -6751,7 +6753,7 @@ function reader(chapterChange = null) {
     ? activeBibleVersionLoadingState()
     : null;
   return `
-    <section class="reader">
+    <section class="reader ${state.sharedPassage ? "shared-passage-active" : ""}">
       <div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
         <div class="chapter-tools-clip" id="verseSelectorBar" ${state.verseNavCollapsed ? 'inert aria-hidden="true"' : ""}>
           <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
@@ -6803,7 +6805,7 @@ function reader(chapterChange = null) {
         `}
       </div>
       <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
-        ${sharedVersionReturnButton("reader")}
+        ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
       ${readerChapterSwipeIndicators()}
@@ -7043,6 +7045,7 @@ function openMobileVerseNavMenu(trigger, type) {
       state.pendingVerseFocus = true;
     }
     state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
     render();
   };
   options.forEach((option) => {
@@ -10409,6 +10412,7 @@ async function syncNowAccount() {
 }
 
 function readerView() {
+  if (state.sharedPassage) return sharedPassageReaderView();
   if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView();
   const version = state.versions[0] || "BSB";
   const chapter = currentChapter();
@@ -15384,6 +15388,7 @@ function openCrossReferencePopup(anchor) {
   const refs = crossReferenceItems(reference);
   state.verse = verseNumber;
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   const popup = showStudyPopup(anchor, crossReferencePopupMarkup(reference, refs), "Cross references");
   popup.dataset.crossRefVerse = String(verseNumber);
   bindCrossReferencePreviewLinks(popup);
@@ -15655,6 +15660,7 @@ function openVerseActionMenu(anchor) {
     event.stopPropagation();
     state.verse = verseNumber;
     state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
     toggleVerseSelection(verseNumber, event.shiftKey);
     closeVerseActionMenu();
     renderPreservingReaderScroll();
@@ -16920,7 +16926,7 @@ function pushConsentPrompt() {
 }
 
 function tutorialIntro() {
-  if (!state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen || state.aboutMenuOpen) return "";
+  if (state.sharedPassage || sharedReferenceFromUrl() && !state.startupApplied || !state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen || state.aboutMenuOpen) return "";
   return `
     <section class="tutorial-welcome-overlay open" role="dialog" aria-modal="true" aria-labelledby="tutorialWelcomeTitle">
       <div class="tutorial-welcome-card">
@@ -17676,6 +17682,7 @@ function bindEvents() {
   brandVerseOfDay?.addEventListener("pointercancel", endFocusBrandVersionHold);
   brandVerseOfDay?.addEventListener("pointerleave", endFocusBrandVersionHold);
   brandVerseOfDay?.addEventListener("contextmenu", suppressFocusBrandContextMenu);
+  document.getElementById("sharedPassageReadChapter")?.addEventListener("click", openSharedPassageChapter);
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
     event.stopPropagation();
     openVerseOfDayInReader();
@@ -17986,6 +17993,7 @@ function bindEvents() {
       state.verse = currentChapter().verses[0].n;
       state.selectedVerses = [];
       state.isVerseOfDayActive = false;
+      state.sharedPassage = null;
       render();
     });
   });
@@ -17995,6 +18003,7 @@ function bindEvents() {
       pushCurrentReturnTargetForNavigation(state.reference, nextVerse);
       state.verse = nextVerse;
       state.isVerseOfDayActive = false;
+      state.sharedPassage = null;
       if (id === "verseSelect") {
         state.pendingVerseFocus = true;
         dismissLibraryAfterAction();
@@ -18062,6 +18071,7 @@ function bindEvents() {
       const verseNumber = Number(row.dataset.verse);
       state.verse = verseNumber;
       state.isVerseOfDayActive = false;
+      state.sharedPassage = null;
       toggleVerseSelection(verseNumber, event.shiftKey);
       renderPreservingReaderScroll();
     });
@@ -18232,6 +18242,7 @@ function bindEvents() {
       state.verse = nextVerse;
       state.presentationPart = 0;
       state.isVerseOfDayActive = false;
+      state.sharedPassage = null;
       state.presentationVersionMenuOpen = "";
       state.presentationReferenceMenuOpen = "";
       recordHistory();
@@ -18248,6 +18259,7 @@ function bindEvents() {
       state.verse = currentChapter().verses[0].n;
       state.presentationPart = 0;
       state.isVerseOfDayActive = false;
+      state.sharedPassage = null;
       state.presentationVersionMenuOpen = "";
       state.presentationReferenceMenuOpen = "";
       recordHistory();
@@ -18262,6 +18274,7 @@ function bindEvents() {
       state.verse = nextVerse;
       state.presentationPart = 0;
       state.isVerseOfDayActive = false;
+      state.sharedPassage = null;
       state.presentationVersionMenuOpen = "";
       state.presentationReferenceMenuOpen = "";
       recordHistory();
@@ -21596,6 +21609,7 @@ function submitFocusReference(value, options = {}) {
   if (!cleaned) return;
   state.focusReferenceOpen = false;
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   if (parseReference(cleaned)) {
     gotoReference(cleaned);
     return;
@@ -21610,6 +21624,7 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   if (parseReference(cleaned)) {
     gotoReference(cleaned);
     return;
@@ -21810,6 +21825,7 @@ function runInlineChapterSearch(query, searchChapter = state.reference, options 
   searchRequestId += 1;
   if (state.mode === "big") state.mode = "reader";
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   state.searchQuery = query;
   state.searchResultsQuery = "";
   state.searchSource = "scripture";
@@ -22230,12 +22246,16 @@ async function applyStartupExperience() {
   const sharedRef = sharedReferenceFromUrl();
   const requestedMode = requestedModeFromUrl();
   if (sharedRef && setReferenceFromString(sharedRef)) {
-    await applySharedVersionFromUrl();
+    state.tutorialIntroVisible = false;
     const selected = sharedVersesFromUrl();
     if (selected.length) state.selectedVerses = selected;
-    if (requestedMode) state.mode = requestedMode;
-    if (state.mode === "reader" || state.mode === "parallel") state.pendingVerseFocus = true;
-    if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
+    const parsed = parsePassageReference(sharedRef);
+    const verses = selected.length ? selected : sharedRef.includes(":") ? parsed.verses : currentChapter().verses.map((verse) => verse.n);
+    await applySharedVersionFromUrl(verses);
+    state.sharedPassage = { verses };
+    state.mode = "reader";
+    state.pendingVerseFocus = false;
+    state.libraryOpen = false;
     return;
   }
   if (state.startVerseOfDay) {
@@ -22260,16 +22280,55 @@ function requestedVersionFromUrl() {
   ))?.code || "";
 }
 
-async function applySharedVersionFromUrl() {
-  const version = requestedVersionFromUrl();
-  if (!version || version === state.versions[0]) return;
-  state.sharedVersionOverride = {
-    version,
-    returnVersions: [...state.versions],
-  };
-  state.versions = [version, ...state.versions.filter((item) => item !== version)];
-  await loadBibleVersion(version);
-  rebuildBibleData();
+async function applySharedVersionFromUrl(verses = selectedVerseNumbers()) {
+  const requested = requestedVersionFromUrl();
+  let version = requested || "BSB";
+  const returnVersions = [...state.versions];
+  try {
+    await loadBibleVersion(version);
+    rebuildBibleData();
+    if (!verses.every((n) => currentChapter().verses.some((verse) => verse.n === n && String(verse[version] || "").trim()))) {
+      version = "BSB";
+    }
+  } catch (error) {
+    console.warn("Shared passage version could not load", error);
+    version = "BSB";
+  }
+  if (version === "BSB") {
+    await loadBibleVersion("BSB");
+    rebuildBibleData();
+  }
+  state.sharedVersionOverride = version !== returnVersions[0] ? { version, returnVersions } : null;
+  state.versions = [version, ...returnVersions.filter((item) => item !== version)];
+  if (requested && requested !== version) showToast(`${translationDisplayCode(requested)} is unavailable. Showing BSB.`);
+}
+
+function sharedPassageReaderView() {
+  const version = state.versions[0];
+  const verses = state.sharedPassage.verses;
+  const selected = new Set(verses);
+  const lines = uniqueVersionVerses(currentChapter().verses.filter((verse) => selected.has(verse.n)), version);
+  return `
+    <section class="verse-of-day-reader shared-passage-reader" aria-labelledby="sharedPassageReference">
+      <h1 class="section-title" id="sharedPassageReference">${escapeHtml(formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verses, version)))} <span>(${escapeHtml(translationDisplayCode(version))})</span></h1>
+      ${lines.map((verse) => `<p class="verse-of-day-copy">${lines.length > 1 ? `<sup>${versionVerseLabel(verse, version)}</sup> ` : ""}${renderStrongText(verse, version)}</p>`).join("")}
+      <button class="ghost-btn verse-of-day-read-button" id="sharedPassageReadChapter" type="button"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button>
+      ${apiBibleAttributionMarkup([version])}
+    </section>
+  `;
+}
+
+function openSharedPassageChapter() {
+  if (!state.sharedPassage) return;
+  const verses = [...state.sharedPassage.verses];
+  state.sharedPassage = null;
+  state.mode = "reader";
+  state.verse = verses[0] || state.verse;
+  state.selectedVerses = verses;
+  state.pendingVerseFocus = true;
+  recordHistory();
+  updateShareUrl();
+  render();
 }
 
 async function openVerseOfDay(options = {}) {
@@ -22737,6 +22796,7 @@ function setReferenceFromString(value) {
   }
   const chapter = bibleData[parsed.key];
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   state.reference = parsed.key;
   state.verse = parsed.verse;
   state.presentationPart = 0;
@@ -24904,6 +24964,7 @@ function invokeHighlightBar() {
   }
   state.selectedVerses = [state.verse];
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   renderPreservingReaderScroll();
   requestAnimationFrame(focusHighlightPalette);
 }
@@ -24918,6 +24979,7 @@ function openHighlightToolsForVerse(verseNumber) {
   state.selectedVerses = [verseNumber];
   state.keyboardSelectionAnchor = null;
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   renderPreservingReaderScroll();
   requestAnimationFrame(focusHighlightPalette);
 }
@@ -25021,6 +25083,7 @@ function openBook(book) {
   state.presentationPart = 0;
   state.selectedVerses = [];
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   state.pendingVerseFocus = true;
   recordHistory();
   render();
@@ -25145,6 +25208,7 @@ function moveVerse(direction, options = {}) {
     state.presentationPart = Math.max(0, currentPresentationParts().length - 1);
   }
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   if (options.extendSelection) extendKeyboardVerseSelection(previousVerse, state.verse);
   else state.keyboardSelectionAnchor = null;
   recordHistory();
@@ -25177,6 +25241,7 @@ function applyChapterMove(direction, nextReference, { animated = false, transiti
   state.selectedVerses = [];
   state.keyboardSelectionAnchor = null;
   state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   recordHistory();
   render();
   clearTimeout(chapterNavigationTransitionTimer);
@@ -25546,7 +25611,9 @@ function formattedPassageText(verseNumbers = selectedVerseNumbers()) {
 function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
   const canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || "https://bigscreenbible.com/";
   const url = new URL(canonicalUrl);
-  url.searchParams.set("ref", `${state.reference}:${verseNumbers[0]}`);
+  url.searchParams.set("ref", state.isVerseOfDayActive && state.verseOfDayItem
+    ? state.verseOfDayItem.reference
+    : `${state.reference}:${verseNumbers[0]}`);
   if (verseNumbers.length > 1) url.searchParams.set("verses", verseRangeParam(verseNumbers));
   else url.searchParams.delete("verses");
   if (["reader", "parallel", "big"].includes(state.mode)) url.searchParams.set("mode", state.mode);
@@ -25799,7 +25866,7 @@ async function initializeBibleData() {
     stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
     dataLoading = false;
     render();
-    if (!updateScrollState) restoreSavedReaderPositionAfterStartup();
+    if (!updateScrollState && !state.sharedPassage) restoreSavedReaderPositionAfterStartup();
     maybeOfferPushNotifications();
     window.setTimeout(maybeCheckForAppUpdate, 1200);
   } catch (error) {

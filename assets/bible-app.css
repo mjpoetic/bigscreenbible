@@ -22513,3 +22513,37 @@ svg {
   .best-time-actions { flex-direction: row; margin-top: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .result-confetti { display: none; } }
+
+/* Shared links keep chapter navigation out of the passage's reading space. */
+.shared-passage-active > .chapter-tools-region,
+.shared-passage-active > .reader-auto-scroll-button,
+.shared-passage-active > .reader-selection-tools-button {
+  display: none;
+}
+.shared-passage-reader .verse-of-day-copy + .verse-of-day-copy {
+  margin-top: 0.65em;
+}
+.shared-passage-reader sup {
+  color: var(--muted);
+  font: 500 0.45em var(--ui-font);
+  vertical-align: super;
+}
+.app-shell:has(.shared-passage-active) {
+  grid-template-rows: var(--topbar-height) 1fr;
+}
+.app-shell:has(.shared-passage-active) .main-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-shell:has(.shared-passage-active) .rail,
+.app-shell:has(.shared-passage-active) .footer-region {
+  display: none;
+}
+.shared-passage-active .scripture {
+  padding-bottom: 36px;
+}
+.app-shell:has(.shared-passage-active) .main-grid > .shared-passage-active {
+  grid-column: 1 / -1;
+}
+.app-shell:has(.shared-passage-active) .main-grid {
+  height: calc(100dvh - var(--topbar-height));
+}

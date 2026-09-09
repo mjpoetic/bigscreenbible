@@ -152,7 +152,7 @@ assert.match(source, /presentation-reference-share-glyph/);
 assert.match(source, /M12\.5 8\.25C8\.8 8\.8 6\.55 11 5\.75 15/);
 assert.match(source, /data-return-shared-version/);
 assert.match(source, /url\.searchParams\.set\("version"/);
-assert.match(source, /await applySharedVersionFromUrl\(\)/);
+assert.match(source, /await applySharedVersionFromUrl\(verses\)/);
 assert.match(source, /passageShareFormat: state\.passageShareFormat/);
 assert.match(extractFunction("clearSharedVersionOverride"), /url\.searchParams\.delete\("version"\)/);
 assert.match(extractFunction("persistentVersions"), /sharedVersionOverride\?\.returnVersions/);
@@ -190,3 +190,42 @@ context.bibleData['John 3'] = {verses: combined};
 context.currentChapter = () => context.bibleData['John 3'];
 assert.equal(context.copyTextValue([24]), 'Combined source passage.\nJohn 3:23-24 (CEV)');
 assert.equal((context.copyTextValue([23,24]).match(/Combined source passage\./g)||[]).length, 1);
+
+const landing = {
+  console,
+  state: { versions: ['KJV'], mode: 'big', startupApplied: false },
+  sharedReferenceFromUrl: () => 'John 3:16-17',
+  requestedModeFromUrl: () => 'big',
+  requestedVersionFromUrl: () => 'NASB2020',
+  setReferenceFromString: () => true,
+  sharedVersesFromUrl: () => [],
+  parsePassageReference: () => ({verses: [16, 17]}),
+  currentChapter: () => ({ verses: [16,17,18].map(n => ({ n, BSB: 'BSB text', NASB2020: 'Requested text' })) }),
+  loadBibleVersion: async () => {},
+  rebuildBibleData: () => {},
+  translationDisplayCode: v => v,
+  showToast: () => {},
+  recordHistory: () => {}, updateShareUrl: () => {}, render: () => {},
+};
+vm.createContext(landing);
+vm.runInContext(`${extractFunction('applySharedVersionFromUrl')}\n${extractFunction('applyStartupExperience')}\n${extractFunction('openSharedPassageChapter')}`, landing);
+await landing.applyStartupExperience();
+assert.equal(landing.state.mode, 'reader', 'Shared links must start in Reader even when shared from Big Screen');
+assert.deepEqual([...landing.state.sharedPassage.verses], [16,17]);
+assert.equal(landing.state.versions[0], 'NASB2020');
+assert.equal(landing.state.sharedVersionOverride.returnVersions[0], 'KJV');
+landing.openSharedPassageChapter();
+assert.equal(landing.state.sharedPassage, null);
+assert.equal(landing.state.verse, 16);
+assert.equal(landing.state.pendingVerseFocus, true);
+assert.equal(landing.state.versions[0], 'NASB2020', 'Full context keeps the requested version');
+landing.currentChapter = () => ({ verses: [{n:16, BSB:'Fallback'}, {n:17, BSB:'Fallback', NASB2020:'Partial'}] });
+await landing.applySharedVersionFromUrl([16,17]);
+assert.equal(landing.state.versions[0], 'BSB', 'Incomplete provider text must fall back to BSB');
+landing.loadBibleVersion = async v => { if (v !== 'BSB') throw new Error('Offline'); };
+await landing.applySharedVersionFromUrl([16]);
+assert.equal(landing.state.versions[0], 'BSB');
+landing.requestedVersionFromUrl = () => '';
+await landing.applySharedVersionFromUrl([16]);
+assert.equal(landing.state.versions[0], 'BSB', 'Unknown versions use BSB');
+console.log('Shared passage landing tests passed');
