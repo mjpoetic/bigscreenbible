@@ -6,8 +6,8 @@ const styles = readFileSync(new URL("../assets/bible-app.css", import.meta.url),
 
 assert.match(
   source,
-  /verseNavCollapsed: localStorage\.getItem\("lw_verse_nav_collapsed"\) === "true"/,
-  "The Reader verse chooser should keep its original expanded default",
+  /verseNavCollapsed: localStorage\.getItem\("lw_verse_nav_collapsed"\) !== "false"/,
+  "The Reader verse chooser should default to hidden while preserving an explicit expanded preference",
 );
 assert.match(
   source,

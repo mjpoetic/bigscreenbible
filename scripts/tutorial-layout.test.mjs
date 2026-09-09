@@ -97,4 +97,30 @@ assert.match(spotlightFunction, /setProperty\("top", `\$\{cardTop\}px`, "importa
 assert.match(spotlightFunction, /setProperty\("bottom", "auto", "important"\)/);
 assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.tutorial-card \{[\s\S]*?left: calc\(12px \+ env\(safe-area-inset-left, 0px\)\) !important;/);
 
-console.log("Tutorial layout tests passed");
+const visibilityContext = {
+  state: { verseNavCollapsed: true, footerCollapsed: true, tutorialRestoreState: null },
+  step: { revealVerseSelector: true },
+};
+vm.createContext(visibilityContext);
+vm.runInContext(`
+  function currentTutorialStep() { return step; }
+  ${extractFunction("prepareCurrentTutorialStep")}
+  ${extractFunction("restoreTutorialTemporaryState")}
+`, visibilityContext);
+for (const [flag, key] of [["revealVerseSelector", "verseNavCollapsed"], ["revealFooter", "footerCollapsed"]]) {
+  visibilityContext.step = { [flag]: true };
+  vm.runInContext("prepareCurrentTutorialStep(); prepareCurrentTutorialStep();", visibilityContext);
+  assert.equal(visibilityContext.state[key], false, "The tour reveals a hidden bar, even after repeated preparation");
+  vm.runInContext("restoreTutorialTemporaryState()", visibilityContext);
+  assert.equal(visibilityContext.state[key], true, "Leaving or closing the step restores the hidden bar");
+  assert.equal(visibilityContext.state.tutorialRestoreState, null);
+  visibilityContext.state[key] = false;
+  vm.runInContext("prepareCurrentTutorialStep(); restoreTutorialTemporaryState();", visibilityContext);
+  assert.equal(visibilityContext.state[key], false, "An already visible bar remains visible");
+  visibilityContext.state[key] = true;
+}
+for (const name of ["startTutorial", "finishTutorial", "advanceTutorial", "retreatTutorial"]) {
+  assert.match(extractFunction(name), /restoreTutorialTemporaryState\(\)/, `${name} restores temporary visibility`);
+}
+
+console.log("Tutorial layout and visibility tests passed");

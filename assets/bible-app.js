@@ -647,7 +647,7 @@ const state = {
   strongNumbers: savedStrongNumbers(),
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
-  verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") === "true",
+  verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   libraryOpen: localStorage.getItem("lw_library_open") === "true",
   activeRail: "Verse",
@@ -1194,7 +1194,14 @@ const tutorialSteps = [
     revealVerseSelector: true,
     spotlightPadding: 5,
     title: "Move around the Bible",
-    body: "Use the chapter and verse controls for precise navigation. At a chapter edge, keep scrolling with a wheel or trackpad—or pull on a touchscreen—to reveal the previous or next chapter.",
+    body: "The verse selector starts hidden. Use the small arrow below the header to show or hide it, then choose a book, chapter, or verse. The tour temporarily opens hidden controls and restores your choice afterward.",
+  },
+  {
+    target: "#footerBar",
+    revealFooter: true,
+    spotlightPadding: 5,
+    title: "Show or hide the bottom bar",
+    body: "The bottom bar has chapter navigation and Bible version controls. Use its small arrow to hide or reveal it whenever you want more reading space.",
   },
   {
     target: "#mobileControlsToggle, .scripture",
@@ -23420,17 +23427,25 @@ function activeTutorialSteps() {
 
 function prepareCurrentTutorialStep() {
   const step = currentTutorialStep();
-  if (!step?.revealVerseSelector || !state.verseNavCollapsed) return;
-  state.tutorialRestoreState = {
-    ...(state.tutorialRestoreState || {}),
-    verseNavCollapsed: true,
-  };
-  state.verseNavCollapsed = false;
+  const revealControls = [
+    ["revealVerseSelector", "verseNavCollapsed"],
+    ["revealFooter", "footerCollapsed"],
+  ];
+  for (const [reveal, key] of revealControls) {
+    if (!step?.[reveal] || !state[key]) continue;
+    state.tutorialRestoreState = {
+      ...(state.tutorialRestoreState || {}),
+      [key]: state[key],
+    };
+    state[key] = false;
+  }
 }
 
 function restoreTutorialTemporaryState() {
-  if (state.tutorialRestoreState?.verseNavCollapsed !== undefined) {
-    state.verseNavCollapsed = state.tutorialRestoreState.verseNavCollapsed;
+  for (const key of ["verseNavCollapsed", "footerCollapsed"]) {
+    if (state.tutorialRestoreState?.[key] !== undefined) {
+      state[key] = state.tutorialRestoreState[key];
+    }
   }
   state.tutorialRestoreState = null;
 }
