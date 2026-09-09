@@ -8,7 +8,7 @@ function extract(name) {
   return source.slice(start, end);
 }
 const storage = new Map();
-const ctx = vm.createContext({ state: {}, localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, renderTriviaAnswerAndScroll() {}, renderPreservingReaderScroll() {}, shuffleItems: a => a });
+const ctx = vm.createContext({ scheduleCloudSync() {}, state: {}, localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, renderTriviaAnswerAndScroll() {}, renderPreservingReaderScroll() {}, shuffleItems: a => a });
 for (const name of ['compareGamePoints','perfectTimeBonus','isQuizPointsGame','quizScoreKey','savedQuizScores','awardQuizPoints','recordQuizScore','answerTriviaQuestion','answerWhoSaidIt','triviaHintOptions','availableRoundHintOptions','useTriviaHint']) vm.runInContext(extract(name), ctx);
 function game(type = 'trivia', count = 8) {
   return {type, difficulty: 'Medium', category: 'All', index: 0, selectedAnswer: null, score: 0, points: 0, questions: Array.from({length: count}, () => ({answer: 'A', choices: ['A','B','C','D'], selectedAnswer: null, eliminatedChoices: []}))};

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const storage = new Map();
 let exits = 0;
-const context = vm.createContext({
+const context = vm.createContext({ scheduleCloudSync() {},
   state: {mode: 'trivia'}, exitTriviaGame() { exits++; },
   localStorage: {getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v)},
 });

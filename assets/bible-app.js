@@ -4624,6 +4624,7 @@ function blankLocalSnapshot(sourceSnapshot = captureCloudSnapshot()) {
   return {
     settings: {
       ...(sourceSnapshot?.settings || {}),
+      gameRecords: {},
       versionsUpdatedAt: "",
     },
     bookmarks: [],
@@ -9822,9 +9823,72 @@ function cancelAccountSwitch() {
   renderPreservingReaderScroll();
 }
 
+// Keep the existing browser keys so records earned before account sync are imported.
+function gameRecordStorageKeys() {
+  return ["lw_book_sprint_bests", "lw_word_search_bests", "lw_crossword_bests",
+    "lw_verse_order_bests_v1", "lw_reference_rush_bests_v1",
+    "lw_hidden_word_scores_v1", "lw_hidden_word_scores_v2", "lw_quiz_scores_v1"];
+}
+
+function mergeGameRecords(...sources) {
+  const merged = {};
+  for (const storageKey of gameRecordStorageKeys()) {
+    const scores = storageKey.includes("scores");
+    const buckets = Object.create(null);
+    for (const source of sources) {
+      const records = source?.[storageKey];
+      if (!records || typeof records !== "object" || Array.isArray(records)) continue;
+      for (const [key, value] of Object.entries(records)) {
+        if (scores) {
+          if (!Array.isArray(value)) continue;
+          const entries = [...(buckets[key] || []), ...value]
+            .filter(entry => entry && Number.isFinite(entry.points));
+          const unique = new Map(entries.map(entry => [JSON.stringify(
+            Object.keys(entry).sort().map(field => [field, entry[field]])
+          ), entry]));
+          buckets[key] = [...unique.values()].sort((a, b) => compareGamePoints(a, b)
+            || (a.achievedAt || 0) - (b.achievedAt || 0)).slice(0, 5);
+        } else if (value && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0) {
+          const previous = buckets[key];
+          if (!previous || value.elapsedMs < previous.elapsedMs
+            || (value.elapsedMs === previous.elapsedMs
+              && String(value.completedAt || "") < String(previous.completedAt || ""))) buckets[key] = value;
+        }
+      }
+    }
+    merged[storageKey] = buckets;
+  }
+  return merged;
+}
+
+function captureGameRecords() {
+  const records = {};
+  for (const key of gameRecordStorageKeys()) {
+    try { records[key] = JSON.parse(localStorage.getItem(key) || "{}"); } catch {}
+  }
+  return mergeGameRecords(records);
+}
+
+function applyGameRecords(records) {
+  const normalized = mergeGameRecords(records);
+  for (const key of gameRecordStorageKeys()) localStorage.setItem(key, JSON.stringify(normalized[key]));
+}
+
+function refreshAccountGameRecords() {
+  if (!state.authUser || state.authBusy || state.accountSwitching || state.syncStatus === "saving") return;
+  upsertCloudSnapshot(captureCloudSnapshot()).then(() => {
+    if (state.mode === "trivia" && !state.triviaGame) renderPreservingReaderScroll();
+  }).catch(error => {
+    console.warn("Game record sync failed", error);
+    state.syncStatus = "error";
+    state.syncMessage = "Could not sync your latest change yet.";
+  });
+}
+
 function captureCloudSnapshot() {
   return {
     settings: {
+      gameRecords: captureGameRecords(),
       versions: persistentVersions(),
       versionsUpdatedAt: state.versionsUpdatedAt,
       ...appearanceSnapshotSettings(state.appearance),
@@ -9906,6 +9970,7 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       ...versionSettings,
       ...disclosureSettings,
       ...appearanceSettings,
+      gameRecords: mergeGameRecords(cloud.settings.gameRecords, localSnapshot.settings.gameRecords),
       wordSearchRecentPassages: mergeWordSearchRecentPassages(
         cloud.settings.wordSearchRecentPassages,
         localSnapshot.settings.wordSearchRecentPassages,
@@ -10162,6 +10227,7 @@ function applyCloudSnapshot(snapshot) {
 function persistCloudSnapshotLocally(snapshot) {
   const settings = migrateAppearanceSettings(snapshot.settings);
   const migratedSnapshot = { ...snapshot, settings };
+  applyGameRecords(settings.gameRecords);
   persistVersions();
   if (settings.appearance && typeof settings.appearance === "object") {
     state.appearance = writeStoredAppearance(settings.appearance);
@@ -10251,7 +10317,9 @@ async function loadCloudSync() {
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
-    const nextSnapshot = data ? mergeCloudSnapshots(data, localSnapshot) : localSnapshot;
+    if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    const latestLocal = captureCloudSnapshot();
+    const nextSnapshot = data ? mergeCloudSnapshots(data, latestLocal) : latestLocal;
     applyCloudSnapshot(nextSnapshot);
     await upsertCloudSnapshot(nextSnapshot, { quiet: true });
     state.syncStatus = "synced";
@@ -10286,6 +10354,7 @@ function scheduleCloudSync() {
 async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = {}) {
   const client = createSupabaseClient();
   if (!client) return;
+  const expectedUserId = state.authUser?.id;
   state.syncStatus = "saving";
   const session = await authenticatedSupabaseSession(client);
   const userId = session?.user?.id;
@@ -10294,12 +10363,29 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
     state.syncMessage = "Sign in to sync across devices.";
     return;
   }
-  const { error } = await client
-    .from(cloudSyncTable)
-    .upsert({ user_id: userId, ...snapshot }, { onConflict: "user_id" });
-  if (error) throw error;
-  setAccountDataOwner(userId);
-  saveSnapshotForOwner(userId, snapshot);
+  if (userId !== expectedUserId) return;
+  // Compare-and-swap prevents another device's records being overwritten between read and save.
+  let savedSnapshot = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    const { data: current, error: readError } = await client.from(cloudSyncTable)
+      .select("settings, updated_at").eq("user_id", userId).maybeSingle();
+    if (readError) throw readError;
+    if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    const next = { ...snapshot, settings: { ...snapshot.settings,
+      gameRecords: mergeGameRecords(current?.settings?.gameRecords, snapshot.settings?.gameRecords, captureGameRecords()),
+    } };
+    const result = current
+      ? await client.from(cloudSyncTable).update(next).eq("user_id", userId)
+        .eq("updated_at", current.updated_at).select("user_id")
+      : await client.from(cloudSyncTable).insert({ user_id: userId, ...next }).select("user_id");
+    if (result.error && result.error.code !== "23505") throw result.error;
+    if (!result.error && result.data?.length) { savedSnapshot = next; break; }
+  }
+  if (!savedSnapshot) throw new Error("Another device is syncing. Please try syncing again.");
+  saveSnapshotForOwner(userId, savedSnapshot);
+  if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+  applyGameRecords(mergeGameRecords(savedSnapshot.settings.gameRecords, captureGameRecords()));
   state.syncStatus = "synced";
   state.syncMessage = "Synced across your signed-in devices.";
   state.lastCloudSyncAt = new Date().toISOString();
@@ -11282,6 +11368,7 @@ function recordHiddenWordBest(game) {
   const isNewBest = !previous || compareGamePoints(result, previous) < 0;
   bests[key] = [...scores, result].sort(compareGamePoints).slice(0, 5);
   localStorage.setItem(hiddenWordBestStorageKey, JSON.stringify(bests));
+  scheduleCloudSync();
   game.hiddenWordScoreRecorded = { best: bests[key][0], isNewBest, hadPrevious: Boolean(previous) };
   return game.hiddenWordScoreRecorded;
 }
@@ -11345,13 +11432,14 @@ function recordQuizScore(game) {
     if (!bests || typeof bests !== "object" || Array.isArray(bests)) bests = {};
     bests[quizScoreKey(game)] = [...scores, result].sort(compareGamePoints).slice(0, 5);
     localStorage.setItem("lw_quiz_scores_v1", JSON.stringify(bests));
+    scheduleCloudSync();
   } catch {
     game.quizScoreSaveFailed = true;
   }
 }
 
 function quizScoreRules(type) {
-  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Correct answer +1,000. Consecutive unassisted answers add +100 for the second, +200 for the third, up to +500 per answer from the sixth onward. A wrong answer earns zero and resets the streak.</p><p>Perfect unassisted round +1,000. ${type === "trivia" ? "Each hint costs 100 points, resets the streak, and forfeits the perfect round bonus. Assisted correct answers still earn 1,000. Scores can go below zero. " : ""}Perfect Time Bonus: a perfect unassisted game earns up to 1,000 extra points, rounded down to multiples of 10. Faster answers earn more; answer explanations do not count. Bonus = 1,000 × target / (target + solving time), with a target per question of 10s Easy, 12s Medium/All, 15s Hard, or 18s Expert. Equal scores rank by solving time. Top scores are saved on this device for matching settings.</p></details>`;
+  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Correct answer +1,000. Consecutive unassisted answers add +100 for the second, +200 for the third, up to +500 per answer from the sixth onward. A wrong answer earns zero and resets the streak.</p><p>Perfect unassisted round +1,000. ${type === "trivia" ? "Each hint costs 100 points, resets the streak, and forfeits the perfect round bonus. Assisted correct answers still earn 1,000. Scores can go below zero. " : ""}Perfect Time Bonus: a perfect unassisted game earns up to 1,000 extra points, rounded down to multiples of 10. Faster answers earn more; answer explanations do not count. Bonus = 1,000 × target / (target + solving time), with a target per question of 10s Easy, 12s Medium/All, 15s Hard, or 18s Expert. Equal scores rank by solving time. Top scores are saved for matching settings and sync across devices when you are signed in.</p></details>`;
 }
 
 function quizLeaderboard(game) {
@@ -11834,6 +11922,7 @@ function recordWordSearchBest(game) {
   if (isNewBest) {
     bests[bestKey] = result;
     localStorage.setItem(wordSearchBestStorageKey, JSON.stringify(bests));
+    scheduleCloudSync();
   }
   return {
     best: bests[bestKey] || previous || result,
@@ -11915,6 +12004,7 @@ function recordCrosswordBest(game) {
   if (isNewBest) {
     bests[bestKey] = result;
     localStorage.setItem(crosswordBestStorageKey, JSON.stringify(bests));
+    scheduleCloudSync();
   }
   return { best: bests[bestKey] || previous || result, isNewBest, hadPrevious: Boolean(previous) };
 }
@@ -12347,6 +12437,7 @@ function recordVerseOrderBest(game) {
   if (game.verseOrderIsNewBest) {
     bests[key] = { elapsedMs, completedAt: new Date().toISOString() };
     localStorage.setItem("lw_verse_order_bests_v1", JSON.stringify(bests));
+    scheduleCloudSync();
   }
   game.verseOrderBest = bests[key];
 }
@@ -12383,6 +12474,7 @@ function recordReferenceRushBest(game) {
   if (game.referenceRushIsNewBest) {
     bests[key] = { elapsedMs, completedAt: new Date().toISOString() };
     localStorage.setItem("lw_reference_rush_bests_v1", JSON.stringify(bests));
+    scheduleCloudSync();
   }
   game.referenceRushBest = bests[key];
 }
@@ -12430,6 +12522,7 @@ function recordBookSprintBest(game) {
   if (isNewBest) {
     bests[key] = result;
     localStorage.setItem(bookSprintBestStorageKey, JSON.stringify(bests));
+    scheduleCloudSync();
   }
   return { best: bests[key] || previous || result, isNewBest, beatPrevious, hadPrevious: Boolean(previous) };
 }
@@ -26337,6 +26430,7 @@ document.addEventListener("visibilitychange", () => {
   }
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   syncGameMusicPlayback();
+  refreshAccountGameRecords();
   notePushVisit();
   maybeCheckForAppUpdate();
 });
@@ -26345,6 +26439,7 @@ window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);
 window.addEventListener("pageshow", () => {
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   syncGameMusicPlayback();
+  refreshAccountGameRecords();
   notePushVisit();
   maybeCheckForAppUpdate();
 });
