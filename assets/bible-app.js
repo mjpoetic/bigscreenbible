@@ -417,7 +417,7 @@ const streakStorageKey = "lw_reading_streak";
 const bookSprintBestStorageKey = "lw_book_sprint_bests";
 const wordSearchBestStorageKey = "lw_word_search_bests";
 const crosswordBestStorageKey = "lw_crossword_bests";
-const hiddenWordBestStorageKey = "lw_hidden_word_scores_v1";
+const hiddenWordBestStorageKey = "lw_hidden_word_scores_v2";
 const crosswordHintLimit = 3;
 const hiddenWordHintTypes = ["context", "letter"];
 const gameMusicTracks = Object.freeze({
@@ -11224,7 +11224,7 @@ function savedHiddenWordBests() {
 
 function savedHiddenWordScores(difficulty, roundCount, context = {}) {
   const scores = savedHiddenWordBests()[`${puzzleBestKey(difficulty, context)}:${roundCount}`];
-  return Array.isArray(scores) ? scores.filter((entry) => Number.isFinite(entry?.points)).sort((a, b) => b.points - a.points).slice(0, 5) : [];
+  return Array.isArray(scores) ? scores.filter((entry) => Number.isFinite(entry?.points)).sort(compareGamePoints).slice(0, 5) : [];
 }
 
 function savedHiddenWordBest(difficulty, roundCount, context = {}) {
@@ -11232,7 +11232,7 @@ function savedHiddenWordBest(difficulty, roundCount, context = {}) {
 }
 
 function hiddenWordScoreRules() {
-  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Solved puzzle +1,000 · Perfect puzzle +500 (no misses or hints) · Missed letter −200 · Hint −100 · Failed puzzle −500.</p><p>Speed bonus: +500 for solving in under 10 seconds, then 100 fewer points every 10 seconds, reaching zero at 50 seconds. Time starts when each puzzle opens. Scores can go below zero.</p></details>`;
+  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Solved puzzle +1,000 · Perfect puzzle +500 (no misses or hints) · Missed letter −200 · Hint −100 · Failed puzzle −500.</p><p>Speed bonus: up to +500 per solved puzzle, rounded down to multiples of 10 (500 × 20 / (20 + solving seconds)). Faster solving earns more; equal total scores rank by solving time. Time starts when each puzzle opens. Scores can go below zero.</p></details>`;
 }
 
 function arcadeScoreboard(scores, subtitle, detail, label) {
@@ -11255,9 +11255,15 @@ function arcadeScoreboard(scores, subtitle, detail, label) {
 }
 
 function hiddenWordLeaderboard(difficulty, count, context = {}) {
+  let originalScores = [];
+  try {
+    const entries = JSON.parse(localStorage.getItem("lw_hidden_word_scores_v1") || "{}")[`${puzzleBestKey(difficulty, context)}:${count}`];
+    if (Array.isArray(entries)) originalScores = entries.filter(entry => Number.isFinite(entry?.points)).sort(compareGamePoints).slice(0, 5);
+  } catch {}
+  const originals = originalScores.length ? `<details class="hidden-word-score-rules"><summary>Original scoring records</summary>${arcadeScoreboard(originalScores, "Previous speed bonus rules", entry => `${entry.score}/${count} solved`, "Original Hidden Word scores")}</details>` : "";
   return arcadeScoreboard(savedHiddenWordScores(difficulty, count, context),
     `${difficulty} · ${count} puzzles · ${context.customPassage ? "this passage" : "curated mix"}`,
-    (entry) => `${entry.score}/${count} solved · ${entry.hintCount} hints`, "Top five Hidden Word scores");
+    (entry) => `${entry.score}/${count} solved · ${entry.hintCount} hints${entry.elapsedMs != null ? ` · ${formatGameTime(entry.elapsedMs)} solving time` : ""}`, "Top five Hidden Word scores") + originals;
 }
 
 function recordHiddenWordBest(game) {
@@ -11268,12 +11274,13 @@ function recordHiddenWordBest(game) {
   const previous = scores[0];
   const result = {
     points: Number(game.points) || 0,
+    elapsedMs: game.rounds.every(round => Number.isFinite(round.elapsedMs)) ? game.rounds.reduce((total, round) => total + round.elapsedMs, 0) : null,
     score: Number(game.score) || 0,
     hintCount: Number(game.hintCount) || 0,
     achievedAt: Date.now(),
   };
-  const isNewBest = !previous || result.points > previous.points;
-  bests[key] = [...scores, result].sort((a, b) => b.points - a.points).slice(0, 5);
+  const isNewBest = !previous || compareGamePoints(result, previous) < 0;
+  bests[key] = [...scores, result].sort(compareGamePoints).slice(0, 5);
   localStorage.setItem(hiddenWordBestStorageKey, JSON.stringify(bests));
   game.hiddenWordScoreRecorded = { best: bests[key][0], isNewBest, hadPrevious: Boolean(previous) };
   return game.hiddenWordScoreRecorded;
@@ -11287,10 +11294,18 @@ function quizScoreKey(game) {
   return JSON.stringify([game.type, game.difficulty, game.questions?.length || game.count, game.type === "trivia" ? game.category : ""]);
 }
 
+function compareGamePoints(a, b) {
+  return b.points - a.points || (a.elapsedMs ?? Infinity) - (b.elapsedMs ?? Infinity) || 0;
+}
+
+function perfectTimeBonus(elapsedMs, targetMs, maximum = 1000) {
+  return Math.floor(maximum * targetMs / (targetMs + Math.max(0, elapsedMs)) / 10) * 10;
+}
+
 function savedQuizScores(game) {
   try {
     const scores = JSON.parse(localStorage.getItem("lw_quiz_scores_v1") || "{}")[quizScoreKey(game)];
-    return Array.isArray(scores) ? scores.filter((entry) => Number.isFinite(entry?.points)).sort((a, b) => b.points - a.points).slice(0, 5) : [];
+    return Array.isArray(scores) ? scores.filter((entry) => Number.isFinite(entry?.points)).sort(compareGamePoints).slice(0, 5) : [];
   } catch {
     return [];
   }
@@ -11298,6 +11313,10 @@ function savedQuizScores(game) {
 
 function awardQuizPoints(game, question, correct) {
   if (question.points !== undefined) return;
+  if (Number.isFinite(game.questionStartedAt)) {
+    question.elapsedMs = Math.max(0, Date.now() - game.questionStartedAt);
+    game.questionStartedAt = null;
+  }
   const unassisted = correct && !question.hintUsed;
   game.streak = unassisted ? (game.streak || 0) + 1 : 0;
   game.bestStreak = Math.max(game.bestStreak || 0, game.streak);
@@ -11311,16 +11330,20 @@ function recordQuizScore(game) {
   if (game.quizScoreRecorded) return;
   if (!game.questions.length || game.questions.some((question) => question.points === undefined)) return;
   game.perfectBonus = game.score === game.questions.length && !game.questions.some((question) => question.hintUsed) ? 1000 : 0;
-  game.points = (game.points || 0) + game.perfectBonus;
+  const timed = game.questions.every(question => Number.isFinite(question.elapsedMs));
+  game.elapsedMs = timed ? game.questions.reduce((total, question) => total + question.elapsedMs, 0) : null;
+  const secondsPerQuestion = { Easy: 10, Medium: 12, Hard: 15, Expert: 18, All: 12 }[game.difficulty] || 12;
+  game.timeBonus = game.perfectBonus && timed ? perfectTimeBonus(game.elapsedMs, game.questions.length * secondsPerQuestion * 1000) : 0;
+  game.points = (game.points || 0) + game.perfectBonus + game.timeBonus;
   const scores = savedQuizScores(game);
-  const result = { points: game.points, score: game.score, bestStreak: game.bestStreak || 0, hintCount: game.questions.filter((question) => question.hintUsed).length, achievedAt: Date.now() };
-  game.quizIsNewBest = !scores.length || result.points > scores[0].points;
+  const result = { points: game.points, elapsedMs: game.elapsedMs, timeBonus: game.timeBonus, score: game.score, bestStreak: game.bestStreak || 0, hintCount: game.questions.filter((question) => question.hintUsed).length, achievedAt: Date.now() };
+  game.quizIsNewBest = !scores.length || compareGamePoints(result, scores[0]) < 0;
   game.quizBest = game.quizIsNewBest ? result : scores[0];
   game.quizScoreRecorded = true;
   try {
     let bests = JSON.parse(localStorage.getItem("lw_quiz_scores_v1") || "{}");
     if (!bests || typeof bests !== "object" || Array.isArray(bests)) bests = {};
-    bests[quizScoreKey(game)] = [...scores, result].sort((a, b) => b.points - a.points).slice(0, 5);
+    bests[quizScoreKey(game)] = [...scores, result].sort(compareGamePoints).slice(0, 5);
     localStorage.setItem("lw_quiz_scores_v1", JSON.stringify(bests));
   } catch {
     game.quizScoreSaveFailed = true;
@@ -11328,14 +11351,14 @@ function recordQuizScore(game) {
 }
 
 function quizScoreRules(type) {
-  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Correct answer +1,000. Consecutive unassisted answers add +100 for the second, +200 for the third, up to +500 per answer from the sixth onward. A wrong answer earns zero and resets the streak.</p><p>Perfect unassisted round +1,000. ${type === "trivia" ? "Each hint costs 100 points, resets the streak, and forfeits the perfect round bonus. Assisted correct answers still earn 1,000. Scores can go below zero. " : ""}No timer or speed bonus. Top scores are saved on this device for matching settings.</p></details>`;
+  return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Correct answer +1,000. Consecutive unassisted answers add +100 for the second, +200 for the third, up to +500 per answer from the sixth onward. A wrong answer earns zero and resets the streak.</p><p>Perfect unassisted round +1,000. ${type === "trivia" ? "Each hint costs 100 points, resets the streak, and forfeits the perfect round bonus. Assisted correct answers still earn 1,000. Scores can go below zero. " : ""}Perfect Time Bonus: a perfect unassisted game earns up to 1,000 extra points, rounded down to multiples of 10. Faster answers earn more; answer explanations do not count. Bonus = 1,000 × target / (target + solving time), with a target per question of 10s Easy, 12s Medium/All, 15s Hard, or 18s Expert. Equal scores rank by solving time. Top scores are saved on this device for matching settings.</p></details>`;
 }
 
 function quizLeaderboard(game) {
   const count = game.questions?.length || game.count;
   return arcadeScoreboard(savedQuizScores(game),
     `${game.difficulty} · ${count} questions${game.type === "trivia" ? ` · ${game.category}` : ""}`,
-    (entry) => `${entry.score}/${count} correct · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}`, "Top five personal scores")
+    (entry) => `${entry.score}/${count} correct${entry.elapsedMs != null ? ` · ${formatGameTime(entry.elapsedMs)} solving time · Bonus +${entry.timeBonus || 0}` : " · Original score"} · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}`, "Top five personal scores")
     + (game.quizScoreSaveFailed ? "<p>This score could not be saved on this device.</p>" : "");
 }
 
@@ -14399,7 +14422,7 @@ function triviaResultsView(game) {
         ${game.type === "verse-order" ? verseOrderRecords(game.version, roundLength, game) : ""}
         ${game.type === "reference-rush" ? referenceRushRecords(game.difficulty, roundLength, game.timed, game) : ""}
         ${game.type === "hidden-word" ? `${hiddenWordLeaderboard(game.difficulty, roundLength, game)}${hiddenWordScoreRules()}` : ""}
-        ${isQuizPointsGame(game) ? `<p>Best streak: ${game.bestStreak || 0}${game.perfectBonus ? " · Perfect round +1,000" : ""}</p>${quizLeaderboard(game)}${quizScoreRules(game.type)}` : ""}
+        ${isQuizPointsGame(game) ? `<p>Best streak: ${game.bestStreak || 0}${game.perfectBonus ? " · Perfect round +1,000" : ""}${game.timeBonus ? ` · Perfect Time Bonus +${game.timeBonus}` : ""}</p>${quizLeaderboard(game)}${quizScoreRules(game.type)}` : ""}
         ${perfect ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">Perfect score! Wonderful work.</p>` : ""}
       </div>
       <div class="trivia-actions">
@@ -14465,32 +14488,47 @@ function bestTimeFireworksMarkup() {
     </div>`).join("")}</div>`;
 }
 
+function gameResultPresentation(game) {
+  const count = triviaRoundLength(game);
+  const solvedPuzzle = ["word-search", "crossword"].includes(game.type) && !game.lost && !game.timedOut;
+  const percent = count ? Math.round(Math.max(0, Number(game.score) || 0) / count * 100) : 0;
+  const accuracy = solvedPuzzle ? 100 : Math.min(100, percent);
+  if (game.lost || game.timedOut) return { tier: "retry", emoji: "😅", title: "Another try?", accuracy, sound: "low" };
+  if (accuracy === 100) return { tier: "perfect", emoji: "🌟", title: "Perfect round!", accuracy, sound: "perfect" };
+  if (accuracy >= 75) return { tier: "strong", emoji: "😎", title: "Great work!", accuracy, sound: "complete" };
+  if (accuracy >= 50) return { tier: "steady", emoji: "🙂", title: "Keep it going!", accuracy, sound: "complete" };
+  return { tier: "retry", emoji: "😅", title: "Another try?", accuracy, sound: "low" };
+}
+
 function showBestTimeCelebration(game, best) {
   if (game.bestTimeCelebrationShown) return;
   game.bestTimeCelebrationShown = true;
   const dialog = document.createElement("dialog");
   dialog.id = "bestTimeCelebration";
-  dialog.className = "best-time-celebration";
+  const outcome = gameResultPresentation(game);
+  const recordArtwork = best && outcome.accuracy >= 50 && !game.lost && !game.timedOut;
+  dialog.className = `best-time-celebration result-${recordArtwork ? "record" : outcome.tier}`;
   dialog.setAttribute("aria-labelledby", "bestTimeTitle");
   dialog.setAttribute("aria-describedby", "bestTimeDescription");
   const highScore = game.type === "hidden-word" || isQuizPointsGame(game);
-  const assisted = game.type === "crossword" && best.hintCount > 0;
+  const assisted = game.type === "crossword" && (best?.hintCount || game.hintCount) > 0;
+  const roundTime = game.elapsedMs ?? (game.finishedAt && game.startedAt ? Math.max(0, game.finishedAt - game.startedAt) : null);
   dialog.innerHTML = `
     <div class="best-time-art">
-      ${bestTimeFireworksMarkup()}
-      <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>${highScore ? "NEW HIGH SCORE · NEW HIGH SCORE · NEW HIGH SCORE" : "NEW BEST TIME · NEW BEST TIME · NEW BEST TIME"}</span>`).join("")}</div>
+      ${recordArtwork || outcome.tier === "perfect" ? bestTimeFireworksMarkup() : ""}${outcome.tier === "perfect" ? `<div class="result-confetti" aria-hidden="true">${Array.from({length: 24}, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>` : ""}
+      <div class="best-time-wall" aria-hidden="true">${Array.from({ length: 8 }, () => `<span>${best ? (highScore ? "NEW HIGH SCORE · NEW HIGH SCORE" : "NEW BEST TIME · NEW BEST TIME") : "PLAY · LEARN · GROW"}</span>`).join("")}</div>
       <div class="best-time-hero">
-        <span class="best-time-badge" aria-hidden="true">${highScore ? (game.type === "hidden-word" ? icons.hiddenWord : icons.trivia) : icons.timer}</span>
-        <p class="best-time-eyebrow">PERSONAL RECORD</p>
-        <h2 id="bestTimeTitle">${highScore ? "New High Score!" : "New Best Time!"}</h2>
-        <p class="best-time-value">${highScore ? `${best.points.toLocaleString()} pts` : formatGameTime(best.elapsedMs)}${assisted ? "*" : ""}</p>
+        <span class="best-time-badge" aria-hidden="true">${recordArtwork ? (highScore ? (game.type === "hidden-word" ? icons.hiddenWord : icons.trivia) : icons.timer) : outcome.emoji}</span>
+        <p class="best-time-eyebrow">${best ? "PERSONAL RECORD" : "ROUND COMPLETE"}</p>
+        <h2 id="bestTimeTitle">${best ? (highScore ? "New High Score!" : "New Best Time!") : outcome.title}</h2>
+        <p class="best-time-value">${highScore ? `${(best?.points ?? game.points ?? 0).toLocaleString()} pts` : best ? formatGameTime(best.elapsedMs) : `${outcome.accuracy}%`}${assisted ? "*" : ""}</p>
       </div>
     </div>
     <div class="best-time-footer">
-      <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}${highScore ? "That’s your highest score yet. Can you beat it?" : "That’s your fastest yet. Can you beat it?"}</p>
+      <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best?.hintCount || game.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}${outcome.accuracy}% ${["word-search", "crossword"].includes(game.type) ? "completed" : "accuracy"}. ${best ? (highScore ? "That’s your highest score yet!" : "That’s your fastest yet!") : outcome.tier === "perfect" ? "Every one correct — wonderful work!" : "Every round is a chance to learn. Try again!"}${game.timeBonus ? ` Perfect Time Bonus +${game.timeBonus}.` : ""}${roundTime != null ? ` ${highScore ? "Solving time" : "Round time"}: ${formatGameTime(roundTime)}.` : ""}</p>
       <p class="best-time-status" role="status">Ready for another round?</p>
       <div class="best-time-actions">
-        <button type="button" class="primary-btn" data-best-time-action="retry">Try again · ${highScore ? "Beat this score" : "Beat this time"}</button>
+        <button type="button" class="primary-btn" data-best-time-action="retry">Try again</button>
         <button type="button" class="ghost-btn" data-best-time-action="menu">Games menu</button>
       </div>
     </div>`;
@@ -14499,7 +14537,7 @@ function showBestTimeCelebration(game, best) {
   dialog.addEventListener("cancel", (event) => event.preventDefault());
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   dialog.showModal();
-  playGameOutcomeSound("perfect");
+  playGameOutcomeSound(outcome.sound);
   dialog.querySelector("button")?.focus({ preventScroll: true });
   bestTimeCelebrationCleanup = () => {
     dialog.close();
@@ -14533,32 +14571,11 @@ function runPendingTriviaCelebration() {
   const game = state.triviaGame;
   if (state.mode !== "trivia" || !game?.complete) return;
   const best = newBestTimeResult(game);
-  if (best && !game.bestTimeCelebrationShown) {
+  if (!game.bestTimeCelebrationShown) {
     game.outcomeSoundPending = "";
     game.celebrationPending = false;
     showBestTimeCelebration(game, best);
-    return;
   }
-  let soundKey = "";
-  if (game.outcomeSoundPending) {
-    soundKey = game.outcomeSoundPending;
-    game.outcomeSoundPending = "";
-  }
-  if (!game.celebrationPending) {
-    playGameOutcomeSound(soundKey);
-    return;
-  }
-  game.celebrationPending = false;
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
-    playGameOutcomeSound(soundKey);
-    revealTriviaMotionSuccess();
-    return;
-  }
-  launchTriviaConfetti(game, soundKey).catch(() => {
-    playGameOutcomeSound(soundKey);
-    cleanupTriviaCelebration({ stopAudio: false });
-    if (state.triviaGame === game) revealTriviaMotionSuccess(game);
-  });
 }
 
 function revealTriviaMotionSuccess(game = state.triviaGame) {
@@ -18645,6 +18662,7 @@ function startTriviaGame({ render = true } = {}) {
     index: 0,
     score: 0,
     points: 0,
+    questionStartedAt: Date.now(),
     streak: 0,
     bestStreak: 0,
     selectedAnswer: null,
@@ -19824,6 +19842,7 @@ function startWhoSaidItGame({ render = true } = {}) {
     index: 0,
     score: 0,
     points: 0,
+    questionStartedAt: Date.now(),
     streak: 0,
     bestStreak: 0,
     complete: false,
@@ -20020,6 +20039,7 @@ function nextTriviaQuestion() {
     completeTriviaGame(game);
   } else {
     game.index += 1;
+    game.questionStartedAt = Date.now();
     game.selectedAnswer = null;
   }
   renderPreservingReaderScroll();
@@ -20666,7 +20686,8 @@ function finishHiddenWordRound(game, round, solved) {
   if (!game || !round || round.complete) return;
   round.finishedAt = Date.now();
   const elapsed = Math.max(0, round.finishedAt - (round.startedAt ?? round.finishedAt));
-  const speed = solved ? Math.max(0, 500 - Math.floor(elapsed / 10000) * 100) : 0;
+  const speed = solved ? perfectTimeBonus(elapsed, 20000, 500) : 0;
+  round.elapsedMs = elapsed;
   const perfect = solved && !round.missedLetters.length && !round.hintCount;
   const reward = (solved ? 1000 : -500) + (perfect ? 500 : 0) + speed;
   round.points = reward - round.missedLetters.length * 200 - (round.hintCount || 0) * 100;
@@ -21058,6 +21079,7 @@ function nextWhoSaidItQuestion() {
     completeTriviaGame(game);
   } else {
     game.index += 1;
+    game.questionStartedAt = Date.now();
   }
   renderPreservingReaderScroll();
 }

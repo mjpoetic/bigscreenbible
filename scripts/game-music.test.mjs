@@ -89,8 +89,8 @@ const confettiLaunchSource = appSource.slice(
   appSource.indexOf("async function launchTriviaConfetti"),
   appSource.indexOf("function cleanupTriviaCelebration"),
 );
-assert.match(pendingCelebrationSource, /if \(!game\.celebrationPending\) \{[\s\S]*playGameOutcomeSound\(soundKey\)/, "Non-confetti outcomes must still play immediately");
-assert.match(pendingCelebrationSource, /launchTriviaConfetti\(game, soundKey\)/, "Perfect-score audio must travel with the pending confetti launch");
+assert.match(appSource, /playGameOutcomeSound\(outcome\.sound\)/, "Every popup plays its outcome cue immediately");
+assert.match(pendingCelebrationSource, /showBestTimeCelebration\(game, best\)/, "Completion audio starts with the results popup");
 assert.match(confettiLaunchSource, /playGameOutcomeSound\(soundKey\);\s*confetti\(\{ particleCount: 70/, "Perfect-score audio must start beside the first visible confetti burst");
 assert.match(confettiLaunchSource, /catch \{[\s\S]*playGameOutcomeSound\(soundKey\)[\s\S]*revealTriviaMotionSuccess/, "The perfect-score cue must survive a blocked confetti import");
 

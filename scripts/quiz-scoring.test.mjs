@@ -9,7 +9,7 @@ function extract(name) {
 }
 const storage = new Map();
 const ctx = vm.createContext({ state: {}, localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, renderTriviaAnswerAndScroll() {}, renderPreservingReaderScroll() {}, shuffleItems: a => a });
-for (const name of ['isQuizPointsGame','quizScoreKey','savedQuizScores','awardQuizPoints','recordQuizScore','answerTriviaQuestion','answerWhoSaidIt','triviaHintOptions','availableRoundHintOptions','useTriviaHint']) vm.runInContext(extract(name), ctx);
+for (const name of ['compareGamePoints','perfectTimeBonus','isQuizPointsGame','quizScoreKey','savedQuizScores','awardQuizPoints','recordQuizScore','answerTriviaQuestion','answerWhoSaidIt','triviaHintOptions','availableRoundHintOptions','useTriviaHint']) vm.runInContext(extract(name), ctx);
 function game(type = 'trivia', count = 8) {
   return {type, difficulty: 'Medium', category: 'All', index: 0, selectedAnswer: null, score: 0, points: 0, questions: Array.from({length: count}, () => ({answer: 'A', choices: ['A','B','C','D'], selectedAnswer: null, eliminatedChoices: []}))};
 }
@@ -44,3 +44,22 @@ const tied=game('trivia',1); tied.questions[0].points=600; tied.points=600; ctx.
 assert.equal(ctx.savedQuizScores({...tied,category:'Gospels'}).length,0);
 const incomplete=game(); ctx.recordQuizScore(incomplete); assert.equal(incomplete.quizScoreRecorded,undefined);
 console.log('Quiz scoring: awards, streaks, hints, perfect bonus, duplicate protection, persistence and settings isolation passed.');
+
+for (const elapsedMs of [30000, 40000, 60000, 60001]) {
+  const g = game('who-said-it', 5);
+  g.score = 5; g.points = 6000;
+  g.questions.forEach(q => { q.points = 1000; q.elapsedMs = elapsedMs / 5; });
+  ctx.recordQuizScore(g);
+  assert.equal(g.points % 10, 0);
+  assert.equal(g.timeBonus, ctx.perfectTimeBonus(elapsedMs, 60000));
+  assert.equal(g.elapsedMs, elapsedMs);
+}
+assert(ctx.compareGamePoints({points: 7500, elapsedMs: 59000}, {points: 7500, elapsedMs: 60000}) < 0);
+assert.equal(ctx.perfectTimeBonus(30000, 60000), 660);
+assert.equal(ctx.perfectTimeBonus(40000, 60000), 600);
+const hinted = game('trivia', 1); hinted.score = 1; hinted.questions[0] = {points:1000, elapsedMs:1000, hintUsed:'letter'};
+ctx.recordQuizScore(hinted); assert.equal(hinted.timeBonus, 0);
+const timed = game('who-said-it', 1); timed.questionStartedAt = Date.now() - 1000;
+ctx.state.triviaGame = timed; ctx.answerWhoSaidIt('A');
+const elapsed = timed.questions[0].elapsedMs; assert(elapsed >= 1000);
+ctx.recordQuizScore(timed); assert.equal(timed.elapsedMs, elapsed, 'Feedback time is excluded');

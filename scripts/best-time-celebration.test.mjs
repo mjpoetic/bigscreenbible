@@ -10,6 +10,7 @@ const status = {};
 const dialog = { setAttribute() {}, addEventListener(name, fn) { events[name] = fn; }, showModal() {}, close() {}, remove() { removed = true; }, querySelectorAll() { return buttons; }, querySelector(selector) { return selector === 'button' ? buttons[0] : status; } };
 const context = vm.createContext({ document: { createElement: () => dialog, body: { append() {} } }, window: { setInterval() { assert.fail("Record actions must not wait for a timer"); } }, icons: { timer: '' }, formatGameTime: () => '1:05', crosswordHintLimit: 3, playGameOutcomeSound() {}, gameMusicTrackKey: 'outcome:perfect', gameMusicAudio: { paused: false, ended: false }, state: {}, cleanupTriviaCelebration() { vm.runInContext('bestTimeCelebrationCleanup()', context); }, exitTriviaGame() { menu++; }, restartPuzzleAtDifficulty() { retry++; }, requestGameMusicRestart() {}, startTriviaGame() { retry++; } });
 vm.runInContext(source.slice(source.indexOf("function isQuizPointsGame("), source.indexOf("function quizScoreKey(")), context);
+vm.runInContext(source.slice(source.indexOf("function triviaRoundLength("), source.indexOf("function completeTriviaGame(")), context);
 vm.runInContext(section, context);
 for (const [type, flag, field] of [['reference-rush', 'referenceRushIsNewBest', 'referenceRushBest'], ['word-search', 'wordSearchIsNewBest', 'wordSearchBest'], ['crossword', 'crosswordIsNewBest', 'crosswordBest'], ['book-sprint', 'bookSprintNewBest', 'bookSprintBest'], ['hidden-word', 'hiddenWordIsNewBest', 'hiddenWordBest'], ['trivia', 'quizIsNewBest', 'quizBest'], ['who-said-it', 'quizIsNewBest', 'quizBest']]) {
   const best = { elapsedMs: 65000 };
@@ -52,4 +53,18 @@ for (const type of ['trivia', 'who-said-it', 'book-sprint', 'reference-rush']) {
   assert.equal(context.state.triviaCount, 4);
   assert.equal(context.state.triviaDifficulty, 'Easy');
   assert.equal(context.state.triviaGameType, type);
+}
+
+for (const [score, tier] of [[5,'perfect'], [4,'strong'], [3,'steady'], [2,'retry'], [0,'retry']]) {
+  const round = {type:'who-said-it', complete:true, score, points:score * 1000, questions:Array(5).fill({})};
+  context.showBestTimeCelebration(round, null);
+  assert.equal(dialog.className, `best-time-celebration result-${tier}`);
+  assert.match(dialog.innerHTML, /data-best-time-action="retry"/);
+  assert.match(dialog.innerHTML, new RegExp(`${score * 20}% accuracy`));
+  if (score === 5) assert.match(dialog.innerHTML, /result-confetti/);
+}
+for (const type of ['trivia','who-said-it','hidden-word','verse-order','reference-rush','book-sprint','word-search','crossword']) {
+  const round = {type, complete:true, score:1, questions:[{}], words:[{}], entries:[{}]};
+  context.showBestTimeCelebration(round, null);
+  assert.match(dialog.innerHTML, /Games menu/);
 }

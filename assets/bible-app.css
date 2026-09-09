@@ -22482,3 +22482,34 @@ svg {
   font: 700 13px / 1.4 var(--ui-font, sans-serif);
 }
 .parallel-mobile-versions .parallel-version-trigger { min-width: 0; }
+
+/* Completion actions remain visible even on short landscape screens. */
+.best-time-celebration[open] { display: flex; flex-direction: column; overflow: hidden; }
+.best-time-art { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.best-time-footer { flex: 0 0 auto; }
+.best-time-badge { font-size: 38px; }
+.result-perfect { border-color: #80efad; background: #103c2c; }
+.result-perfect .best-time-art { background: radial-gradient(ellipse at bottom, #247d50, #082b20 85%); }
+.result-strong { border-color: #8bdcff; background: #12344e; }
+.result-strong .best-time-art { background: radial-gradient(ellipse at bottom, #256a94, #102c49 85%); }
+.result-steady { border-color: #d4b5ff; background: #382656; }
+.result-steady .best-time-art { background: radial-gradient(ellipse at bottom, #7954a5, #281b42 85%); }
+.result-retry { border-color: #ffd090; background: #51321f; }
+.result-retry .best-time-art { background: radial-gradient(ellipse at bottom, #915d32, #3c241a 85%); }
+.best-time-celebration:not(.result-record) .best-time-hero h2 { animation: none; color: #fff; text-shadow: 2px 2px #0008; }
+.result-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.result-confetti i { position: absolute; top: -12px; left: calc(var(--i) * 4.3%); width: 7px; height: 12px; background: #ffdf71; animation: result-confetti-fall 2.6s calc(var(--i) * -0.17s) linear infinite; }
+.result-confetti i:nth-child(3n) { background: #97ffcc; }
+.result-confetti i:nth-child(3n + 1) { background: #b2ddff; }
+@keyframes result-confetti-fall { to { transform: translateY(500px) rotate(540deg); } }
+@media (max-height: 500px) {
+  .best-time-celebration { width: min(720px, calc(100vw - 20px)); max-height: calc(100dvh - 20px); }
+  .best-time-hero { padding: 12px; }
+  .best-time-hero h2 { font-size: 28px; }
+  .best-time-badge, .best-time-eyebrow, .best-time-status { display: none; }
+  .best-time-value { margin-top: 8px; font-size: 32px; }
+  .best-time-footer { padding: 10px 16px; }
+  .best-time-footer > p { font-size: 12px; }
+  .best-time-actions { flex-direction: row; margin-top: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .result-confetti { display: none; } }
