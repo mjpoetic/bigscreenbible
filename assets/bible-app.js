@@ -721,6 +721,7 @@ const state = {
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
   helpSectionsOpen: {
+    essentials: false,
     deeper: false,
     install: false,
     keyboard: false,
@@ -1238,7 +1239,7 @@ const tutorialSteps = [
     title: "Make room with Focus Mode",
     body: "Hide the side panels for a calmer reading space. Use Focus, press F, or double-tap blank Scripture space to switch it on or off. Search, Settings, and Focus tools remain available.",
     focusTitle: "You are in Focus Mode",
-    focusBody: "This tour follows your Focus controls and skips the hidden sidebar and navigation bars. Use Focus, press F, or double-tap blank Scripture space to show the panels again.",
+    focusBody: "Use Focus, press F, or double-tap blank Scripture space to show the panels again.",
   },
   {
     target: "#settingsToggle, #mobileControlsToggle",
@@ -3056,7 +3057,7 @@ function rememberDisclosureState(details, open = details.open) {
 
 function bindDisclosureAnimation(details) {
   const summary = details.querySelector(":scope > summary");
-  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy");
+  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy, :scope > .help-essentials-grid");
   if (!summary || !content) return;
 
   summary.addEventListener("click", (event) => {
@@ -16797,15 +16798,15 @@ function shortcutOverlay() {
           </div>
           <button class="primary-btn" id="startHelpTour" type="button">Take tour</button>
         </div>
-        <section class="help-essentials" aria-labelledby="helpEssentialsTitle">
-          <h3 id="helpEssentialsTitle">Reading essentials</h3>
-          <div class="help-grid">
+        <details class="help-section" data-help-section="essentials" ${state.helpSectionsOpen.essentials ? "open" : ""}>
+          <summary>Reading essentials</summary>
+          <div class="help-grid help-essentials-grid">
             <div><strong>Focus Mode</strong><span>Hide the side panels using Focus, the F key, or a double-tap on blank Scripture space. Repeat to bring them back. Floating search, Settings, and Focus tools keep your reading tools close.</span></div>
             <div><strong>Hands-free auto-scroll</strong><span>In Settings → Reading &amp; navigation, enable auto-scroll controls and choose your speed. Use Play/Pause or A in Reader and Parallel. When auto-scroll is enabled in Settings, two-finger tap starts or pauses it.</span></div>
             <div><strong>Tap the verse number</strong><span>In paragraph reading, open tools to select, copy, add a note, highlight, or view cross references; press and hold for cross references directly. In verse rows, Parallel, and shared passages, numbers open cross references.</span></div>
             <div><strong>Original-word lookups</strong><span>BSB (Berean Standard Bible), KJV (King James Version), WEB (World English Bible), and ASV (American Standard Version) currently have Strong's word tagging. Coverage varies by passage; support for more translations is planned. See Go deeper below to get started.</span></div>
           </div>
-        </section>
+        </details>
         <details class="help-section" data-help-section="install" ${state.helpSectionsOpen.install ? "open" : ""}>
           <summary>Install on your phone or tablet</summary>
           <div class="help-feature-copy">

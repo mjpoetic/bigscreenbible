@@ -13810,9 +13810,8 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   background: var(--paper);
 }
 
-.help-essentials h3 {
-  margin: 20px 22px 0;
-  font-size: calc(16px * var(--popup-text-scale, 1));
+.help-section > .help-essentials-grid {
+  padding: 14px;
 }
 
 .shortcut-panel > .help-section {
