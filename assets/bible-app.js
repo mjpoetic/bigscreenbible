@@ -536,7 +536,7 @@ const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/di
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
 const verseOfDayTranslationCode = "NIV";
 let lastAppUpdateCheckAt = 0;
-let announcedAppUpdateVersion = "";
+let dismissedAppUpdateVersion = "";
 let pendingAppUpdateRestore = null;
 let appUpdateRestoreAnnouncementTimer = 0;
 let appUpdateRestoreCleanupTimer = 0;
@@ -1634,6 +1634,7 @@ function render() {
   pendingFocusChromeEnter = false;
   pendingLibraryEnter = false;
   mountMobileGameControls();
+  syncAppUpdateNotification();
   bindEvents();
   restoreSettingsPanelScroll(settingsScrollState);
   restoreAccountPanelScroll(accountScrollState);
@@ -3770,7 +3771,61 @@ function appUpdateMetadataUrl() {
   return url;
 }
 
+function shouldShowAppUpdateNotice() {
+  return state.appUpdateAvailable
+    && state.appUpdateVersion !== dismissedAppUpdateVersion
+    && document.visibilityState === "visible"
+    && !dataLoading && !dataError
+    && state.mode !== "big"
+    && !(state.mode === "trivia" && state.triviaGame && !state.triviaGame.complete)
+    && !state.tutorialActive;
+}
+
+function syncAppUpdateNotification() {
+  const shell = document.querySelector(".app-shell");
+  if (!shell || dataLoading || dataError) return;
+  for (const button of shell.querySelectorAll("#settingsToggle, #mobileFloatingSettings, #presentationSettingsToggle, #mobileControlsToggle")) {
+    if (!button.dataset.updateBaseLabel) button.dataset.updateBaseLabel = button.getAttribute("aria-label") || "Settings";
+    button.classList.toggle("has-app-update", state.appUpdateAvailable);
+    button.setAttribute("aria-label", button.dataset.updateBaseLabel + (state.appUpdateAvailable ? ". Update available" : ""));
+    const dot = button.querySelector(".app-update-indicator");
+    if (state.appUpdateAvailable && !dot) {
+      const indicator = document.createElement("span");
+      indicator.className = "app-update-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      button.append(indicator);
+    } else if (!state.appUpdateAvailable) dot?.remove();
+  }
+  let notice = document.getElementById("appUpdateNotice");
+  if (!shouldShowAppUpdateNotice()) {
+    notice?.remove();
+    return;
+  }
+  if (!notice) {
+    notice = document.createElement("section");
+    notice.id = "appUpdateNotice";
+    notice.className = "app-update-notice";
+    notice.setAttribute("aria-label", "App update");
+    notice.innerHTML = `<p role="status">An update is ready</p><div class="app-update-notice-actions"><button type="button" class="primary-btn" data-app-update-accept>Update now</button><button type="button" class="ghost-btn" data-app-update-later>Later</button></div>`;
+    notice.querySelector("[data-app-update-accept]").addEventListener("click", () => {
+      if (state.appUpdateAvailable && !state.appUpdateBusy) applyAppUpdate();
+    });
+    notice.querySelector("[data-app-update-later]").addEventListener("click", () => {
+      dismissedAppUpdateVersion = state.appUpdateVersion;
+      notice.remove();
+      const settings = [...shell.querySelectorAll("#settingsToggle, #mobileFloatingSettings, #mobileControlsToggle")]
+        .find((button) => button.getClientRects().length);
+      settings?.focus({ preventScroll: true });
+    });
+    shell.append(notice);
+  }
+  const updateButton = notice.querySelector("[data-app-update-accept]");
+  updateButton.disabled = state.appUpdateBusy;
+  updateButton.textContent = state.appUpdateRefreshing ? "Updating…" : "Update now";
+}
+
 function renderAppUpdateStatus() {
+  syncAppUpdateNotification();
   if (dataLoading || dataError) return;
   if (state.mode === "big" && state.presentationSettingsOpen) {
     render();
@@ -3808,7 +3863,6 @@ async function checkForAppUpdate(options = {}) {
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 10000);
-  let availableVersion = "";
   try {
     const response = await fetch(appUpdateMetadataUrl(), {
       cache: "no-store",
@@ -3830,7 +3884,6 @@ async function checkForAppUpdate(options = {}) {
       : manual
         ? "You have the latest version. If anything still looks outdated, refresh the app here."
         : "Big Screen Bible is up to date.";
-    if (state.appUpdateAvailable) availableVersion = publishedVersion;
   } catch (error) {
     console.warn("Big Screen Bible update check failed", error);
     if (manual) state.appUpdateStatus = "Unable to check right now. Confirm that this device is online and try again.";
@@ -3838,11 +3891,6 @@ async function checkForAppUpdate(options = {}) {
     window.clearTimeout(timeout);
     state.appUpdateBusy = false;
     renderAppUpdateStatus();
-  }
-
-  if (availableVersion && announcedAppUpdateVersion !== availableVersion) {
-    announcedAppUpdateVersion = availableVersion;
-    showToast("A Big Screen Bible update is available in Settings");
   }
 }
 
@@ -6128,7 +6176,7 @@ function revealMobileSettingsButton() {
   if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
     if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive) return;
-    document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
+    if (!state.appUpdateAvailable) document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
     document.querySelectorAll(".reader-page-button.available").forEach((button) => {
@@ -26676,6 +26724,7 @@ document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 document.addEventListener("visibilitychange", () => {
+  syncAppUpdateNotification();
   if (document.visibilityState === "hidden") {
     pauseGameMusic({ fade: false });
     pauseReaderAutoScroll();
