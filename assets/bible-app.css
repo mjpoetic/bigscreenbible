@@ -4592,7 +4592,7 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 :is(.settings-popover, .mobile-settings-popover) .settings-quick-text-actions .text-size-control {
   display: grid;
-  grid-template-columns: 36px minmax(58px, 1fr) 36px;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
   width: 100%;
   min-width: 0;
   min-height: 40px;
