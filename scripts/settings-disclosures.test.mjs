@@ -514,3 +514,58 @@ assert.equal(maxHeightContext.maxHeight(233), 614, "Mobile Settings stays tall a
 assert.doesNotMatch(settingsMaxHeightSource, /trivia-start-dock/, "The game action dock does not shorten Settings");
 
 console.log("Settings disclosure tests passed");
+
+// Hold-to-update must not turn a scroll, tap, or canceled gesture into a reload.
+{
+const holdListeners = {};
+let holdCallback = null;
+let appliedUpdates = 0;
+const holdState = { appUpdateAvailable: true, appUpdateBusy: false };
+const holdButton = {
+  isConnected: true,
+  classList: { add() {}, remove() {} },
+  addEventListener(type, callback) { holdListeners[type] = callback; },
+};
+const holdContext = {
+  state: holdState,
+  window: {
+    setTimeout(callback) { holdCallback = callback; return 1; },
+    clearTimeout() { holdCallback = null; },
+  },
+  applyAppUpdate() { appliedUpdates += 1; },
+};
+vm.createContext(holdContext);
+vm.runInContext(extractFunction("bindSettingsUpdateHold"), holdContext);
+const consumeHold = holdContext.bindSettingsUpdateHold(holdButton);
+const pointer = { button: 0, isPrimary: true, clientX: 20, clientY: 20 };
+holdListeners.pointerdown(pointer);
+holdListeners.pointerup();
+assert.equal(holdCallback, null);
+assert.equal(consumeHold(), false);
+holdListeners.pointerdown(pointer);
+holdListeners.pointermove({ clientX: 20, clientY: 45 });
+assert.equal(holdCallback, null);
+holdListeners.pointerdown(pointer);
+holdListeners.pointercancel();
+assert.equal(holdCallback, null);
+holdListeners.pointerdown(pointer);
+holdCallback();
+assert.equal(appliedUpdates, 1);
+holdListeners.pointerup();
+assert.equal(consumeHold(), true, "Completed hold suppresses drill-down click");
+assert.equal(consumeHold(), false);
+holdState.appUpdateAvailable = false;
+holdListeners.pointerdown(pointer);
+assert.equal(holdCallback, null);
+holdState.appUpdateAvailable = true;
+holdState.appUpdateBusy = true;
+holdListeners.pointerdown(pointer);
+assert.equal(holdCallback, null);
+holdState.appUpdateBusy = false;
+holdListeners.pointerdown(pointer);
+holdButton.isConnected = false;
+holdCallback();
+assert.equal(appliedUpdates, 1, "Rerendered rows cannot trigger stale holds");
+console.log("Settings update hold tests passed");
+
+}

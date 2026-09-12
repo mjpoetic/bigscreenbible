@@ -4115,15 +4115,69 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
 }
 
 function settingsDestinationRow(page, title, summary, searchText) {
+  const glyphs = {
+    appearance: icons.highlighter,
+    reading: icons.book,
+    sounds: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4 6 8H3v8h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>',
+    sharing: icons.share,
+    startup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10a7 7 0 0 1 14 0c0 6 2 7 2 7H3s2-1 2-7M9 21h6M12 1v2"/></svg>',
+    app: icons.info,
+  };
+  const updateAvailable = page === "app" && state.appUpdateAvailable;
+  const tooltip = updateAvailable ? `${summary} · Update available. Press and hold to update.` : summary;
   return `
-    <button class="settings-destination-row" type="button" data-settings-page="${page}" data-settings-search-item data-settings-search-text="${escapeHtml(searchText)}">
-      <span class="settings-destination-copy">
-        <strong>${title}</strong>
-        <small>${escapeHtml(summary)}</small>
-      </span>
-      <span class="settings-destination-chevron" aria-hidden="true"></span>
-    </button>
+    <div class="settings-destination-item ${updateAvailable ? "has-update" : ""}">
+      <button class="settings-destination-row setting-tooltip-area" type="button" data-settings-page="${page}" data-settings-search-item data-settings-search-text="${escapeHtml(searchText)}" data-tooltip="${escapeHtml(tooltip)}" aria-label="${escapeHtml(`${title}. ${tooltip}`)}" ${updateAvailable ? 'data-settings-update-hold' : ""}>
+        <span class="settings-destination-icon" aria-hidden="true">${glyphs[page] || icons.settings}${updateAvailable ? '<span class="settings-update-dot"></span>' : ""}</span>
+        <span class="settings-destination-copy">
+          <strong>${title}</strong>
+          ${page === "app" ? `<small>${escapeHtml(summary)}</small>` : ""}
+        </span>
+        ${updateAvailable ? '<span class="settings-update-space" aria-hidden="true"></span>' : ""}
+        <span class="settings-destination-chevron" aria-hidden="true"></span>
+      </button>
+      ${updateAvailable ? `<button type="button" class="settings-update-shortcut" data-settings-update-now aria-label="Update app now" ${state.appUpdateBusy ? "disabled" : ""}>${state.appUpdateRefreshing ? "Updating…" : "Update"}</button>` : ""}
+    </div>
   `;
+}
+
+// Return a click guard so completing a hold never also drills into the page.
+function bindSettingsUpdateHold(button) {
+  let timer = 0;
+  let start = null;
+  let held = false;
+  const cancel = () => {
+    window.clearTimeout(timer);
+    timer = 0;
+    start = null;
+    button.classList.remove("settings-update-holding");
+  };
+  button.addEventListener("pointerdown", (event) => {
+    cancel();
+    held = false;
+    if (event.button !== 0 || event.isPrimary === false || !state.appUpdateAvailable || state.appUpdateBusy) return;
+    start = { x: event.clientX, y: event.clientY };
+    button.classList.add("settings-update-holding");
+    timer = window.setTimeout(() => {
+      cancel();
+      if (!button.isConnected || !state.appUpdateAvailable || state.appUpdateBusy) return;
+      held = true;
+      applyAppUpdate();
+    }, 650);
+  });
+  button.addEventListener("pointermove", (event) => {
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) cancel();
+  });
+  ["pointerup", "pointercancel", "pointerleave", "lostpointercapture", "blur"].forEach((type) => button.addEventListener(type, cancel));
+  button.addEventListener("contextmenu", (event) => {
+    if (timer || held) event.preventDefault();
+  });
+  return () => {
+    const consumed = held;
+    held = false;
+    cancel();
+    return consumed;
+  };
 }
 
 function settingsSearchDestinationRow(prefix, page, target, title, category, searchText) {
@@ -17336,8 +17390,18 @@ function bindEvents() {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
   });
-  document.querySelectorAll("[data-settings-page]").forEach((button) => {
+  document.querySelectorAll("[data-settings-update-now]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (state.appUpdateAvailable && !state.appUpdateBusy) applyAppUpdate();
+    });
+  });
+  document.querySelectorAll("[data-settings-page]").forEach((button) => {
+    const consumeHold = button.hasAttribute("data-settings-update-hold") ? bindSettingsUpdateHold(button) : () => false;
+    button.addEventListener("click", (event) => {
+      if (consumeHold()) {
+        event.preventDefault();
+        return;
+      }
       if (!settingsPages[button.dataset.settingsPage]) return;
       const targetName = button.dataset.settingsTarget || "";
       const targetPrefix = button.dataset.settingsPrefix || "";
