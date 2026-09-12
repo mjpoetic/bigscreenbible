@@ -22138,6 +22138,7 @@ svg {
 
 /* Keep floating menus consistent with the library drawer, including WebKit. */
 .library,
+.study-popup,
 .settings-popover,
 .mobile-settings-popover,
 .primary-version-menu,
