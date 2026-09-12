@@ -22750,22 +22750,22 @@ svg {
 .app-update-notice-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .app-update-notice-actions button { min-height: 44px; }
 
-/* Focus controls share the same idle treatment at every viewport size. */
+/* Floating reading controls share the same idle treatment at every viewport size. */
 @media (prefers-reduced-motion: no-preference) {
-  .app-shell.focus-shell :is(.focus-control-faded, .focus-control-hidden):not(:focus-visible) {
+  .app-shell :is(.focus-control-faded, .focus-control-hidden):not(:focus-visible) {
     transition: opacity 1.2s ease-in-out;
   }
 }
 
-.app-shell.focus-shell .focus-control-faded:not(:focus-visible) {
+.app-shell .focus-control-faded:not(:focus-visible) {
   opacity: 0.18;
   pointer-events: auto;
 }
-.app-shell.focus-shell .focus-control-hidden:not(:focus-visible) {
+.app-shell .focus-control-hidden:not(:focus-visible) {
   opacity: 0;
   pointer-events: none;
 }
-.app-shell.focus-shell :is(.focus-control-faded, .focus-control-hidden):focus-visible {
+.app-shell :is(.focus-control-faded, .focus-control-hidden):focus-visible {
   opacity: 1;
   pointer-events: auto;
 }

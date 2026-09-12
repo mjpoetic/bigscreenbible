@@ -12,7 +12,7 @@ const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFo
 controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
-  document: { querySelectorAll: () => controls, getElementById: id => controls.find(b => b.id === id) },
+  document: { querySelectorAll: selector => selector === ".reader-page-button.available, #readerAutoScrollButton" ? controls.filter(b => ["readerAutoScrollButton", "pageDown"].includes(b.id)) : controls, getElementById: id => controls.find(b => b.id === id) },
   setTimeout: (fn, delay) => { timers.set(++nextId, { fn, delay }); return nextId; },
   clearTimeout: id => timers.delete(id),
   isCompactScreen: () => false,
@@ -45,4 +45,24 @@ assert.equal(context.normalizedFocusControlsHideSeconds(null), 10);
 assert.equal(context.normalizedFocusControlsHideSeconds('bad'), 10);
 assert.equal(context.normalizedFocusControlsHideSeconds(1), 5);
 assert.equal(context.normalizedFocusControlsHideSeconds(1000), 300);
-console.log('Focus control inactivity tests passed.');
+context.state.focusMode = false;
+context.state.focusControlsFade = true;
+for (const mode of ['reader', 'parallel']) {
+  context.state.mode = mode;
+  wake(); run(3200);
+  assert.ok(controls[1].classes.has('focus-control-faded'), `${mode}: auto-scroll fades outside Focus`);
+  assert.ok(controls[3].classes.has('focus-control-faded'), `${mode}: page navigation fades outside Focus`);
+  assert.equal(controls[0].classes.size, 0, `${mode}: other controls stay unchanged`);
+  run(10000);
+  assert.ok(controls[1].classes.has('focus-control-hidden'), `${mode}: optional hiding works`);
+  wake();
+  assert.ok(controls.every(b => b.classes.size === 0), `${mode}: interaction restores controls`);
+  context.state.autoScrollActive = true;
+  const timerBeforeScroll = nextId;
+  context.revealMobileSettingsButton({ type: 'scroll' });
+  assert.equal(nextId, timerBeforeScroll, `${mode}: automatic scrolling does not wake controls`);
+  context.state.autoScrollActive = false;
+}
+context.state.mode = 'big';
+assert.equal(context.floatingControlsFadeEnabled(), false);
+console.log('Focus and reading control inactivity tests passed.');

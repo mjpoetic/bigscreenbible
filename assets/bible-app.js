@@ -3643,12 +3643,12 @@ function readingSettings(prefix = "", options = {}) {
       <p class="setting-help">${selectedAutoScrollSpeed.name} speed.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
-      <span class="setting-label">Focus Mode controls</span>
+      <span class="setting-label">Floating reading controls</span>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
       </label>
-      <p class="setting-help">Fade floating buttons, including auto-scroll, after a few seconds. Interact to brighten them. Turn off to restore the original appearance behavior.</p>
+      <p class="setting-help">Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds. Interact to brighten them. Turn off to restore the original appearance behavior.</p>
       <label class="setting-checkbox">
         <input type="checkbox" data-focus-controls-setting="focusControlsHide" ${state.focusControlsHide ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
         <span>Eventually hide faded controls</span>
@@ -4313,7 +4313,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "StrongNumbersToggle", "Strong's number lookups", "Scripture & Reading", "Strong numbers")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
-      ${result("reading", "FocusControlsFadeToggle", "Focus Mode controls", "Reading & navigation", "fade opacity floating buttons hide inactivity delay")}
+      ${result("reading", "FocusControlsFadeToggle", "Floating reading controls", "Reading & navigation", "focus reader parallel auto-scroll page fade opacity floating buttons hide inactivity delay")}
       ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
       ${result("reading", "AutoScrollSpeedLabel", "Auto-scroll speed", "Scripture & Reading", "automatic scrolling")}
       ${result("reading", "SideToolbarPositionLabel", "Landscape toolbar position", "Scripture & Reading", "left right side")}
@@ -6187,7 +6187,12 @@ function normalizedFocusControlsHideSeconds(value) {
   return Number.isFinite(seconds) && seconds > 0 ? Math.min(300, Math.max(5, Math.round(seconds))) : 10;
 }
 
+function floatingControlsFadeEnabled() {
+  return state.focusControlsFade && state.mode !== "big" && (state.focusMode || ["reader", "parallel"].includes(state.mode));
+}
+
 function focusFloatingControls() {
+  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button.available, #readerAutoScrollButton")];
   return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button.available, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton")];
 }
 
@@ -6197,12 +6202,12 @@ function focusControlsInUse() {
 
 function revealMobileSettingsButton(event) {
   // Programmatic auto-scroll must not continually wake the floating controls.
-  if (event?.type === "scroll" && state.autoScrollActive && state.focusMode && state.focusControlsFade) return;
+  if (event?.type === "scroll" && state.autoScrollActive && floatingControlsFadeEnabled()) return;
   clearTimeout(focusControlsHideTimer);
   document.querySelectorAll(".focus-control-faded, .focus-control-hidden").forEach((button) => {
     button.classList.remove("focus-control-faded", "focus-control-hidden");
   });
-  if (state.focusMode && state.focusControlsFade && state.mode !== "big") {
+  if (floatingControlsFadeEnabled()) {
     clearTimeout(mobileSettingsIdleTimer);
     document.querySelectorAll(".mobile-settings-idle, .reader-top-idle").forEach((button) => {
       button.classList.remove("mobile-settings-idle", "reader-top-idle");
@@ -26727,7 +26732,7 @@ window.addEventListener("scroll", updateReaderTopButton, { passive: true });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 ["pointerdown", "pointermove", "keydown", "focusin", "wheel", "touchmove"].forEach((eventName) => {
   window.addEventListener(eventName, (event) => {
-    if (state.focusMode) revealMobileSettingsButton(event);
+    if (state.focusMode || ["reader", "parallel"].includes(state.mode)) revealMobileSettingsButton(event);
   }, { passive: true });
 });
 window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
