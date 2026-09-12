@@ -6,9 +6,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const versionPath = path.join(rootDir, "app-version.json");
-const htmlFiles = ["index.html", "about.html", "privacy/index.html", "terms/index.html"];
+const htmlFiles = ["404.html", "index.html", "about.html", "privacy/index.html", "terms/index.html"];
 const releaseManagedFiles = [
-  "404.html",
   ...htmlFiles,
   "assets/bible-app.css",
   "assets/bible-app.js",
@@ -20,7 +19,7 @@ const releaseManagedFiles = [
   "assets/verse-of-day.js",
 ];
 const versionPattern = /^[a-z0-9._-]{1,80}$/i;
-const assetVersionPattern = /(?:\.\.\/|\.\/)assets\/[^"'?]+\.(?:css|js)\?v=([^"']+)/gi;
+const assetVersionPattern = /(?:\.\.\/|\.\/|\/)assets\/[^"'?]+\.(?:css|js)\?v=([^"']+)/gi;
 
 function readVersion(contents, source) {
   let version = "";

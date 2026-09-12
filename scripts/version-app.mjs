@@ -13,8 +13,8 @@ if (!/^[a-z0-9._-]{1,80}$/i.test(version)) {
 const versionPath = path.join(rootDir, "app-version.json");
 writeFileSync(versionPath, `${JSON.stringify({ version }, null, 2)}\n`);
 
-const htmlFiles = ["index.html", "about.html", "privacy/index.html", "terms/index.html"];
-const firstPartyAssetPattern = /((?:\.\.\/|\.\/)assets\/[^"'?]+\.(?:css|js))\?v=[^"']+/gi;
+const htmlFiles = ["404.html", "index.html", "about.html", "privacy/index.html", "terms/index.html"];
+const firstPartyAssetPattern = /((?:\.\.\/|\.\/|\/)assets\/[^"'?]+\.(?:css|js))\?v=[^"']+/gi;
 
 for (const htmlFile of htmlFiles) {
   const htmlPath = path.join(rootDir, htmlFile);

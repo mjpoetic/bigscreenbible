@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const html = readFileSync(new URL('../404.html', import.meta.url), 'utf8');
 let redirected;
-const context = { URL, window: { location: { href: 'https://bigscreenbible.com/Pro3:5-6', replace: value => {redirected=value;} } }, document: { getElementById: () => ({textContent:''}) } };
+const context = { URL, window: { location: { href: 'https://bigscreenbible.com/Pro3:5-6', replace: value => {redirected=value;} } }, document: { documentElement: { classList: { add: value => { context.redirectClass = value; } } } } };
 vm.createContext(context);
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context);
+assert.equal(context.redirectClass, 'passage-redirecting');
+assert.ok(html.indexOf('window.location.replace') < html.indexOf('<body>'), 'Redirect before body content is parsed');
 assert.equal(new URL(redirected).searchParams.get('ref'),'Pro 3:5-6');
 for (const [path, reference, version] of [
   ['Pro3:5-6','Pro 3:5-6',null],
