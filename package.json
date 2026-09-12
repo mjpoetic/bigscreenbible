@@ -20,7 +20,7 @@
     "test:best-time": "node scripts/best-time-celebration.test.mjs && node scripts/games-round-records.test.mjs",
     "test:game-music": "node scripts/game-music.test.mjs",
     "test:focus-brand": "node scripts/focus-brand-version-hold.test.mjs",
-    "test:focus-layout": "node scripts/focus-mode-layout.test.mjs",
+    "test:focus-layout": "node scripts/focus-mode-layout.test.mjs && node scripts/focus-controls.test.mjs",
     "test:games-layout": "node scripts/games-mobile-layout.test.mjs",
     "test:games-return": "node scripts/game-reference-return.test.mjs",
     "test:headings": "node scripts/section-heading-groups.test.mjs",

@@ -361,6 +361,7 @@ let lastReaderViewportSize = null;
 const modeScrollStates = new Map();
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
+let focusControlsHideTimer = 0;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
 let suppressMobileControlsClickUntil = 0;
@@ -647,6 +648,9 @@ const state = {
   strongNumbers: savedStrongNumbers(),
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
+  focusControlsFade: localStorage.getItem("lw_focus_controls_fade") !== "false",
+  focusControlsHide: localStorage.getItem("lw_focus_controls_hide") === "true",
+  focusControlsHideSeconds: normalizedFocusControlsHideSeconds(localStorage.getItem("lw_focus_controls_hide_seconds")),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   libraryOpen: localStorage.getItem("lw_library_open") === "true",
@@ -3639,6 +3643,21 @@ function readingSettings(prefix = "", options = {}) {
       <p class="setting-help">${selectedAutoScrollSpeed.name} speed.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
+      <span class="setting-label">Focus Mode controls</span>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
+        <span>Keep idle controls faintly visible</span>
+      </label>
+      <p class="setting-help">Fade floating buttons, including auto-scroll, after a few seconds. Interact to brighten them. Turn off to restore the original appearance behavior.</p>
+      <label class="setting-checkbox">
+        <input type="checkbox" data-focus-controls-setting="focusControlsHide" ${state.focusControlsHide ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
+        <span>Eventually hide faded controls</span>
+      </label>
+      <label class="setting-label" for="${controlId("FocusControlsHideSeconds")}">Hide after seconds of inactivity</label>
+      <input id="${controlId("FocusControlsHideSeconds")}" type="number" min="5" max="300" step="1" value="${state.focusControlsHideSeconds}" data-focus-controls-setting="focusControlsHideSeconds" ${state.focusControlsFade && state.focusControlsHide ? "" : "disabled"} />
+      <p class="setting-help">Default: 10 seconds. Touch, move the pointer, scroll, or use the keyboard to show controls again.</p>
+    </div>
+    <div class="setting-group settings-section-subgroup">
       <span class="setting-label" id="${controlId("SideToolbarPositionLabel")}">Landscape toolbar</span>
       <div class="theme-mode-segment side-toolbar-segment" role="group" aria-labelledby="${controlId("SideToolbarPositionLabel")}">
         <button class="theme-mode-button ${state.sideToolbarPosition === "left" ? "active" : ""}" type="button" data-side-toolbar-position="left" aria-pressed="${state.sideToolbarPosition === "left" ? "true" : "false"}">Left</button>
@@ -4294,6 +4313,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "StrongNumbersToggle", "Strong's number lookups", "Scripture & Reading", "Strong numbers")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
+      ${result("reading", "FocusControlsFadeToggle", "Focus Mode controls", "Reading & navigation", "fade opacity floating buttons hide inactivity delay")}
       ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
       ${result("reading", "AutoScrollSpeedLabel", "Auto-scroll speed", "Scripture & Reading", "automatic scrolling")}
       ${result("reading", "SideToolbarPositionLabel", "Landscape toolbar position", "Scripture & Reading", "left right side")}
@@ -6162,7 +6182,46 @@ function scheduleStreakPopupDismiss() {
   }, 4200);
 }
 
-function revealMobileSettingsButton() {
+function normalizedFocusControlsHideSeconds(value) {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(300, Math.max(5, Math.round(seconds))) : 10;
+}
+
+function focusFloatingControls() {
+  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button.available, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton")];
+}
+
+function focusControlsInUse() {
+  return state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive;
+}
+
+function revealMobileSettingsButton(event) {
+  // Programmatic auto-scroll must not continually wake the floating controls.
+  if (event?.type === "scroll" && state.autoScrollActive && state.focusMode && state.focusControlsFade) return;
+  clearTimeout(focusControlsHideTimer);
+  document.querySelectorAll(".focus-control-faded, .focus-control-hidden").forEach((button) => {
+    button.classList.remove("focus-control-faded", "focus-control-hidden");
+  });
+  if (state.focusMode && state.focusControlsFade && state.mode !== "big") {
+    clearTimeout(mobileSettingsIdleTimer);
+    document.querySelectorAll(".mobile-settings-idle, .reader-top-idle").forEach((button) => {
+      button.classList.remove("mobile-settings-idle", "reader-top-idle");
+    });
+    if (focusControlsInUse()) return;
+    const dimControls = (className) => {
+      if (focusControlsInUse()) return;
+      focusFloatingControls().forEach((button) => {
+        if (button.matches(":focus-visible") || (button.id === "mobileFloatingSettings" && state.appUpdateAvailable)) return;
+        button.classList.add(className);
+      });
+    };
+    mobileSettingsIdleTimer = setTimeout(() => dimControls("focus-control-faded"), 3200);
+    if (state.focusControlsHide) {
+      focusControlsHideTimer = setTimeout(() => dimControls("focus-control-hidden"), state.focusControlsHideSeconds * 1000);
+    }
+    return;
+  }
+
   const settingsButton = document.getElementById("mobileFloatingSettings");
   const passageButton = document.getElementById("mobileFocusPassageToggle");
   const focusToolsButton = document.getElementById("mobileFocusToolsToggle");
@@ -10064,6 +10123,9 @@ function captureCloudSnapshot() {
       modeTransitionVolume: state.modeTransitionVolume,
       settingsSectionsOpen: { ...state.settingsSectionsOpen },
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
+      focusControlsFade: state.focusControlsFade,
+      focusControlsHide: state.focusControlsHide,
+      focusControlsHideSeconds: state.focusControlsHideSeconds,
       autoScrollEnabled: state.autoScrollEnabled,
       autoScrollSpeed: state.autoScrollSpeed,
       readerPageScrollSpeed: state.readerPageScrollSpeed,
@@ -10294,6 +10356,9 @@ function applyCloudSnapshot(snapshot) {
   state.settingsSectionsOpenUpdatedAt = normalizedVersionsUpdatedAt(
     settings.settingsSectionsOpenUpdatedAt || localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
   );
+  state.focusControlsFade = typeof settings.focusControlsFade === "boolean" ? settings.focusControlsFade : localStorage.getItem("lw_focus_controls_fade") !== "false";
+  state.focusControlsHide = typeof settings.focusControlsHide === "boolean" ? settings.focusControlsHide : localStorage.getItem("lw_focus_controls_hide") === "true";
+  state.focusControlsHideSeconds = normalizedFocusControlsHideSeconds(settings.focusControlsHideSeconds ?? localStorage.getItem("lw_focus_controls_hide_seconds"));
   state.autoScrollEnabled = typeof settings.autoScrollEnabled === "boolean"
     ? settings.autoScrollEnabled
     : localStorage.getItem("lw_auto_scroll_enabled") === "true";
@@ -10424,6 +10489,9 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
   localStorage.setItem("lw_side_toolbar_position", state.sideToolbarPosition);
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
+  localStorage.setItem("lw_focus_controls_fade", String(state.focusControlsFade));
+  localStorage.setItem("lw_focus_controls_hide", String(state.focusControlsHide));
+  localStorage.setItem("lw_focus_controls_hide_seconds", String(state.focusControlsHideSeconds));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
   localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
@@ -17649,6 +17717,16 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-page-scroll-speed]").forEach((button) => {
     button.addEventListener("click", () => setReaderPageScrollSpeed(button.dataset.pageScrollSpeed));
+  });
+  document.querySelectorAll("[data-focus-controls-setting]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const key = input.dataset.focusControlsSetting;
+      const storageKeys = { focusControlsFade: "lw_focus_controls_fade", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
+      state[key] = key === "focusControlsHideSeconds" ? normalizedFocusControlsHideSeconds(input.value) : input.checked;
+      localStorage.setItem(storageKeys[key], String(state[key]));
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
   });
   ["autoScrollEnabledToggle", "mobileAutoScrollEnabledToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
@@ -26647,6 +26725,11 @@ shortLandscapeQuery?.addEventListener("change", () => {
 });
 window.addEventListener("scroll", updateReaderTopButton, { passive: true });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
+["pointerdown", "pointermove", "keydown", "focusin", "wheel", "touchmove"].forEach((eventName) => {
+  window.addEventListener(eventName, (event) => {
+    if (state.focusMode) revealMobileSettingsButton(event);
+  }, { passive: true });
+});
 window.addEventListener("scroll", updateTutorialSpotlight, { passive: true });
 window.addEventListener("scroll", positionAccountPopover, { passive: true });
 window.addEventListener("scroll", positionSettingsPopover, { passive: true });
