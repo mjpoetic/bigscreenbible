@@ -10064,12 +10064,13 @@ select {
 
 .selection-bar-controls {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
+  padding: 3px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -10220,8 +10221,13 @@ select {
   border-color: color-mix(in srgb, var(--teal) 28%, transparent);
   background: color-mix(in srgb, var(--teal) 10%, transparent);
   color: var(--teal);
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink) 8%, transparent);
-  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 18%, transparent);
+  transform: none;
+}
+
+.selection-bar .selection-action:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -3px;
 }
 
 .selection-bar .selection-action.has-note {
@@ -16246,7 +16252,8 @@ svg {
 
 @media (min-width: 841px) {
   .selection-bar {
-    width: min(1040px, calc(100vw - 32px));
+    width: max-content;
+    max-width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
     flex-wrap: nowrap;
   }
 
@@ -18880,7 +18887,8 @@ svg {
     left: calc(var(--rail-width) + env(safe-area-inset-left, 0px) + 8px) !important;
     right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
     width: auto !important;
-    max-width: none !important;
+    max-width: 360px !important;
+    margin-inline: auto;
     min-width: 0 !important;
     box-sizing: border-box;
     transform: none !important;
@@ -18912,6 +18920,31 @@ svg {
   }
 
   @media (orientation: landscape) {
+    .app-shell .selection-bar,
+    .app-shell.focus-shell .selection-bar {
+      max-width: 620px !important;
+      max-height: min(42vh, 240px);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .app-shell .selection-bar .selection-bar-controls,
+    .app-shell.focus-shell .selection-bar .selection-bar-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .app-shell .selection-bar .selection-bar-actions,
+    .app-shell.focus-shell .selection-bar .selection-bar-actions {
+      display: inline-flex;
+    }
+
+    .app-shell .selection-bar-summary {
+      flex-basis: 100%;
+    }
+
     .app-shell[data-side-toolbar-position="right"] .selection-bar,
     .app-shell[data-side-toolbar-position="right"].focus-shell .selection-bar {
       right: calc(var(--rail-width) + env(safe-area-inset-right, 0px) + 8px) !important;
@@ -18939,6 +18972,13 @@ svg {
   .app-shell.footer-collapsed .selection-bar,
   .app-shell.footer-collapsed.focus-shell .selection-bar {
     bottom: auto !important;
+  }
+}
+
+/* Let the toolbar use the rail space on the narrowest phones. */
+@media (max-width: 360px) and (orientation: portrait) {
+  .app-shell:not(.focus-shell) .reader .selection-bar {
+    left: calc(8px - var(--rail-width) + env(safe-area-inset-left, 0px)) !important;
   }
 }
 
