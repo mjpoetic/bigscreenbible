@@ -721,6 +721,8 @@ const state = {
   parallelVersionMenuPosition: null,
   shortcutsOpen: false,
   helpSectionsOpen: {
+    deeper: false,
+    install: false,
     keyboard: false,
   },
   shortcutsPopupPosition: null,
@@ -1177,10 +1179,11 @@ const tutorialSteps = [
     body: "Tap the Big Screen Bible logo any time you want to return to the verse of the day.",
   },
   {
-    target: ".search, #presentationSearchToggle",
+    target: ".search, [data-rail=Search], #presentationSearchToggle",
+    focusTarget: "#mobileFocusPassageToggle, .search",
     spotlightPadding: 5,
     title: "Search by reference or phrase",
-    body: "Type a passage like Ecc 9:5, or search a phrase when you remember the words but not the reference.",
+    body: "Use the search field or Search tool. Type a passage like Ecc 9:5, or search remembered words.",
   },
   {
     target: ".mode-tabs, .presentation-bible-toggle",
@@ -1192,6 +1195,7 @@ const tutorialSteps = [
     target: ".chapter-tools",
     spotlightTarget: ".mobile-verse-nav-selectors, .verse-nav-selectors",
     revealVerseSelector: true,
+    hideInFocus: true,
     spotlightPadding: 5,
     title: "Move around the Bible",
     body: "The verse selector starts hidden. Use the small arrow below the header to show or hide it, then choose a book, chapter, or verse. The tour temporarily opens hidden controls and restores your choice afterward.",
@@ -1199,12 +1203,14 @@ const tutorialSteps = [
   {
     target: "#footerBar",
     revealFooter: true,
+    hideInFocus: true,
     spotlightPadding: 5,
     title: "Show or hide the bottom bar",
     body: "The bottom bar has chapter navigation and Bible version controls. Use its small arrow to hide or reveal it whenever you want more reading space.",
   },
   {
     target: "#mobileControlsToggle, .scripture",
+    hideInFocus: true,
     spotlightTarget: "#mobileControlsToggle",
     spotlightRequired: true,
     spotlightPadding: 5,
@@ -1213,9 +1219,40 @@ const tutorialSteps = [
   },
   {
     target: ".rail, #openStudy",
+    focusTarget: "#desktopFocusToolsToggle, #mobileFocusToolsToggle",
+    focusTitle: "Study without leaving Focus Mode",
+    focusBody: "Open Focus tools for the verse picker, history, bookmarks, and notes. Use the floating search and Settings buttons for the rest of your reading controls.",
     spotlightPadding: 5,
     title: "Study tools live on the side",
     body: "Bookmarks, notes, highlights, cross references, history, and search open from the side tools.",
+  },
+  {
+    target: "[data-verse-actions], [data-cross-ref-verse]",
+    spotlightPadding: 5,
+    title: "The verse number is a tool button",
+    body: "In paragraph reading, tap a verse number to select, copy, add a note, highlight, or open cross references. Press and hold for cross references directly. In verse rows, Parallel, and shared passages, the number opens cross references.",
+  },
+  {
+    target: "#focusToggle, #mobileFocusToggle",
+    spotlightPadding: 5,
+    title: "Make room with Focus Mode",
+    body: "Hide the side panels for a calmer reading space. Use Focus, press F, or double-tap blank Scripture space to switch it on or off. Search, Settings, and Focus tools remain available.",
+    focusTitle: "You are in Focus Mode",
+    focusBody: "This tour follows your Focus controls and skips the hidden sidebar and navigation bars. Use Focus, press F, or double-tap blank Scripture space to show the panels again.",
+  },
+  {
+    target: "#settingsToggle, #mobileControlsToggle",
+    focusTarget: "#mobileFloatingSettings, #settingsToggle",
+    spotlightPadding: 5,
+    title: "Let the passage scroll for you",
+    body: "In Settings, open Reading & navigation, enable auto-scroll controls, and choose a speed. In Reader or Parallel, use the floating Play/Pause button, press A, or tap with two fingers to start or pause.",
+  },
+  {
+    target: "#settingsToggle, #mobileControlsToggle",
+    focusTarget: "#mobileFloatingSettings, #settingsToggle",
+    spotlightPadding: 5,
+    title: "Explore the original words",
+    body: "Enable Strong's number lookups in Settings → Scripture display, or press Shift + S, then tap a linked word. BSB, KJV, WEB, and ASV currently have word tagging; coverage varies by passage. Support for more translations is planned.",
   },
   {
     target: ".selection-bar, .verse-card.selected, .verse-row.selected",
@@ -1225,9 +1262,20 @@ const tutorialSteps = [
   },
   {
     target: "#settingsToggle, #mobileControlsToggle, #presentationSettingsToggle",
+    focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Tune the experience",
     body: "Settings handle themes, fonts, text size, startup behavior, fullscreen, landscape toolbar side, and your private reading streak.",
+  },
+  {
+    target: "",
+    title: "Share a passage with a readable link",
+    body: "bigscreenbible.com/prov3:5-6/NKJV opens Proverbs 3:5–6 on its own in NKJV. Use Read full chapter for context, or copy, share, and print the passage. Unknown or unavailable versions fall back to BSB. More examples are in Help → Go deeper.",
+  },
+  {
+    target: "",
+    title: "Keep the Bible on your Home Screen",
+    body: "Install from your mobile browser for quick access: Safari → Share → Add to Home Screen on iPhone or iPad; Chrome → menu → Add to home screen → Install on Android. Find the full steps in Help → Install on your phone or tablet.",
   },
 ];
 
@@ -1264,10 +1312,10 @@ const presentationTutorialSteps = [
 ];
 
 const accountTutorialStep = {
-  target: "#accountQuickButton",
+  target: "#accountQuickButton, #mobileControlsToggle",
   spotlightPadding: 5,
   title: "Save your bookmarks",
-  body: "Create a free account to keep your bookmarks, notes, highlights, settings, and reading streak safe and available across your devices.",
+  body: "Open your profile (inside More on smaller screens) to create a free account and sync bookmarks, notes, highlights, settings, and your reading streak across devices.",
 };
 
 const presentationAccountTutorialStep = {
@@ -3008,7 +3056,7 @@ function rememberDisclosureState(details, open = details.open) {
 
 function bindDisclosureAnimation(details) {
   const summary = details.querySelector(":scope > summary");
-  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list");
+  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy");
   if (!summary || !content) return;
 
   summary.addEventListener("click", (event) => {
@@ -6022,9 +6070,9 @@ function revealMobileSettingsButton() {
   focusToolsButton?.classList.remove("mobile-settings-idle");
   pageButtons.forEach((button) => button.classList.remove("reader-top-idle"));
   clearTimeout(mobileSettingsIdleTimer);
-  if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.mode === "big" || !isCompactScreen()) return;
+  if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || state.mode === "big" || !isCompactScreen()) return;
   mobileSettingsIdleTimer = setTimeout(() => {
-    if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) return;
+    if (state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive) return;
     document.getElementById("mobileFloatingSettings")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusPassageToggle")?.classList.add("mobile-settings-idle");
     document.getElementById("mobileFocusToolsToggle")?.classList.add("mobile-settings-idle");
@@ -16749,6 +16797,37 @@ function shortcutOverlay() {
           </div>
           <button class="primary-btn" id="startHelpTour" type="button">Take tour</button>
         </div>
+        <section class="help-essentials" aria-labelledby="helpEssentialsTitle">
+          <h3 id="helpEssentialsTitle">Reading essentials</h3>
+          <div class="help-grid">
+            <div><strong>Focus Mode</strong><span>Hide the side panels using Focus, the F key, or a double-tap on blank Scripture space. Repeat to bring them back. Floating search, Settings, and Focus tools keep your reading tools close.</span></div>
+            <div><strong>Hands-free auto-scroll</strong><span>In Settings → Reading &amp; navigation, enable auto-scroll controls and choose your speed. Use Play/Pause or A in Reader and Parallel. When auto-scroll is enabled in Settings, two-finger tap starts or pauses it.</span></div>
+            <div><strong>Tap the verse number</strong><span>In paragraph reading, open tools to select, copy, add a note, highlight, or view cross references; press and hold for cross references directly. In verse rows, Parallel, and shared passages, numbers open cross references.</span></div>
+            <div><strong>Original-word lookups</strong><span>BSB (Berean Standard Bible), KJV (King James Version), WEB (World English Bible), and ASV (American Standard Version) currently have Strong's word tagging. Coverage varies by passage; support for more translations is planned. See Go deeper below to get started.</span></div>
+          </div>
+        </section>
+        <details class="help-section" data-help-section="install" ${state.helpSectionsOpen.install ? "open" : ""}>
+          <summary>Install on your phone or tablet</summary>
+          <div class="help-feature-copy">
+            <p>Add Big Screen Bible to your Home Screen for convenient access in its own app window.</p>
+            <p><strong>iPhone / iPad:</strong> Open bigscreenbible.com in Safari. Open Share (inside More on some layouts), choose Add to Home Screen, leave Open as Web App on if shown, then tap Add.</p>
+            <p><strong>Android:</strong> Open bigscreenbible.com in Chrome. Open the three-dot menu, choose Add to home screen, then Install, and follow the prompts. Some browsers label this Install app.</p>
+            <p>Launch from the new Bible icon. If the install option is missing in an in-app browser, open the site in Safari or Chrome first.</p>
+            <p class="help-source-links"><a href="https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios" target="_blank" rel="noopener noreferrer">Apple instructions</a> · <a href="https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid&amp;hl=en" target="_blank" rel="noopener noreferrer">Chrome instructions</a></p>
+          </div>
+        </details>
+        <details class="help-section" data-help-section="deeper" ${state.helpSectionsOpen.deeper ? "open" : ""}>
+          <summary>Go deeper · study &amp; sharing tips</summary>
+          <div class="help-feature-copy">
+            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, tap a linked word to open its original-language entry and meaning. Words without tags will remain plain text.</p>
+            <p><strong>Link straight to a passage:</strong> <a href="https://bigscreenbible.com/prov3:5-6/NKJV" target="_blank" rel="noopener noreferrer">bigscreenbible.com/prov3:5-6/NKJV</a> opens only Proverbs 3:5–6 in NKJV. Choose Read full chapter for context, or use the nearby Copy, Share, and Print tools. This passage-only view is separate from Focus Mode.</p>
+            <p>Use a book name or abbreviation, chapter, verse range, and optional translation: <code>/John3:16/KJV</code> or <code>/Proverbs3:5-6</code>. Unknown or unavailable translations fall back to BSB. Select verses and use Share to create a passage link without typing an address.</p>
+            <p><strong>Compare translations:</strong> Open Parallel to read versions side by side. Reorder the version columns to put your preferred one first; the leftmost version becomes your Reader translation.</p>
+            <p><strong>Keep your place:</strong> Use bookmarks, highlights, notes, and history to return to your study. Sign in to sync supported study data and settings across devices. Focus tools provide bookmarks, history, notes, and the verse picker without leaving Focus Mode.</p>
+            <p><strong>Continue into the next chapter:</strong> Enable Pull or scroll past chapter edges in Settings → Reading &amp; navigation. On touch screens, pull past the top or bottom edge and release when the chapter indicator is ready. On desktop, keep scrolling with a wheel or trackpad after reaching the edge.</p>
+            <p><strong>Make popups easier to read:</strong> Adjust popup text size in Settings. Enable popup pinch resizing to resize study text with a pinch on touch devices.</p>
+          </div>
+        </details>
         <section class="gesture-guide" aria-labelledby="gestureGuideTitle">
           <div class="gesture-guide-head">
             <div>
@@ -23420,7 +23499,14 @@ function currentTutorialStep() {
 
 function activeTutorialSteps() {
   const presentationTour = state.tutorialMode === "presentation";
-  const steps = presentationTour ? presentationTutorialSteps : tutorialSteps;
+  const steps = presentationTour ? presentationTutorialSteps : tutorialSteps
+    .filter((step) => !state.focusMode || !step.hideInFocus)
+    .map((step) => state.focusMode ? {
+      ...step,
+      target: step.focusTarget || step.target,
+      title: step.focusTitle || step.title,
+      body: step.focusBody || step.body,
+    } : step);
   if (state.authUser) return steps;
   return [...steps, presentationTour ? presentationAccountTutorialStep : accountTutorialStep];
 }
@@ -23451,9 +23537,10 @@ function restoreTutorialTemporaryState() {
 }
 
 function resolveTutorialTarget(step = currentTutorialStep()) {
-  return step.target
+  return (step.target || "")
     .split(",")
     .map((selector) => selector.trim())
+    .filter(Boolean)
     .map((selector) => document.querySelector(selector))
     .find((element) => {
       if (!element) return false;

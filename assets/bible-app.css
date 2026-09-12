@@ -13810,6 +13810,26 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   background: var(--paper);
 }
 
+.help-essentials h3 {
+  margin: 20px 22px 0;
+  font-size: calc(16px * var(--popup-text-scale, 1));
+}
+
+.shortcut-panel > .help-section {
+  margin: 14px 22px 0;
+}
+
+.help-feature-copy {
+  padding: 0 16px 14px;
+  font-size: calc(14px * var(--popup-text-scale, 1));
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.help-feature-copy p { margin: 12px 0 0; }
+.help-feature-copy a { color: var(--teal); text-decoration: underline; }
+.help-feature-copy code { font-size: 0.95em; }
+
 .help-about-link {
   display: flex;
   align-items: center;
@@ -14683,6 +14703,7 @@ kbd {
 
 .tutorial-dots {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 16px;
 }

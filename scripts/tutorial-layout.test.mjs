@@ -124,3 +124,29 @@ for (const name of ["startTutorial", "finishTutorial", "advanceTutorial", "retre
 }
 
 console.log("Tutorial layout and visibility tests passed");
+
+const tourContext = { state: { focusMode: true, authUser: null, tutorialMode: "app" } };
+vm.createContext(tourContext);
+vm.runInContext(source.slice(source.indexOf("const tutorialSteps = ["), source.indexOf("state.textScale = clampTextScale")) + '\n' + extractFunction("activeTutorialSteps"), tourContext);
+const focusSteps = vm.runInContext("activeTutorialSteps()", tourContext);
+assert.ok(focusSteps.some(step => step.title === "You are in Focus Mode"));
+assert.ok(focusSteps.some(step => step.target.includes("#mobileFocusToolsToggle")));
+assert.ok(focusSteps.some(step => step.target.includes("#mobileFocusPassageToggle")));
+assert.ok(focusSteps.some(step => step.target.includes("#mobileFloatingSettings")));
+assert.ok(!focusSteps.some(step => step.revealFooter || step.revealVerseSelector || step.target.includes(".rail")));
+assert.equal(tourContext.state.focusMode, true, "Tour adaptation preserves Focus preference");
+tourContext.state.focusMode = false;
+const normalSteps = vm.runInContext("activeTutorialSteps()", tourContext);
+assert.ok(normalSteps.some(step => step.revealVerseSelector));
+assert.ok(normalSteps.some(step => step.target.includes(".rail")));
+tourContext.state.authUser = { id: "test" };
+assert.equal(vm.runInContext("activeTutorialSteps().length", tourContext), normalSteps.length - 1);
+tourContext.state.tutorialMode = "presentation";
+tourContext.state.focusMode = true;
+assert.equal(vm.runInContext("activeTutorialSteps()[0].target", tourContext), ".presentation-ref");
+assert.match(extractFunction("revealMobileSettingsButton"), /state\.tutorialActive/);
+console.log("Focus-aware tour tests passed");
+const targetContext = { document: { querySelector() { throw new Error("An informational step must not query an empty selector"); } } };
+vm.createContext(targetContext);
+vm.runInContext(extractFunction("resolveTutorialTarget"), targetContext);
+assert.equal(vm.runInContext('resolveTutorialTarget({ target: "" })', targetContext), undefined);
