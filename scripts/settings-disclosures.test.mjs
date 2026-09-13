@@ -569,3 +569,50 @@ assert.equal(appliedUpdates, 1, "Rerendered rows cannot trigger stale holds");
 console.log("Settings update hold tests passed");
 
 }
+
+// A Settings drag may scroll a descendant or the panel, never the Reader behind it.
+{
+  const listeners = {};
+  const panel = {
+    dataset: {}, scrollTop: 0, scrollHeight: 200, clientHeight: 200, overflowY: 'auto',
+    contains(element) { return element === this || element === child; },
+    addEventListener(type, handler, options) { listeners[type] = { handler, options }; },
+  };
+  const child = { parentElement: panel, scrollTop: 0, scrollHeight: 100, clientHeight: 100, overflowY: 'visible', closest() { return null; } };
+  const sandbox = { document: { querySelectorAll() { return [panel]; } }, getComputedStyle: (element) => element };
+  vm.createContext(sandbox);
+  vm.runInContext(`${extractFunction('bindSettingsScrollContainment')}\nbindSettingsScrollContainment();`, sandbox);
+  const emit = (type, y, count = 1, x = 50) => {
+    const event = { target: child, touches: Array.from({ length: count }, () => ({ clientX: x, clientY: y })), cancelable: true, prevented: false, stopped: false,
+      preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; } };
+    listeners[type].handler(event);
+    assert.equal(event.stopped, true, `${type} stays inside Settings`);
+    return event.prevented;
+  };
+  const drag = (start, end) => { emit('touchstart', start); return emit('touchmove', end); };
+  assert.equal(listeners.touchmove.options.passive, false);
+  assert.equal(drag(100, 50), true, 'short panel blocks upward drag');
+  assert.equal(drag(100, 150), true, 'short panel blocks downward drag');
+  panel.scrollHeight = 500;
+  assert.equal(drag(100, 50), false, 'long panel can scroll down');
+  assert.equal(drag(100, 150), true, 'top edge blocks scroll escape');
+  panel.scrollTop = 300;
+  assert.equal(drag(100, 50), true, 'bottom edge blocks scroll escape');
+  assert.equal(drag(100, 150), false, 'long panel can scroll back up');
+  child.overflowY = 'auto'; child.scrollHeight = 300;
+  assert.equal(drag(100, 50), false, 'nested choices can scroll even at panel bottom');
+  child.scrollTop = 200;
+  assert.equal(drag(100, 50), true, 'nested and panel bottom cannot leak');
+  emit('touchstart', 100, 2);
+  assert.equal(emit('touchmove', 50, 2), false, 'pinch remains native');
+  emit('touchstart', 100);
+  emit('touchmove', 90, 2);
+  assert.equal(emit('touchmove', 50), false, 'pinch ending with one finger is not a new drag');
+  child.closest = () => ({});
+  emit('touchstart', 100);
+  assert.equal(emit('touchmove', 102, 1, 100), false, 'horizontal range adjustment remains native');
+  emit('touchcancel', 100, 0);
+  assert.equal(emit('touchmove', 50), false, 'cancel clears tracking');
+  assert.match(styles, /\.mobile-settings-popover\s*\{[^}]*overscroll-behavior:\s*contain/);
+  console.log('Settings touch scroll containment tests passed.');
+}

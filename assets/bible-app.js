@@ -17280,7 +17280,44 @@ function tutorialOverlay() {
   `;
 }
 
+function bindSettingsScrollContainment() {
+  document.querySelectorAll(".settings-popover, .mobile-settings-popover, .presentation-settings-popover").forEach((panel) => {
+    if (panel.dataset.scrollContainmentBound) return;
+    panel.dataset.scrollContainmentBound = "true";
+    let touch = null;
+    panel.addEventListener("touchstart", (event) => {
+      event.stopPropagation();
+      touch = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+    }, { passive: true });
+    panel.addEventListener("touchmove", (event) => {
+      event.stopPropagation();
+      if (!touch || event.touches.length !== 1) { touch = null; return; }
+      const next = event.touches[0];
+      const dx = next.clientX - touch.x;
+      const dy = next.clientY - touch.y;
+      touch = { x: next.clientX, y: next.clientY };
+      // Leave native horizontal controls and intentional pinch zoom alone.
+      if (!dy || (Math.abs(dx) > Math.abs(dy) && event.target.closest?.('input[type="range"]'))) return;
+      // CSS containment alone is insufficient for short panels on some touch browsers.
+      // Allow a native scroll only when a scroller inside Settings has room in that direction.
+      let element = event.target;
+      while (element && panel.contains(element)) {
+        if (/^(auto|scroll)$/.test(getComputedStyle(element).overflowY)
+          && element.scrollHeight > element.clientHeight
+          && (dy > 0 ? element.scrollTop > 0 : element.scrollTop < element.scrollHeight - element.clientHeight - 1)) return;
+        if (element === panel) break;
+        element = element.parentElement;
+      }
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+    const finish = (event) => { event.stopPropagation(); touch = null; };
+    panel.addEventListener("touchend", finish, { passive: true });
+    panel.addEventListener("touchcancel", finish, { passive: true });
+  });
+}
+
 function bindEvents() {
+  bindSettingsScrollContainment();
   bindPopupTextGestures();
   document.querySelectorAll("[data-popup-size]").forEach((button) => {
     button.addEventListener("click", () => setPopupTextScale(button.dataset.popupSize === "reset" ? 1 : state.popupTextScale + Number(button.dataset.popupSize)));

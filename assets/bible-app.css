@@ -4472,6 +4472,8 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 
 .mobile-settings-popover {
   display: none;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 :is(.settings-popover, .mobile-settings-popover) [hidden] {
