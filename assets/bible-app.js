@@ -538,6 +538,29 @@ const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
 const verseOfDayTranslationCode = "NIV";
 let lastAppUpdateCheckAt = 0;
 let dismissedAppUpdateVersion = "";
+let appUpdateNoticeVersion = "";
+let appUpdateNoticeCollapsed = false;
+let appUpdateNoticeTimer = 0;
+const appUpdateNoticeIdleMs = 90 * 1000;
+
+function scheduleAppUpdateNoticeCollapse(reset = false) {
+  if (reset) {
+    window.clearTimeout(appUpdateNoticeTimer);
+    appUpdateNoticeTimer = 0;
+  }
+  if (appUpdateNoticeTimer || appUpdateNoticeCollapsed) return;
+  appUpdateNoticeTimer = window.setTimeout(() => {
+    appUpdateNoticeTimer = 0;
+    const notice = document.getElementById("appUpdateNotice");
+    if (!notice || !shouldShowAppUpdateNotice()) return;
+    if (state.appUpdateBusy || notice.contains(document.activeElement) || notice.matches(":hover")) {
+      scheduleAppUpdateNoticeCollapse();
+      return;
+    }
+    appUpdateNoticeCollapsed = true;
+    syncAppUpdateNotification();
+  }, appUpdateNoticeIdleMs);
+}
 let pendingAppUpdateRestore = null;
 let appUpdateRestoreAnnouncementTimer = 0;
 let appUpdateRestoreCleanupTimer = 0;
@@ -3815,8 +3838,16 @@ function syncAppUpdateNotification() {
       button.append(indicator);
     } else if (!state.appUpdateAvailable) dot?.remove();
   }
+  if (appUpdateNoticeVersion !== state.appUpdateVersion) {
+    appUpdateNoticeVersion = state.appUpdateVersion;
+    appUpdateNoticeCollapsed = false;
+    window.clearTimeout(appUpdateNoticeTimer);
+    appUpdateNoticeTimer = 0;
+  }
   let notice = document.getElementById("appUpdateNotice");
   if (!shouldShowAppUpdateNotice()) {
+    window.clearTimeout(appUpdateNoticeTimer);
+    appUpdateNoticeTimer = 0;
     notice?.remove();
     return;
   }
@@ -3825,12 +3856,23 @@ function syncAppUpdateNotification() {
     notice.id = "appUpdateNotice";
     notice.className = "app-update-notice";
     notice.setAttribute("aria-label", "App update");
-    notice.innerHTML = `<p role="status">An update is ready</p><div class="app-update-notice-actions"><button type="button" class="primary-btn" data-app-update-accept>Update now</button><button type="button" class="ghost-btn" data-app-update-later>Later</button></div>`;
+    notice.innerHTML = `<button type="button" class="app-update-bubble" data-app-update-expand aria-label="Update available. Show update options"><span aria-hidden="true"></span>Update ready</button><p role="status">An update is ready</p><div class="app-update-notice-actions"><button type="button" class="primary-btn" data-app-update-accept>Update now</button><button type="button" class="ghost-btn" data-app-update-later>Later</button></div>`;
+    notice.querySelector("[data-app-update-expand]").addEventListener("click", () => {
+      appUpdateNoticeCollapsed = false;
+      syncAppUpdateNotification();
+      notice.querySelector("[data-app-update-accept]").focus({ preventScroll: true });
+      scheduleAppUpdateNoticeCollapse(true);
+    });
+    for (const eventName of ["pointerdown", "pointermove", "keydown", "focusin", "focusout"]) {
+      notice.addEventListener(eventName, () => scheduleAppUpdateNoticeCollapse(true));
+    }
     notice.querySelector("[data-app-update-accept]").addEventListener("click", () => {
       if (state.appUpdateAvailable && !state.appUpdateBusy) applyAppUpdate();
     });
     notice.querySelector("[data-app-update-later]").addEventListener("click", () => {
       dismissedAppUpdateVersion = state.appUpdateVersion;
+      window.clearTimeout(appUpdateNoticeTimer);
+      appUpdateNoticeTimer = 0;
       notice.remove();
       const settings = [...shell.querySelectorAll("#settingsToggle, #mobileFloatingSettings, #mobileControlsToggle")]
         .find((button) => button.getClientRects().length);
@@ -3838,6 +3880,11 @@ function syncAppUpdateNotification() {
     });
     shell.append(notice);
   }
+  notice.classList.toggle("is-collapsed", appUpdateNoticeCollapsed);
+  notice.querySelector("[data-app-update-expand]").hidden = !appUpdateNoticeCollapsed;
+  notice.querySelector("p").hidden = appUpdateNoticeCollapsed;
+  notice.querySelector(".app-update-notice-actions").hidden = appUpdateNoticeCollapsed;
+  if (!appUpdateNoticeCollapsed) scheduleAppUpdateNoticeCollapse();
   const updateButton = notice.querySelector("[data-app-update-accept]");
   updateButton.disabled = state.appUpdateBusy;
   updateButton.textContent = state.appUpdateRefreshing ? "Updating…" : "Update now";

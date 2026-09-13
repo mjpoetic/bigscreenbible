@@ -36,3 +36,32 @@ context.state.tutorialActive = false;
 context.state.appUpdateAvailable = false;
 assert.equal(visible(), false);
 console.log('App update notice lifecycle tests passed');
+
+const timerStart = source.indexOf('function scheduleAppUpdateNoticeCollapse(');
+const timerEnd = source.indexOf('\n}', timerStart) + 2;
+let callback;
+let focused = false;
+let hovered = false;
+let syncCount = 0;
+const timerContext = vm.createContext({
+  appUpdateNoticeTimer: 0, appUpdateNoticeCollapsed: false, appUpdateNoticeIdleMs: 90000,
+  state: { appUpdateBusy: false },
+  window: { setTimeout(fn, delay) { assert.equal(delay, 90000); callback = fn; return 1; }, clearTimeout() {} },
+  document: { activeElement: {}, getElementById() { return { contains: () => focused, matches: () => hovered }; } },
+  shouldShowAppUpdateNotice: () => true,
+  syncAppUpdateNotification() { syncCount++; },
+});
+vm.runInContext(source.slice(timerStart, timerEnd), timerContext);
+vm.runInContext('scheduleAppUpdateNoticeCollapse()', timerContext);
+focused = true;
+callback();
+assert.equal(timerContext.appUpdateNoticeCollapsed, false, 'Do not hide focused controls');
+focused = false;
+hovered = true;
+callback();
+assert.equal(timerContext.appUpdateNoticeCollapsed, false, 'Do not hide hovered controls');
+hovered = false;
+callback();
+assert.equal(timerContext.appUpdateNoticeCollapsed, true, 'Idle notice collapses');
+assert.equal(syncCount, 1);
+console.log('App update notice idle timer tests passed');
