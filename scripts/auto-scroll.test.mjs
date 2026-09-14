@@ -116,4 +116,105 @@ assert.match(styles, /\.reader-auto-scroll-button\.active/);
 assert.match(styles, /\.app-shell\.toast-visible \.reader-auto-scroll-button\[data-tooltip\]::after/);
 assert.match(styles, /\.app-shell\.focus-shell \.reader-auto-scroll-button/);
 
-console.log("Auto-scroll tests passed");
+// Exercise asynchronous wake-lock grants, refusal, release, and rapid restart.
+const wakeContext = {
+  state: { autoScrollActive: true },
+  document: { visibilityState: "visible" },
+  navigator: {},
+};
+vm.createContext(wakeContext);
+vm.runInContext(`
+  let readerAutoScrollWakeLock = null;
+  let readerAutoScrollWakeLockRequest = null;
+  ${extractFunction("releaseReaderAutoScrollWakeLock")}
+  ${extractFunction("requestReaderAutoScrollWakeLock")}
+  globalThis.acquire = requestReaderAutoScrollWakeLock;
+  globalThis.release = releaseReaderAutoScrollWakeLock;
+`, wakeContext);
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+const grants = [];
+let requests = 0;
+wakeContext.acquire(); // Unsupported browsers remain usable.
+wakeContext.navigator.wakeLock = {
+  request(type) {
+    assert.equal(type, "screen");
+    requests += 1;
+    return new Promise((resolve, reject) => grants.push({ resolve, reject }));
+  },
+};
+function makeLock() {
+  return {
+    released: false,
+    releases: 0,
+    addEventListener(type, callback) {
+      assert.equal(type, "release");
+      this.onRelease = callback;
+    },
+    async release() {
+      this.released = true;
+      this.releases += 1;
+      this.onRelease?.();
+    },
+  };
+}
+wakeContext.acquire();
+wakeContext.acquire();
+assert.equal(requests, 1, "Deduplicate pending requests");
+const firstLock = makeLock();
+grants.shift().resolve(firstLock);
+await settle();
+wakeContext.acquire();
+assert.equal(requests, 1, "Reuse held lock");
+wakeContext.state.autoScrollActive = false;
+wakeContext.release();
+assert.equal(firstLock.releases, 1);
+wakeContext.acquire();
+assert.equal(requests, 1, "Paused scrolling must not acquire a lock");
+
+wakeContext.state.autoScrollActive = true;
+wakeContext.acquire();
+const staleGrant = grants.shift();
+wakeContext.release();
+wakeContext.acquire();
+const currentGrant = grants.shift();
+const currentLock = makeLock();
+currentGrant.resolve(currentLock);
+await settle();
+const staleLock = makeLock();
+staleGrant.resolve(staleLock);
+await settle();
+assert.equal(staleLock.releases, 1, "Release stale grants after rapid pause/restart");
+assert.equal(currentLock.releases, 0, "Stale grants must not release the new lock");
+wakeContext.release();
+assert.equal(currentLock.releases, 1);
+
+wakeContext.acquire();
+grants.shift().reject(new Error("Battery policy denied wake lock"));
+await settle();
+assert.equal(wakeContext.state.autoScrollActive, true);
+wakeContext.acquire();
+const hiddenLock = makeLock();
+wakeContext.document.visibilityState = "hidden";
+grants.shift().resolve(hiddenLock);
+await settle();
+assert.equal(hiddenLock.releases, 1, "Release grants arriving after the page hides");
+const beforeHiddenRequest = requests;
+wakeContext.acquire();
+assert.equal(requests, beforeHiddenRequest);
+wakeContext.document.visibilityState = "visible";
+wakeContext.acquire();
+const systemLock = makeLock();
+grants.shift().resolve(systemLock);
+await settle();
+await systemLock.release(); // The operating system can release locks independently.
+wakeContext.acquire();
+const replacementLock = makeLock();
+grants.shift().resolve(replacementLock);
+await settle();
+wakeContext.release();
+assert.equal(replacementLock.releases, 1);
+assert.match(extractFunction("startReaderAutoScroll"), /requestReaderAutoScrollWakeLock\(\)/);
+assert.match(extractFunction("pauseReaderAutoScroll"), /releaseReaderAutoScrollWakeLock\(\)/);
+assert.match(source, /window.addEventListener\("pagehide", \(\) => pauseReaderAutoScroll/);
+
+console.log("Auto-scroll and screen wake-lock tests passed");

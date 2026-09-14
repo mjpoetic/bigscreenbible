@@ -344,6 +344,8 @@ let readerBlankTapStart = null;
 let lastReaderBlankTap = null;
 let readerGestureFeedbackTimer = 0;
 let readerAutoScrollFrame = 0;
+let readerAutoScrollWakeLock = null;
+let readerAutoScrollWakeLockRequest = null;
 let readerAutoScrollLastTime = 0;
 let readerAutoScrollPosition = 0;
 let presentationResizeTimer = 0;
@@ -3656,7 +3658,7 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("AutoScrollEnabledToggle")}" ${state.autoScrollEnabled ? "checked" : ""} />
         <span>Enable auto-scroll controls</span>
       </label>
-      <p class="setting-help">Shows the floating Play/Pause button in Reader and Parallel. You can also use the A key or a two-finger tap.</p>
+      <p class="setting-help">Shows the floating Play/Pause button in Reader and Parallel. You can also use the A key or a two-finger tap. While scrolling, the screen stays awake on supported browsers.</p>
       <span class="setting-label" id="${controlId("AutoScrollSpeedLabel")}">Auto-scroll speed</span>
       <div class="theme-mode-segment auto-scroll-speed-segment" role="group" aria-labelledby="${controlId("AutoScrollSpeedLabel")}" aria-disabled="${state.autoScrollEnabled ? "false" : "true"}">
         ${autoScrollSpeeds.map((speed) => `
@@ -6329,9 +6331,45 @@ function updateReaderAutoScrollControl() {
   button.innerHTML = state.autoScrollActive ? icons.pause : icons.play;
 }
 
+function releaseReaderAutoScrollWakeLock() {
+  // Invalidate pending requests so a late grant cannot keep a paused reader awake.
+  readerAutoScrollWakeLockRequest = null;
+  const lock = readerAutoScrollWakeLock;
+  readerAutoScrollWakeLock = null;
+  if (lock && !lock.released) void lock.release().catch(() => {});
+}
+
+function requestReaderAutoScrollWakeLock() {
+  if (!state.autoScrollActive || document.visibilityState !== "visible"
+    || !navigator.wakeLock?.request || readerAutoScrollWakeLockRequest
+    || (readerAutoScrollWakeLock && !readerAutoScrollWakeLock.released)) return;
+  const request = {};
+  readerAutoScrollWakeLockRequest = request;
+  // Battery settings or browser policy can deny this without interrupting scrolling.
+  void (async () => {
+    try {
+      const lock = await navigator.wakeLock.request("screen");
+      if (readerAutoScrollWakeLockRequest !== request || !state.autoScrollActive
+        || document.visibilityState !== "visible") {
+        await lock.release();
+        return;
+      }
+      readerAutoScrollWakeLock = lock;
+      lock.addEventListener("release", () => {
+        if (readerAutoScrollWakeLock === lock) readerAutoScrollWakeLock = null;
+      }, { once: true });
+    } catch {
+      // Auto-scroll remains usable on devices that cannot keep the screen awake.
+    } finally {
+      if (readerAutoScrollWakeLockRequest === request) readerAutoScrollWakeLockRequest = null;
+    }
+  })();
+}
+
 function pauseReaderAutoScroll({ announce = false, updateControl = true } = {}) {
   const wasActive = state.autoScrollActive;
   state.autoScrollActive = false;
+  releaseReaderAutoScrollWakeLock();
   readerAutoScrollLastTime = 0;
   readerAutoScrollPosition = 0;
   if (readerAutoScrollFrame) cancelAnimationFrame(readerAutoScrollFrame);
@@ -6387,6 +6425,7 @@ function startReaderAutoScroll({ announce = true } = {}) {
     return false;
   }
   state.autoScrollActive = true;
+  requestReaderAutoScrollWakeLock();
   readerAutoScrollLastTime = 0;
   readerAutoScrollPosition = scripture.scrollTop;
   updateReaderAutoScrollControl();
@@ -26910,6 +26949,7 @@ document.addEventListener("visibilitychange", () => {
   maybeCheckForAppUpdate();
 });
 window.addEventListener("pagehide", () => pauseGameMusic({ fade: false }));
+window.addEventListener("pagehide", () => pauseReaderAutoScroll({ updateControl: false }));
 window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);
 window.addEventListener("pageshow", () => {
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
