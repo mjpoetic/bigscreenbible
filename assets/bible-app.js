@@ -25905,7 +25905,8 @@ function copySelectedPassage() {
 }
 
 function printSelectedPassage() {
-  requestAnimationFrame(() => window.print());
+  // The print sheet is already rendered; keep printing in the user's click handler.
+  window.print();
 }
 
 function toggleVerseSelection(verseNumber, extendRange) {
