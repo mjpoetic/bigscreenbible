@@ -139,3 +139,78 @@ assert.ok(
 );
 
 console.log("Strong's metadata and rendering tests passed");
+
+const searchContext = {
+  strongLexicon: {
+    G26: { lemma: "ἀγάπη", translit: "agápē", strongs_def: "love, affection", kjv_def: "charity, love" },
+    H430: { lemma: "אֱלֹהִים", xlit: "ʼĕlôhîym", strongs_def: "God; gods", kjv_def: "God" },
+    G99: { lemma: "example", strongs_def: "beloved" },
+    G100: { lemma: "another", strongs_def: "an example of love" },
+  },
+  strongs: { H1: ["אָב", "father"] },
+  state: { searchResults: [], searchPending: false },
+  strongLexiconStatus: "ready",
+};
+vm.createContext(searchContext);
+vm.runInContext([
+  "normalizeStrongCode", "cleanStrongCopy", "formatOpenScripturesStrongEntry", "strongEntry",
+  "normalizeStrongSearchText", "searchStrongLexicon", "escapeHtml", "strongLookupCard", "strongSearchResultsMarkup",
+].map((name) => {
+  const start = appSource.indexOf(`function ${name}(`);
+  return appSource.slice(start, appSource.indexOf("\n}\n", start) + 2);
+}).join("\n"), searchContext);
+const codes = (query) => [...searchContext.searchStrongLexicon(query)].map((entry) => entry.code);
+assert.deepEqual(codes("love"), ["G26", "G100"]);
+assert.deepEqual(codes("love affection"), ["G26"]);
+assert.deepEqual(codes("agape"), ["G26"]);
+assert.deepEqual(codes("αγαπη"), ["G26"]);
+assert.deepEqual(codes("אלהים"), ["H430"]);
+assert.deepEqual(codes("G00026"), ["G26"]);
+assert.deepEqual(codes("Strong’s H 0430"), ["H430"]);
+assert.deepEqual(codes("father"), ["H1"]);
+assert.deepEqual(codes("G999999"), []);
+assert.deepEqual(codes(" !!! "), []);
+assert.match(searchContext.strongSearchResultsMarkup("<missing>"), /&lt;missing&gt;/);
+searchContext.strongLexiconStatus = "partial";
+assert.match(searchContext.strongSearchResultsMarkup("missing"), /available entries only/);
+searchContext.state.searchPending = true;
+assert.match(searchContext.strongSearchResultsMarkup("love"), /Searching Strong’s/);
+console.log("Strong's word, transliteration, original-language, and number search tests passed");
+
+let finishLexiconLoad;
+Object.assign(searchContext, {
+  searchSourceCodes: ["scripture", "notes", "strongs"], searchRequestId: 0,
+  localStorage: { setItem() {} },
+  normalizedSearchScope: (value) => value || "chapter",
+  normalizedSearchChapter: (value) => value,
+  clearInlineChapterSearchState() {}, render() {}, renderPreservingReaderScroll() {}, resetFocusToolSurfaces() {},
+  loadStrongLexicon: () => new Promise((resolve) => { finishLexiconLoad = resolve; }),
+  ensureAllSearchVersionsLoaded() { throw new Error("Strong's search must not load Bible versions"); },
+  runInlineChapterSearch() { throw new Error("Strong's search must bypass chapter highlighting"); },
+});
+for (const name of ["normalizedSearchSource", "noteSearchAvailable", "runPhraseSearch"]) {
+  const start = appSource.indexOf(`${name === "runPhraseSearch" ? "async " : ""}function ${name}(`);
+  vm.runInContext(appSource.slice(start, appSource.indexOf("\n}\n", start) + 2), searchContext);
+}
+Object.assign(searchContext.state, { searchSource: "strongs", searchScope: "chapter", reference: "John 3", mode: "reader" });
+let pendingSearch = searchContext.runPhraseSearch("agape");
+assert.equal(searchContext.state.searchPending, true);
+finishLexiconLoad();
+await pendingSearch;
+assert.equal(searchContext.state.searchResultsSource, "strongs");
+assert.equal(searchContext.state.searchResults[0].code, "G26");
+assert.equal(searchContext.state.searchPending, false);
+pendingSearch = searchContext.runPhraseSearch("father");
+searchContext.searchRequestId += 1;
+searchContext.state.searchResults = [{ code: "newer-result" }];
+finishLexiconLoad();
+await pendingSearch;
+assert.equal(searchContext.state.searchResults[0].code, "newer-result");
+searchContext.state.mode = "big";
+pendingSearch = searchContext.runPhraseSearch("H430", { presentationResults: true });
+finishLexiconLoad();
+await pendingSearch;
+assert.equal(searchContext.state.mode, "big");
+assert.equal(searchContext.state.presentationSearchResultsOpen, true);
+assert.equal(searchContext.state.searchResults[0].code, "H430");
+console.log("Strong's search routing and stale-request tests passed");

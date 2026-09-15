@@ -40,7 +40,7 @@ const searchScopeDefinitions = [
   { code: "revelation", label: "Revelation", shortLabel: "Rev" },
 ];
 const searchScopeCodes = searchScopeDefinitions.map(({ code }) => code);
-const searchSourceCodes = ["scripture", "notes"];
+const searchSourceCodes = ["scripture", "notes", "strongs"];
 const searchScopeBookGroups = {
   law: books.slice(0, books.indexOf("Joshua")),
   history: books.slice(books.indexOf("Joshua"), books.indexOf("Job")),
@@ -2736,6 +2736,7 @@ function loadingScreen() {
 
 function mobileFocusOverlayControls() {
   if (state.mode === "big") return "";
+  const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
   const activeSearchLabel = activeSearchSourceLabel();
   const focusTools = state.focusMode
@@ -2760,15 +2761,15 @@ function mobileFocusOverlayControls() {
             <input
               id="mobileFocusPassageInput"
               type="text"
-              aria-label="${notesSearchSource ? "Search your saved notes" : "Bible passage"}"
+              aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Bible passage"}"
               value="${escapeHtml(
-                notesSearchSource
+                (notesSearchSource || strongSearchSource)
                   ? state.searchQuery
                   : state.inlineSearchQuery && normalizedSearchScope(state.searchScope) === "chapter"
                   ? state.inlineSearchQuery
                   : activePassageLabel()
               )}"
-              placeholder="${notesSearchSource ? "Search saved notes" : "John 3:16"}"
+              placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16"}"
               autocomplete="off"
               autocorrect="off"
               autocapitalize="none"
@@ -4585,6 +4586,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     ["trivia", "Games", icons.games],
   ];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
+  const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
   const activeSearchLabel = activeSearchSourceLabel();
   return `
@@ -4603,13 +4605,13 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </div>
       ` : ""}
       ${streakChip()}
-      <div class="search" data-tooltip="${notesSearchSource ? "Search your notes" : "Search Bible"}">
+      <div class="search" data-tooltip="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your notes" : "Search Bible"}">
         <button class="topbar-search-scope" id="topbarSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose top search source, current ${escapeHtml(activeSearchLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search in: ${escapeHtml(activeSearchLabel)}">
           <span class="sr-only">Top search source</span>
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
         </button>
-        <input id="referenceInput" value="${escapeHtml(notesSearchSource ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${notesSearchSource ? "Search your saved notes" : "Search Bible reference or phrase"}" placeholder="${notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+        <input id="referenceInput" value="${escapeHtml((notesSearchSource || strongSearchSource) ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search Bible reference or phrase"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
         ${desktopFocusTools()}
       </div>
@@ -6875,6 +6877,7 @@ function crossReferencesPanel() {
 }
 
 function searchPanel() {
+  const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
   const notesSource = normalizedSearchSource(state.searchSource) === "notes";
   const searchInputValue = state.searchQuery || state.searchResultsQuery;
   const inlineSearchActive = Boolean(activeInlineSearchQuery());
@@ -6884,7 +6887,7 @@ function searchPanel() {
   return `
     <section class="study-section panel-section" id="searchSection">
       <form class="study-search ${canClearResults ? "has-clear" : ""} ${inlineSearchActive ? "has-inline-clear" : ""}" id="studySearchForm">
-        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="${notesSource ? "Search your saved notes" : "Search words, phrases, or questions"}" aria-label="${notesSource ? "Search your saved notes" : "Search Bible words, phrases, or questions"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="${strongSearchSource ? "Word, transliteration, or G26 / H430" : notesSource ? "Search your saved notes" : "Search words, phrases, or questions"}" aria-label="${strongSearchSource ? "Word, transliteration, or G26 / H430" : notesSource ? "Search your saved notes" : "Search Bible words, phrases, or questions"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         <div class="search-submit-control">
           <button class="ghost-btn search-submit-button" id="studySearchButton" type="submit" aria-label="Search ${escapeHtml(scopeLabel)}">
             <span>Search</span>
@@ -16163,6 +16166,7 @@ function closeStudyPopup(immediate = false, restoreFocus = false) {
 
 function searchResultsMarkup() {
   const query = state.searchResultsQuery;
+  if (normalizedSearchSource(state.searchResultsSource) === "strongs") return strongSearchResultsMarkup(query);
   if (normalizedSearchSource(state.searchResultsSource) === "notes") {
     return noteSearchResultsMarkup(query);
   }
@@ -16267,6 +16271,46 @@ function verseTextAtReference(ref) {
 function truncatePreview(value) {
   const text = String(value).replace(/\s+/g, " ").trim();
   return text.length > 160 ? `${text.slice(0, 157).trim()}...` : text;
+}
+
+function normalizeStrongSearchText(value) {
+  return String(value || "").normalize("NFD").replace(/\p{M}/gu, "")
+    .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+function searchStrongLexicon(query) {
+  const normalized = normalizeStrongSearchText(query);
+  if (!normalized) return [];
+  const codeQuery = String(query).trim().match(/^(?:strong['’]?s?\s*)?([hg])\s*0*(\d+)$/i);
+  if (codeQuery) {
+    const entry = strongEntry(`${codeQuery[1]}${codeQuery[2]}`);
+    return entry ? [entry] : [];
+  }
+  const tokens = normalized.split(/\s+/);
+  return [...new Set([...Object.keys(strongLexicon), ...Object.keys(strongs)])]
+    .map((code) => strongEntry(code))
+    .filter(Boolean)
+    .map((entry) => {
+      const primary = [entry.lemma, entry.transliteration].map(normalizeStrongSearchText);
+      const words = normalizeStrongSearchText([entry.lemma, entry.transliteration, entry.definition, entry.kjv].join(" ")).split(/\s+/);
+      const score = primary.includes(normalized) ? 3
+        : normalizeStrongSearchText(entry.kjv).split(" ").includes(normalized) ? 2 : 1;
+      return { entry, score, matches: tokens.every((token) => words.includes(token)) };
+    })
+    .filter(({ matches }) => matches)
+    .sort((a, b) => b.score - a.score || a.entry.code.localeCompare(b.entry.code, "en", { numeric: true }))
+    .map(({ entry }) => entry);
+}
+
+function strongSearchResultsMarkup(query) {
+  if (!query) return `<div class="empty-state">Search Strong’s Hebrew and Greek definitions, original words, transliterations, or numbers. Try “love”, “agape”, or “H430”.</div>`;
+  if (state.searchPending) return `<div class="empty-state" role="status">Searching Strong’s reference…</div>`;
+  const warning = strongLexiconStatus !== "ready"
+    ? `<div class="empty-state" role="status">${strongLexiconStatus === "partial" ? "Part of the Strong’s dictionary could not load." : "The full Strong’s dictionary could not load."} Results cover available entries only. Check your connection and reload to try again.</div>` : "";
+  const count = state.searchResults.length;
+  if (!count) return `${warning}<div class="empty-state">No Strong’s entries found for “${escapeHtml(query)}”. Try another word, transliteration, or number.</div>`;
+  return `${warning}<div class="search-passages-label">${count} Strong’s ${count === 1 ? "entry" : "entries"}${count > 100 ? " · Showing the first 100; refine your search for more specific results." : ""}</div>
+    <div class="strong-list">${state.searchResults.slice(0, 100).map((entry) => strongLookupCard(entry, "")).join("")}</div>`;
 }
 
 function strongLookupCard(entry, selectedWord) {
@@ -19858,12 +19902,14 @@ function searchScopeShortLabel(scope) {
 }
 
 function activeSearchSourceLabel() {
+  if (normalizedSearchSource(state.searchSource) === "strongs") return "Strong's";
   return normalizedSearchSource(state.searchSource) === "notes"
     ? "My Notes"
     : searchScopeLabel(state.searchScope, state.reference);
 }
 
 function activeSearchSourceShortLabel() {
+  if (normalizedSearchSource(state.searchSource) === "strongs") return "Strong's";
   return normalizedSearchSource(state.searchSource) === "notes"
     ? "Notes"
     : searchScopeShortLabel(state.searchScope);
@@ -19908,7 +19954,13 @@ function openSearchScopeMenu(trigger, options = {}) {
       <span class="search-scope-option-check" aria-hidden="true">${source === "notes" ? "✓" : ""}</span>
       <span>My Notes</span>
     </button>
-  ` : "");
+  ` : "") + `
+    <div class="search-scope-divider" role="separator"><span>Reference</span></div>
+    <button class="search-scope-option search-source-option ${source === "strongs" ? "selected" : ""}" type="button" role="option" aria-selected="${source === "strongs"}" data-search-source-option="strongs">
+      <span class="search-scope-option-check" aria-hidden="true">${source === "strongs" ? "✓" : ""}</span>
+      <span>Strong's</span>
+    </button>
+  `;
   document.body.appendChild(menu);
   activeSearchScopeMenu = { menu, trigger };
   trigger.setAttribute("aria-expanded", "true");
@@ -19919,10 +19971,10 @@ function openSearchScopeMenu(trigger, options = {}) {
       closeSearchScopeMenu({ restoreFocus: true });
     });
   });
-  menu.querySelector("[data-search-source-option]")?.addEventListener("click", (event) => {
+  menu.querySelectorAll("[data-search-source-option]").forEach((button) => button.addEventListener("click", (event) => {
     setSearchSource(event.currentTarget.dataset.searchSourceOption);
     closeSearchScopeMenu({ restoreFocus: true });
-  });
+  }));
   menu.addEventListener("keydown", handleSearchScopeMenuKeydown);
   document.addEventListener("pointerdown", closeSearchScopeMenuOnOutside, true);
   window.addEventListener("resize", positionSearchScopeMenu);
@@ -22026,7 +22078,7 @@ function submitFocusReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   state.focusReferenceOpen = false;
-  if (parseReference(cleaned)) {
+  if (normalizedSearchSource(options.source ?? state.searchSource) !== "strongs" && parseReference(cleaned)) {
     gotoReference(cleaned, { focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive) });
     return;
   }
@@ -22041,7 +22093,7 @@ function submitFocusReference(value, options = {}) {
 async function runReferenceOrPhraseSearch(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
-  if (parseReference(cleaned)) {
+  if (normalizedSearchSource(options.source ?? state.searchSource) !== "strongs" && parseReference(cleaned)) {
     gotoReference(cleaned, { focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive) });
     return;
   }
@@ -22050,7 +22102,7 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
   await runPhraseSearch(cleaned, {
     focusResults: state.focusMode && state.mode !== "big",
     presentationResults: state.mode === "big",
-    source: noteSearchAvailable() ? options.source ?? state.searchSource : "scripture",
+    source: options.source ?? state.searchSource,
     scope: options.scope,
     chapter: options.chapter,
     sourceInputId: options.sourceInputId,
@@ -22060,9 +22112,8 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
 async function runPhraseSearch(value, options = {}) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
-  const source = noteSearchAvailable()
-    ? normalizedSearchSource(options.source ?? state.searchSource)
-    : "scripture";
+  const requestedSource = normalizedSearchSource(options.source ?? state.searchSource);
+  const source = requestedSource === "notes" && !noteSearchAvailable() ? "scripture" : requestedSource;
   const scope = normalizedSearchScope(options.scope ?? state.searchScope);
   const searchChapter = normalizedSearchChapter(options.chapter ?? state.reference);
   const presentationResults = Boolean(options.presentationResults && state.mode === "big");
@@ -22092,7 +22143,7 @@ async function runPhraseSearch(value, options = {}) {
     }
     return;
   }
-  if (scope === "chapter" && !presentationResults) {
+  if (source === "scripture" && scope === "chapter" && !presentationResults) {
     if (advanceInlineChapterSearch(query, searchChapter)) return;
     runInlineChapterSearch(query, searchChapter, { sourceInputId: options.sourceInputId });
     return;
@@ -22102,8 +22153,8 @@ async function runPhraseSearch(value, options = {}) {
   const requestId = ++searchRequestId;
   state.searchQuery = query;
   state.searchResultsQuery = query;
-  state.searchSource = "scripture";
-  state.searchResultsSource = "scripture";
+  state.searchSource = source;
+  state.searchResultsSource = source;
   state.searchScope = scope;
   state.searchResultsScope = scope;
   state.searchResultsChapter = searchChapter;
@@ -22134,8 +22185,14 @@ async function runPhraseSearch(value, options = {}) {
     render();
   }
   try {
-    await ensureAllSearchVersionsLoaded();
-    const results = await searchBible(query, scope, searchChapter);
+    let results;
+    if (source === "strongs") {
+      await loadStrongLexicon();
+      results = searchStrongLexicon(query);
+    } else {
+      await ensureAllSearchVersionsLoaded();
+      results = await searchBible(query, scope, searchChapter);
+    }
     if (requestId !== searchRequestId || state.searchResultsQuery !== query) return;
     state.searchResults = results;
   } catch (error) {
@@ -26670,7 +26727,8 @@ function loadStrongLexicon() {
           strongLexicon[normalizeStrongCode(code)] = entry;
         });
       });
-      strongLexiconStatus = Object.keys(strongLexicon).length ? "ready" : "unavailable";
+      strongLexiconStatus = results.every((result) => result.status === "fulfilled")
+        ? "ready" : Object.keys(strongLexicon).length ? "partial" : "unavailable";
       render();
       return strongLexicon;
     });
