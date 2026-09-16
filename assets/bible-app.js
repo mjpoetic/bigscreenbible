@@ -773,6 +773,7 @@ const state = {
   searchResults: [],
   strongVerseResults: null,
   strongVerseLimit: 50,
+  strongSearchReturn: null,
   searchPending: false,
   inlineSearchQuery: "",
   inlineSearchChapter: "",
@@ -16168,7 +16169,11 @@ function closeStudyPopup(immediate = false, restoreFocus = false) {
 
 function searchResultsMarkup() {
   const query = state.searchResultsQuery;
-  if (normalizedSearchSource(state.searchResultsSource) === "strongs") return strongSearchResultsMarkup(query);
+  if (normalizedSearchSource(state.searchResultsSource) === "strongs") {
+    const back = state.strongSearchReturn
+      ? `<button class="ghost-btn strong-search-action" type="button" data-strong-search-back>← Back to Bible results</button>` : "";
+    return back + strongSearchResultsMarkup(query);
+  }
   if (normalizedSearchSource(state.searchResultsSource) === "notes") {
     return noteSearchResultsMarkup(query);
   }
@@ -16182,8 +16187,9 @@ function searchResultsMarkup() {
     referenceMatchesSearchScope(question?.reference, scope, searchChapter)
   ));
   const verifiedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, eligibleQuestions);
+  const strongLookup = strongSearchShortcutMarkup(query);
   if (!state.searchResults.length && !verifiedAnswer && !state.searchPending) {
-    return `<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>`;
+    return `${strongLookup}<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>`;
   }
   const answerMarkup = verifiedAnswer ? `
     <article class="verified-answer" aria-label="Verified answer">
@@ -16203,11 +16209,45 @@ function searchResultsMarkup() {
     </button>
   `).join("");
   return `
+    ${strongLookup}
     ${answerMarkup}
     ${verifiedAnswer && passageMarkup ? `<div class="search-passages-label">Related passages</div>` : ""}
     ${passageMarkup}
     ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages in ${escapeHtml(scopeLabel)}…</div>` : ""}
   `;
+}
+
+function strongSearchShortcutMarkup(query) {
+  const text = String(query || "").trim();
+  const code = strongSearchCode(text);
+  if (!text || (!code && (
+    text.length > 64 || text.split(/\s+/).length > 4
+    || !/\p{L}/u.test(text) || parseReference(text)
+    || window.BigScreenBibleSearchQuery?.analyze(text)?.isQuestion
+  ))) return "";
+  const label = code ? `View ${code} in Strong’s →` : `Look up “${text}” in Strong’s →`;
+  return `<button class="ghost-btn strong-search-action" type="button" data-strong-search-shortcut>${escapeHtml(label)}</button>`;
+}
+
+function openStrongSearchShortcut() {
+  state.strongSearchReturn = {
+    query: state.searchResultsQuery,
+    scope: state.searchResultsScope,
+    chapter: state.searchResultsChapter,
+  };
+  return runPhraseSearch(state.searchResultsQuery, {
+    source: "strongs", preserveStrongReturn: true,
+    focusResults: state.focusMode, presentationResults: state.mode === "big",
+  });
+}
+
+function returnToBibleSearchResults() {
+  const previous = state.strongSearchReturn;
+  if (!previous) return;
+  return runPhraseSearch(previous.query, {
+    source: "scripture", scope: previous.scope, chapter: previous.chapter,
+    focusResults: state.focusMode, presentationResults: state.mode === "big",
+  });
 }
 
 function noteSearchResultsMarkup(query) {
@@ -18597,9 +18637,15 @@ function bindEvents() {
     document.getElementById("notesFilterInput")?.focus({ preventScroll: true });
   });
   updateNotesFilterDom(state.noteFilterQuery);
+  document.querySelectorAll("[data-strong-search-shortcut]").forEach((button) => {
+    button.addEventListener("click", openStrongSearchShortcut);
+  });
+  document.querySelectorAll("[data-strong-search-back]").forEach((button) => {
+    button.addEventListener("click", returnToBibleSearchResults);
+  });
   document.querySelectorAll("[data-strong-find-verses]").forEach((button) => {
     button.addEventListener("click", () => runPhraseSearch(button.dataset.strongFindVerses, {
-      source: "strongs", focusResults: state.focusMode, presentationResults: state.mode === "big",
+      source: "strongs", preserveStrongReturn: true, focusResults: state.focusMode, presentationResults: state.mode === "big",
     }));
   });
   document.querySelectorAll("[data-strong-verses-more]").forEach((button) => {
@@ -20123,13 +20169,13 @@ function setSearchScope(value) {
   const scope = normalizedSearchScope(value);
   const previousSource = normalizedSearchSource(state.searchSource);
   const hadInlineChapterSearch = Boolean(state.inlineSearchQuery);
-  const sourceDraft = previousSource === "notes" ? currentSearchInputDraft() : "";
+  const sourceDraft = previousSource !== "scripture" ? currentSearchInputDraft() : "";
   state.searchSource = "scripture";
   state.searchScope = scope;
   localStorage.setItem("lw_search_scope", scope);
-  if (previousSource === "notes") resetSearchForSource("scripture", sourceDraft);
+  if (previousSource !== "scripture") resetSearchForSource("scripture", sourceDraft);
   updateSearchSourceControls();
-  if (previousSource === "notes") {
+  if (previousSource !== "scripture") {
     renderPreservingReaderScroll();
     return;
   }
@@ -20161,6 +20207,7 @@ function currentSearchInputDraft() {
 }
 
 function resetSearchForSource(source, query = "") {
+  state.strongSearchReturn = null;
   searchRequestId += 1;
   state.searchQuery = query;
   state.searchResultsQuery = "";
@@ -22172,6 +22219,7 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
 async function runPhraseSearch(value, options = {}) {
   const query = value.trim().replace(/\s+/g, " ");
   if (!query) return;
+  if (!options.preserveStrongReturn) state.strongSearchReturn = null;
   const requestedSource = normalizedSearchSource(options.source ?? state.searchSource);
   const source = requestedSource === "notes" && !noteSearchAvailable() ? "scripture" : requestedSource;
   const scope = normalizedSearchScope(options.scope ?? state.searchScope);
@@ -22427,6 +22475,7 @@ function advanceInlineChapterSearch(query, searchChapter = state.reference) {
 }
 
 function clearSearchResults() {
+  state.strongSearchReturn = null;
   searchRequestId += 1;
   clearInlineChapterSearchState();
   state.searchQuery = "";

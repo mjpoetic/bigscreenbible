@@ -239,3 +239,43 @@ assert.match(searchContext.strongVerseResultsMarkup("H430"), /could not load/);
 searchContext.state.strongVerseResults = [];
 assert.match(searchContext.strongVerseResultsMarkup("G999999"), /No verses/);
 console.log("Strong's connected verse precision, navigation, pagination, and missing-data tests passed");
+
+searchContext.window = {};
+vm.runInContext(readFileSync(new URL("../assets/search-query.js", import.meta.url), "utf8"), searchContext);
+searchContext.parseReference = (text) => /^John 3:16$/i.test(text);
+for (const name of ["strongSearchShortcutMarkup", "openStrongSearchShortcut", "returnToBibleSearchResults", "searchResultsMarkup"]) {
+  const start = appSource.indexOf(`function ${name}(`);
+  vm.runInContext(appSource.slice(start, appSource.indexOf("\n}\n", start) + 2), searchContext);
+}
+for (const query of ["love", "love one another", "agape", "ἀγάπη", "אלהים"]) {
+  assert.match(searchContext.strongSearchShortcutMarkup(query), /data-strong-search-shortcut/);
+}
+assert.match(searchContext.strongSearchShortcutMarkup("G00026"), /View G26 in Strong’s/);
+for (const query of ["", "!!!", "John 3:16", "Who is Jesus", "What is love?", "Can God forgive", "these are more than four words"]) {
+  assert.equal(searchContext.strongSearchShortcutMarkup(query), "", query);
+}
+assert.match(searchContext.strongSearchShortcutMarkup("<love>"), /&lt;love&gt;/);
+let routedSearch;
+searchContext.runPhraseSearch = (query, options) => { routedSearch = { query, options }; };
+Object.assign(searchContext.state, {
+  searchResultsQuery: "love", searchResultsScope: "nt", searchResultsChapter: "John 3", mode: "reader", focusMode: true,
+});
+searchContext.openStrongSearchShortcut();
+assert.equal(routedSearch.query, "love");
+assert.equal(routedSearch.options.source, "strongs");
+assert.equal(routedSearch.options.preserveStrongReturn, true);
+assert.equal(routedSearch.options.focusResults, true);
+searchContext.state.searchResultsQuery = "G26";
+searchContext.returnToBibleSearchResults();
+assert.equal(routedSearch.query, "love");
+assert.equal(routedSearch.options.source, "scripture");
+assert.equal(routedSearch.options.scope, "nt");
+assert.equal(routedSearch.options.chapter, "John 3");
+searchContext.searchScopeLabel = () => "New Testament";
+searchContext.referenceMatchesSearchScope = () => true;
+Object.assign(searchContext.state, { searchResultsQuery: "love", searchResultsSource: "scripture", searchResults: [], searchPending: false });
+assert.match(searchContext.searchResultsMarkup(), /data-strong-search-shortcut/);
+assert.match(searchContext.searchResultsMarkup(), /No matches found/);
+searchContext.state.searchResultsSource = "strongs";
+assert.match(searchContext.searchResultsMarkup(), /Back to Bible results/);
+console.log("Strong's discovery shortcut, query filtering, and return-navigation tests passed");
