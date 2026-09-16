@@ -771,6 +771,8 @@ const state = {
   searchResultsScope: normalizedSearchScope(localStorage.getItem("lw_search_scope")),
   searchResultsChapter: "John 3",
   searchResults: [],
+  strongVerseResults: null,
+  strongVerseLimit: 50,
   searchPending: false,
   inlineSearchQuery: "",
   inlineSearchChapter: "",
@@ -16278,12 +16280,50 @@ function normalizeStrongSearchText(value) {
     .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
+function strongSearchCode(query) {
+  const match = String(query).trim().match(/^(?:strong['’]?s?\s*)?([hg])\s*0*(\d+)$/i);
+  return match ? normalizeStrongCode(`${match[1]}${match[2]}`) : "";
+}
+
+function findStrongVerses(code, chapters) {
+  const normalizedCode = normalizeStrongCode(code);
+  const results = [];
+  Object.entries(chapters).forEach(([chapter, data]) => {
+    (data.verses || []).forEach((verse) => {
+      const matches = (verse.strong || []).map(normalizeStrongEntry)
+        .filter((entry) => entry.codes.includes(normalizedCode));
+      if (matches.length) results.push({
+        ref: `${chapter}:${verse.n}`, text: verse.text,
+        words: [...new Set(matches.map((entry) => entry.word))],
+      });
+    });
+  });
+  return results;
+}
+
+function strongVerseResultsMarkup(code) {
+  if (!code) return "";
+  const results = state.strongVerseResults;
+  if (!results) return `<div class="empty-state" role="status">Connected verses could not load. Please try searching again.</div>`;
+  const limit = state.strongVerseLimit;
+  return `<div class="search-passages-label">${results.length} connected ${results.length === 1 ? "verse" : "verses"} · ${escapeHtml(code)}</div>
+    <p class="source-note">Matches use BSB Strong’s tags. Previews are BSB; open a passage to read it in your current translation.</p>
+    ${!results.length ? '<div class="empty-state">No verses with this number were found in the BSB tags.</div>' : ""}
+    ${results.slice(0, limit).map((result) => `
+      <button class="search-result" type="button" data-goto="${escapeHtml(result.ref)}" data-search-result="true">
+        <div class="ref-title">${escapeHtml(result.ref)} · BSB</div>
+        <div class="strong-meta">Tagged words: ${escapeHtml(result.words.join(" · "))}</div>
+        <div class="ref-copy">${escapeHtml(result.text)}</div>
+      </button>`).join("")}
+    ${results.length > limit ? `<button class="ghost-btn strong-search-action" type="button" data-strong-verses-more>Show more verses (${Math.min(limit, results.length)} of ${results.length})</button>` : ""}`;
+}
+
 function searchStrongLexicon(query) {
   const normalized = normalizeStrongSearchText(query);
   if (!normalized) return [];
-  const codeQuery = String(query).trim().match(/^(?:strong['’]?s?\s*)?([hg])\s*0*(\d+)$/i);
+  const codeQuery = strongSearchCode(query);
   if (codeQuery) {
-    const entry = strongEntry(`${codeQuery[1]}${codeQuery[2]}`);
+    const entry = strongEntry(codeQuery);
     return entry ? [entry] : [];
   }
   const tokens = normalized.split(/\s+/);
@@ -16307,10 +16347,11 @@ function strongSearchResultsMarkup(query) {
   if (state.searchPending) return `<div class="empty-state" role="status">Searching Strong’s reference…</div>`;
   const warning = strongLexiconStatus !== "ready"
     ? `<div class="empty-state" role="status">${strongLexiconStatus === "partial" ? "Part of the Strong’s dictionary could not load." : "The full Strong’s dictionary could not load."} Results cover available entries only. Check your connection and reload to try again.</div>` : "";
+  const verses = strongVerseResultsMarkup(strongSearchCode(query));
   const count = state.searchResults.length;
-  if (!count) return `${warning}<div class="empty-state">No Strong’s entries found for “${escapeHtml(query)}”. Try another word, transliteration, or number.</div>`;
+  if (!count) return `${warning}${verses}<div class="empty-state">No Strong’s entries found for “${escapeHtml(query)}”. Try another word, transliteration, or number.</div>`;
   return `${warning}<div class="search-passages-label">${count} Strong’s ${count === 1 ? "entry" : "entries"}${count > 100 ? " · Showing the first 100; refine your search for more specific results." : ""}</div>
-    <div class="strong-list">${state.searchResults.slice(0, 100).map((entry) => strongLookupCard(entry, "")).join("")}</div>`;
+    <div class="strong-list">${state.searchResults.slice(0, 100).map((entry) => `${strongLookupCard(entry, "")}<button class="ghost-btn strong-search-action" type="button" data-strong-find-verses="${escapeHtml(entry.code)}" aria-label="Find verses for ${escapeHtml(entry.code)}">Find verses · ${escapeHtml(entry.code)}</button>`).join("")}</div>${verses}`;
 }
 
 function strongLookupCard(entry, selectedWord) {
@@ -18556,6 +18597,25 @@ function bindEvents() {
     document.getElementById("notesFilterInput")?.focus({ preventScroll: true });
   });
   updateNotesFilterDom(state.noteFilterQuery);
+  document.querySelectorAll("[data-strong-find-verses]").forEach((button) => {
+    button.addEventListener("click", () => runPhraseSearch(button.dataset.strongFindVerses, {
+      source: "strongs", focusResults: state.focusMode, presentationResults: state.mode === "big",
+    }));
+  });
+  document.querySelectorAll("[data-strong-verses-more]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const scroll = captureLibraryScroll();
+      const dialogId = button.closest(".mobile-focus-search-results")?.id;
+      const dialogScroll = button.closest(".mobile-focus-search-results-body")?.scrollTop || 0;
+      state.strongVerseLimit += 50;
+      renderPreservingReaderScroll();
+      restoreLibraryScroll(scroll);
+      if (dialogId) {
+        const body = document.getElementById(dialogId)?.querySelector(".mobile-focus-search-results-body");
+        if (body) body.scrollTop = dialogScroll;
+      }
+    });
+  });
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
       const fromFocusWorkspace = Boolean(button.closest(".mobile-focus-workspace"));
@@ -22159,6 +22219,8 @@ async function runPhraseSearch(value, options = {}) {
   state.searchResultsScope = scope;
   state.searchResultsChapter = searchChapter;
   state.searchResults = [];
+  state.strongVerseResults = null;
+  state.strongVerseLimit = 50;
   state.searchPending = true;
   localStorage.setItem("lw_search_scope", scope);
   if (focusResults) {
@@ -22189,6 +22251,13 @@ async function runPhraseSearch(value, options = {}) {
     if (source === "strongs") {
       await loadStrongLexicon();
       results = searchStrongLexicon(query);
+      const code = strongSearchCode(query);
+      if (code) {
+        await loadBibleVersion("BSB");
+        if (requestId !== searchRequestId || state.searchResultsQuery !== query) return;
+        const chapters = loadedVersionData.get("BSB")?.chapters;
+        state.strongVerseResults = chapters ? findStrongVerses(code, chapters) : null;
+      }
     } else {
       await ensureAllSearchVersionsLoaded();
       results = await searchBible(query, scope, searchChapter);

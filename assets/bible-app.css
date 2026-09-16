@@ -22791,3 +22791,10 @@ svg {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* Keep Strong's search actions comfortable to tap in narrow search panels. */
+.strong-search-action {
+  min-height: 44px;
+  width: 100%;
+  white-space: normal;
+}

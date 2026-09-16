@@ -154,6 +154,7 @@ const searchContext = {
 vm.createContext(searchContext);
 vm.runInContext([
   "normalizeStrongCode", "cleanStrongCopy", "formatOpenScripturesStrongEntry", "strongEntry",
+  "normalizeStrongCodes", "normalizeStrongEntry", "strongSearchCode", "findStrongVerses", "strongVerseResultsMarkup",
   "normalizeStrongSearchText", "searchStrongLexicon", "escapeHtml", "strongLookupCard", "strongSearchResultsMarkup",
 ].map((name) => {
   const start = appSource.indexOf(`function ${name}(`);
@@ -180,6 +181,8 @@ console.log("Strong's word, transliteration, original-language, and number searc
 let finishLexiconLoad;
 Object.assign(searchContext, {
   searchSourceCodes: ["scripture", "notes", "strongs"], searchRequestId: 0,
+  loadedVersionData: new Map([["BSB", bible]]),
+  loadBibleVersion: async () => {},
   localStorage: { setItem() {} },
   normalizedSearchScope: (value) => value || "chapter",
   normalizedSearchChapter: (value) => value,
@@ -214,3 +217,25 @@ assert.equal(searchContext.state.mode, "big");
 assert.equal(searchContext.state.presentationSearchResultsOpen, true);
 assert.equal(searchContext.state.searchResults[0].code, "H430");
 console.log("Strong's search routing and stale-request tests passed");
+
+const godVerses = searchContext.findStrongVerses("H00430", bible.chapters);
+assert.ok(godVerses.some(({ ref }) => ref === "Genesis 1:1"));
+assert.equal(new Set(godVerses.map(({ ref }) => ref)).size, godVerses.length);
+assert.ok(!searchContext.findStrongVerses("H43", { "Genesis 1": { verses: [verse("Genesis 1", 1)] } }).length);
+assert.ok(searchContext.findStrongVerses("H2233", bible.chapters).some(({ ref }) => ref === "Genesis 1:11"));
+const loveVerses = searchContext.findStrongVerses("G26", bible.chapters);
+assert.ok(loveVerses.some(({ ref }) => ref === "1 Corinthians 13:4"));
+assert.ok(!loveVerses.some(({ ref }) => ref === "John 3:16"), "G25 in John 3:16 must not match G26 merely because both mean love");
+assert.ok(searchContext.state.strongVerseResults.some(({ ref }) => ref === "Genesis 1:1"));
+searchContext.state.strongVerseLimit = 50;
+let verseMarkup = searchContext.strongVerseResultsMarkup("H430");
+assert.equal((verseMarkup.match(/data-search-result=/g) || []).length, 50);
+assert.match(verseMarkup, /data-goto="Genesis 1:1"/);
+assert.match(verseMarkup, /data-strong-verses-more/);
+searchContext.state.strongVerseLimit = 100;
+assert.equal((searchContext.strongVerseResultsMarkup("H430").match(/data-search-result=/g) || []).length, 100);
+searchContext.state.strongVerseResults = null;
+assert.match(searchContext.strongVerseResultsMarkup("H430"), /could not load/);
+searchContext.state.strongVerseResults = [];
+assert.match(searchContext.strongVerseResultsMarkup("G999999"), /No verses/);
+console.log("Strong's connected verse precision, navigation, pagination, and missing-data tests passed");
