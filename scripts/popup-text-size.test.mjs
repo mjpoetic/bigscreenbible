@@ -67,3 +67,28 @@ const countBefore = listenerCount;
 context.setStudyPopupContent(strongPopup, 'Updated lookup', "Strong's");
 assert.equal(listenerCount, countBefore, 'Refreshing content must not duplicate pinch listeners');
 console.log('Popup text size, Strong lookup binding, and pinch tests passed');
+
+// Popup content is created after bindEvents; its own setup must bind number links.
+let openVerses;
+let closedImmediately = false;
+let numberClick;
+context.normalizeStrongCode = value => value.toUpperCase();
+context.closeStudyPopup = immediate => { closedImmediately = immediate; };
+context.runPhraseSearch = (query, options) => { openVerses = { query, options }; };
+strongPopup.querySelectorAll = selector => selector === '[data-strong-popup-verses]'
+  ? [{ dataset: { strongPopupVerses: 'H3478' }, addEventListener: (name, callback) => { numberClick = callback; } }]
+  : [];
+context.state.mode = 'big';
+context.state.focusMode = false;
+context.setStudyPopupContent(strongPopup, 'Israel', "Strong's");
+numberClick({ preventDefault() {}, stopPropagation() {} });
+assert.equal(closedImmediately, true);
+assert.equal(openVerses.query, 'H3478');
+assert.equal(openVerses.options.source, 'strongs');
+assert.equal(openVerses.options.presentationResults, true);
+context.state.mode = 'reader';
+context.state.focusMode = true;
+numberClick({ preventDefault() {}, stopPropagation() {} });
+assert.equal(openVerses.options.focusResults, true);
+assert.equal(openVerses.options.presentationResults, false);
+console.log('Popup Strong number navigation preserves Big Screen and Focus results');

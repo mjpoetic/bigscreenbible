@@ -15700,7 +15700,7 @@ function openStrongPopup(anchor) {
     ? "Open Scriptures lexicon is still loading. Try this word again in a moment."
     : "No dictionary entry was found for this word yet.";
   const content = lookups.length
-    ? `<div class="strong-list">${lookups.map((lookup) => strongLookupCard(lookup, word ? `${word} · ` : "")).join("")}</div>`
+    ? `<div class="strong-list">${lookups.map((lookup) => strongLookupCard(lookup, word ? `${word} · ` : "", true)).join("")}</div>`
     : `<div class="ref-title">${escapeHtml(word || code)}</div><div class="ref-copy">${escapeHtml(status)}</div>`;
   showStudyPopup(anchor, content, "Strong's");
 }
@@ -16089,6 +16089,20 @@ function setStudyPopupContent(popup, content, label, options = {}) {
   });
   bindPopupTextGestures(popup);
   bindStudyPopupGotoLinks(popup);
+  popup.querySelectorAll("[data-strong-popup-verses]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const code = normalizeStrongCode(button.dataset.strongPopupVerses);
+      if (!/^[HG]\d+$/.test(code)) return;
+      closeStudyPopup(true);
+      runPhraseSearch(code, {
+        source: "strongs",
+        focusResults: state.focusMode,
+        presentationResults: state.mode === "big",
+      });
+    });
+  });
 }
 
 function showStudyPopup(anchor, content, label, options = {}) {
@@ -16394,10 +16408,13 @@ function strongSearchResultsMarkup(query) {
     <div class="strong-list">${state.searchResults.slice(0, 100).map((entry) => `${strongLookupCard(entry, "")}<button class="ghost-btn strong-search-action" type="button" data-strong-find-verses="${escapeHtml(entry.code)}" aria-label="Find verses for ${escapeHtml(entry.code)}">Find verses · ${escapeHtml(entry.code)}</button>`).join("")}</div>${verses}`;
 }
 
-function strongLookupCard(entry, selectedWord) {
+function strongLookupCard(entry, selectedWord, linkToVerses = false) {
+  const code = linkToVerses
+    ? `<button class="strong-number-link" type="button" data-strong-popup-verses="${escapeHtml(entry.code)}" aria-label="Find verses for Strong’s ${escapeHtml(entry.code)}" title="Find verses for ${escapeHtml(entry.code)}">${escapeHtml(entry.code)}</button>`
+    : escapeHtml(entry.code);
   return `
     <div class="strong-card">
-      <div class="ref-title">${escapeHtml(selectedWord)}${entry.code} · ${escapeHtml(entry.lemma)}</div>
+      <div class="ref-title">${escapeHtml(selectedWord)}${code} · ${escapeHtml(entry.lemma)}</div>
       ${entry.transliteration ? `<div class="strong-meta">Transliteration: ${escapeHtml(entry.transliteration)}</div>` : ""}
       ${entry.pronunciation ? `<div class="strong-meta">Pronunciation: ${escapeHtml(entry.pronunciation)}</div>` : ""}
       ${entry.derivation ? `<div class="ref-copy"><strong>Derivation:</strong> ${escapeHtml(entry.derivation)}</div>` : ""}

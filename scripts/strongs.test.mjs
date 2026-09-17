@@ -279,3 +279,9 @@ assert.match(searchContext.searchResultsMarkup(), /No matches found/);
 searchContext.state.searchResultsSource = "strongs";
 assert.match(searchContext.searchResultsMarkup(), /Back to Bible results/);
 console.log("Strong's discovery shortcut, query filtering, and return-navigation tests passed");
+
+const linkedCard = searchContext.strongLookupCard({ code: 'H3478', lemma: 'יִשְׂרָאֵל', source: 'Test' }, 'O Israel · ', true);
+assert.match(linkedCard, /data-strong-popup-verses="H3478"/);
+assert.match(linkedCard, /aria-label="Find verses for Strong’s H3478"/);
+assert.match(linkedCard, />H3478<\/button>/);
+assert.doesNotMatch(searchContext.strongLookupCard({ code: 'G26', lemma: 'love' }, ''), /data-strong-popup-verses/);
