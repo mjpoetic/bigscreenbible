@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const handler = source.match(/function handleNativeQuickAction\([^]*?\n\}/)[0];
-let platform = 'ios', renders = 0, focused = '', selected = '', workspace = '', resetSource = '';
+const focusHandler = source.match(/function focusFocusModeSearch\([^]*?\n\}/)[0];
+let platform = 'ios', renders = 0, focused = '', selected = '', workspace = '', resetSource = '', desktopVisible = false;
 const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOpen: true, accountOpen: true, libraryOpen: true };
 const context = vm.createContext({
   state, window: { Capacitor: { getPlatform: () => platform } },
@@ -11,11 +12,11 @@ const context = vm.createContext({
   switchMode(mode, options) { assert.equal(options.immediate, true); state.mode = mode; },
   renderPreservingReaderScroll() { renders++; },
   resetSearchForSource(source) { resetSource = source; },
-  shortcutWorkspace(target) { workspace = target; },
+  shortcutWorkspace(target) { workspace = target; if (state.focusMode) vm.runInContext('focusFocusModeSearch()', context); },
   requestAnimationFrame(callback) { callback(); },
-  document: { getElementById(id) { return { focus() { focused = id; }, select() { selected = id; } }; } },
+  document: { getElementById(id) { return { getClientRects() { return desktopVisible ? [{}] : []; }, focus() { focused = id; }, select() { selected = id; } }; } },
 });
-vm.runInContext(`let dataLoading = true, dataError = null; ${handler}`, context);
+vm.runInContext(`let dataLoading = true, dataError = null; ${handler} ${focusHandler}`, context);
 const run = code => vm.runInContext(code, context);
 assert.equal(run('handleNativeQuickAction("reader")'), false, 'Cold launch waits for data');
 run('dataLoading = false');
@@ -29,12 +30,16 @@ assert.equal(state.settingsOpen, false); assert.equal(state.accountOpen, false);
 assert.equal(workspace, 'Search'); assert.equal(resetSource, 'scripture');
 assert.equal(focused, 'studySearchInput'); assert.equal(selected, focused);
 state.focusMode = true;
+run('handleNativeQuickAction("search")'); assert.equal(focused, 'mobileFocusPassageInput');
+assert.equal(state.focusReferenceOpen, true, 'Mobile search popover is open');
+desktopVisible = true;
 run('handleNativeQuickAction("search")'); assert.equal(focused, 'referenceInput');
+assert.equal(state.focusReferenceOpen, false);
 assert.equal(run('handleNativeQuickAction("constructor")'), false);
 assert.equal(run('handleNativeQuickAction("big")'), false);
 platform = 'web'; assert.equal(run('handleNativeQuickAction("reader")'), false);
 platform = 'ios'; run('dataError = "offline"'); assert.equal(run('handleNativeQuickAction("reader")'), false);
-assert.equal(renders, 5);
+assert.equal(renders, 8);
 const plist = readFileSync(new URL('../ios/App/App/Info.plist', import.meta.url), 'utf8');
 assert.equal((plist.match(/<key>UIApplicationShortcutItemType<\/key>/g) || []).length, 4);
 for (const [action, glyph] of [['reader','book'], ['parallel','parallel'], ['games','games'], ['search','search']]) {

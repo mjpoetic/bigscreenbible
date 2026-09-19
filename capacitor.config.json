@@ -6,5 +6,15 @@
     "url": "https://bigscreenbible.com",
     "cleartext": false
   },
-  "backgroundColor": "#111d37"
+  "backgroundColor": "#111d37",
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "banner",
+        "list"
+      ]
+    }
+  }
 }

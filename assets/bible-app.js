@@ -3029,7 +3029,7 @@ function pushReminderSettings(prefix = "") {
   const challengeAcceptedId = `${idPrefix}PushChallengeAcceptedToggle`;
   const controlsDisabled = !state.pushSupported || state.pushPermissionDenied || !state.pushEnabled || state.pushBusy;
   const timezone = escapeHtml(Intl.DateTimeFormat().resolvedOptions().timeZone || "local time");
-  const status = state.pushEnabled && state.pushSupported && !state.pushBusy
+  const status = state.pushEnabled && state.pushSupported && !state.pushBusy && !nativePushPlugin()
     ? `Scheduled in ${timezone} and adjusted automatically for daylight saving time.`
     : state.pushStatus;
   return `
@@ -7874,7 +7874,125 @@ function validPushTime(value) {
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
 }
 
+function nativePushPlugin() {
+  if (window.bsbNativePushAvailable === false) return null;
+  const capacitor = window.Capacitor;
+  if (capacitor?.getPlatform?.() !== "ios" || !capacitor.isPluginAvailable?.("PushNotifications")) return null;
+  return capacitor.Plugins?.PushNotifications || null;
+}
+
+let nativePushListenersPromise = null;
+let nativePushRegistration = null;
+function nativeNotificationDestination(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !["bigscreenbible.com", "www.bigscreenbible.com"].includes(url.hostname) || url.pathname !== "/") return null;
+    const destination = new URL(window.location.href);
+    destination.search = url.search;
+    destination.hash = url.hash;
+    return destination.href;
+  } catch { return null; }
+}
+
+function bindNativePushListeners() {
+  if (nativePushListenersPromise) return nativePushListenersPromise;
+  const plugin = nativePushPlugin();
+  nativePushListenersPromise = Promise.all([
+    plugin.addListener("registration", ({ value }) => nativePushRegistration?.resolve(value)),
+    plugin.addListener("registrationError", () => nativePushRegistration?.reject(new Error("Apple could not register this device for notifications. Please try again."))),
+    plugin.addListener("pushNotificationActionPerformed", ({ notification }) => {
+      const destination = nativeNotificationDestination(notification?.data?.url);
+      if (destination) window.location.assign(destination);
+    }),
+  ]);
+  return nativePushListenersPromise;
+}
+
+async function registerNativePushToken() {
+  await bindNativePushListeners();
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => finish(new Error("Apple notification registration timed out. Check your connection and try again.")), 20000);
+    const finish = (error, token) => {
+      clearTimeout(timeout);
+      nativePushRegistration = null;
+      if (error) reject(error);
+      else resolve(token);
+    };
+    nativePushRegistration = { resolve: token => finish(null, token), reject: error => finish(error) };
+    Promise.resolve(nativePushPlugin().register()).catch(error => finish(error));
+  });
+}
+
+async function enableNativePushNotifications({ requestPermission = true, quiet = false } = {}) {
+  const plugin = nativePushPlugin();
+  if (!plugin || state.pushBusy) return;
+  state.pushBusy = true;
+  state.pushStatus = "Connecting this iPhone…";
+  if (!quiet) renderPreservingReaderScroll();
+  try {
+    const permission = requestPermission ? await plugin.requestPermissions() : await plugin.checkPermissions();
+    state.pushPermissionDenied = permission.receive === "denied";
+    if (permission.receive !== "granted") {
+      clearLocalPushSubscription();
+      state.pushStatus = state.pushPermissionDenied
+        ? "Notifications are off in iPhone Settings. Open Settings → Notifications → Big Screen Bible to allow them."
+        : "Enable notifications for daily reminders and signed-in friend activity.";
+      return;
+    }
+    const token = await registerNativePushToken();
+    const config = await pushFunctionRequest("GET");
+    if (!config.nativeEnabled) throw new Error("iPhone permission is allowed. Apple push delivery still needs to be configured for Big Screen Bible.");
+    const result = await pushFunctionRequest("POST", {
+      action: "subscribe-native",
+      nativeSubscription: { token, environment: window.bsbAPNSEnvironment },
+      deviceToken: localStorage.getItem(pushDeviceTokenStorageKey) || "",
+      preferences: pushPreferences(),
+    });
+    if (!result.deviceToken) throw new Error("The notification service did not return a device token");
+    localStorage.setItem(pushDeviceTokenStorageKey, result.deviceToken);
+    localStorage.setItem("lw_push_enabled", "true");
+    state.pushEnabled = true;
+    state.pushPermissionDenied = false;
+    state.pushStatus = "Notifications are enabled on this iPhone.";
+    localStorage.removeItem(pushPromptDismissedStorageKey);
+    if (!quiet) showToast("Notifications enabled");
+  } catch (error) {
+    // Keep an existing subscription credential so a temporary outage does not
+    // orphan an enabled device or prevent a later unsubscribe/account unlink.
+    state.pushStatus = error?.message || "iPhone notifications could not be connected.";
+    if (!quiet) showToast("Could not connect notifications");
+  } finally {
+    state.pushBusy = false;
+    if (!dataLoading && !dataError) renderPreservingReaderScroll();
+  }
+}
+
+async function initializeNativePushNotifications() {
+  await bindNativePushListeners();
+  const permission = await nativePushPlugin().checkPermissions();
+  state.pushPermissionDenied = permission.receive === "denied";
+  if (permission.receive !== "granted") {
+    clearLocalPushSubscription();
+    state.pushStatus = state.pushPermissionDenied
+      ? "Notifications are off in iPhone Settings. Open Settings → Notifications → Big Screen Bible to allow them."
+      : "Enable notifications for daily reminders and signed-in friend activity.";
+    return;
+  }
+  if (state.pushEnabled) return enableNativePushNotifications({ requestPermission: false, quiet: true });
+  state.pushStatus = "Enable notifications for daily reminders and signed-in friend activity.";
+}
+
+async function unsubscribePushDevice() {
+  const native = nativePushPlugin();
+  if (native) return native.unregister();
+  const registration = await navigator.serviceWorker.getRegistration("./");
+  const subscription = await registration?.pushManager.getSubscription();
+  await subscription?.unsubscribe();
+}
+
 function pushApiSupported() {
+  if (nativePushPlugin()) return true;
+  if (window.Capacitor?.getPlatform?.() === "ios") return false;
   return Boolean(
     window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window,
   );
@@ -7972,7 +8090,7 @@ function pushPromptEligible() {
     && state.pushSupported
     && !state.pushEnabled
     && !state.pushPermissionDenied
-    && Notification.permission !== "denied"
+    && (nativePushPlugin() || Notification.permission !== "denied")
     && localStorage.getItem(pushPromptDismissedStorageKey) !== "true"
     && !dataLoading
     && !dataError
@@ -8014,7 +8132,14 @@ async function initializePushNotifications() {
   if (!validPushTime(state.pushEveningTime)) state.pushEveningTime = "18:00";
   if (!state.pushSupported) {
     clearLocalPushSubscription();
-    state.pushStatus = "This browser does not support site notifications. On iPhone or iPad, add the site to the Home Screen first.";
+    state.pushStatus = window.Capacitor?.getPlatform?.() === "ios"
+      ? "Notifications aren't available in this test build. A push-enabled iPhone build is required."
+      : "This browser does not support site notifications. On iPhone or iPad, add the site to the Home Screen first.";
+    return;
+  }
+  if (nativePushPlugin()) {
+    try { await initializeNativePushNotifications(); }
+    catch { state.pushStatus = "iPhone notification settings could not be read. Please reopen the app."; }
     return;
   }
   if (Notification.permission === "denied") {
@@ -8048,6 +8173,7 @@ async function initializePushNotifications() {
 }
 
 async function enablePushNotifications() {
+  if (nativePushPlugin()) return enableNativePushNotifications();
   if (!pushApiSupported() || state.pushBusy) return;
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
@@ -8111,9 +8237,7 @@ async function disablePushNotifications() {
     console.warn("Push server unsubscribe failed", error);
   }
   try {
-    const registration = await navigator.serviceWorker.getRegistration("./");
-    const subscription = await registration?.pushManager.getSubscription();
-    await subscription?.unsubscribe();
+    await unsubscribePushDevice();
     state.pushStatus = serverUnsubscribeFailed
       ? "Reminders are off on this device. The expired server subscription will be cleaned up automatically."
       : "Notifications are off.";
@@ -8158,9 +8282,7 @@ async function unlinkPushSubscriptionFromCurrentAccount() {
   } catch (error) {
     console.warn("Push subscription account unlink failed", error);
     try {
-      const registration = await navigator.serviceWorker.getRegistration("./");
-      const subscription = await registration?.pushManager.getSubscription();
-      await subscription?.unsubscribe();
+      await unsubscribePushDevice();
     } catch (unsubscribeError) {
       console.warn("Browser push fallback unsubscribe failed", unsubscribeError);
     }
@@ -25680,20 +25802,19 @@ function shortcutWorkspace(target) {
 }
 
 function focusFocusModeSearch() {
+  const desktopInput = document.getElementById("referenceInput");
+  const useMobileInput = !desktopInput?.getClientRects().length;
+  state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
+  state.focusReferenceOpen = useMobileInput;
+  renderPreservingReaderScroll();
   const focusInput = () => {
-    const input = document.getElementById("referenceInput");
+    const input = document.getElementById(useMobileInput ? "mobileFocusPassageInput" : "referenceInput");
     input?.focus({ preventScroll: true });
     input?.select();
   };
-  if (state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel) {
-    state.focusReferenceOpen = false;
-    state.focusSearchResultsOpen = false;
-    resetFocusToolSurfaces();
-    renderPreservingReaderScroll();
-    requestAnimationFrame(focusInput);
-    return;
-  }
   focusInput();
+  requestAnimationFrame(focusInput);
 }
 
 function invokeHighlightBar() {
@@ -27244,6 +27365,9 @@ document.addEventListener("visibilitychange", () => {
     rememberReaderScrollBeforeAppSwitch();
     return;
   }
+  if (nativePushPlugin() && !state.pushBusy) initializePushNotifications().then(() => {
+    if (state.settingsOpen) renderPreservingReaderScroll();
+  });
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   syncGameMusicPlayback();
   refreshAccountGameRecords();
@@ -27305,8 +27429,8 @@ function handleNativeQuickAction(action) {
   renderPreservingReaderScroll();
   if (action === "search") {
     shortcutWorkspace("Search");
-    requestAnimationFrame(() => {
-      const input = document.getElementById(state.focusMode ? "referenceInput" : "studySearchInput");
+    if (!state.focusMode) requestAnimationFrame(() => {
+      const input = document.getElementById("studySearchInput");
       input?.focus({ preventScroll: true });
       input?.select();
     });

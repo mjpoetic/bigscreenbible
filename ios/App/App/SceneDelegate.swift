@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -98,5 +99,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             }
             if self.pendingQuickAction != nil { self.retryQuickAction() }
         }
+    }
+}
+
+// Expose only the public APNs environment, never a provider signing credential.
+class BSBBridgeViewController: CAPBridgeViewController {
+    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
+        let configuration = super.webViewConfiguration(for: instanceConfiguration)
+        let environment = Bundle.main.object(forInfoDictionaryKey: "BSBPushEnvironment") as? String == "development"
+            ? "development" : "production"
+        let pushAvailable = Bundle.main.object(forInfoDictionaryKey: "BSBNativePushAvailable") as? String != "NO"
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: "window.bsbAPNSEnvironment = '\(environment)'; window.bsbNativePushAvailable = \(pushAvailable);",
+            injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        return configuration
     }
 }

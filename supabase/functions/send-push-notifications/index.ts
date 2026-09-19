@@ -1,3 +1,4 @@
+import { sendAPNSNotification, normalizeNativeSubscription, apnsConfiguration } from "../_shared/apns.ts";
 // @deno-types="npm:@types/web-push@3.6.4"
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.110.1";
@@ -13,6 +14,9 @@ type SubscriptionRow = PushSchedule & {
   id: string;
   user_id: string | null;
   endpoint: string;
+  transport: "web" | "apns";
+  apns_token: string | null;
+  apns_environment: string | null;
   p256dh: string;
   auth: string;
   friend_request_notifications: boolean;
@@ -63,6 +67,7 @@ type FriendshipRow = {
 };
 
 function allowedOrigin(origin: string) {
+  if (origin === "capacitor://localhost") return true;
   try {
     const url = new URL(origin);
     if (url.protocol === "https:" && ["bigscreenbible.com", "www.bigscreenbible.com"].includes(url.hostname)) return true;
@@ -219,6 +224,11 @@ function eventIsStillActionable(
 }
 
 async function sendToSubscription(subscription: SubscriptionRow, payload: Record<string, unknown>) {
+  if (subscription.transport === "apns") {
+    const native = normalizeNativeSubscription({ token: subscription.apns_token, environment: subscription.apns_environment });
+    if (!native) throw new Error("Invalid stored Apple push subscription");
+    return sendAPNSNotification(native, payload);
+  }
   await webpush.sendNotification({
     endpoint: subscription.endpoint,
     keys: { p256dh: subscription.p256dh, auth: subscription.auth },
@@ -261,7 +271,7 @@ async function loadMorningVerse(supabase: DatabaseClient, now: Date) {
 
 async function sendDailyNotifications(supabase: DatabaseClient, now: Date) {
   const { data: rows, error: rowsError } = await supabase.from(subscriptionTable)
-    .select("id, user_id, endpoint, p256dh, auth, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
+    .select("id, user_id, endpoint, p256dh, auth, transport, apns_token, apns_environment, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
     .eq("enabled", true)
     .order("updated_at", { ascending: true })
     .limit(2000);
@@ -375,7 +385,7 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
   ] = await Promise.all([
     supabase.from("bsb_profiles").select("user_id, username, display_name").in("user_id", actorIds),
     supabase.from(subscriptionTable)
-      .select("id, user_id, endpoint, p256dh, auth, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
+      .select("id, user_id, endpoint, p256dh, auth, transport, apns_token, apns_environment, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
       .eq("enabled", true)
       .in("user_id", recipientIds),
     friendshipIds.length
@@ -526,12 +536,12 @@ Deno.serve(async (request) => {
   const vapidPublicKey = Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY") || "";
   const vapidPrivateKey = Deno.env.get("WEB_PUSH_VAPID_PRIVATE_KEY") || "";
   const vapidSubject = Deno.env.get("WEB_PUSH_SUBJECT") || "mailto:support@bigscreenbible.com";
-  if (!vapidPublicKey || !vapidPrivateKey) {
+  if ((!vapidPublicKey || !vapidPrivateKey) && !apnsConfiguration()) {
     return jsonResponse(request, { error: "Web Push VAPID keys are not configured" }, 503);
   }
 
   try {
-    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    if (vapidPublicKey && vapidPrivateKey) webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
     const now = new Date();
     const [daily, social] = await Promise.all([
       cronAuthorized ? sendDailyNotifications(supabase, now) : Promise.resolve(null),

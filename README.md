@@ -58,6 +58,16 @@ Haptic feedback defaults to on in the native iOS app. Try navigation buttons, Se
 
 Touch and hold the installed app's Home Screen icon for Reader Mode, Parallel Mode, Games, and Search. iOS supports four app quick actions; their template icons reuse the website's SVG glyphs. Search opens Scripture search, using the inline search field when Focus Mode is active. Test each shortcut both after force-closing the app and while it is in the background. The scene delegate queues cold-launch actions until the web app finishes restoring its startup state. These actions require the updated native app and web assets together.
 
+### Native iPhone push notifications
+
+The native app uses APNs through Capacitor Push Notifications; Safari/Home Screen web apps continue using Web Push. Native push requires Apple Developer Program membership and a provisioning profile with Push Notifications enabled for `com.bigscreenbible.app`. A free Personal Team cannot provide that entitlement. The app distinguishes this limitation from browser notification support.
+
+After enrollment, select the enrolled team in Xcode and refresh the signing profile. Create an APNs signing key for this app in the Apple Developer account, then add `APNS_KEY_ID`, `APNS_TEAM_ID`, and the full `.p8` contents as `APNS_PRIVATE_KEY` to Supabase Edge Function secrets. Keep the private key out of this repository and chat. The key must permit the development and production environments used by the builds. Debug uses the sandbox APNs endpoint; Release uses production.
+
+The server upgrade is in `supabase/update-native-push.sql` (also included in `schema.sql`), with delivery in `supabase/functions/_shared/apns.ts`. Deploy both `push-subscriptions` and `send-push-notifications` with that shared module. The subscription endpoint reports `nativeEnabled` only when the three Apple secrets exist. Existing reminder scheduling, social notification preferences, and account unlinking apply to both transports. Only the server can read subscription tokens.
+
+For Search/UI testing before enrollment, a Personal Team test build must omit the `aps-environment` entitlement, use the existing Personal Team provisioning profile, and set `BSB_NATIVE_PUSH_AVAILABLE=NO`. Notifications are explicitly unavailable in that build. Normal builds keep the push entitlement enabled. Validate actual notification permission, delivery, opening a notification, disabling notifications, and account sign-out on a push-enabled physical iPhone before release.
+
 The local preparation command changes `ios/App/App/capacitor.config.json` only; the root production configuration stays pointed at the live website. Before a release, run `npm run cap:open:ios` to restore the live-site configuration. Do not commit or ship the temporary local configuration. Adding haptics requires installing the updated native build as well as publishing the updated web assets for live-site builds.
 
 ## Bible Texts

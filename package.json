@@ -66,13 +66,15 @@
     "cap:open:android": "npm run cap:sync && npx cap open android",
     "cap:ios:local": "node scripts/prepare-ios-local.mjs --open",
     "test:haptics": "node scripts/haptics.test.mjs",
-    "test:ios-quick-actions": "node scripts/ios-quick-actions.test.mjs"
+    "test:ios-quick-actions": "node scripts/ios-quick-actions.test.mjs",
+    "test:native-push": "node scripts/native-push.test.mjs && deno test --allow-env supabase/functions/_shared/apns.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.4.1",
+    "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/status-bar": "^8.0.3"
   },
   "devDependencies": {
