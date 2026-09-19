@@ -11335,6 +11335,29 @@ select {
   margin-top: 8px;
 }
 
+.strong-occurrence {
+  border-bottom: 1px solid var(--line);
+  margin: 10px 0 12px;
+  padding-bottom: 12px;
+}
+
+.strong-section-label {
+  color: var(--ink);
+}
+
+.strong-occurrence-word + .strong-occurrence-word {
+  margin-top: 12px;
+}
+
+.strong-hebrew {
+  color: var(--ink);
+  font-family: "Times New Roman", serif;
+  font-size: calc(26px * var(--popup-text-scale, 1));
+  line-height: 1.7;
+  text-align: start;
+  margin-block: 4px;
+}
+
 .source-note {
   margin-top: 10px;
 }

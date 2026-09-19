@@ -7454,6 +7454,9 @@ function renderStrongText(verse, version) {
     version,
     searchRanges,
     lineBreaks,
+    // Capture the rendered verse, not state.verse (which need not be clicked).
+    !verse.verseRanges?.[version] && (Array.isArray(verse.strong?.[version]) || Array.isArray(verse.strong))
+      ? `${state.reference}:${verse.n}` : "",
   );
 }
 
@@ -7570,11 +7573,13 @@ function normalizeStrongCodes(value) {
     .filter((code) => /^[HG]\d+$/.test(code)))];
 }
 
-function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = []) {
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = [], reference = "") {
   if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
 
   let output = "";
   let cursor = 0;
+  const codeCounts = new Map();
+  entries.forEach(({ codes }) => codes.forEach((code) => codeCounts.set(code, (codeCounts.get(code) || 0) + 1)));
   entries.forEach(({ word, codes }) => {
     if (!word || !codes.length) return;
     const availableCodes = codes.filter(hasStrongEntry);
@@ -7583,8 +7588,11 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
     if (index === -1) return;
     const primaryCode = availableCodes[0];
     const codesLabel = availableCodes.join(", ");
+    const hebrewContext = reference && codes.some((code) => code.startsWith("H"))
+      ? ` data-strong-reference="${escapeHtml(reference)}" data-strong-version="${escapeHtml(version)}" data-strong-unique-codes="${escapeHtml(codes.filter((code) => codeCounts.get(code) === 1).join(","))}"`
+      : "";
     output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version, searchRanges, lineBreaks);
-    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</button>`;
+    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}"${hebrewContext} aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</button>`;
     cursor = index + word.length;
   });
   output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version, searchRanges, lineBreaks);
@@ -15702,7 +15710,36 @@ function openStrongPopup(anchor) {
   const content = lookups.length
     ? `<div class="strong-list">${lookups.map((lookup) => strongLookupCard(lookup, word ? `${word} · ` : "", true)).join("")}</div>`
     : `<div class="ref-title">${escapeHtml(word || code)}</div><div class="ref-copy">${escapeHtml(status)}</div>`;
-  showStudyPopup(anchor, content, "Strong's");
+  const popup = showStudyPopup(anchor, content, "Strong's");
+  if (!codes.some((item) => item.startsWith("H"))) return;
+  const hebrew = window.BigScreenBibleHebrew;
+  const reference = anchor.dataset.strongReference;
+  if (!hebrew || !hebrew.parseReference(reference) || !lookups.length) return;
+  const requestId = referencePreviewRequestId;
+  const context = {
+    version: anchor.dataset.strongVersion,
+    uniqueCodes: String(anchor.dataset.strongUniqueCodes || "").split(","),
+  };
+  // Dictionary information appears immediately. Missing/offline occurrence data
+  // never prevents lookup; a late response cannot reopen a dismissed popup.
+  hebrew.loadVerse(reference, appVersion).then((verse) => {
+    if (!verse || requestId !== referencePreviewRequestId || !popup.isConnected
+      || !anchor.isConnected || document.getElementById("studyPopup") !== popup) return;
+    const matches = lookups.map((lookup) => hebrew.matchOccurrences(verse, lookup.code, context));
+    if (!matches.some((match) => match.words.length)) return;
+    const focused = popup.contains(document.activeElement) ? document.activeElement : null;
+    const focusedCode = focused?.dataset.strongPopupVerses;
+    setStudyPopupContent(popup, `<div class="strong-list">${lookups.map((lookup, index) =>
+      strongLookupCard(lookup, word ? `${word} · ` : "", true,
+        matches[index].words.length ? { reference, match: matches[index] } : null)).join("")}</div>`, "Strong's");
+    if (focused) {
+      const target = focusedCode
+        ? popup.querySelector(`[data-strong-popup-verses="${focusedCode}"]`)
+        : popup.querySelector(".study-popup-close");
+      target?.focus({ preventScroll: true });
+    }
+    positionStudyPopup(anchor, popup);
+  }).catch(() => { /* Keep the existing dictionary on malformed/unavailable data. */ });
 }
 
 function openCrossReferencePopup(anchor) {
@@ -16408,19 +16445,38 @@ function strongSearchResultsMarkup(query) {
     <div class="strong-list">${state.searchResults.slice(0, 100).map((entry) => `${strongLookupCard(entry, "")}<button class="ghost-btn strong-search-action" type="button" data-strong-find-verses="${escapeHtml(entry.code)}" aria-label="Find verses for ${escapeHtml(entry.code)}">Find verses · ${escapeHtml(entry.code)}</button>`).join("")}</div>${verses}`;
 }
 
-function strongLookupCard(entry, selectedWord, linkToVerses = false) {
+function hebrewOccurrenceMarkup(occurrence) {
+  const hebrew = window.BigScreenBibleHebrew;
+  const { reference, match } = occurrence;
+  const exact = match.kind === "unique";
+  return `<section class="strong-occurrence" aria-label="Hebrew in this verse">
+    <div class="strong-meta strong-section-label">${exact ? "Hebrew in this verse" : "Hebrew matches in this verse"} · ${escapeHtml(reference)}</div>
+    ${exact ? "" : '<p class="ref-copy">Verse-level matches; an exact link to this English phrase is not established.</p>'}
+    ${match.words.map(([id, surface, , , morph, variant]) => `<div class="strong-occurrence-word" data-oshb-id="${escapeHtml(id)}">
+      <div class="strong-hebrew" lang="he" dir="rtl">${escapeHtml(hebrew.displaySurface(surface))}</div>
+      ${variant ? `<div class="strong-meta">${variant === "ketiv" ? "Written form (ketiv)" : variant === "qere" ? "Reading tradition (qere)" : "Alternate reading"}</div>` : ""}
+      <div class="ref-copy"><strong>Grammar:</strong> ${escapeHtml(hebrew.decodeMorphology(morph))}</div>
+    </div>`).join("")}
+  </section>`;
+}
+
+function strongLookupCard(entry, selectedWord, linkToVerses = false, occurrence = null) {
   const code = linkToVerses
     ? `<button class="strong-number-link" type="button" data-strong-popup-verses="${escapeHtml(entry.code)}" aria-label="Find verses for Strong’s ${escapeHtml(entry.code)}" title="Find verses for ${escapeHtml(entry.code)}">${escapeHtml(entry.code)}</button>`
     : escapeHtml(entry.code);
   return `
     <div class="strong-card">
-      <div class="ref-title">${escapeHtml(selectedWord)}${code} · ${escapeHtml(entry.lemma)}</div>
-      ${entry.transliteration ? `<div class="strong-meta">Transliteration: ${escapeHtml(entry.transliteration)}</div>` : ""}
+      ${occurrence ? `<div class="ref-title">${escapeHtml(selectedWord.replace(/ · $/, ""))}</div>${hebrewOccurrenceMarkup(occurrence)}<div class="strong-meta strong-section-label">Dictionary form</div>` : ""}
+      <div class="ref-title">${occurrence ? "" : escapeHtml(selectedWord)}${code} · ${occurrence ? `<bdi lang="he" dir="rtl">${escapeHtml(entry.lemma)}</bdi>` : escapeHtml(entry.lemma)}</div>
+      ${entry.transliteration ? `<div class="strong-meta">${occurrence ? "Traditional Strong’s transliteration" : "Transliteration"}: ${escapeHtml(entry.transliteration)}</div>` : ""}
       ${entry.pronunciation ? `<div class="strong-meta">Pronunciation: ${escapeHtml(entry.pronunciation)}</div>` : ""}
       ${entry.derivation ? `<div class="ref-copy"><strong>Derivation:</strong> ${escapeHtml(entry.derivation)}</div>` : ""}
       ${entry.definition ? `<div class="ref-copy"><strong>Definition:</strong> ${escapeHtml(entry.definition)}</div>` : ""}
       ${entry.kjv ? `<div class="ref-copy"><strong>KJV usage:</strong> ${escapeHtml(entry.kjv)}</div>` : ""}
       <div class="source-note">${escapeHtml(entry.source)}</div>
+      ${occurrence ? `<div class="source-note">Original work of the Open Scriptures Hebrew Bible available at
+        <a href="https://github.com/openscriptures/morphhb" target="_blank" rel="noopener noreferrer">https://github.com/openscriptures/morphhb</a> ·
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></div>` : ""}
     </div>
   `;
 }

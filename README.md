@@ -140,6 +140,8 @@ Cross references are bundled in `assets/crossrefs.js` from the [OpenBible.info C
 
 Strong's dictionary lookup data is loaded from the [Open Scriptures Strong's dictionaries](https://github.com/openscriptures/strongs). Their browser dictionary files identify the JSON editions as Open Scriptures CC-BY-SA data derived from the public-domain Strong's dictionaries.
 
+Hebrew Strong's popups additionally use local, per-book verse occurrences from OSHB/morphhb, pinned to `3d15126fb1ef74867fc1434be1942e837932691f`. Original work of the Open Scriptures Hebrew Bible available at https://github.com/openscriptures/morphhb. The lemma/morphology annotations are [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the underlying WLC text is public domain. See [the occurrence data documentation](assets/oshb/README.md) for import instructions, schema, attribution, and conservative alignment/versification limitations. Existing English mappings and the Strong's dictionaries are unchanged. Run `npm run test:hebrew` for import, grammar, matching, loading, and popup regressions.
+
 ## Copyright and Licensing
 
 Big Screen Bible's original source code, interface, artwork, and original project content are © 2026 Big Screen Bible. All rights reserved. No open-source license is granted for those original materials unless expressly stated otherwise.
