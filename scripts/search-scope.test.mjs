@@ -24,6 +24,51 @@ function extractFunction(name) {
 }
 
 const context = {};
+// Exercise the search-to-reference route with the real navigation functions.
+const navigation = {
+  state: {},
+  searchRequestId: 0,
+  bibleData: { "John 3": { verses: [{ n: 16 }, { n: 17 }] } },
+  parseReference: () => true,
+  parsePassageReference: (value) => ({
+    key: "John 3", verse: 16, verses: value.includes("-17") ? [16, 17] : [16],
+  }),
+  normalizedSearchSource: () => "scripture",
+  captureReaderReturnTarget: () => null,
+  clearInlineChapterSearchState() {},
+  recordHistory() {},
+  updateShareUrl() {},
+  render() {},
+  document: { querySelector: () => null },
+};
+vm.createContext(navigation);
+vm.runInContext(`
+  ${extractFunction("setReferenceFromString")}
+  ${extractFunction("gotoReference")}
+  ${extractFunction("runReferenceOrPhraseSearch")}
+`, navigation);
+for (const mode of ["big", "reader"]) {
+  for (const origin of ["verse-of-day", "shared-passage", "ordinary"]) {
+    for (const reference of ["John 3:16", "John 3:16-17"]) {
+      navigation.state = {
+        mode,
+        isVerseOfDayActive: origin === "verse-of-day",
+        sharedPassage: origin === "shared-passage" ? { verses: [4] } : null,
+        presentationPart: 2,
+        presentationSearchResultsOpen: true,
+      };
+      await navigation.runReferenceOrPhraseSearch(reference);
+      assert.equal(navigation.state.mode, mode, `${origin} search must retain ${mode} mode`);
+      assert.equal(navigation.state.isVerseOfDayActive, false);
+      assert.equal(navigation.state.reference, "John 3");
+      assert.equal(navigation.state.verse, 16);
+      assert.equal(navigation.state.presentationPart, 0);
+      assert.equal(navigation.state.presentationSearchResultsOpen, false);
+      assert.equal(Boolean(navigation.state.sharedPassage), mode === "reader" && origin !== "ordinary");
+      assert.deepEqual(Array.from(navigation.state.selectedVerses), reference.includes("-17") ? [16, 17] : []);
+    }
+  }
+}
 vm.createContext(context);
 vm.runInContext(`
   const searchScopeDefinitions = [

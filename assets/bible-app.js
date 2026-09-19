@@ -22449,7 +22449,9 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   if (normalizedSearchSource(options.source ?? state.searchSource) !== "strongs" && parseReference(cleaned)) {
-    gotoReference(cleaned, { focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive) });
+    gotoReference(cleaned, {
+      focusedPassage: state.mode !== "big" && Boolean(state.sharedPassage || state.isVerseOfDayActive),
+    });
     return;
   }
   state.isVerseOfDayActive = false;
