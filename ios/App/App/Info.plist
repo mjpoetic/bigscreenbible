@@ -28,6 +28,41 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.reader</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Reader Mode</string>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionReader</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.parallel</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Parallel Mode</string>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionParallel</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.games</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Games</string>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionGames</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.search</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Search</string>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionSearch</string>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

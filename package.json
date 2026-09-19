@@ -63,11 +63,15 @@
     "version:app": "node scripts/version-app.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:open:ios": "npm run cap:sync && npx cap open ios",
-    "cap:open:android": "npm run cap:sync && npx cap open android"
+    "cap:open:android": "npm run cap:sync && npx cap open android",
+    "cap:ios:local": "node scripts/prepare-ios-local.mjs --open",
+    "test:haptics": "node scripts/haptics.test.mjs",
+    "test:ios-quick-actions": "node scripts/ios-quick-actions.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.4.1",
     "@capacitor/status-bar": "^8.0.3"
   },

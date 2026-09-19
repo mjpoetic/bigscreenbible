@@ -2259,6 +2259,7 @@ function switchMode(nextMode, options = {}) {
     render();
     restoreModeScrollAfterRender(targetScrollState);
   };
+  if (options.immediate) return applyModeChange();
   return runModeViewTransition(previousMode, nextMode, applyModeChange);
 }
 
@@ -3585,9 +3586,60 @@ function soundVolumeControlMarkup(kind, prefix = "", options = {}) {
   `;
 }
 
+// Haptics are a device preference: do not copy them between accounts/devices.
+function nativeHapticsPlugin() {
+  const capacitor = window.Capacitor;
+  if (capacitor?.getPlatform?.() !== "ios" || !capacitor.isPluginAvailable?.("Haptics")) return null;
+  return capacitor.Plugins?.Haptics || null;
+}
+
+function hapticsSettingsMarkup(prefix = "") {
+  if (!nativeHapticsPlugin()) return "";
+  return `<div class="setting-group settings-section-subgroup">
+    <label class="setting-checkbox">
+      <input type="checkbox" id="${prefix}HapticsToggle" data-haptics-toggle ${localStorage.getItem("lw_haptics_enabled") !== "false" ? "checked" : ""} />
+      <span>Haptic feedback</span>
+    </label>
+    <p class="setting-help">Subtle taps for buttons and controls on this iPhone.</p>
+  </div>`;
+}
+
+let lastControlHapticAt = -Infinity;
+function playControlHaptic() {
+  if (localStorage.getItem("lw_haptics_enabled") === "false" || document.hidden) return;
+  const plugin = nativeHapticsPlugin();
+  if (!plugin) return;
+  const now = performance.now();
+  if (now - lastControlHapticAt < 60) return;
+  lastControlHapticAt = now;
+  try {
+    Promise.resolve(plugin.impact({ style: "LIGHT" })).catch(() => {});
+  } catch {
+    // Older native builds or unavailable hardware must never interrupt a control.
+  }
+}
+
+function handleControlHaptic(event) {
+  if (!event.isTrusted) return;
+  const target = event.target;
+  const control = target?.closest?.('button, summary, [role="button"], [role="tab"], [role="option"], [role="switch"], input, select');
+  if (!control || control.matches(':disabled') || control.closest('[aria-disabled="true"], [inert]')) return;
+  if (event.type === "change") {
+    if (!control.matches('select, input[type="checkbox"], input[type="radio"], input[type="range"]')) return;
+    if (control.matches('[data-haptics-toggle]')) {
+      localStorage.setItem("lw_haptics_enabled", String(control.checked));
+    }
+  } else {
+    // Native inputs fire change; avoiding their click prevents duplicate pulses.
+    if (control.matches('input, select') || target.closest?.('label')) return;
+  }
+  playControlHaptic();
+}
+
 function soundsSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("sounds", "Sounds", `
+    ${hapticsSettingsMarkup(prefix)}
     <div class="setting-group sounds-settings">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ModeTransitionSoundsToggle")}" ${state.modeTransitionSounds ? "checked" : ""} />
@@ -16923,6 +16975,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           <span>Mode transition sounds</span>
         </label>
         ${soundVolumeControlMarkup("mode", "presentation")}
+        ${hapticsSettingsMarkup("presentation")}
       </section>
     `;
   } else {
@@ -27228,3 +27281,37 @@ if (startupLoaderPreview) {
 }
 
 document.addEventListener("click", handleGamesInteractionSound, true);
+
+document.addEventListener("click", handleControlHaptic, true);
+document.addEventListener("change", handleControlHaptic, true);
+
+// Called only by the native scene delegate after a Home Screen quick action.
+function handleNativeQuickAction(action) {
+  const modes = { reader: "reader", parallel: "parallel", games: "trivia", search: "reader" };
+  if (!Object.hasOwn(modes, action) || window.Capacitor?.getPlatform?.() !== "ios") return false;
+  if (dataLoading || dataError || !state.startupApplied) return false;
+  state.settingsOpen = false;
+  state.accountOpen = false;
+  state.presentationSettingsOpen = false;
+  state.streakPopupVisible = false;
+  state.libraryOpen = false;
+  resetFocusToolSurfaces();
+  if (action === "search") {
+    state.searchSource = "scripture";
+    resetSearchForSource("scripture");
+  }
+  switchMode(modes[action], { immediate: true });
+  // switchMode intentionally skips rendering if this mode is already selected.
+  renderPreservingReaderScroll();
+  if (action === "search") {
+    shortcutWorkspace("Search");
+    requestAnimationFrame(() => {
+      const input = document.getElementById(state.focusMode ? "referenceInput" : "studySearchInput");
+      input?.focus({ preventScroll: true });
+      input?.select();
+    });
+  }
+  return true;
+}
+
+window.bsbHandleQuickAction = handleNativeQuickAction;

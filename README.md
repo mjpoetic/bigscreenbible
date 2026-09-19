@@ -50,6 +50,16 @@ The current bundle/application ID is `com.bigscreenbible.app`. Confirm this befo
 
 Capacitor 8 expects Node.js 22 or newer. iOS builds require Xcode, and Android builds require Android Studio with an Android SDK installed.
 
+### Testing local changes on an iPhone
+
+Run `npm run cap:ios:local` to build and sync the current files, switch the generated iOS configuration to the bundled app, and open Xcode. Connect and unlock your iPhone, select it as the run destination, and press Run. Complete any Trust or Developer Mode prompts shown by the phone or Xcode. This lets you test changes before publishing the website.
+
+Haptic feedback defaults to on in the native iOS app. Try navigation buttons, Settings switches, and sliders; use Settings → Sounds → Haptic feedback to disable it for this device. Big Screen also has the toggle under Settings → Presenting. Physical feedback must be checked on an iPhone; browser and simulator checks cannot verify its feel. Safari and Home Screen web apps do not receive this native feedback.
+
+Touch and hold the installed app's Home Screen icon for Reader Mode, Parallel Mode, Games, and Search. iOS supports four app quick actions; their template icons reuse the website's SVG glyphs. Search opens Scripture search, using the inline search field when Focus Mode is active. Test each shortcut both after force-closing the app and while it is in the background. The scene delegate queues cold-launch actions until the web app finishes restoring its startup state. These actions require the updated native app and web assets together.
+
+The local preparation command changes `ios/App/App/capacitor.config.json` only; the root production configuration stays pointed at the live website. Before a release, run `npm run cap:open:ios` to restore the live-site configuration. Do not commit or ship the temporary local configuration. Adding haptics requires installing the updated native build as well as publishing the updated web assets for live-site builds.
+
 ## Bible Texts
 
 The bundled full-text translations live in `assets/bibles/` as JavaScript data bundles so the app works from GitHub Pages, a local preview server, or a direct `file://` browser open:
