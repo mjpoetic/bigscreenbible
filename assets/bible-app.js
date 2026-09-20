@@ -27560,9 +27560,19 @@ function handleNativeQuickAction(action) {
     resetSearchForSource("scripture");
   }
   switchMode(modes[action], { immediate: true });
+  if (action === "search") {
+    // A restored verse selection can cover the search controls on mobile.
+    state.selectedVerses = [];
+    state.keyboardSelectionAnchor = null;
+  }
   // switchMode intentionally skips rendering if this mode is already selected.
   renderPreservingReaderScroll();
   if (action === "search") {
+    // Rendering Reader can start a remote translation request (for example CEV).
+    // Its completion replaces the input and dismisses the iOS keyboard. Leave
+    // the native action queued until that render has finished, then focus from
+    // the next native evaluateJavaScript call, preserving keyboard permission.
+    if (activeBibleVersionLoadingState()) return false;
     shortcutWorkspace("Search");
     if (!state.focusMode) {
       // Keep focus inside the native evaluateJavaScript call so iOS can open
