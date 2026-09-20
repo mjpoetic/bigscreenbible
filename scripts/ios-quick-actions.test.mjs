@@ -5,6 +5,7 @@ const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 
 const handler = source.match(/function handleNativeQuickAction\([^]*?\n\}/)[0];
 const focusHandler = source.match(/function focusFocusModeSearch\([^]*?\n\}/)[0];
 let platform = 'ios', renders = 0, focused = '', selected = '', workspace = '', resetSource = '', desktopVisible = false;
+const animationFrames = [];
 const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOpen: true, accountOpen: true, libraryOpen: true };
 const context = vm.createContext({
   state, window: { Capacitor: { getPlatform: () => platform } },
@@ -13,7 +14,7 @@ const context = vm.createContext({
   renderPreservingReaderScroll() { renders++; },
   resetSearchForSource(source) { resetSource = source; },
   shortcutWorkspace(target) { workspace = target; if (state.focusMode) vm.runInContext('focusFocusModeSearch()', context); },
-  requestAnimationFrame(callback) { callback(); },
+  requestAnimationFrame(callback) { animationFrames.push(callback); },
   document: { getElementById(id) { return { getClientRects() { return desktopVisible ? [{}] : []; }, focus() { focused = id; }, select() { selected = id; } }; } },
 });
 vm.runInContext(`let dataLoading = true, dataError = null; ${handler} ${focusHandler}`, context);
@@ -28,7 +29,7 @@ for (const [action, mode] of [['reader','reader'], ['parallel','parallel'], ['ga
 }
 assert.equal(state.settingsOpen, false); assert.equal(state.accountOpen, false);
 assert.equal(workspace, 'Search'); assert.equal(resetSource, 'scripture');
-assert.equal(focused, 'studySearchInput'); assert.equal(selected, focused);
+assert.equal(focused, 'studySearchInput', 'Search focuses synchronously before the native call returns, without waiting for an animation frame'); assert.equal(selected, focused);
 state.focusMode = true;
 run('handleNativeQuickAction("search")'); assert.equal(focused, 'mobileFocusPassageInput');
 assert.equal(state.focusReferenceOpen, true, 'Mobile search popover is open');

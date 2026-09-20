@@ -27564,11 +27564,13 @@ function handleNativeQuickAction(action) {
   renderPreservingReaderScroll();
   if (action === "search") {
     shortcutWorkspace("Search");
-    if (!state.focusMode) requestAnimationFrame(() => {
+    if (!state.focusMode) {
+      // Keep focus inside the native evaluateJavaScript call so iOS can open
+      // the software keyboard; an animation-frame callback loses that context.
       const input = document.getElementById("studySearchInput");
       input?.focus({ preventScroll: true });
       input?.select();
-    });
+    }
   }
   return true;
 }
