@@ -4592,6 +4592,10 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   gap: 8px;
 }
 
+.settings-quick-text-actions-only {
+  grid-template-columns: minmax(0, 190px);
+}
+
 :is(.settings-popover, .mobile-settings-popover) .settings-quick-text-actions .text-size-control {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) 36px;

@@ -1298,7 +1298,9 @@ const tutorialSteps = [
     focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Tune the experience",
-    body: "In Settings, choose a Scripture font, including Custom device or Google font. Type the exact family name to use an installed font or load it from Google Fonts with an internet connection. You can also adjust themes, text size, startup behavior, fullscreen, and your reading streak.",
+    get body() {
+      return `In Settings, choose a Scripture font, including Custom device or Google font. Type the exact family name to use an installed font or load it from Google Fonts with an internet connection. You can also adjust themes, text size, startup behavior, ${showsBrowserFullscreenControls() ? "fullscreen, " : ""}and your reading streak.`;
+    },
   },
   {
     target: "",
@@ -1335,7 +1337,9 @@ const presentationTutorialSteps = [
     target: "#presentationSettingsToggle",
     spotlightPadding: 5,
     title: "Change the display",
-    body: "Theme, Bible version, font, text size, and fullscreen controls live inside Big Screen settings. You can also pinch the verse to resize it.",
+    get body() {
+      return `${showsBrowserFullscreenControls() ? "Theme, Bible version, font, text size, and fullscreen" : "Theme, Bible version, font, and text size"} controls live inside Big Screen settings. You can also pinch the verse to resize it.`;
+    },
   },
   {
     target: ".presentation-bible-toggle",
@@ -4303,20 +4307,25 @@ function settingsControlId(prefix, name) {
   return prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
 }
 
+function showsBrowserFullscreenControls() {
+  return !window.Capacitor?.isNativePlatform?.();
+}
+
 function settingsTextSizeMarkup(prefix = "") {
+  const showFullscreen = showsBrowserFullscreenControls();
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Fullscreen";
   return `
-    <div class="setting-group settings-quick-text-size" data-settings-search-item data-settings-search-text="text size scripture reading zoom font size fullscreen full screen">
+    <div class="setting-group settings-quick-text-size" data-settings-search-item data-settings-search-text="text size scripture reading zoom font size${showFullscreen ? " fullscreen full screen" : ""}">
       <span class="setting-label">Text size</span>
-      <div class="settings-quick-text-actions">
+      <div class="settings-quick-text-actions${showFullscreen ? "" : " settings-quick-text-actions-only"}">
         <div class="text-size-control" aria-label="Text size controls">
           <button class="icon-btn" id="${settingsControlId(prefix, "DecreaseText")}" aria-label="Decrease text size" data-tooltip="Decrease text size">A−</button>
           <button class="text-size-reset" id="${settingsControlId(prefix, "ResetText")}" aria-label="Reset text size to 100%" data-tooltip="Reset text size"><span>Aa</span><span>${Math.round(state.textScale * 100)}%</span></button>
           <button class="icon-btn" id="${settingsControlId(prefix, "IncreaseText")}" aria-label="Increase text size" data-tooltip="Increase text size">A+</button>
         </div>
-        <button class="ghost-btn fullscreen-btn settings-quick-fullscreen" id="${settingsControlId(prefix, "FullscreenButton")}" type="button" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>
+        ${showFullscreen ? `<button class="ghost-btn fullscreen-btn settings-quick-fullscreen" id="${settingsControlId(prefix, "FullscreenButton")}" type="button" aria-label="${fullscreenLabel}">${fullscreenIcon}<span>${fullscreenLabel}</span></button>` : ""}
       </div>
     </div>
   `;
@@ -17337,7 +17346,7 @@ function presentation(accountPanelRerender = false) {
           ${presentationPosition ? `<span class="presentation-part-position">${escapeHtml(presentationPosition)}</span>` : ""}
         </div>
         <div class="presentation-actions">
-          <button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>
+          ${showsBrowserFullscreenControls() ? `<button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>` : ""}
           <div class="presentation-account-menu ${state.accountOpen ? "open" : ""}">
             <button class="ghost-btn account-quick-button presentation-account-toggle ${state.authUser || state.accountOpen ? "active" : ""}" id="presentationAccountButton" type="button" aria-label="${escapeHtml(accountButton.label)}" aria-haspopup="dialog" aria-expanded="${state.accountOpen ? "true" : "false"}" aria-controls="presentationAccountPopover" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
             ${state.mode === "big" ? `
@@ -17484,7 +17493,7 @@ function shortcutOverlay() {
     ["Shift + ?", "Open keyboard shortcuts"],
     ["P", "Open Big Screen"],
     ["F", "Toggle focus layout"],
-    ["Shift + F", "Toggle fullscreen"],
+    ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
     ["A", "Start or pause Reader / Parallel auto-scroll"],
     ["Shift + +", "Increase text size in the current reading mode"],
     ["Shift + −", "Decrease text size in the current reading mode"],
@@ -22448,6 +22457,7 @@ function isFullscreenActive() {
 }
 
 async function toggleFullscreen() {
+  if (!showsBrowserFullscreenControls()) return;
   if (isFullscreenActive()) {
     await exitFullscreen();
     return;

@@ -125,8 +125,9 @@ for (const name of ["startTutorial", "finishTutorial", "advanceTutorial", "retre
 
 console.log("Tutorial layout and visibility tests passed");
 
-const tourContext = { state: { focusMode: true, authUser: null, tutorialMode: "app" } };
+const tourContext = { window: {}, state: { focusMode: true, authUser: null, tutorialMode: "app" } };
 vm.createContext(tourContext);
+vm.runInContext(extractFunction("showsBrowserFullscreenControls"), tourContext);
 vm.runInContext(source.slice(source.indexOf("const tutorialSteps = ["), source.indexOf("state.textScale = clampTextScale")) + '\n' + extractFunction("activeTutorialSteps"), tourContext);
 const focusSteps = vm.runInContext("activeTutorialSteps()", tourContext);
 assert.ok(focusSteps.some(step => step.title === "You are in Focus Mode"));
