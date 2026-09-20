@@ -154,11 +154,13 @@ assert.match(styles, /\.reference-preview-back \{[\s\S]*?min-height: 42px/);
 assert.match(styles, /@media \(max-width: 520px\) \{[\s\S]*?\.reference-preview-go \{[\s\S]*?min-height: 44px/);
 assert.match(styles, /@media \(max-width: 520px\) \{[\s\S]*?\.reference-preview-back \{[\s\S]*?min-height: 44px/);
 
+let holdHaptics = 0;
 let scheduledHold = null;
 let holdNow = 1000;
 let crossReferenceOpens = 0;
 let verseMenuCloses = 0;
 const holdContext = {
+  playControlHaptic() { holdHaptics++; },
   Date: { now: () => holdNow },
   setTimeout(callback, delay) {
     scheduledHold = { callback, delay };
@@ -223,7 +225,9 @@ assert.equal(holdClasses.has("cross-ref-hold-pending"), false);
 
 holdNow = 2000;
 holdContext.beginHold(holdPointerEvent());
+assert.equal(holdHaptics, 0, "No haptic before hold activation");
 scheduledHold.callback();
+assert.equal(holdHaptics, 1, "Completed hold produces one haptic");
 assert.equal(crossReferenceOpens, 1, "A completed hold opens the verse cross references");
 assert.equal(verseMenuCloses, 1, "A completed hold replaces any paragraph verse menu");
 assert.equal(holdClasses.has("cross-ref-hold-pending"), false);

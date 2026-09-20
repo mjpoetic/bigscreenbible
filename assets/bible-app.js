@@ -3600,7 +3600,7 @@ function hapticsSettingsMarkup(prefix = "") {
       <input type="checkbox" id="${prefix}HapticsToggle" data-haptics-toggle ${localStorage.getItem("lw_haptics_enabled") !== "false" ? "checked" : ""} />
       <span>Haptic feedback</span>
     </label>
-    <p class="setting-help">Subtle taps for buttons and controls on this iPhone.</p>
+    <p class="setting-help">Subtle taps for controls, press-and-hold actions, and Scripture pinch resizing on this iPhone.</p>
   </div>`;
 }
 
@@ -3619,11 +3619,26 @@ function playControlHaptic() {
   }
 }
 
+// Keep resizing smooth; tick after each additional five percentage points.
+// Track each gesture separately so jitter and clamped limits stay silent.
+function playPinchHaptic(gesture, scale) {
+  const previous = gesture.hapticScale ?? gesture.startScale;
+  if (Math.abs(scale - previous) < 0.05 - 1e-9) return;
+  gesture.hapticScale = scale;
+  playControlHaptic();
+}
+
 function handleControlHaptic(event) {
   if (!event.isTrusted) return;
   const target = event.target;
   const control = target?.closest?.('button, summary, [role="button"], [role="tab"], [role="option"], [role="switch"], input, select');
   if (!control || control.matches(':disabled') || control.closest('[aria-disabled="true"], [inert]')) return;
+  if (event.type === "click") {
+    const now = Date.now();
+    if ((control.id === "mobileControlsToggle" && now < suppressMobileControlsClickUntil)
+      || (control.id === "brandVerseOfDay" && now < suppressFocusBrandClickUntil)
+      || (control.matches('.verse-num') && now < suppressCrossReferenceVerseClickUntil)) return;
+  }
   if (event.type === "change") {
     if (!control.matches('select, input[type="checkbox"], input[type="radio"], input[type="range"]')) return;
     if (control.matches('[data-haptics-toggle]')) {
@@ -15996,6 +16011,7 @@ function beginCrossReferenceHold(event) {
     gesture?.button.classList.remove("cross-ref-hold-pending");
     if (!gesture || gesture.button.isConnected === false) return;
     suppressCrossReferenceVerseClickUntil = Date.now() + 800;
+    playControlHaptic();
     closeVerseActionMenu(true);
     openCrossReferencePopup(gesture.button);
   }, crossReferenceHoldMs);
@@ -23880,8 +23896,9 @@ function beginMobileControlsHold(event) {
     mobileControlsHoldTimer = 0;
     mobileControlsHoldGesture = null;
     gesture?.button.classList.remove("settings-hold-pending");
-    if (!gesture) return;
+    if (!gesture || gesture.button.isConnected === false) return;
     suppressMobileControlsClickUntil = Date.now() + 800;
+    playControlHaptic();
     openSettingsFromMobileControls();
   }, mobileControlsHoldMs);
 }
@@ -23961,8 +23978,9 @@ function beginFocusBrandVersionHold(event) {
     focusBrandVersionHoldTimer = 0;
     focusBrandVersionHoldGesture = null;
     gesture?.button.classList.remove("version-hold-pending");
-    if (!gesture) return;
+    if (!gesture || gesture.button.isConnected === false) return;
     suppressFocusBrandClickUntil = Date.now() + 800;
+    playControlHaptic();
     openFocusBrandVersionMenu();
   }, mobileControlsHoldMs);
 }
@@ -24634,6 +24652,7 @@ function handlePresentationPinchMove(event) {
   if (!gesture.active) return false;
   if (event.cancelable) event.preventDefault();
   state.presentationTextScale = clamp(gesture.startScale * (distance / gesture.startDistance), 0.6, 1.6);
+  playPinchHaptic(gesture, state.presentationTextScale);
   applyPresentationTextScale();
   showPresentationTextScaleFeedback();
   return true;
@@ -25493,6 +25512,7 @@ function handleReaderGestureMove(event) {
   if (!gesture.pinchActive || !gesture.startDistance) return;
   if (event.cancelable) event.preventDefault();
   state.textScale = clamp(gesture.startScale * (distance / gesture.startDistance), 0.8, 1.6);
+  playPinchHaptic(gesture, state.textScale);
   applyTextScaleVars();
   showReaderTextScaleFeedback();
 }

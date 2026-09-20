@@ -35,6 +35,7 @@ assert.match(source, /brandVerseOfDay\?\.addEventListener\("pointerdown", beginF
 assert.match(styles, /\.app-shell \.focus-brand-version-menu \{[\s\S]*?display:\s*grid;/);
 assert.match(styles, /\.brand\.version-hold-pending::before \{[\s\S]*?animation:\s*mobileSettingsHoldProgress 350ms linear forwards;/);
 
+let holdHaptics = 0;
 let scheduledHold = null;
 let now = 1000;
 let renders = 0;
@@ -43,6 +44,7 @@ let portrait = true;
 let compact = true;
 let shortLandscape = false;
 const context = {
+  playControlHaptic() { holdHaptics++; },
   state: {
     focusMode: true,
     mode: "reader",
@@ -114,7 +116,9 @@ const pointerEvent = (overrides = {}) => ({
 context.beginHold(pointerEvent());
 assert.equal(scheduledHold.delay, 350, "The version menu uses the established mobile hold timing");
 assert.equal(pendingClasses.has("version-hold-pending"), true);
+assert.equal(holdHaptics, 0, "No haptic before hold activation");
 scheduledHold.callback();
+assert.equal(holdHaptics, 1, "Completed hold produces one haptic");
 assert.equal(context.state.headerVersionMenuOpen, true);
 assert.equal(context.state.footerVersionMenuOpen, false);
 assert.equal(context.state.settingsOpen, false);

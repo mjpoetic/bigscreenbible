@@ -372,12 +372,14 @@ assert.match(styles, /animation:\s*mobileSettingsHoldProgress 350ms linear forwa
 assert.match(styles, /touch-action:\s*manipulation/);
 assert.match(styles, /-webkit-user-select:\s*none/);
 
+let holdHaptics = 0;
 let scheduledHold = null;
 let now = 1000;
 let toggles = 0;
 let renders = 0;
 let positioned = 0;
 const holdContext = {
+  playControlHaptic() { holdHaptics++; },
   state: {
     focusReferenceOpen: true,
     focusSearchResultsOpen: true,
@@ -459,7 +461,9 @@ assert.equal(scheduledHold, null, "Moving beyond the gesture tolerance cancels t
 assert.equal(pendingClasses.has("settings-hold-pending"), false, "Canceled holds remove their feedback");
 
 holdContext.beginHold(pointerEvent());
+assert.equal(holdHaptics, 0, "No haptic before hold activation");
 scheduledHold.callback();
+assert.equal(holdHaptics, 1, "Completed hold produces one haptic");
 assert.equal(holdContext.state.settingsOpen, true, "A completed hold opens Settings");
 assert.equal(holdContext.state.settingsAnchor, "header");
 assert.equal(holdContext.state.accountOpen, false);
