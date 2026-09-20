@@ -11,6 +11,7 @@ const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOp
 const context = vm.createContext({
   state, window: { Capacitor: { getPlatform: () => platform } },
   resetFocusToolSurfaces() {},
+  positionMobileFocusSearch() {},
   switchMode(mode, options) { assert.equal(options.immediate, true); state.mode = mode; },
   renderPreservingReaderScroll() { renders++; if (loadOnRender) versionLoading = true; },
   activeBibleVersionLoadingState() { return versionLoading ? { versions: ['CEV'] } : null; },

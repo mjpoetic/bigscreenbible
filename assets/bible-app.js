@@ -1734,6 +1734,7 @@ function render() {
   requestAnimationFrame(fitPresentationText);
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
+  requestAnimationFrame(positionMobileFocusSearch);
   requestAnimationFrame(updateTutorialSpotlight);
   requestAnimationFrame(runPendingTriviaCelebration);
   requestAnimationFrame(() => requestAnimationFrame(restorePendingAppUpdatePosition));
@@ -25920,6 +25921,24 @@ function shortcutWorkspace(target) {
   activateWorkspace(target);
 }
 
+function positionMobileFocusSearch() {
+  const popover = document.getElementById("mobileFocusPassagePopover");
+  const control = popover?.closest(".mobile-focus-passage-control");
+  if (!control) return;
+  // Restore the normal footer/safe-area position before measuring. iOS can
+  // shrink only the visual viewport when its keyboard opens, leaving this
+  // fixed control underneath it. Move the existing field without rerendering.
+  control.style.removeProperty("bottom");
+  if (!state.focusMode || !state.focusReferenceOpen || !popover.getClientRects().length) return;
+  const viewport = fixedPopoverViewport();
+  const visibleBottom = viewport.offsetTop + viewport.height - 12;
+  const overlap = popover.getBoundingClientRect().bottom - visibleBottom;
+  if (overlap > 0) {
+    const bottom = Number.parseFloat(getComputedStyle(control).bottom) || 0;
+    control.style.bottom = `${Math.ceil(bottom + overlap)}px`;
+  }
+}
+
 function focusFocusModeSearch() {
   const desktopInput = document.getElementById("referenceInput");
   const useMobileInput = !desktopInput?.getClientRects().length;
@@ -25928,6 +25947,7 @@ function focusFocusModeSearch() {
   state.focusReferenceOpen = useMobileInput;
   renderPreservingReaderScroll();
   const focusInput = () => {
+    positionMobileFocusSearch();
     const input = document.getElementById(useMobileInput ? "mobileFocusPassageInput" : "referenceInput");
     input?.focus({ preventScroll: true });
     input?.select();
@@ -27428,6 +27448,7 @@ window.addEventListener("focus", () => {
 });
 window.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
+  positionMobileFocusSearch();
   updateTutorialSpotlight();
   positionAccountPopover();
   positionSettingsPopover();
@@ -27437,11 +27458,13 @@ window.addEventListener("resize", () => {
 });
 window.visualViewport?.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
+  positionMobileFocusSearch();
   positionSettingsPopover();
   positionFocusWorkspacePanel();
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
+window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
 document.addEventListener("pointerdown", closeOpenPopoversOnOutsidePointerDown);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager, .focus-brand-version-menu, #brandVerseOfDay")) return;
