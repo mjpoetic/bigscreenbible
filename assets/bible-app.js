@@ -3841,7 +3841,28 @@ function startupReminderSettings(prefix = "", options = {}) {
   `, options);
 }
 
+function isLocalNativeAppBuild() {
+  return Boolean(window.Capacitor?.isNativePlatform?.())
+    && (!/^https?:$/.test(window.location.protocol)
+      || ["localhost", "127.0.0.1"].includes(window.location.hostname));
+}
+
+function localNativeAppUpdateMessage() {
+  return "This local test build uses files installed on this device and cannot receive website updates. Install the live-site build once to receive future website updates without reinstalling the app.";
+}
+
 function appUpdateControls(prefix = "") {
+  if (isLocalNativeAppBuild()) {
+    return `
+      <div class="setting-group app-update-settings">
+        <div class="app-update-version-row">
+          <span class="setting-label">Local test build</span>
+          <span class="app-update-version">${escapeHtml(appVersion)}</span>
+        </div>
+        <p class="setting-help" aria-live="polite">${escapeHtml(localNativeAppUpdateMessage())}</p>
+      </div>
+    `;
+  }
   const buttonId = prefix ? `${prefix}AppUpdateButton` : "appUpdateButton";
   const buttonLabel = state.appUpdateBusy
     ? state.appUpdateRefreshing ? "Refreshing…" : "Checking…"
@@ -3976,6 +3997,13 @@ function isPublishedAppVersionNewer(publishedVersion, installedVersion) {
 }
 
 async function checkForAppUpdate(options = {}) {
+  if (isLocalNativeAppBuild()) {
+    state.appUpdateAvailable = false;
+    state.appUpdateRefreshOffered = false;
+    state.appUpdateStatus = localNativeAppUpdateMessage();
+    if (options.manual) renderAppUpdateStatus();
+    return;
+  }
   if (state.appUpdateBusy) return;
   const manual = Boolean(options.manual);
   lastAppUpdateCheckAt = Date.now();
@@ -4069,6 +4097,7 @@ async function refreshCurrentAppAssets() {
 }
 
 async function applyAppUpdate() {
+  if (isLocalNativeAppBuild()) return checkForAppUpdate({ manual: true });
   const targetVersion = state.appUpdateVersion || appVersion;
   const restoreState = currentAppUpdateRestoreState(targetVersion);
   try {
