@@ -9429,6 +9429,10 @@ select {
 .verse-marker > .verse-num {
   width: auto;
   flex: 0 0 auto;
+  min-width: 24px;
+  min-height: 32px;
+  font-size: 16px;
+  text-align: center;
 }
 
 .verse-note-indicators {
@@ -9604,7 +9608,7 @@ select {
   display: inline;
   margin-right: 0.2em;
   color: var(--muted);
-  font-size: 0.38em;
+  font-size: clamp(14px, 0.46em, 20px);
   line-height: 0;
   vertical-align: super;
 }
@@ -9620,6 +9624,8 @@ select {
 .paragraph-verse-marker .verse-num {
   display: inline-grid;
   place-items: center;
+  min-width: 24px;
+  min-height: 28px;
   margin-right: 0;
   line-height: 1;
   vertical-align: baseline;
@@ -22675,7 +22681,7 @@ svg {
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font: 600 0.55em var(--ui-font);
+  font: 600 min(0.55em, 20px) / 1.2 var(--ui-font, Inter, sans-serif);
   vertical-align: 0.25em;
   cursor: pointer;
 }
