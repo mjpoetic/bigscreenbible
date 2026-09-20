@@ -87,7 +87,7 @@ assert.match(source, /bindReaderChapterEdgeBuffer\(scriptureTouchSurface\)/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /readerSurfaceAtPullBoundary/);
 assert.match(extractFunction("handleReaderChapterPullMove"), /event\.preventDefault\(\)/);
 assert.match(extractFunction("handleReaderChapterPullEnd"), /pull\.active && pull\.armed/);
-assert.match(extractFunction("handleReaderChapterPullEnd"), /moveChapter\(direction\)/);
+assert.match(extractFunction("handleReaderChapterPullEnd"), /moveChapter\(direction, \{ fromPull: true \}\)/);
 assert.match(extractFunction("handleReaderChapterWheel"), /event\.preventDefault\(\)/);
 assert.match(extractFunction("handleReaderChapterWheel"), /readerChapterWheelIdleMs/);
 assert.match(extractFunction("handleReaderChapterWheel"), /readerChapterWheelBufferReady/);

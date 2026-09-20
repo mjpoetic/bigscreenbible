@@ -27,7 +27,7 @@
     "test:header-brand": "node scripts/header-brand-sizing.test.mjs",
     "test:mode-transition": "node scripts/mode-transition.test.mjs",
     "test:notes": "node scripts/note-composer.test.mjs",
-    "test:page-navigation": "node scripts/page-navigation.test.mjs",
+    "test:page-navigation": "node scripts/page-navigation.test.mjs && node scripts/reader-history.test.mjs",
     "test:push": "node scripts/push-notifications.test.mjs",
     "test:reference-preview": "node scripts/reference-preview.test.mjs",
     "test:presentation": "node scripts/presentation-display.test.mjs",

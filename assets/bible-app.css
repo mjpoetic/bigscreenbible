@@ -11899,7 +11899,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 .presentation-bottom {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: opacity 600ms ease, transform 600ms ease;
   transform: translateY(8px);
 }
 
@@ -11972,7 +11972,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   opacity: 0;
   pointer-events: none;
   transform: translate(-5px, -50%) scale(0.92);
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition: opacity 600ms ease, transform 600ms ease;
 }
 
 .presentation-reference-share-glyph {
@@ -17918,9 +17918,15 @@ svg {
     font-size: 11px;
   }
 
+  .presentation-account-menu {
+    transition: opacity 600ms ease, visibility 600ms;
+  }
+
   .presentation:not(.controls-visible):not(:focus-within) .presentation-fullscreen-toggle,
   .presentation:not(.controls-visible):not(:focus-within) .presentation-account-menu {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .presentation-fullscreen-toggle,
@@ -22863,4 +22869,14 @@ svg {
 
 .app-shell .focus-brand-version-menu.motion-exit {
   animation-name: versionMenuMobileOut !important;
+}
+
+/* Forward shares Back's responsive anchor, one touch target above it. */
+.reader-forward-button { translate: 0 -54px; }
+.reader-forward-button svg { rotate: 180deg; }
+.app-shell:has(.reader-forward-button) .reader-selection-tools-button { translate: 0 -54px; }
+@media (prefers-reduced-motion: reduce) {
+  .presentation .presentation-bottom,
+  .presentation .presentation-reference-share,
+  .presentation .presentation-account-menu { transition: none; }
 }

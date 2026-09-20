@@ -102,3 +102,24 @@ storage.set('lw_haptics_strength', '-5'); assert.equal(run('hapticStrength()'), 
 platform = 'web'; assert.equal(run('hapticsSettingsMarkup()'), '');
 platform = 'android'; assert.equal(run('hapticsSettingsMarkup()'), '');
 console.log('Haptic strength and pinch: percent ticks, decade accents, reversals, skipped frames, limits and platform guards passed.');
+
+// Only accepted chapter gestures pulse; boundary and busy gestures stay silent.
+let swipePulses = 0, chapterAvailable = true;
+const swipeContext = vm.createContext({
+  playNativeHaptic: () => swipePulses++,
+  adjacentChapterReference: () => chapterAvailable ? 'John 4' : null,
+  canUseReaderChapterSwipe: () => false,
+  applyChapterMove() {}, moveVerse() {},
+  document: { getElementById: () => null },
+  window: { matchMedia: () => ({ matches: true }) },
+});
+vm.runInContext(`let chapterNavigationInProgress=false, readerChapterWheelPull=null, presentationEnterDirection=0; ${extract('moveChapter')} ${extract('commitPresentationSwipe')}`, swipeContext);
+vm.runInContext('moveChapter(1, {fromSwipe:true}); moveChapter(-1, {fromPull:true}); commitPresentationSwipe(1)', swipeContext);
+assert.equal(swipePulses, 3);
+vm.runInContext('moveChapter(1)', swipeContext);
+chapterAvailable = false;
+vm.runInContext('moveChapter(1, {fromSwipe:true})', swipeContext);
+chapterAvailable = true;
+vm.runInContext('chapterNavigationInProgress=true; moveChapter(1, {fromPull:true})', swipeContext);
+assert.equal(swipePulses, 3);
+console.log('Swipe haptics: accepted gestures, boundaries and busy guards passed.');

@@ -787,6 +787,7 @@ const state = {
   pendingVerseFocus: false,
   pendingLibraryScrollRestore: false,
   readerReturnStack: [],
+  readerForwardStack: [],
   returnSelectionToolsOpen: false,
   openAnnotationShelves: [],
   openAnnotationGroups: [],
@@ -2602,8 +2603,9 @@ function returnSelectionToolsCollapsed() {
 }
 
 function clearReaderReturnStack() {
-  if (!state.readerReturnStack.length && !state.returnSelectionToolsOpen) return;
+  if (!state.readerReturnStack.length && !state.readerForwardStack?.length && !state.returnSelectionToolsOpen) return;
   state.readerReturnStack = [];
+  state.readerForwardStack = [];
   state.returnSelectionToolsOpen = false;
 }
 
@@ -2628,6 +2630,7 @@ function captureReaderReturnTarget() {
 
 function pushReaderReturnTarget(target) {
   if (!target?.reference) return;
+  state.readerForwardStack = [];
   const previous = currentReaderReturnTarget();
   if (
     previous
@@ -2661,9 +2664,14 @@ function pushCurrentReturnTargetForNavigation(nextReference = null, nextVerse = 
   return target;
 }
 
-function restoreReaderReturnTarget() {
-  const target = state.readerReturnStack.pop();
-  if (!target?.reference || !bibleData[target.reference]) return render();
+function restoreReaderReturnTarget(forward = false) {
+  const source = forward ? state.readerForwardStack : state.readerReturnStack;
+  const target = source?.[source.length - 1];
+  if (!target?.reference || !bibleData[target.reference]) return;
+  const current = captureReaderReturnTarget();
+  source.pop();
+  const destination = forward ? "readerReturnStack" : "readerForwardStack";
+  if (current) state[destination] = [...(state[destination] || []), current].slice(-12);
   const targetMode = ["reader", "parallel", "big"].includes(target.mode) ? target.mode : "reader";
   const restoreMode = state.mode === "big" ? "big" : targetMode;
   state.mode = restoreMode;
@@ -6397,7 +6405,7 @@ function floatingControlsFadeEnabled() {
 
 function focusFloatingControls() {
   if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button.available, #readerAutoScrollButton")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button.available, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button.available, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton")];
 }
 
 function focusControlsInUse() {
@@ -6763,6 +6771,7 @@ function bindReaderTopButton() {
 }
 
 function bindReaderReturnButton() {
+  document.getElementById("readerForwardButton")?.addEventListener("click", () => restoreReaderReturnTarget(true));
   const button = document.getElementById("readerReturnButton");
   if (!button) return;
   if (currentGameReferenceReturn()) {
@@ -7279,6 +7288,7 @@ function reader(chapterChange = null) {
         ${readerAutoScrollButton()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
+        ${readerForwardButton()}
         <div class="reader-page-controls" aria-label="Page navigation" role="group">
           <button class="reader-top-button reader-page-button" id="readerTopButton" type="button" aria-label="Page up; press twice for top" data-tooltip="Page up · twice for top">
             ${icons.arrowUp}
@@ -7409,6 +7419,13 @@ function readerReturnButton() {
       ${icons.arrowLeft}
     </button>
   `;
+}
+
+function readerForwardButton() {
+  const target = state.readerForwardStack?.[state.readerForwardStack.length - 1];
+  if (!target || currentGameReferenceReturn()) return "";
+  const tooltip = `Forward to ${readerReturnLabel(target)}`;
+  return `<button class="reader-return-button reader-forward-button" id="readerForwardButton" type="button" aria-label="${escapeHtml(tooltip)}" data-tooltip="${escapeHtml(tooltip)}">${icons.arrowLeft}</button>`;
 }
 
 function readerReturnLabel(target = currentReaderReturnTarget()) {
@@ -24583,12 +24600,12 @@ function revealPresentationControls(duration = 3200) {
   clearTimeout(presentationControlsTimer);
   if (!state.presentationControlsVisible) {
     state.presentationControlsVisible = true;
-    render();
+    document.getElementById("presentation")?.classList.add("controls-visible");
   }
   presentationControlsTimer = setTimeout(() => {
     if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen || state.presentationVersionMenuOpen || state.presentationReferenceMenuOpen) return;
     state.presentationControlsVisible = false;
-    render();
+    document.getElementById("presentation")?.classList.remove("controls-visible");
   }, duration);
 }
 
@@ -24758,6 +24775,7 @@ function finishPresentationPinch() {
 }
 
 function commitPresentationSwipe(direction) {
+  playNativeHaptic();
   const presentationElement = document.getElementById("presentation");
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (!presentationElement || reducedMotion) {
@@ -25244,7 +25262,7 @@ function handleReaderChapterPullEnd(event) {
   resetReaderChapterPullIndicators();
   pull.surface.classList.remove("reader-chapter-pulling", "reader-chapter-pull-settling");
   pull.surface.style.removeProperty("--reader-pull-offset");
-  moveChapter(direction);
+  moveChapter(direction, { fromPull: true });
 }
 
 function cancelReaderChapterPull() {
@@ -26223,6 +26241,7 @@ function moveChapter(direction, options = {}) {
   if (chapterNavigationInProgress) return false;
   const nextReference = adjacentChapterReference(direction);
   if (!nextReference) return false;
+  if (options.fromSwipe || options.fromPull) playNativeHaptic();
   if (readerChapterWheelPull) cancelReaderChapterWheelPull({ settle: false });
   const surface = canUseReaderChapterSwipe() ? document.querySelector(".scripture") : null;
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;

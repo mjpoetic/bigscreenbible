@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import WebKit
+import SafariServices
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -106,6 +107,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class BSBBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(BSBPrintPlugin())
+        bridge?.registerPluginInstance(BSBBrowserPlugin())
         bridge?.registerPluginInstance(BSBHapticsPlugin())
     }
 
@@ -210,5 +212,30 @@ public class BSBHapticsPlugin: CAPPlugin, CAPBridgedPlugin {
             generator?.prepare()
             call.resolve()
         }
+    }
+}
+
+
+// Intercept top-level external web navigation, including target="_blank" links.
+@objc(BSBBrowserPlugin)
+public class BSBBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "BSBBrowserPlugin"
+    public let jsName = "BSBBrowser"
+    public let pluginMethods: [CAPPluginMethod] = []
+
+    public override func shouldOverrideLoad(_ navigationAction: WKNavigationAction) -> NSNumber? {
+        guard navigationAction.targetFrame == nil || navigationAction.targetFrame?.isMainFrame == true,
+              let url = navigationAction.request.url,
+              let scheme = url.scheme?.lowercased(), ["https", "http"].contains(scheme),
+              let host = url.host?.lowercased(),
+              !["bigscreenbible.com", "www.bigscreenbible.com", "localhost"].contains(host)
+        else { return nil }
+        DispatchQueue.main.async { [weak self] in
+            guard let controller = self?.bridge?.viewController else { return }
+            var presenter = controller
+            while let presented = presenter.presentedViewController { presenter = presented }
+            presenter.present(SFSafariViewController(url: url), animated: true)
+        }
+        return true
     }
 }
