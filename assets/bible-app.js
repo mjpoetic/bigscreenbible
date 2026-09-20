@@ -3593,6 +3593,17 @@ function nativeHapticsPlugin() {
   return capacitor.Plugins?.Haptics || null;
 }
 
+function nativeHapticStrengthPlugin() {
+  const capacitor = window.Capacitor;
+  if (capacitor?.getPlatform?.() !== "ios" || !capacitor.isPluginAvailable?.("BSBHaptics")) return null;
+  return capacitor.Plugins?.BSBHaptics || capacitor.registerPlugin?.("BSBHaptics") || null;
+}
+
+function hapticStrength() {
+  const value = Number(localStorage.getItem("lw_haptics_strength") ?? 60);
+  return Number.isFinite(value) ? Math.max(20, Math.min(100, value)) : 60;
+}
+
 function hapticsSettingsMarkup(prefix = "") {
   if (!nativeHapticsPlugin()) return "";
   return `<div class="setting-group settings-section-subgroup">
@@ -3600,31 +3611,64 @@ function hapticsSettingsMarkup(prefix = "") {
       <input type="checkbox" id="${prefix}HapticsToggle" data-haptics-toggle ${localStorage.getItem("lw_haptics_enabled") !== "false" ? "checked" : ""} />
       <span>Haptic feedback</span>
     </label>
-    <p class="setting-help">Subtle taps for controls, press-and-hold actions, and Scripture pinch resizing on this iPhone.</p>
+    ${nativeHapticStrengthPlugin() ? `<label for="${prefix}HapticsStrength">Haptic strength <span data-haptics-strength-value>${hapticStrength()}%</span></label>
+    <input type="range" id="${prefix}HapticsStrength" data-haptics-strength min="20" max="100" step="10" value="${hapticStrength()}" ${localStorage.getItem("lw_haptics_enabled") === "false" ? "disabled" : ""} />` : ""}
+    <p class="setting-help">Choose how strong taps feel on this iPhone. Scripture pinches give soft taps at each 1% change and stronger taps at 10% marks.</p>
   </div>`;
+}
+
+function playNativeHaptic(kind = "control") {
+  if (localStorage.getItem("lw_haptics_enabled") === "false" || document.hidden) return;
+  const precise = nativeHapticStrengthPlugin();
+  const plugin = precise || nativeHapticsPlugin();
+  if (!plugin) return;
+  try {
+    const strength = hapticStrength() / 100;
+    const options = precise
+      ? { intensity: strength * (kind === "tick" ? 0.3 : 1), soft: kind === "tick" }
+      : { style: kind === "milestone" ? "MEDIUM" : "LIGHT" };
+    Promise.resolve(plugin.impact(options)).catch(() => {});
+  } catch {
+    // Missing hardware or an older native build must never interrupt a gesture.
+  }
 }
 
 let lastControlHapticAt = -Infinity;
 function playControlHaptic() {
-  if (localStorage.getItem("lw_haptics_enabled") === "false" || document.hidden) return;
-  const plugin = nativeHapticsPlugin();
-  if (!plugin) return;
   const now = performance.now();
   if (now - lastControlHapticAt < 60) return;
   lastControlHapticAt = now;
-  try {
-    Promise.resolve(plugin.impact({ style: "LIGHT" })).catch(() => {});
-  } catch {
-    // Older native builds or unavailable hardware must never interrupt a control.
-  }
+  playNativeHaptic();
 }
 
-// Keep resizing smooth; tick after each additional five percentage points.
-// Track each gesture separately so jitter and clamped limits stay silent.
 function playPinchHaptic(gesture, scale) {
-  const previous = gesture.hapticScale ?? gesture.startScale;
-  if (Math.abs(scale - previous) < 0.05 - 1e-9) return;
-  gesture.hapticScale = scale;
+  const previous = gesture.hapticPercent ?? Math.round(gesture.startScale * 100);
+  const current = Math.round(scale * 100);
+  if (current === previous) return;
+  gesture.hapticPercent = current;
+  // Detect arrivals at decade marks in either direction, including skipped frames.
+  // Emit one current pulse, never queue a burst that outlasts the gesture.
+  const milestone = current > previous
+    ? Math.floor(current / 10) > Math.floor(previous / 10)
+    : Math.ceil(current / 10) < Math.ceil(previous / 10);
+  playNativeHaptic(milestone ? "milestone" : "tick");
+}
+
+function syncHapticSettings() {
+  document.querySelectorAll("[data-haptics-strength]").forEach(input => {
+    input.value = String(hapticStrength());
+    input.disabled = localStorage.getItem("lw_haptics_enabled") === "false";
+  });
+  document.querySelectorAll("[data-haptics-strength-value]").forEach(label => {
+    label.textContent = `${hapticStrength()}%`;
+  });
+}
+
+function handleHapticStrengthInput(event) {
+  if (!event.isTrusted || !event.target?.matches?.('[data-haptics-strength]')) return;
+  localStorage.setItem("lw_haptics_strength", String(event.target.value));
+  localStorage.setItem("lw_haptics_strength", String(hapticStrength()));
+  syncHapticSettings();
   playControlHaptic();
 }
 
@@ -3643,6 +3687,7 @@ function handleControlHaptic(event) {
     if (!control.matches('select, input[type="checkbox"], input[type="radio"], input[type="range"]')) return;
     if (control.matches('[data-haptics-toggle]')) {
       localStorage.setItem("lw_haptics_enabled", String(control.checked));
+      syncHapticSettings();
     }
   } else {
     // Native inputs fire change; avoiding their click prevents duplicate pulses.
@@ -27466,6 +27511,7 @@ if (startupLoaderPreview) {
 
 document.addEventListener("click", handleGamesInteractionSound, true);
 
+document.addEventListener("input", handleHapticStrengthInput, true);
 document.addEventListener("click", handleControlHaptic, true);
 document.addEventListener("change", handleControlHaptic, true);
 

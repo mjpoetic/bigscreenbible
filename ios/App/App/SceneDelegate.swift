@@ -106,6 +106,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class BSBBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(BSBPrintPlugin())
+        bridge?.registerPluginInstance(BSBHapticsPlugin())
     }
 
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
@@ -176,6 +177,38 @@ public class BSBPrintPlugin: CAPPlugin, CAPBridgedPlugin {
                 controller.printFormatter = nil
                 call.reject("Could not present the print dialog.")
             }
+        }
+    }
+}
+
+
+@objc(BSBHapticsPlugin)
+public class BSBHapticsPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "BSBHapticsPlugin"
+    public let jsName = "BSBHaptics"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "impact", returnType: CAPPluginReturnPromise)
+    ]
+    private var softGenerator: UIImpactFeedbackGenerator?
+    private var firmGenerator: UIImpactFeedbackGenerator?
+
+    @objc func impact(_ call: CAPPluginCall) {
+        let value = call.getDouble("intensity") ?? 0.6
+        let intensity = CGFloat(value.isFinite ? min(1, max(0, value)) : 0.6)
+        let soft = call.getBool("soft") ?? false
+        DispatchQueue.main.async { [weak self] in
+            guard let self, UIApplication.shared.applicationState == .active else {
+                call.resolve()
+                return
+            }
+            if self.softGenerator == nil {
+                self.softGenerator = UIImpactFeedbackGenerator(style: .soft)
+                self.firmGenerator = UIImpactFeedbackGenerator(style: .medium)
+            }
+            let generator = soft ? self.softGenerator : self.firmGenerator
+            generator?.impactOccurred(intensity: intensity)
+            generator?.prepare()
+            call.resolve()
         }
     }
 }
