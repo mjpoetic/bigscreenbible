@@ -104,14 +104,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 // Expose only the public APNs environment, never a provider signing credential.
 class BSBBridgeViewController: CAPBridgeViewController {
-    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
-        let configuration = super.webViewConfiguration(for: instanceConfiguration)
+    override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
+        // Capacitor replaces userContentController after webViewConfiguration().
+        // Install on the final controller immediately before creating the web view.
         let environment = Bundle.main.object(forInfoDictionaryKey: "BSBPushEnvironment") as? String == "development"
             ? "development" : "production"
         let pushAvailable = Bundle.main.object(forInfoDictionaryKey: "BSBNativePushAvailable") as? String != "NO"
         configuration.userContentController.addUserScript(WKUserScript(
             source: "window.bsbAPNSEnvironment = '\(environment)'; window.bsbNativePushAvailable = \(pushAvailable);",
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        return configuration
+        return super.webView(with: frame, configuration: configuration)
     }
 }

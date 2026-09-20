@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const app = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
+// Guard the native lifecycle contract: Capacitor replaces the content controller
+// between its configuration hook and its web-view creation hook.
+const capacitorController = readFileSync(new URL('../node_modules/@capacitor/ios/Capacitor/Capacitor/CAPBridgeViewController.swift', import.meta.url), 'utf8');
+const nativeController = readFileSync(new URL('../ios/App/App/SceneDelegate.swift', import.meta.url), 'utf8');
+assert.match(capacitorController, /webConfig\.userContentController = delegationHandler\.contentController[\s\S]*?let aWebView = webView\(with:/);
+assert.match(nativeController, /override func webView\(with frame: CGRect, configuration: WKWebViewConfiguration\)[\s\S]*?configuration\.userContentController\.addUserScript[\s\S]*?injectionTime: \.atDocumentStart[\s\S]*?return super\.webView\(with: frame, configuration: configuration\)/);
+assert.doesNotMatch(nativeController, /override func webViewConfiguration\(/, 'Push configuration must not be injected into the controller that Capacitor discards');
 const extract = name => app.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n\\}`))[0];
 let permission = 'prompt', prompts = 0, registered = 0, unregistered = 0, serverReady = true;
 const callbacks = {}, storage = new Map(), requests = [];
