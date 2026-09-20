@@ -23928,10 +23928,7 @@ function openSettingsFromMobileControls() {
 }
 
 function focusBrandVersionHoldEnabled() {
-  return Boolean(
-    (state.mode === "reader" || state.mode === "parallel")
-    && (isCompactScreen() || isShortLandscapeScreen())
-  );
+  return state.mode === "reader" || state.mode === "parallel";
 }
 
 function handleBrandVerseOfDayClick(event) {

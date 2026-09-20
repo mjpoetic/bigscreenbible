@@ -164,8 +164,21 @@ for (const focusMode of [false, true]) {
 }
 compact = false;
 shortLandscape = false;
-context.beginHold(pointerEvent());
-assert.equal(scheduledHold, null, "Desktop branding remains tap-only");
+for (const mode of ["reader", "parallel"]) {
+  for (const pointerType of ["mouse", "touch", "pen"]) {
+    context.state.mode = mode;
+    context.beginHold(pointerEvent({ pointerType, button: 0 }));
+    assert.equal(scheduledHold?.delay, 350, `${mode} supports desktop ${pointerType} holds`);
+    scheduledHold.callback();
+    assert.equal(context.state.headerVersionMenuOpen, true);
+    context.endHold(pointerEvent());
+  }
+}
+context.beginHold(pointerEvent({ pointerType: "mouse", button: 2 }));
+assert.equal(scheduledHold, null, "Right-click does not start a hold");
+context.beginHold(pointerEvent({ pointerType: "mouse", button: 0 }));
+context.endHold(pointerEvent());
+assert.equal(scheduledHold, null, "Releasing the mouse before the hold completes cancels it");
 compact = true;
 for (const mode of ["big", "trivia"]) {
   context.state.mode = mode;
