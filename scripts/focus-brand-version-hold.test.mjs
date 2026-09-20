@@ -32,7 +32,7 @@ const functionNames = [
 assert.match(source, /focus-brand-version-menu/);
 assert.match(source, /state\.mode === "parallel" \? parallelVersionOptions : primaryVersionHeaderOptions/);
 assert.match(source, /brandVerseOfDay\?\.addEventListener\("pointerdown", beginFocusBrandVersionHold\)/);
-assert.match(styles, /\.app-shell\.focus-shell \.focus-brand-version-menu \{[\s\S]*?display:\s*grid;/);
+assert.match(styles, /\.app-shell \.focus-brand-version-menu \{[\s\S]*?display:\s*grid;/);
 assert.match(styles, /\.brand\.version-hold-pending::before \{[\s\S]*?animation:\s*mobileSettingsHoldProgress 350ms linear forwards;/);
 
 let scheduledHold = null;
@@ -40,6 +40,8 @@ let now = 1000;
 let renders = 0;
 let verseOfDayOpens = 0;
 let portrait = true;
+let compact = true;
+let shortLandscape = false;
 const context = {
   state: {
     focusMode: true,
@@ -64,7 +66,8 @@ const context = {
   clearTimeout() {
     scheduledHold = null;
   },
-  isCompactScreen: () => true,
+  isCompactScreen: () => compact,
+  isShortLandscapeScreen: () => shortLandscape,
   resetFocusToolSurfaces() {
     context.state.focusToolsOpen = false;
     context.state.focusWorkspacePanel = "";
@@ -143,8 +146,31 @@ let contextMenuPrevented = false;
 context.suppressContextMenu({ preventDefault: () => { contextMenuPrevented = true; } });
 assert.equal(contextMenuPrevented, true);
 
-portrait = false;
+for (const focusMode of [false, true]) {
+  for (const mode of ["reader", "parallel"]) {
+    for (const landscape of [false, true]) {
+      context.state.focusMode = focusMode;
+      context.state.mode = mode;
+      portrait = !landscape;
+      compact = !landscape;
+      shortLandscape = landscape;
+      context.beginHold(pointerEvent());
+      assert.equal(scheduledHold?.delay, 350, `${mode} supports holding with Focus ${focusMode} and landscape ${landscape}`);
+      scheduledHold.callback();
+      assert.equal(context.state.headerVersionMenuOpen, true);
+      context.endHold(pointerEvent());
+    }
+  }
+}
+compact = false;
+shortLandscape = false;
 context.beginHold(pointerEvent());
-assert.equal(scheduledHold, null, "Landscape keeps the brand's normal tap-only behavior");
+assert.equal(scheduledHold, null, "Desktop branding remains tap-only");
+compact = true;
+for (const mode of ["big", "trivia"]) {
+  context.state.mode = mode;
+  context.beginHold(pointerEvent());
+  assert.equal(scheduledHold, null, `${mode} does not enable the version hold`);
+}
 
 console.log("Focus brand version hold tests passed");

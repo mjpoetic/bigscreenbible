@@ -4675,7 +4675,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const activeSearchLabel = activeSearchSourceLabel();
   return `
     <header class="topbar">
-      <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day">
+      <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day${focusBrandVersionHoldEnabled() ? ". Press and hold to choose Bible versions" : ""}">
         <img class="brand-mark-image" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
         <div class="brand-copy">
@@ -4683,7 +4683,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <div class="brand-subtitle">Bible</div>
         </div>
       </button>
-      ${state.focusMode && state.headerVersionMenuOpen ? `
+      ${(state.focusMode || focusBrandVersionHoldEnabled()) && state.headerVersionMenuOpen ? `
         <div class="primary-version-menu focus-brand-version-menu" role="listbox" aria-label="${state.mode === "parallel" ? "Selected Bible versions" : "Bible version options"}">
           ${state.mode === "parallel" ? parallelVersionOptions : primaryVersionHeaderOptions}
         </div>
@@ -23929,10 +23929,8 @@ function openSettingsFromMobileControls() {
 
 function focusBrandVersionHoldEnabled() {
   return Boolean(
-    state.focusMode
-    && state.mode !== "big"
-    && isCompactScreen()
-    && window.matchMedia?.("(orientation: portrait)")?.matches
+    (state.mode === "reader" || state.mode === "parallel")
+    && (isCompactScreen() || isShortLandscapeScreen())
   );
 }
 
@@ -26396,8 +26394,22 @@ function copySelectedPassage() {
   return copySpecificVerses(selectedVerseNumbers());
 }
 
-function printSelectedPassage() {
-  requestAnimationFrame(() => window.print());
+async function printSelectedPassage() {
+  const capacitor = window.Capacitor;
+  if (capacitor?.getPlatform?.() !== "ios") {
+    requestAnimationFrame(() => window.print());
+    return;
+  }
+  if (!capacitor.isPluginAvailable?.("BSBPrint")) {
+    showToast("Update the iOS app to enable printing");
+    return;
+  }
+  try {
+    const printer = capacitor.Plugins?.BSBPrint || capacitor.registerPlugin("BSBPrint");
+    await printer.print();
+  } catch (_error) {
+    showToast("Could not open printing. Please try again.");
+  }
 }
 
 function toggleVerseSelection(verseNumber, extendRange) {

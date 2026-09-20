@@ -104,6 +104,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 // Expose only the public APNs environment, never a provider signing credential.
 class BSBBridgeViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(BSBPrintPlugin())
+    }
+
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
         // Capacitor replaces userContentController after webViewConfiguration().
         // Install on the final controller immediately before creating the web view.
@@ -114,5 +118,64 @@ class BSBBridgeViewController: CAPBridgeViewController {
             source: "window.bsbAPNSEnvironment = '\(environment)'; window.bsbNativePushAvailable = \(pushAvailable);",
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
         return super.webView(with: frame, configuration: configuration)
+    }
+}
+
+@objc(BSBPrintPlugin)
+public class BSBPrintPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "BSBPrintPlugin"
+    public let jsName = "BSBPrint"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "print", returnType: CAPPluginReturnPromise)
+    ]
+    private var printing = false
+
+    @objc func print(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let webView = self.bridge?.webView,
+                  webView.window != nil else {
+                call.reject("The reader is not ready to print.")
+                return
+            }
+            // Ignore repeated taps while the system print sheet is open.
+            guard !self.printing else {
+                call.resolve(["completed": false])
+                return
+            }
+            guard UIPrintInteractionController.isPrintingAvailable else {
+                call.reject("Printing is unavailable on this device.")
+                return
+            }
+            self.printing = true
+            let controller = UIPrintInteractionController.shared
+            let info = UIPrintInfo(dictionary: nil)
+            info.jobName = "Big Screen Bible"
+            info.outputType = .general
+            controller.printInfo = info
+            // WebKit applies the existing @media print stylesheet, preserving
+            // passage selection, layout, verse numbers, and attribution.
+            controller.printFormatter = webView.viewPrintFormatter()
+            let completion: UIPrintInteractionController.CompletionHandler = { [weak self] _, completed, error in
+                self?.printing = false
+                controller.printFormatter = nil
+                if let error {
+                    call.reject("Printing failed.", nil, error)
+                } else {
+                    call.resolve(["completed": completed])
+                }
+            }
+            let presented: Bool
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                let anchor = CGRect(x: webView.bounds.midX, y: webView.bounds.midY, width: 1, height: 1)
+                presented = controller.present(from: anchor, in: webView, animated: true, completionHandler: completion)
+            } else {
+                presented = controller.present(animated: true, completionHandler: completion)
+            }
+            if !presented {
+                self.printing = false
+                controller.printFormatter = nil
+                call.reject("Could not present the print dialog.")
+            }
+        }
     }
 }
