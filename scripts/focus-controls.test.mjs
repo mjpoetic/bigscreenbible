@@ -12,7 +12,9 @@ const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFo
 controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
-  document: { querySelectorAll: selector => selector === ".reader-page-button.available, #readerAutoScrollButton" ? controls.filter(b => ["readerAutoScrollButton", "pageDown"].includes(b.id)) : controls, getElementById: id => controls.find(b => b.id === id) },
+  document: { querySelectorAll: selector => selector.startsWith(".reader-page-button")
+    ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")))
+    : controls, getElementById: id => controls.find(b => b.id === id) },
   setTimeout: (fn, delay) => { timers.set(++nextId, { fn, delay }); return nextId; },
   clearTimeout: id => timers.delete(id),
   isCompactScreen: () => false,
@@ -51,7 +53,7 @@ for (const mode of ['reader', 'parallel']) {
   context.state.mode = mode;
   wake(); run(3200);
   assert.ok(controls[1].classes.has('focus-control-faded'), `${mode}: auto-scroll fades outside Focus`);
-  assert.ok(controls[3].classes.has('focus-control-faded'), `${mode}: page navigation fades outside Focus`);
+  assert.ok(controls[3].classes.has('focus-control-faded'), `${mode}: desktop boundary arrow fades outside Focus`);
   assert.equal(controls[0].classes.size, 0, `${mode}: other controls stay unchanged`);
   run(10000);
   assert.ok(controls[1].classes.has('focus-control-hidden'), `${mode}: optional hiding works`);

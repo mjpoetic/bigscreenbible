@@ -6445,8 +6445,8 @@ function floatingControlsFadeEnabled() {
 }
 
 function focusFloatingControls() {
-  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button.available, #readerAutoScrollButton")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button.available, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton")];
+  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton")];
 }
 
 function focusControlsInUse() {

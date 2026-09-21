@@ -19778,7 +19778,8 @@ svg {
     bottom: calc(170px + env(safe-area-inset-bottom, 0px));
   }
 
-  .reader-page-controls .reader-page-button:not(.available) {
+  .app-shell .reader-page-controls .reader-page-button.reader-top-button:not(.available) {
+    opacity: 0;
     pointer-events: none;
   }
 }
@@ -22078,7 +22079,8 @@ svg {
     bottom: calc(118px + env(safe-area-inset-bottom, 0px));
   }
 
-  .reader-page-controls .reader-page-button:not(.available) {
+  .app-shell .reader-page-controls .reader-page-button.reader-top-button:not(.available) {
+    opacity: 0;
     pointer-events: none;
   }
 }
@@ -22778,11 +22780,13 @@ svg {
   }
 }
 
-.app-shell .focus-control-faded:not(:focus-visible) {
+.app-shell .focus-control-faded:not(:focus-visible),
+.app-shell .reader-page-button.focus-control-faded:not(:focus-visible) {
   opacity: 0.18;
   pointer-events: auto;
 }
-.app-shell .focus-control-hidden:not(:focus-visible) {
+.app-shell .focus-control-hidden:not(:focus-visible),
+.app-shell .reader-page-button.focus-control-hidden:not(:focus-visible) {
   opacity: 0;
   pointer-events: none;
 }
