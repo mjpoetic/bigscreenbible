@@ -169,15 +169,12 @@ const scriptureFonts = [
   { code: "custom", name: "Custom device or Google font" },
 ];
 const scriptureFontCodes = scriptureFonts.map((font) => font.code);
-const customGoogleFontStylesheetId = "custom-google-font-stylesheet";
 const genericCustomFontFamilies = new Set([
   "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
   "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "emoji", "math", "fangsong",
 ]);
-let customFontLoadRequest = 0;
-let customFontInputTimer = 0;
-let customDeviceFontFace = null;
-let customFontLoadState = { family: "", status: "idle", message: "" };
+const customFontInputTimers = {};
+const scriptureFontLoaders = [createCustomFontLoader(false), createCustomFontLoader(true)];
 const legacyScriptureFontCodes = {
   merriweather: "literata",
   "ibm-plex-sans": "manrope",
@@ -652,6 +649,8 @@ const state = {
   themePreset: initialResolvedAppearance.preset,
   scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
+  presentationScriptureFont: localStorage.getItem("lw_presentation_scripture_font") || localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
+  presentationCustomScriptureFont: localStorage.getItem("lw_presentation_custom_scripture_font") ?? localStorage.getItem("lw_custom_scripture_font") ?? "",
   popupTextScale: clampPopupTextScale(localStorage.getItem("lw_popup_text_scale") || 1),
   popupPinchEnabled: localStorage.getItem("lw_popup_pinch_enabled") !== "false",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
@@ -885,6 +884,10 @@ if (state.versions.length === 0) state.versions = ["BSB", "KJV"];
 if (!state.versions.some(isBundledTranslation)) state.versions.unshift("BSB");
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = defaultPresentationTheme;
 state.scriptureFont = normalizedScriptureFont(state.scriptureFont);
+state.presentationScriptureFont = normalizedScriptureFont(state.presentationScriptureFont);
+// Freeze the inherited choice once so later Reader changes cannot change Big Screen.
+localStorage.setItem("lw_presentation_scripture_font", state.presentationScriptureFont);
+localStorage.setItem("lw_presentation_custom_scripture_font", state.presentationCustomScriptureFont);
 
 function appearanceFromSnapshotSettings(settings = {}) {
   if (settings.appearance && typeof settings.appearance === "object") {
@@ -3321,6 +3324,7 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
         ${choices.map((choice) => `
           <option value="${escapeHtml(choice.value)}" ${String(choice.value) === normalizedValue ? "selected" : ""} ${choice.disabled ? "disabled" : ""}
             data-choice-label="${escapeHtml(choice.label)}"
+            ${choice.group ? `data-choice-group="${escapeHtml(choice.group)}"` : ""}
             ${choice.code ? `data-choice-code="${escapeHtml(choice.code)}"` : ""}
             ${choice.detail ? `data-choice-detail="${escapeHtml(choice.detail)}"` : ""}
             ${choice.fontPreview ? `data-choice-font-preview="${escapeHtml(choice.fontPreview)}"` : ""}
@@ -3411,8 +3415,30 @@ function presentationThemeSettingsChoices() {
   }));
 }
 
+function settingsColorMenuMarkup(prefix = "", bigScreen = false) {
+  const colorLabel = bigScreen ? "Big Screen colors" : `${state.theme === "dark" ? "Dark" : "Light"} colors`;
+  const colors = bigScreen ? presentationThemeSettingsChoices() : themePresetSettingsChoices();
+  const choices = [
+    ...themeFamilySettingsChoices().filter((choice) => choice.value).map((choice) => ({
+      ...choice, value: `family:${choice.value}`, group: "Theme families",
+    })),
+    ...colors.map((choice) => ({ ...choice, value: `color:${choice.value}`, group: colorLabel })),
+  ];
+  const selected = hasAppearanceOverrides(state.appearance)
+    ? `color:${bigScreen ? state.presentationTheme : state.themePreset}`
+    : `family:${state.appearance.themeFamily}`;
+  return `
+    <div class="setting-group presentation-settings-choice-field" data-settings-search-item data-settings-search-text="theme family color palette light dark appearance">
+      <span class="setting-label">Theme & color</span>
+      ${settingsChoiceMarkup(settingsControlId(prefix, "CombinedColorSelect"), selected, choices, {
+        label: "Theme & color", ariaLabel: "Theme & color", wide: true,
+      })}
+    </div>
+  `;
+}
+
 function themeFamilySettingsTooltip(modeLabel = "this mode") {
-  return `Links Light, Dark, and Big Screen colors. Choose a color below to customize ${modeLabel}.`;
+  return `Links Light, Dark, and Big Screen colors. Choose a current color to customize ${modeLabel}.`;
 }
 
 function currentThemeColorTooltip(modeLabel) {
@@ -3426,6 +3452,7 @@ function settingsChoiceFromOption(option) {
     code: option.dataset.choiceCode || "",
     detail: option.dataset.choiceDetail || "",
     fontPreview: option.dataset.choiceFontPreview || "",
+    group: option.dataset.choiceGroup || "",
     previewColors: (option.dataset.previewColors || "").split(",").filter(Boolean),
   };
 }
@@ -3508,16 +3535,20 @@ function openSettingsChoiceMenu(trigger) {
     menu.style.setProperty("--settings-choice-menu-accent", popupStyle.getPropertyValue("--presentation-accent"));
   }
   const choices = Array.from(select.options);
-  menu.innerHTML = choices.map((option) => {
+  menu.innerHTML = choices.map((option, index) => {
     const choice = settingsChoiceFromOption(option);
     const selected = option.value === select.value;
+    const heading = choice.group && choice.group !== choices[index - 1]?.dataset.choiceGroup
+      ? `<div class="settings-choice-group-label" role="presentation">${escapeHtml(choice.group)}</div>` : "";
     return `
-      <button class="settings-choice-option ${selected ? "active" : ""}" type="button" role="option" aria-selected="${selected ? "true" : "false"}" data-settings-choice-value="${escapeHtml(option.value)}" ${option.disabled ? "disabled" : ""}>
+      ${heading}
+      <button ${choice.group ? `aria-label="${escapeHtml(`${choice.group}: ${choice.label}`)}"` : ""} class="settings-choice-option ${selected ? "active" : ""}" type="button" role="option" aria-selected="${selected ? "true" : "false"}" data-settings-choice-value="${escapeHtml(option.value)}" ${option.disabled ? "disabled" : ""}>
         ${settingsChoiceOptionContent(choice)}
         <span class="settings-choice-check" aria-hidden="true">${selected ? "✓" : ""}</span>
       </button>
     `;
   }).join("");
+  menu.style.setProperty("--custom-scripture-font", customScriptureFontStack(Boolean(trigger.closest("#presentation"))));
   document.body.appendChild(menu);
   trigger.setAttribute("aria-expanded", "true");
   positionSettingsChoiceMenu(trigger, menu, select.dataset.choiceMenuWide === "true");
@@ -4370,8 +4401,9 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
   const themeFamilyId = prefix ? `${prefix}ThemeFamilySelect` : "themeFamilySelect";
   const themePresetId = prefix ? `${prefix}ThemePresetSelect` : "themePresetSelect";
   return `
+    ${options.unified ? settingsColorMenuMarkup(prefix) : `
     ${options.includeFamily ? `
-      <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}">
+      <div class="setting-group setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip())}" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="theme family color palette linked appearance"' : ""}>
         <span class="setting-label">Theme family</span>
         ${settingsChoiceMarkup(themeFamilyId, hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
           label: "Theme family",
@@ -4388,6 +4420,7 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
         selectClass: "theme-preset-select",
       })}
     </div>
+    `}
     ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
     <div class="setting-group" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="appearance mode light dark system theme"' : ""}>
       <span class="setting-label">Appearance</span>
@@ -4589,7 +4622,7 @@ function mainSettingsRootMarkup(prefix = "") {
       </div>
       ${settingsTextSizeMarkup(prefix)}
       ${settingsScriptureFontMarkup(prefix, { searchItem: true })}
-      ${settingsAppearanceMarkup(prefix, { searchItem: true })}
+      ${settingsAppearanceMarkup(prefix, { searchItem: true, unified: true })}
     </div>
     <nav class="settings-destinations" aria-label="More settings" data-settings-search-group data-settings-browse-only>
       ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system interface text accessibility")}
@@ -10516,6 +10549,8 @@ function captureCloudSnapshot() {
       ...appearanceSnapshotSettings(state.appearance),
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
+      presentationScriptureFont: state.presentationScriptureFont,
+      presentationCustomScriptureFont: state.presentationCustomScriptureFont,
       customHighlightColor: state.customHighlightColor,
       popupTextScale: state.popupTextScale,
       popupPinchEnabled: state.popupPinchEnabled,
@@ -10733,12 +10768,15 @@ function mergeStreaks(cloudStreak, localStreak) {
 }
 
 function applyCloudSnapshot(snapshot) {
+  Object.values(customFontInputTimers).forEach((timer) => window.clearTimeout(timer));
   const settings = migrateAppearanceSettings(snapshot.settings);
   state.versions = versionsWithSharedVersionOverride(settings.versions);
   state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
   applyResolvedAppearance(appearanceFromSnapshotSettings(settings));
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
+  state.presentationScriptureFont = normalizedScriptureFont(settings.presentationScriptureFont ?? settings.scriptureFont);
+  state.presentationCustomScriptureFont = sanitizeFontName(settings.presentationCustomScriptureFont ?? settings.customScriptureFont ?? "");
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.popupTextScale = clampPopupTextScale(settings.popupTextScale ?? 1);
   state.popupPinchEnabled = settings.popupPinchEnabled !== false;
@@ -10864,6 +10902,8 @@ function persistCloudSnapshotLocally(snapshot) {
   mirrorAppearanceToLegacyStorage(state.appearance);
   localStorage.setItem("lw_scripture_font", state.scriptureFont);
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
+  localStorage.setItem("lw_presentation_scripture_font", state.presentationScriptureFont);
+  localStorage.setItem("lw_presentation_custom_scripture_font", state.presentationCustomScriptureFont);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_popup_text_scale", String(state.popupTextScale));
@@ -17140,7 +17180,6 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
   const page = presentationSettingsPages[state.presentationSettingsPage] ? state.presentationSettingsPage : "root";
   const transitionClass = presentationSettingsPageTransition ? `presentation-settings-page-${presentationSettingsPageTransition}` : "";
   if (page === "root") {
-    const selectedFont = scriptureFonts.find((font) => font.code === state.scriptureFont)?.name || state.scriptureFont;
     return `
       <div class="presentation-settings-page presentation-settings-page-root ${transitionClass}">
         <div class="presentation-settings-choice-field">
@@ -17152,14 +17191,16 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             wide: true,
           })}
         </div>
-        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip("Big Screen"))}">
-          <span>Big Screen color</span>
-          ${settingsChoiceMarkup("presentationThemeSelect", state.presentationTheme, presentationThemeSettingsChoices(), {
-            label: "Big Screen color",
-            ariaLabel: "Change Big Screen color",
-            selectClass: "presentation-theme-select",
-          })}
-        </div>
+        ${settingsColorMenuMarkup("presentation", true)}
+      <div class="presentation-settings-choice-field">
+        <span>Scripture font</span>
+        ${settingsChoiceMarkup("presentationScriptureFontSelect", state.presentationScriptureFont, scriptureFontSettingsChoices(), {
+          label: "Scripture font",
+          ariaLabel: "Change scripture font",
+          selectClass: "scripture-font-select",
+        })}
+        ${customFontField}
+      </div>
         <div class="presentation-text-size-setting">
           <span>Text size</span>
           <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
@@ -17170,7 +17211,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         </div>
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
-          ${presentationSettingsDestinationRow("look", "Look & Feel", selectedFont)}
+          ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
           ${presentationSettingsDestinationRow("presenting", "Presenting", `Sharing · Sound ${state.modeTransitionSounds ? "on" : "off"}`)}
           ${presentationSettingsDestinationRow("app", "Help & App", `Version ${appVersion}`)}
         </nav>
@@ -17189,15 +17230,14 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           selectClass: "presentation-theme-select",
         })}
       </div>
-      <div class="presentation-settings-choice-field">
-        <span>Scripture font</span>
-        ${settingsChoiceMarkup("presentationScriptureFontSelect", state.scriptureFont, scriptureFontSettingsChoices(), {
-          label: "Scripture font",
-          ariaLabel: "Change scripture font",
-          selectClass: "scripture-font-select",
-        })}
-        ${customFontField}
-      </div>
+        <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(currentThemeColorTooltip("Big Screen"))}">
+          <span>Big Screen color</span>
+          ${settingsChoiceMarkup("presentationThemeSelect", state.presentationTheme, presentationThemeSettingsChoices(), {
+            label: "Big Screen color",
+            ariaLabel: "Change Big Screen color",
+            selectClass: "presentation-theme-select",
+          })}
+        </div>
       ${popupTextSettingsMarkup("presentation")}
     `;
   } else if (page === "presenting") {
@@ -17327,7 +17367,7 @@ function presentation(accountPanelRerender = false) {
     : enterDirection < 0
       ? "presentation-enter-previous"
       : "";
-  const customFontField = state.scriptureFont === "custom"
+  const customFontField = state.presentationScriptureFont === "custom"
     ? customScriptureFontField("presentationCustomScriptureFontInput")
     : "";
   const accountButton = accountQuickButtonContent();
@@ -17341,7 +17381,7 @@ function presentation(accountPanelRerender = false) {
     </div>
   `;
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       <div class="presentation-top">
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
@@ -18173,6 +18213,14 @@ function bindEvents() {
   });
   bindSettingsSearchControls();
   bindSettingsChoiceMenus();
+  for (const prefix of ["", "mobile", "presentation"]) {
+    document.getElementById(settingsControlId(prefix, "CombinedColorSelect"))?.addEventListener("change", (event) => {
+      const [kind, value] = event.target.value.split(":");
+      if (kind === "family") setThemeFamily(value);
+      else if (prefix === "presentation") setPresentationTheme(value);
+      else setThemePreset(value);
+    });
+  }
   document.querySelectorAll("[data-help-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
@@ -19220,7 +19268,7 @@ function bindEvents() {
     if (event.target.value) setThemeFamily(event.target.value);
   });
   document.getElementById("presentationScriptureFontSelect")?.addEventListener("change", (event) => {
-    setScriptureFont(event.target.value);
+    setScriptureFont(event.target.value, true);
   });
   bindCustomScriptureFontInput("presentationCustomScriptureFontInput");
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
@@ -22266,10 +22314,10 @@ function shuffleItems(items) {
   return copy;
 }
 
-function setScriptureFont(font) {
+function setScriptureFont(font, bigScreen = false) {
   if (!scriptureFontCodes.includes(font)) return;
-  state.scriptureFont = font;
-  localStorage.setItem("lw_scripture_font", font);
+  state[bigScreen ? "presentationScriptureFont" : "scriptureFont"] = font;
+  localStorage.setItem(bigScreen ? "lw_presentation_scripture_font" : "lw_scripture_font", font);
   scheduleCloudSync();
   renderPreservingReaderScroll();
 }
@@ -22283,41 +22331,38 @@ function setInterfaceTextSize(size) {
   renderPreservingReaderScroll();
 }
 
-function setCustomScriptureFont(font, { rerender = true } = {}) {
-  window.clearTimeout(customFontInputTimer);
-  customFontInputTimer = 0;
-  state.customScriptureFont = sanitizeFontName(font);
-  if (customFontLoadState.family === customScriptureFontNames()[0]) {
-    customFontLoadState = { family: "", status: "idle", message: "" };
-  }
-  localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
+function setCustomScriptureFont(font, { rerender = true, bigScreen = false } = {}) {
+  window.clearTimeout(customFontInputTimers[bigScreen]);
+  state[bigScreen ? "presentationCustomScriptureFont" : "customScriptureFont"] = sanitizeFontName(font);
+  scriptureFontLoaders[Number(bigScreen)].reset();
+  localStorage.setItem(bigScreen ? "lw_presentation_custom_scripture_font" : "lw_custom_scripture_font", sanitizeFontName(font));
   applyCustomScriptureFont();
   scheduleCloudSync();
   if (rerender) renderPreservingReaderScroll();
 }
 
-function queueCustomScriptureFont(font) {
-  window.clearTimeout(customFontInputTimer);
-  customFontInputTimer = window.setTimeout(() => {
-    commitCustomScriptureFont(font);
-  }, 500);
+function queueCustomScriptureFont(font, bigScreen = false) {
+  window.clearTimeout(customFontInputTimers[bigScreen]);
+  customFontInputTimers[bigScreen] = window.setTimeout(() => commitCustomScriptureFont(font, bigScreen), 500);
 }
 
-function commitCustomScriptureFont(font) {
+function commitCustomScriptureFont(font, bigScreen = false) {
   const sanitized = sanitizeFontName(font);
-  const retryFailedFont = sanitized === state.customScriptureFont && customFontLoadState.status === "error";
-  if (sanitized === state.customScriptureFont && !retryFailedFont) return;
-  setCustomScriptureFont(sanitized, { rerender: false });
+  const current = state[bigScreen ? "presentationCustomScriptureFont" : "customScriptureFont"];
+  const retryFailedFont = sanitized === current && scriptureFontLoaders[Number(bigScreen)].state.status === "error";
+  if (sanitized === current && !retryFailedFont) return;
+  setCustomScriptureFont(sanitized, { rerender: false, bigScreen });
 }
 
 function bindCustomScriptureFontInput(inputId) {
+  const bigScreen = inputId.startsWith("presentation");
   const input = document.getElementById(inputId);
-  input?.addEventListener("input", (event) => queueCustomScriptureFont(event.currentTarget.value));
-  input?.addEventListener("change", (event) => commitCustomScriptureFont(event.currentTarget.value));
+  input?.addEventListener("input", (event) => queueCustomScriptureFont(event.currentTarget.value, bigScreen));
+  input?.addEventListener("change", (event) => commitCustomScriptureFont(event.currentTarget.value, bigScreen));
   input?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    commitCustomScriptureFont(event.currentTarget.value);
+    commitCustomScriptureFont(event.currentTarget.value, bigScreen);
     event.currentTarget.blur();
   });
 }
@@ -22331,8 +22376,8 @@ function sanitizeFontName(font) {
     .join(", ");
 }
 
-function customScriptureFontNames() {
-  return sanitizeFontName(state.customScriptureFont)
+function customScriptureFontNames(bigScreen = false) {
+  return sanitizeFontName(bigScreen ? state.presentationCustomScriptureFont : state.customScriptureFont)
     .split(",")
     .map((name) => name.trim())
     .filter(Boolean);
@@ -22347,8 +22392,8 @@ function cssFontFamily(font) {
   return genericCustomFontFamilies.has(normalized) ? normalized : quotedCssFontFamily(font);
 }
 
-function customScriptureFontStack() {
-  const custom = customScriptureFontNames();
+function customScriptureFontStack(bigScreen = false) {
+  const custom = customScriptureFontNames(bigScreen);
   return [...custom.map(cssFontFamily), "Georgia", "serif"].join(", ");
 }
 
@@ -22371,110 +22416,122 @@ function fontFaceIsLoaded(font) {
 
 function customScriptureFontField(inputId) {
   const statusId = `${inputId}Status`;
-  const preferredFamily = customScriptureFontNames()[0] || "";
+  const bigScreen = inputId.startsWith("presentation");
+  const customFontLoadState = scriptureFontLoaders[Number(bigScreen)].state;
+  const preferredFamily = customScriptureFontNames(bigScreen)[0] || "";
   const status = customFontLoadState.family === preferredFamily ? customFontLoadState : { status: "idle", message: "" };
   return `
-    <input class="custom-font-input" id="${inputId}" value="${escapeHtml(state.customScriptureFont)}" placeholder="Georgia or a Google Fonts family" aria-label="Custom device or Google font" aria-describedby="${statusId}Help ${statusId}" autocomplete="off" spellcheck="false" />
+    <input class="custom-font-input" id="${inputId}" value="${escapeHtml(bigScreen ? state.presentationCustomScriptureFont : state.customScriptureFont)}" placeholder="Georgia or a Google Fonts family" aria-label="Custom device or Google font" aria-describedby="${statusId}Help ${statusId}" autocomplete="off" spellcheck="false" />
     <p class="setting-help custom-font-help" id="${statusId}Help">Uses an installed font first. Otherwise loads the exact family name from Google Fonts. Internet required.</p>
-    <p class="custom-font-status" id="${statusId}" data-font-status="${status.status}" role="status" aria-live="polite">${escapeHtml(status.message)}</p>
+    <p class="custom-font-status" id="${statusId}" data-font-scope="${bigScreen ? "presentation" : "reader"}" data-font-status="${status.status}" role="status" aria-live="polite">${escapeHtml(status.message)}</p>
   `;
 }
 
-function setCustomFontLoadState(family, status, message) {
-  customFontLoadState = { family, status, message };
-  document.querySelectorAll(".custom-font-status").forEach((element) => {
-    element.dataset.fontStatus = status;
-    element.textContent = message;
-  });
-}
-
-function removeCustomFontResources() {
-  document.getElementById(customGoogleFontStylesheetId)?.remove();
-  if (customDeviceFontFace && document.fonts?.delete) document.fonts.delete(customDeviceFontFace);
-  customDeviceFontFace = null;
-}
-
-function loadGoogleFontStylesheet(font, request) {
-  return new Promise((resolve, reject) => {
-    const link = document.createElement("link");
-    link.id = customGoogleFontStylesheetId;
-    link.rel = "stylesheet";
-    link.href = customGoogleFontUrl(font);
-    link.addEventListener("load", () => resolve(link), { once: true });
-    link.addEventListener("error", () => reject(new Error("Google Fonts stylesheet failed to load")), { once: true });
-    if (request !== customFontLoadRequest) {
-      reject(new Error("Custom font request was replaced"));
-      return;
-    }
-    document.head.append(link);
-  });
-}
-
-async function loadCustomScriptureFont() {
-  const font = customScriptureFontNames()[0] || "";
-  if (state.scriptureFont !== "custom" || !font) {
-    customFontLoadRequest += 1;
-    removeCustomFontResources();
-    setCustomFontLoadState("", "idle", "");
-    return;
-  }
-  if (customFontLoadState.family === font && ["checking", "loading", "device", "ready", "google", "error"].includes(customFontLoadState.status)) {
-    setCustomFontLoadState(font, customFontLoadState.status, customFontLoadState.message);
-    return;
+// Each surface owns its requests and resources, including simultaneous custom fonts.
+function createCustomFontLoader(bigScreen) {
+  const customGoogleFontStylesheetId = bigScreen ? "presentation-custom-google-font-stylesheet" : "custom-google-font-stylesheet";
+  let customFontLoadRequest = 0;
+  let customDeviceFontFace = null;
+  let customFontLoadState = { family: "", status: "idle", message: "" };
+  function setCustomFontLoadState(family, status, message) {
+    customFontLoadState = { family, status, message };
+    document.querySelectorAll(`.custom-font-status[data-font-scope="${bigScreen ? "presentation" : "reader"}"]`).forEach((element) => {
+      element.dataset.fontStatus = status;
+      element.textContent = message;
+    });
   }
 
-  const request = ++customFontLoadRequest;
-  removeCustomFontResources();
-  setCustomFontLoadState(font, "checking", `Checking for ${font} on this device…`);
-  if (genericCustomFontFamilies.has(font.toLowerCase())) {
-    setCustomFontLoadState(font, "ready", `${font} is ready.`);
-    return;
-  }
-  if (fontFaceIsLoaded(font)) {
-    setCustomFontLoadState(font, "ready", `${font} is ready.`);
-    return;
-  }
-
-  if (typeof FontFace === "function" && document.fonts?.add) {
-    try {
-      const localFace = new FontFace(font, `local(${quotedCssFontFamily(font)})`);
-      await localFace.load();
-      if (request !== customFontLoadRequest) return;
-      document.fonts.add(localFace);
-      customDeviceFontFace = localFace;
-      setCustomFontLoadState(font, "device", `Using ${font} from this device.`);
-      return;
-    } catch {
-      // Continue to the Google Fonts fallback.
-    }
-  }
-
-  if (request !== customFontLoadRequest) return;
-  setCustomFontLoadState(font, "loading", `Loading ${font} from Google Fonts…`);
-  try {
-    const link = await loadGoogleFontStylesheet(font, request);
-    if (request !== customFontLoadRequest) {
-      link.remove();
-      return;
-    }
-    if (document.fonts?.load) {
-      await document.fonts.load(`1em ${quotedCssFontFamily(font)}`);
-      if (request !== customFontLoadRequest) return;
-      if (!fontFaceIsLoaded(font)) throw new Error("Google Fonts family was not found");
-    }
-    setCustomFontLoadState(font, "google", `Loaded ${font} from Google Fonts.`);
-  } catch {
-    if (request !== customFontLoadRequest) return;
+  function removeCustomFontResources() {
     document.getElementById(customGoogleFontStylesheetId)?.remove();
-    setCustomFontLoadState(font, "error", `Couldn’t load ${font}. Check the Google Fonts family name or your connection.`);
+    if (customDeviceFontFace && document.fonts?.delete) document.fonts.delete(customDeviceFontFace);
+    customDeviceFontFace = null;
   }
+
+  function loadGoogleFontStylesheet(font, request) {
+    return new Promise((resolve, reject) => {
+      const link = document.createElement("link");
+      link.id = customGoogleFontStylesheetId;
+      link.rel = "stylesheet";
+      link.href = customGoogleFontUrl(font);
+      link.addEventListener("load", () => resolve(link), { once: true });
+      link.addEventListener("error", () => reject(new Error("Google Fonts stylesheet failed to load")), { once: true });
+      if (request !== customFontLoadRequest) {
+        reject(new Error("Custom font request was replaced"));
+        return;
+      }
+      document.head.append(link);
+    });
+  }
+
+  async function loadCustomScriptureFont() {
+    const font = customScriptureFontNames(bigScreen)[0] || "";
+    if (state[bigScreen ? "presentationScriptureFont" : "scriptureFont"] !== "custom" || !font) {
+      customFontLoadRequest += 1;
+      removeCustomFontResources();
+      setCustomFontLoadState("", "idle", "");
+      return;
+    }
+    if (customFontLoadState.family === font && ["checking", "loading", "device", "ready", "google", "error"].includes(customFontLoadState.status)) {
+      setCustomFontLoadState(font, customFontLoadState.status, customFontLoadState.message);
+      return;
+    }
+
+    const request = ++customFontLoadRequest;
+    removeCustomFontResources();
+    setCustomFontLoadState(font, "checking", `Checking for ${font} on this device…`);
+    if (genericCustomFontFamilies.has(font.toLowerCase())) {
+      setCustomFontLoadState(font, "ready", `${font} is ready.`);
+      return;
+    }
+
+    if (typeof FontFace === "function" && document.fonts?.add) {
+      try {
+        const localFace = new FontFace(font, `local(${quotedCssFontFamily(font)})`);
+        await localFace.load();
+        if (request !== customFontLoadRequest) return;
+        document.fonts.add(localFace);
+        customDeviceFontFace = localFace;
+        setCustomFontLoadState(font, "device", `Using ${font} from this device.`);
+        return;
+      } catch {
+        // Continue to the Google Fonts fallback.
+      }
+    }
+
+    if (request !== customFontLoadRequest) return;
+    setCustomFontLoadState(font, "loading", `Loading ${font} from Google Fonts…`);
+    try {
+      const link = await loadGoogleFontStylesheet(font, request);
+      if (request !== customFontLoadRequest) {
+        link.remove();
+        return;
+      }
+      if (document.fonts?.load) {
+        await document.fonts.load(`1em ${quotedCssFontFamily(font)}`);
+        if (request !== customFontLoadRequest) return;
+        if (!fontFaceIsLoaded(font)) throw new Error("Google Fonts family was not found");
+      }
+      setCustomFontLoadState(font, "google", `Loaded ${font} from Google Fonts.`);
+    } catch {
+      if (request !== customFontLoadRequest) return;
+      document.getElementById(customGoogleFontStylesheetId)?.remove();
+      setCustomFontLoadState(font, "error", `Couldn’t load ${font}. Check the Google Fonts family name or your connection.`);
+    }
+  }
+
+  return {
+    get state() { return customFontLoadState; },
+    reset() { customFontLoadState = { family: "", status: "idle", message: "" }; },
+    load: loadCustomScriptureFont,
+  };
 }
 
 function applyCustomScriptureFont() {
   const fontStack = customScriptureFontStack();
   document.documentElement.style.setProperty("--custom-scripture-font", fontStack);
   document.querySelector(".app-shell")?.style.setProperty("--custom-scripture-font", fontStack);
-  loadCustomScriptureFont();
+  document.querySelector("#presentation")?.style.setProperty("--custom-scripture-font", customScriptureFontStack(true));
+  scriptureFontLoaders.forEach((loader) => loader.load());
 }
 
 function isFullscreenActive() {

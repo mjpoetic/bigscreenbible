@@ -64,3 +64,42 @@ assert.match(styles, /\.custom-font-status\[data-font-status="google"\]/);
 assert.match(styles, /\.custom-font-status\[data-font-status="error"\]/);
 
 console.log("Custom scripture font tests passed");
+
+// Both surfaces retain independent selections, custom stacks, and loading status.
+const saved = new Map();
+Object.assign(context, {
+  localStorage: { setItem: (key, value) => saved.set(key, value) },
+  scheduleCloudSync() {},
+  renderPreservingReaderScroll() {},
+  window: { clearTimeout() {} },
+  document: { querySelectorAll: () => [], getElementById: () => null },
+});
+vm.runInContext(`
+  const scriptureFontCodes = ["lora", "figtree", "custom"];
+  const customFontInputTimers = {};
+  ${extractFunction("setScriptureFont")}
+  ${extractFunction("createCustomFontLoader")}
+  globalThis.readerLoader = createCustomFontLoader(false);
+  globalThis.bigLoader = createCustomFontLoader(true);
+  globalThis.setFont = setScriptureFont;
+`, context);
+context.state.scriptureFont = "lora";
+context.setFont("figtree", true);
+assert.equal(context.state.scriptureFont, "lora");
+assert.equal(context.state.presentationScriptureFont, "figtree");
+assert.equal(saved.get("lw_presentation_scripture_font"), "figtree");
+context.setFont("custom");
+context.setFont("custom", true);
+context.state.customScriptureFont = "serif";
+context.state.presentationCustomScriptureFont = "monospace";
+await context.readerLoader.load();
+await context.bigLoader.load();
+assert.equal(context.readerLoader.state.family, "serif");
+assert.equal(context.bigLoader.state.family, "monospace");
+assert.equal(context.stack(true), "monospace, Georgia, serif");
+context.setFont("lora");
+await context.readerLoader.load();
+assert.equal(context.readerLoader.state.status, "idle");
+assert.equal(context.bigLoader.state.status, "ready");
+assert.equal(context.state.presentationScriptureFont, "custom");
+console.log("Independent Big Screen font settings and loaders passed");
