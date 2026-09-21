@@ -1673,6 +1673,8 @@ function render() {
   mountMobileGameControls();
   syncAppUpdateNotification();
   bindEvents();
+  // Apply compact account placement before the replacement panel can paint.
+  positionAccountPopover();
   restoreSettingsPanelScroll(settingsScrollState);
   restoreAccountPanelScroll(accountScrollState);
   requestAnimationFrame(() => {
@@ -1766,11 +1768,15 @@ function chapterChangeIndicator(change) {
 
 function accountSwitchNotification() {
   if (!accountSwitchNotice) return "";
+  // Async account loads rerender the app. Keep the original animation timeline
+  // so each update cannot flash the notice back to its transparent first frame.
+  const elapsed = Math.max(0, performance.now() - accountSwitchNotice.startedAt);
+  if (elapsed >= accountSwitchNoticeDurationMs) return "";
   const avatarMarkup = socialAvatarKeys.includes(accountSwitchNotice.avatarKey)
     ? socialProfileAvatarMarkup(accountSwitchNotice, "account-switch-avatar")
     : `<span class="account-switch-fallback-avatar">${icons.user}</span>`;
   return `
-    <div class="account-switch-indicator" role="status" aria-live="polite" aria-atomic="true">
+    <div class="account-switch-indicator" role="status" aria-live="polite" aria-atomic="true" style="animation-delay: -${elapsed}ms">
       <span class="sr-only">Switched account to ${escapeHtml(accountSwitchNotice.identity)}</span>
       <span class="chapter-change-halo account-switch-halo" aria-hidden="true">
         <span class="chapter-change-icon account-switch-icon">${avatarMarkup}</span>
@@ -1825,6 +1831,7 @@ function showAccountSwitchNotification(user, destinationAccount = null) {
     ? `@${profile.username}`
     : String(account?.email || user?.email || "your account").trim();
   accountSwitchNotice = {
+    startedAt: performance.now(),
     userId: String(user?.id || "").trim(),
     identity,
     username: String(profile?.username || "").trim(),

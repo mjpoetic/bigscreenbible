@@ -307,6 +307,7 @@ let accountSwitchTimeout = null;
 let accountSwitchTimeoutDelay = 0;
 let accountSwitchIndicatorRemoved = false;
 const notificationContext = {
+  performance: { now: () => 100 },
   accountSwitchNotice: null,
   accountSwitchNoticeTimer: 0,
   accountSwitchNoticeDurationMs: 2000,
@@ -376,7 +377,10 @@ assert.equal(notificationContext.currentSwitchNotice().avatarKey, "star");
 assert.equal(notificationContext.currentSwitchNotice().displayName, "Fresh Profile");
 
 const notificationMarkupContext = {
+  performance: { now: () => 100 },
+  accountSwitchNoticeDurationMs: 2000,
   accountSwitchNotice: {
+    startedAt: 100,
     identity: "@destination-profile",
     username: "destination-profile",
     displayName: "Destination Profile",
@@ -403,6 +407,26 @@ notificationMarkupContext.accountSwitchNotice.avatarKey = "";
 const fallbackAvatarNotice = notificationMarkupContext.renderSwitchNotice();
 assert.match(fallbackAvatarNotice, /account-switch-fallback-avatar/);
 assert.match(fallbackAvatarNotice, /generic-user/);
+
+assert.equal(notificationContext.currentSwitchNotice().startedAt, 100);
+for (const elapsed of [0, 250, 900, 1700, 1999]) {
+  notificationMarkupContext.performance.now = () => 100 + elapsed;
+  assert.match(
+    notificationMarkupContext.renderSwitchNotice(),
+    new RegExp(`animation-delay: -${elapsed}ms`),
+    "Account load rerenders must resume the original notice animation",
+  );
+}
+notificationMarkupContext.performance.now = () => 2100;
+assert.equal(notificationMarkupContext.renderSwitchNotice(), "", "Expired notices must not replay while the removal timer waits");
+notificationMarkupContext.accountSwitchNotice.startedAt = 2100;
+assert.match(notificationMarkupContext.renderSwitchNotice(), /animation-delay: -0ms/, "A new switch gets a fresh animation");
+
+const renderSource = extractFunction("render");
+assert.ok(
+  renderSource.indexOf("positionAccountPopover();") < renderSource.indexOf("requestAnimationFrame(() =>"),
+  "Account panel placement must be applied before the first paint after a rerender",
+);
 
 assert.equal(accountSwitchTimeoutDelay, 2000);
 assert.equal(typeof accountSwitchTimeout, "function");
