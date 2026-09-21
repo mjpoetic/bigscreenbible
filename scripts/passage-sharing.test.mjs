@@ -249,6 +249,7 @@ assert.deepEqual(popupContext.state.sharedPassage.verses, [16,17]);
 assert.equal(popupContext.state.verse,17);
 
 const referenceSearch = {
+  normalizedSearchSource: value => value || 'scripture',
   state: { mode:'reader', sharedPassage:{verses:[16,17]}, isVerseOfDayActive:false },
   parseReference: () => ({key:'Proverbs 3',verse:5}),
   parsePassageReference: () => ({key:'Proverbs 3',verse:5,verses:[5,6]}),

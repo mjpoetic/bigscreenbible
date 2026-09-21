@@ -58,7 +58,7 @@ Local test builds cannot receive website updates. Settings → App updates ident
 
 Haptic feedback defaults to on in the native iOS app. Try navigation buttons, Settings switches, and sliders; use Settings → Sounds → Haptic feedback to disable it for this device. Big Screen also has the toggle under Settings → Presenting. Physical feedback must be checked on an iPhone; browser and simulator checks cannot verify its feel. Safari and Home Screen web apps do not receive this native feedback.
 
-Touch and hold the installed app's Home Screen icon for Reader Mode, Parallel Mode, Games, and Search. iOS supports four app quick actions; their template icons reuse the website's SVG glyphs. Search opens Scripture search, using the inline search field when Focus Mode is active. Test each shortcut both after force-closing the app and while it is in the background. The scene delegate queues cold-launch actions until the web app finishes restoring its startup state. These actions require the updated native app and web assets together.
+Touch and hold the installed app's Home Screen icon for Reader Mode, Parallel Mode, Games, and Search. iOS supports four app quick actions; their template icons reuse the website's SVG glyphs. Search opens a focused, blurred-backdrop search popup in every mode. It uses the existing Scripture reference, phrase, and question search; results stay in the current reading mode, while searches from Games open Reader. Test each shortcut both after force-closing the app and while it is in the background. The scene delegate queues cold-launch actions until the web app finishes restoring its startup state. These actions require the updated native app and web assets together.
 
 ### Native iPhone push notifications
 

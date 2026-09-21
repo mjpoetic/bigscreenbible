@@ -4171,6 +4171,7 @@ function currentAppUpdateRestoreState(targetVersion) {
     reference: state.reference,
     verse: state.verse,
     selectedVerses: [...state.selectedVerses],
+    sharedPassage: state.sharedPassage ? { verses: [...state.sharedPassage.verses] } : null,
     focusMode: state.focusMode,
     libraryOpen: state.libraryOpen,
     activeRail: state.activeRail,
@@ -4311,6 +4312,11 @@ function applyAppUpdateRestoreState(restoreState) {
   state.selectedVerses = Array.isArray(restoreState.selectedVerses)
     ? restoreState.selectedVerses.map(Number).filter(Number.isFinite)
     : [];
+  // Older update snapshots omitted this field. Never retain a shared-link
+  // layout inferred from the update URL's ordinary reading reference.
+  state.sharedPassage = Array.isArray(restoreState.sharedPassage?.verses)
+    ? { verses: restoreState.sharedPassage.verses.map(Number).filter(Number.isFinite) }
+    : null;
   state.focusMode = Boolean(restoreState.focusMode);
   state.libraryOpen = Boolean(restoreState.libraryOpen);
   state.activeRail = restoreState.activeRail || state.activeRail;
@@ -23265,11 +23271,20 @@ function levenshteinDistance(a, b, limit = 2) {
   return previous[b.length];
 }
 
-async function applyStartupExperience() {
+async function applyStartupExperience({ updateReload = false } = {}) {
   if (state.startupApplied) return;
   state.startupApplied = true;
   const sharedRef = sharedReferenceFromUrl();
   const requestedMode = requestedModeFromUrl();
+  if (updateReload) {
+    // Updates include ref for reading-position recovery, not shared-link entry.
+    if (sharedRef) setReferenceFromString(sharedRef);
+    const selected = sharedVersesFromUrl();
+    if (selected.length) state.selectedVerses = selected;
+    if (requestedMode) state.mode = requestedMode;
+    state.pendingVerseFocus = false;
+    return;
+  }
   if (sharedRef && setReferenceFromString(sharedRef)) {
     state.tutorialIntroVisible = false;
     const selected = sharedVersesFromUrl();
@@ -26941,7 +26956,7 @@ async function initializeBibleData() {
     ]);
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
-    await applyStartupExperience();
+    await applyStartupExperience({ updateReload: new URL(window.location.href).searchParams.has(appUpdateQueryKey) });
     const updateRestoreState = consumeAppUpdateRestoreState();
     const updateScrollState = applyAppUpdateRestoreState(updateRestoreState);
     stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
@@ -27631,44 +27646,96 @@ document.addEventListener("input", handleHapticStrengthInput, true);
 document.addEventListener("click", handleControlHaptic, true);
 document.addEventListener("change", handleControlHaptic, true);
 
+// This dialog lives outside #app so background startup/version renders cannot
+// replace its input and dismiss the native keyboard.
+function openQuickActionSearch() {
+  const existing = document.getElementById("quickActionSearchDialog");
+  if (existing) {
+    existing.querySelector("input")?.focus({ preventScroll: true });
+    return true;
+  }
+  const dialog = document.createElement("dialog");
+  dialog.id = "quickActionSearchDialog";
+  dialog.className = "quick-action-search-dialog";
+  dialog.setAttribute("aria-label", "Search the Bible");
+  dialog.innerHTML = `
+    <form class="quick-action-search-form" role="search">
+      <label for="quickActionSearchInput">Search the Bible</label>
+      <button class="quick-action-search-close" type="button" aria-label="Close search">${icons.close || "×"}</button>
+      <div class="quick-action-search-row">
+        <input id="quickActionSearchInput" type="search" placeholder="Passage, phrase, or question" aria-label="Search the Bible" autocomplete="off" autocapitalize="none" enterkeyhint="search" autofocus required />
+        <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
+      </div>
+    </form>`;
+  const position = () => {
+    const viewport = fixedPopoverViewport();
+    dialog.style.top = `${viewport.offsetTop + Math.max(16, Math.min(80, viewport.height * 0.1))}px`;
+  };
+  dialog.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (event.target === dialog) {
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+    }
+  });
+  // Keep app/game shortcuts from responding while the modal owns the keyboard.
+  dialog.addEventListener("keydown", (event) => event.stopPropagation());
+  dialog.querySelector(".quick-action-search-close").addEventListener("click", () => dialog.close());
+  dialog.querySelector("form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const query = dialog.querySelector("input").value.trim();
+    if (!query) return;
+    dialog.close();
+    submitQuickActionSearch(query);
+  });
+  dialog.addEventListener("close", () => {
+    window.visualViewport?.removeEventListener("resize", position);
+    window.visualViewport?.removeEventListener("scroll", position);
+    window.removeEventListener("resize", position);
+    dialog.remove();
+  }, { once: true });
+  document.body.append(dialog);
+  position();
+  window.visualViewport?.addEventListener("resize", position);
+  window.visualViewport?.addEventListener("scroll", position);
+  window.addEventListener("resize", position);
+  dialog.showModal();
+  // Synchronous focus stays in the native evaluateJavaScript invocation.
+  dialog.querySelector("input").focus({ preventScroll: true });
+  return true;
+}
+
+function submitQuickActionSearch(query) {
+  state.searchSource = "scripture";
+  resetSearchForSource("scripture");
+  state.selectedVerses = [];
+  state.keyboardSelectionAnchor = null;
+  state.focusReferenceOpen = false;
+  state.settingsOpen = false;
+  state.accountOpen = false;
+  state.presentationSettingsOpen = false;
+  state.streakPopupVisible = false;
+  resetFocusToolSurfaces();
+  if (state.mode === "trivia") switchMode("reader", { immediate: true });
+  return runReferenceOrPhraseSearch(query, { source: "scripture", scope: "all" });
+}
+
 // Called only by the native scene delegate after a Home Screen quick action.
 function handleNativeQuickAction(action) {
   const modes = { reader: "reader", parallel: "parallel", games: "trivia", search: "reader" };
   if (!Object.hasOwn(modes, action) || window.Capacitor?.getPlatform?.() !== "ios") return false;
   if (dataLoading || dataError || !state.startupApplied) return false;
+  if (action === "search") return openQuickActionSearch();
+  document.getElementById("quickActionSearchDialog")?.close();
   state.settingsOpen = false;
   state.accountOpen = false;
   state.presentationSettingsOpen = false;
   state.streakPopupVisible = false;
   state.libraryOpen = false;
   resetFocusToolSurfaces();
-  if (action === "search") {
-    state.searchSource = "scripture";
-    resetSearchForSource("scripture");
-  }
   switchMode(modes[action], { immediate: true });
-  if (action === "search") {
-    // A restored verse selection can cover the search controls on mobile.
-    state.selectedVerses = [];
-    state.keyboardSelectionAnchor = null;
-  }
   // switchMode intentionally skips rendering if this mode is already selected.
   renderPreservingReaderScroll();
-  if (action === "search") {
-    // Rendering Reader can start a remote translation request (for example CEV).
-    // Its completion replaces the input and dismisses the iOS keyboard. Leave
-    // the native action queued until that render has finished, then focus from
-    // the next native evaluateJavaScript call, preserving keyboard permission.
-    if (activeBibleVersionLoadingState()) return false;
-    shortcutWorkspace("Search");
-    if (!state.focusMode) {
-      // Keep focus inside the native evaluateJavaScript call so iOS can open
-      // the software keyboard; an animation-frame callback loses that context.
-      const input = document.getElementById("studySearchInput");
-      input?.focus({ preventScroll: true });
-      input?.select();
-    }
-  }
   return true;
 }
 

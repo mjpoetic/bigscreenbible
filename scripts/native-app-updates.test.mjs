@@ -51,3 +51,43 @@ for (const [href, native, local] of [
   }
 }
 console.log('Native local builds and live-site update detection passed');
+
+const restoreFunctions = ['applyStartupExperience', 'currentAppUpdateRestoreState', 'applyAppUpdateRestoreState']
+  .map(name => {
+    const start = source.search(new RegExp(`(?:async )?function ${name}\\(`));
+    return source.slice(start, source.indexOf('\n}', start) + 2);
+  }).join('\n');
+for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
+  const context = vm.createContext({
+    Date, Number, Boolean,
+    state: { mode, reference: 'Joel 2', verse: 23, selectedVerses: [], focusMode: true,
+      isVerseOfDayActive: true, verseOfDayItem: { reference: 'Joel 2:23' }, sharedPassage: null },
+    bibleData: { 'Joel 2': { verses: [{ n: 23 }] } },
+    captureReaderScroll: () => ({ scriptureTop: 120 }),
+    sharedReferenceFromUrl: () => 'Joel 2:23', requestedModeFromUrl: () => mode,
+    sharedVersesFromUrl: () => [], setReferenceFromString: () => true,
+    applySharedVersionFromUrl: () => { throw new Error('Update must not apply shared-link versions'); },
+    resolvedVerseOfDay: () => { throw new Error('Update must not replace the reading location'); },
+  });
+  vm.runInContext(restoreFunctions, context);
+  const saved = vm.runInContext('currentAppUpdateRestoreState("next")', context);
+  context.state.startVerseOfDay = true;
+  await vm.runInContext('applyStartupExperience({ updateReload: true })', context);
+  assert.equal(context.state.mode, mode);
+  assert.equal(context.state.sharedPassage, null, 'Update references are not shared passages');
+  // Also recover snapshots written before sharedPassage was included.
+  delete saved.sharedPassage;
+  context.state.sharedPassage = { verses: [23] };
+  context.saved = saved;
+  vm.runInContext('applyAppUpdateRestoreState(saved)', context);
+  assert.equal(context.state.sharedPassage, null);
+  assert.equal(context.state.focusMode, true);
+  assert.equal(context.state.isVerseOfDayActive, true);
+  assert.equal(context.state.verse, 23);
+  context.state.sharedPassage = { verses: [23] };
+  context.saved = vm.runInContext('currentAppUpdateRestoreState("next")', context);
+  context.state.sharedPassage = null;
+  vm.runInContext('applyAppUpdateRestoreState(saved)', context);
+  assert.deepEqual([...context.state.sharedPassage.verses], [23], 'Genuine shared passages survive updates');
+}
+console.log('Update startup and shared-passage restoration passed');

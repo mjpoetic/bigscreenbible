@@ -3,66 +3,83 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const handler = source.match(/function handleNativeQuickAction\([^]*?\n\}/)[0];
-const focusHandler = source.match(/function focusFocusModeSearch\([^]*?\n\}/)[0];
-let platform = 'ios', renders = 0, focused = '', selected = '', workspace = '', resetSource = '', desktopVisible = false;
-const animationFrames = [];
-let versionLoading = false, loadOnRender = false;
-const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOpen: true, accountOpen: true, libraryOpen: true };
+let platform = 'ios', renders = 0, popupOpens = 0, searched;
+const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOpen: true, accountOpen: true };
 const context = vm.createContext({
   state, window: { Capacitor: { getPlatform: () => platform } },
-  resetFocusToolSurfaces() {},
-  positionMobileFocusSearch() {},
+  document: { getElementById() { return null; } },
+  openQuickActionSearch() { popupOpens++; return true; },
+  resetFocusToolSurfaces() {}, resetSearchForSource() {},
   switchMode(mode, options) { assert.equal(options.immediate, true); state.mode = mode; },
-  renderPreservingReaderScroll() { renders++; if (loadOnRender) versionLoading = true; },
-  activeBibleVersionLoadingState() { return versionLoading ? { versions: ['CEV'] } : null; },
-  resetSearchForSource(source) { resetSource = source; },
-  shortcutWorkspace(target) { workspace = target; if (state.focusMode) vm.runInContext('focusFocusModeSearch()', context); },
-  requestAnimationFrame(callback) { animationFrames.push(callback); },
-  document: { getElementById(id) { return { getClientRects() { return desktopVisible ? [{}] : []; }, focus() { focused = id; }, select() { selected = id; } }; } },
+  renderPreservingReaderScroll() { renders++; },
+  runReferenceOrPhraseSearch(query, options) { searched = { query, ...options }; },
 });
-vm.runInContext(`let dataLoading = true, dataError = null; ${handler} ${focusHandler}`, context);
+const submit = source.match(/function submitQuickActionSearch\([^]*?\n\}/)[0];
+vm.runInContext(`let dataLoading = true, dataError = null; ${handler} ${submit}`, context);
 const run = code => vm.runInContext(code, context);
-assert.equal(run('handleNativeQuickAction("reader")'), false, 'Cold launch waits for data');
+assert.equal(run('handleNativeQuickAction("search")'), false);
 run('dataLoading = false');
-assert.equal(run('handleNativeQuickAction("reader")'), false, 'Startup preference restoration must finish first');
+assert.equal(run('handleNativeQuickAction("search")'), false);
 state.startupApplied = true;
-for (const [action, mode] of [['reader','reader'], ['parallel','parallel'], ['games','trivia'], ['search','reader']]) {
+for (const [action, mode] of [['reader','reader'], ['parallel','parallel'], ['games','trivia']]) {
   assert.equal(run(`handleNativeQuickAction('${action}')`), true);
   assert.equal(state.mode, mode);
 }
-assert.equal(state.settingsOpen, false); assert.equal(state.accountOpen, false);
-assert.equal(workspace, 'Search'); assert.equal(resetSource, 'scripture');
-assert.equal(focused, 'studySearchInput', 'Search focuses synchronously before the native call returns, without waiting for an animation frame'); assert.equal(selected, focused);
-state.focusMode = true;
-run('handleNativeQuickAction("search")'); assert.equal(focused, 'mobileFocusPassageInput');
-assert.equal(state.focusReferenceOpen, true, 'Mobile search popover is open');
-desktopVisible = true;
-run('handleNativeQuickAction("search")'); assert.equal(focused, 'referenceInput');
-assert.equal(state.focusReferenceOpen, false);
-assert.equal(run('handleNativeQuickAction("constructor")'), false);
-assert.equal(run('handleNativeQuickAction("big")'), false);
-platform = 'web'; assert.equal(run('handleNativeQuickAction("reader")'), false);
-platform = 'ios'; run('dataError = "offline"'); assert.equal(run('handleNativeQuickAction("reader")'), false);
-assert.equal(renders, 8);
-run('dataError = null');
-for (const focusMode of [false, true]) {
-  state.focusMode = focusMode;
-  desktopVisible = false;
-  state.selectedVerses = [23];
-  state.keyboardSelectionAnchor = 23;
-  focused = ''; workspace = '';
-  loadOnRender = true;
-  assert.equal(run('handleNativeQuickAction("search")'), false, 'A translation load started by rendering keeps the native action queued');
-  assert.equal(focused, '', 'Do not open a keyboard that the translation completion will dismiss');
-  assert.equal(workspace, '', 'Wait before opening and focusing Search');
-  assert.equal(state.selectedVerses.length, 0, 'Restored selection toolbar must not cover Search');
-  assert.equal(state.keyboardSelectionAnchor, null);
-  assert.equal(run('handleNativeQuickAction("search")'), false, 'Native retries continue while CEV loads');
-  loadOnRender = false;
-  versionLoading = false;
-  assert.equal(run('handleNativeQuickAction("search")'), true, 'Acknowledge the native action after the translation completion render');
-  assert.equal(focused, focusMode ? 'mobileFocusPassageInput' : 'studySearchInput', 'Focus synchronously from the native retry in both layouts');
+assert.equal(renders, 3);
+for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
+  for (const focusMode of [false, true]) {
+    state.mode = mode; state.focusMode = focusMode;
+    assert.equal(run('handleNativeQuickAction("search")'), true);
+    assert.equal(state.mode, mode, 'Opening the popup preserves the underlying mode');
+    assert.equal(state.focusMode, focusMode);
+    assert.equal(renders, 3, 'No input-destroying app render when opening search');
+    run('submitQuickActionSearch("love")');
+    assert.equal(state.mode, mode === 'trivia' ? 'reader' : mode);
+    assert.equal(searched.query, 'love');
+    assert.equal(searched.source, 'scripture');
+    assert.equal(searched.scope, 'all');
+  }
 }
+assert.equal(popupOpens, 8);
+assert.equal(run('handleNativeQuickAction("constructor")'), false);
+platform = 'web'; assert.equal(run('handleNativeQuickAction("search")'), false);
+platform = 'ios'; run('dataError = "offline"'); assert.equal(run('handleNativeQuickAction("search")'), false);
+// Exercise the real dialog lifecycle, including duplicate actions and cleanup.
+const openPopup = source.match(/function openQuickActionSearch\([^]*?\n\}/)[0];
+let mounted = null, focusedInput = null, searchSubmission = null;
+const listeners = new Map();
+const viewportListeners = new Map();
+const input = { value: '', focus() { focusedInput = this; } };
+const form = { addEventListener(type, fn) { listeners.set(type, fn); } };
+const closeButton = { addEventListener(type, fn) { listeners.set('closeButton', fn); } };
+const dialog = {
+  style: {}, open: false, setAttribute() {},
+  querySelector(selector) { return selector === 'input' ? input : selector === 'form' ? form : closeButton; },
+  addEventListener(type, fn) { listeners.set(type, fn); },
+  showModal() { assert.equal(mounted, this); this.open = true; },
+  close() { this.open = false; listeners.get('close')(); },
+  remove() { mounted = null; },
+};
+const events = { addEventListener(type, fn) { viewportListeners.set(type, fn); }, removeEventListener(type) { viewportListeners.delete(type); } };
+const popupContext = vm.createContext({
+  icons: { search: '<svg></svg>' },
+  document: { getElementById() { return mounted; }, createElement() { return dialog; }, body: { append(node) { mounted = node; } } },
+  window: { ...events, visualViewport: events },
+  fixedPopoverViewport() { return { offsetTop: 0, height: 844 }; },
+  submitQuickActionSearch(query) { searchSubmission = query; },
+});
+vm.runInContext(openPopup, popupContext);
+assert.equal(popupContext.openQuickActionSearch(), true);
+assert.equal(focusedInput, input, 'The real popup focuses immediately');
+input.value = 'John 3:16';
+popupContext.openQuickActionSearch();
+assert.equal(input.value, 'John 3:16', 'Repeated native actions retain typed text');
+let prevented = false;
+listeners.get('submit')({ preventDefault() { prevented = true; } });
+assert.ok(prevented);
+assert.equal(searchSubmission, 'John 3:16');
+assert.equal(mounted, null);
+assert.equal(viewportListeners.size, 0, 'Closing removes viewport listeners');
 const plist = readFileSync(new URL('../ios/App/App/Info.plist', import.meta.url), 'utf8');
 assert.equal((plist.match(/<key>UIApplicationShortcutItemType<\/key>/g) || []).length, 4);
 for (const [action, glyph] of [['reader','book'], ['parallel','parallel'], ['games','games'], ['search','search']]) {
