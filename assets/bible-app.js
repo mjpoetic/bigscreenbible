@@ -733,6 +733,7 @@ const state = {
   settingsPopupPosition: null,
   streakPopoverOpen: false,
   headerVersionMenuOpen: false,
+  portraitNavigationOpen: false,
   footerVersionMenuOpen: false,
   presentationVersionMenuOpen: "",
   presentationReferenceMenuOpen: "",
@@ -1223,10 +1224,10 @@ const tutorialSteps = [
     body: "Use the search field or Search tool. Type a passage like Ecc 9:5, or search remembered words.",
   },
   {
-    target: ".mode-tabs, .presentation-bible-toggle",
+    target: "#portraitNavigationToggle, .mode-tabs, .presentation-bible-toggle",
     spotlightPadding: 5,
     title: "Switch reading spaces",
-    body: "Move between Reader, Parallel Study, Big Screen display, and Games from this mode area.",
+    body: "Move between Reader, Parallel Study, Big Screen display, and Games from this mode area. On smaller screens, open the current mode dropdown to see each action with its label.",
   },
   {
     target: ".chapter-tools",
@@ -1270,7 +1271,7 @@ const tutorialSteps = [
     body: "In paragraph reading, tap a verse number to select, copy, add a note, highlight, or open cross references. Press and hold for cross references directly. In verse rows, Parallel, and shared passages, the number opens cross references.",
   },
   {
-    target: "#focusToggle, #mobileFocusToggle",
+    target: "#focusToggle, #mobileFocusToggle, #portraitNavigationToggle",
     spotlightPadding: 5,
     title: "Make room with Focus Mode",
     body: "Hide the side panels for a calmer reading space. Use Focus, press F, or double-tap blank Scripture space to switch it on or off. Search, Settings, and Focus tools remain available.",
@@ -4793,6 +4794,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     ["big", "Big Screen", icons.screen],
     ["trivia", "Games", icons.games],
   ];
+  const currentModeOption = modeOptions.find(([mode]) => mode === state.mode) || modeOptions[0];
   const focusLabel = state.focusMode ? "Show panels" : "Focus reading";
   const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
@@ -4825,10 +4827,13 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
       ${versionControls}
-      <nav class="mode-tabs" aria-label="View mode">
+      <div class="portrait-navigation ${state.portraitNavigationOpen ? "open" : ""}">
+        <button class="primary-version-toggle portrait-navigation-toggle" id="portraitNavigationToggle" type="button" aria-expanded="${state.portraitNavigationOpen ? "true" : "false"}" aria-controls="headerModeNavigation" aria-label="${currentModeOption[1]}. Choose view mode"><span class="current-mode-icon" aria-hidden="true">${currentModeOption[2]}</span><span class="current-mode-label">${currentModeOption[1]}</span><span aria-hidden="true">⌄</span></button>
+      <nav class="mode-tabs" id="headerModeNavigation" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
-        <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">Focus</span></button>
+        <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">${focusLabel}</span></button>
       </nav>
+      </div>
       <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${headerAccountOpen ? "open" : ""}">
@@ -4859,7 +4864,7 @@ function streakChip() {
   const tooltip = streakTooltip(streak);
   return `
     <div class="streak-menu ${state.streakPopoverOpen ? "open" : ""}">
-      <button class="streak-chip ${state.streakPopoverOpen ? "active" : ""}" id="streakChip" type="button" aria-label="Reading streak. ${escapeHtml(tooltip)}" aria-expanded="${state.streakPopoverOpen ? "true" : "false"}" aria-controls="streakPopover" data-tooltip="${escapeHtml(tooltip)}">
+      <button class="streak-chip ${state.streakPopoverOpen ? "active" : ""}" id="streakChip" type="button" aria-label="Reading streak: ${streak.current} ${streak.current === 1 ? "day" : "days"}. ${escapeHtml(tooltip)}" aria-expanded="${state.streakPopoverOpen ? "true" : "false"}" aria-controls="streakPopover" data-tooltip="${escapeHtml(tooltip)}">
         ${icons.flame}
         <span>
           <strong>${streak.current}</strong>
@@ -17920,8 +17925,10 @@ function bindEvents() {
   bindCrosswordGrid();
   bindHiddenWordGame();
   document.querySelector(".topbar")?.addEventListener("click", handleTopbarScrollTap);
+  bindPortraitNavigation();
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
+      closePortraitNavigation(true);
       switchMode(button.dataset.mode, { audible: true });
     });
   });
@@ -24363,7 +24370,38 @@ function closePresentationSearchOnOutsideClick(event) {
   render();
 }
 
+function closePortraitNavigation(restoreFocus = false) {
+  state.portraitNavigationOpen = false;
+  const menu = document.querySelector(".portrait-navigation.open");
+  if (!menu) return;
+  menu.classList.remove("open");
+  const toggle = document.getElementById("portraitNavigationToggle");
+  toggle?.setAttribute("aria-expanded", "false");
+  if (restoreFocus) toggle?.focus({ preventScroll: true });
+}
+
+function bindPortraitNavigation() {
+  const menu = document.querySelector(".portrait-navigation");
+  const toggle = document.getElementById("portraitNavigationToggle");
+  toggle?.addEventListener("click", () => {
+    const open = menu.classList.toggle("open");
+    state.portraitNavigationOpen = open;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+  menu?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !menu.classList.contains("open")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePortraitNavigation(true);
+  });
+  menu?.addEventListener("focusout", (event) => {
+    if (!menu.contains(event.relatedTarget)) closePortraitNavigation();
+  });
+  document.getElementById("mobileFocusToggle")?.addEventListener("click", () => closePortraitNavigation(true));
+}
+
 function closeOpenPopoversOnOutsidePointerDown(event) {
+  if (!event.target.closest?.(".portrait-navigation")) closePortraitNavigation();
   closeSettingsPopoverOnOutsidePointerDown(event);
   closePresentationSettingsOnOutsidePointerDown(event);
   closeAccountPopoverOnOutsidePointerDown(event);
@@ -26661,7 +26699,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer, .portrait-navigation")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }
