@@ -98,7 +98,7 @@ assert.match(spotlightFunction, /setProperty\("bottom", "auto", "important"\)/);
 assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.tutorial-card \{[\s\S]*?left: calc\(12px \+ env\(safe-area-inset-left, 0px\)\) !important;/);
 
 const visibilityContext = {
-  state: { verseNavCollapsed: true, footerCollapsed: true, tutorialRestoreState: null },
+  state: { verseNavCollapsed: true, footerCollapsed: true, portraitSearchCollapsed: true, tutorialRestoreState: null },
   step: { revealVerseSelector: true },
 };
 vm.createContext(visibilityContext);
@@ -107,7 +107,7 @@ vm.runInContext(`
   ${extractFunction("prepareCurrentTutorialStep")}
   ${extractFunction("restoreTutorialTemporaryState")}
 `, visibilityContext);
-for (const [flag, key] of [["revealVerseSelector", "verseNavCollapsed"], ["revealFooter", "footerCollapsed"]]) {
+for (const [flag, key] of [["revealVerseSelector", "verseNavCollapsed"], ["revealFooter", "footerCollapsed"], ["revealPortraitSearch", "portraitSearchCollapsed"]]) {
   visibilityContext.step = { [flag]: true };
   vm.runInContext("prepareCurrentTutorialStep(); prepareCurrentTutorialStep();", visibilityContext);
   assert.equal(visibilityContext.state[key], false, "The tour reveals a hidden bar, even after repeated preparation");

@@ -23202,13 +23202,13 @@ svg {
 }
 
 /* Portrait reading keeps primary controls visible without an extra disclosure. */
-.portrait-rail-actions { display: none; }
+.portrait-rail-actions, .portrait-search-collapse-toggle { display: none; }
 @media (max-width: 840px) and (orientation: portrait) {
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .mobile-controls-toggle,
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar #shortcutsButton,
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar #settingsToggle { display: none; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .settings-menu { display: contents; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .search {
+  .app-shell:not(.focus-shell) .topbar .mobile-controls-toggle,
+  .app-shell:not(.focus-shell) .topbar #shortcutsButton,
+  .app-shell:not(.focus-shell) .topbar #settingsToggle { display: none; }
+  .app-shell:not(.focus-shell) .topbar .settings-menu { display: contents; }
+  .app-shell:not(.focus-shell) .topbar .search {
     display: flex;
     min-height: 44px;
     grid-column: 1 / 10;
@@ -23217,7 +23217,7 @@ svg {
     width: 100%;
     order: 2;
   }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .versions {
+  .app-shell:not(.focus-shell) .topbar .versions {
     display: flex;
     grid-column: 10 / -1;
     grid-row: 3;
@@ -23228,15 +23228,15 @@ svg {
     max-width: none;
     order: 3;
   }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar :is(.primary-version-control, .version-manager) { width: 100%; min-width: 0; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-manager .version-pill { display: none; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-add-toggle { width: 100%; min-width: 0; padding-inline: 4px; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-add-label { display: none; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-selected-label { display: inline; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .primary-version-menu { left: auto; right: 0; width: min(312px, calc(100vw - 16px)); transform: none; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .portrait-rail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .portrait-rail-actions button { min-height: 44px; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .rail-position-toggle { margin-top: 0; }
+  .app-shell:not(.focus-shell) .topbar :is(.primary-version-control, .version-manager) { width: 100%; min-width: 0; }
+  .app-shell:not(.focus-shell) .topbar .version-manager .version-pill { display: none; }
+  .app-shell:not(.focus-shell) .topbar .version-add-toggle { width: 100%; min-width: 0; padding-inline: 4px; }
+  .app-shell:not(.focus-shell) .topbar .version-add-label { display: none; }
+  .app-shell:not(.focus-shell) .topbar .version-selected-label { display: inline; }
+  .app-shell:not(.focus-shell) .topbar .primary-version-menu { left: auto; right: 0; width: min(312px, calc(100vw - 16px)); transform: none; }
+  .app-shell:not(.focus-shell) .portrait-rail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .app-shell:not(.focus-shell) .portrait-rail-actions button { min-height: 44px; }
+  .app-shell:not(.focus-shell) .rail-position-toggle { margin-top: 0; }
 }
 
 .offline-bible-list {
@@ -23309,3 +23309,28 @@ svg {
   user-select: none;
 }
 .verse-hold-active .selection-bar { pointer-events: none; }
+
+@media (max-width: 840px) and (orientation: portrait) {
+  /* Games has no side rail; keep its utility buttons beside the logo. */
+  .app-shell.trivia-shell .topbar #shortcutsButton,
+  .app-shell.trivia-shell .topbar #settingsToggle {
+    display: grid;
+    place-items: center;
+    grid-row: 1;
+    min-height: 44px;
+    width: 100%;
+    padding: 0;
+  }
+  .app-shell.trivia-shell .topbar #shortcutsButton { grid-column: 9 / 11; }
+  .app-shell.trivia-shell .topbar #settingsToggle { grid-column: 11 / -1; }
+  .app-shell:not(.focus-shell) .topbar .portrait-search-collapse-toggle {
+    display: grid;
+    left: 50%;
+    bottom: -14px;
+    border-radius: 0 0 8px 8px;
+    transform: translateX(-50%);
+  }
+  .portrait-search-collapse-toggle svg { transform: rotate(-90deg); }
+  .portrait-search-collapsed .portrait-search-collapse-toggle svg { transform: rotate(90deg); }
+  .app-shell:not(.focus-shell).portrait-search-collapsed .topbar :is(.search, .versions) { display: none; }
+}

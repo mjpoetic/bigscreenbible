@@ -678,6 +678,7 @@ const state = {
   focusControlsHide: localStorage.getItem("lw_focus_controls_hide") === "true",
   focusControlsHideSeconds: normalizedFocusControlsHideSeconds(localStorage.getItem("lw_focus_controls_hide_seconds")),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
+  portraitSearchCollapsed: localStorage.getItem("lw_portrait_search_collapsed") === "true",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   libraryOpen: localStorage.getItem("lw_library_open") === "true",
   activeRail: "Verse",
@@ -1223,6 +1224,7 @@ const tutorialSteps = [
     target: ".search, [data-rail=Search], #presentationSearchToggle",
     focusTarget: "#mobileFocusPassageToggle, .search",
     spotlightPadding: 5,
+    revealPortraitSearch: true,
     title: "Search by reference or phrase",
     body: "Use the search field or Search tool. Type a passage like Ecc 9:5, or search remembered words.",
   },
@@ -1247,7 +1249,7 @@ const tutorialSteps = [
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "In portrait, Search and Bible versions sit below the mode selector, with Help and Settings at the bottom of the side tools. Swipe to change chapters, pinch to resize Scripture, and double-tap blank reading space to toggle Focus Mode.",
+    body: "In portrait, Search and Bible versions sit below the mode selector, with Help and Settings at the bottom of the side tools. In Games, they sit beside the logo. Use the small arrow below the header to hide or show Search and Bible versions. Swipe to change chapters, pinch to resize Scripture, and double-tap blank reading space to toggle Focus Mode.",
   },
   {
     target: ".rail, #openStudy",
@@ -1636,7 +1638,7 @@ function render() {
   if (state.mode !== "big") state.presentationControlsVisible = true;
   const gamesTabScroll = document.querySelector(".trivia-mode-tabs")?.scrollLeft || 0;
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -4821,7 +4823,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     .join("");
   const versionControls = state.mode === "parallel"
     ? `
-      <div class="versions version-manager ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Selected Bible versions">
+      <div id="headerVersionControl" class="versions version-manager ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Selected Bible versions">
         <button class="primary-version-toggle version-add-toggle" id="versionMenuToggle" type="button" aria-label="Choose Bible versions, ${selectedVersions.length} selected" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}" data-tooltip="Choose Bible versions">
           <span class="version-selected-label">${selectedVersions.length} Selected</span>
           <span aria-hidden="true">⌄</span>
@@ -4831,7 +4833,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </div>
       </div>`
     : `
-      <div class="versions primary-version-control ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Bible version">
+      <div id="headerVersionControl" class="versions primary-version-control ${state.headerVersionMenuOpen ? "open" : ""}" aria-label="Bible version">
         <button class="primary-version-toggle" id="versionMenuToggle" type="button" aria-label="Bible version ${translationDisplayCode(primaryVersion)}" aria-haspopup="listbox" aria-expanded="${state.headerVersionMenuOpen ? "true" : "false"}" data-tooltip="Bible version">
           <span>${translationDisplayCode(primaryVersion)}</span>
           <span aria-hidden="true">⌄</span>
@@ -4869,7 +4871,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </div>
       ` : ""}
       ${streakChip()}
-      <div class="search" data-tooltip="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your notes" : "Search Bible"}">
+      <div class="search" id="portraitSearchBar" data-tooltip="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your notes" : "Search Bible"}">
         <button class="topbar-search-scope" id="topbarSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose top search source, current ${escapeHtml(activeSearchLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search in: ${escapeHtml(activeSearchLabel)}">
           <span class="sr-only">Top search source</span>
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
@@ -4909,6 +4911,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           ${mainSettingsPanelMarkup()}
         </div>
       </div>
+      <button class="bar-collapse-toggle portrait-search-collapse-toggle" id="portraitSearchCollapseToggle" type="button" aria-label="${state.portraitSearchCollapsed ? "Show" : "Hide"} search and Bible versions" aria-controls="portraitSearchBar headerVersionControl" aria-expanded="${!state.portraitSearchCollapsed}" data-tooltip="${state.portraitSearchCollapsed ? "Show" : "Hide"} search and Bible versions">${icons.chevron}</button>
     </header>
   `;
 }
@@ -18756,6 +18759,13 @@ function bindEvents() {
   document.getElementById("tutorialBack")?.addEventListener("click", retreatTutorial);
   document.getElementById("tutorialSkip")?.addEventListener("click", finishTutorial);
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
+  document.getElementById("portraitSearchCollapseToggle")?.addEventListener("click", () => {
+    state.portraitSearchCollapsed = !state.portraitSearchCollapsed;
+    localStorage.setItem("lw_portrait_search_collapsed", String(state.portraitSearchCollapsed));
+    state.headerVersionMenuOpen = false;
+    renderPreservingReaderScroll();
+    document.getElementById("portraitSearchCollapseToggle")?.focus({ preventScroll: true });
+  });
   document.getElementById("verseNavCollapseToggle")?.addEventListener("click", toggleVerseNavCollapsed);
   document.getElementById("footerCollapseToggle")?.addEventListener("click", toggleFooterCollapsed);
   const mobileControlsToggle = document.getElementById("mobileControlsToggle");
@@ -24633,6 +24643,7 @@ function prepareCurrentTutorialStep() {
   const step = currentTutorialStep();
   const revealControls = [
     ["revealVerseSelector", "verseNavCollapsed"],
+    ["revealPortraitSearch", "portraitSearchCollapsed"],
     ["revealFooter", "footerCollapsed"],
   ];
   for (const [reveal, key] of revealControls) {
@@ -24646,7 +24657,7 @@ function prepareCurrentTutorialStep() {
 }
 
 function restoreTutorialTemporaryState() {
-  for (const key of ["verseNavCollapsed", "footerCollapsed"]) {
+  for (const key of ["verseNavCollapsed", "footerCollapsed", "portraitSearchCollapsed"]) {
     if (state.tutorialRestoreState?.[key] !== undefined) {
       state[key] = state.tutorialRestoreState[key];
     }
