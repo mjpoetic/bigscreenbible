@@ -733,6 +733,7 @@ const state = {
   settingsPopupPosition: null,
   streakPopoverOpen: false,
   headerVersionMenuOpen: false,
+  headerVersionMenuAnchor: "button",
   portraitNavigationOpen: false,
   footerVersionMenuOpen: false,
   presentationVersionMenuOpen: "",
@@ -4809,7 +4810,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <div class="brand-subtitle">Bible</div>
         </div>
       </button>
-      ${(state.focusMode || focusBrandVersionHoldEnabled()) && state.headerVersionMenuOpen ? `
+      ${state.headerVersionMenuAnchor === "brand" && state.headerVersionMenuOpen ? `
         <div class="primary-version-menu focus-brand-version-menu" role="listbox" aria-label="${state.mode === "parallel" ? "Selected Bible versions" : "Bible version options"}">
           ${state.mode === "parallel" ? parallelVersionOptions : primaryVersionHeaderOptions}
         </div>
@@ -17119,8 +17120,8 @@ function adjacentPresentationContent(direction) {
 
 function presentationVersionPicker(surface, version = state.versions[0] || "BSB") {
   const open = state.presentationVersionMenuOpen === surface;
-  const menuId = `presentation${surface === "settings" ? "Settings" : "Title"}VersionMenu`;
-  const toggleId = `presentation${surface === "settings" ? "Settings" : "Title"}VersionToggle`;
+  const menuId = `presentation${surface.charAt(0).toUpperCase() + surface.slice(1)}VersionMenu`;
+  const toggleId = `presentation${surface.charAt(0).toUpperCase() + surface.slice(1)}VersionToggle`;
   const options = translationCodes
     .map((code) => `
       <button class="primary-version-option ${translationRecommendation(code) ? "recommended" : ""} ${code === version ? "active" : ""}" type="button" data-presentation-version-option="${code}" data-presentation-version-surface="${surface}" role="option" aria-selected="${code === version ? "true" : "false"}">
@@ -17397,7 +17398,10 @@ function presentation(accountPanelRerender = false) {
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
+            <div class="presentation-search-field">
             <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+            ${presentationVersionPicker("search", version)}
+            </div>
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
@@ -17995,6 +17999,7 @@ function bindEvents() {
     if (state.headerVersionMenuOpen) return closeHeaderVersionMenu();
     state.footerVersionMenuOpen = false;
     state.headerVersionMenuOpen = true;
+    state.headerVersionMenuAnchor = "button";
     renderPreservingReaderScroll();
   });
   bindParallelVersionReordering();
@@ -19198,11 +19203,17 @@ function bindEvents() {
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
   document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("presentationNext")?.addEventListener("click", () => moveVerse(1));
-  document.getElementById("presentationTitleVersionToggle")?.addEventListener("click", () => {
-    state.presentationVersionMenuOpen = state.presentationVersionMenuOpen === "title" ? "" : "title";
-    state.presentationReferenceMenuOpen = "";
-    state.presentationControlsVisible = true;
-    render();
+  ["title", "search"].forEach((surface) => {
+    const label = surface.charAt(0).toUpperCase() + surface.slice(1);
+    document.getElementById(`presentation${label}VersionToggle`)?.addEventListener("click", () => {
+      state.presentationVersionMenuOpen = state.presentationVersionMenuOpen === surface ? "" : surface;
+      state.presentationReferenceMenuOpen = "";
+      state.presentationControlsVisible = true;
+      render();
+    });
+  });
+  document.getElementById("presentationSearchInput")?.addEventListener("input", (event) => {
+    state.searchQuery = event.target.value;
   });
   document.querySelectorAll("[data-presentation-version-option]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -24181,6 +24192,7 @@ function openFocusBrandVersionMenu() {
   state.accountOpen = false;
   state.footerVersionMenuOpen = false;
   state.headerVersionMenuOpen = true;
+  state.headerVersionMenuAnchor = "brand";
   renderPreservingReaderScroll();
 }
 

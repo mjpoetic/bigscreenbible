@@ -23147,3 +23147,56 @@ svg {
 @media (max-width: 840px) and (orientation: landscape) {
   .app-shell .topbar .version-selected-label { white-space: normal; font-size: 11px; }
 }
+
+/* Keep the version picker inside the expanded Big Screen search field. */
+.presentation-search-field {
+  display: none;
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.presentation-search.search-open .presentation-search-field {
+  display: flex;
+  align-items: center;
+}
+.presentation .presentation-search.search-open .presentation-search-field input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 84px;
+}
+.presentation-search.search-open .presentation-search-field {
+  width: 280px;
+}
+.presentation-search-version-control {
+  position: absolute;
+  right: 4px;
+}
+.presentation-search-version-control .presentation-version-picker-toggle {
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 0;
+  border-left: 1px solid var(--presentation-button-border);
+  border-radius: 0;
+  background: transparent;
+}
+.presentation-search-version-control .presentation-version-menu {
+  left: auto;
+  right: -4px;
+  transform: none;
+  max-height: min(360px, calc(100dvh - 100px));
+}
+.presentation-search-version-control.open .presentation-version-menu {
+  animation-name: versionMenuMobileIn;
+}
+.presentation-search-version-control .presentation-version-menu.motion-exit {
+  animation-name: versionMenuMobileOut !important;
+}
+@media (max-width: 840px) {
+  .presentation-search.search-open .presentation-search-field {
+    width: auto;
+    flex: 1 1 180px;
+  }
+  .presentation-search-version-control .presentation-version-menu {
+    width: min(280px, calc(100vw - 96px));
+  }
+}
