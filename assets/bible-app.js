@@ -1231,15 +1231,6 @@ const tutorialSteps = [
     body: "Move between Reader, Parallel Study, Big Screen display, and Games from this mode area. On smaller screens, open the current mode dropdown to see each action with its label.",
   },
   {
-    target: ".chapter-tools",
-    spotlightTarget: ".mobile-verse-nav-selectors, .verse-nav-selectors",
-    revealVerseSelector: true,
-    hideInFocus: true,
-    spotlightPadding: 5,
-    title: "Move around the Bible",
-    body: "The verse selector starts hidden. Use the small arrow below the header to show or hide it, then choose a book, chapter, or verse. The tour temporarily opens hidden controls and restores your choice afterward.",
-  },
-  {
     target: "#footerBar",
     revealFooter: true,
     hideInFocus: true,
@@ -1248,13 +1239,13 @@ const tutorialSteps = [
     body: "The bottom bar has chapter navigation and Bible version controls. Use its small arrow to hide or reveal it whenever you want more reading space.",
   },
   {
-    target: "#mobileControlsToggle, .scripture",
+    target: "#railSettingsToggle, #mobileControlsToggle, .scripture",
     hideInFocus: true,
-    spotlightTarget: "#mobileControlsToggle",
+    spotlightTarget: "#railSettingsToggle, #mobileControlsToggle",
     spotlightRequired: true,
     spotlightPadding: 5,
     title: "Use touch controls on mobile",
-    body: "On phones and tablets, tap More for extra controls or press and hold it to open Settings. Swipe to change chapters, pinch to resize Scripture, and double-tap blank reading space to toggle Focus Mode.",
+    body: "In portrait, Search and Bible versions sit below the mode selector, with Help and Settings at the bottom of the side tools. Swipe to change chapters, pinch to resize Scripture, and double-tap blank reading space to toggle Focus Mode.",
   },
   {
     target: ".rail, #openStudy",
@@ -1280,14 +1271,14 @@ const tutorialSteps = [
     focusBody: "Use Focus, press F, or double-tap blank Scripture space to show the panels again.",
   },
   {
-    target: "#settingsToggle, #mobileControlsToggle",
+    target: "#railSettingsToggle, #settingsToggle, #mobileControlsToggle",
     focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Let the passage scroll for you",
     body: "In Settings, open Reading & navigation, enable auto-scroll controls, and choose a speed. In Reader or Parallel, use the floating Play/Pause button, press A, or tap with two fingers to start or pause.",
   },
   {
-    target: "#settingsToggle, #mobileControlsToggle",
+    target: "#railSettingsToggle, #settingsToggle, #mobileControlsToggle",
     focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Explore the original words",
@@ -1300,7 +1291,7 @@ const tutorialSteps = [
     body: "Tap a verse to copy, share, print, link, or highlight a passage without losing your place.",
   },
   {
-    target: "#settingsToggle, #mobileControlsToggle, #presentationSettingsToggle",
+    target: "#railSettingsToggle, #settingsToggle, #mobileControlsToggle, #presentationSettingsToggle",
     focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Tune the experience",
@@ -1358,7 +1349,7 @@ const accountTutorialStep = {
   target: "#accountQuickButton, #mobileControlsToggle",
   spotlightPadding: 5,
   title: "Save your bookmarks",
-  body: "Open your profile (inside More on smaller screens) to create a free account and sync bookmarks, notes, highlights, settings, and your reading streak across devices.",
+  body: "Open your profile from the account button to create a free account and sync bookmarks, notes, highlights, settings, and your reading streak across devices.",
 };
 
 const presentationAccountTutorialStep = {
@@ -7006,6 +6997,10 @@ function rail() {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}
+    <div class="portrait-rail-actions">
+      <button id="railHelpButton" type="button" aria-label="Help" data-tooltip="Help">?</button>
+      <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
+    </div>
     <button class="rail-position-toggle rail-position-toggle-${nextSide}" type="button" data-side-toolbar-position="${nextSide}" aria-label="${sideToggleLabel}" data-tooltip="${sideToggleLabel}"${sideToggleDisabledAttrs}>${sideToggleIcon}</button>
   </aside>`;
 }
@@ -7270,6 +7265,10 @@ function historyPanel() {
   `;
 }
 
+// Retired in favor of reference search and the Verse side panel. Keep the
+// selector implementation and saved preferences available for a future restore.
+const LEGACY_VERSE_SELECTOR_ENABLED = false;
+
 function reader(chapterChange = null) {
   if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
@@ -7280,7 +7279,7 @@ function reader(chapterChange = null) {
     : null;
   return `
     <section class="reader ${state.sharedPassage ? "shared-passage-active" : ""}">
-      <div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
+      ${LEGACY_VERSE_SELECTOR_ENABLED ? `<div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
         <div class="chapter-tools-clip" id="verseSelectorBar" ${state.verseNavCollapsed ? 'inert aria-hidden="true"' : ""}>
           <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
             <div class="verse-nav-direction verse-nav-direction-before">
@@ -7330,6 +7329,7 @@ function reader(chapterChange = null) {
           </button>
         `}
       </div>
+      ` : ""}
       <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
@@ -18081,6 +18081,8 @@ function bindEvents() {
     renderPreservingReaderScroll();
     requestAnimationFrame(() => positionSettingsPopover("header"));
   });
+  document.getElementById("railSettingsToggle")?.addEventListener("click", () => document.getElementById("settingsToggle")?.click());
+  document.getElementById("railHelpButton")?.addEventListener("click", () => toggleShortcuts(true));
   document.getElementById("settingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("accountQuickButton")?.addEventListener("click", () => toggleAccountMenu());
   document.getElementById("presentationAccountButton")?.addEventListener("click", () => toggleAccountMenu());

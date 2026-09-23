@@ -138,7 +138,7 @@ assert.ok(!focusSteps.some(step => step.revealFooter || step.revealVerseSelector
 assert.equal(tourContext.state.focusMode, true, "Tour adaptation preserves Focus preference");
 tourContext.state.focusMode = false;
 const normalSteps = vm.runInContext("activeTutorialSteps()", tourContext);
-assert.ok(normalSteps.some(step => step.revealVerseSelector));
+assert.ok(!normalSteps.some(step => step.revealVerseSelector), "The tour no longer advertises the retired verse selector");
 assert.ok(normalSteps.some(step => step.target.includes(".rail")));
 tourContext.state.authUser = { id: "test" };
 assert.equal(vm.runInContext("activeTutorialSteps().length", tourContext), normalSteps.length - 1);

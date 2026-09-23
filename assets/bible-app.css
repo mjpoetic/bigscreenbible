@@ -23200,3 +23200,39 @@ svg {
     width: min(280px, calc(100vw - 96px));
   }
 }
+
+/* Portrait reading keeps primary controls visible without an extra disclosure. */
+.portrait-rail-actions { display: none; }
+@media (max-width: 840px) and (orientation: portrait) {
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .mobile-controls-toggle,
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar #shortcutsButton,
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar #settingsToggle { display: none; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .settings-menu { display: contents; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .search {
+    display: flex;
+    min-height: 44px;
+    grid-column: 1 / 10;
+    grid-row: 3;
+    min-width: 0;
+    width: 100%;
+    order: 2;
+  }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .versions {
+    display: flex;
+    grid-column: 10 / -1;
+    grid-row: 3;
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+    order: 3;
+  }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar :is(.primary-version-control, .version-manager) { width: 100%; min-width: 0; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-manager .version-pill { display: none; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-add-toggle { width: 100%; min-width: 0; padding-inline: 4px; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-add-label { display: none; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .version-selected-label { display: inline; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .primary-version-menu { left: auto; right: 0; width: min(312px, calc(100vw - 16px)); transform: none; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .portrait-rail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .portrait-rail-actions button { min-height: 44px; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .rail-position-toggle { margin-top: 0; }
+}
