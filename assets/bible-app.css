@@ -23236,3 +23236,66 @@ svg {
   .app-shell:not(.focus-shell):not(.trivia-shell) .portrait-rail-actions button { min-height: 44px; }
   .app-shell:not(.focus-shell):not(.trivia-shell) .rail-position-toggle { margin-top: 0; }
 }
+
+.offline-bible-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+
+.offline-bible-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.offline-bible-list li > span:last-child {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.offline-bible-list strong, .offline-bible-list small {
+  display: block;
+}
+
+.offline-bible-list small {
+  font-size: 12px;
+  opacity: .75;
+  margin-top: 4px;
+}
+
+.offline-reader-status {
+  position: fixed;
+  z-index: 390;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 4px 12px;
+  border-radius: 24px;
+  background: #17243b;
+  color: #fff;
+  box-shadow: 0 2px 12px #0003;
+  font: 12px/1.4 system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.offline-reader-status button {
+  color: inherit;
+  font: inherit;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.offline-reader-status[hidden] {
+  display: none;
+}

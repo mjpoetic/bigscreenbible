@@ -1668,6 +1668,7 @@ function render() {
   pendingLibraryEnter = false;
   mountMobileGameControls();
   syncAppUpdateNotification();
+  syncOfflineStatus();
   bindEvents();
   // Apply compact account placement before the replacement panel can paint.
   positionAccountPopover();
@@ -3349,7 +3350,7 @@ function bibleVersionSettingsChoices() {
     value: version,
     code: translationDisplayCode(version),
     label: translationLookup[version]?.name || version,
-    detail: translationRecommendation(version),
+    detail: window.bsbOffline?.active ? (isBundledTranslation(version) ? "Available offline" : "Requires internet") : translationRecommendation(version),
     nativeLabel: `${translationDisplayCode(version)} · ${translationLookup[version]?.name || version}`,
   }));
 }
@@ -3952,6 +3953,7 @@ function isLocalNativeAppBuild() {
 }
 
 function localNativeAppUpdateMessage() {
+  if (window.bsbOffline?.active) return "You’re reading the copy installed on this device. Return online for the latest website. Offline Bible updates arrive with an iOS app update.";
   return "This local test build uses files installed on this device and cannot receive website updates. Install the live-site build once to receive future website updates without reinstalling the app.";
 }
 
@@ -3960,7 +3962,7 @@ function appUpdateControls(prefix = "") {
     return `
       <div class="setting-group app-update-settings">
         <div class="app-update-version-row">
-          <span class="setting-label">Local test build</span>
+          <span class="setting-label">${window.bsbOffline?.active ? "Offline edition" : "Local test build"}</span>
           <span class="app-update-version">${escapeHtml(appVersion)}</span>
         </div>
         <p class="setting-help" aria-live="polite">${escapeHtml(localNativeAppUpdateMessage())}</p>
@@ -3989,6 +3991,59 @@ function appUpdateControls(prefix = "") {
 function appUpdateSettings(prefix = "", options = {}) {
   return settingsDisclosure("updates", "App updates", appUpdateControls(prefix), options);
 }
+
+function offlineBibleSettings(prefix = "") {
+  const manifest = window.bsbOffline?.manifest;
+  if (!manifest) return "";
+  return `<section class="settings-page-section" id="${settingsControlId(prefix, "OfflineBibles")}">
+    <h3>Offline Bibles</h3>
+    <p class="setting-help">These complete Bibles are included with the iOS app. No extra download is needed. They remain available without internet.</p>
+    <ul class="offline-bible-list">${manifest.versions.map(({ code, bytes }) => `<li>
+      <span><strong>${escapeHtml(translationDisplayCode(code))}</strong><small>${escapeHtml(translationLookup[code]?.name || code)}</small></span>
+      <span><strong>Installed</strong><small>${(bytes / 1048576).toFixed(1)} MB</small></span>
+    </li>`).join("")}</ul>
+    <p class="setting-help">Included Bibles update with the iOS app and cannot be removed separately. AMP, CEV, ESV, NASB, NIV, NIrV, NKJV and NLT require internet.</p>
+    <p class="setting-help">Offline edition: ${escapeHtml(manifest.version)}. The default reading and interface fonts are included; other fonts may use a system fallback.</p>
+    <button class="ghost-btn" type="button" ${window.bsbOffline.active ? "data-offline-reconnect" : "data-offline-open"}>${window.bsbOffline.active ? "Return online" : "Open offline reader"}</button>
+  </section>`;
+}
+
+function syncOfflineStatus() {
+  if (!window.bsbOffline?.active) return;
+  let status = document.getElementById("offlineReaderStatus");
+  if (!status) {
+    status = document.createElement("div");
+    status.id = "offlineReaderStatus";
+    status.className = "offline-reader-status";
+    status.setAttribute("role", "status");
+    status.innerHTML = '<span>Offline reader</span><button type="button" data-offline-reconnect>Return online</button>';
+    document.body.appendChild(status);
+  }
+  status.hidden = Boolean(state.settingsOpen || state.presentationSettingsOpen || state.accountOpen
+    || state.tutorialActive || state.tutorialIntroVisible || state.streakPopupVisible
+    || (state.mode === "big" && !state.presentationControlsVisible));
+  const footerHeight = document.querySelector(".footer-region")?.getBoundingClientRect().height || 76;
+  status.style.bottom = state.mode === "big" ? "calc(90px + env(safe-area-inset-bottom, 0px))"
+    : state.focusMode || state.footerCollapsed ? "max(8px, env(safe-area-inset-bottom, 0px))"
+      : `${Math.ceil(footerHeight) + 8}px`;
+}
+
+window.addEventListener("bsb-before-offline-navigation", () => {
+  if (dataLoading || dataError) return;
+  saveSnapshotForOwner(accountDataOwner() || guestDataOwner, captureCloudSnapshot());
+  const position = currentAppUpdateRestoreState(appVersion);
+  // The RSS verse is online content. The offline reader opens its reference
+  // using the selected version rather than persisting licensed passage text.
+  position.verseOfDayItem = null;
+  position.isVerseOfDayActive = false;
+  position.owner = accountDataOwner() || guestDataOwner;
+  localStorage.setItem("lw_native_reading_context", JSON.stringify(position));
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-offline-open]")) window.bsbOffline?.open();
+  if (event.target.closest("[data-offline-reconnect]")) window.bsbOffline?.reconnect();
+});
 
 function appUpdateMetadataUrl() {
   const url = new URL("./app-version.json", window.location.href);
@@ -4346,6 +4401,7 @@ const settingsPages = Object.freeze({
   sounds: "Sounds",
   sharing: "Sharing & Printing",
   startup: "Startup & Notifications",
+  offline: "Offline Bibles",
   app: "App, Help & Legal",
 });
 
@@ -4587,6 +4643,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("startup", "PushFriendRequestToggle", "Friend request notifications", "Startup & Notifications", "social activity sign in")}
       ${result("startup", "PushGameChallengeToggle", "Game challenge notifications", "Startup & Notifications", "social activity sign in")}
       ${result("startup", "PushChallengeAcceptedToggle", "Accepted challenge notifications", "Startup & Notifications", "social activity sign in")}
+      ${window.bsbOffline ? result("offline", "OfflineBibles", "Offline Bibles", "Offline Bibles", "download internet storage airplane") : ""}
       ${result("app", "AppUpdateButton", "Check for app updates", "App, Help & Legal", "refresh installed version")}
       ${result("app", "SettingsHelpButton", "Help & Tour", "App, Help & Legal", "keyboard shortcuts guidance")}
       ${result("app", "SettingsAboutButton", "About Big Screen Bible", "App, Help & Legal", "information")}
@@ -4629,6 +4686,7 @@ function mainSettingsRootMarkup(prefix = "") {
       ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds audio volume transition game music result feedback word search")}
       ${settingsDestinationRow("sharing", "Sharing & Printing", `${selectedShareFormat} · ${selectedPrintLayout}`, "copy sharing share format printing print layout verse numbers version name")}
       ${settingsDestinationRow("startup", "Startup & Notifications", startupSummary, "startup reminders notifications morning evening friend requests game challenges streak quiet mode verse of the day")}
+      ${window.bsbOffline ? settingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone", "offline download downloaded internet storage airplane BSB KJV WEB ASV BBE YLT") : ""}
       ${settingsDestinationRow("app", "App, Help & Legal", `Version ${appVersion}`, "app updates check refresh help tour keyboard shortcuts about legal privacy terms")}
     </nav>
     ${settingsDeepSearchResultsMarkup(prefix)}
@@ -4649,6 +4707,7 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
     `;
   }
   if (page === "reading") return `${displaySettings(prefix, drilldown)}${readingSettings(prefix, drilldown)}`;
+  if (page === "offline") return offlineBibleSettings(prefix);
   if (page === "sounds") return soundsSettings(prefix, drilldown);
   if (page === "sharing") return `${sharingSettings(prefix, drilldown)}${printingSettings(prefix, drilldown)}`;
   if (page === "startup") return startupReminderSettings(prefix, drilldown);
@@ -6302,6 +6361,13 @@ function accountSignInCard(prefix = "", options = {}) {
 }
 
 function accountPanel(prefix = "") {
+  if (window.bsbOffline?.active) {
+    const owner = accountDataOwner();
+    const account = rememberedAccounts().find(item => item.userId === owner);
+    return `<section class="account-card"><span class="setting-label">Offline reading</span>
+      <p>${account ? `Changes stay with ${escapeHtml(account.email || "your saved account")}.` : "Changes are saved on this device."} Reconnect to sign in, switch accounts or sync.</p>
+      <button class="ghost-btn" type="button" data-offline-reconnect>Return online</button></section>`;
+  }
   const suffix = prefix ? `${prefix}-` : "";
   const email = state.authUser?.email || "";
   const signedOutStatus = "Sign in or create an account to carry your settings, bookmarks, notes, highlights, and streak across devices.";
@@ -7711,6 +7777,9 @@ function parallelVerseMarkup(verse, version) {
 }
 
 function getVerseText(verse, version, chapterKey = state.reference) {
+  if (window.bsbOffline?.active && isRemoteTranslation(version)) {
+    return `${translationDisplayCode(version)} requires internet. Choose an included offline Bible in Settings.`;
+  }
   if (verse[version]) return verse[version];
   if (isRemoteTranslation(version)) {
     ensureRemoteBibleVersion(version, chapterKey);
@@ -8478,6 +8547,7 @@ async function notePushVisit(force = false) {
 }
 
 function createSupabaseClient() {
+  if (window.bsbOffline?.active || window.bsbOfflineStorageFailed) return null;
   if (state.authClient) return state.authClient;
   if (!state.authConfigured) return null;
   if (!window.supabase?.createClient) {
@@ -8506,6 +8576,16 @@ async function authenticatedSupabaseSession(client = createSupabaseClient()) {
 }
 
 async function initializeSupabaseAuth() {
+  if (window.bsbOfflineStorageFailed) return;
+  if (window.bsbOffline?.active) {
+    const key = `lw_offline_changes:${accountDataOwner() || guestDataOwner}`;
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ base: captureCloudSnapshot() }));
+    state.syncStatus = "local";
+    state.syncMessage = "Saved on this device. Reconnect to sync.";
+    // Retain the owner and local account snapshots. No token refresh, guest
+    // activation or account switching is attempted from the offline origin.
+    return;
+  }
   state.authConfigured = isSupabaseConfigured();
   if (!state.authConfigured) {
     state.syncStatus = "local";
@@ -11002,9 +11082,14 @@ async function loadCloudSync() {
     if (error) throw error;
     if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
     const latestLocal = captureCloudSnapshot();
-    const nextSnapshot = data ? mergeCloudSnapshots(data, latestLocal) : latestLocal;
+    const offlineKey = `lw_offline_changes:${userId}`;
+    const offlineChanges = localStorage.getItem(offlineKey);
+    let offlineBase = null;
+    try { offlineBase = JSON.parse(offlineChanges || "null")?.base; } catch {}
+    const nextSnapshot = applyOfflineChanges(data ? mergeCloudSnapshots(data, latestLocal) : latestLocal, offlineBase, latestLocal);
     applyCloudSnapshot(nextSnapshot);
     await upsertCloudSnapshot(nextSnapshot, { quiet: true });
+    if (state.authUser?.id === userId && localStorage.getItem(offlineKey) === offlineChanges) localStorage.removeItem(offlineKey);
     state.syncStatus = "synced";
     state.syncMessage = "Synced across your signed-in devices.";
     state.lastCloudSyncAt = new Date().toISOString();
@@ -11019,7 +11104,33 @@ async function loadCloudSync() {
   }
 }
 
+// Reapply only locally changed fields after the normal account merge. This
+// preserves offline removals (which a union merge would otherwise resurrect)
+// without replacing unrelated changes made on another device.
+function applyOfflineChanges(merged, base, local) {
+  if (!base || !local) return merged;
+  const result = { ...merged };
+  for (const field of ["settings", "notes", "highlights"]) {
+    result[field] = { ...merged[field] };
+    const before = base[field] || {};
+    const after = local[field] || {};
+    for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      if (["gameRecords", "wordSearchRecentPassages"].includes(key) && field === "settings") continue;
+      if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
+      if (Object.hasOwn(after, key)) result[field][key] = after[key];
+      else delete result[field][key];
+    }
+  }
+  const removed = new Set((base.bookmarks || []).filter(ref => !(local.bookmarks || []).includes(ref)));
+  result.bookmarks = (merged.bookmarks || []).filter(ref => !removed.has(ref));
+  return result;
+}
+
 function scheduleCloudSync() {
+  if (window.bsbOffline?.active) {
+    saveSnapshotForOwner(accountDataOwner() || guestDataOwner, captureCloudSnapshot());
+    return;
+  }
   if (!state.authClient || !state.authUser) return;
   clearTimeout(cloudSyncTimer);
   state.syncStatus = "pending";
@@ -11095,6 +11206,9 @@ function readerView() {
   if (state.sharedPassage) return sharedPassageReaderView();
   if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView();
   const version = state.versions[0] || "BSB";
+  if (window.bsbOffline?.active && isRemoteTranslation(version)) {
+    return `<h1 class="section-title">${escapeHtml(state.reference)}</h1><p class="offline-version-unavailable">${escapeHtml(translationDisplayCode(version))} requires internet. Choose BSB, KJV, WEB, ASV, BBE or YLT in the Bible version menu to keep reading offline.</p>`;
+  }
   const chapter = currentChapter();
   const useParagraphs = shouldUseParagraphLayout(version, chapter);
   return `
@@ -17176,6 +17290,7 @@ function presentationSettingsDisclosure(key, label, content) {
 const presentationSettingsPages = Object.freeze({
   look: "Look & Feel",
   presenting: "Presenting",
+  offline: "Offline Bibles",
   app: "Help & App",
 });
 
@@ -17225,6 +17340,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
           ${presentationSettingsDestinationRow("presenting", "Presenting", `Sharing · Sound ${state.modeTransitionSounds ? "on" : "off"}`)}
+          ${window.bsbOffline ? presentationSettingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone") : ""}
           ${presentationSettingsDestinationRow("app", "Help & App", `Version ${appVersion}`)}
         </nav>
       </div>
@@ -17232,7 +17348,9 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
   }
 
   let content = "";
-  if (page === "look") {
+  if (page === "offline") {
+    content = offlineBibleSettings("presentation");
+  } else if (page === "look") {
     content = `
       <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip("Big Screen"))}">
         <span>Theme family</span>
@@ -23104,6 +23222,7 @@ function balanceResultGroup(results, versionOrder) {
 }
 
 async function searchRemoteVersions(query, criteria, scope = "all", currentChapter = "") {
+  if (window.bsbOffline?.active) return [];
   const candidates = criteria.questionAnalysis?.isQuestion
     ? uniqueList(state.versions.filter(isRemoteTranslation))
     : translationCodes.filter(isRemoteTranslation);
@@ -23114,6 +23233,7 @@ async function searchRemoteVersions(query, criteria, scope = "all", currentChapt
 }
 
 async function searchSemanticBible(query, criteria, scope = "all", currentChapter = "") {
+  if (window.bsbOffline?.active) return [];
   if (!criteria.questionAnalysis?.isQuestion) return [];
   const config = window.BigScreenBibleSupabase || {};
   const url = supabaseFunctionUrl("semantic-bible-search");
@@ -23157,6 +23277,7 @@ async function searchSemanticBible(query, criteria, scope = "all", currentChapte
 }
 
 async function searchRemoteVersion(version, query, criteria, scope = "all", currentChapter = "") {
+  if (window.bsbOffline?.active) return [];
   const provider = translationProvider(version);
   const config = window.BigScreenBibleSupabase || {};
   const params = provider === bibleProviders.apiBible
@@ -26990,6 +27111,12 @@ function normalizeAliasKey(value) {
 }
 
 async function initializeBibleData() {
+  if (window.bsbOfflineStorageFailed) {
+    dataError = "Your saved reading data could not be restored. Free some device storage and restart the app. Your saved native copy has been kept.";
+    dataLoading = false;
+    render();
+    return;
+  }
   render();
   if (state.strongNumbers) loadStrongLexicon();
   try {
@@ -27009,7 +27136,15 @@ async function initializeBibleData() {
     await Promise.all([...bundledVersions].map(loadBibleVersion));
     rebuildBibleData();
     await applyStartupExperience({ updateReload: new URL(window.location.href).searchParams.has(appUpdateQueryKey) });
-    const updateRestoreState = consumeAppUpdateRestoreState();
+    let offlineRestoreState = null;
+    if (window.bsbOffline) {
+      try {
+        offlineRestoreState = JSON.parse(localStorage.getItem("lw_native_reading_context") || "null");
+        localStorage.removeItem("lw_native_reading_context");
+        if (offlineRestoreState?.owner !== (accountDataOwner() || guestDataOwner)) offlineRestoreState = null;
+      } catch { /* Use ordinary startup if a saved position is invalid. */ }
+    }
+    const updateRestoreState = consumeAppUpdateRestoreState() || offlineRestoreState;
     const updateScrollState = applyAppUpdateRestoreState(updateRestoreState);
     stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
     dataLoading = false;
@@ -27019,6 +27154,7 @@ async function initializeBibleData() {
     window.setTimeout(maybeCheckForAppUpdate, 1200);
   } catch (error) {
     console.error(error);
+    if (window.bsbOffline && !window.bsbOffline.active) window.bsbOffline.open();
     dataError = "The full Bible text files could not be loaded.";
     dataLoading = false;
     render();
@@ -27101,6 +27237,7 @@ function verseOfDayReferenceLabel(item = state.verseOfDayItem) {
 }
 
 async function fetchVerseOfDayItem() {
+  if (window.bsbOffline?.active) return null;
   if (state.verseOfDayItem) return state.verseOfDayItem;
   if (verseOfDayRequest) return verseOfDayRequest;
 
@@ -27148,6 +27285,7 @@ function trackApiBibleView(fumsToken) {
 }
 
 async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
+  if (window.bsbOffline?.active) return null;
   if (!isRemoteTranslation(version)) return null;
   const loadKey = remoteVersionLoadKey(version, chapterKey);
   if (remoteVersionData.has(loadKey)) return remoteVersionData.get(loadKey);
@@ -27354,6 +27492,7 @@ function loadBibleBundleScript(name, options = {}) {
         resolve();
         return;
       }
+      if (window.bsbOffline && !window.bsbOffline.active) window.bsbOffline.open();
       reject(error);
     }, { once: true });
     document.head.appendChild(script);
@@ -27684,7 +27823,7 @@ const startupLoaderPreview = new URLSearchParams(window.location.search).has("lo
 if (startupLoaderPreview) {
   document.documentElement.dataset.loaderPreview = "true";
 } else {
-  initializePushNotifications().finally(() => {
+  (window.bsbOffline?.active ? Promise.resolve() : initializePushNotifications()).finally(() => {
     if (!dataLoading && !dataError) renderPreservingReaderScroll();
     maybeOfferPushNotifications();
   });

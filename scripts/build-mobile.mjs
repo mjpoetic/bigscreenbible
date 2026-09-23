@@ -1,4 +1,5 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,5 +46,22 @@ for (const htmlFile of ["index.html", "about.html"]) {
     ),
   );
 }
+
+// The fallback must not wait for CDN scripts or font stylesheets to time out.
+// Account authentication stays on the live origin; the offline reader preserves
+// account-owned local data without loading an auth client or copying tokens.
+const offlineHTML = readFileSync(path.join(outDir, "index.html"), "utf8")
+  .replace(/<script\b[^>]*\bsrc="https:\/\/[^\"]*"[^>]*><\/script>/g, "")
+  .replace(/<link\b[^>]*\bhref="https:\/\/fonts\.[^\"]*"[^>]*>/g, "")
+  .replace("</head>", '<link rel="stylesheet" href="./assets/fonts/offline.css" />\n</head>');
+writeFileSync(path.join(outDir, "offline.html"), offlineHTML);
+const versions = ["BSB", "KJV", "WEB", "ASV", "BBE", "YLT"].map(code => {
+  const data = readFileSync(path.join(outDir, "assets/bibles", `${code}.js`));
+  return { code, bytes: data.length, sha256: createHash("sha256").update(data).digest("hex") };
+});
+writeFileSync(path.join(outDir, "offline-bibles.json"), JSON.stringify({
+  version: JSON.parse(readFileSync(path.join(rootDir, "app-version.json"), "utf8")).version,
+  versions,
+}));
 
 console.log(`Mobile web assets copied to ${path.relative(rootDir, outDir)}/`);

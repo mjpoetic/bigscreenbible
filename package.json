@@ -69,7 +69,8 @@
     "test:haptics": "node scripts/haptics.test.mjs",
     "test:ios-quick-actions": "node scripts/ios-quick-actions.test.mjs",
     "test:printing": "node scripts/native-print.test.mjs",
-    "test:native-push": "node scripts/native-push.test.mjs && deno test --allow-env supabase/functions/_shared/apns.test.ts"
+    "test:native-push": "node scripts/native-push.test.mjs && deno test --allow-env supabase/functions/_shared/apns.test.ts",
+    "test:offline": "node scripts/native-offline.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",

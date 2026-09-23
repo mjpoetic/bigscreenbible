@@ -105,10 +105,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
 // Expose only the public APNs environment, never a provider signing credential.
 class BSBBridgeViewController: CAPBridgeViewController {
+    private let offlineStore = BSBOfflineStore()
+
+    override func instanceDescriptor() -> InstanceDescriptor {
+        let descriptor = super.instanceDescriptor()
+        // Keep production on the live site; Capacitor serves this from its local
+        // asset handler when the top-level network navigation fails.
+        descriptor.errorPath = "offline.html"
+        return descriptor
+    }
+
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(BSBPrintPlugin())
         bridge?.registerPluginInstance(BSBBrowserPlugin())
         bridge?.registerPluginInstance(BSBHapticsPlugin())
+        offlineStore.controller = self
+        offlineStore.armLaunchTimeout()
     }
 
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
@@ -120,7 +132,123 @@ class BSBBridgeViewController: CAPBridgeViewController {
         configuration.userContentController.addUserScript(WKUserScript(
             source: "window.bsbAPNSEnvironment = '\(environment)'; window.bsbNativePushAvailable = \(pushAvailable);",
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        offlineStore.install(on: configuration.userContentController)
         return super.webView(with: frame, configuration: configuration)
+    }
+}
+
+// A single app-owned snapshot keeps the website and bundled reader in step.
+// Session credentials are deliberately excluded; offline reading never signs in.
+private final class BSBOfflineStore: NSObject, WKScriptMessageHandler {
+    weak var controller: BSBBridgeViewController?
+    private weak var contentController: WKUserContentController?
+    private var launchTimeout: DispatchWorkItem?
+    private var template = ""
+    private var manifest = "{}"
+    private var snapshot: [String: String]?
+    private var storageHealthy = true
+    private let marker = "/* BSB_NATIVE_OFFLINE_BRIDGE:"
+    private var storageURL: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("BSBOffline", isDirectory: true)
+            .appendingPathComponent("reader-state.json")
+    }
+
+    func install(on content: WKUserContentController) {
+        guard let root = Bundle.main.resourceURL?.appendingPathComponent("public"),
+              let source = try? String(contentsOf: root.appendingPathComponent("assets/native-offline-bridge.js"), encoding: .utf8),
+              let catalog = try? String(contentsOf: root.appendingPathComponent("offline-bibles.json"), encoding: .utf8)
+        else { return }
+        template = source
+        manifest = catalog
+        if let url = storageURL, let data = try? Data(contentsOf: url) {
+            snapshot = try? JSONDecoder().decode([String: String].self, from: data)
+        }
+        contentController = content
+        content.add(self, name: "bsbOffline")
+        updateScript()
+    }
+
+    private func updateScript() {
+        guard let content = contentController, !template.isEmpty else { return }
+        let encoded = snapshot.flatMap { try? JSONEncoder().encode($0) }
+            .flatMap { String(data: $0, encoding: .utf8) } ?? "null"
+        let source = template.replacingOccurrences(of: "__BSB_OFFLINE_MANIFEST__", with: manifest)
+            .replacingOccurrences(of: "__BSB_OFFLINE_SEED__", with: encoded)
+        // Preserve Capacitor/plugin scripts while updating the seed for the next
+        // document. Never evaluate the seed over a running application's state.
+        let retained = content.userScripts.filter { !$0.source.hasPrefix(marker) }
+        content.removeAllUserScripts()
+        retained.forEach { content.addUserScript($0) }
+        content.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+    }
+
+    func armLaunchTimeout() {
+        launchTimeout?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.openOffline() }
+        launchTimeout = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: work)
+    }
+
+    private func openOffline() {
+        launchTimeout?.cancel()
+        guard let webView = controller?.webView,
+              let local = controller?.bridge?.config.localURL,
+              webView.url?.path != "/offline.html" else { return }
+        webView.stopLoading()
+        webView.isOpaque = true
+        webView.load(URLRequest(url: local.appendingPathComponent("offline.html")))
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        let origin = message.frameInfo.securityOrigin
+        guard message.frameInfo.isMainFrame,
+              (origin.protocol == "https" && origin.host == "bigscreenbible.com" && [0, 443].contains(origin.port))
+                || (message.frameInfo.isMainFrame && origin.protocol == "capacitor" && origin.host == "localhost"),
+              let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
+        switch action {
+        case "snapshot":
+            guard let values = body["values"] as? [String: String],
+                  values.keys.allSatisfy({ $0.hasPrefix("lw_") && !$0.hasPrefix("lw_account_session:") }) else { return }
+            guard let data = try? JSONEncoder().encode(values), data.count <= 10 * 1024 * 1024,
+                  let url = storageURL else {
+                storageHealthy = false
+                return
+            }
+            do {
+                var directory = url.deletingLastPathComponent()
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                var resources = URLResourceValues()
+                resources.isExcludedFromBackup = true
+                try directory.setResourceValues(resources)
+                try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                snapshot = values
+                storageHealthy = true
+                updateScript()
+            } catch {
+                // Do not navigate away from unsaved data.
+                controller?.webView?.evaluateJavaScript("window.bsbOfflineStorageFailed = true", completionHandler: nil)
+                storageHealthy = false
+            }
+        case "ready": launchTimeout?.cancel()
+        case "offline":
+            guard canLeaveReader() else { return }
+            openOffline()
+        case "reconnect":
+            guard canLeaveReader() else { return }
+            guard let webView = controller?.webView, let url = URL(string: "https://bigscreenbible.com/") else { return }
+            armLaunchTimeout()
+            webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10))
+        default: break
+        }
+    }
+
+    private func canLeaveReader() -> Bool {
+        guard !storageHealthy else { return true }
+        let alert = UIAlertController(title: "Could not save reading data", message: "Free some storage on this iPhone and try again. Your current reader will stay open.", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        controller?.present(alert, animated: true)
+        return false
     }
 }
 
