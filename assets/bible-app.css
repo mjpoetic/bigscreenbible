@@ -23299,3 +23299,11 @@ svg {
 .offline-reader-status[hidden] {
   display: none;
 }
+
+/* Native hold selection keeps WebKit callouts out of the Scripture gesture. */
+.native-verse-selection [data-verse] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.verse-hold-active .selection-bar { pointer-events: none; }

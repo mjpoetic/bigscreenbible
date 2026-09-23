@@ -337,6 +337,8 @@ let readerChapterEdgeBuffer = null;
 let chapterNavigationTransitionTimer = 0;
 let chapterNavigationInProgress = false;
 let readerTouchGesture = null;
+let readerVerseHold = null;
+let suppressReaderVerseClickUntil = 0;
 let readerBlankTapStart = null;
 let lastReaderBlankTap = null;
 let readerGestureFeedbackTimer = 0;
@@ -1591,6 +1593,7 @@ function restoreAccountPanelScroll(scrollState) {
 }
 
 function render() {
+  finishReaderVerseHold();
   parallelVersionDragCleanup?.();
   pauseReaderAutoScroll({ updateControl: false });
   closeSearchScopeMenu();
@@ -19480,6 +19483,7 @@ function bindEvents() {
   document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
     toggleReaderAutoScroll({ announce: false });
   });
+  bindReaderVerseHold(scriptureTouchSurface);
   bindReaderChapterEdgeBuffer(scriptureTouchSurface);
   scriptureTouchSurface?.addEventListener("wheel", handleReaderChapterWheel, { passive: false });
   scriptureTouchSurface?.addEventListener("pointerdown", (event) => {
@@ -25804,6 +25808,160 @@ function beginReaderBlankTap(event, surface) {
     mode: state.mode,
     reference: state.reference,
   };
+}
+
+function bindReaderVerseHold(surface) {
+  if (!surface || window.Capacitor?.getPlatform?.() !== "ios"
+    || !window.Capacitor?.isNativePlatform?.()) return;
+  surface.classList.add("native-verse-selection");
+  surface.addEventListener("touchstart", beginReaderVerseHold, { passive: true });
+  surface.addEventListener("contextmenu", (event) => {
+    if (event.target.closest?.("[data-verse]") && !event.target.closest?.("button, a, input")) event.preventDefault();
+  });
+  surface.addEventListener("click", (event) => {
+    if (Date.now() < suppressReaderVerseClickUntil) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
+}
+
+function beginReaderVerseHold(event) {
+  if (event.touches.length !== 1) return;
+  finishReaderVerseHold();
+  const surface = event.currentTarget;
+  const row = event.target.closest?.("[data-verse]");
+  if (!canUseReaderChapterSwipe() || event.touches.length !== 1 || !row
+    || !surface.contains(row)
+    || event.target.closest?.("button, a, input, select, textarea, [role='button'], [contenteditable='true']")) return;
+  const touch = event.touches[0];
+  const gesture = readerVerseHold = {
+    surface, anchor: Number(row.dataset.verse), end: null, identifier: touch.identifier,
+    x: touch.clientX, y: touch.clientY, startX: touch.clientX, startY: touch.clientY,
+    reference: state.reference, mode: state.mode, active: false,
+    verses: [...new Set([...surface.querySelectorAll("[data-verse]")].map(item => Number(item.dataset.verse)))].sort((a, b) => a - b),
+  };
+  document.addEventListener("touchstart", interruptReaderVerseHold, true);
+  document.addEventListener("touchmove", moveReaderVerseHold, { capture: true, passive: false });
+  document.addEventListener("touchend", endReaderVerseHold, { capture: true, passive: false });
+  document.addEventListener("touchcancel", endReaderVerseHold, true);
+  window.addEventListener("blur", endReaderVerseHold);
+  document.addEventListener("visibilitychange", endReaderVerseHold);
+  gesture.timer = setTimeout(() => {
+    if (readerVerseHold !== gesture || !surface.isConnected || document.hidden) return finishReaderVerseHold();
+    gesture.active = true;
+    pauseReaderAutoScroll();
+    cancelReaderChapterSwipe();
+    cancelReaderTouchGesture();
+    state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
+    state.returnSelectionToolsOpen = true;
+    state.keyboardSelectionAnchor = null;
+    surface.classList.add("verse-hold-active");
+    updateReaderVerseHold(gesture.anchor);
+    playNativeHaptic();
+    gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
+  }, 400);
+}
+
+function interruptReaderVerseHold(event) {
+  if (event.touches.length <= 1) return;
+  const gesture = readerVerseHold;
+  if (!gesture?.active) return finishReaderVerseHold();
+  gesture.active = false;
+  gesture.suspended = true;
+  cancelAnimationFrame(gesture.frame);
+  gesture.surface.classList.remove("verse-hold-active");
+}
+
+function updateReaderVerseHold(verse) {
+  const gesture = readerVerseHold;
+  if (!gesture?.active || gesture.end === verse || !gesture.verses.includes(verse)) return;
+  const previous = gesture.end;
+  gesture.end = verse;
+  state.verse = verse;
+  state.selectedVerses = gesture.verses.filter(value => value >= Math.min(gesture.anchor, verse) && value <= Math.max(gesture.anchor, verse));
+  gesture.surface.querySelectorAll("[data-verse]").forEach(row => {
+    const number = Number(row.dataset.verse);
+    row.classList.toggle("selected", number === verse);
+    row.classList.toggle("passage-selected", state.selectedVerses.includes(number));
+    row.classList.toggle("highlight-selected", Boolean(highlightClassForVerse(number)) && (number === verse || state.selectedVerses.includes(number)));
+  });
+  const shell = gesture.surface.closest(".app-shell");
+  shell?.classList.add("has-selection");
+  shell?.classList.remove("selection-tools-collapsed");
+  const bar = gesture.surface.querySelector(".selection-bar");
+  if (bar) bar.outerHTML = selectionBar();
+  else gesture.surface.insertAdjacentHTML("afterbegin", selectionBar());
+  if (previous !== null) playNativeHaptic("tick");
+}
+
+function moveReaderVerseHold(event) {
+  const gesture = readerVerseHold;
+  if (!gesture || gesture.suspended) return;
+  const touch = [...event.touches].find(item => item.identifier === gesture.identifier);
+  if (!touch || event.touches.length !== 1) return finishReaderVerseHold();
+  gesture.x = touch.clientX;
+  gesture.y = touch.clientY;
+  if (!gesture.active) {
+    if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) > 10) finishReaderVerseHold();
+    return;
+  }
+  if (event.cancelable) event.preventDefault();
+  event.stopImmediatePropagation();
+  hitTestReaderVerseHold();
+}
+
+function hitTestReaderVerseHold() {
+  const gesture = readerVerseHold;
+  if (!gesture?.active) return;
+  const row = document.elementFromPoint(gesture.x, gesture.y)?.closest("[data-verse]");
+  if (row && gesture.surface.contains(row)) updateReaderVerseHold(Number(row.dataset.verse));
+}
+
+function scrollReaderVerseHold(time) {
+  const gesture = readerVerseHold;
+  if (!gesture?.active) return;
+  if (!gesture.surface.isConnected || state.reference !== gesture.reference || state.mode !== gesture.mode) return finishReaderVerseHold();
+  const rect = gesture.surface.getBoundingClientRect();
+  const top = Math.max(0, rect.top), bottom = Math.min(window.innerHeight, rect.bottom);
+  const band = Math.min(64, (bottom - top) / 4);
+  const speed = gesture.y < top + band ? -Math.min(1, (top + band - gesture.y) / band)
+    : gesture.y > bottom - band ? Math.min(1, (gesture.y - bottom + band) / band) : 0;
+  const elapsed = Math.min(32, gesture.lastFrame ? time - gesture.lastFrame : 16);
+  gesture.lastFrame = time;
+  if (speed) {
+    gesture.surface.scrollTop += speed * elapsed * 0.45;
+    hitTestReaderVerseHold();
+  }
+  gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
+}
+
+function endReaderVerseHold(event) {
+  const suspended = readerVerseHold?.suspended;
+  if (suspended && event?.touches?.length) return;
+  const active = readerVerseHold?.active;
+  if (active && event?.cancelable) event.preventDefault();
+  if (active && event?.type === "touchend") event.stopImmediatePropagation();
+  finishReaderVerseHold();
+  if (active) renderPreservingReaderScroll();
+  else if (suspended) setTimeout(() => renderPreservingReaderScroll(), 0);
+}
+
+function finishReaderVerseHold() {
+  const gesture = readerVerseHold;
+  if (!gesture) return;
+  readerVerseHold = null;
+  clearTimeout(gesture.timer);
+  cancelAnimationFrame(gesture.frame);
+  gesture.surface.classList.remove("verse-hold-active");
+  if (gesture.active || gesture.suspended) suppressReaderVerseClickUntil = Date.now() + 700;
+  document.removeEventListener("touchstart", interruptReaderVerseHold, true);
+  document.removeEventListener("touchmove", moveReaderVerseHold, true);
+  document.removeEventListener("touchend", endReaderVerseHold, true);
+  document.removeEventListener("touchcancel", endReaderVerseHold, true);
+  window.removeEventListener("blur", endReaderVerseHold);
+  document.removeEventListener("visibilitychange", endReaderVerseHold);
 }
 
 function handleReaderGestureStart(event) {

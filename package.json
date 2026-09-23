@@ -66,6 +66,7 @@
     "cap:open:android": "npm run cap:sync && npx cap open android",
     "cap:ios:local": "node scripts/prepare-ios-local.mjs --open",
     "cap:ios:live": "npm run build:mobile && npx cap sync ios",
+    "test:verse-hold": "node scripts/verse-hold.test.mjs",
     "test:haptics": "node scripts/haptics.test.mjs",
     "test:ios-quick-actions": "node scripts/ios-quick-actions.test.mjs",
     "test:printing": "node scripts/native-print.test.mjs",
