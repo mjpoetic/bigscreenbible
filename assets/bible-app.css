@@ -23221,6 +23221,8 @@ svg {
     display: flex;
     grid-column: 10 / -1;
     grid-row: 3;
+    /* The dropdown extends below this always-visible portrait control. */
+    overflow: visible;
     min-width: 0;
     width: 100%;
     max-width: none;
