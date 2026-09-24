@@ -15,11 +15,12 @@ await print();
 assert.equal(browserPrints, 1, 'Ordinary browsers retain browser printing');
 window.Capacitor = { getPlatform: () => 'android' };
 await print();
-assert.equal(browserPrints, 2, 'Other platforms retain their existing path');
+assert.equal(browserPrints, 1, 'Android does not silently use unsupported window.print');
+assert.match(messages.pop(), /Update the Android app/);
 window.Capacitor = { getPlatform: () => 'ios', isPluginAvailable: () => false };
 await print();
 assert.match(messages.pop(), /Update the iOS app/, 'Older native builds explain how to enable printing');
-assert.equal(browserPrints, 2, 'Never silently fall back to window.print in native iOS');
+assert.equal(browserPrints, 1, 'Never silently fall back to window.print in native iOS');
 window.Capacitor.isPluginAvailable = name => name === 'BSBPrint';
 window.Capacitor.Plugins = { BSBPrint: { async print() { nativePrints++; return { completed: false }; } } };
 await print();
@@ -36,3 +37,12 @@ window.Capacitor.registerPlugin = name => {
 await print();
 assert.equal(nativePrints, 2, 'Supports explicit Capacitor plugin registration');
 console.log('Native print routing, browser fallback, cancellation, older builds, and errors passed.');
+
+window.Capacitor.getPlatform = () => 'android';
+await print();
+assert.equal(nativePrints, 3, 'Android invokes the native print bridge');
+window.Capacitor.registerPlugin = () => ({ print: async () => { throw new Error('No print service'); } });
+await print();
+assert.match(messages.pop(), /Could not open printing/);
+assert.equal(browserPrints, 1);
+console.log('Android native printing and unavailable-service handling passed.');

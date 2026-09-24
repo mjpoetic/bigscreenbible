@@ -47,3 +47,17 @@ context.state.mode = 'parallel'; start(); timer(); hit = rows[4]; move(100, 250)
 assert.deepEqual(Array.from(context.state.selectedVerses), [3,4,5]);
 run('endReaderVerseHold({type:"touchcancel"})'); assert.equal(run('readerVerseHold'), null);
 console.log('Verse hold: scroll cancellation, taps, ranges, reversal, edge scroll, release, pinch handoff and Parallel passed.');
+
+// Both native platforms bind the same gesture; browsers retain ordinary selection.
+let bindings = 0;
+const bindingSurface = { classList: classes(), addEventListener() { bindings++; } };
+context.bindingSurface = bindingSurface;
+for (const platform of ['ios', 'android', 'web']) {
+  context.window.Capacitor = { getPlatform: () => platform, isNativePlatform: () => platform !== 'web' };
+  bindings = 0; run('bindReaderVerseHold(bindingSurface)');
+  assert.equal(bindings, platform === 'web' ? 0 : 3, platform);
+}
+context.window.Capacitor = { getPlatform: () => 'android', isNativePlatform: () => false };
+bindings = 0; run('bindReaderVerseHold(bindingSurface)');
+assert.equal(bindings, 0, 'A non-native Android browser must not bind native selection');
+console.log('Verse hold platform binding: iOS, Android, and browser isolation passed.');

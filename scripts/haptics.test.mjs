@@ -100,7 +100,19 @@ storage.set('lw_haptics_strength', 'bad'); assert.equal(run('hapticStrength()'),
 storage.set('lw_haptics_strength', '200'); assert.equal(run('hapticStrength()'), 100);
 storage.set('lw_haptics_strength', '-5'); assert.equal(run('hapticStrength()'), 20);
 platform = 'web'; assert.equal(run('hapticsSettingsMarkup()'), '');
-platform = 'android'; assert.equal(run('hapticsSettingsMarkup()'), '');
+platform = 'android';
+assert.match(run('hapticsSettingsMarkup()'), /Haptic feedback/);
+assert.doesNotMatch(run('hapticsSettingsMarkup()'), /data-haptics-strength|iPhone/);
+const androidPulses = [];
+context.window.Capacitor.Plugins.Haptics.impact = options => androidPulses.push(options.style);
+run('playNativeHaptic(); playNativeHaptic("tick"); playNativeHaptic("milestone")');
+assert.deepEqual(androidPulses, ['LIGHT', 'LIGHT', 'MEDIUM']);
+storage.set('lw_haptics_enabled', 'false'); run('playNativeHaptic()');
+assert.equal(androidPulses.length, 3, 'Android respects the device opt-out');
+storage.delete('lw_haptics_enabled');
+available = false; run('playNativeHaptic()');
+assert.equal(androidPulses.length, 3, 'Missing Android hardware/plugin does not interrupt controls');
+available = true;
 console.log('Haptic strength and pinch: percent ticks, decade accents, reversals, skipped frames, limits and platform guards passed.');
 
 // Only accepted chapter gestures pulse; boundary and busy gestures stay silent.

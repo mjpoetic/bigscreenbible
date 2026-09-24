@@ -3639,7 +3639,7 @@ function soundVolumeControlMarkup(kind, prefix = "", options = {}) {
 // Haptics are a device preference: do not copy them between accounts/devices.
 function nativeHapticsPlugin() {
   const capacitor = window.Capacitor;
-  if (capacitor?.getPlatform?.() !== "ios" || !capacitor.isPluginAvailable?.("Haptics")) return null;
+  if (!["ios", "android"].includes(capacitor?.getPlatform?.()) || !capacitor.isPluginAvailable?.("Haptics")) return null;
   return capacitor.Plugins?.Haptics || null;
 }
 
@@ -3663,7 +3663,7 @@ function hapticsSettingsMarkup(prefix = "") {
     </label>
     ${nativeHapticStrengthPlugin() ? `<label for="${prefix}HapticsStrength">Haptic strength <span data-haptics-strength-value>${hapticStrength()}%</span></label>
     <input type="range" id="${prefix}HapticsStrength" data-haptics-strength min="20" max="100" step="10" value="${hapticStrength()}" ${localStorage.getItem("lw_haptics_enabled") === "false" ? "disabled" : ""} />` : ""}
-    <p class="setting-help">Choose how strong taps feel on this iPhone. Scripture pinches give soft taps at each 1% change and stronger taps at 10% marks.</p>
+    <p class="setting-help">${nativeHapticStrengthPlugin() ? "Choose how strong taps feel on this device. Scripture pinches give soft taps at each 1% change and stronger taps at 10% marks." : "Feel feedback when using controls, holding and selecting verses, and adjusting Scripture size. Feedback varies with your device and its vibration settings."}</p>
   </div>`;
 }
 
@@ -25822,7 +25822,7 @@ function beginReaderBlankTap(event, surface) {
 }
 
 function bindReaderVerseHold(surface) {
-  if (!surface || window.Capacitor?.getPlatform?.() !== "ios"
+  if (!surface || !["ios", "android"].includes(window.Capacitor?.getPlatform?.())
     || !window.Capacitor?.isNativePlatform?.()) return;
   surface.classList.add("native-verse-selection");
   surface.addEventListener("touchstart", beginReaderVerseHold, { passive: true });
@@ -26928,12 +26928,13 @@ function copySelectedPassage() {
 
 async function printSelectedPassage() {
   const capacitor = window.Capacitor;
-  if (capacitor?.getPlatform?.() !== "ios") {
+  const platform = capacitor?.getPlatform?.();
+  if (!["ios", "android"].includes(platform)) {
     requestAnimationFrame(() => window.print());
     return;
   }
   if (!capacitor.isPluginAvailable?.("BSBPrint")) {
-    showToast("Update the iOS app to enable printing");
+    showToast(`Update the ${platform === "android" ? "Android" : "iOS"} app to enable printing`);
     return;
   }
   try {
