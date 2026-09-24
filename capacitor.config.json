@@ -8,6 +8,9 @@
   },
   "backgroundColor": "#111d37",
   "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable"
+    },
     "PushNotifications": {
       "presentationOptions": [
         "badge",
