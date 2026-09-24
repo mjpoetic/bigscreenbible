@@ -8566,6 +8566,7 @@ function createSupabaseClient() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      ...(window.Capacitor?.isNativePlatform?.() ? { flowType: "pkce" } : {}),
     },
   });
   return state.authClient;
@@ -10333,13 +10334,42 @@ async function requestPasswordReset(prefix = "") {
   }
 }
 
+function nativeGoogleAuthPlugin() {
+  const capacitor = window.Capacitor;
+  if (!capacitor?.isNativePlatform?.()) return null;
+  if (!capacitor.isPluginAvailable?.("BSBAuth")) {
+    throw new Error("Update the Big Screen Bible app to use Google sign in.");
+  }
+  return capacitor.Plugins?.BSBAuth || capacitor.registerPlugin("BSBAuth");
+}
+
+function nativeGoogleAuthCode(callbackUrl) {
+  const callback = new URL(callbackUrl);
+  if (callback.protocol !== "com.bigscreenbible.app:"
+    || callback.host !== "auth" || callback.pathname !== "/callback"
+    || callback.username || callback.password || callback.port || callback.hash) {
+    throw new Error("Google sign in returned an invalid callback.");
+  }
+  if (callback.searchParams.has("error")) {
+    throw new Error("Google sign in was not completed. Please try again.");
+  }
+  const code = callback.searchParams.get("code");
+  if (!code) throw new Error("Google sign in did not return a sign-in code. Please try again.");
+  return code;
+}
+
+let googleSignInInProgress = false;
+
 async function signInWithGoogle() {
+  if (googleSignInInProgress) return;
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
   state.authBusy = true;
+  googleSignInInProgress = true;
   state.authMessage = "Opening Google sign in...";
   renderPreservingReaderScroll();
   try {
+    const nativeAuth = nativeGoogleAuthPlugin();
     if (state.authUser) {
       const outgoingUserId = state.authUser.id;
       const outgoingSnapshot = captureCloudSnapshot();
@@ -10352,23 +10382,40 @@ async function signInWithGoogle() {
       } catch (error) {
         console.warn("Final account sync before Google sign in failed", error);
       }
-      await unlinkPushSubscriptionFromCurrentAccount();
+      if (!nativeAuth) await unlinkPushSubscriptionFromCurrentAccount();
     }
-    const { error } = await client.auth.signInWithOAuth({
+    const { data, error } = await client.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: nativeAuth ? "com.bigscreenbible.app://auth/callback" : window.location.origin,
+        ...(nativeAuth ? { skipBrowserRedirect: true } : {}),
         ...(rememberedAccounts().length || pendingAccountSwitch()
           ? { queryParams: { prompt: "select_account" } }
           : {}),
       },
     });
     if (error) throw error;
+    if (nativeAuth) {
+      if (!data?.url) throw new Error("Google sign in could not start. Please try again.");
+      const result = await nativeAuth.open({ url: data.url });
+      const code = nativeGoogleAuthCode(result.url);
+      if (state.authUser) await unlinkPushSubscriptionFromCurrentAccount();
+      const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
+      if (exchangeError) throw exchangeError;
+      // onAuthStateChange loads the signed-in user's data through the shared path.
+      state.authMessage = "Signed in.";
+    }
   } catch (error) {
-    console.warn("Google sign in failed", error);
+    setPendingAccountSwitch(false);
     state.authBusy = false;
-    state.authMessage = error?.message || "Google sign in could not start. Please try again.";
-    showToast("Google sign in failed");
+    state.authMessage = error?.code === "CANCELED"
+      ? "Google sign in canceled."
+      : error?.message || "Google sign in could not start. Please try again.";
+    if (error?.code !== "CANCELED") showToast("Google sign in failed");
+    renderPreservingReaderScroll();
+  } finally {
+    googleSignInInProgress = false;
+    state.authBusy = false;
     renderPreservingReaderScroll();
   }
 }

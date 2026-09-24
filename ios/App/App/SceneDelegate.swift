@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import WebKit
 import SafariServices
+import AuthenticationServices
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -118,6 +119,7 @@ class BSBBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(BSBPrintPlugin())
         bridge?.registerPluginInstance(BSBBrowserPlugin())
+        bridge?.registerPluginInstance(BSBAuthPlugin())
         bridge?.registerPluginInstance(BSBHapticsPlugin())
         offlineStore.controller = self
         offlineStore.armLaunchTimeout()
@@ -365,5 +367,61 @@ public class BSBBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
             presenter.present(SFSafariViewController(url: url), animated: true)
         }
         return true
+    }
+}
+
+
+// A system authentication sheet returns the code to the originating WebView.
+// Google credentials never pass through an embedded WKWebView.
+@objc(BSBAuthPlugin)
+public class BSBAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPresentationContextProviding {
+    public let identifier = "BSBAuthPlugin"
+    public let jsName = "BSBAuth"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise)
+    ]
+    private var session: ASWebAuthenticationSession?
+
+    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return bridge!.viewController!.view.window!
+    }
+
+    @objc func open(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.bridge?.viewController?.view.window != nil else {
+                call.reject("The reader is not ready for sign in.")
+                return
+            }
+            guard self.session == nil else {
+                call.reject("Google sign in is already open.")
+                return
+            }
+            guard let value = call.getString("url"), let url = URL(string: value),
+                  url.scheme == "https", url.host == "yyldnatfhzobyeqnvqjv.supabase.co",
+                  url.path == "/auth/v1/authorize", url.user == nil, url.password == nil,
+                  url.port == nil || url.port == 443 else {
+                call.reject("Invalid sign-in URL.")
+                return
+            }
+            let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "com.bigscreenbible.app") { [weak self] callback, error in
+                self?.session = nil
+                if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
+                    call.reject("Google sign in canceled.", "CANCELED")
+                } else if error != nil {
+                    call.reject("Google sign in could not finish. Please try again.")
+                } else if let callback, callback.scheme == "com.bigscreenbible.app",
+                          callback.host == "auth", callback.path == "/callback" {
+                    call.resolve(["url": callback.absoluteString])
+                } else {
+                    call.reject("Invalid sign-in callback.")
+                }
+            }
+            session.presentationContextProvider = self
+            self.session = session
+            if !session.start() {
+                self.session = nil
+                call.reject("Google sign in could not open. Please try again.")
+            }
+        }
     }
 }

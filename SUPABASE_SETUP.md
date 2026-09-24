@@ -349,3 +349,32 @@ The cron wakes the sender for both daily schedules and retryable social events. 
 ### Platform boundary
 
 This implementation covers supported desktop browsers, Android browsers, and installed web apps. On iPhone and iPad, Web Push requires the website to be added to the Home Screen before notification permission can be granted. The Capacitor App Store wrappers need a separate native APNs/FCM integration; unsupported web views show an explanatory message instead of an enable control.
+
+
+## Native Google sign-in (iOS and Android)
+
+In Authentication → URL Configuration → Redirect URLs, add this exact URL:
+
+```text
+com.bigscreenbible.app://auth/callback
+```
+
+Keep the existing website URLs and Site URL. This is a Supabase redirect allowlist
+entry; Google's authorized redirect remains the Supabase `/auth/v1/callback` URL.
+Do not add the app scheme as a Google web-client redirect.
+
+Native clients use PKCE. The reader obtains the authorization URL without leaving
+its WebView, opens an iOS `ASWebAuthenticationSession` or Android Auth Tab (with
+Custom Tabs fallback), and exchanges the returned code in the original reader.
+The browser sheet owns Google credentials; no embedded-WebView user-agent bypass
+or token-bearing callback is used. Website sign-in keeps its existing redirect.
+Older native shells display an app-update message instead of starting a broken
+flow. If Android terminates the app during sign-in, reopen it and retry; a stale
+callback is ignored rather than accepted without the originating request.
+
+After deploying the web changes, run `npm run cap:sync` and rebuild/install both
+native apps. A website-only deployment cannot add the native auth bridges.
+Validate Google success, cancel/back, account selection, and return to the same
+reader on physical iOS and Android devices. Also check Android with a browser
+that uses the Custom Tabs fallback. Automated coverage: `npm run test:native-auth`
+and `npm run test:accounts`.
