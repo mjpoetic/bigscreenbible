@@ -1151,6 +1151,7 @@ function recordReadingStreak(date = new Date()) {
 }
 
 const icons = {
+  help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-2.9 2-2.9 4"/><path d="M12 17h.01"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
   bookmarkAdd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10v18l-5-3.5L5 21z"/><path d="M19 3v6M16 6h6" stroke-width="2.1"/></svg>',
@@ -4890,7 +4891,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">${focusLabel}</span></button>
       </nav>
       </div>
-      <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">?</button>
+      <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">${icons.help}</button>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${headerAccountOpen ? "open" : ""}">
         <button class="icon-btn account-quick-button ${state.authUser || headerAccountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountButton.label)}" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
@@ -7070,7 +7071,7 @@ function rail() {
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}
     <div class="portrait-rail-actions">
-      <button id="railHelpButton" type="button" aria-label="Help" data-tooltip="Help">?</button>
+      <button id="railHelpButton" type="button" aria-label="Help" data-tooltip="Help">${icons.help}</button>
       <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
     </div>
     <button class="rail-position-toggle rail-position-toggle-${nextSide}" type="button" data-side-toolbar-position="${nextSide}" aria-label="${sideToggleLabel}" data-tooltip="${sideToggleLabel}"${sideToggleDisabledAttrs}>${sideToggleIcon}</button>

@@ -23334,3 +23334,26 @@ svg {
   .portrait-search-collapsed .portrait-search-collapse-toggle svg { transform: rotate(90deg); }
   .app-shell:not(.focus-shell).portrait-search-collapsed .topbar :is(.search, .versions) { display: none; }
 }
+
+/* Games uses its own navigation and fills the space below the header. */
+.app-shell.trivia-shell:not(.focus-shell) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-shell.trivia-shell .topbar .search,
+.app-shell.trivia-shell .topbar .versions,
+.app-shell.trivia-shell .topbar .portrait-search-collapse-toggle,
+.app-shell.trivia-shell .footer-region {
+  display: none;
+}
+
+.app-shell.trivia-shell > .main-grid.trivia-grid {
+  height: auto;
+  min-height: 0;
+}
+
+@media (min-width: 841px) and (min-height: 721px) {
+  .app-shell.trivia-shell:not(.focus-shell) {
+    grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+  }
+}
