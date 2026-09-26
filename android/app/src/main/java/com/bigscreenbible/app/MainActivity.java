@@ -16,6 +16,65 @@ import androidx.core.view.WindowInsetsCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private String pendingQuickAction;
+    private int quickActionAttempts;
+    private boolean shortcutResumed;
+    private boolean shortcutInFlight;
+    private final android.os.Handler shortcutHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable shortcutDelivery = this::deliverQuickAction;
+
+    private void queueQuickAction(Intent intent) {
+        String action = intent == null ? null : intent.getAction();
+        String prefix = "com.bigscreenbible.app.shortcut.";
+        if (action == null || !action.startsWith(prefix)) return;
+        String route = action.substring(prefix.length());
+        if (!java.util.Arrays.asList("reader", "parallel", "games", "search").contains(route)) return;
+        pendingQuickAction = route;
+        quickActionAttempts = 0;
+        // Consume the launch action so activity recreation cannot replay it.
+        intent.setAction(Intent.ACTION_MAIN);
+        shortcutHandler.removeCallbacks(shortcutDelivery);
+        deliverQuickAction();
+    }
+
+    private void deliverQuickAction() {
+        if (!shortcutResumed || pendingQuickAction == null || shortcutInFlight
+                || quickActionAttempts >= 200 || getBridge() == null) return;
+        String action = pendingQuickAction;
+        quickActionAttempts++;
+        shortcutInFlight = true;
+        getBridge().getWebView().evaluateJavascript(
+            "window.bsbHandleQuickAction?.('" + action + "') === true", result -> {
+                shortcutInFlight = false;
+                if ("true".equals(result) && action.equals(pendingQuickAction)) pendingQuickAction = null;
+                if (pendingQuickAction != null && shortcutResumed) {
+                    shortcutHandler.removeCallbacks(shortcutDelivery);
+                    shortcutHandler.postDelayed(shortcutDelivery, 300);
+                }
+            });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        shortcutResumed = true;
+        quickActionAttempts = 0;
+        deliverQuickAction();
+    }
+
+    @Override
+    public void onPause() {
+        shortcutResumed = false;
+        shortcutHandler.removeCallbacks(shortcutDelivery);
+        super.onPause();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putString("bsbPendingQuickAction", pendingQuickAction);
+        super.onSaveInstanceState(outState);
+    }
+
     private PluginCall authCall;
     private final ActivityResultLauncher<Intent> authLauncher =
         AuthTabIntent.registerActivityResultLauncher(this, result -> {
@@ -69,6 +128,8 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         super.onNewIntent(intent);
+        setIntent(intent);
+        queueQuickAction(intent);
     }
 
     @Override
@@ -76,6 +137,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BSBPrintPlugin.class);
         registerPlugin(BSBAuthPlugin.class);
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) pendingQuickAction = savedInstanceState.getString("bsbPendingQuickAction");
+        queueQuickAction(getIntent());
         if (getBridge() == null) return;
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);

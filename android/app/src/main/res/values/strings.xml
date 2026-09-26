@@ -4,4 +4,8 @@
     <string name="title_activity_main">Big Screen Bible</string>
     <string name="package_name">com.bigscreenbible.app</string>
     <string name="custom_url_scheme">com.bigscreenbible.app</string>
+    <string name="shortcut_reader">Reader</string>
+    <string name="shortcut_parallel">Parallel</string>
+    <string name="shortcut_games">Games</string>
+    <string name="shortcut_search">Search</string>
 </resources>

@@ -28129,10 +28129,10 @@ function submitQuickActionSearch(query) {
   return runReferenceOrPhraseSearch(query, { source: "scripture", scope: "all" });
 }
 
-// Called only by the native scene delegate after a Home Screen quick action.
+// Called by the native iOS and Android hosts after a Home Screen shortcut.
 function handleNativeQuickAction(action) {
   const modes = { reader: "reader", parallel: "parallel", games: "trivia", search: "reader" };
-  if (!Object.hasOwn(modes, action) || window.Capacitor?.getPlatform?.() !== "ios") return false;
+  if (!Object.hasOwn(modes, action) || !["ios", "android"].includes(window.Capacitor?.getPlatform?.())) return false;
   if (dataLoading || dataError || !state.startupApplied) return false;
   if (action === "search") return openQuickActionSearch();
   document.getElementById("quickActionSearchDialog")?.close();

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="reader" android:enabled="true"
+        android:icon="@drawable/shortcut_reader" android:shortcutShortLabel="@string/shortcut_reader">
+        <intent android:action="com.bigscreenbible.app.shortcut.reader"
+            android:targetPackage="com.bigscreenbible.app"
+            android:targetClass="com.bigscreenbible.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="parallel" android:enabled="true"
+        android:icon="@drawable/shortcut_parallel" android:shortcutShortLabel="@string/shortcut_parallel">
+        <intent android:action="com.bigscreenbible.app.shortcut.parallel"
+            android:targetPackage="com.bigscreenbible.app"
+            android:targetClass="com.bigscreenbible.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="games" android:enabled="true"
+        android:icon="@drawable/shortcut_games" android:shortcutShortLabel="@string/shortcut_games">
+        <intent android:action="com.bigscreenbible.app.shortcut.games"
+            android:targetPackage="com.bigscreenbible.app"
+            android:targetClass="com.bigscreenbible.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="search" android:enabled="true"
+        android:icon="@drawable/shortcut_search" android:shortcutShortLabel="@string/shortcut_search">
+        <intent android:action="com.bigscreenbible.app.shortcut.search"
+            android:targetPackage="com.bigscreenbible.app"
+            android:targetClass="com.bigscreenbible.app.MainActivity" />
+    </shortcut>
+</shortcuts>

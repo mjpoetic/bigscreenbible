@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const handler = source.match(/function handleNativeQuickAction\([^]*?\n\}/)[0];
-let platform = 'ios', renders = 0, popupOpens = 0, searched;
+const nativePlatform = process.env.BSB_QUICK_ACTION_PLATFORM || 'ios';
+let platform = nativePlatform, renders = 0, popupOpens = 0, searched;
 const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOpen: true, accountOpen: true };
 const context = vm.createContext({
   state, window: { Capacitor: { getPlatform: () => platform } },
@@ -43,7 +44,7 @@ for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
 assert.equal(popupOpens, 8);
 assert.equal(run('handleNativeQuickAction("constructor")'), false);
 platform = 'web'; assert.equal(run('handleNativeQuickAction("search")'), false);
-platform = 'ios'; run('dataError = "offline"'); assert.equal(run('handleNativeQuickAction("search")'), false);
+platform = nativePlatform; run('dataError = "offline"'); assert.equal(run('handleNativeQuickAction("search")'), false);
 // Exercise the real dialog lifecycle, including duplicate actions and cleanup.
 const openPopup = source.match(/function openQuickActionSearch\([^]*?\n\}/)[0];
 let mounted = null, focusedInput = null, searchSubmission = null;
@@ -90,4 +91,18 @@ for (const [action, glyph] of [['reader','book'], ['parallel','parallel'], ['gam
   const original = source.match(new RegExp(`^  ${glyph}: '([^']+)'`, 'm'))[1];
   assert.equal(svg.trim().replace(' xmlns="http://www.w3.org/2000/svg" width="35" height="35"', '').replaceAll('#000000', 'currentColor'), original);
 }
-console.log('iOS quick actions: startup gating, all routes, search focus, platform guards, four menu items and matching glyphs passed.');
+console.log(`${nativePlatform} quick actions: startup gating, all routes, search focus, platform guards, four menu items and matching glyphs passed.`);
+
+if (nativePlatform === 'android') {
+  const read = path => readFileSync(new URL(`../android/app/src/main/${path}`, import.meta.url), 'utf8');
+  const shortcuts = read('res/xml/shortcuts.xml');
+  assert.ok(read('AndroidManifest.xml').includes('android:resource="@xml/shortcuts"'));
+  assert.equal((shortcuts.match(/<shortcut /g) || []).length, 4);
+  for (const action of ['reader', 'parallel', 'games', 'search']) {
+    assert.ok(shortcuts.includes(`android:action="com.bigscreenbible.app.shortcut.${action}"`));
+    assert.ok(shortcuts.includes(`android:icon="@drawable/shortcut_${action}"`));
+    assert.ok(read('res/values/strings.xml').includes(`name="shortcut_${action}"`));
+    assert.ok(read(`res/drawable/shortcut_${action}.xml`).includes('<vector'));
+  }
+  console.log('Android launcher metadata: four explicit intents, labels and vector icons passed.');
+}
