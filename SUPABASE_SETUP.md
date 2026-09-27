@@ -208,6 +208,32 @@ supabase functions deploy semantic-bible-search --no-verify-jwt
 
 The included `supabase/config.toml` keeps JWT verification off for these read-only functions so visitors can read licensed translations without signing in. The provider API keys remain in Supabase and are never returned to the browser.
 
+### ESV red-letter availability (verified 2026-09-27)
+
+ESV currently uses Crossway's plain-text passage endpoint. Its parser receives no
+words-of-Jesus markup, so it cannot produce `wordsOfJesus` character ranges. The
+shared renderer already supports provider-supplied ranges; this is a source-data
+limitation, not a color/style failure. Crossway's documented HTML endpoint also
+has no red-letter option: https://api.esv.org/docs/passage-html/.
+
+The YouVersion adapter recognizes ESV if it appears in the app key's authorized
+catalog, but the reader intentionally remains on Crossway until access and actual
+ESV `wj` output can be verified. Live checks returned ESV in `missing` and HTTP
+403 for `version=ESV&ref=Matthew%205`. The signed-in YouVersion licensing dashboard
+showed all available licenses accepted, and its public developer Bible directory
+returned no result for English Standard. Consumer Bible App availability does not
+imply availability through the developer Platform.
+
+To complete the cutover:
+
+1. Obtain an authorized ESV red-letter source from Crossway or YouVersion. Ask
+   whether Crossway can supply speech markers with its passage API, or whether
+   ESV can be added to the YouVersion Platform catalog for Big Screen Bible.
+2. Verify actual ESV words-of-Jesus spans, including mixed narration/dialogue,
+   before changing passage routing. Do not reuse another version's offsets.
+3. Route ESV passages to the approved source, preserve provider attribution and
+   Crossway ESV search, then validate Reader, Parallel, Focus, Big Screen and print.
+
 ### Remote Bible behavior
 
 - ESV search requests use Crossway's server-side passage search endpoint through the `esv-passage` Edge Function. Quoted searches are sent as exact phrase searches.

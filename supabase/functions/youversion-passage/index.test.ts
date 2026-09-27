@@ -160,7 +160,7 @@ Deno.test("preserves explicit breaks and acrostic headings", () => {
 });
 
 Deno.test("recognizes the authorized NIrV edition", () => {
-  assertEquals(supportedYouVersionTranslations, ["AMP", "NIRV", "NIV", "NASB2020"]);
+  assertEquals(supportedYouVersionTranslations, ["ESV", "AMP", "NIRV", "NIV", "NASB2020"]);
   assertEquals(
     matchesYouVersionTranslation(
       { localized_abbreviation: "NIrV" },
@@ -205,4 +205,10 @@ Deno.test("pins NIV 2011 and NASB 2020 without substituting other editions", () 
   assertEquals(matchesYouVersionTranslation({ id: 100, title: "New American Standard Bible 1995" }, "NASB2020"), false);
   assertEquals(matchesYouVersionTranslation({ abbreviation: "NIV11" }, "NIV"), false);
   assertEquals(matchesYouVersionTranslation({ id: 2692 }, "NIV"), false);
+});
+
+Deno.test("recognizes ESV in the authorized catalog", () => {
+  assertEquals(matchesYouVersionTranslation({ id: 59, abbreviation: "ESV" }, "ESV"), true);
+  assertEquals(matchesYouVersionTranslation({ id: 1, abbreviation: "KJV" }, "ESV"), false);
+  assertEquals(matchesYouVersionTranslation({ abbreviation: "ESVUK" }, "ESV"), false);
 });

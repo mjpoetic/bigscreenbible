@@ -1,4 +1,4 @@
-export type YouVersionTranslationCode = "AMP" | "NIRV" | "NIV" | "NASB2020";
+export type YouVersionTranslationCode = "ESV" | "AMP" | "NIRV" | "NIV" | "NASB2020";
 
 export type YouVersionBibleSummary = {
   id?: number | string;
@@ -13,6 +13,7 @@ export type YouVersionBibleSummary = {
 };
 
 export const supportedYouVersionTranslations: YouVersionTranslationCode[] = [
+  "ESV",
   "AMP",
   "NIRV",
   "NIV",
@@ -23,6 +24,7 @@ export const fallbackYouVersionTranslationNames: Record<
   YouVersionTranslationCode,
   string
 > = {
+  ESV: "English Standard Version",
   NIV: "New International Version 2011",
   NASB2020: "New American Standard Bible 2020",
   AMP: "Amplified Bible",
@@ -45,6 +47,8 @@ export function matchesYouVersionTranslation(
     bible.localized_abbreviation || bible.abbreviation,
   );
   const title = normalizedLabel(bible.localized_title || bible.title);
+
+  if (code === "ESV") return abbreviation === "ESV";
 
   if (code === "AMP") {
     return (
