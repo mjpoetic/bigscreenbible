@@ -17,6 +17,7 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     private boolean presentationEdgeToEdge;
+    private boolean webEdgeToEdge;
     private int chromeColor = Color.rgb(17, 29, 55);
     private String pendingQuickAction;
     private int quickActionAttempts;
@@ -134,13 +135,18 @@ public class MainActivity extends BridgeActivity {
         queueQuickAction(intent);
     }
 
-    public void updateChrome(boolean presentation, int color, boolean darkIcons) {
+    public void updateChrome(boolean presentation, int color, boolean darkIcons, boolean edgeToEdge) {
         presentationEdgeToEdge = presentation;
+        webEdgeToEdge = edgeToEdge;
         chromeColor = color;
         View container = (View) getBridge().getWebView().getParent();
         container.setBackgroundColor(chromeColor);
-        getWindow().setStatusBarColor(chromeColor);
-        getWindow().setNavigationBarColor(chromeColor);
+        getWindow().setStatusBarColor(webEdgeToEdge ? Color.TRANSPARENT : chromeColor);
+        getWindow().setNavigationBarColor(webEdgeToEdge ? Color.TRANSPARENT : chromeColor);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            getWindow().setNavigationBarContrastEnforced(!webEdgeToEdge);
+            getWindow().setStatusBarContrastEnforced(!webEdgeToEdge);
+        }
         WindowCompat.getInsetsController(getWindow(), container).setAppearanceLightStatusBars(darkIcons);
         WindowCompat.getInsetsController(getWindow(), container).setAppearanceLightNavigationBars(darkIcons);
         ViewCompat.requestApplyInsets(container);
@@ -159,24 +165,46 @@ public class MainActivity extends BridgeActivity {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         View container = (View) getBridge().getWebView().getParent();
         container.setBackgroundColor(Color.rgb(17, 29, 55));
-        // Own the safe viewport natively for every web mode, including fixed controls.
+        // The live page opts into edge-to-edge only when it supports app safe-area variables.
         // SystemBars CSS inset handling is disabled in capacitor.config.json.
         ViewCompat.setOnApplyWindowInsetsListener(container, (view, windowInsets) -> {
             Insets safe = windowInsets.getInsets(
                 WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
             );
             Insets keyboard = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
-            view.setPadding(presentationEdgeToEdge ? 0 : safe.left, safe.top,
-                presentationEdgeToEdge ? 0 : safe.right, Math.max(safe.bottom, keyboard.bottom));
-            // Big Screen paints to the edges; only its content needs side insets.
             float density = getResources().getDisplayMetrics().density;
-            float left = presentationEdgeToEdge ? safe.left / density : 0;
-            float right = presentationEdgeToEdge ? safe.right / density : 0;
-            getBridge().getWebView().evaluateJavascript(
-                "document.documentElement.style.setProperty('--android-safe-left','" + left + "px');"
-                + "document.documentElement.style.setProperty('--android-safe-right','" + right + "px');", null);
+            if (webEdgeToEdge) {
+                // Keep the WebView behind system bars. Only the keyboard shrinks it.
+                view.setPadding(0, 0, 0, keyboard.bottom);
+                Insets taps = windowInsets.getInsets(WindowInsetsCompat.Type.tappableElement());
+                Insets cutout = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout());
+                Insets gestures = windowInsets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures());
+                float left = Math.max(taps.left, cutout.left) / density;
+                float right = Math.max(taps.right, cutout.right) / density;
+                float top = safe.top / density;
+                float bottom = keyboard.bottom > 0 ? 0
+                    : Math.max(Math.max(taps.bottom, cutout.bottom), gestures.bottom) / density;
+                String key = left + ":" + top + ":" + right + ":" + bottom;
+                getBridge().getWebView().evaluateJavascript(
+                    "(()=>{const r=document.documentElement;if(r.dataset.androidInsets==='" + key + "')return;"
+                    + "r.dataset.androidInsets='" + key + "';r.dataset.androidEdgeToEdge='true';"
+                    + "r.style.setProperty('--app-safe-area-left','" + left + "px');"
+                    + "r.style.setProperty('--app-safe-area-top','" + top + "px');"
+                    + "r.style.setProperty('--app-safe-area-right','" + right + "px');"
+                    + "r.style.setProperty('--app-safe-area-bottom','" + bottom + "px');"
+                    + "window.dispatchEvent(new Event('bsb-insets-change'));})()", null);
+            } else {
+                // Compatibility for live pages older than the inset-aware layout.
+                view.setPadding(presentationEdgeToEdge ? 0 : safe.left, safe.top,
+                    presentationEdgeToEdge ? 0 : safe.right, Math.max(safe.bottom, keyboard.bottom));
+                float left = presentationEdgeToEdge ? safe.left / density : 0;
+                float right = presentationEdgeToEdge ? safe.right / density : 0;
+                getBridge().getWebView().evaluateJavascript(
+                    "document.documentElement.style.setProperty('--android-safe-left','" + left + "px');"
+                    + "document.documentElement.style.setProperty('--android-safe-right','" + right + "px');", null);
+            }
 
-            // The WebView is already inset. Zero these values to avoid double padding
+            // Insets are handled by the container or explicit CSS variables. Avoid double padding
             // through CSS env(safe-area-inset-*), while preserving inset redispatch.
             return new WindowInsetsCompat.Builder(windowInsets)
                 .setInsets(WindowInsetsCompat.Type.systemBars()

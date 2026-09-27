@@ -95,7 +95,7 @@ assert.match(spotlightFunction, /tutorialCompactCardSide/);
 assert.match(spotlightFunction, /if \(!compactWidth && cardSide !== "right" && cardSide !== "left"\)/);
 assert.match(spotlightFunction, /setProperty\("top", `\$\{cardTop\}px`, "important"\)/);
 assert.match(spotlightFunction, /setProperty\("bottom", "auto", "important"\)/);
-assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.tutorial-card \{[\s\S]*?left: calc\(12px \+ env\(safe-area-inset-left, 0px\)\) !important;/);
+assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.tutorial-card \{[\s\S]*?left: calc\(12px \+ var\(--app-safe-area-left, env\(safe-area-inset-left, 0px\)\)\) !important;/);
 
 const visibilityContext = {
   state: { verseNavCollapsed: true, footerCollapsed: true, portraitSearchCollapsed: true, tutorialRestoreState: null },

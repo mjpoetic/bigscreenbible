@@ -105,3 +105,15 @@ for (const callback of rotation.pending.values()) callback();
 assert.equal(rotation.renders, 1, 'A pending rotation cannot rebuild a different mode');
 assert.equal(rotation.document.documentElement.dataset.presentationRotating, undefined);
 console.log('Big Screen rotation fitting and visibility tests passed.');
+
+assert.equal(chromeCalls[0].edgeToEdge, true, "Inset-aware pages explicitly opt in to the new native layout");
+const activity = readFileSync(new URL("../android/app/src/main/java/com/bigscreenbible/app/MainActivity.java", import.meta.url), "utf8");
+const bridge = readFileSync(new URL("../android/app/src/main/java/com/bigscreenbible/app/BSBChromePlugin.java", import.meta.url), "utf8");
+assert.match(bridge, /getBoolean\("edgeToEdge", false\)/, "Older live pages keep their native padded viewport");
+for (const type of ["tappableElement", "displayCutout", "mandatorySystemGestures", "ime"]) {
+  assert.ok(activity.includes(`WindowInsetsCompat.Type.${type}()`));
+}
+for (const side of ["left", "right", "top", "bottom"]) assert.ok(activity.includes(`--app-safe-area-${side}`));
+assert.match(activity, /view\.setPadding\(0, 0, 0, keyboard\.bottom\)/);
+assert.match(activity, /keyboard\.bottom > 0 \? 0/, "Keyboard viewport must not also reserve a bottom navigation inset");
+console.log("Android edge-to-edge handoff and inset contract checks passed.");

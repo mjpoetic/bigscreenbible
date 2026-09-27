@@ -17,11 +17,11 @@ assert.doesNotMatch(focusScriptureRule, /calc\(100vw\s*-\s*48px\)/);
 assert.ok(phoneLandscapeStart >= 0 && phoneLandscapeEnd > phoneLandscapeStart);
 assert.match(
   phoneLandscapeFocusScriptureRule,
-  /padding-left:\s*max\(18px,\s*calc\(env\(safe-area-inset-left,\s*0px\)\s*\+\s*18px\)\);/,
+  /padding-left:\s*max\(18px,\s*calc\(var\(--app-safe-area-left, env\(safe-area-inset-left,\s*0px\)\)\s*\+\s*18px\)\);/,
 );
 assert.match(
   phoneLandscapeFocusScriptureRule,
-  /padding-right:\s*max\(18px,\s*calc\(env\(safe-area-inset-right,\s*0px\)\s*\+\s*18px\)\);/,
+  /padding-right:\s*max\(18px,\s*calc\(var\(--app-safe-area-right, env\(safe-area-inset-right,\s*0px\)\)\s*\+\s*18px\)\);/,
 );
 
 console.log("Focus Mode layout regression checks passed.");

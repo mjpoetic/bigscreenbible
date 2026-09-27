@@ -19,7 +19,8 @@ public class BSBChromePlugin extends Plugin {
         }
         getActivity().runOnUiThread(() -> {
             ((MainActivity) getActivity()).updateChrome(
-                call.getBoolean("presentation", false), color, call.getBoolean("darkIcons", false));
+                call.getBoolean("presentation", false), color, call.getBoolean("darkIcons", false),
+                call.getBoolean("edgeToEdge", false));
             call.resolve();
         });
     }

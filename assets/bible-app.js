@@ -1474,8 +1474,8 @@ function currentSafeAreaInsets() {
     "pointer-events:none",
     "top:0",
     "left:0",
-    "padding-left:env(safe-area-inset-left, 0px)",
-    "padding-right:env(safe-area-inset-right, 0px)",
+    "padding-left:var(--app-safe-area-left, env(safe-area-inset-left, 0px))",
+    "padding-right:var(--app-safe-area-right, env(safe-area-inset-right, 0px))",
   ].join(";");
   document.body.appendChild(probe);
   const styles = getComputedStyle(probe);
@@ -1888,7 +1888,7 @@ function syncAndroidChrome(presentation, color) {
   if (lastAndroidChromeKey === key) return;
   lastAndroidChromeKey = key;
   const chrome = capacitor.Plugins?.BSBChrome || capacitor.registerPlugin("BSBChrome");
-  chrome.sync({ presentation, color, darkIcons }).catch(() => {
+  chrome.sync({ presentation, color, darkIcons, edgeToEdge: true }).catch(() => {
     if (lastAndroidChromeKey === key) lastAndroidChromeKey = "";
   });
 }
@@ -4062,8 +4062,8 @@ function syncOfflineStatus() {
     || state.tutorialActive || state.tutorialIntroVisible || state.streakPopupVisible
     || (state.mode === "big" && !state.presentationControlsVisible));
   const footerHeight = document.querySelector(".footer-region")?.getBoundingClientRect().height || 76;
-  status.style.bottom = state.mode === "big" ? "calc(90px + env(safe-area-inset-bottom, 0px))"
-    : state.focusMode || state.footerCollapsed ? "max(8px, env(safe-area-inset-bottom, 0px))"
+  status.style.bottom = state.mode === "big" ? "calc(90px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)))"
+    : state.focusMode || state.footerCollapsed ? "max(8px, var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)))"
       : `${Math.ceil(footerHeight) + 8}px`;
 }
 
@@ -27294,6 +27294,7 @@ window.addEventListener("resize", () => {
     }
   }
 });
+window.addEventListener("bsb-insets-change", renderAfterViewportChangePreservingReaderScroll);
 window.addEventListener("orientationchange", () => {
   if (state.mode === "big") {
     schedulePresentationViewportFit(true);
