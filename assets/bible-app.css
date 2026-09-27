@@ -23385,3 +23385,18 @@ svg {
     padding-right: max(14px, env(safe-area-inset-right, 0px));
   }
 }
+
+/* Native Big Screen paints through the side cutout/navigation area, while
+   interactive chrome and Scripture retain the current Android safe insets. */
+.presentation {
+  --presentation-safe-left: max(env(safe-area-inset-left, 0px), var(--android-safe-left, 0px));
+  --presentation-safe-right: max(env(safe-area-inset-right, 0px), var(--android-safe-right, 0px));
+}
+@media (orientation: landscape) {
+  .presentation .presentation-top,
+  .presentation .presentation-bottom,
+  .presentation .presentation-text {
+    padding-left: max(14px, var(--presentation-safe-left));
+    padding-right: max(14px, var(--presentation-safe-right));
+  }
+}

@@ -16,6 +16,8 @@ import androidx.core.view.WindowInsetsCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private boolean presentationEdgeToEdge;
+    private int chromeColor = Color.rgb(17, 29, 55);
     private String pendingQuickAction;
     private int quickActionAttempts;
     private boolean shortcutResumed;
@@ -132,8 +134,21 @@ public class MainActivity extends BridgeActivity {
         queueQuickAction(intent);
     }
 
+    public void updateChrome(boolean presentation, int color, boolean darkIcons) {
+        presentationEdgeToEdge = presentation;
+        chromeColor = color;
+        View container = (View) getBridge().getWebView().getParent();
+        container.setBackgroundColor(chromeColor);
+        getWindow().setStatusBarColor(chromeColor);
+        getWindow().setNavigationBarColor(chromeColor);
+        WindowCompat.getInsetsController(getWindow(), container).setAppearanceLightStatusBars(darkIcons);
+        WindowCompat.getInsetsController(getWindow(), container).setAppearanceLightNavigationBars(darkIcons);
+        ViewCompat.requestApplyInsets(container);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(BSBChromePlugin.class);
         registerPlugin(BSBPrintPlugin.class);
         registerPlugin(BSBAuthPlugin.class);
         super.onCreate(savedInstanceState);
@@ -151,7 +166,15 @@ public class MainActivity extends BridgeActivity {
                 WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
             );
             Insets keyboard = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
-            view.setPadding(safe.left, safe.top, safe.right, Math.max(safe.bottom, keyboard.bottom));
+            view.setPadding(presentationEdgeToEdge ? 0 : safe.left, safe.top,
+                presentationEdgeToEdge ? 0 : safe.right, Math.max(safe.bottom, keyboard.bottom));
+            // Big Screen paints to the edges; only its content needs side insets.
+            float density = getResources().getDisplayMetrics().density;
+            float left = presentationEdgeToEdge ? safe.left / density : 0;
+            float right = presentationEdgeToEdge ? safe.right / density : 0;
+            getBridge().getWebView().evaluateJavascript(
+                "document.documentElement.style.setProperty('--android-safe-left','" + left + "px');"
+                + "document.documentElement.style.setProperty('--android-safe-right','" + right + "px');", null);
 
             // The WebView is already inset. Zero these values to avoid double padding
             // through CSS env(safe-area-inset-*), while preserving inset redispatch.

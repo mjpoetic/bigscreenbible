@@ -348,6 +348,7 @@ let readerAutoScrollWakeLockRequest = null;
 let readerAutoScrollLastTime = 0;
 let readerAutoScrollPosition = 0;
 let presentationResizeTimer = 0;
+let lastAndroidChromeKey = "";
 let readerViewportRestoreTimer = 0;
 let readerAppVisibilityRestoreTimer = 0;
 let readerAppVisibilityScrollState = null;
@@ -1868,6 +1869,27 @@ function syncPresentationShell() {
   document.documentElement.dataset.presentationTheme = state.presentationTheme;
   document.body.dataset.presentationTheme = state.presentationTheme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
+  syncAndroidChrome(isPresentationMode, themeColor);
+
+}
+
+function syncAndroidChrome(presentation, color) {
+  const capacitor = window.Capacitor;
+  if (capacitor?.getPlatform?.() !== "android" || !capacitor.isPluginAvailable?.("BSBChrome")) return;
+  // Use the actual chrome background, not the Reader light/dark preference.
+  const rgb = /^#([0-9a-f]{6})$/i.exec(color);
+  if (!rgb) return;
+  const channels = [0, 2, 4].map(offset => parseInt(rgb[1].slice(offset, offset + 2), 16) / 255)
+    .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  const darkIcons = luminance > 0.179;
+  const key = `${presentation}:${color}:${darkIcons}`;
+  if (lastAndroidChromeKey === key) return;
+  lastAndroidChromeKey = key;
+  const chrome = capacitor.Plugins?.BSBChrome || capacitor.registerPlugin("BSBChrome");
+  chrome.sync({ presentation, color, darkIcons }).catch(() => {
+    if (lastAndroidChromeKey === key) lastAndroidChromeKey = "";
+  });
 }
 
 function renderPreservingReaderScroll(options = {}) {
