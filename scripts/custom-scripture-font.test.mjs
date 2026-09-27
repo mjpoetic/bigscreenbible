@@ -103,3 +103,62 @@ assert.equal(context.readerLoader.state.status, "idle");
 assert.equal(context.bigLoader.state.status, "ready");
 assert.equal(context.state.presentationScriptureFont, "custom");
 console.log("Independent Big Screen font settings and loaders passed");
+
+// Keyboard viewport/inset changes must never replace a focused font field.
+let pendingResize;
+let renders = 0;
+let fits = 0;
+const listeners = {};
+const fontInput = {
+  value: 'Roboto Slab',
+  matches: (selector) => selector === '.custom-font-input',
+  addEventListener: (name, listener) => { listeners[name] = listener; },
+};
+const viewportDocument = {
+  visibilityState: 'visible', activeElement: fontInput,
+  documentElement: { dataset: {} },
+  getElementById: () => fontInput,
+};
+const viewportContext = vm.createContext({
+  state: { mode: 'reader' }, document: viewportDocument,
+  clearTimeout: () => { pendingResize = null; },
+  setTimeout: (callback) => { pendingResize = callback; return 1; },
+  render: () => { renders++; },
+  renderPreservingReaderScroll: () => { renders++; },
+  fitPresentationText: () => { fits++; },
+  queueCustomScriptureFont() {},
+  commitCustomScriptureFont: (value) => { assert.equal(value, fontInput.value); },
+});
+vm.runInContext(`
+  let presentationResizeTimer;
+  let customFontViewportRefreshPending = false;
+  ${extractFunction('deferViewportRefreshForCustomFont')}
+  ${extractFunction('renderAfterViewportChangePreservingReaderScroll')}
+  ${extractFunction('schedulePresentationViewportFit')}
+  ${extractFunction('bindCustomScriptureFontInput')}
+`, viewportContext);
+for (const mode of ['reader', 'parallel', 'big']) {
+  viewportContext.state.mode = mode;
+  viewportContext.bindCustomScriptureFontInput(mode === 'big' ? 'presentationCustomScriptureFontInput' : 'customScriptureFontInput');
+  viewportDocument.activeElement = fontInput;
+  for (let i = 0; i < 3; i++) viewportContext.renderAfterViewportChangePreservingReaderScroll();
+  assert.equal(pendingResize, null, `${mode}: keyboard events do not schedule destructive rendering`);
+  viewportDocument.activeElement = null;
+  listeners.blur({ currentTarget: fontInput });
+  assert.equal(typeof pendingResize, 'function', `${mode}: editing completion resumes layout`);
+  const before = renders;
+  pendingResize();
+  assert.equal(renders, before + 1);
+  // A resize queued before focus must also leave the newly focused input intact.
+  viewportContext.renderAfterViewportChangePreservingReaderScroll();
+  viewportDocument.activeElement = fontInput;
+  pendingResize();
+  assert.equal(renders, before + 1, `${mode}: delayed resize rechecks focus`);
+}
+viewportContext.schedulePresentationViewportFit(true);
+assert.equal(viewportDocument.documentElement.dataset.presentationRotating, undefined, 'Editing during rotation cannot leave the screen hidden');
+assert.ok(fits > 0, 'Presentation fitting resumes after editing');
+for (const name of ['compactWidthQuery', 'shortLandscapeQuery']) {
+  assert.ok(source.includes(`${name}?.addEventListener("change", () => {\n  if (deferViewportRefreshForCustomFont()) return;`), 'Keyboard-driven breakpoints preserve open settings');
+}
+console.log('Custom font keyboard resize, native insets, delayed render, and blur recovery passed');
