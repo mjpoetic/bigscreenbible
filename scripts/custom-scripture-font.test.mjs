@@ -111,7 +111,7 @@ let fits = 0;
 const listeners = {};
 const fontInput = {
   value: 'Roboto Slab',
-  matches: (selector) => selector === '.custom-font-input',
+  matches: (selector) => selector.split(', ').includes('.custom-font-input'),
   addEventListener: (name, listener) => { listeners[name] = listener; },
 };
 const viewportDocument = {
@@ -131,8 +131,9 @@ const viewportContext = vm.createContext({
 });
 vm.runInContext(`
   let presentationResizeTimer;
-  let customFontViewportRefreshPending = false;
-  ${extractFunction('deferViewportRefreshForCustomFont')}
+  let inputViewportRefreshPending = false;
+  ${extractFunction('deferViewportRefreshForActiveInput')}
+  ${extractFunction('resumeViewportRefreshAfterInput')}
   ${extractFunction('renderAfterViewportChangePreservingReaderScroll')}
   ${extractFunction('schedulePresentationViewportFit')}
   ${extractFunction('bindCustomScriptureFontInput')}
@@ -159,6 +160,30 @@ viewportContext.schedulePresentationViewportFit(true);
 assert.equal(viewportDocument.documentElement.dataset.presentationRotating, undefined, 'Editing during rotation cannot leave the screen hidden');
 assert.ok(fits > 0, 'Presentation fitting resumes after editing');
 for (const name of ['compactWidthQuery', 'shortLandscapeQuery']) {
-  assert.ok(source.includes(`${name}?.addEventListener("change", () => {\n  if (deferViewportRefreshForCustomFont()) return;`), 'Keyboard-driven breakpoints preserve open settings');
+  assert.ok(source.includes(`${name}?.addEventListener("change", () => {\n  if (deferViewportRefreshForActiveInput()) return;`), 'Keyboard-driven breakpoints preserve open settings');
 }
 console.log('Custom font keyboard resize, native insets, delayed render, and blur recovery passed');
+
+// Big Screen search shares the same keyboard protection as custom fonts.
+const searchInput = { value: 'John 3:16', matches: (selector) => selector.split(', ').includes('#presentationSearchInput') };
+viewportContext.state.mode = 'big';
+viewportDocument.activeElement = searchInput;
+const beforeSearch = renders;
+for (let i = 0; i < 4; i++) {
+  viewportContext.schedulePresentationViewportFit(); // iOS visualViewport and web resize
+  viewportContext.renderAfterViewportChangePreservingReaderScroll(); // Android insets
+}
+assert.equal(pendingResize, null);
+assert.equal(renders, beforeSearch);
+assert.equal(viewportDocument.activeElement, searchInput);
+assert.equal(searchInput.value, 'John 3:16');
+viewportDocument.activeElement = null;
+viewportContext.resumeViewportRefreshAfterInput();
+pendingResize();
+assert.equal(renders, beforeSearch + 1, 'Search blur resumes presentation pagination');
+viewportContext.schedulePresentationViewportFit();
+viewportDocument.activeElement = searchInput;
+pendingResize();
+assert.equal(renders, beforeSearch + 1, 'Search focus also cancels a previously queued fit');
+assert.ok(source.includes('document.getElementById("presentationSearchInput")?.addEventListener("blur", resumeViewportRefreshAfterInput)'));
+console.log('Big Screen search keyboard resize, native insets, queued fit, and blur recovery passed');

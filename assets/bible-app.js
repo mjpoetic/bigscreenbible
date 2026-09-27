@@ -174,7 +174,7 @@ const genericCustomFontFamilies = new Set([
   "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "emoji", "math", "fangsong",
 ]);
 const customFontInputTimers = {};
-let customFontViewportRefreshPending = false;
+let inputViewportRefreshPending = false;
 const scriptureFontLoaders = [createCustomFontLoader(false), createCustomFontLoader(true)];
 const legacyScriptureFontCodes = {
   merriweather: "literata",
@@ -1947,17 +1947,23 @@ function scrollTriviaAnswerActionsIntoView() {
   });
 }
 
-function deferViewportRefreshForCustomFont() {
-  if (!document.activeElement?.matches?.(".custom-font-input")) return false;
-  customFontViewportRefreshPending = true;
+function deferViewportRefreshForActiveInput() {
+  if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput")) return false;
+  inputViewportRefreshPending = true;
   clearTimeout(presentationResizeTimer);
   delete document.documentElement.dataset.presentationRotating;
   return true;
 }
 
+function resumeViewportRefreshAfterInput() {
+  if (!inputViewportRefreshPending) return;
+  inputViewportRefreshPending = false;
+  renderAfterViewportChangePreservingReaderScroll();
+}
+
 function renderAfterViewportChangePreservingReaderScroll() {
   if (document.visibilityState === "hidden") return;
-  if (deferViewportRefreshForCustomFont()) return;
+  if (deferViewportRefreshForActiveInput()) return;
   if (state.mode === "big") {
     schedulePresentationViewportFit();
     return;
@@ -1967,7 +1973,7 @@ function renderAfterViewportChangePreservingReaderScroll() {
   clearTimeout(presentationResizeTimer);
   presentationResizeTimer = setTimeout(() => {
     if (document.visibilityState === "hidden") return;
-    if (deferViewportRefreshForCustomFont()) return;
+    if (deferViewportRefreshForActiveInput()) return;
     renderPreservingReaderScroll({ preferLastReaderAnchor: true });
   }, 120);
 }
@@ -19437,6 +19443,7 @@ function bindEvents() {
       render();
     });
   });
+  document.getElementById("presentationSearchInput")?.addEventListener("blur", resumeViewportRefreshAfterInput);
   document.getElementById("presentationSearchInput")?.addEventListener("input", (event) => {
     state.searchQuery = event.target.value;
   });
@@ -22611,9 +22618,7 @@ function bindCustomScriptureFontInput(inputId) {
   input?.addEventListener("change", (event) => commitCustomScriptureFont(event.currentTarget.value, bigScreen));
   input?.addEventListener("blur", (event) => {
     commitCustomScriptureFont(event.currentTarget.value, bigScreen);
-    if (!customFontViewportRefreshPending) return;
-    customFontViewportRefreshPending = false;
-    renderAfterViewportChangePreservingReaderScroll();
+    resumeViewportRefreshAfterInput();
   });
   input?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.isComposing) return;
@@ -27283,7 +27288,7 @@ function fitPresentationText() {
 function schedulePresentationViewportFit(rotating = false) {
   if (state.mode !== "big" || document.visibilityState === "hidden") return;
   // Keyboard resize/inset events must not detach the active input.
-  if (deferViewportRefreshForCustomFont()) return;
+  if (deferViewportRefreshForActiveInput()) return;
   const root = document.documentElement;
   // Android can announce orientation before resizing its WebView. Do not
   // paint the old portrait fit into the intermediate landscape viewport.
@@ -27293,7 +27298,7 @@ function schedulePresentationViewportFit(rotating = false) {
   fitPresentationText();
   presentationResizeTimer = setTimeout(() => {
     if (state.mode === "big" && document.visibilityState !== "hidden") {
-      if (deferViewportRefreshForCustomFont()) return;
+      if (deferViewportRefreshForActiveInput()) return;
       // Rebuild viewport-dependent pagination only once, then fit before paint.
       render();
       fitPresentationText();
@@ -27968,7 +27973,7 @@ function chapterKeys() {
 
 const compactWidthQuery = window.matchMedia?.("(max-width: 840px)");
 compactWidthQuery?.addEventListener("change", () => {
-  if (deferViewportRefreshForCustomFont()) return;
+  if (deferViewportRefreshForActiveInput()) return;
   state.settingsOpen = false;
   state.focusReferenceOpen = false;
   state.focusSearchResultsOpen = false;
@@ -27981,7 +27986,7 @@ compactWidthQuery?.addEventListener("change", () => {
 });
 const shortLandscapeQuery = window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 560px)");
 shortLandscapeQuery?.addEventListener("change", () => {
-  if (deferViewportRefreshForCustomFont()) return;
+  if (deferViewportRefreshForActiveInput()) return;
   state.settingsOpen = false;
   state.focusReferenceOpen = false;
   state.focusSearchResultsOpen = false;
