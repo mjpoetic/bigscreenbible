@@ -10,6 +10,9 @@
 /* Suppress accidental double-tap zoom while retaining browser pinch zoom.
    Descendant touch-action rules still own Scripture and game gestures. */
 html {
+  /* Keep mobile browser text inflation from changing sizing on rotation. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   touch-action: manipulation;
 }
 
@@ -23364,5 +23367,21 @@ svg {
 @media (min-width: 841px) and (min-height: 721px) {
   .app-shell.trivia-shell:not(.focus-shell) {
     grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+  }
+}
+
+/* Phone landscape should use the reading width, without desktop gutters or
+   a permanent empty strip for the floating page controls. */
+@media (orientation: landscape) and (max-width: 1024px) and (max-height: 560px) {
+  .app-shell .main-grid .scripture,
+  .app-shell[data-side-toolbar-position="right"] .main-grid .scripture {
+    max-width: none;
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+  }
+
+  .presentation-text {
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
   }
 }

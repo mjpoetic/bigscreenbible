@@ -1925,7 +1925,13 @@ function scrollTriviaAnswerActionsIntoView() {
 
 function renderAfterViewportChangePreservingReaderScroll() {
   if (document.visibilityState === "hidden") return;
-  renderPreservingReaderScroll({ preferLastReaderAnchor: true });
+  // Orientation and breakpoint events arrive in a burst, sometimes before
+  // Android has delivered the final viewport dimensions.
+  clearTimeout(presentationResizeTimer);
+  presentationResizeTimer = setTimeout(() => {
+    if (document.visibilityState === "hidden") return;
+    renderPreservingReaderScroll({ preferLastReaderAnchor: true });
+  }, 120);
 }
 
 function captureReaderScroll(options = {}) {
@@ -26482,7 +26488,12 @@ function applyTextScaleVars() {
 }
 
 function computedTextFonts() {
-  const width = window.innerWidth || 1280;
+  const viewportWidth = window.innerWidth || 1280;
+  const screenShortSide = Math.min(window.screen?.width || viewportWidth, window.screen?.height || viewportWidth);
+  // A phone's physical CSS screen dimensions survive rotation and keyboard
+  // opening. Keep its portrait sizing basis in both reading orientations.
+  const phone = window.matchMedia?.("(pointer: coarse)")?.matches && screenShortSide <= 600;
+  const width = phone ? Math.min(viewportWidth, screenShortSide) : viewportWidth;
   const scaled = (min, vw, max) => clamp(width * (vw / 100), min, max) * state.textScale;
   let verse = scaled(23, 1.35, 38);
   const parallel = width <= 840 ? scaled(16, 4.2, 20) : scaled(16, 0.9, 25);
@@ -27229,7 +27240,7 @@ window.addEventListener("resize", () => {
   applyTextScaleVars();
   if (state.mode === "big") {
     clearTimeout(presentationResizeTimer);
-    presentationResizeTimer = setTimeout(render, 120);
+    presentationResizeTimer = setTimeout(() => renderPreservingReaderScroll({ preferLastReaderAnchor: true }), 120);
   } else {
     fitPresentationText();
     if (isCompactScreen() || isShortLandscapeScreen() || state.mode === "trivia") {
@@ -27239,14 +27250,7 @@ window.addEventListener("resize", () => {
   }
 });
 window.addEventListener("orientationchange", () => {
-  if (state.mode === "big") {
-    clearTimeout(presentationResizeTimer);
-    presentationResizeTimer = setTimeout(render, 120);
-    return;
-  }
-  if (isCompactScreen() || isShortLandscapeScreen() || state.mode === "trivia") {
-    renderAfterViewportChangePreservingReaderScroll();
-  }
+  renderAfterViewportChangePreservingReaderScroll();
 });
 
 function buildBookAliases() {
