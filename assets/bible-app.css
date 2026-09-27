@@ -23455,3 +23455,13 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   scroll-padding-bottom: calc(12px + var(--app-safe-area-bottom));
   padding-bottom: calc(12px + var(--app-safe-area-bottom));
 }
+
+/* On narrow landscape phones Games places its mode picker near the left edge.
+   Open toward the available space instead of extending the menu off-screen. */
+@media (max-width: 840px) and (orientation: landscape) {
+  .app-shell.trivia-shell .topbar .portrait-navigation .mode-tabs {
+    left: 0;
+    right: auto;
+    max-width: calc(100vw - 110px - var(--app-safe-area-left, env(safe-area-inset-left, 0px)) - var(--app-safe-area-right, env(safe-area-inset-right, 0px)));
+  }
+}

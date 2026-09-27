@@ -183,3 +183,7 @@ Big Screen Bible's original source code, interface, artwork, and original projec
 Scripture text, cross-reference data, dictionaries, fonts, and other third-party materials are excluded from that claim and remain subject to their respective copyrights, licenses, permissions, and attribution requirements. Translation-specific copyright notices displayed with licensed passages are part of the application and must be preserved.
 
 See [COPYRIGHT.md](./COPYRIGHT.md) for the repository's copyright statement.
+
+### Android generated build files
+
+Android builds write generated files under `~/.gradle/bigscreenbible-builds/<checkout-key>/`, with separate directories for each module. This avoids recurring duplicate generated resources such as `values 2.xml` in the Documents checkout. Android Studio uses these paths automatically after Gradle sync. The debug APK is under `<checkout-key>/app/outputs/apk/debug/app-debug.apk`; `./gradlew installDebug` still installs it normally. Do not edit generated resource XML files or add them to Git.

@@ -17,7 +17,14 @@ buildscript {
 
 apply from: "variables.gradle"
 
+// Keep generated resources out of Documents/node_modules, where duplicate
+// copies such as "values 2.xml" have repeatedly broken resource merging.
+// Isolate checkouts and modules; Android Studio reads output paths from Gradle.
+def checkoutBuildKey = rootProject.projectDir.canonicalPath.digest('SHA-256').take(16)
+def localBuildRoot = new File(gradle.gradleUserHomeDir, "bigscreenbible-builds/${checkoutBuildKey}")
+
 allprojects {
+    layout.buildDirectory.set(new File(localBuildRoot, project.path == ':' ? 'root' : project.path.substring(1).replace(':', '/')))
     repositories {
         google()
         mavenCentral()
