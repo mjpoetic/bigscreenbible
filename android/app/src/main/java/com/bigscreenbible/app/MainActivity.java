@@ -172,17 +172,21 @@ public class MainActivity extends BridgeActivity {
                 WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
             );
             Insets keyboard = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+            // Big Screen search sits at the top: let the IME cover the presentation
+            // instead of resizing and re-centering scripture above it. Other modes
+            // still resize so their inputs remain reachable above the keyboard.
+            int keyboardPadding = presentationEdgeToEdge ? 0 : keyboard.bottom;
             float density = getResources().getDisplayMetrics().density;
             if (webEdgeToEdge) {
-                // Keep the WebView behind system bars. Only the keyboard shrinks it.
-                view.setPadding(0, 0, 0, keyboard.bottom);
+                // Keep the WebView behind system bars and, in Big Screen, the IME.
+                view.setPadding(0, 0, 0, keyboardPadding);
                 Insets taps = windowInsets.getInsets(WindowInsetsCompat.Type.tappableElement());
                 Insets cutout = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout());
                 Insets gestures = windowInsets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures());
                 float left = Math.max(taps.left, cutout.left) / density;
                 float right = Math.max(taps.right, cutout.right) / density;
                 float top = safe.top / density;
-                float bottom = keyboard.bottom > 0 ? 0
+                float bottom = keyboardPadding > 0 ? 0
                     : Math.max(Math.max(taps.bottom, cutout.bottom), gestures.bottom) / density;
                 String key = left + ":" + top + ":" + right + ":" + bottom;
                 getBridge().getWebView().evaluateJavascript(
@@ -196,7 +200,7 @@ public class MainActivity extends BridgeActivity {
             } else {
                 // Compatibility for live pages older than the inset-aware layout.
                 view.setPadding(presentationEdgeToEdge ? 0 : safe.left, safe.top,
-                    presentationEdgeToEdge ? 0 : safe.right, Math.max(safe.bottom, keyboard.bottom));
+                    presentationEdgeToEdge ? 0 : safe.right, Math.max(safe.bottom, keyboardPadding));
                 float left = presentationEdgeToEdge ? safe.left / density : 0;
                 float right = presentationEdgeToEdge ? safe.right / density : 0;
                 getBridge().getWebView().evaluateJavascript(
