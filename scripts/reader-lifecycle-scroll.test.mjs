@@ -92,6 +92,7 @@ vm.runInContext(`
   const Date = { now: () => 2600 };
   let readerLifecycleHeartbeatAt = 1000;
   const readerLifecycleResumeGapMs = 1200;
+  const readerUserScrollIntentUntil = 0;
   const dataLoading = false;
   const dataError = "";
   const state = { mode: "reader" };
@@ -111,7 +112,7 @@ const resetContext = {};
 vm.createContext(resetContext);
 vm.runInContext(`
   const Date = { now: () => 5000 };
-  const document = { querySelector: () => ({ scrollTop: 0 }) };
+  const document = { visibilityState: "visible", querySelector: () => ({ scrollTop: 0 }) };
   const protectedPosition = {
     mode: "reader",
     reference: "James 1",
@@ -136,3 +137,78 @@ assert.equal(resetContext.result.persists, 0);
 assert.equal(resetContext.result.restoredState.scriptureTop, 812);
 
 console.log("Reader lifecycle scroll tests passed");
+
+// Exercise queued animation frames as well as timers: clearing a timeout alone
+// does not cancel the two frames already scheduled before a touch gesture.
+function lifecycleHarness() {
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(`
+    let now = 5000;
+    const Date = { now: () => now };
+    const document = { visibilityState: "visible", querySelector: () => ({}) };
+    const window = {};
+    const state = { mode: "reader", reference: "Hebrews 10" };
+    let readerScrollRestoreGeneration = 0;
+    let readerViewportRestoreTimer = 0;
+    let readerAppVisibilityRestoreTimer = 0;
+    let readerAppResumeRestoreDeadline = 0;
+    let readerUserScrollIntentUntil = 0;
+    const readerAppResumeRestoreWindowMs = 1600;
+    let readerAppVisibilityScrollState = {
+      mode: "reader", reference: "Hebrews 10", scriptureTop: 0,
+    };
+    const frames = [];
+    const timers = [];
+    const requestAnimationFrame = fn => frames.push(fn);
+    const setTimeout = fn => { timers.push(fn); return timers.length; };
+    const clearTimeout = () => {};
+    let restores = 0;
+    const restoreReaderScroll = () => { restores++; };
+    const updateReaderTopButton = () => {};
+    const cancelScrollPositionAnimation = () => {};
+    const savedReaderPosition = () => ({ mode: "reader", reference: "Hebrews 10", scriptureTop: 900 });
+    ${extractFunction("restoreReaderScrollAfterAppSwitch")}
+    ${extractFunction("cancelReaderAppResumeRestore")}
+    ${extractFunction("noteReaderScrollIntent")}
+    ${extractFunction("protectedReaderPosition")}
+    globalThis.run = code => eval(code);
+  `, sandbox);
+  return sandbox;
+}
+const interrupted = lifecycleHarness();
+interrupted.run('restoreReaderScrollAfterAppSwitch(); noteReaderScrollIntent(); frames.splice(0).forEach(fn => fn()); timers.splice(0).forEach(fn => fn()); frames.splice(0).forEach(fn => fn());');
+assert.equal(interrupted.run('restores'), 0, 'A gesture invalidates every queued resume correction');
+assert.equal(interrupted.run('protectedReaderPosition()'), null, 'Old storage must not fight an ordinary scroll to the top');
+const changedChapter = lifecycleHarness();
+changedChapter.run('restoreReaderScrollAfterAppSwitch(); state.reference = "Hebrews 11"; frames.splice(0).forEach(fn => fn()); timers.splice(0).forEach(fn => fn());');
+assert.equal(changedChapter.run('restores'), 0, 'Queued corrections cannot jump into another chapter');
+const normalResume = lifecycleHarness();
+normalResume.run('restoreReaderScrollAfterAppSwitch(); frames.splice(0).forEach(fn => fn());');
+assert.equal(normalResume.run('restores'), 1, 'Uninterrupted resume still restores');
+
+const geometry = {};
+vm.createContext(geometry);
+vm.runInContext(`
+  const state = { mode: "reader", reference: "Hebrews 10" };
+  const window = {};
+  const scripture = {
+    scrollTop: 0, scrollLeft: 0,
+    getBoundingClientRect: () => ({ top: 0 }),
+    querySelectorAll: () => [{ dataset: { verse: "1" }, getBoundingClientRect: () => ({ top: 220 - scripture.scrollTop }) }],
+  };
+  const document = { querySelector: selector => selector === ".scripture" ? scripture : null };
+  const lastReaderScrollAnchor = null;
+  const refreshLastReaderScrollAnchor = () => {};
+  const restoreScrollPosition = (target, left, top) => { target.scrollTop = top; };
+  ${extractFunction("restoreReaderScroll")}
+  ${extractFunction("viewportAdjustedReaderAnchor")}
+  ${extractFunction("normalizedStoredReaderPosition")}
+  globalThis.run = code => eval(code);
+`, geometry);
+geometry.run('restoreReaderScroll({ scriptureTop: 0, readerAnchor: { ...state, verse: "1", offset: 96 } });');
+assert.equal(geometry.run('scripture.scrollTop'), 0, 'Chapter top must retain its title and heading');
+assert.equal(geometry.run('viewportAdjustedReaderAnchor({ offset: 220 }).offset'), 220);
+assert.equal(geometry.run('viewportAdjustedReaderAnchor({ offset: -350 }).offset'), -350);
+assert.equal(geometry.run('normalizedStoredReaderPosition({ ...state, scriptureTop: 600, readerAnchor: { verse: "1", offset: -350 } }).readerAnchor.offset'), -350, 'Tall partially visible verses keep their exact persisted offset');
+console.log('Reader lifecycle interruption and geometry regressions passed');

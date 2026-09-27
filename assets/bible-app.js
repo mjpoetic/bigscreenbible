@@ -351,6 +351,7 @@ let readerAutoScrollPosition = 0;
 let presentationResizeTimer = 0;
 let lastAndroidChromeKey = "";
 let readerViewportRestoreTimer = 0;
+let readerScrollRestoreGeneration = 0;
 let readerAppVisibilityRestoreTimer = 0;
 let readerAppVisibilityScrollState = null;
 let readerPositionPersistTimer = 0;
@@ -2389,9 +2390,11 @@ function preferredViewportReaderScrollAnchor() {
 }
 
 function viewportAdjustedReaderAnchor(anchor) {
+  // Keep the actual offset, including headings and partially visible tall verses.
+  // Clamping it moves the passage even when the viewport has not changed.
   return {
     ...anchor,
-    offset: Math.min(Math.max(anchor.offset || 0, 28), 96),
+    offset: Number.isFinite(anchor.offset) ? anchor.offset : 0,
   };
 }
 
@@ -2423,7 +2426,7 @@ function normalizedStoredReaderPosition(value) {
       mode,
       reference,
       verse,
-      offset: Math.min(Math.max(offset, -160), 160),
+      offset,
     },
   };
 }
@@ -2634,6 +2637,7 @@ function restoreReaderScroll(scrollState, options = {}) {
   }
   if (
     scripture
+    && scrollState.scriptureTop > 0
     && readerAnchor
     && readerAnchor.mode === state.mode
     && readerAnchor.reference === state.reference
@@ -6919,6 +6923,8 @@ function bindReaderTopButton() {
   scripture.addEventListener("scroll", updateReaderTopButton, { passive: true });
   scripture.addEventListener("scroll", handleReaderScrollPositionChange, { passive: true });
   scripture.addEventListener("touchstart", noteReaderScrollIntent, { passive: true });
+  scripture.addEventListener("touchmove", noteReaderScrollIntent, { passive: true });
+  scripture.addEventListener("keydown", noteReaderScrollIntent, { passive: true });
   scripture.addEventListener("pointerdown", noteReaderScrollIntent, { passive: true });
   scripture.addEventListener("wheel", noteReaderScrollIntent, { passive: true });
   [
@@ -6967,6 +6973,8 @@ function preserveReaderScrollAfterViewportChange() {
     document.visibilityState === "hidden"
     || !["reader", "parallel"].includes(state.mode)
   ) return;
+  if (Date.now() < readerUserScrollIntentUntil) return;
+  const generation = ++readerScrollRestoreGeneration;
   const previousAnchor = preferredViewportReaderScrollAnchor();
   const scrollState = captureReaderScroll({ preferLastReaderAnchor: true });
   if (previousAnchor) {
@@ -6977,6 +6985,9 @@ function preserveReaderScrollAfterViewportChange() {
   clearTimeout(readerViewportRestoreTimer);
 
   const restore = () => {
+    if (generation !== readerScrollRestoreGeneration
+      || document.visibilityState === "hidden"
+      || scrollState.mode !== state.mode || scrollState.reference !== state.reference) return;
     restoreReaderScroll(scrollState);
     updateReaderTopButton();
   };
@@ -6988,7 +6999,12 @@ function preserveReaderScrollAfterViewportChange() {
 }
 
 function rememberReaderScrollBeforeAppSwitch() {
+  readerScrollRestoreGeneration += 1;
   if (!["reader", "parallel"].includes(state.mode)) return;
+  // blur, visibilitychange and pagehide can describe the same app switch.
+  // Keep the first snapshot before background layout starts changing.
+  if (readerAppVisibilityScrollState?.mode === state.mode
+    && readerAppVisibilityScrollState.reference === state.reference) return;
   const scrollState = flushReaderPositionPersistence();
   const previousAnchor = preferredViewportReaderScrollAnchor();
   if (previousAnchor) scrollState.readerAnchor = previousAnchor;
@@ -7010,17 +7026,21 @@ function restoreReaderScrollAfterAppSwitch(options = {}) {
     readerAppVisibilityScrollState = null;
     return;
   }
+  const generation = ++readerScrollRestoreGeneration;
   readerAppVisibilityScrollState = scrollState;
   clearTimeout(readerViewportRestoreTimer);
   clearTimeout(readerAppVisibilityRestoreTimer);
   readerAppResumeRestoreDeadline = Date.now() + readerAppResumeRestoreWindowMs;
 
   const restore = () => {
-    if (document.visibilityState === "hidden") return;
+    if (generation !== readerScrollRestoreGeneration
+      || document.visibilityState === "hidden"
+      || scrollState.mode !== state.mode || scrollState.reference !== state.reference) return;
     restoreReaderScroll(scrollState);
     updateReaderTopButton();
   };
   const restoreUntilSettled = () => {
+    if (generation !== readerScrollRestoreGeneration) return;
     restore();
     if (Date.now() < readerAppResumeRestoreDeadline) {
       readerAppVisibilityRestoreTimer = setTimeout(restoreUntilSettled, 180);
@@ -7038,6 +7058,8 @@ function restoreReaderScrollAfterAppSwitch(options = {}) {
 }
 
 function cancelReaderAppResumeRestore() {
+  readerScrollRestoreGeneration += 1;
+  clearTimeout(readerViewportRestoreTimer);
   readerAppResumeRestoreDeadline = 0;
   clearTimeout(readerAppVisibilityRestoreTimer);
   readerAppVisibilityScrollState = null;
@@ -7051,7 +7073,8 @@ function noteReaderScrollIntent() {
 }
 
 function protectedReaderPosition() {
-  const scrollState = readerAppVisibilityScrollState || savedReaderPosition();
+  // A normal scroll to the top must never revive an older stored position.
+  const scrollState = readerAppVisibilityScrollState;
   if (
     !scrollState
     || scrollState.mode !== state.mode
@@ -7061,6 +7084,8 @@ function protectedReaderPosition() {
 }
 
 function handleReaderScrollPositionChange() {
+  if (document.visibilityState === "hidden") return;
+  if (Date.now() < readerUserScrollIntentUntil) noteReaderScrollIntent();
   const scripture = document.querySelector(".scripture");
   const protectedPosition = scripture?.scrollTop <= 8 ? protectedReaderPosition() : null;
   const unexpectedTopReset = Boolean(
@@ -7084,6 +7109,7 @@ function readerLifecycleHeartbeatTick() {
   readerLifecycleHeartbeatAt = now;
   if (
     isStandaloneWebApp()
+    && now > readerUserScrollIntentUntil
     && elapsed > readerLifecycleResumeGapMs
     && !dataLoading
     && !dataError
