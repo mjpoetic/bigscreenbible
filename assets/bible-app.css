@@ -23400,3 +23400,8 @@ svg {
     padding-right: max(14px, var(--presentation-safe-right));
   }
 }
+
+/* Retain layout measurements while Android settles its rotation dimensions. */
+html[data-presentation-rotating="true"] .presentation-passage {
+  visibility: hidden;
+}

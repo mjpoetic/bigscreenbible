@@ -1865,6 +1865,7 @@ function syncPresentationShell() {
   document.documentElement.dataset.themeCustomized = hasAppearanceOverrides(state.appearance) ? "true" : "false";
   document.body.dataset.themeCustomized = hasAppearanceOverrides(state.appearance) ? "true" : "false";
   document.documentElement.dataset.presentationMode = isPresentationMode ? "big" : "";
+  if (!isPresentationMode) delete document.documentElement.dataset.presentationRotating;
   document.body.dataset.presentationMode = isPresentationMode ? "big" : "";
   document.documentElement.dataset.presentationTheme = state.presentationTheme;
   document.body.dataset.presentationTheme = state.presentationTheme;
@@ -1947,6 +1948,10 @@ function scrollTriviaAnswerActionsIntoView() {
 
 function renderAfterViewportChangePreservingReaderScroll() {
   if (document.visibilityState === "hidden") return;
+  if (state.mode === "big") {
+    schedulePresentationViewportFit();
+    return;
+  }
   // Orientation and breakpoint events arrive in a burst, sometimes before
   // Android has delivered the final viewport dimensions.
   clearTimeout(presentationResizeTimer);
@@ -27258,11 +27263,29 @@ function fitPresentationText() {
   if (!fits()) presentation.classList.add("presentation-overflow");
 }
 
+function schedulePresentationViewportFit(rotating = false) {
+  if (state.mode !== "big" || document.visibilityState === "hidden") return;
+  const root = document.documentElement;
+  // Android can announce orientation before resizing its WebView. Do not
+  // paint the old portrait fit into the intermediate landscape viewport.
+  if (rotating) root.dataset.presentationRotating = "true";
+  clearTimeout(presentationResizeTimer);
+  // Fit the existing passage immediately, without replacing the whole screen.
+  fitPresentationText();
+  presentationResizeTimer = setTimeout(() => {
+    if (state.mode === "big" && document.visibilityState !== "hidden") {
+      // Rebuild viewport-dependent pagination only once, then fit before paint.
+      render();
+      fitPresentationText();
+    }
+    delete root.dataset.presentationRotating;
+  }, 120);
+}
+
 window.addEventListener("resize", () => {
   applyTextScaleVars();
   if (state.mode === "big") {
-    clearTimeout(presentationResizeTimer);
-    presentationResizeTimer = setTimeout(() => renderPreservingReaderScroll({ preferLastReaderAnchor: true }), 120);
+    schedulePresentationViewportFit();
   } else {
     fitPresentationText();
     if (isCompactScreen() || isShortLandscapeScreen() || state.mode === "trivia") {
@@ -27272,6 +27295,10 @@ window.addEventListener("resize", () => {
   }
 });
 window.addEventListener("orientationchange", () => {
+  if (state.mode === "big") {
+    schedulePresentationViewportFit(true);
+    return;
+  }
   renderAfterViewportChangePreservingReaderScroll();
 });
 
@@ -27971,6 +27998,7 @@ window.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("resize", () => {
+  if (state.mode === "big") schedulePresentationViewportFit();
   refreshDraggedPopupPositions();
   positionMobileFocusSearch();
   positionSettingsPopover();

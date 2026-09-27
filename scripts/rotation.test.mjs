@@ -75,3 +75,33 @@ chromeContext.window.Capacitor.isPluginAvailable = () => false;
 chromeContext.syncAndroidChrome(true, "#000000");
 assert.equal(chromeCalls.length, 3, "Older Android binaries remain supported");
 console.log("Android chrome contrast and mode handoff tests passed.");
+
+const rotation = {
+  state: { mode: 'big' }, document: { visibilityState: 'visible', documentElement: { dataset: {} } },
+  presentationResizeTimer: 0, pending: new Map(), fits: 0, renders: 0,
+};
+let nextRotationTimer = 0;
+rotation.setTimeout = callback => { const id = ++nextRotationTimer; rotation.pending.set(id, callback); return id; };
+rotation.clearTimeout = id => rotation.pending.delete(id);
+rotation.fitPresentationText = () => { rotation.fits++; };
+rotation.render = () => { rotation.renders++; assert.equal(rotation.document.documentElement.dataset.presentationRotating, 'true'); };
+vm.createContext(rotation);
+vm.runInContext(extractFunction('schedulePresentationViewportFit'), rotation);
+rotation.schedulePresentationViewportFit(true);
+assert.equal(rotation.document.documentElement.dataset.presentationRotating, 'true');
+assert.equal(rotation.fits, 1, 'Fits immediately rather than leaving the old font for 120ms');
+rotation.schedulePresentationViewportFit();
+rotation.schedulePresentationViewportFit();
+assert.equal(rotation.renders, 0, 'Intermediate viewports must not rebuild the passage');
+assert.equal(rotation.pending.size, 1);
+for (const callback of rotation.pending.values()) callback();
+assert.equal(rotation.renders, 1, 'Settled viewport updates pagination once');
+assert.equal(rotation.fits, 4, 'New markup is fitted before it becomes visible');
+assert.equal(rotation.document.documentElement.dataset.presentationRotating, undefined);
+rotation.pending.clear();
+rotation.schedulePresentationViewportFit(true);
+rotation.state.mode = 'reader';
+for (const callback of rotation.pending.values()) callback();
+assert.equal(rotation.renders, 1, 'A pending rotation cannot rebuild a different mode');
+assert.equal(rotation.document.documentElement.dataset.presentationRotating, undefined);
+console.log('Big Screen rotation fitting and visibility tests passed.');
