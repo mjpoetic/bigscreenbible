@@ -187,3 +187,43 @@ See [COPYRIGHT.md](./COPYRIGHT.md) for the repository's copyright statement.
 ### Android generated build files
 
 Android builds write generated files under `~/.gradle/bigscreenbible-builds/<checkout-key>/`, with separate directories for each module. This avoids recurring duplicate generated resources such as `values 2.xml` in the Documents checkout. Android Studio uses these paths automatically after Gradle sync. The debug APK is under `<checkout-key>/app/outputs/apk/debug/app-debug.apk`; `./gradlew installDebug` still installs it normally. Do not edit generated resource XML files or add them to Git.
+
+## Shared links in native apps
+
+Universal Links (iOS) and verified App Links (Android) handle HTTPS links on
+`bigscreenbible.com`. The native launch queue accepts links both at startup and
+while running, safely serializes URLs into JavaScript, and navigates inside the
+app using the existing website routes. Query options, readable passage paths,
+and fragments are retained. Only the canonical HTTPS origin is accepted.
+Custom authentication callbacks remain separate. Navigation reloads the page;
+unsaved transient UI is not retained, while persisted reader/account state stays
+on the same origin. Browser fallback still works without an installed app.
+
+Deployment requirements:
+
+- Publish `.well-known/apple-app-site-association` and `.well-known/assetlinks.json`
+  at the domain root. Keep `.nojekyll` so GitHub Pages includes the dot directory.
+  Both endpoints must return HTTP 200 directly over HTTPS, with JSON content and
+  no redirects. Verify the `application/json` Content-Type (especially the
+  extensionless Apple file); configure the hosting/CDN response header if needed.
+- Enable Associated Domains for Apple app `com.bigscreenbible.app` in team
+  `8QY8QS9TH2`, refresh provisioning, and distribute a newly signed native build.
+  The checked-in entitlement specifies `applinks:bigscreenbible.com`.
+- The Android association currently contains the actual local development
+  certificate fingerprint, extracted from this machine's debug keystore. Before
+  distributing a release, add its SHA-256 app-signing certificate fingerprint.
+  With Play App Signing, use the Play Console app-signing certificate, not the
+  upload certificate. No Android release signing is configured in this checkout.
+- Only the canonical domain is claimed. If `www.bigscreenbible.com` is later
+  claimed, it must independently serve the verification files without redirects
+  and be added to both native allowlists and the web handler.
+
+Run `npm run test:native-links`, `npm run test:sharing`, both quick-action tests,
+then rebuild/sync the native shells. After deployment, test a root query link
+and `/Proverbs3:5-6/KJV?mode=parallel` tapped in Messages/Notes on iOS and a
+messaging app on Android, with the app terminated and already open. Verify the
+passage, translation and mode. Also test no-app browser fallback and user browser
+preferences. Typing a URL in Safari is not an equivalent Universal Link test.
+For Android, use `adb shell pm verify-app-links --re-verify com.bigscreenbible.app`
+then `adb shell pm get-app-links com.bigscreenbible.app`; the domain must report
+`verified` before treating a normal URL-launch test as proof of association.

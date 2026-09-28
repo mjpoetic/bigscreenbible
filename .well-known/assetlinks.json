@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bigscreenbible.app",
+      "sha256_cert_fingerprints": [
+        "EB:20:62:6D:E5:96:EC:75:AC:2A:69:75:2C:C5:44:D6:6E:30:B6:F5:7B:FF:93:8A:5C:9B:84:90:DF:33:67:5D"
+      ]
+    }
+  }
+]

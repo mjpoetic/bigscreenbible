@@ -28257,3 +28257,17 @@ function handleNativeQuickAction(action) {
 }
 
 window.bsbHandleQuickAction = handleNativeQuickAction;
+
+// Native hosts retry until this page can accept navigation. Reuse website routing
+// (including readable passage paths) and retain query parameters and fragments.
+function handleNativeSharedLink(value) {
+  if (!["ios", "android"].includes(window.Capacitor?.getPlatform?.())) return false;
+  let url;
+  try { url = new URL(value); } catch { return true; }
+  if (url.origin !== "https://bigscreenbible.com" || url.username || url.password) return true;
+  // Do not wait for Bible downloads: links must also work from a failed startup.
+  // Schedule navigation after acknowledging receipt so native retries cannot replay it.
+  window.setTimeout(() => window.location.assign(url.href), 0);
+  return true;
+}
+window.bsbHandleSharedLink = handleNativeSharedLink;

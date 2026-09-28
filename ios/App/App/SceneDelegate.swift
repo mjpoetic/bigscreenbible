@@ -32,6 +32,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         for userActivity in connectionOptions.userActivities {
+            _ = queueUniversalLink(userActivity)
             _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
         }
     }
@@ -43,6 +44,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        _ = queueUniversalLink(userActivity)
         _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
     }
 
@@ -58,6 +60,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneWillResignActive(_ scene: UIScene) {
         quickActionRetry?.cancel()
+    }
+
+    private func queueUniversalLink(_ activity: NSUserActivity) -> Bool {
+        guard activity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = activity.webpageURL, url.scheme == "https",
+              url.host == "bigscreenbible.com", url.user == nil, url.password == nil,
+              url.port == nil || url.port == 443 else { return false }
+        pendingQuickAction = url.absoluteString
+        quickActionAttempts = 0
+        deliverQuickAction()
+        return true
     }
 
     private func queueQuickAction(_ item: UIApplicationShortcutItem) -> Bool {
@@ -90,10 +103,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             retryQuickAction()
             return
         }
-        // Only fixed, allowlisted action names enter JavaScript. The web handler
-        // acknowledges once Bible startup is complete; retries preserve cold launches.
+        // Serialize links as JSON rather than interpolating untrusted URL text.
+        // Both handlers acknowledge receipt; retries preserve cold launches.
         quickActionDeliveryInFlight = true
-        webView.evaluateJavaScript("window.bsbHandleQuickAction?.('\(action)') === true") { [weak self] result, _ in
+        let argument = String(data: try! JSONSerialization.data(withJSONObject: [action]), encoding: .utf8)!
+        let handler = action.hasPrefix("https://") ? "bsbHandleSharedLink" : "bsbHandleQuickAction"
+        webView.evaluateJavaScript("window.\(handler)?.(...\(argument)) === true") { [weak self] result, _ in
             guard let self else { return }
             self.quickActionDeliveryInFlight = false
             if result as? Bool == true, self.pendingQuickAction == action {

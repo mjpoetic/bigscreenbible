@@ -28,6 +28,18 @@ public class MainActivity extends BridgeActivity {
 
     private void queueQuickAction(Intent intent) {
         String action = intent == null ? null : intent.getAction();
+        Uri url = intent == null ? null : intent.getData();
+        if (Intent.ACTION_VIEW.equals(action) && url != null && "https".equals(url.getScheme())
+                && "bigscreenbible.com".equals(url.getHost()) && url.getUserInfo() == null
+                && (url.getPort() == -1 || url.getPort() == 443)) {
+            pendingQuickAction = url.toString();
+            quickActionAttempts = 0;
+            intent.setData(null);
+            intent.setAction(Intent.ACTION_MAIN);
+            shortcutHandler.removeCallbacks(shortcutDelivery);
+            deliverQuickAction();
+            return;
+        }
         String prefix = "com.bigscreenbible.app.shortcut.";
         if (action == null || !action.startsWith(prefix)) return;
         String route = action.substring(prefix.length());
@@ -46,8 +58,9 @@ public class MainActivity extends BridgeActivity {
         String action = pendingQuickAction;
         quickActionAttempts++;
         shortcutInFlight = true;
+        String handler = action.startsWith("https://") ? "bsbHandleSharedLink" : "bsbHandleQuickAction";
         getBridge().getWebView().evaluateJavascript(
-            "window.bsbHandleQuickAction?.('" + action + "') === true", result -> {
+            "window." + handler + "?.(" + org.json.JSONObject.quote(action) + ") === true", result -> {
                 shortcutInFlight = false;
                 if ("true".equals(result) && action.equals(pendingQuickAction)) pendingQuickAction = null;
                 if (pendingQuickAction != null && shortcutResumed) {
