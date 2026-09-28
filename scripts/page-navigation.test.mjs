@@ -106,6 +106,78 @@ vm.runInContext(`
 assert.equal(animationContext.midpoint, 500);
 assert.equal(animationContext.finish, 1000);
 
+// Exercise the scroll-event feedback loop, not just the animation in isolation.
+for (const mode of ["reader", "parallel"]) {
+  for (const windowScroll of [false, true]) {
+    const context = { mode, windowScroll };
+    vm.createContext(context);
+    vm.runInContext(`
+      const state = { mode };
+      let now = 10000;
+      const Date = { now: () => now };
+      const performance = { now: () => now };
+      let readerUserScrollIntentUntil = 0;
+      let nextFrame = null;
+      const requestAnimationFrame = (callback) => { nextFrame = callback; };
+      const window = {
+        scrollX: 0, scrollY: 400, innerHeight: 1000,
+        scrollTo(left, top) { this.scrollX = left; this.scrollY = top; },
+        matchMedia: () => ({ matches: false }),
+      };
+      const scripture = { scrollLeft: 0, scrollTop: 400,
+        clientHeight: 1000, scrollHeight: windowScroll ? 1000 : 3400 };
+      const document = { visibilityState: "visible",
+        querySelector: () => scripture,
+        scrollingElement: { scrollHeight: 3400 } };
+      const pauseReaderAutoScroll = () => {};
+      const cancelReaderAppResumeRestore = () => {};
+      const refreshLastReaderScrollAnchor = () => {};
+      const scheduleReaderPositionPersistence = () => {};
+      const protectedReaderPosition = () => null;
+      const activeReaderPageScrollSpeed = () => ({ durationMs: 520 });
+      ${extractFunction("scrollPosition")}
+      ${extractFunction("applyScrollPosition")}
+      ${extractFunction("easeOutCubic")}
+      ${extractFunction("easeInOutCubic")}
+      ${extractFunction("cancelScrollPositionAnimation")}
+      ${extractFunction("animateScrollPosition")}
+      ${extractFunction("animateReaderPageScroll")}
+      ${extractFunction("readerPageScrollTarget")}
+      ${extractFunction("scrollReaderPage")}
+      ${extractFunction("noteReaderScrollIntent")}
+      ${extractFunction("handleReaderScrollPositionChange")}
+      const target = windowScroll ? window : scripture;
+      const top = () => scrollPosition(target).top;
+      const advance = () => {
+        for (let elapsed = 0; elapsed < 520; elapsed += 20) {
+          now += 20;
+          nextFrame(now);
+          handleReaderScrollPositionChange();
+        }
+      };
+      scrollReaderPage(1); advance();
+      globalThis.down = top();
+      scrollReaderPage(-1); advance();
+      globalThis.up = top();
+      scrollReaderPage(1, { boundary: true }); advance();
+      globalThis.bottom = top();
+      scrollReaderPage(-1, { boundary: true }); advance();
+      globalThis.start = top();
+      scrollReaderPage(1);
+      now += 100; nextFrame(now); handleReaderScrollPositionChange();
+      globalThis.beforeInterrupt = top();
+      noteReaderScrollIntent(); advance();
+      globalThis.afterInterrupt = top();
+    `, context);
+    assert.equal(context.down, 1250, `${mode}: page down with scroll events`);
+    assert.equal(context.up, 400, `${mode}: page up with scroll events`);
+    assert.equal(context.bottom, 2400);
+    assert.equal(context.start, 0);
+    assert.ok(context.beforeInterrupt > 0);
+    assert.equal(context.afterInterrupt, context.beforeInterrupt, "Manual input still cancels animation");
+  }
+}
+
 assert.match(source, /class="reader-page-controls" aria-label="Page navigation"/);
 assert.match(source, /class="selection-bar-controls"[\s\S]*?class="selection-bar-actions"/);
 assert.match(source, /id="readerTopButton"[\s\S]*?Page up; press twice for top/);

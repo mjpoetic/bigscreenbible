@@ -7085,7 +7085,12 @@ function protectedReaderPosition() {
 
 function handleReaderScrollPositionChange() {
   if (document.visibilityState === "hidden") return;
-  if (Date.now() < readerUserScrollIntentUntil) noteReaderScrollIntent();
+  if (Date.now() < readerUserScrollIntentUntil) {
+    // Scroll events also come from page-button animations. Extend the intent
+    // window without treating each animation frame as fresh manual input.
+    readerUserScrollIntentUntil = Date.now() + 2400;
+    cancelReaderAppResumeRestore();
+  }
   const scripture = document.querySelector(".scripture");
   const protectedPosition = scripture?.scrollTop <= 8 ? protectedReaderPosition() : null;
   const unexpectedTopReset = Boolean(
