@@ -23465,3 +23465,23 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
     max-width: calc(100vw - 110px - var(--app-safe-area-left, env(safe-area-inset-left, 0px)) - var(--app-safe-area-right, env(safe-area-inset-right, 0px)));
   }
 }
+
+/* Give revealed reading controls a denser glass surface without changing idle opacity. */
+.app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle) {
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.app-shell :is(.reader-page-button.available, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle):not(.focus-control-faded):not(.focus-control-hidden):not(.mobile-settings-idle):not(.reader-top-idle) {
+  opacity: 0.96;
+  background: var(--reading-control-active-glass, color-mix(in srgb, var(--paper) 88%, transparent));
+}
+
+.app-shell :is(.reader-page-button.available, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle):not(.focus-control-faded):not(.focus-control-hidden):not(.mobile-settings-idle):not(.reader-top-idle):is(:hover, :focus-visible, :active) {
+  opacity: 1;
+  background: var(--reading-control-active-glass, color-mix(in srgb, var(--soft) 92%, transparent));
+}
+
+.app-shell .reader-auto-scroll-button.active {
+  --reading-control-active-glass: color-mix(in srgb, var(--teal) 88%, var(--paper));
+}
