@@ -175,6 +175,55 @@ const genericCustomFontFamilies = new Set([
 ]);
 const customFontInputTimers = {};
 let inputViewportRefreshPending = false;
+const scriptureSearchInputSelector = "#referenceInput, #studySearchInput, #mobileFocusPassageInput, #presentationSearchInput, #quickActionSearchInput";
+let scriptureSearchViewport = null;
+let scriptureSearchBlurTimer;
+
+function beginScriptureSearchViewport(event) {
+  if (!event.target?.matches?.(scriptureSearchInputSelector)) return;
+  clearTimeout(scriptureSearchBlurTimer);
+  if (scriptureSearchViewport) return;
+  const shell = document.querySelector(state.mode === "big" ? ".presentation.open" : ".app-shell");
+  if (!shell) return;
+  scriptureSearchViewport = { width: window.innerWidth };
+  document.documentElement.style.setProperty("--search-scripture-height", `${shell.getBoundingClientRect().height}px`);
+  document.documentElement.dataset.scriptureSearch = "true";
+  // Discard restorations queued before focus: keyboard geometry is not a
+  // reading-position or orientation change.
+  readerScrollRestoreGeneration += 1;
+  clearTimeout(readerViewportRestoreTimer);
+  clearTimeout(presentationResizeTimer);
+}
+
+function endScriptureSearchViewport() {
+  clearTimeout(scriptureSearchBlurTimer);
+  scriptureSearchViewport = null;
+  delete document.documentElement.dataset.scriptureSearch;
+  document.documentElement.style.removeProperty("--search-scripture-height");
+}
+
+function scriptureSearchOwnsViewport() {
+  if (!scriptureSearchViewport) return false;
+  // A real rotation must still lay out the new screen width.
+  if (window.innerWidth !== scriptureSearchViewport.width) {
+    endScriptureSearchViewport();
+    return false;
+  }
+  return true;
+}
+
+document.addEventListener("focusin", beginScriptureSearchViewport);
+document.addEventListener("focusout", (event) => {
+  if (!event.target?.matches?.(scriptureSearchInputSelector)) return;
+  // Blur precedes the keyboard closing animation. Keep the passage stable
+  // through that animation and allow focus to transfer between search fields.
+  scriptureSearchBlurTimer = setTimeout(() => {
+    if (document.activeElement?.matches?.(scriptureSearchInputSelector)) return;
+    endScriptureSearchViewport();
+    positionMobileFocusSearch();
+    resumeViewportRefreshAfterInput();
+  }, 450);
+});
 const scriptureFontLoaders = [createCustomFontLoader(false), createCustomFontLoader(true)];
 const legacyScriptureFontCodes = {
   merriweather: "literata",
@@ -1949,6 +1998,7 @@ function scrollTriviaAnswerActionsIntoView() {
 }
 
 function deferViewportRefreshForActiveInput() {
+  if (scriptureSearchOwnsViewport()) return true;
   if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput")) return false;
   inputViewportRefreshPending = true;
   clearTimeout(presentationResizeTimer);
@@ -6969,6 +7019,7 @@ function bindReaderSelectionToolsButton() {
 }
 
 function preserveReaderScrollAfterViewportChange() {
+  if (scriptureSearchOwnsViewport()) return;
   if (
     document.visibilityState === "hidden"
     || !["reader", "parallel"].includes(state.mode)

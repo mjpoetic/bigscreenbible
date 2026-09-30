@@ -9,6 +9,14 @@
 
 /* Suppress accidental double-tap zoom while retaining browser pinch zoom.
    Descendant touch-action rules still own Scripture and game gestures. */
+/* Search moves its floating controls above the keyboard while the scripture
+   keeps the same reading canvas throughout keyboard opening and dismissal. */
+html[data-scripture-search="true"] .app-shell,
+html[data-scripture-search="true"] .presentation.open {
+  height: var(--search-scripture-height) !important;
+  min-height: var(--search-scripture-height) !important;
+}
+
 html {
   /* Keep mobile browser text inflation from changing sizing on rotation. */
   -webkit-text-size-adjust: 100%;

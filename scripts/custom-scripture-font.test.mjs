@@ -132,6 +132,7 @@ const viewportContext = vm.createContext({
 vm.runInContext(`
   let presentationResizeTimer;
   let inputViewportRefreshPending = false;
+  function scriptureSearchOwnsViewport() { return false; }
   ${extractFunction('deferViewportRefreshForActiveInput')}
   ${extractFunction('resumeViewportRefreshAfterInput')}
   ${extractFunction('renderAfterViewportChangePreservingReaderScroll')}
