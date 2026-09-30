@@ -185,8 +185,18 @@ function beginScriptureSearchViewport(event) {
   if (scriptureSearchViewport) return;
   const shell = document.querySelector(state.mode === "big" ? ".presentation.open" : ".app-shell");
   if (!shell) return;
-  scriptureSearchViewport = { width: window.innerWidth };
+  const passage = document.querySelector(state.mode === "big" ? ".presentation-text" : ".scripture");
+  const grid = document.querySelector(".main-grid");
+  const viewport = window.visualViewport;
+  scriptureSearchViewport = {
+    width: window.innerWidth,
+    passage,
+    screenTop: passage ? passage.getBoundingClientRect().top - (viewport?.offsetTop || 0) : 0,
+    offset: 0,
+  };
   document.documentElement.style.setProperty("--search-scripture-height", `${shell.getBoundingClientRect().height}px`);
+  if (grid) document.documentElement.style.setProperty("--search-grid-height", `${grid.getBoundingClientRect().height}px`);
+  if (passage) document.documentElement.style.setProperty("--search-passage-height", `${passage.getBoundingClientRect().height}px`);
   document.documentElement.dataset.scriptureSearch = "true";
   // Discard restorations queued before focus: keyboard geometry is not a
   // reading-position or orientation change.
@@ -195,11 +205,27 @@ function beginScriptureSearchViewport(event) {
   clearTimeout(presentationResizeTimer);
 }
 
+function anchorScriptureSearchToScreen() {
+  if (!scriptureSearchOwnsViewport()) return;
+  const snapshot = scriptureSearchViewport;
+  const passage = snapshot.passage;
+  if (!passage?.isConnected) return;
+  // DOM rectangles use layout-viewport coordinates. On iOS the keyboard can
+  // pan the visual viewport independently of both layout size and scrollTop.
+  // Undo only that geometry movement; leave the reading scroll position alone.
+  const screenTop = passage.getBoundingClientRect().top - (window.visualViewport?.offsetTop || 0);
+  snapshot.offset += snapshot.screenTop - screenTop;
+  passage.style.setProperty("translate", `0 ${snapshot.offset}px`);
+}
+
 function endScriptureSearchViewport() {
   clearTimeout(scriptureSearchBlurTimer);
+  scriptureSearchViewport?.passage?.style.removeProperty("translate");
   scriptureSearchViewport = null;
   delete document.documentElement.dataset.scriptureSearch;
   document.documentElement.style.removeProperty("--search-scripture-height");
+  document.documentElement.style.removeProperty("--search-grid-height");
+  document.documentElement.style.removeProperty("--search-passage-height");
 }
 
 function scriptureSearchOwnsViewport() {
@@ -212,6 +238,8 @@ function scriptureSearchOwnsViewport() {
   return true;
 }
 
+// Capture before the browser performs its default focus/reveal scrolling.
+document.addEventListener("pointerdown", beginScriptureSearchViewport, { passive: true });
 document.addEventListener("focusin", beginScriptureSearchViewport);
 document.addEventListener("focusout", (event) => {
   if (!event.target?.matches?.(scriptureSearchInputSelector)) return;
@@ -588,7 +616,6 @@ const socialAvatarMoreOptions = socialAvatarOptions.slice(6);
 const socialAvatarKeys = socialAvatarOptions.map((option) => option.key);
 const confettiModuleUrl = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.module.mjs";
 const defaultVerseOfDaySourceUrl = "https://www.verseoftheday.com/";
-const verseOfDayTranslationCode = "NIV";
 let lastAppUpdateCheckAt = 0;
 let dismissedAppUpdateVersion = "";
 let appUpdateNoticeVersion = "";
@@ -11421,12 +11448,13 @@ function verseOfDayReaderView() {
   return `
     <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
       <h1 class="section-title" id="verseOfDayReference">${escapeHtml(verseOfDayReferenceLabel(item))}</h1>
-      <p class="verse-of-day-copy">${escapeHtml(item.verseText)}</p>
+      <p class="verse-of-day-copy">${verseOfDayVerseEntries(item).map((entry) => escapeHtml(entry.text)).join(" ")}</p>
       <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
         <span aria-hidden="true">${icons.book}</span>
         <span>Read in Bible</span>
       </button>
       ${verseOfDayAttributionMarkup()}
+      ${apiBibleAttributionMarkup([state.versions[0]])}
     </section>
   `;
 }
@@ -17336,26 +17364,22 @@ function splitVerseOfDayText(value, weights) {
 
 function verseOfDayVerseEntries(item = state.verseOfDayItem) {
   const parsed = parsePassageReference(item?.reference);
-  const verseText = String(item?.verseText || "").trim();
-  if (!parsed || !verseText) return [];
+  if (!parsed) return [];
   const verseNumbers = parsed.verses.length ? parsed.verses : [parsed.verse];
   const chapterVerses = bibleData[parsed.key]?.verses || [];
-  const weights = verseNumbers.map((verseNumber) => {
-    const verse = chapterVerses.find((candidate) => candidate.n === verseNumber);
-    return String(verse?.BSB || verse?.text || verse?.KJV || verse?.WEB || verse?.ASV || verse?.BBE || "").length || 1;
-  });
-  const texts = splitVerseOfDayText(verseText, weights);
-  return verseNumbers.map((verse, index) => ({
-    reference: `${parsed.key}:${verse}`,
-    verse,
-    text: texts[index] || "",
-  })).filter((entry) => entry.text);
+  const version = state.versions[0];
+  return uniqueVersionVerses(verseNumbers.map((n) => chapterVerses.find((verse) => verse.n === n) || { n }), version)
+    .map((verse) => ({
+      reference: `${parsed.key}:${versionVerseLabel(verse, version)}`,
+      verse: verse.n,
+      text: getVerseText(verse, version, parsed.key),
+    }));
 }
 
 function verseOfDayPresentationPages(item = state.verseOfDayItem) {
   const entries = verseOfDayVerseEntries(item);
   return entries.flatMap((entry, verseIndex) => {
-    const parts = presentationTextPartsWithOffsets(entry.text);
+    const parts = entry.text ? presentationTextPartsWithOffsets(entry.text) : [{ text: "", start: 0, end: 0 }];
     return parts.map((part, versePartIndex) => ({
       ...part,
       reference: entry.reference,
@@ -17647,7 +17671,7 @@ function presentation(accountPanelRerender = false) {
     ? `${part.reference}${part.versePartCount > 1 ? presentationPartSuffix(part.versePartIndex) : ""}`
     : `${referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
   const presentationReference = verseOfDayItem
-    ? `${presentationReferenceBase} (${verseOfDayTranslationCode})`
+    ? `${presentationReferenceBase} (${translationDisplayCode(state.versions[0])})`
     : presentationReferenceBase;
   const presentationPosition = verseOfDayItem
     ? [
@@ -17720,9 +17744,7 @@ function presentation(accountPanelRerender = false) {
                 ${presentationReferencePicker("verse", verses, state.verse)}`}
             <button class="ghost-btn presentation-reference-share presentation-reference-share-inline" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
-          ${verseOfDayItem
-            ? `<span class="presentation-version-label">(${verseOfDayTranslationCode})</span>`
-            : presentationVersionPicker("title", version)}
+          ${presentationVersionPicker("title", version)}
           <div class="presentation-reference-mobile-share">
             <button class="ghost-btn presentation-reference-share presentation-reference-share-mobile" id="presentationShareMobile" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
@@ -17749,7 +17771,8 @@ function presentation(accountPanelRerender = false) {
         <div class="presentation-passage">
           <span class="presentation-copy">${textMarkup}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
-          ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : apiBibleAttributionMarkup([version], "presentation-attribution")}
+          ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : ""}
+          ${apiBibleAttributionMarkup([version], "presentation-attribution")}
         </div>
         ${nextPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-next" aria-hidden="true"><span>Next</span><strong>${escapeHtml(nextPreview.reference)}</strong><p>${escapeHtml(nextPreview.text)}</p></div>` : ""}
         ${bibleVersionLoadingIndicator(versionLoadingState)}
@@ -23727,6 +23750,8 @@ async function openVerseOfDay(options = {}) {
   }
   state.verseOfDayItem = verseOfDay.item;
   state.isVerseOfDayActive = true;
+  await loadBibleVersion(state.versions[0]);
+  rebuildBibleData();
   state.mode = options.mode || "reader";
   state.searchQuery = "";
   state.pendingVerseFocus = true;
@@ -27201,7 +27226,7 @@ function dismissSelectionBarOnOutsideClick(event) {
 
 function passageLines(verseNumbers = selectedVerseNumbers()) {
   if (state.isVerseOfDayActive && state.verseOfDayItem) {
-    return [{ n: state.verse, text: state.verseOfDayItem.verseText }];
+    return verseOfDayVerseEntries().map((entry) => ({ n: entry.verse, text: entry.text }));
   }
   const selected = new Set(verseNumbers);
   return uniqueVersionVerses(currentChapter().verses.filter((verse) => selected.has(verse.n)), state.versions[0])
@@ -27217,9 +27242,7 @@ function passageShareText(verseNumbers = selectedVerseNumbers()) {
 }
 
 function passageVersion() {
-  return state.isVerseOfDayActive && state.verseOfDayItem
-    ? verseOfDayTranslationCode
-    : translationDisplayCode(state.versions[0]);
+  return translationDisplayCode(state.versions[0]);
 }
 
 function formattedPassageText(verseNumbers = selectedVerseNumbers()) {
@@ -27246,9 +27269,7 @@ function passageShareUrl(verseNumbers = selectedVerseNumbers()) {
   if (verseNumbers.length > 1) url.searchParams.set("verses", verseRangeParam(verseNumbers));
   else url.searchParams.delete("verses");
   if (["reader", "parallel", "big"].includes(state.mode)) url.searchParams.set("mode", state.mode);
-  url.searchParams.set("version", state.isVerseOfDayActive && state.verseOfDayItem
-    ? verseOfDayTranslationCode
-    : state.versions[0]);
+  url.searchParams.set("version", state.versions[0]);
   return url.toString();
 }
 
@@ -27390,6 +27411,7 @@ function schedulePresentationViewportFit(rotating = false) {
 }
 
 window.addEventListener("resize", () => {
+  anchorScriptureSearchToScreen();
   applyTextScaleVars();
   if (state.mode === "big") {
     schedulePresentationViewportFit();
@@ -27612,7 +27634,7 @@ function normalizeVerseOfDayItem(payload) {
 
 function verseOfDayReferenceLabel(item = state.verseOfDayItem) {
   const reference = String(item?.reference || "").trim();
-  return reference ? `${reference} (${verseOfDayTranslationCode})` : "";
+  return reference ? `${reference} (${translationDisplayCode(state.versions[0])})` : "";
 }
 
 async function fetchVerseOfDayItem() {
@@ -28108,6 +28130,7 @@ window.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("resize", () => {
+  anchorScriptureSearchToScreen();
   if (state.mode === "big") schedulePresentationViewportFit();
   refreshDraggedPopupPositions();
   positionMobileFocusSearch();
@@ -28117,6 +28140,8 @@ window.visualViewport?.addEventListener("resize", () => {
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
+window.visualViewport?.addEventListener("scroll", anchorScriptureSearchToScreen);
+window.addEventListener("scroll", anchorScriptureSearchToScreen, { passive: true });
 document.addEventListener("pointerdown", closeOpenPopoversOnOutsidePointerDown);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager, .focus-brand-version-menu, #brandVerseOfDay")) return;

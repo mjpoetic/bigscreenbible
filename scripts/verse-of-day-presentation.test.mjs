@@ -24,7 +24,7 @@ const passageReference = {
   verses: [4, 6],
 };
 const context = {
-  state: { verseOfDayItem: null, selectedVerses: [] },
+  state: { verseOfDayItem: null, selectedVerses: [], versions: ["BSB"] },
   bibleData: {
     "Romans 12": {
       verses: [
@@ -33,6 +33,9 @@ const context = {
       ],
     },
   },
+  uniqueVersionVerses: (verses) => verses,
+  versionVerseLabel: (verse) => String(verse.n),
+  getVerseText: (verse, version) => verse[version] || "",
   parsePassageReference: () => passageReference,
   presentationTextPartsWithOffsets: (text) => [{ text, start: 0, end: text.length }],
   setReferenceFromString(reference) {
@@ -59,9 +62,14 @@ const item = {
   verseText: "Just as each of us has one body with many members, and these members do not all have the same function, We have different gifts according to the grace given to each of us.",
 };
 const pages = context.pagesFor(item);
+assert.equal(pages[0].text, context.bibleData["Romans 12"].verses[0].BSB);
 assert.deepEqual(Array.from(pages, (page) => page.reference), ["Romans 12:4", "Romans 12:6"]);
 assert.match(pages[0].text, /same function,$/);
 assert.match(pages[1].text, /^We have different gifts/);
+context.bibleData["Romans 12"].verses[0].KJV = "Selected KJV verse four";
+context.bibleData["Romans 12"].verses[1].KJV = "Selected KJV verse six";
+context.state.versions = ["KJV"];
+assert.deepEqual(Array.from(context.pagesFor(item), (page) => page.text), ["Selected KJV verse four", "Selected KJV verse six"]);
 assert.deepEqual(Array.from(pages, (page) => page.verse), [4, 6]);
 assert.deepEqual(Array.from(pages, (page) => page.verseIndex), [0, 1]);
 assert.deepEqual(Array.from(pages, (page) => page.verseCount), [2, 2]);

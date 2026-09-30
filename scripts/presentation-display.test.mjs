@@ -93,9 +93,9 @@ assert.match(extractFunction("presentationReferencePicker"), /type\.charAt\(0\)\
 assert.match(extractFunction("presentationReferencePicker"), /presentation-reference-toggle/);
 assert.match(source, /settingsChoiceMarkup\("presentationVersionSelect"/);
 assert.match(source, /presentationVersionPicker\("title", version\)/);
-assert.match(extractFunction("presentation"), /presentation-version-label">\(\$\{verseOfDayTranslationCode\}\)<\/span>/);
+assert.match(extractFunction("presentation"), /presentationVersionPicker\("title", version\)/);
 assert.match(extractFunction("verseOfDayReaderView"), /verseOfDayReferenceLabel\(item\)/);
-assert.match(extractFunction("verseOfDayReferenceLabel"), /\$\{reference\} \(\$\{verseOfDayTranslationCode\}\)/);
+assert.match(extractFunction("verseOfDayReferenceLabel"), /translationDisplayCode\(state.versions\[0\]\)/);
 const presentationSettingsPanelSource = extractFunction("presentationSettingsPanelMarkup");
 assert.match(presentationSettingsPanelSource, /appUpdateControls\("presentation"\)/);
 assert.match(presentationSettingsPanelSource, /<h3>Keyboard<\/h3>/);
