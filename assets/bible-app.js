@@ -178,6 +178,7 @@ let inputViewportRefreshPending = false;
 const scriptureSearchInputSelector = "#referenceInput, #studySearchInput, #mobileFocusPassageInput, #presentationSearchInput, #quickActionSearchInput";
 let scriptureSearchViewport = null;
 let scriptureSearchBlurTimer;
+let scriptureSearchTouch = null;
 
 function beginScriptureSearchViewport(event) {
   if (!event.target?.matches?.(scriptureSearchInputSelector)) return;
@@ -185,18 +186,12 @@ function beginScriptureSearchViewport(event) {
   if (scriptureSearchViewport) return;
   const shell = document.querySelector(state.mode === "big" ? ".presentation.open" : ".app-shell");
   if (!shell) return;
-  const passage = document.querySelector(state.mode === "big" ? ".presentation-text" : ".scripture");
-  const grid = document.querySelector(".main-grid");
-  const viewport = window.visualViewport;
   scriptureSearchViewport = {
     width: window.innerWidth,
-    passage,
-    screenTop: passage ? passage.getBoundingClientRect().top - (viewport?.offsetTop || 0) : 0,
-    offset: 0,
+    windowX: window.scrollX,
+    windowY: window.scrollY,
   };
   document.documentElement.style.setProperty("--search-scripture-height", `${shell.getBoundingClientRect().height}px`);
-  if (grid) document.documentElement.style.setProperty("--search-grid-height", `${grid.getBoundingClientRect().height}px`);
-  if (passage) document.documentElement.style.setProperty("--search-passage-height", `${passage.getBoundingClientRect().height}px`);
   document.documentElement.dataset.scriptureSearch = "true";
   // Discard restorations queued before focus: keyboard geometry is not a
   // reading-position or orientation change.
@@ -205,27 +200,21 @@ function beginScriptureSearchViewport(event) {
   clearTimeout(presentationResizeTimer);
 }
 
-function anchorScriptureSearchToScreen() {
+function restoreScriptureSearchWindowScroll() {
   if (!scriptureSearchOwnsViewport()) return;
   const snapshot = scriptureSearchViewport;
-  const passage = snapshot.passage;
-  if (!passage?.isConnected) return;
-  // DOM rectangles use layout-viewport coordinates. On iOS the keyboard can
-  // pan the visual viewport independently of both layout size and scrollTop.
-  // Undo only that geometry movement; leave the reading scroll position alone.
-  const screenTop = passage.getBoundingClientRect().top - (window.visualViewport?.offsetTop || 0);
-  snapshot.offset += snapshot.screenTop - screenTop;
-  passage.style.setProperty("translate", `0 ${snapshot.offset}px`);
+  // The scripture has its own scroll container. A keyboard must never scroll
+  // the document behind it. Restore document scrolling, not passage geometry.
+  if (window.scrollX !== snapshot.windowX || window.scrollY !== snapshot.windowY) {
+    window.scrollTo({ left: snapshot.windowX, top: snapshot.windowY, behavior: "instant" });
+  }
 }
 
 function endScriptureSearchViewport() {
   clearTimeout(scriptureSearchBlurTimer);
-  scriptureSearchViewport?.passage?.style.removeProperty("translate");
   scriptureSearchViewport = null;
   delete document.documentElement.dataset.scriptureSearch;
   document.documentElement.style.removeProperty("--search-scripture-height");
-  document.documentElement.style.removeProperty("--search-grid-height");
-  document.documentElement.style.removeProperty("--search-passage-height");
 }
 
 function scriptureSearchOwnsViewport() {
@@ -238,8 +227,33 @@ function scriptureSearchOwnsViewport() {
   return true;
 }
 
-// Capture before the browser performs its default focus/reveal scrolling.
-document.addEventListener("pointerdown", beginScriptureSearchViewport, { passive: true });
+function startScriptureSearchTouch(event) {
+  scriptureSearchTouch = null;
+  if (!event.target?.matches?.(scriptureSearchInputSelector) || event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  scriptureSearchTouch = { input: event.target, x: touch.clientX, y: touch.clientY };
+}
+
+function focusScriptureSearchWithoutPageScroll(event) {
+  const touch = scriptureSearchTouch;
+  scriptureSearchTouch = null;
+  const end = event.changedTouches?.[0];
+  if (!touch || !end || event.target !== touch.input || !event.cancelable
+    || event.touches.length || document.activeElement === touch.input
+    || Math.hypot(end.clientX - touch.x, end.clientY - touch.y) > 10) return;
+  // A native tap on a low fixed input asks iOS to center it by scrolling the
+  // entire page. Cancel that default action and focus synchronously with
+  // preventScroll, preserving the user gesture required to open the keyboard.
+  // The visualViewport handler positions the search control above the keyboard.
+  event.preventDefault();
+  beginScriptureSearchViewport({ target: touch.input });
+  touch.input.focus({ preventScroll: true });
+  positionMobileFocusSearch();
+}
+
+document.addEventListener("touchstart", startScriptureSearchTouch, { passive: true, capture: true });
+document.addEventListener("touchend", focusScriptureSearchWithoutPageScroll, { passive: false, capture: true });
+document.addEventListener("touchcancel", () => { scriptureSearchTouch = null; }, { passive: true });
 document.addEventListener("focusin", beginScriptureSearchViewport);
 document.addEventListener("focusout", (event) => {
   if (!event.target?.matches?.(scriptureSearchInputSelector)) return;
@@ -247,6 +261,7 @@ document.addEventListener("focusout", (event) => {
   // through that animation and allow focus to transfer between search fields.
   scriptureSearchBlurTimer = setTimeout(() => {
     if (document.activeElement?.matches?.(scriptureSearchInputSelector)) return;
+    restoreScriptureSearchWindowScroll();
     endScriptureSearchViewport();
     positionMobileFocusSearch();
     resumeViewportRefreshAfterInput();
@@ -27411,7 +27426,7 @@ function schedulePresentationViewportFit(rotating = false) {
 }
 
 window.addEventListener("resize", () => {
-  anchorScriptureSearchToScreen();
+  restoreScriptureSearchWindowScroll();
   applyTextScaleVars();
   if (state.mode === "big") {
     schedulePresentationViewportFit();
@@ -28130,7 +28145,7 @@ window.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("resize", () => {
-  anchorScriptureSearchToScreen();
+  restoreScriptureSearchWindowScroll();
   if (state.mode === "big") schedulePresentationViewportFit();
   refreshDraggedPopupPositions();
   positionMobileFocusSearch();
@@ -28140,8 +28155,8 @@ window.visualViewport?.addEventListener("resize", () => {
 });
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
-window.visualViewport?.addEventListener("scroll", anchorScriptureSearchToScreen);
-window.addEventListener("scroll", anchorScriptureSearchToScreen, { passive: true });
+window.visualViewport?.addEventListener("scroll", restoreScriptureSearchWindowScroll);
+window.addEventListener("scroll", restoreScriptureSearchWindowScroll, { passive: true });
 document.addEventListener("pointerdown", closeOpenPopoversOnOutsidePointerDown);
 document.addEventListener("click", (event) => {
   if (!state.headerVersionMenuOpen || event.target.closest?.(".primary-version-control, .version-manager, .focus-brand-version-menu, #brandVerseOfDay")) return;

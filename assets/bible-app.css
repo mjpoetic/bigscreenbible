@@ -7,8 +7,6 @@
   src: url("./fonts/cinzel-900-latin.woff2") format("woff2");
 }
 
-/* Suppress accidental double-tap zoom while retaining browser pinch zoom.
-   Descendant touch-action rules still own Scripture and game gestures. */
 /* Search moves its floating controls above the keyboard while the scripture
    keeps the same reading canvas throughout keyboard opening and dismissal. */
 html[data-scripture-search="true"] .app-shell,
@@ -17,16 +15,8 @@ html[data-scripture-search="true"] .presentation.open {
   min-height: var(--search-scripture-height) !important;
 }
 
-html[data-scripture-search="true"] .app-shell .main-grid {
-  height: var(--search-grid-height) !important;
-  transition: none;
-}
-
-html[data-scripture-search="true"] :is(.scripture, .presentation-text) {
-  height: var(--search-passage-height) !important;
-  min-height: var(--search-passage-height) !important;
-}
-
+/* Suppress accidental double-tap zoom while retaining browser pinch zoom.
+   Descendant touch-action rules still own Scripture and game gestures. */
 html {
   /* Keep mobile browser text inflation from changing sizing on rotation. */
   -webkit-text-size-adjust: 100%;
