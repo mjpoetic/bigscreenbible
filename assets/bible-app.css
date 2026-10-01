@@ -23493,3 +23493,33 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 .app-shell .reader-auto-scroll-button.active {
   --reading-control-active-glass: color-mix(in srgb, var(--teal) 88%, var(--paper));
 }
+
+/* One compact search card per verse, with translations revealed on demand. */
+.search-verse-group {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.search-verse-group > .search-result {
+  border: 0;
+  border-radius: 0;
+}
+.search-version-details > summary {
+  padding: 10px 13px;
+  min-height: 44px;
+  color: var(--teal);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--line);
+}
+.search-version-details > summary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -3px;
+}
+.search-version-matches {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 10px;
+}

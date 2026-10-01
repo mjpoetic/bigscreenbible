@@ -370,4 +370,30 @@ const nonExactRanked = rankingContext.balance([
 ], "ESV");
 assert.deepEqual([...nonExactRanked].map((result) => result.version), ["BSB", "ESV"]);
 
+vm.runInContext(`
+  ${extractFunction("searchReferenceParts")}
+  ${extractFunction("groupSearchResults")}
+`, rankingContext);
+const grouped = rankingContext.groupSearchResults([
+  { ref: "John 3:16", version: "BSB", score: 120 },
+  { ref: "John 3:16", version: "ESV", score: 100 },
+  { ref: "John 3:16", version: "ESV", score: 90 },
+  { ref: "John 3:17", version: "KJV", score: 110 },
+  { ref: "John 3:17", version: "BSB", score: 80 },
+  { ref: "John 3:18–19", version: "KJV", score: 70 },
+  { ref: "John 3:18-19", version: "BSB", score: 60 },
+], "ESV");
+assert.equal(grouped.length, 3, "One result per unique verse or passage");
+assert.equal(grouped[0].version, "ESV", "Prefer the selected version when it matches");
+assert.equal(grouped[0].matches.length, 2, "Keep one match per translation");
+assert.equal(grouped[0].score, 100, "Retain the best evidence per translation");
+assert.equal(grouped[1].version, "KJV", "Fall back to the closest scored match");
+assert.equal(grouped[2].matches.length, 2, "Normalize passage range separators");
+const many = Array.from({ length: 45 }, (_, index) => ["ESV", "BSB", "KJV"].map((version) => ({
+  ref: `Psalm 119:${index + 1}`, version, score: 100 - index,
+}))).flat();
+const limited = rankingContext.groupSearchResults(many, "ESV").slice(0, 40);
+assert.equal(limited.length, 40, "Limit unique verses rather than translation rows");
+assert.ok(limited.every((result) => result.matches.length === 3));
+
 console.log("Search scope tests passed");

@@ -16946,12 +16946,21 @@ function searchResultsMarkup() {
       </button>
     </article>
   ` : "";
-  const passageMarkup = state.searchResults.map((result) => `
-    <button class="search-result" data-goto="${escapeHtml(result.goto || result.ref)}" data-search-result="true">
-      <div class="ref-title">${escapeHtml(result.ref)} · ${escapeHtml(result.version)}${result.matchType ? ` · ${escapeHtml(result.matchType)}` : ""}</div>
-      <div class="ref-copy">${highlightSearchTerms(result.text, query)}</div>
-    </button>
-  `).join("");
+  const passageMarkup = state.searchResults.map((result) => {
+    const versions = result.matches || [result];
+    const resultButton = (match) => `
+      <button type="button" class="search-result" data-goto="${escapeHtml(match.goto || match.ref)}" data-search-result="true">
+        <div class="ref-title">${escapeHtml(match.ref)} · ${escapeHtml(match.version)}${match.matchType ? ` · ${escapeHtml(match.matchType)}` : ""}</div>
+        <div class="ref-copy">${highlightSearchTerms(match.text, query)}</div>
+      </button>`;
+    return `<article class="search-verse-group">
+      ${resultButton(result)}
+      ${versions.length > 1 ? `<details class="search-version-details">
+        <summary>${versions.length - 1} other matching ${versions.length === 2 ? "version" : "versions"}</summary>
+        <div class="search-version-matches">${versions.slice(1).map(resultButton).join("")}</div>
+      </details>` : ""}
+    </article>`;
+  }).join("");
   return `
     ${strongLookup}
     ${answerMarkup}
@@ -23335,7 +23344,32 @@ async function searchBible(query, requestedScope = state.searchScope, requestedC
       seen.add(key);
       return true;
     });
-  return removeRedundantSemanticResults(balancedSearchResults(ranked, primaryVersion)).slice(0, 40);
+  return groupSearchResults(removeRedundantSemanticResults(ranked), primaryVersion).slice(0, 40);
+}
+
+// Keep every matching translation together before applying the visible-result limit.
+function groupSearchResults(results, primaryVersion) {
+  const versionOrder = uniqueList([primaryVersion, ...state.versions, ...translationCodes]);
+  const groups = new Map();
+  results.forEach((result) => {
+    const parts = searchReferenceParts(result.ref.replace(/[–—]/g, "-"));
+    const key = parts
+      ? `${parts.book.toLowerCase()} ${parts.chapter}:${parts.start}-${parts.end}`
+      : result.ref.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!groups.has(key)) groups.set(key, []);
+    const matches = groups.get(key);
+    const previous = matches.findIndex((match) => match.version === result.version);
+    if (previous < 0) matches.push(result);
+    else if ((result.score || 0) > (matches[previous].score || 0)) matches[previous] = result;
+  });
+  return [...groups.values()].map((matches) => {
+    matches.sort((a, b) => {
+      const preferred = Number(b.version === primaryVersion) - Number(a.version === primaryVersion);
+      return preferred || (b.score || 0) - (a.score || 0)
+        || versionOrder.indexOf(a.version) - versionOrder.indexOf(b.version);
+    });
+    return { ...matches[0], matches, groupScore: Math.max(...matches.map((match) => match.score || 0)) };
+  }).sort((a, b) => b.groupScore - a.groupScore);
 }
 
 function searchReferenceParts(value) {
