@@ -76,7 +76,7 @@ assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \
 assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\)\.open \{[\s\S]*?position: fixed;[\s\S]*?display: block;/);
 assert.match(styles, /\.games-drawer-shell:is\(\[data-games-drawer="social"\], \[data-games-drawer="controls"\]\) \.games-drawer \{[\s\S]*?position: fixed;[\s\S]*?animation: gamesDrawerInRight/);
 assert.match(styles, /\.trivia-reader\.is-setup \{[\s\S]*?overflow: hidden;/);
-assert.match(source, /state\.focusMode && !state\.settingsOpen[\s\S]*?mobileFloatingSettings/);
+assert.match(source, /state\.focusMode \? `[\s\S]*?mobile-floating-settings \$\{state\.settingsOpen \? "active" : ""\}[\s\S]*?mobileFloatingSettings/);
 assert.doesNotMatch(styles, /\.app-shell\.trivia-shell \.mobile-floating-settings\s*\{[^}]*display:\s*(?:inline-)?flex;/);
 assert.match(styles, /\.app-shell\.trivia-shell \.footer-collapse-toggle \{[\s\S]*?left: 0;[\s\S]*?right: 0;/);
 assert.match(styles, /\.trivia-setup \{[\s\S]*?grid-template-rows: auto minmax\(0, 1fr\) auto;/);
