@@ -523,3 +523,14 @@ html[data-control-material="glass"] .mobile-focus-passage-popover :is(input, .mo
   background: var(--panel);
   color: var(--ink);
 }
+
+/* Keep the Settings gear paired with its accent fill in every open state. */
+html[data-control-material="glass"] .app-shell .mobile-floating-settings.active,
+html[data-control-material="glass"] .app-shell .mobile-floating-settings.active:is(:hover, :focus-visible, :active) {
+  --reading-control-active-glass: var(--teal);
+  color: var(--accent-ink);
+  border-color: var(--glass-edge);
+}
+html[data-control-material="glass"] .app-shell .mobile-floating-settings.active svg {
+  color: var(--accent-ink);
+}

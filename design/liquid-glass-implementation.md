@@ -1,6 +1,6 @@
 # Liquid Glass control finish
 
-Implemented October 2, 2026, release 2026.10.02.13.
+Implemented October 2, 2026, release 2026.10.02.14.
 
 Apple-inspired web material for the shared site and Capacitor UI. This uses
 CSS backdrop blur, theme tint, reflective edges and rounded control groups;
@@ -98,3 +98,5 @@ Focus menus (.10): floating Settings persists while open with expanded state and
 Custom picker menus are included in the Focus outside-click boundary so selecting an option keeps the picker open.
 
 Menu opening keys stop propagation so reading shortcuts cannot consume ArrowDown/Enter while the picker owns focus. Browser verified cascading Mark 2:3 choices.
+
+Picker label and Settings contrast (.14): Focus choice menus have a 112px minimum width within viewport bounds so numeric labels survive shared row padding. Active Settings gear explicitly inherits accent ink during hover/press/focus. Settings and Focus regression checks passed.

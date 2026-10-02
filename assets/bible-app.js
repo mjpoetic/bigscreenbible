@@ -3631,7 +3631,8 @@ function closeSettingsChoiceMenuOnScroll(event) {
 function positionSettingsChoiceMenu(trigger, menu, wide = false) {
   const viewportPadding = 8;
   const bounds = trigger.getBoundingClientRect();
-  const preferredWidth = wide ? Math.max(bounds.width, 310) : bounds.width;
+  const preferredWidth = wide ? Math.max(bounds.width, 310)
+    : trigger.closest(".focus-mini-verse-picker") ? Math.max(bounds.width, 112) : bounds.width;
   const width = Math.min(preferredWidth, window.innerWidth - (viewportPadding * 2));
   menu.style.width = `${width}px`;
   menu.style.maxHeight = `${Math.max(120, window.innerHeight - (viewportPadding * 2))}px`;
