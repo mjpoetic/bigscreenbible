@@ -565,3 +565,10 @@ html[data-control-material="glass"] .app-shell .mobile-floating-settings.active:
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active svg {
   color: var(--accent-ink);
 }
+
+/* Account status keeps its tint, with the same single edge as nearby utilities. */
+html[data-control-material="glass"] .topbar #accountQuickButton.account-quick-button,
+html[data-control-material="glass"] .presentation #presentationAccountButton.account-quick-button {
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
