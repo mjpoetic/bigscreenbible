@@ -23520,9 +23520,44 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 #app .app-shell :is(.mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-passage-popover) {
   --reading-control-shadow: 0 0 32px 0 var(--reading-control-dim), 0 0 64px 0 var(--reading-control-dim-edge);
   border-color: transparent;
+  border-radius: 999px;
   background: transparent;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+/* Light paper needs a gentler mist; rounded wrappers prevent square shadow
+   corners from outlining otherwise transparent control groups. */
+html[data-theme="light"] .app-shell .reading-control-over-scripture {
+  --reading-control-dim: rgb(0 0 0 / 0.12);
+  --reading-control-dim-edge: rgb(0 0 0 / 0.04);
+}
+
+/* Remove the light finish's border and inset reflection lines from floating
+   reading controls. Keep a diffuse shadow and the keyboard focus outline. */
+html[data-theme="light"] #app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option) {
+  --glass-shadow: 0 5px 20px rgb(0 0 0 / 0.07);
+  border-color: transparent;
+  box-shadow: var(--reading-control-shadow, 0 5px 20px rgb(0 0 0 / 0.07));
+}
+html[data-theme="light"] #app .app-shell .mobile-focus-passage-popover :is(input, button) {
+  border-color: transparent;
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.06);
+}
+
+/* Focus is an independent reading option, separate from the selected mode. */
+#app .app-shell .topbar :is(#focusToggle, #mobileFocusToggle).active,
+#app .app-shell .topbar :is(#focusToggle, #mobileFocusToggle).active:is(:hover, :focus-visible) {
+  background: var(--gold);
+  color: var(--focus-toggle-ink, white);
+  border-color: transparent;
+  box-shadow: none;
+}
+#app .app-shell .topbar :is(#focusToggle, #mobileFocusToggle).active svg {
+  color: inherit;
+}
+html[data-theme="dark"] .app-shell {
+  --focus-toggle-ink: #071f2d;
 }
 
 .app-shell :is(.focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle):not(:focus-visible) {
