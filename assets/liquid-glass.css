@@ -58,7 +58,7 @@ html[data-control-material="glass"] :is(
   .presentation-nav-button, .presentation-search-toggle, .presentation-search-go,
   .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
   .presentation-settings-toggle, .presentation-reference-share,
-  .presentation-reference-toggle, .presentation-version-picker-toggle,
+  .presentation-version-picker-toggle,
   .presentation-search-field,
   .topbar .icon-btn, .topbar .search, .topbar .primary-version-toggle, .topbar .versions, .streak-chip,
   .focused-passage-actions .ghost-btn, .verse-of-day-reader .verse-of-day-read-button,
@@ -86,7 +86,7 @@ html[data-control-material="glass"] :is(
   .presentation-nav-button, .presentation-search-toggle, .presentation-search-go,
   .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
   .presentation-settings-toggle, .presentation-reference-share,
-  .presentation-reference-toggle, .presentation-version-picker-toggle,
+  .presentation-version-picker-toggle,
   .presentation-search-field, .games-header-action, .games-menu-control,
   .games-drawer-close, .trivia-mode-scroll, .trivia-mode-tabs > button,
   .parallel-version-trigger, .panel-minihead .icon-btn, .mobile-focus-workspace-head > button
