@@ -1,6 +1,6 @@
 # Liquid Glass control finish
 
-Implemented October 2, 2026, release 2026.10.02.6.
+Implemented October 2, 2026, release 2026.10.02.7.
 
 Apple-inspired web material for the shared site and Capacitor UI. This uses
 CSS backdrop blur, theme tint, reflective edges and rounded control groups;
@@ -86,3 +86,5 @@ available where a WebView does not expose system transparency preferences.
 - Games layout, Hidden Word, notes, Focus/search layout, release checks and
   version synchronization passed. Desktop and 390px browser views inspected.
 - Narrow Hidden Word keyboard rows now fit their container in both finishes.
+
+Compact navigation contrast (.7): selected rows now pair the teal fill with accent ink in one scoped rule. The dropdown uses an opaque panel background; hover/focus rows retain theme ink.
