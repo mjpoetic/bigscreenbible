@@ -540,6 +540,12 @@ html[data-control-material="glass"] .mobile-focus-passage-popover > button[type=
 }
 
 /* Keep the Settings gear paired with its accent fill in every open state. */
+/* Share's button owns the circular edge; the inner glyph needs no ring. */
+html[data-control-material="glass"] .presentation .presentation-reference-share .presentation-reference-share-glyph {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active,
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active:is(:hover, :focus-visible, :active) {
   --reading-control-active-glass: var(--teal);
