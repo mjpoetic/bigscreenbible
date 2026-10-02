@@ -644,3 +644,21 @@ html[data-control-material="glass"] .games-options-drawer :is(button, input, sel
   outline: 2px solid var(--teal);
   outline-offset: 3px;
 }
+
+/* A quiet rim for presentation controls; keep glyph contrast unchanged. */
+html[data-control-material="glass"] .presentation :is(
+  .presentation-nav-button, .presentation-search-toggle, .presentation-search-go,
+  .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
+  .presentation-settings-toggle, .presentation-reference-share, .presentation-version-picker-toggle,
+  .presentation-popover-close
+) {
+  --glass-edge: color-mix(in srgb, var(--glass-ink) 22%, transparent);
+  --glass-light: rgba(255, 255, 255, .24);
+  --glass-shadow: 0 6px 20px rgba(0, 0, 0, .16), inset 0 1px 0 var(--glass-light), inset 0 -1px 0 rgba(0, 0, 0, .12);
+}
+html[data-control-material="glass"] .presentation :is(
+  .presentation-nav-button, .presentation-search-toggle, .presentation-settings-toggle,
+  .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle
+):not(:disabled):is(:hover, .active) {
+  border-color: color-mix(in srgb, var(--glass-ink) 30%, transparent);
+}
