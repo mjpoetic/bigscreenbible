@@ -23523,3 +23523,10 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   gap: 8px;
   padding: 0 10px 10px;
 }
+
+/* Control finish has two choices, independent of the three-way color scheme. */
+.control-finish-segment { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.control-finish-segment .theme-mode-button { min-width: 0; white-space: nowrap; }
+
+/* Hidden notes-search Clear must not become an extra grid row via .icon-btn. */
+.notes-filter-clear[hidden] { display: none; }

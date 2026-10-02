@@ -1949,6 +1949,7 @@ function syncPresentationShell() {
   const themeColor = isPresentationMode
     ? presentationThemeColor(state.presentationTheme)
     : themeChromeColor(state.themePreset, state.theme);
+  document.documentElement.dataset.controlMaterial = localStorage.getItem("lw_control_material") === "classic" ? "classic" : "glass";
   document.documentElement.dataset.theme = state.theme;
   document.body.dataset.theme = state.theme;
   document.documentElement.dataset.themePreset = state.themePreset;
@@ -4628,6 +4629,16 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
       })}
     </div>
     `}
+    ${options.includeControlFinish ? `
+    <div class="setting-group" id="${settingsControlId(prefix, "ControlFinishGroup")}" data-settings-search-item data-settings-search-text="liquid glass classic control finish transparency appearance">
+      <span class="setting-label">Control finish</span>
+      <div class="theme-mode-segment control-finish-segment" role="group" aria-label="Control finish">
+        <button class="theme-mode-button ${localStorage.getItem("lw_control_material") !== "classic" ? "active" : ""}" type="button" data-control-material="glass" aria-pressed="${localStorage.getItem("lw_control_material") !== "classic"}">Liquid Glass</button>
+        <button class="theme-mode-button ${localStorage.getItem("lw_control_material") === "classic" ? "active" : ""}" type="button" data-control-material="classic" aria-pressed="${localStorage.getItem("lw_control_material") === "classic"}">Classic</button>
+      </div>
+      <p class="setting-help">Choose the finish for navigation and floating controls.</p>
+    </div>
+    ` : ""}
     ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
     <div class="setting-group" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="appearance mode light dark system theme"' : ""}>
       <span class="setting-label">Appearance</span>
@@ -4763,6 +4774,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
   );
   return `
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
+      ${result("appearance", "ControlFinishGroup", "Control finish", "Appearance & Text", "liquid glass classic transparency navigation floating controls")}
       ${result("appearance", "ThemeFamilySelect", "Theme family", "Appearance & Text", "palette colors linked themes")}
       ${result("appearance", "PopupTextSizeLabel", "Popup text size", "Appearance & Text", "pinch zoom dialogs search Strong cross references preview")}
       ${result("appearance", "InterfaceTextSizeLabel", "Interface text size", "Appearance & Text", "accessibility navigation menus")}
@@ -4833,7 +4845,7 @@ function mainSettingsRootMarkup(prefix = "") {
       ${settingsAppearanceMarkup(prefix, { searchItem: true, unified: true })}
     </div>
     <nav class="settings-destinations" aria-label="More settings" data-settings-search-group data-settings-browse-only>
-      ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system interface text accessibility")}
+      ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system interface text accessibility liquid glass classic control finish")}
       ${settingsDestinationRow("reading", "Scripture & Reading", `${Math.round(state.textScale * 100)}% · ${state.paragraphLayout ? "Paragraph" : "Verse-by-verse"}`, "scripture display reading paragraph headings red letters words of Jesus Strong numbers chapter navigation page speed auto scroll landscape toolbar")}
       ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds audio volume transition game music result feedback word search")}
       ${settingsDestinationRow("sharing", "Sharing & Printing", `${selectedShareFormat} · ${selectedPrintLayout}`, "copy sharing share format printing print layout verse numbers version name")}
@@ -4852,7 +4864,7 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
       <section class="settings-page-section">
         <h3>Look & feel</h3>
         <div class="settings-page-section-content">
-          ${settingsAppearanceMarkup(prefix, { includeFamily: true })}
+          ${settingsAppearanceMarkup(prefix, { includeFamily: true, includeControlFinish: true })}
         </div>
       </section>
       ${accessibilitySettings(prefix, drilldown)}
@@ -18703,6 +18715,18 @@ function bindEvents() {
   document.getElementById("signOutButton")?.addEventListener("click", () => signOutAccount());
   document.getElementById("mobile-signOutButton")?.addEventListener("click", () => signOutAccount());
   document.getElementById("quick-signOutButton")?.addEventListener("click", () => signOutAccount());
+  document.querySelectorAll("[data-control-material]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const material = button.dataset.controlMaterial === "classic" ? "classic" : "glass";
+      localStorage.setItem("lw_control_material", material);
+      document.documentElement.dataset.controlMaterial = material;
+      document.querySelectorAll("[data-control-material]").forEach((choice) => {
+        const active = choice.dataset.controlMaterial === material;
+        choice.classList.toggle("active", active);
+        choice.setAttribute("aria-pressed", String(active));
+      });
+    });
+  });
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice));
   });
