@@ -478,6 +478,11 @@ html[data-control-material="glass"] :is(.focus-mini-verse-picker select, .quick-
   outline: 2px solid var(--teal);
   outline-offset: -3px;
 }
+/* Match the search glyph's hover and focus surface to the glass capsule. */
+html[data-control-material="glass"] .topbar-search-scope {
+  border-radius: 999px;
+}
+
 /* The search wrapper owns focus: the inner input's rectangular native ring
    must not cut across the capsule. The inset shadow follows border-radius. */
 html[data-control-material="glass"] .topbar .search input:focus {
