@@ -541,7 +541,8 @@ html[data-control-material="glass"] .mobile-focus-passage-popover > button[type=
 
 /* Keep the Settings gear paired with its accent fill in every open state. */
 /* Keep a generous invisible hit area around a proportional visible circle. */
-html[data-control-material="glass"] .presentation .presentation-reference-share {
+html[data-control-material="glass"] .presentation .presentation-reference-share.ghost-btn {
+  border: 0;
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
