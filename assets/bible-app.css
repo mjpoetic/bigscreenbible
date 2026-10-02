@@ -23521,12 +23521,15 @@ html[data-theme="light"] .reading-control-mist {
   backdrop-filter: none;
 }
 html[data-theme="light"] #app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option) {
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--ink) 24%, var(--panel));
   box-shadow: none;
 }
 html[data-theme="light"] #app .app-shell .mobile-focus-passage-popover :is(input, button) {
   border-color: transparent;
   box-shadow: none;
+}
+html[data-theme="light"] #app .app-shell .mobile-focus-passage-popover :is(input, button) {
+  border-color: color-mix(in srgb, var(--ink) 24%, var(--panel));
 }
 
 /* Focus is an independent reading option, separate from the selected mode. */
