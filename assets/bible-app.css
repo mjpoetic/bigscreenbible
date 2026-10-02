@@ -4067,13 +4067,13 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   gap: 8px;
 }
 
-.focus-mini-verse-picker label {
+.focus-mini-verse-picker .focus-picker-field {
   display: grid;
   min-width: 0;
   gap: 6px;
 }
 
-.focus-mini-verse-picker label > span {
+.focus-mini-verse-picker .focus-picker-field > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 900;
@@ -23536,4 +23536,15 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   .hidden-word-keyboard { min-width: 0; max-width: 100%; }
   .hidden-word-keyboard > div { min-width: 0; width: 100%; }
   .hidden-word-keyboard button { min-width: 0; flex: 0 1 calc((100% - 36px) / 10); }
+}
+
+/* Keep the Settings launcher present and reachable while its sheet is open. */
+.app-shell .mobile-floating-settings.active {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: none;
+  z-index: 151;
+  background: var(--teal);
+  color: var(--accent-ink);
 }

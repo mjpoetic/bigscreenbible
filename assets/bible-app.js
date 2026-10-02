@@ -2964,8 +2964,8 @@ function mobileFocusOverlayControls() {
   return `
     ${focusTools}
     ${focusReferenceSwitcher}
-    ${state.focusMode && !state.settingsOpen ? `
-      <button class="mobile-floating-settings" id="mobileFloatingSettings" type="button" aria-label="Open Settings" aria-haspopup="dialog" data-tooltip="Settings">
+    ${state.focusMode ? `
+      <button class="mobile-floating-settings ${state.settingsOpen ? "active" : ""}" id="mobileFloatingSettings" type="button" aria-label="${state.settingsOpen ? "Close Settings" : "Open Settings"}" aria-expanded="${state.settingsOpen ? "true" : "false"}" aria-haspopup="dialog" data-tooltip="Settings">
         ${icons.settings}
       </button>
     ` : ""}
@@ -3086,24 +3086,18 @@ function focusVersePickerPanel() {
     <form class="focus-mini-verse-picker" id="focusMiniVersePickerForm">
       <p>Choose a book, chapter, and verse without leaving Focus Mode.</p>
       <div class="focus-mini-verse-picker-grid">
-        <label>
+        <div class="focus-picker-field">
           <span>Book</span>
-          <select id="focusMiniBookSelect" aria-label="Book">
-            ${picker.availableBooks.map((book) => `<option value="${escapeHtml(book)}" ${book === picker.book ? "selected" : ""}>${escapeHtml(book)}</option>`).join("")}
-          </select>
-        </label>
-        <label>
+          ${settingsChoiceMarkup("focusMiniBookSelect", picker.book, picker.availableBooks.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Book" })}
+        </div>
+        <div class="focus-picker-field">
           <span>Chapter</span>
-          <select id="focusMiniChapterSelect" aria-label="Chapter">
-            ${picker.chapters.map((chapter) => `<option value="${chapter}" ${chapter === picker.chapter ? "selected" : ""}>${chapter}</option>`).join("")}
-          </select>
-        </label>
-        <label>
+          ${settingsChoiceMarkup("focusMiniChapterSelect", picker.chapter, picker.chapters.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Chapter" })}
+        </div>
+        <div class="focus-picker-field">
           <span>Verse</span>
-          <select id="focusMiniVerseSelect" aria-label="Verse">
-            ${picker.verses.map((verse) => `<option value="${verse}" ${verse === picker.verse ? "selected" : ""}>${verse}</option>`).join("")}
-          </select>
-        </label>
+          ${settingsChoiceMarkup("focusMiniVerseSelect", picker.verse, picker.verses.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Verse" })}
+        </div>
       </div>
       <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
     </form>
@@ -3467,7 +3461,7 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
   const legacyClasses = config.selectClass ? ` ${config.selectClass}` : "";
   return `
     <div class="settings-choice ${config.wide ? "settings-choice-wide" : ""}" data-settings-choice>
-      <select class="settings-native-choice${legacyClasses}" id="${id}" aria-hidden="true" tabindex="-1" data-settings-choice-select ${config.wide ? 'data-choice-menu-wide="true"' : ""}>
+      <select class="settings-native-choice${legacyClasses}" id="${id}" aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}" aria-hidden="true" tabindex="-1" data-settings-choice-select ${config.wide ? 'data-choice-menu-wide="true"' : ""}>
         ${choices.map((choice) => `
           <option value="${escapeHtml(choice.value)}" ${String(choice.value) === normalizedValue ? "selected" : ""} ${choice.disabled ? "disabled" : ""}
             data-choice-label="${escapeHtml(choice.label)}"
@@ -3758,6 +3752,7 @@ function bindSettingsChoiceMenus() {
     trigger.addEventListener("keydown", (event) => {
       if (!["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) return;
       event.preventDefault();
+      event.stopPropagation();
       openSettingsChoiceMenu(trigger);
     });
   });
@@ -28256,7 +28251,7 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("click", closePresentationSearchOnOutsideClick);
 document.addEventListener("click", (event) => {
-  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace")) return;
+  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace, .settings-choice-menu")) return;
   resetFocusToolSurfaces();
   renderPreservingReaderScroll();
 });

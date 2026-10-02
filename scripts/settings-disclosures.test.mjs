@@ -360,8 +360,8 @@ assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("point
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("pointerup", endMobileControlsHold\)/);
 assert.match(bindEventsSource, /mobileControlsToggle\?\.addEventListener\("contextmenu", suppressMobileControlsContextMenu\)/);
 assert.doesNotMatch(source, /double-tap for Settings|handleMobileControlsToggle|mobileControlsDoubleTapWindowMs/);
-assert.match(mobileFocusOverlayControlsSource, /state\.focusMode && !state\.settingsOpen/);
-assert.match(mobileFocusOverlayControlsSource, /aria-label="Open Settings"/);
+assert.doesNotMatch(mobileFocusOverlayControlsSource, /state\.focusMode && !state\.settingsOpen/);
+assert.match(mobileFocusOverlayControlsSource, /state\.settingsOpen \? "Close Settings" : "Open Settings"/);
 assert.match(bindEventsSource, /mobileFloatingSettings/);
 assert.match(revealMobileSettingsSource, /mobileFloatingSettings"\)\?\.classList\.add\("mobile-settings-idle"\)/);
 assert.match(bindMobileSettingsVisibilitySource, /\.scripture, \.trivia-reader, \.trivia-setup-main/);
