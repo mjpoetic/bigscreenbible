@@ -23494,14 +23494,14 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   --reading-control-active-glass: color-mix(in srgb, var(--teal) 88%, var(--paper));
 }
 
-/* Feathered dimming stays local to each floating control. Sharing the control's
+/* Broad blur with no spread avoids a solid rim around the dimming. Sharing
    opacity and shadow transitions keeps reveal, idle, and hide in sync. */
 .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
   --reading-control-dim: transparent;
   --reading-control-dim-edge: transparent;
   --reading-control-shadow:
-    0 0 18px 8px var(--reading-control-dim),
-    0 0 34px 12px var(--reading-control-dim-edge),
+    0 0 32px 0 var(--reading-control-dim),
+    0 0 64px 0 var(--reading-control-dim-edge),
     var(--glass-shadow, 0 0 20px color-mix(in srgb, var(--teal) 17%, transparent));
   box-shadow: var(--reading-control-shadow);
 }
@@ -23511,8 +23511,8 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 }
 
 .app-shell .reading-control-over-scripture {
-  --reading-control-dim: rgb(0 0 0 / 0.24);
-  --reading-control-dim-edge: rgb(0 0 0 / 0.10);
+  --reading-control-dim: rgb(0 0 0 / 0.20);
+  --reading-control-dim-edge: rgb(0 0 0 / 0.08);
 }
 
 .app-shell :is(.focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle):not(:focus-visible) {
