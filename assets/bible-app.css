@@ -23530,3 +23530,10 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 
 /* Hidden notes-search Clear must not become an extra grid row via .icon-btn. */
 .notes-filter-clear[hidden] { display: none; }
+
+/* Fit the ten-key row to its reading container, including narrow phones. */
+@media (max-width: 840px) {
+  .hidden-word-keyboard { min-width: 0; max-width: 100%; }
+  .hidden-word-keyboard > div { min-width: 0; width: 100%; }
+  .hidden-word-keyboard button { min-width: 0; flex: 0 1 calc((100% - 36px) / 10); }
+}

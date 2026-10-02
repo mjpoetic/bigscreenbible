@@ -1,6 +1,6 @@
 # Liquid Glass control finish
 
-Implemented October 2, 2026, release 2026.10.02.3.
+Implemented October 2, 2026, release 2026.10.02.6.
 
 Apple-inspired web material for the shared site and Capacitor UI. This uses
 CSS backdrop blur, theme tint, reflective edges and rounded control groups;
@@ -72,3 +72,17 @@ available where a WebView does not expose system transparency preferences.
   filtered and cleared states remain on one row. This bug fix also applies
   to Classic.
 - Local implementation only; no website deployment performed.
+
+## Follow-up refinements (.6)
+
+- Search submit and scope controls use one shared reflection; child utility
+  styles no longer override the transparent joined segments.
+- Save note has padding and a 44px touch area. Its focus ring stays inside
+  the textarea, avoiding clipping against the drawer scroll container.
+- Book lists use an opaque body and quieter hover treatment.
+- Help's About link, Games records, restart/hint/check/reset controls,
+  volume card, social setup card and keyboard keys share the finish.
+  Hidden Word hit/miss colors remain distinct.
+- Games layout, Hidden Word, notes, Focus/search layout, release checks and
+  version synchronization passed. Desktop and 390px browser views inspected.
+- Narrow Hidden Word keyboard rows now fit their container in both finishes.

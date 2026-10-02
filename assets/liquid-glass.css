@@ -336,9 +336,86 @@ html[data-control-material="glass"] :is(.parallel-head, .parallel-row) > div {
 }
 
 html[data-control-material="glass"] #saveNote {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 18px;
+  margin-top: 8px;
   border-radius: 999px;
   border: 1px solid var(--glass-edge);
   background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
   color: var(--accent-ink);
   box-shadow: inset 0 1px 0 var(--glass-light);
 }
+
+/* Joined controls own one reflection. Child specificity must exceed the
+   study-section utility rule so Search never becomes a pill inside a pill. */
+html[data-control-material="glass"] .study-section .search-submit-control > :is(.search-submit-button, .search-scope-menu) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-control-material="glass"] .study-section .search-submit-control > .search-submit-button { border-radius: 999px 0 0 999px; }
+html[data-control-material="glass"] .study-section .search-submit-control > .search-scope-menu { border-radius: 0 999px 999px 0; }
+html[data-control-material="glass"] .search-submit-control:focus-within {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+html[data-control-material="glass"] .search-submit-control > :focus-visible { outline: none; }
+html[data-control-material="glass"] #noteBox:focus-visible,
+html[data-control-material="glass"] :is(.select-row select, .study-section .note-box, .note-composer textarea, .study-search > input):focus-visible {
+  outline-offset: -3px;
+}
+html[data-control-material="glass"] .testament-group {
+  background: var(--panel);
+  box-shadow: none;
+}
+html[data-control-material="glass"] .testament-group > summary { box-shadow: none; }
+html[data-control-material="glass"] .book-row:not(.active):hover {
+  background: color-mix(in srgb, var(--teal) 8%, var(--panel));
+}
+/* Game utilities share the finish while puzzle boards and answer targets
+   retain their geometry. Keyboard color states remain explicit below. */
+html[data-control-material="glass"] :is(
+  .help-about-link, .games-records, .game-volume-drawer-control,
+  .games-drawer .challenge-setup-card, .puzzle-restart-dialog
+) {
+  border-radius: 18px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] :is(
+  .trivia-actions .ghost-btn, #triviaHint, #hiddenWordHint, #crosswordHint,
+  #resetVerseOrderPuzzle, #resetBookSprintPuzzle, .puzzle-restart-cancel
+) {
+  border-radius: 999px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] :is(.trivia-actions .primary-btn, #checkVerseOrder, #checkBookSprint) {
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] :is(.hidden-word-keyboard, .crossword-keyboard) button {
+  border-radius: 12px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--soft);
+  box-shadow: inset 0 1px 0 var(--glass-light), 0 2px 0 var(--line);
+}
+html[data-control-material="glass"] .hidden-word-keyboard button.is-hit {
+  background: color-mix(in srgb, var(--success) 15%, var(--panel));
+  border-color: var(--success);
+  color: var(--success);
+}
+html[data-control-material="glass"] .hidden-word-keyboard button.is-miss {
+  background: color-mix(in srgb, var(--muted) 10%, var(--panel));
+  color: var(--muted);
+}
+html[data-control-material="glass"] :is(.hidden-word-keyboard, .crossword-keyboard) button:active { box-shadow: none; }
