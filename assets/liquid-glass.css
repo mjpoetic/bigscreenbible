@@ -540,11 +540,20 @@ html[data-control-material="glass"] .mobile-focus-passage-popover > button[type=
 }
 
 /* Keep the Settings gear paired with its accent fill in every open state. */
-/* Share's button owns the circular edge; the inner glyph needs no ring. */
-html[data-control-material="glass"] .presentation .presentation-reference-share .presentation-reference-share-glyph {
-  border: 0;
+/* Keep a generous invisible hit area around a proportional visible circle. */
+html[data-control-material="glass"] .presentation .presentation-reference-share {
   background: transparent;
   box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-control-material="glass"] .presentation .presentation-reference-share .presentation-reference-share-glyph {
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: inset 0 1px 0 var(--glass-light);
 }
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active,
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active:is(:hover, :focus-visible, :active) {
