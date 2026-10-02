@@ -439,6 +439,13 @@ html[data-control-material="glass"] :is(.hidden-word-keyboard, .crossword-keyboa
 }
 
 /* Focus and native quick-action sheets use the same dense glass material. */
+html[data-control-material="glass"] :is(.mobile-floating-focus-tools, .desktop-focus-tools-toggle).active {
+  /* The revealed-control layer also paints hover/pressed backgrounds. Keep
+     its fill paired with the active glyph instead of dark glass + dark ink. */
+  --reading-control-active-glass: var(--teal);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+}
 html[data-control-material="glass"] :is(.mobile-focus-workspace, .mobile-focus-search-results, .quick-action-search-dialog) {
   border-radius: 22px;
   border-color: var(--glass-edge);

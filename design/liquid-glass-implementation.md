@@ -1,6 +1,6 @@
 # Liquid Glass control finish
 
-Implemented October 2, 2026, release 2026.10.02.8.
+Implemented October 2, 2026, release 2026.10.02.9.
 
 Apple-inspired web material for the shared site and Capacitor UI. This uses
 CSS backdrop blur, theme tint, reflective edges and rounded control groups;
@@ -90,3 +90,5 @@ available where a WebView does not expose system transparency preferences.
 Compact navigation contrast (.7): selected rows now pair the teal fill with accent ink in one scoped rule. The dropdown uses an opaque panel background; hover/focus rows retain theme ink.
 
 Focus sheets (.8): verse picker and native quick-action search use dense glass shells, rounded fields and accent buttons. Header search focus is drawn on its capsule wrapper rather than the rectangular input. Focus/search layout and iOS quick-action regression checks passed; native keyboard appearance still requires device verification.
+
+Focus launcher contrast (.9): active mobile and desktop launchers set the revealed-control fill token to teal, keeping their dark accent glyph legible through hover and pressed states. Existing fade behavior remains intact. Focus regression and version checks passed.
