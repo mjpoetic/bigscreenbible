@@ -524,6 +524,16 @@ html[data-control-material="glass"] .mobile-focus-passage-popover :is(input, .mo
   color: var(--ink);
 }
 
+html[data-control-material="glass"] .mobile-focus-passage-popover > button[type="submit"] {
+  border: 1px solid var(--glass-edge);
+  border-radius: 14px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+  box-shadow: inset 0 1px 0 var(--glass-light), inset 0 -1px 0 rgb(0 0 0 / 0.12);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
 /* Keep the Settings gear paired with its accent fill in every open state. */
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active,
 html[data-control-material="glass"] .app-shell .mobile-floating-settings.active:is(:hover, :focus-visible, :active) {

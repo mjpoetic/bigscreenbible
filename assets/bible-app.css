@@ -17218,7 +17218,7 @@ svg {
       padding: 0 12px;
       border-radius: 7px;
       background: var(--teal);
-      color: white;
+      color: var(--accent-ink);
       font-weight: 800;
       cursor: pointer;
     }
@@ -23513,6 +23513,16 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 .app-shell .reading-control-over-scripture {
   --reading-control-dim: rgb(0 0 0 / 0.20);
   --reading-control-dim-edge: rgb(0 0 0 / 0.08);
+}
+
+/* These wrappers only group controls; inset glass highlights would draw a
+   rectangle around the mist. Keep the glass finish on the controls themselves. */
+#app .app-shell :is(.mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-passage-popover) {
+  --reading-control-shadow: 0 0 32px 0 var(--reading-control-dim), 0 0 64px 0 var(--reading-control-dim-edge);
+  border-color: transparent;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .app-shell :is(.focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle):not(:focus-visible) {
