@@ -572,3 +572,11 @@ html[data-control-material="glass"] .presentation #presentationAccountButton.acc
   border: 1px solid var(--glass-edge);
   box-shadow: var(--glass-shadow);
 }
+
+/* Keep the settings dismiss control circular at every text scale. */
+html[data-control-material="glass"] .presentation .presentation-settings-popover .presentation-popover-close {
+  border: 1px solid var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+  color: var(--glass-ink);
+}
