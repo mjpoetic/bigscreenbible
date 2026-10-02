@@ -17,6 +17,7 @@ const context = vm.createContext({
     : controls, getElementById: id => controls.find(b => b.id === id) },
   setTimeout: (fn, delay) => { timers.set(++nextId, { fn, delay }); return nextId; },
   clearTimeout: id => timers.delete(id),
+  scheduleReadingControlDimming: () => {},
   isCompactScreen: () => false,
 });
 vm.runInContext(`let mobileSettingsIdleTimer = 0, focusControlsHideTimer = 0; ${functions}`, context);

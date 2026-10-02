@@ -6667,6 +6667,7 @@ function scheduleStreakPopupDismiss() {
 }
 
 let readingControlDimmingFrame = 0;
+const readingControlMistLayers = new Map();
 const readingDimmingSurfaceSelector = ".reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)";
 
 function readingRectsOverlap(a, b) {
@@ -6675,6 +6676,14 @@ function readingRectsOverlap(a, b) {
 
 function updateReadingControlDimming() {
   readingControlDimmingFrame = 0;
+  for (const [surface, mist] of readingControlMistLayers) {
+    if (!surface.isConnected) {
+      mist.remove();
+      readingControlMistLayers.delete(surface);
+    }
+  }
+  const shell = document.querySelector(".app-shell");
+  if (!shell) return;
   const scripture = document.querySelector(".scripture");
   const surfaces = [...document.querySelectorAll(readingDimmingSurfaceSelector)];
   const clip = scripture?.getBoundingClientRect();
@@ -6696,7 +6705,24 @@ function updateReadingControlDimming() {
   surfaces.forEach((surface) => {
     const rect = surface.getBoundingClientRect();
     const area = { left: rect.left - 12, right: rect.right + 12, top: rect.top - 12, bottom: rect.bottom + 12 };
-    surface.classList.toggle("reading-control-over-scripture", rect.width > 0 && rect.height > 0 && textRects.some(text => readingRectsOverlap(area, text)));
+    const overlapsText = rect.width > 0 && rect.height > 0 && textRects.some(text => readingRectsOverlap(area, text));
+    surface.classList.toggle("reading-control-over-scripture", overlapsText);
+    let mist = readingControlMistLayers.get(surface);
+    if (!mist) {
+      mist = document.createElement("div");
+      mist.className = "reading-control-mist";
+      mist.setAttribute("aria-hidden", "true");
+      shell.append(mist);
+      readingControlMistLayers.set(surface, mist);
+    }
+    const idle = surface.matches(".focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle") && !surface.matches(":focus-visible");
+    const unavailable = surface.matches(".reader-page-button:not(.available)");
+    mist.classList.toggle("is-idle", idle);
+    mist.style.opacity = overlapsText && !idle && !unavailable ? "1" : "0";
+    mist.style.left = `${rect.left - 48}px`;
+    mist.style.top = `${rect.top - 48}px`;
+    mist.style.width = `${rect.width + 96}px`;
+    mist.style.height = `${rect.height + 96}px`;
   });
 }
 
@@ -6725,6 +6751,7 @@ function focusControlsInUse() {
 function revealMobileSettingsButton(event) {
   // Programmatic auto-scroll must not continually wake the floating controls.
   if (event?.type === "scroll" && state.autoScrollActive && floatingControlsFadeEnabled()) return;
+  scheduleReadingControlDimming();
   clearTimeout(focusControlsHideTimer);
   document.querySelectorAll(".focus-control-faded, .focus-control-hidden").forEach((button) => {
     button.classList.remove("focus-control-faded", "focus-control-hidden");
@@ -6741,6 +6768,7 @@ function revealMobileSettingsButton(event) {
         if (button.matches(":focus-visible") || (button.id === "mobileFloatingSettings" && state.appUpdateAvailable)) return;
         button.classList.add(className);
       });
+      scheduleReadingControlDimming();
     };
     mobileSettingsIdleTimer = setTimeout(() => dimControls("focus-control-faded"), 3200);
     if (state.focusControlsHide) {

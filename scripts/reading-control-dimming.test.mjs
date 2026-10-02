@@ -10,11 +10,15 @@ let enabled = false;
 let surfaceRect = rect(8, 650, 50, 692);
 const text = { getBoundingClientRect: () => rect(16, 100, 350, 900) };
 const scripture = { getBoundingClientRect: () => rect(0, 60, 390, 844), querySelectorAll: () => [text] };
-const surface = { getBoundingClientRect: () => surfaceRect, classList: { toggle: (name, value) => { enabled = value; } } };
+let idle = false;
+const mist = { style: {}, setAttribute() {}, classList: { toggle() {} }, remove() {} };
+const shell = { append() {} };
+const surface = { isConnected: true, matches: selector => selector.startsWith(".focus-control-faded") ? idle : false, getBoundingClientRect: () => surfaceRect, classList: { toggle: (name, value) => { enabled = value; } } };
 const context = vm.createContext({
   window: { innerWidth: 390, innerHeight: 844 },
   document: {
-    querySelector: () => scripture,
+    querySelector: selector => selector === ".app-shell" ? shell : scripture,
+    createElement: () => mist,
     querySelectorAll: () => [surface],
     createRange: () => ({ selectNodeContents() {}, getClientRects: () => lines }),
   },
@@ -26,6 +30,12 @@ assert.equal(enabled, false, 'A tall reading container with short text leaves em
 lines = [rect(16, 640, 350, 700)];
 context.updateReadingControlDimming();
 assert.equal(enabled, true, 'Text beneath a revealed control enables dimming');
+assert.equal(mist.style.opacity, '1', 'Separate mist layer appears with overlapping controls');
+assert.equal(mist.style.left, '-40px', 'Feather extends past the control without following its border');
+idle = true;
+context.updateReadingControlDimming();
+assert.equal(mist.style.opacity, '0', 'Mist fades fully away when controls become idle');
+idle = false;
 surfaceRect = rect(60, 650, 320, 700);
 context.updateReadingControlDimming();
 assert.equal(enabled, true, 'Expanded controls use their full visible bounds');

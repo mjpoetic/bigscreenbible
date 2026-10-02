@@ -23494,55 +23494,39 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   --reading-control-active-glass: color-mix(in srgb, var(--teal) 88%, var(--paper));
 }
 
-/* Broad blur with no spread avoids a solid rim around the dimming. Sharing
-   opacity and shadow transitions keeps reveal, idle, and hide in sync. */
-.app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
-  --reading-control-dim: transparent;
-  --reading-control-dim-edge: transparent;
-  --reading-control-shadow:
-    0 0 32px 0 var(--reading-control-dim),
-    0 0 64px 0 var(--reading-control-dim-edge),
-    var(--glass-shadow, 0 0 20px color-mix(in srgb, var(--teal) 17%, transparent));
-  box-shadow: var(--reading-control-shadow);
+/* Dimming is painted on its own layer. Unlike an outer box shadow, a radial
+   gradient has no hollow center or hard inner contour around a control group. */
+.reading-control-mist {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.20) 0%, rgb(0 0 0 / 0.12) 30%, rgb(0 0 0 / 0.04) 65%, transparent 100%);
+  transition: opacity 160ms ease;
+}
+.reading-control-mist.is-idle { transition: opacity 1.2s ease-in-out; }
+html[data-theme="light"] .reading-control-mist {
+  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.10) 0%, rgb(0 0 0 / 0.06) 30%, rgb(0 0 0 / 0.02) 65%, transparent 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reading-control-mist, .reading-control-mist.is-idle { transition: none; }
 }
 
-#app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
-  box-shadow: var(--reading-control-shadow);
-}
-
-.app-shell .reading-control-over-scripture {
-  --reading-control-dim: rgb(0 0 0 / 0.20);
-  --reading-control-dim-edge: rgb(0 0 0 / 0.08);
-}
-
-/* These wrappers only group controls; inset glass highlights would draw a
-   rectangle around the mist. Keep the glass finish on the controls themselves. */
+/* Transparent grouping surfaces carry no border, reflection, blur or shadow. */
 #app .app-shell :is(.mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-passage-popover) {
-  --reading-control-shadow: 0 0 32px 0 var(--reading-control-dim), 0 0 64px 0 var(--reading-control-dim-edge);
   border-color: transparent;
-  border-radius: 999px;
   background: transparent;
+  box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-
-/* Light paper needs a gentler mist; rounded wrappers prevent square shadow
-   corners from outlining otherwise transparent control groups. */
-html[data-theme="light"] .app-shell .reading-control-over-scripture {
-  --reading-control-dim: rgb(0 0 0 / 0.12);
-  --reading-control-dim-edge: rgb(0 0 0 / 0.04);
-}
-
-/* Remove the light finish's border and inset reflection lines from floating
-   reading controls. Keep a diffuse shadow and the keyboard focus outline. */
 html[data-theme="light"] #app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option) {
-  --glass-shadow: 0 5px 20px rgb(0 0 0 / 0.07);
   border-color: transparent;
-  box-shadow: var(--reading-control-shadow, 0 5px 20px rgb(0 0 0 / 0.07));
+  box-shadow: none;
 }
 html[data-theme="light"] #app .app-shell .mobile-focus-passage-popover :is(input, button) {
   border-color: transparent;
-  box-shadow: 0 4px 18px rgb(0 0 0 / 0.06);
+  box-shadow: none;
 }
 
 /* Focus is an independent reading option, separate from the selected mode. */
@@ -23558,11 +23542,6 @@ html[data-theme="light"] #app .app-shell .mobile-focus-passage-popover :is(input
 }
 html[data-theme="dark"] .app-shell {
   --focus-toggle-ink: #071f2d;
-}
-
-.app-shell :is(.focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle):not(:focus-visible) {
-  --reading-control-dim: transparent;
-  --reading-control-dim-edge: transparent;
 }
 
 @media (prefers-reduced-motion: no-preference) {
