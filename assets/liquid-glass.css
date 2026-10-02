@@ -437,3 +437,47 @@ html[data-control-material="glass"] :is(.hidden-word-keyboard, .crossword-keyboa
     color: var(--ink);
   }
 }
+
+/* Focus and native quick-action sheets use the same dense glass material. */
+html[data-control-material="glass"] :is(.mobile-focus-workspace, .mobile-focus-search-results, .quick-action-search-dialog) {
+  border-radius: 22px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+html[data-control-material="glass"] :is(.focus-mini-verse-picker select, .quick-action-search-row input) {
+  border-radius: 16px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] :is(.focus-mini-verse-picker > button, .quick-action-search-row .primary-btn) {
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+  border-color: var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] .quick-action-search-close {
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  color: var(--ink);
+}
+html[data-control-material="glass"] :is(.focus-mini-verse-picker select, .quick-action-search-row input):focus {
+  outline: 2px solid var(--teal);
+  outline-offset: -3px;
+}
+/* The search wrapper owns focus: the inner input's rectangular native ring
+   must not cut across the capsule. The inset shadow follows border-radius. */
+html[data-control-material="glass"] .topbar .search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+html[data-control-material="glass"] .topbar .search:focus-within {
+  border-color: var(--teal);
+  box-shadow: inset 0 0 0 2px var(--teal), var(--glass-shadow);
+}
