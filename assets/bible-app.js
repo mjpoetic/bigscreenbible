@@ -1834,6 +1834,7 @@ function render() {
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
   requestAnimationFrame(positionMobileFocusSearch);
+  scheduleReadingControlDimming();
   requestAnimationFrame(updateTutorialSpotlight);
   requestAnimationFrame(runPendingTriviaCelebration);
   requestAnimationFrame(() => requestAnimationFrame(restorePendingAppUpdatePosition));
@@ -6663,6 +6664,44 @@ function scheduleStreakPopupDismiss() {
     streakPopupTimer = 0;
     dismissStreakPopup();
   }, 4200);
+}
+
+let readingControlDimmingFrame = 0;
+const readingDimmingSurfaceSelector = ".reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)";
+
+function readingRectsOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function updateReadingControlDimming() {
+  readingControlDimmingFrame = 0;
+  const scripture = document.querySelector(".scripture");
+  const surfaces = [...document.querySelectorAll(readingDimmingSurfaceSelector)];
+  const clip = scripture?.getBoundingClientRect();
+  // Measure actual text lines, not the tall reading container: a short passage
+  // or Verse of the Day leaves empty space under the floating controls.
+  const textRects = [];
+  scripture?.querySelectorAll(".verse-text, .parallel-copy, .verse-of-day-copy").forEach((text) => {
+    if (!readingRectsOverlap(text.getBoundingClientRect(), clip)) return;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    for (const rect of range.getClientRects()) {
+      const visible = {
+        left: Math.max(rect.left, clip.left, 0), right: Math.min(rect.right, clip.right, window.innerWidth),
+        top: Math.max(rect.top, clip.top, 0), bottom: Math.min(rect.bottom, clip.bottom, window.innerHeight),
+      };
+      if (visible.right > visible.left && visible.bottom > visible.top) textRects.push(visible);
+    }
+  });
+  surfaces.forEach((surface) => {
+    const rect = surface.getBoundingClientRect();
+    const area = { left: rect.left - 12, right: rect.right + 12, top: rect.top - 12, bottom: rect.bottom + 12 };
+    surface.classList.toggle("reading-control-over-scripture", rect.width > 0 && rect.height > 0 && textRects.some(text => readingRectsOverlap(area, text)));
+  });
+}
+
+function scheduleReadingControlDimming() {
+  if (!readingControlDimmingFrame) readingControlDimmingFrame = requestAnimationFrame(updateReadingControlDimming);
 }
 
 function normalizedFocusControlsHideSeconds(value) {
@@ -28171,6 +28210,12 @@ shortLandscapeQuery?.addEventListener("change", () => {
   renderAfterViewportChangePreservingReaderScroll();
 });
 window.addEventListener("scroll", updateReaderTopButton, { passive: true });
+document.addEventListener("scroll", scheduleReadingControlDimming, { passive: true, capture: true });
+window.addEventListener("resize", scheduleReadingControlDimming, { passive: true });
+window.visualViewport?.addEventListener("resize", scheduleReadingControlDimming, { passive: true });
+window.visualViewport?.addEventListener("scroll", scheduleReadingControlDimming, { passive: true });
+document.addEventListener("transitionend", scheduleReadingControlDimming, { passive: true });
+document.addEventListener("animationend", scheduleReadingControlDimming, { passive: true });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 ["pointerdown", "pointermove", "keydown", "focusin", "wheel", "touchmove"].forEach((eventName) => {
   window.addEventListener(eventName, (event) => {

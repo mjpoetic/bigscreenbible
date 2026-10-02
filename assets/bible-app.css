@@ -22806,7 +22806,7 @@ svg {
 /* Floating reading controls share the same idle treatment at every viewport size. */
 @media (prefers-reduced-motion: no-preference) {
   .app-shell :is(.focus-control-faded, .focus-control-hidden):not(:focus-visible) {
-    transition: opacity 1.2s ease-in-out;
+    transition: opacity 1.2s ease-in-out, box-shadow 1.2s ease-in-out;
   }
 }
 
@@ -23492,6 +23492,44 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 
 .app-shell .reader-auto-scroll-button.active {
   --reading-control-active-glass: color-mix(in srgb, var(--teal) 88%, var(--paper));
+}
+
+/* Feathered dimming stays local to each floating control. Sharing the control's
+   opacity and shadow transitions keeps reveal, idle, and hide in sync. */
+.app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
+  --reading-control-dim: transparent;
+  --reading-control-dim-edge: transparent;
+  --reading-control-shadow:
+    0 0 18px 8px var(--reading-control-dim),
+    0 0 34px 12px var(--reading-control-dim-edge),
+    var(--glass-shadow, 0 0 20px color-mix(in srgb, var(--teal) 17%, transparent));
+  box-shadow: var(--reading-control-shadow);
+}
+
+#app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
+  box-shadow: var(--reading-control-shadow);
+}
+
+.app-shell .reading-control-over-scripture {
+  --reading-control-dim: rgb(0 0 0 / 0.24);
+  --reading-control-dim-edge: rgb(0 0 0 / 0.10);
+}
+
+.app-shell :is(.focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle):not(:focus-visible) {
+  --reading-control-dim: transparent;
+  --reading-control-dim-edge: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))):not(.focus-control-faded):not(.focus-control-hidden) {
+    transition: opacity 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
+    transition: none;
+  }
 }
 
 /* One compact search card per verse, with translations revealed on demand. */
