@@ -787,6 +787,9 @@ const state = {
   presentationPart: 0,
   presentationTheme: initialResolvedAppearance.presentationTheme,
   presentationBackgroundMotion: normalizePresentationBackgroundMotion(localStorage.getItem("lw_presentation_background_motion")),
+  presentationVideoUrl: normalizePresentationVideoUrl(localStorage.getItem("lw_presentation_video_url")),
+  presentationVideoDim: normalizePresentationVideoDim(localStorage.getItem("lw_presentation_video_dim")),
+  presentationVideoBlur: normalizePresentationVideoBlur(localStorage.getItem("lw_presentation_video_blur")),
   presentationMotionIntensity: normalizePresentationMotionIntensity(localStorage.getItem("lw_presentation_motion_intensity")),
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
@@ -1735,6 +1738,8 @@ function render() {
   enforceVersionLimit();
   if (state.mode !== "big") state.presentationControlsVisible = true;
   const gamesTabScroll = document.querySelector(".trivia-mode-tabs")?.scrollLeft || 0;
+  const previousVideo = document.querySelector(".presentation-background-video");
+  previousVideo?.remove();
   app.innerHTML = `
     <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
@@ -1766,6 +1771,7 @@ function render() {
     </main>
   `;
   settingsPageTransition = "";
+  syncPresentationVideo(previousVideo);
   presentationSettingsPageTransition = "";
   pendingFocusChromeEnter = false;
   pendingLibraryEnter = false;
@@ -10977,6 +10983,9 @@ function captureCloudSnapshot() {
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
       presentationBackgroundMotion: state.presentationBackgroundMotion,
+      presentationVideoUrl: state.presentationVideoUrl,
+      presentationVideoDim: state.presentationVideoDim,
+      presentationVideoBlur: state.presentationVideoBlur,
       presentationMotionIntensity: state.presentationMotionIntensity,
       presentationTextScale: state.presentationTextScale,
       startBigScreen: state.startBigScreen,
@@ -11231,6 +11240,9 @@ function applyCloudSnapshot(snapshot) {
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
   state.presentationBackgroundMotion = normalizePresentationBackgroundMotion(settings.presentationBackgroundMotion ?? localStorage.getItem("lw_presentation_background_motion"));
+  state.presentationVideoUrl = normalizePresentationVideoUrl(settings.presentationVideoUrl ?? localStorage.getItem("lw_presentation_video_url"));
+  state.presentationVideoDim = normalizePresentationVideoDim(settings.presentationVideoDim ?? localStorage.getItem("lw_presentation_video_dim"));
+  state.presentationVideoBlur = normalizePresentationVideoBlur(settings.presentationVideoBlur ?? localStorage.getItem("lw_presentation_video_blur"));
   state.presentationMotionIntensity = normalizePresentationMotionIntensity(settings.presentationMotionIntensity ?? localStorage.getItem("lw_presentation_motion_intensity"));
   state.presentationTextScale = clampPresentationTextScale(
     Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
@@ -11339,6 +11351,9 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
   localStorage.setItem("lw_presentation_background_motion", state.presentationBackgroundMotion);
+  localStorage.setItem("lw_presentation_video_url", String(state.presentationVideoUrl));
+  localStorage.setItem("lw_presentation_video_dim", String(state.presentationVideoDim));
+  localStorage.setItem("lw_presentation_video_blur", String(state.presentationVideoBlur));
   localStorage.setItem("lw_presentation_motion_intensity", state.presentationMotionIntensity);
   localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
   localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
@@ -17622,15 +17637,67 @@ function presentationSettingsDestinationRow(page, title, summary) {
 }
 
 function normalizePresentationBackgroundMotion(value) {
-  return ["flow", "stars"].includes(value) ? value : "off";
+  return ["flow", "stars", "vapor", "video"].includes(value) ? value : "off";
 }
 
 function normalizePresentationMotionIntensity(value) {
   return ["medium", "strong"].includes(value) ? value : "subtle";
 }
 
+function normalizePresentationVideoUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    return url.protocol === "https:" && /\.(mp4|webm)$/i.test(url.pathname) ? url.href : "";
+  } catch { return ""; }
+}
+function normalizePresentationVideoDim(value) {
+  return value == null || value === "" || !Number.isFinite(Number(value)) ? 65 : clamp(Number(value), 25, 90);
+}
+function normalizePresentationVideoBlur(value) {
+  return value == null || value === "" || !Number.isFinite(Number(value)) ? 4 : clamp(Number(value), 0, 20);
+}
+function syncPresentationVideo(previousVideo) {
+  const slot = document.querySelector(".presentation-video-slot");
+  if (previousVideo?.motionPreferenceListener) {
+    window.matchMedia("(prefers-reduced-motion: reduce)").removeEventListener("change", previousVideo.motionPreferenceListener);
+    previousVideo.motionPreferenceListener = null;
+  }
+  if (!slot) { previousVideo?.pause(); return; }
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if (reduced.matches) { previousVideo?.pause(); return; }
+  const video = previousVideo?.getAttribute("src") === state.presentationVideoUrl ? previousVideo : document.createElement("video");
+  if (video !== previousVideo) previousVideo?.pause();
+  video.classList.add("presentation-background-video");
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.setAttribute("aria-hidden", "true");
+  if (!video.getAttribute("src")) video.src = state.presentationVideoUrl;
+  slot.append(video);
+  video.onplaying = () => video.classList.add("playing");
+  video.onerror = () => {
+    video.classList.remove("playing");
+    const status = document.getElementById("presentationVideoStatus");
+    if (status) status.textContent = "Video could not load. The theme background is shown.";
+  };
+  video.play()?.catch(() => {
+    video.classList.remove("playing");
+    const status = document.getElementById("presentationVideoStatus");
+    if (status) status.textContent = "Playback was blocked. Use Play video to try again.";
+  });
+  if (!video.motionPreferenceListener) {
+    video.motionPreferenceListener = () => { if (reduced.matches) { video.pause(); video.classList.remove("playing"); } };
+    reduced.addEventListener("change", video.motionPreferenceListener);
+    video.addEventListener("emptied", () => reduced.removeEventListener("change", video.motionPreferenceListener), { once: true });
+  }
+}
+
 function presentationBackgroundMotionMarkup() {
   if (state.mode !== "big" || state.presentationBackgroundMotion === "off") return "";
+  if (state.presentationBackgroundMotion === "video") {
+    if (!state.presentationVideoUrl) return "";
+    return `<div class="presentation-motion presentation-video-slot" data-motion="video" aria-hidden="true" style="--video-opacity:${1 - state.presentationVideoDim / 100};--video-blur:${state.presentationVideoBlur}px"></div>`;
+  }
   // Use a shared clock so passage/settings rerenders preserve the animation phase.
   const elapsed = performance.now() / 1000;
   const intensity = normalizePresentationMotionIntensity(state.presentationMotionIntensity);
@@ -17642,7 +17709,7 @@ function presentationBackgroundMotionMarkup() {
       return `<i style="left:${(index * 37 + 11) % 100}%;top:${(index * 53 + 7) % 100}%;--star-size:${index % 3 === 0 ? 3 : 2}px;--star-duration:${duration}s;--star-delay:-${(elapsed + index * 1.7) % duration}s"></i>`;
     }).join("")
     : "";
-  return `<div class="presentation-motion" data-motion="${state.presentationBackgroundMotion}" data-intensity="${state.presentationMotionIntensity}" aria-hidden="true" style="--flow-duration:${flowDuration}s;--flow-delay:-${elapsed % flowDuration}s">${stars}</div>`;
+  return `<div class="presentation-motion" data-motion="${state.presentationBackgroundMotion}" data-intensity="${state.presentationMotionIntensity}" aria-hidden="true" style="--flow-duration:${flowDuration}s;--flow-delay:-${elapsed % flowDuration}s">${state.presentationBackgroundMotion === "vapor" ? "<b></b><b></b><b></b>" : stars}</div>`;
 }
 
 function presentationSettingsPanelMarkup(version, customFontField = "") {
@@ -17716,13 +17783,26 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           { value: "off", label: "Off" },
           { value: "flow", label: "Flowing Light" },
           { value: "stars", label: "Starlight" },
+          { value: "vapor", label: "Vapor" },
+          { value: "video", label: "Video Loop" },
         ], { label: "Background Motion", ariaLabel: "Background Motion", selectClass: "presentation-theme-select" })}
       </div>
-      ${state.presentationBackgroundMotion !== "off" ? `<div class="presentation-settings-choice-field">
+      ${!["off", "video"].includes(state.presentationBackgroundMotion) ? `<div class="presentation-settings-choice-field">
         <span>Motion intensity</span>
         ${settingsChoiceMarkup("presentationMotionIntensitySelect", state.presentationMotionIntensity, [
           { value: "subtle", label: "Subtle" }, { value: "medium", label: "Medium" }, { value: "strong", label: "Strong" },
         ], { label: "Motion intensity", ariaLabel: "Motion intensity", selectClass: "presentation-theme-select" })}
+      </div>` : ""}
+      ${state.presentationBackgroundMotion === "video" ? `<div class="presentation-video-settings">
+        <label for="presentationVideoUrl">Direct video URL</label>
+        <input id="presentationVideoUrl" type="url" value="${escapeHtml(state.presentationVideoUrl)}" placeholder="https://example.com/background.mp4" autocomplete="off" />
+        <button type="button" class="ghost-btn" id="presentationVideoApply">Apply video</button>
+        <p class="setting-help" id="presentationVideoStatus" role="status">Use a direct HTTPS MP4 or WebM link. Webpage and YouTube links are not supported. Video plays muted; the theme stays visible while loading.</p>
+        <label for="presentationVideoDim">Dim <output>${state.presentationVideoDim}%</output></label>
+        <input id="presentationVideoDim" type="range" min="25" max="90" value="${state.presentationVideoDim}" />
+        <label for="presentationVideoBlur">Blur <output>${state.presentationVideoBlur}px</output></label>
+        <input id="presentationVideoBlur" type="range" min="0" max="20" value="${state.presentationVideoBlur}" />
+        <button type="button" class="ghost-btn" id="presentationVideoPlay">Play video</button>
       </div>` : ""}
       <p class="setting-help">Gentle motion behind Scripture, using your theme colors. Motion stops when reduced motion is enabled.</p>
       ${popupTextSettingsMarkup("presentation")}
@@ -19808,6 +19888,31 @@ function bindEvents() {
     scheduleCloudSync();
     render();
   });
+  document.getElementById("presentationVideoApply")?.addEventListener("click", () => {
+    const input = document.getElementById("presentationVideoUrl");
+    const url = normalizePresentationVideoUrl(input.value);
+    if (input.value.trim() && !url) {
+      document.getElementById("presentationVideoStatus").textContent = "Enter a direct HTTPS link ending in .mp4 or .webm.";
+      return;
+    }
+    state.presentationVideoUrl = url;
+    localStorage.setItem("lw_presentation_video_url", url);
+    scheduleCloudSync();
+    render();
+  });
+  for (const [id, field, key, normalize] of [
+    ["presentationVideoDim", "presentationVideoDim", "lw_presentation_video_dim", normalizePresentationVideoDim],
+    ["presentationVideoBlur", "presentationVideoBlur", "lw_presentation_video_blur", normalizePresentationVideoBlur],
+  ]) document.getElementById(id)?.addEventListener("input", (event) => {
+    state[field] = normalize(event.target.value);
+    localStorage.setItem(key, String(state[field]));
+    const slot = document.querySelector(".presentation-video-slot");
+    slot?.style.setProperty("--video-opacity", String(1 - state.presentationVideoDim / 100));
+    slot?.style.setProperty("--video-blur", `${state.presentationVideoBlur}px`);
+    document.querySelector(`label[for="${id}"] output`).textContent = `${state[field]}${field === "presentationVideoDim" ? "%" : "px"}`;
+    scheduleCloudSync();
+  });
+  document.getElementById("presentationVideoPlay")?.addEventListener("click", () => syncPresentationVideo(document.querySelector(".presentation-background-video")));
   document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
     setPresentationTheme(event.target.value);
   });

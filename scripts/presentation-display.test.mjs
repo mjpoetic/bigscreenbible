@@ -252,3 +252,19 @@ for (const [intensity, duration] of [["subtle", 32], ["medium", 18], ["strong", 
   motionContext.state.presentationMotionIntensity = intensity;
   assert.ok(motionContext.motionMarkup().includes(`--flow-duration:${duration}s`));
 }
+
+const videoContext = { URL, clamp: (value, min, max) => Math.min(max, Math.max(min, value)) };
+vm.createContext(videoContext);
+vm.runInContext(`${extractFunction("normalizePresentationVideoUrl")}
+${extractFunction("normalizePresentationVideoDim")}
+${extractFunction("normalizePresentationVideoBlur")}
+globalThis.url = normalizePresentationVideoUrl; globalThis.dim = normalizePresentationVideoDim; globalThis.blur = normalizePresentationVideoBlur;`, videoContext);
+assert.equal(videoContext.url("https://example.com/loop.mp4?token=abc"), "https://example.com/loop.mp4?token=abc");
+for (const value of ["javascript:alert(1)", "http://example.com/loop.mp4", "https://youtube.com/watch?v=abc", "https://example.com/page"]) assert.equal(videoContext.url(value), "");
+assert.equal(videoContext.dim(null), 65);
+assert.equal(videoContext.dim(0), 25);
+assert.equal(videoContext.dim(100), 90);
+assert.equal(videoContext.blur(null), 4);
+assert.equal(videoContext.blur(100), 20);
+assert.match(extractFunction("render"), /syncPresentationVideo\(previousVideo\)/);
+console.log("Presentation video source and readability tests passed");
