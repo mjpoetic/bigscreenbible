@@ -19758,12 +19758,12 @@ svg {
   }
 }
 
-/* Reader page navigation shares one fixed stack so Page Down always sits below Page Up. */
+/* Keep page navigation on the right, clear of the Reader's left navigation rail. */
 .reader-page-controls {
   position: fixed;
-  right: var(--reader-floating-stack-right, max(24px, var(--app-safe-area-right, env(safe-area-inset-right, 0px))));
+  right: max(24px, var(--app-safe-area-right, env(safe-area-inset-right, 0px)));
   bottom: calc(72px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-  left: var(--reader-floating-stack-left, auto);
+  left: auto;
   z-index: 41;
   display: flex;
   flex-direction: column;
@@ -22092,9 +22092,9 @@ svg {
 
 @media (max-width: 840px) and (orientation: landscape) {
   .reader-page-controls {
-    right: var(--reader-floating-stack-right, max(12px, var(--app-safe-area-right, env(safe-area-inset-right, 0px))));
+    right: max(12px, var(--app-safe-area-right, env(safe-area-inset-right, 0px)));
     bottom: calc(72px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-    left: var(--reader-floating-stack-left, auto);
+    left: auto;
   }
 
   .reader-return-button {
