@@ -24256,3 +24256,39 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .puzzle-start-warning[hidden] { display: none; }
 .puzzle-start-warning p { margin: 0 0 8px; }
 .puzzle-start-warning .ghost-btn { width: 100%; }
+
+/* Keep every game's setup aligned within one options surface. */
+.games-options-drawer .games-drawer-scroll {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+.games-options-drawer .trivia-setup-controls,
+.games-options-drawer .trivia-setup-controls.single-control,
+.games-options-drawer .trivia-setup-controls.two-controls {
+  width: 100%;
+  grid-template-columns: 1fr;
+}
+.games-options-drawer .puzzle-creator {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 10px;
+}
+.games-options-drawer .puzzle-creator-heading > span,
+.games-options-drawer .puzzle-reference-field > span,
+.games-options-drawer .game-option-field > span {
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.games-options-drawer .games-setup-help,
+.games-options-drawer .reference-rush-level-note,
+.games-options-drawer .setting-help { margin: 0; }
+.games-options-drawer .reference-rush-timer-option,
+.games-options-drawer .hidden-word-score-rules { width: 100%; min-width: 0; }

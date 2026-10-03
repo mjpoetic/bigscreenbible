@@ -12219,8 +12219,7 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
   return `
     <section class="puzzle-creator" id="puzzleCreator" aria-labelledby="puzzleCreatorTitle">
       <div class="puzzle-creator-heading">
-        <span>${hiddenWord ? "Puzzle source" : "Passage"}</span>
-        <strong id="puzzleCreatorTitle">Choose how this ${hiddenWord ? "round" : "puzzle"} begins</strong>
+        <span id="puzzleCreatorTitle">${hiddenWord ? "Puzzle source" : "Passage"}</span>
       </div>
       <div class="puzzle-source-options" role="group" aria-label="Puzzle ${hiddenWord ? "source" : "passage source"}">
         <button class="${custom ? "" : "active"}" type="button" data-puzzle-passage-source="random" aria-pressed="${!custom}" ${challengeSetupLock}>${hiddenWord ? "Curated mix" : "Surprise me"}</button>
@@ -12249,7 +12248,7 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
       ` : `
         <p class="puzzle-creator-random-note">${hiddenWord
           ? `Each round draws from ${hiddenWordCategories.length} familiar Bible categories with no duplicate answers.`
-          : "Big Screen Bible will choose a fresh passage from the built-in puzzle collection."}</p>
+          : "A fresh passage is chosen for each puzzle."}</p>
       `}
     </section>
   `;
@@ -14800,29 +14799,6 @@ function triviaView() {
                         <small>${state.referenceRushTimed ? `${referenceRushTime} for this round` : "Play without a timer"}</small>
                       </span>
                     </button>
-                  ` : ""}
-                  ${isBookSprint ? `
-                    <div class="book-sprint-best-card">
-                      <span>Best time for this setup</span>
-                      <strong>${escapeHtml(bookSprintBestLabel(bookSprintBest))}</strong>
-                    </div>
-                  ` : ""}
-                  ${isWordSearch ? `
-                    <div class="book-sprint-best-card word-search-best-card">
-                      <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} time`}</span>
-                      <strong id="puzzleSetupBestValue">${wordSearchBest ? formatGameTime(wordSearchBest.elapsedMs) : "No best yet"}</strong>
-                    </div>
-                    <p class="word-search-solo-note">Word Search is a solo game in this first release.</p>
-                  ` : ""}
-                  ${isCrossword ? `
-                    <div class="book-sprint-best-card word-search-best-card">
-                      <span id="puzzleSetupBestLabel">${puzzleEvaluation?.custom && puzzleEvaluation.reference ? "Best for this passage" : `Best ${escapeHtml(state.triviaDifficulty)} time`}</span>
-                      <div class="puzzle-best-score">
-                        <strong id="puzzleSetupBestValue">${formatCrosswordBestTime(crosswordBest)}</strong>
-                        <small id="puzzleSetupBestAssist" ${crosswordBest?.hintCount ? "" : "hidden"}>${crosswordBest?.hintCount ? `* Assisted with ${crosswordBest.hintCount} letter ${crosswordBest.hintCount === 1 ? "hint" : "hints"}` : ""}</small>
-                      </div>
-                    </div>
-                    <p class="word-search-solo-note">Crossword uses passage-based clues and is a solo game.</p>
                   ` : ""}
                   ${isVerseOrder ? `<p class="setting-help">No time limit. Best times count fully correct rounds and pause between verses. Records are saved separately for each translation and verse count.</p>` : ""}
                   ${isHiddenWord ? hiddenWordScoreRules() : ""}
