@@ -384,3 +384,37 @@ const fittedCrosswordPadding = fittedCrosswordStyle.slice(0, fittedCrosswordStyl
 for (const edge of ['top', 'right', 'bottom', 'left']) {
   assert.ok(fittedCrosswordPadding.includes(`var(--app-safe-area-${edge}, env(safe-area-inset-${edge}, 0px))`), `Fitted Crossword must respect native ${edge} inset`);
 }
+
+// Android IME opening sends both inset and breakpoint events. Neither may
+// replace the focused crossword input, including an already queued refresh.
+let viewportRefresh;
+let viewportRenders = 0;
+const keyboardDocument = { activeElement: null, visibilityState: 'visible' };
+const keyboardContext = vm.createContext({
+  document: keyboardDocument,
+  state: { mode: 'trivia' },
+  scriptureSearchOwnsViewport: () => false,
+  clearTimeout: () => { viewportRefresh = null; },
+  setTimeout: (callback) => { viewportRefresh = callback; return 1; },
+  renderPreservingReaderScroll: () => { viewportRenders++; },
+});
+vm.runInContext(`
+  let presentationResizeTimer;
+  let inputViewportRefreshPending = false;
+  ${extractFunction('deferViewportRefreshForActiveInput')}
+  ${extractFunction('renderAfterViewportChangePreservingReaderScroll')}
+`, keyboardContext);
+keyboardContext.renderAfterViewportChangePreservingReaderScroll();
+const queuedRefresh = viewportRefresh;
+keyboardDocument.activeElement = { id: 'crosswordNativeInput' };
+queuedRefresh();
+for (let index = 0; index < 3; index++) {
+  keyboardContext.renderAfterViewportChangePreservingReaderScroll();
+  assert.equal(keyboardContext.deferViewportRefreshForActiveInput(), true);
+}
+assert.equal(viewportRenders, 0, 'IME events must preserve the focused input node');
+assert.equal(viewportRefresh, null, 'IME events cancel queued screen refreshes');
+keyboardDocument.activeElement = null;
+keyboardContext.renderAfterViewportChangePreservingReaderScroll();
+viewportRefresh();
+assert.equal(viewportRenders, 1, 'Viewport rendering remains available after leaving native input');

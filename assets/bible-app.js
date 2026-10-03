@@ -2085,6 +2085,12 @@ function scrollTriviaAnswerActionsIntoView() {
 
 function deferViewportRefreshForActiveInput() {
   if (scriptureSearchOwnsViewport()) return true;
+  // Crossword already fits its existing grid to viewport changes. Rebuilding
+  // it on Android IME inset events detaches the input and closes the keyboard.
+  if (document.activeElement?.id === "crosswordNativeInput") {
+    clearTimeout(presentationResizeTimer);
+    return true;
+  }
   if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput, #presentationVideoUrl, #puzzleCustomReferenceInput")) return false;
   inputViewportRefreshPending = true;
   clearTimeout(presentationResizeTimer);
@@ -22591,7 +22597,7 @@ function updateCrosswordDom({ focus = false } = {}) {
     if (cell.left < viewport.left) gridScroll.scrollLeft += cell.left - viewport.left;
     else if (cell.right > viewport.right) gridScroll.scrollLeft += cell.right - viewport.right;
   }
-  if (focus && document.activeElement?.id !== "crosswordNativeInput") {
+  if (focus && state.crosswordKeyboardVisible && document.activeElement?.id !== "crosswordNativeInput") {
     document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`)?.focus({ preventScroll: true });
   }
 }
@@ -22881,6 +22887,18 @@ function bindCrosswordGrid() {
     event.currentTarget.setAttribute("aria-pressed", String(enlarged));
     fitGrid();
     updateCrosswordDom();
+  });
+  // Keep the IME input focused when selecting another cell or clue. The click
+  // handlers still update the selection and open the keyboard synchronously.
+  const preserveNativeFocus = (event) => {
+    if (!state.crosswordKeyboardVisible && event.isPrimary !== false
+      && event.button === 0 && document.activeElement?.id === "crosswordNativeInput") {
+      event.preventDefault();
+    }
+  };
+  grid.addEventListener("pointerdown", preserveNativeFocus);
+  document.querySelectorAll("[data-crossword-entry], [data-crossword-step], #crosswordDirection").forEach((control) => {
+    control.addEventListener("pointerdown", preserveNativeFocus);
   });
   grid.addEventListener("click", (event) => {
     const cell = event.target.closest?.("[data-crossword-cell]");
