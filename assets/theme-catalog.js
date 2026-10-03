@@ -303,6 +303,14 @@
     const documentRef = options.document || global.document;
     const appearance = storedThemeAppearance(options);
     if (!documentRef?.documentElement) return appearance;
+    // Standalone About/legal pages share the app's reversible material choice.
+    let controlMaterial = "glass";
+    try {
+      if ((options.storage || global.localStorage)?.getItem("lw_control_material") === "classic") {
+        controlMaterial = "classic";
+      }
+    } catch { /* Storage may be unavailable; use the default finish. */ }
+    documentRef.documentElement.dataset.controlMaterial = controlMaterial;
     documentRef.documentElement.dataset.theme = appearance.theme;
     documentRef.documentElement.dataset.themePreset = appearance.preset;
     documentRef.documentElement.dataset.themeFamily = appearance.appearance.themeFamily;
