@@ -19780,8 +19780,21 @@ svg {
   pointer-events: auto;
 }
 
-.reader-return-button {
+.app-shell .reader-return-button {
+  right: max(24px, var(--app-safe-area-right, env(safe-area-inset-right, 0px))) !important;
+  left: auto !important;
   bottom: calc(184px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.app-shell[data-side-toolbar-position] .reader-return-button[data-tooltip]::after {
+  right: calc(100% + 10px);
+  left: auto;
+  transform: translate(-4px, -50%);
+}
+
+.app-shell[data-side-toolbar-position] .reader-return-button[data-tooltip]:hover::after,
+.app-shell[data-side-toolbar-position] .reader-return-button[data-tooltip]:focus-visible::after {
+  transform: translate(0, -50%);
 }
 
 @media (max-width: 840px) and (orientation: portrait) {
@@ -19791,7 +19804,7 @@ svg {
     left: auto;
   }
 
-  .reader-return-button {
+  .app-shell .reader-return-button {
     right: max(7px, var(--app-safe-area-right, env(safe-area-inset-right, 0px))) !important;
     bottom: calc(var(--mobile-portrait-footer-height) + 118px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
     left: auto !important;
@@ -22100,7 +22113,8 @@ svg {
     left: auto;
   }
 
-  .reader-return-button {
+  .app-shell .reader-return-button {
+    right: max(12px, var(--app-safe-area-right, env(safe-area-inset-right, 0px))) !important;
     bottom: calc(176px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
