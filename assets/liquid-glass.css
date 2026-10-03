@@ -55,7 +55,7 @@ html[data-control-material="glass"] :is(
   .mobile-verse-nav-menu, .verse-action-menu, .streak-popover,
   .presentation-reference-menu, .presentation-version-menu, .presentation-settings-popover,
   .presentation-top > .presentation-actions > .ghost-btn,
-  .presentation-nav-button, .presentation-search-toggle, .presentation-search-go,
+  .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,
   .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
   .presentation-settings-toggle, .presentation-reference-share,
   .presentation-version-picker-toggle,
@@ -83,7 +83,7 @@ html[data-control-material="glass"] :is(
   .focused-passage-actions .ghost-btn, .verse-of-day-reader .verse-of-day-read-button,
   .bottombar .nav-button, .bottombar .icon-btn, .bottombar .ghost-btn,
   .rail > button, .portrait-rail-actions > button,
-  .presentation-nav-button, .presentation-search-toggle, .presentation-search-go,
+  .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,
   .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
   .presentation-settings-toggle, .presentation-reference-share,
   .presentation-version-picker-toggle,
@@ -172,7 +172,7 @@ html[data-control-material="glass"] :is(.presentation-settings-toggle, .presenta
   html[data-control-material="glass"] :is(
     .topbar .icon-btn, .topbar .primary-version-toggle, .streak-chip,
     .focused-passage-actions .ghost-btn, .rail > button,
-    .presentation-nav-button, .presentation-search-toggle, .presentation-settings-toggle,
+    .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-settings-toggle,
     .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
     .games-header-action, .games-menu-control
   ):not(:disabled):not(.active):hover {
@@ -650,7 +650,7 @@ html[data-control-material="glass"] .games-options-drawer :is(button, input, sel
 
 /* A quiet rim for presentation controls; keep glyph contrast unchanged. */
 html[data-control-material="glass"] .presentation :is(
-  .presentation-nav-button, .presentation-search-toggle, .presentation-search-go,
+  .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,
   .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
   .presentation-settings-toggle, .presentation-reference-share, .presentation-version-picker-toggle,
   .presentation-popover-close
@@ -660,7 +660,7 @@ html[data-control-material="glass"] .presentation :is(
   --glass-shadow: 0 6px 20px rgba(0, 0, 0, .16), inset 0 1px 0 var(--glass-light), inset 0 -1px 0 rgba(0, 0, 0, .12);
 }
 html[data-control-material="glass"] .presentation :is(
-  .presentation-nav-button, .presentation-search-toggle, .presentation-settings-toggle,
+  .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-settings-toggle,
   .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle
 ):not(:disabled):is(:hover, .active) {
   border-color: color-mix(in srgb, var(--glass-ink) 30%, transparent);
@@ -1208,5 +1208,36 @@ html[data-control-material="glass"] .account-popover .social-connections-card.ha
   html[data-control-material="glass"] .account-popover .social-connections-card {
     background: var(--panel);
     border-color: var(--line);
+  }
+}
+
+/* Keep the chapter action readable beside the circular navigation controls. */
+.presentation-controls .presentation-continue-chapter {
+  width: auto;
+  min-height: 44px;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
+/* The search field must not isolate its dropdown from the Scripture backdrop. */
+html[data-control-material="glass"] .presentation .presentation-search-field:has(.presentation-version-control.open) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Dense frost keeps large Scripture glyphs from showing through version menus. */
+html[data-control-material="glass"] .presentation .presentation-version-menu {
+  --glass-fill: color-mix(in srgb, var(--glass-solid) 97%, transparent);
+  --glass-blur: blur(32px) saturate(120%);
+  --ink: var(--glass-ink);
+  --muted: color-mix(in srgb, var(--glass-ink) 74%, var(--glass-solid));
+  --soft: color-mix(in srgb, var(--glass-ink) 10%, transparent);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  html[data-control-material="glass"] .presentation .presentation-version-menu {
+    --glass-fill: var(--glass-solid);
+    --glass-blur: none;
   }
 }

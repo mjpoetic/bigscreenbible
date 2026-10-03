@@ -18370,7 +18370,7 @@ function presentation(accountPanelRerender = false) {
         </a>
         <div class="presentation-controls">
           ${presentationReturnButton()}
-          ${state.sharedPassage ? `<button class="ghost-btn" id="presentationContinueChapter" type="button">Continue chapter</button>` : ""}
+          ${state.sharedPassage ? `<button class="ghost-btn presentation-continue-chapter" id="presentationContinueChapter" type="button">Continue chapter</button>` : ""}
           <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
           <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
