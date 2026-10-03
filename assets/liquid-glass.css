@@ -1030,3 +1030,47 @@ html[data-control-material="glass"] .glass-close-control.glass-close-control.gla
     backdrop-filter: none;
   }
 }
+
+/* Settings search is one glass capsule, including its clear control. */
+html[data-control-material="glass"] .settings-search {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  padding-inline: 12px 8px;
+}
+html[data-control-material="glass"] .settings-search:focus-within {
+  border-color: color-mix(in srgb, var(--teal) 55%, var(--glass-edge));
+  box-shadow: var(--glass-shadow), 0 0 0 2px color-mix(in srgb, var(--teal) 20%, transparent);
+}
+html[data-control-material="glass"] .settings-search input {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+html[data-control-material="glass"] .settings-search .settings-search-clear {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] .settings-search .settings-search-clear:hover {
+  background: color-mix(in srgb, var(--ink) 10%, var(--glass-solid));
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  html[data-control-material="glass"] .settings-search,
+  html[data-control-material="glass"] .settings-search .settings-search-clear {
+    background: var(--panel);
+    border-color: var(--line);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
