@@ -20965,13 +20965,13 @@ function openSearchScopeMenu(trigger, options = {}) {
   }).join("") + (notesAvailable ? `
     <div class="search-scope-divider" role="separator"><span>Personal</span></div>
     <button class="search-scope-option search-source-option ${source === "notes" ? "selected" : ""}" type="button" role="option" aria-selected="${source === "notes" ? "true" : "false"}" data-search-source-option="notes">
-      <span class="search-scope-option-check" aria-hidden="true">${source === "notes" ? "✓" : ""}</span>
+      <span class="search-scope-option-check" aria-hidden="true">${source === "notes" ? "✓" : icons.note}</span>
       <span>My Notes</span>
     </button>
   ` : "") + `
     <div class="search-scope-divider" role="separator"><span>Reference</span></div>
     <button class="search-scope-option search-source-option ${source === "strongs" ? "selected" : ""}" type="button" role="option" aria-selected="${source === "strongs"}" data-search-source-option="strongs">
-      <span class="search-scope-option-check" aria-hidden="true">${source === "strongs" ? "✓" : ""}</span>
+      <span class="search-scope-option-check" aria-hidden="true">${source === "strongs" ? "✓" : icons.book}</span>
       <span>Strong's</span>
     </button>
   `;
