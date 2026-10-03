@@ -3080,7 +3080,7 @@ function mobileFocusWorkspacePanel() {
           <span>Focus tools</span>
           <strong>${icon}${panelTitle}</strong>
         </div>
-        <button id="mobileFocusWorkspaceClose" type="button" aria-label="Close ${panelTitle}">${icons.clear}</button>
+        <button class="glass-close-control" id="mobileFocusWorkspaceClose" type="button" aria-label="Close ${panelTitle}">${icons.clear}</button>
       </header>
       <div class="mobile-focus-workspace-body">
         ${content}
@@ -3125,7 +3125,7 @@ function mobileFocusSearchResults() {
           <span>Search results</span>
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
-        <button id="mobileFocusSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
+        <button class="glass-close-control" id="mobileFocusSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
       </header>
       <div class="mobile-focus-search-results-body">
         <div class="search-results">
@@ -3145,7 +3145,7 @@ function presentationSearchResults() {
           <span>Search results</span>
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
-        <button id="presentationSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
+        <button class="glass-close-control" id="presentationSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
       </header>
       <div class="mobile-focus-search-results-body">
         <div class="search-results">
@@ -4930,7 +4930,7 @@ function mobileSettingsPanel(settingsPanelRerender = false) {
     <div class="mobile-settings-popover draggable-popup ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" id="mobileSettingsPopover" role="dialog" aria-label="Settings" ${popupPositionStyle("settings")}>
       <div class="settings-popover-head">
         <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
-        <button class="settings-popover-close" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+        <button class="settings-popover-close glass-close-control" id="mobileSettingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
       </div>
       ${mainSettingsPanelMarkup("mobile")}
     </div>
@@ -5063,7 +5063,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         <button class="icon-btn account-quick-button ${state.authUser || headerAccountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountButton.label)}" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
         ${state.mode === "big" ? "" : `
           <div class="account-popover ${headerAccountOpen ? "open" : ""} ${accountPanelRerender ? "account-panel-rerender" : ""}" role="dialog" aria-label="Account and profile" aria-hidden="${headerAccountOpen ? "false" : "true"}">
-            <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
+            <button class="settings-popover-close glass-close-control" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
             ${accountPanel("quick")}
           </div>
         `}
@@ -5073,7 +5073,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         <div class="settings-popover draggable-popup ${state.settingsOpen ? "open" : ""} ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" role="dialog" aria-label="Settings" aria-hidden="${state.settingsOpen ? "false" : "true"}" ${popupPositionStyle("settings")}>
           <div class="settings-popover-head">
             <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
-            <button class="settings-popover-close" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
+            <button class="settings-popover-close glass-close-control" id="settingsClose" type="button" aria-label="Close settings">${icons.clear}</button>
           </div>
           ${mainSettingsPanelMarkup()}
         </div>
@@ -7361,7 +7361,7 @@ function library() {
       <aside class="library">
         <div class="panel-minihead">
           <span>${title}</span>
-          <button class="icon-btn" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">×</button>
+          <button class="icon-btn glass-close-control" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">${icons.clear}</button>
         </div>
         ${libraryContent()}
       </aside>
@@ -7501,7 +7501,7 @@ function noteComposerMarkup() {
           <span class="note-composer-eyebrow">Passage note</span>
           <h2 id="noteComposerTitle">${escapeHtml(ref)}</h2>
         </div>
-        <button class="icon-btn note-composer-close" id="closeNoteComposer" type="button" aria-label="Close note">${icons.clear}</button>
+        <button class="icon-btn note-composer-close glass-close-control" id="closeNoteComposer" type="button" aria-label="Close note">${icons.clear}</button>
       </header>
       ${preview ? `<p class="note-composer-passage">${escapeHtml(preview)}</p>` : ""}
       <form class="note-composer-form" id="noteComposerForm">
@@ -10071,7 +10071,7 @@ function openSocialAvatarPicker(anchor, prefix = "") {
   popup.innerHTML = `
     <div class="social-avatar-picker-heading">
       <strong>More avatars</strong>
-      <button class="social-avatar-picker-close" type="button" aria-label="Close more avatar choices">${icons.clear}</button>
+      <button class="social-avatar-picker-close glass-close-control" type="button" aria-label="Close more avatar choices">${icons.clear}</button>
     </div>
     <div class="social-avatar-more-options" role="radiogroup" aria-label="Additional profile avatar choices">
       ${socialAvatarMoreOptions.map((option) => `
@@ -14750,7 +14750,7 @@ function triviaView() {
                     <span>Before you start</span>
                     <strong id="gamesOptionsTitle">Game options</strong>
                   </div>
-                  <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
+                  <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
                   <p class="games-setup-help">${setupHelp}</p>
@@ -14822,7 +14822,7 @@ function triviaView() {
                     <span>Friends &amp; rooms</span>
                     <strong id="gamesSocialTitle">Social games</strong>
                   </div>
-                  <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close social games">${icons.clear}</button>
+                  <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close social games">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
                   ${gameChallengeSetupCard()}
@@ -14846,7 +14846,7 @@ function triviaView() {
                   <span>Current round</span>
                   <strong id="gamesControlsTitle">Game controls</strong>
                 </div>
-                <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game controls">${icons.clear}</button>
+                <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close game controls">${icons.clear}</button>
               </div>
               <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody">
                 <div class="game-music-drawer-control">${gameMusicToggleMarkup("gameMusicDrawerToggle")}</div>
@@ -14867,7 +14867,7 @@ function triviaView() {
                   <span>${isCrossword ? "Current clue" : isHiddenWord ? "Current word" : "Current question"}</span>
                   <strong id="gamesHintsTitle">Choose a hint</strong>
                 </div>
-                <button class="games-drawer-close" type="button" data-games-drawer-dismiss aria-label="Close game hints">${icons.clear}</button>
+                <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close game hints">${icons.clear}</button>
               </div>
               <div class="games-drawer-scroll games-hint-drawer-body" id="gamesHintDrawerBody"></div>
             </aside>
@@ -17156,7 +17156,7 @@ function setStudyPopupContent(popup, content, label, options = {}) {
   popup.innerHTML = `
     <div class="study-popup-head">
       <div class="study-popup-title">${escapeHtml(label)}</div>
-      <button class="study-popup-close" type="button" aria-label="Close popup">×</button>
+      <button class="study-popup-close glass-close-control" type="button" aria-label="Close popup">${icons.clear}</button>
     </div>
     ${content}
   `;
@@ -18198,7 +18198,7 @@ function presentation(accountPanelRerender = false) {
     <div class="presentation-settings-menu presentation-bottom-settings-menu">
       <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
-        <button class="presentation-popover-close" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
+        <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
         ${presentationSettingsPanelMarkup(version, customFontField)}
       </div>
     </div>
@@ -18241,7 +18241,7 @@ function presentation(accountPanelRerender = false) {
             <button class="ghost-btn account-quick-button presentation-account-toggle ${state.authUser || state.accountOpen ? "active" : ""}" id="presentationAccountButton" type="button" aria-label="${escapeHtml(accountButton.label)}" aria-haspopup="dialog" aria-expanded="${state.accountOpen ? "true" : "false"}" aria-controls="presentationAccountPopover" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
             ${state.mode === "big" ? `
               <div class="account-popover presentation-account-popover ${state.accountOpen ? "open" : ""} ${accountPanelRerender ? "account-panel-rerender" : ""}" id="presentationAccountPopover" role="dialog" aria-label="Account and profile" aria-hidden="${state.accountOpen ? "false" : "true"}">
-                <button class="settings-popover-close" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
+                <button class="settings-popover-close glass-close-control" id="accountPopoverClose" type="button" aria-label="Close account">${icons.clear}</button>
                 ${accountPanel("quick")}
               </div>
             ` : ""}
@@ -18413,7 +18413,7 @@ function shortcutOverlay() {
             <h2 id="shortcutTitle">Big Screen Bible Help</h2>
           </div>
           <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="help" aria-hidden="true" title="Drag to move help"></span>
-          <button class="icon-btn" id="closeShortcuts" aria-label="Close help" data-tooltip="Close">×</button>
+          <button class="icon-btn glass-close-control" id="closeShortcuts" aria-label="Close help" data-tooltip="Close">${icons.clear}</button>
         </div>
         <div class="help-tour-card">
           <div>
@@ -18588,7 +18588,7 @@ function aboutMenuOverlay() {
             <div class="shortcut-eyebrow">Big Screen Bible</div>
             <h2 id="aboutMenuTitle">About &amp; Legal</h2>
           </div>
-          <button class="icon-btn" id="closeAboutMenu" type="button" aria-label="Close About and legal information" data-tooltip="Close">×</button>
+          <button class="icon-btn glass-close-control" id="closeAboutMenu" type="button" aria-label="Close About and legal information" data-tooltip="Close">${icons.clear}</button>
         </div>
         <p class="about-menu-intro">Learn more about Big Screen Bible or review the policies that guide the service.</p>
         <nav class="about-menu-links" aria-label="About and legal pages">
@@ -18666,7 +18666,7 @@ function tutorialOverlay() {
     <section class="tutorial-overlay open" aria-live="polite">
       <div class="tutorial-spotlight" id="tutorialSpotlight" aria-hidden="true"></div>
       <article class="tutorial-card" id="tutorialCard" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
-        <button class="tutorial-close" id="tutorialSkip" type="button" aria-label="Close tour">${icons.clear}</button>
+        <button class="tutorial-close glass-close-control" id="tutorialSkip" type="button" aria-label="Close tour">${icons.clear}</button>
         <div class="shortcut-eyebrow">Tour ${stepNumber} of ${steps.length}</div>
         <h2 id="tutorialTitle">${step.title}</h2>
         <p>${step.body}</p>
@@ -28967,7 +28967,7 @@ function openQuickActionSearch() {
   dialog.innerHTML = `
     <form class="quick-action-search-form" role="search">
       <label for="quickActionSearchInput">Search the Bible</label>
-      <button class="quick-action-search-close" type="button" aria-label="Close search">${icons.close || "×"}</button>
+      <button class="quick-action-search-close glass-close-control" type="button" aria-label="Close search">${icons.clear}</button>
       <div class="quick-action-search-row">
         <input id="quickActionSearchInput" type="search" placeholder="Passage, phrase, or question" aria-label="Search the Bible" autocomplete="off" autocapitalize="none" enterkeyhint="search" autofocus required />
         <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
