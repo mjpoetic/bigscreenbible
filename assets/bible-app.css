@@ -24467,3 +24467,29 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   border-color: var(--presentation-button-border);
   background: var(--presentation-button-bg);
 }
+
+/* The glass notice supplies the outline; its return action stays unframed. */
+.shared-version-notice .shared-version-return {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.shared-version-notice .shared-version-return:hover,
+.shared-version-notice .shared-version-return:focus-visible {
+  background: transparent;
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .shared-version-notice:has(.shared-version-return:hover) {
+    background: color-mix(in srgb, var(--teal) 8%, var(--paper));
+    border-color: color-mix(in srgb, var(--teal) 25%, var(--line));
+  }
+  .presentation .shared-version-notice:has(.shared-version-return:hover) {
+    background: color-mix(in srgb, var(--presentation-accent) 12%, var(--presentation-button-bg));
+    border-color: var(--presentation-accent);
+  }
+}
+.shared-version-notice .shared-version-return:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
