@@ -662,3 +662,18 @@ html[data-control-material="glass"] .presentation :is(
 ):not(:disabled):is(:hover, .active) {
   border-color: color-mix(in srgb, var(--glass-ink) 30%, transparent);
 }
+
+/* Big Screen subpage controls use the same glass as the main Settings menu. */
+html[data-control-material="glass"] .presentation .presentation-settings-popover [data-presentation-settings-back],
+html[data-control-material="glass"] .presentation .presentation-settings-popover .app-update-button {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  color: var(--glass-ink);
+  min-height: 44px;
+}
+html[data-control-material="glass"] .presentation .presentation-settings-popover .app-update-button.primary-btn {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+}
