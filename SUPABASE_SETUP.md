@@ -408,3 +408,7 @@ and `npm run test:accounts`.
 ## Sign in with Apple
 
 See [APPLE_SIGN_IN_SETUP.md](./APPLE_SIGN_IN_SETUP.md) for native iOS capability, website Services ID, exact callback URLs, provider configuration, and secret rotation.
+
+## Account deletion
+
+See [ACCOUNT_DELETION_SETUP.md](./ACCOUNT_DELETION_SETUP.md) for the deployed deletion endpoint, server-only Apple secrets, confirmation flow, and verification steps.

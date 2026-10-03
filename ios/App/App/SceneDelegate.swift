@@ -496,6 +496,9 @@ public class BSBAppleAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationCon
             return
         }
         var result: [String: Any] = ["identityToken": token, "nonce": nonce]
+        if let code = credential.authorizationCode, let value = String(data: code, encoding: .utf8) {
+            result["authorizationCode"] = value
+        }
         if let name = credential.fullName {
             let formatted = PersonNameComponentsFormatter().string(from: name)
             if !formatted.isEmpty { result["fullName"] = formatted }

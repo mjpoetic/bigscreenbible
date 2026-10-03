@@ -4,9 +4,13 @@
     "npm:@capacitor/android@^8.4.1": "8.4.1_@capacitor+core@8.4.1",
     "npm:@capacitor/cli@^8.4.1": "8.4.1",
     "npm:@capacitor/core@^8.4.1": "8.4.1",
+    "npm:@capacitor/haptics@^8.0.2": "8.0.2_@capacitor+core@8.4.1",
     "npm:@capacitor/ios@^8.4.1": "8.4.1_@capacitor+core@8.4.1",
+    "npm:@capacitor/push-notifications@^8.1.2": "8.1.3_@capacitor+core@8.4.1",
+    "npm:@capacitor/status-bar@^8.0.3": "8.0.4_@capacitor+core@8.4.1",
     "npm:@supabase/supabase-js@2.110.1": "2.110.1",
     "npm:@types/web-push@3.6.4": "3.6.4",
+    "npm:jose@6.1.3": "6.1.3",
     "npm:web-push@3.6.7": "3.6.7"
   },
   "npm": {
@@ -45,8 +49,26 @@
         "tslib"
       ]
     },
+    "@capacitor/haptics@8.0.2_@capacitor+core@8.4.1": {
+      "integrity": "sha512-c2hZzRR5Fk1tbTvhG1jhh2XBAf3EhnIerMIb2sl7Mt41Gxx1fhBJFDa0/BI1IbY4loVepyyuqNC9820/GZuoWQ==",
+      "dependencies": [
+        "@capacitor/core"
+      ]
+    },
     "@capacitor/ios@8.4.1_@capacitor+core@8.4.1": {
       "integrity": "sha512-EgcAk7NYheHMTyP3CUrA65qKs4D2UEAKgw44HI6Uk3dTw6KjLQkdLOQWvbeRncHaZ2gklfOojUoc5DlSw2lhYg==",
+      "dependencies": [
+        "@capacitor/core"
+      ]
+    },
+    "@capacitor/push-notifications@8.1.3_@capacitor+core@8.4.1": {
+      "integrity": "sha512-UlOCTS3uiw8ZUJ1rkFKJgoqPADipHDNn0lq5mNRwtXALVxQXIeIoRd3iqpzC+962R2LpCRJRkCTjPX2OHK3tBA==",
+      "dependencies": [
+        "@capacitor/core"
+      ]
+    },
+    "@capacitor/status-bar@8.0.4_@capacitor+core@8.4.1": {
+      "integrity": "sha512-ZMzBUyHBzwDUxcHadEhvOvmoPmMQGMZgaMRJu8ohELeI6IaxoVH9ZhdF/OHnY3/yykv3Glev8Tnbh4aZY/0B0w==",
       "dependencies": [
         "@capacitor/core"
       ]
@@ -377,6 +399,9 @@
     },
     "isexe@2.0.0": {
       "integrity": "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="
+    },
+    "jose@6.1.3": {
+      "integrity": "sha512-0TpaTfihd4QMNwrz/ob2Bp7X04yuxJkjRGi4aKmOqwhov54i6u79oCv7T+C7lo70MKH6BesI3vscD1yb/yzKXQ=="
     },
     "jsonfile@6.2.1": {
       "integrity": "sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==",

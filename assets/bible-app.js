@@ -6629,6 +6629,7 @@ function accountPanel(prefix = "") {
         </div>
         ${sessionActions}
         ${passwordTools}
+        <button class="account-secondary-action delete-account-button" type="button" data-delete-account ${state.authBusy ? "disabled" : ""}>Delete account</button>
         <nav class="account-legal-links" aria-label="Legal information">
           <a href="./privacy/">Privacy Policy</a>
           <span aria-hidden="true">·</span>
@@ -8900,6 +8901,7 @@ async function initializeSupabaseAuth() {
       maybeOfferPushNotifications();
       if (showInitialAccountSwitch) showAccountSwitchNotification(session.user);
     }
+    resumeAccountDeletion(session);
     client.auth.onAuthStateChange((event, session) => {
       const previousUserId = state.authUser?.id || "";
       state.authUser = session?.user || null;
@@ -10886,6 +10888,125 @@ async function updateAccountPassword(event, prefix = "") {
   }
 }
 
+let accountDeletionInProgress = false;
+const accountDeletionIntentKey = "bsb_account_deletion_intent";
+
+function openDeleteAccountDialog(appleProof = null) {
+  if (!state.authUser || state.authBusy || document.getElementById("deleteAccountDialog")) return;
+  const userId = state.authUser.id;
+  const appleLinked = state.authUser.identities?.some(identity => identity.provider === "apple");
+  const dialog = document.createElement("dialog");
+  dialog.id = "deleteAccountDialog";
+  dialog.className = "delete-account-dialog";
+  dialog.setAttribute("aria-labelledby", "deleteAccountTitle");
+  dialog.innerHTML = `<form>
+    <h2 id="deleteAccountTitle">Delete account?</h2>
+    <p><strong>${escapeHtml(state.authUser.email || "Your account")}</strong></p>
+    <p>This permanently deletes your account, synced notes, bookmarks, highlights, reading history, streak, game records, profile, friendships, and challenges involving you. It cannot be undone or merged into another account.</p>
+    <p>The saved account and its study data will also be removed from this device. Other devices may keep local copies until their stored data is cleared.</p>
+    ${appleLinked ? "<p>You will confirm with Apple to revoke this account’s Apple authorization.</p>" : ""}
+    <label for="deleteAccountConfirmation">Type DELETE to confirm</label>
+    <input id="deleteAccountConfirmation" autocomplete="off" autocapitalize="characters" required pattern="DELETE" />
+    <p id="deleteAccountError" role="alert"></p>
+    <div class="account-actions"><button class="ghost-btn" type="button" id="cancelDeleteAccount">Cancel</button><button class="primary-btn" type="submit" id="confirmDeleteAccount" disabled>Delete account permanently</button></div>
+  </form>`;
+  document.body.append(dialog);
+  const input = dialog.querySelector("input");
+  const confirm = dialog.querySelector("[type=submit]");
+  input.addEventListener("input", () => { confirm.disabled = input.value !== "DELETE"; });
+  dialog.querySelector("#cancelDeleteAccount").onclick = () => dialog.close();
+  dialog.addEventListener("close", () => { dialog.remove(); sessionStorage.removeItem(accountDeletionIntentKey); });
+  dialog.addEventListener("cancel", event => { if (accountDeletionInProgress) event.preventDefault(); });
+  dialog.querySelector("form").onsubmit = async event => {
+    event.preventDefault();
+    if (input.value !== "DELETE" || state.authUser?.id !== userId || accountDeletionInProgress) return;
+    accountDeletionInProgress = true;
+    confirm.disabled = true;
+    dialog.querySelector("#cancelDeleteAccount").disabled = true;
+    const client = createSupabaseClient();
+    try {
+      let proof = appleProof;
+      if (appleLinked && !proof) {
+        const capacitor = window.Capacitor;
+        if (capacitor?.isNativePlatform?.() && capacitor.getPlatform?.() === "ios") {
+          if (!capacitor.isPluginAvailable?.("BSBAppleAuth")) throw new Error("Update the app to confirm account deletion with Apple.");
+          const plugin = capacitor.Plugins?.BSBAppleAuth || capacitor.registerPlugin("BSBAppleAuth");
+          const credential = await plugin.signIn();
+          proof = { platform: "ios", authorizationCode: credential.authorizationCode };
+        } else {
+          sessionStorage.setItem(accountDeletionIntentKey, JSON.stringify({userId, expires: Date.now() + 10 * 60 * 1000}));
+          const nativeAuth = nativeGoogleAuthPlugin();
+          const { data, error } = await client.auth.signInWithOAuth({ provider: "apple", options: {
+            redirectTo: nativeAuth ? "com.bigscreenbible.app://auth/callback" : window.location.origin,
+            ...(nativeAuth ? {skipBrowserRedirect: true} : {}),
+          } });
+          if (error) throw error;
+          if (!nativeAuth) return; // Return from Apple opens a new confirmation; never deletes automatically.
+          const result = await nativeAuth.open({ url: data.url });
+          const { data: exchanged, error: exchangeError } = await client.auth.exchangeCodeForSession(nativeGoogleAuthCode(result.url));
+          if (exchangeError) throw exchangeError;
+          if (exchanged.session?.user?.id !== userId) throw new Error("You selected a different account. Nothing was deleted.");
+          proof = {platform: "web", refreshToken: exchanged.session.provider_refresh_token};
+        }
+      }
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (sessionData.session?.user?.id !== userId) throw new Error("The active account changed. Nothing was deleted.");
+      state.authBusy = true;
+      clearTimeout(cloudSyncTimer);
+      const credentials = supabaseCredentials();
+      const result = await fetch(supabaseFunctionUrl("delete-account"), {
+        method: "POST", headers: { "Content-Type": "application/json", apikey: credentials.anonKey,
+          Authorization: `Bearer ${sessionData.session.access_token}` },
+        body: JSON.stringify({userId, confirmation: "DELETE", apple: proof}),
+      });
+      const body = await result.json();
+      if (!result.ok || body.deleted !== true || body.userId !== userId) throw new Error(body.error || "Account deletion is unavailable. Please try again later.");
+      // Change owner before sign-out so its listener cannot re-save the deleted account snapshot.
+      state.authUser = null;
+      setPendingAccountSwitch(false);
+      setAccountDataOwner(guestDataOwner);
+      applyCloudSnapshot(guestBrowserSnapshot() || blankLocalSnapshot());
+      localStorage.setItem(rememberedAccountsStorageKey, JSON.stringify(rememberedAccounts().filter(item => item.userId !== userId)));
+      localStorage.removeItem(accountSnapshotStorageKey(userId));
+      removeRememberedAccountSession(userId);
+      resetSocialProfileState(); resetFriendshipState(); resetGameChallengeState();
+      await client.auth.signOut({scope: "local"});
+      state.accountSwitching = false; state.accountAddOpen = false;
+      state.passwordChangeOpen = false; state.passwordRecoveryMode = false;
+      state.pushPromptVisible = false; state.syncStatus = "local";
+      state.syncMessage = "Account deleted. You can keep reading without an account.";
+      state.authMessage = "Account deleted.";
+      dialog.close();
+      showToast("Account deleted");
+    } catch (error) {
+      sessionStorage.removeItem(accountDeletionIntentKey);
+      appleProof = null;
+      dialog.querySelector("#deleteAccountError").textContent = error?.code === "CANCELED" ? "Apple confirmation canceled. Nothing was deleted." : error?.message || "Could not delete your account. Please try again.";
+    } finally {
+      accountDeletionInProgress = false; state.authBusy = false;
+      confirm.disabled = input.value !== "DELETE";
+      dialog.querySelector("#cancelDeleteAccount").disabled = false;
+      renderPreservingReaderScroll();
+    }
+  };
+  dialog.showModal();
+  input.focus();
+}
+
+function resumeAccountDeletion(session) {
+  const saved = sessionStorage.getItem(accountDeletionIntentKey);
+  if (!saved) return;
+  sessionStorage.removeItem(accountDeletionIntentKey);
+  try {
+    const intent = JSON.parse(saved);
+    if (intent.expires < Date.now()) return;
+    if (intent.userId !== session?.user?.id) { showToast("You selected a different account. Nothing was deleted."); return; }
+    if (!session.provider_refresh_token) { showToast("Apple did not return a deletion token. Please confirm with Apple again."); return; }
+    setTimeout(() => openDeleteAccountDialog({platform: "web", refreshToken: session.provider_refresh_token}), 0);
+  } catch { /* An invalid or old intent never triggers deletion. */ }
+}
+
 async function signOutAccount() {
   const client = createSupabaseClient();
   if (!client) return;
@@ -11549,7 +11670,7 @@ function scheduleCloudSync() {
     saveSnapshotForOwner(accountDataOwner() || guestDataOwner, captureCloudSnapshot());
     return;
   }
-  if (!state.authClient || !state.authUser) return;
+  if (accountDeletionInProgress || !state.authClient || !state.authUser) return;
   clearTimeout(cloudSyncTimer);
   state.syncStatus = "pending";
   state.syncMessage = "Sync pending...";
@@ -11595,8 +11716,8 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
     if (!result.error && result.data?.length) { savedSnapshot = next; break; }
   }
   if (!savedSnapshot) throw new Error("Another device is syncing. Please try syncing again.");
-  saveSnapshotForOwner(userId, savedSnapshot);
   if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+  saveSnapshotForOwner(userId, savedSnapshot);
   applyGameRecords(mergeGameRecords(savedSnapshot.settings.gameRecords, captureGameRecords()));
   state.syncStatus = "synced";
   state.syncMessage = "Synced across your signed-in devices.";
@@ -19042,6 +19163,7 @@ function bindEvents() {
   for (const prefix of ["", "mobile-", "quick-"]) {
     document.getElementById(`${prefix}appleSignInButton`)?.addEventListener("click", signInWithApple);
   }
+  document.querySelectorAll("[data-delete-account]").forEach(button => button.addEventListener("click", () => openDeleteAccountDialog()));
   document.getElementById("googleSignInButton")?.addEventListener("click", signInWithGoogle);
   document.getElementById("mobile-googleSignInButton")?.addEventListener("click", signInWithGoogle);
   document.getElementById("quick-googleSignInButton")?.addEventListener("click", signInWithGoogle);
