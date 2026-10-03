@@ -786,6 +786,8 @@ const state = {
   presentationControlsVisible: !isCompactScreen(),
   presentationPart: 0,
   presentationTheme: initialResolvedAppearance.presentationTheme,
+  presentationBackgroundMotion: normalizePresentationBackgroundMotion(localStorage.getItem("lw_presentation_background_motion")),
+  presentationMotionIntensity: normalizePresentationMotionIntensity(localStorage.getItem("lw_presentation_motion_intensity")),
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
@@ -10974,6 +10976,8 @@ function captureCloudSnapshot() {
       sideToolbarPosition: state.sideToolbarPosition,
       focusMode: state.focusMode,
       libraryOpen: state.libraryOpen,
+      presentationBackgroundMotion: state.presentationBackgroundMotion,
+      presentationMotionIntensity: state.presentationMotionIntensity,
       presentationTextScale: state.presentationTextScale,
       startBigScreen: state.startBigScreen,
       startVerseOfDay: state.startVerseOfDay,
@@ -11226,6 +11230,8 @@ function applyCloudSnapshot(snapshot) {
   state.sideToolbarPosition = settings.sideToolbarPosition === "right" ? "right" : "left";
   state.focusMode = Boolean(settings.focusMode);
   state.libraryOpen = settings.libraryOpen !== false;
+  state.presentationBackgroundMotion = normalizePresentationBackgroundMotion(settings.presentationBackgroundMotion ?? localStorage.getItem("lw_presentation_background_motion"));
+  state.presentationMotionIntensity = normalizePresentationMotionIntensity(settings.presentationMotionIntensity ?? localStorage.getItem("lw_presentation_motion_intensity"));
   state.presentationTextScale = clampPresentationTextScale(
     Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
   );
@@ -11332,6 +11338,8 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_focus_controls_hide_seconds", String(state.focusControlsHideSeconds));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
+  localStorage.setItem("lw_presentation_background_motion", state.presentationBackgroundMotion);
+  localStorage.setItem("lw_presentation_motion_intensity", state.presentationMotionIntensity);
   localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
   localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
   localStorage.setItem("lw_start_verse_of_day", String(state.startVerseOfDay));
@@ -17613,6 +17621,30 @@ function presentationSettingsDestinationRow(page, title, summary) {
   `;
 }
 
+function normalizePresentationBackgroundMotion(value) {
+  return ["flow", "stars"].includes(value) ? value : "off";
+}
+
+function normalizePresentationMotionIntensity(value) {
+  return ["medium", "strong"].includes(value) ? value : "subtle";
+}
+
+function presentationBackgroundMotionMarkup() {
+  if (state.mode !== "big" || state.presentationBackgroundMotion === "off") return "";
+  // Use a shared clock so passage/settings rerenders preserve the animation phase.
+  const elapsed = performance.now() / 1000;
+  const intensity = normalizePresentationMotionIntensity(state.presentationMotionIntensity);
+  const flowDuration = { subtle: 32, medium: 18, strong: 10 }[intensity];
+  const starSpeed = { subtle: 1, medium: 0.65, strong: 0.4 }[intensity];
+  const stars = state.presentationBackgroundMotion === "stars"
+    ? Array.from({ length: 32 }, (_, index) => {
+      const duration = (5 + (index % 5)) * starSpeed;
+      return `<i style="left:${(index * 37 + 11) % 100}%;top:${(index * 53 + 7) % 100}%;--star-size:${index % 3 === 0 ? 3 : 2}px;--star-duration:${duration}s;--star-delay:-${(elapsed + index * 1.7) % duration}s"></i>`;
+    }).join("")
+    : "";
+  return `<div class="presentation-motion" data-motion="${state.presentationBackgroundMotion}" data-intensity="${state.presentationMotionIntensity}" aria-hidden="true" style="--flow-duration:${flowDuration}s;--flow-delay:-${elapsed % flowDuration}s">${stars}</div>`;
+}
+
 function presentationSettingsPanelMarkup(version, customFontField = "") {
   const page = presentationSettingsPages[state.presentationSettingsPage] ? state.presentationSettingsPage : "root";
   const transitionClass = presentationSettingsPageTransition ? `presentation-settings-page-${presentationSettingsPageTransition}` : "";
@@ -17678,6 +17710,21 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             selectClass: "presentation-theme-select",
           })}
         </div>
+      <div class="presentation-settings-choice-field">
+        <span>Background Motion</span>
+        ${settingsChoiceMarkup("presentationBackgroundMotionSelect", state.presentationBackgroundMotion, [
+          { value: "off", label: "Off" },
+          { value: "flow", label: "Flowing Light" },
+          { value: "stars", label: "Starlight" },
+        ], { label: "Background Motion", ariaLabel: "Background Motion", selectClass: "presentation-theme-select" })}
+      </div>
+      ${state.presentationBackgroundMotion !== "off" ? `<div class="presentation-settings-choice-field">
+        <span>Motion intensity</span>
+        ${settingsChoiceMarkup("presentationMotionIntensitySelect", state.presentationMotionIntensity, [
+          { value: "subtle", label: "Subtle" }, { value: "medium", label: "Medium" }, { value: "strong", label: "Strong" },
+        ], { label: "Motion intensity", ariaLabel: "Motion intensity", selectClass: "presentation-theme-select" })}
+      </div>` : ""}
+      <p class="setting-help">Gentle motion behind Scripture, using your theme colors. Motion stops when reduced motion is enabled.</p>
       ${popupTextSettingsMarkup("presentation")}
     `;
   } else if (page === "presenting") {
@@ -17822,6 +17869,7 @@ function presentation(accountPanelRerender = false) {
   `;
   return `
     <section class="presentation ${state.mode === "big" ? "open" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+      ${presentationBackgroundMotionMarkup()}
       <div class="presentation-top">
         <div class="presentation-search-slot">
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
@@ -19747,6 +19795,18 @@ function bindEvents() {
       recordHistory();
       render();
     });
+  });
+  document.getElementById("presentationBackgroundMotionSelect")?.addEventListener("change", (event) => {
+    state.presentationBackgroundMotion = normalizePresentationBackgroundMotion(event.target.value);
+    localStorage.setItem("lw_presentation_background_motion", state.presentationBackgroundMotion);
+    scheduleCloudSync();
+    render();
+  });
+  document.getElementById("presentationMotionIntensitySelect")?.addEventListener("change", (event) => {
+    state.presentationMotionIntensity = normalizePresentationMotionIntensity(event.target.value);
+    localStorage.setItem("lw_presentation_motion_intensity", state.presentationMotionIntensity);
+    scheduleCloudSync();
+    render();
   });
   document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
     setPresentationTheme(event.target.value);

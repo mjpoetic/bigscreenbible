@@ -23618,3 +23618,52 @@ html[data-theme="dark"] .app-shell {
   background: var(--teal);
   color: var(--accent-ink);
 }
+
+/* Decorative motion stays inside the presentation's background stacking layer. */
+.presentation { isolation: isolate; }
+.presentation-motion {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.24;
+  /* Keep the brightest motion at the edges, away from central Scripture. */
+  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, #000 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, #000 85%);
+}
+.presentation-motion[data-intensity="medium"] { opacity: 0.4; }
+.presentation-motion[data-intensity="strong"] { opacity: 0.58; }
+.presentation-motion[data-motion="flow"]::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(ellipse at 20% 35%, var(--presentation-accent), transparent 48%),
+    radial-gradient(ellipse at 80% 65%, currentColor, transparent 45%);
+  animation: presentation-light-flow var(--flow-duration) ease-in-out infinite;
+  animation-delay: var(--flow-delay);
+}
+.presentation-motion i {
+  position: absolute;
+  width: var(--star-size);
+  height: var(--star-size);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 7px 2px var(--presentation-accent);
+  animation: presentation-star-glow var(--star-duration) ease-in-out infinite;
+  animation-delay: var(--star-delay);
+}
+@keyframes presentation-light-flow {
+  0%, 100% { transform: translate(-14%, -9%) rotate(-14deg) scale(1); }
+  50% { transform: translate(14%, 9%) rotate(14deg) scale(1.2); }
+}
+@keyframes presentation-star-glow {
+  0%, 100% { opacity: 0.12; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presentation-motion::before, .presentation-motion i { animation: none !important; }
+  .presentation-motion i { opacity: 0.4; }
+}
+@media print { .presentation-motion { display: none !important; } }

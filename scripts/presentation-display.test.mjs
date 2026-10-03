@@ -225,3 +225,30 @@ for (const height of [220, 500]) {
 }
 
 console.log("Presentation display tests passed");
+
+const motionContext = { state: { mode: "big", presentationBackgroundMotion: "off", presentationMotionIntensity: "subtle" }, performance: { now: () => 12500 } };
+vm.createContext(motionContext);
+vm.runInContext(`${extractFunction("normalizePresentationBackgroundMotion")}
+${extractFunction("normalizePresentationMotionIntensity")}
+${extractFunction("presentationBackgroundMotionMarkup")}
+globalThis.normalizeMotion = normalizePresentationBackgroundMotion; globalThis.motionMarkup = presentationBackgroundMotionMarkup;`, motionContext);
+for (const invalid of [null, undefined, "unknown", "<script>"]) assert.equal(motionContext.normalizeMotion(invalid), "off");
+assert.equal(motionContext.motionMarkup(), "");
+motionContext.state.presentationBackgroundMotion = "stars";
+const starMarkup = motionContext.motionMarkup();
+assert.equal((starMarkup.match(/<i style=/g) || []).length, 32);
+assert.match(starMarkup, /aria-hidden="true"/);
+assert.equal(motionContext.motionMarkup(), starMarkup, "Same animation clock preserves phase across rerenders");
+motionContext.state.mode = "reader";
+assert.equal(motionContext.motionMarkup(), "", "Reading modes do not animate presentation backgrounds");
+assert.match(extractFunction("captureCloudSnapshot"), /presentationBackgroundMotion: state.presentationBackgroundMotion/);
+assert.match(extractFunction("applyCloudSnapshot"), /normalizePresentationBackgroundMotion\(settings.presentationBackgroundMotion/);
+assert.match(extractFunction("persistCloudSnapshotLocally"), /lw_presentation_background_motion/);
+console.log("Presentation background motion tests passed");
+
+motionContext.state.mode = "big";
+motionContext.state.presentationBackgroundMotion = "flow";
+for (const [intensity, duration] of [["subtle", 32], ["medium", 18], ["strong", 10]]) {
+  motionContext.state.presentationMotionIntensity = intensity;
+  assert.ok(motionContext.motionMarkup().includes(`--flow-duration:${duration}s`));
+}
