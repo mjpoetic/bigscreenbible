@@ -3,6 +3,7 @@ import Capacitor
 import WebKit
 import SafariServices
 import AuthenticationServices
+import CryptoKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -135,6 +136,7 @@ class BSBBridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(BSBPrintPlugin())
         bridge?.registerPluginInstance(BSBBrowserPlugin())
         bridge?.registerPluginInstance(BSBAuthPlugin())
+        bridge?.registerPluginInstance(BSBAppleAuthPlugin())
         bridge?.registerPluginInstance(BSBHapticsPlugin())
         offlineStore.controller = self
         offlineStore.armLaunchTimeout()
@@ -437,6 +439,76 @@ public class BSBAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPres
                 self.session = nil
                 call.reject("Google sign in could not open. Please try again.")
             }
+        }
+    }
+}
+
+@objc(BSBAppleAuthPlugin)
+public class BSBAppleAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    public let identifier = "BSBAppleAuthPlugin"
+    public let jsName = "BSBAppleAuth"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "signIn", returnType: CAPPluginReturnPromise)
+    ]
+    private var pendingCall: CAPPluginCall?
+    private var nonce: String?
+    private var controller: ASAuthorizationController?
+
+    @objc func signIn(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.bridge?.viewController?.view.window != nil else {
+                call.reject("The reader is not ready for sign in.")
+                return
+            }
+            guard self.pendingCall == nil else {
+                call.reject("Apple sign in is already open.")
+                return
+            }
+            var bytes = [UInt8](repeating: 0, count: 32)
+            guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+                call.reject("Could not securely start Apple sign in.")
+                return
+            }
+            let nonce = bytes.map { String(format: "%02x", $0) }.joined()
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = SHA256.hash(data: Data(nonce.utf8)).map { String(format: "%02x", $0) }.joined()
+            self.pendingCall = call
+            self.nonce = nonce
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            self.controller = controller
+            controller.performRequests()
+        }
+    }
+
+    public func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        return bridge!.viewController!.view.window!
+    }
+
+    public func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        defer { pendingCall = nil; nonce = nil; self.controller = nil }
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let data = credential.identityToken, let token = String(data: data, encoding: .utf8),
+              !token.isEmpty, let nonce else {
+            pendingCall?.reject("Apple did not return a sign-in token.")
+            return
+        }
+        var result: [String: Any] = ["identityToken": token, "nonce": nonce]
+        if let name = credential.fullName {
+            let formatted = PersonNameComponentsFormatter().string(from: name)
+            if !formatted.isEmpty { result["fullName"] = formatted }
+        }
+        pendingCall?.resolve(result)
+    }
+
+    public func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        defer { pendingCall = nil; nonce = nil; self.controller = nil }
+        if let error = error as? ASAuthorizationError, error.code == .canceled {
+            pendingCall?.reject("Apple sign in canceled.", "CANCELED")
+        } else {
+            pendingCall?.reject("Apple sign in could not finish. Please try again.")
         }
     }
 }

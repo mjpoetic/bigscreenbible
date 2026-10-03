@@ -3788,7 +3788,8 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   flex: 1;
 }
 
-.google-account-btn {
+.google-account-btn,
+.apple-account-btn {
   width: 100%;
   min-height: 36px;
   gap: 8px;
@@ -3796,7 +3797,8 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   font-size: 12px;
 }
 
-.google-account-btn svg {
+.google-account-btn svg,
+.apple-account-btn svg {
   width: 17px;
   height: 17px;
   flex-shrink: 0;
@@ -24184,3 +24186,5 @@ html[data-theme="dark"] .app-shell {
 @media (max-width: 840px) and (orientation: portrait) {
   .is-expanded-play .word-search-grid { width: min(100%, max(240px, calc(var(--games-viewport-height, 100dvh) - 270px)), 560px); }
 }
+
+.apple-account-btn { margin-top: 8px; }

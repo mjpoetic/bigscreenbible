@@ -225,13 +225,16 @@ html[data-control-material="glass"] :is(
   .note-box, .note-composer textarea, .study-search > input, .notes-filter-control,
   .about-menu-links a, .help-tour-card, .help-section, .help-grid > div, .gesture-guide, .gesture-guide-card,
   .streak-card, .streak-stats > span, .account-card,
-  .account-form input:not([type="checkbox"]), .account-form .ghost-btn, .account-card .google-account-btn,
+  .account-form input:not([type="checkbox"]), .account-form .ghost-btn, .account-card .google-account-btn, .account-card .apple-account-btn,
   .text-size-control, .settings-page-titlebar
 ) {
   border-radius: 16px;
   border-color: var(--glass-edge);
   background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
   box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] .account-card .apple-account-btn {
+  color: var(--glass-ink);
 }
 html[data-control-material="glass"] :is(.testament-group, .help-section) > summary {
   border-radius: 16px;

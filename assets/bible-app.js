@@ -5349,7 +5349,7 @@ function normalizedRememberedAccount(account = {}) {
   return {
     userId,
     email,
-    provider: account.provider === "google" ? "google" : "email",
+    provider: ["google", "apple"].includes(account.provider) ? account.provider : "email",
     username: normalizeProfileUsername(account.username || ""),
     displayName: String(account.displayName || "").trim().slice(0, 40),
     avatarKey: socialAvatarKeys.includes(account.avatarKey) ? account.avatarKey : "initials",
@@ -5433,7 +5433,7 @@ function authProviderForUser(user = state.authUser) {
     || user?.identities?.[0]?.provider
     || "email",
   ).toLowerCase();
-  return provider === "google" ? "google" : "email";
+  return ["google", "apple"].includes(provider) ? provider : "email";
 }
 
 function rememberAuthenticatedAccount(user = state.authUser, profile = null) {
@@ -5486,7 +5486,7 @@ function rememberedAccountsCard(prefix = "", options = {}) {
             avatarKey: account.avatarKey,
           };
           const identity = account.username ? `@${account.username}` : account.email;
-          const providerLabel = account.provider === "google" ? "Google account" : "Email account";
+          const providerLabel = account.provider === "apple" ? "Apple account" : account.provider === "google" ? "Google account" : "Email account";
           const sessionReady = Boolean(rememberedAccountSession(account.userId));
           return `
             <div class="remembered-account-row">
@@ -5530,6 +5530,10 @@ async function useRememberedAccount(userId, prefix = "") {
   state.accountSwitching = Boolean(state.authUser);
   state.authMessage = "This saved session has expired. Sign in once to reconnect this account.";
   renderPreservingReaderScroll();
+  if (account.provider === "apple") {
+    await signInWithApple();
+    return;
+  }
   if (account.provider === "google") {
     await signInWithGoogle();
     return;
@@ -6527,6 +6531,7 @@ function accountSignInCard(prefix = "", options = {}) {
       </form>
       <div class="account-divider"><span>or</span></div>
       <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
+      <button class="ghost-btn apple-account-btn" id="${suffix}appleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.05 12.54c.03 3.23 2.83 4.3 2.86 4.31-.02.08-.45 1.54-1.48 3.05-.9 1.3-1.83 2.6-3.3 2.63-1.44.03-1.9-.85-3.55-.85-1.64 0-2.15.82-3.52.88-1.42.05-2.5-1.41-3.4-2.71-1.85-2.67-3.26-7.55-1.36-10.85a5.28 5.28 0 0 1 4.47-2.71c1.4-.03 2.72.94 3.56.94.84 0 2.42-1.16 4.08-.99.7.03 2.67.28 3.94 2.14-.1.06-2.35 1.36-2.3 4.16zM14.36 4.48c.75-.91 1.26-2.17 1.12-3.43-1.08.04-2.4.72-3.17 1.62-.69.8-1.3 2.09-1.13 3.32 1.2.09 2.42-.61 3.18-1.51z"/></svg><span>Continue with Apple</span></button>
       <p class="account-legal-notice">By creating an account, you agree to the <a href="./terms/">Terms of Service</a> and acknowledge the <a href="./privacy/">Privacy Policy</a>.</p>
       <button class="account-secondary-action" id="${suffix}forgotPasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Forgot your password?</button>
     </section>
@@ -10622,7 +10627,7 @@ function nativeGoogleAuthCode(callbackUrl) {
 let googleSignInInProgress = false;
 
 async function signInWithGoogle() {
-  if (googleSignInInProgress) return;
+  if (googleSignInInProgress || state.authBusy) return;
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
   state.authBusy = true;
@@ -10676,6 +10681,87 @@ async function signInWithGoogle() {
     renderPreservingReaderScroll();
   } finally {
     googleSignInInProgress = false;
+    state.authBusy = false;
+    renderPreservingReaderScroll();
+  }
+}
+
+let appleSignInInProgress = false;
+
+async function signInWithApple() {
+  if (appleSignInInProgress || state.authBusy) return;
+  const client = createSupabaseClient();
+  if (!client) return showToast("Supabase is not connected yet");
+  state.authBusy = true;
+  appleSignInInProgress = true;
+  state.authMessage = "Opening Apple sign in...";
+  renderPreservingReaderScroll();
+  try {
+    const capacitor = window.Capacitor;
+    const native = capacitor?.isNativePlatform?.();
+    const ios = native && capacitor.getPlatform?.() === "ios";
+    const nativeAuth = native && !ios ? nativeGoogleAuthPlugin() : null;
+    if (ios && !capacitor.isPluginAvailable?.("BSBAppleAuth")) {
+      throw new Error("Update the Big Screen Bible app to use Apple sign in.");
+    }
+    if (state.authUser) {
+      const outgoingUserId = state.authUser.id;
+      const outgoingSnapshot = captureCloudSnapshot();
+      await rememberCurrentAccountSession(client);
+      saveSnapshotForOwner(outgoingUserId, outgoingSnapshot);
+      setPendingAccountSwitch(true);
+      clearTimeout(cloudSyncTimer);
+      try {
+        await upsertCloudSnapshot(outgoingSnapshot, { quiet: true });
+      } catch (error) {
+        console.warn("Final account sync before Apple sign in failed", error);
+      }
+      if (!native) await unlinkPushSubscriptionFromCurrentAccount();
+    }
+    if (ios) {
+      const plugin = capacitor.Plugins?.BSBAppleAuth || capacitor.registerPlugin("BSBAppleAuth");
+      const credential = await plugin.signIn();
+      if (!credential?.identityToken || !credential?.nonce) throw new Error("Apple did not return a sign-in token.");
+      if (state.authUser) await unlinkPushSubscriptionFromCurrentAccount();
+      const { error } = await client.auth.signInWithIdToken({
+        provider: "apple", token: credential.identityToken, nonce: credential.nonce,
+      });
+      if (error) throw error;
+      if (credential.fullName) {
+        const { error: nameError } = await client.auth.updateUser({ data: { full_name: credential.fullName } });
+        if (nameError) console.warn("Apple profile name could not be saved", nameError);
+      }
+      state.authMessage = "Signed in.";
+      return;
+    }
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: "apple",
+      options: {
+        redirectTo: nativeAuth ? "com.bigscreenbible.app://auth/callback" : window.location.origin,
+        ...(nativeAuth ? { skipBrowserRedirect: true } : {}),
+      },
+    });
+    if (error) throw error;
+    if (nativeAuth) {
+      if (!data?.url) throw new Error("Apple sign in could not start. Please try again.");
+      const result = await nativeAuth.open({ url: data.url });
+      const code = nativeGoogleAuthCode(result.url);
+      if (state.authUser) await unlinkPushSubscriptionFromCurrentAccount();
+      const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
+      if (exchangeError) throw exchangeError;
+      // onAuthStateChange loads the signed-in user's data through the shared path.
+      state.authMessage = "Signed in.";
+    }
+  } catch (error) {
+    setPendingAccountSwitch(false);
+    state.authBusy = false;
+    state.authMessage = error?.code === "CANCELED"
+      ? "Apple sign in canceled."
+      : error?.message || "Apple sign in could not start. Please try again.";
+    if (error?.code !== "CANCELED") showToast("Apple sign in failed");
+    renderPreservingReaderScroll();
+  } finally {
+    appleSignInInProgress = false;
     state.authBusy = false;
     renderPreservingReaderScroll();
   }
@@ -18953,6 +19039,9 @@ function bindEvents() {
   document.getElementById("forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset());
   document.getElementById("mobile-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("mobile"));
   document.getElementById("quick-forgotPasswordButton")?.addEventListener("click", () => requestPasswordReset("quick"));
+  for (const prefix of ["", "mobile-", "quick-"]) {
+    document.getElementById(`${prefix}appleSignInButton`)?.addEventListener("click", signInWithApple);
+  }
   document.getElementById("googleSignInButton")?.addEventListener("click", signInWithGoogle);
   document.getElementById("mobile-googleSignInButton")?.addEventListener("click", signInWithGoogle);
   document.getElementById("quick-googleSignInButton")?.addEventListener("click", signInWithGoogle);

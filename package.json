@@ -73,7 +73,7 @@
     "test:printing": "node scripts/native-print.test.mjs",
     "test:native-push": "node scripts/native-push.test.mjs && deno test --allow-env supabase/functions/_shared/apns.test.ts",
     "test:offline": "node scripts/native-offline.test.mjs",
-    "test:native-auth": "node scripts/native-google-auth.test.mjs",
+    "test:native-auth": "node scripts/native-google-auth.test.mjs && node scripts/apple-auth.test.mjs",
     "test:native-links": "node scripts/native-links.test.mjs"
   },
   "dependencies": {

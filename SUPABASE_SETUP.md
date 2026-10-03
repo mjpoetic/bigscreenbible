@@ -404,3 +404,7 @@ Validate Google success, cancel/back, account selection, and return to the same
 reader on physical iOS and Android devices. Also check Android with a browser
 that uses the Custom Tabs fallback. Automated coverage: `npm run test:native-auth`
 and `npm run test:accounts`.
+
+## Sign in with Apple
+
+See [APPLE_SIGN_IN_SETUP.md](./APPLE_SIGN_IN_SETUP.md) for native iOS capability, website Services ID, exact callback URLs, provider configuration, and secret rotation.
