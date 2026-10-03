@@ -23971,3 +23971,28 @@ html[data-theme="dark"] .app-shell {
 @media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
   .crossword-game:not(.is-complete) .crossword-clue-browser:not([hidden]) { display: block; }
 }
+
+/* Size restart dialogs within the usable native viewport, including system bars. */
+.puzzle-restart-overlay {
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+.puzzle-restart-dialog { min-height: 0; max-height: 100%; }
+@media (orientation: landscape) and (max-height: 720px) {
+  .puzzle-restart-overlay {
+    padding:
+      max(10px, var(--app-safe-area-top, env(safe-area-inset-top, 0px)))
+      max(12px, var(--app-safe-area-right, env(safe-area-inset-right, 0px)))
+      max(10px, var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)))
+      max(12px, var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+  }
+  .puzzle-restart-dialog { width: min(880px, 100%); padding: 14px 18px; gap: 8px; }
+  .puzzle-restart-icon, .puzzle-restart-dialog > .trivia-eyebrow { display: none; }
+  .puzzle-restart-dialog h2 { font-size: 24px; line-height: 1.2; }
+  .puzzle-restart-dialog > p { max-width: none; font-size: 13px; line-height: 1.35; }
+  .puzzle-restart-options { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 0; }
+  .puzzle-restart-option { min-height: 92px; padding: 10px 12px; gap: 4px; }
+  .puzzle-restart-option strong { font-size: 16px; }
+  .puzzle-restart-option small { font-size: 12px; }
+  .puzzle-restart-cancel { min-height: 44px; margin-top: 0; }
+}
