@@ -979,9 +979,39 @@ const state = {
 let activePopupDrag = null;
 let pendingNoteComposerFocus = false;
 
-if (state.triviaGameType === "reference-rush") state.triviaDifficulty = "Easy";
-if (state.triviaGameType === "hidden-word" && !hiddenWordDifficulties().includes(state.triviaDifficulty)) state.triviaDifficulty = "Medium";
-if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") state.triviaDifficulty = "Hard";
+function normalizedGameDifficulty(gameType, difficulty) {
+  const choices = gameType === "word-search" ? wordSearchDifficulties()
+    : gameType === "crossword" ? crosswordDifficulties()
+      : gameType === "hidden-word" ? hiddenWordDifficulties() : triviaDifficulties();
+  if (choices.includes(difficulty)) return difficulty;
+  return ["word-search", "crossword", "hidden-word"].includes(gameType) ? "Medium"
+    : gameType === "reference-rush" ? "Easy" : "All";
+}
+
+function savedGameDifficulties() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("lw_game_difficulties_v1") || "{}");
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberGameDifficulty() {
+  const saved = savedGameDifficulties();
+  saved[state.triviaGameType] = normalizedGameDifficulty(state.triviaGameType, state.triviaDifficulty);
+  localStorage.setItem("lw_game_difficulties_v1", JSON.stringify(saved));
+}
+
+function switchGameDifficulty(gameType) {
+  rememberGameDifficulty();
+  const saved = savedGameDifficulties();
+  state.triviaGameType = gameType;
+  state.triviaDifficulty = normalizedGameDifficulty(gameType, saved[gameType]);
+  localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+}
+
+state.triviaDifficulty = normalizedGameDifficulty(state.triviaGameType, state.triviaDifficulty);
 state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
 
 const highlightColors = ["yellow", "blue", "pink", "green", "orange", "purple"];
@@ -19680,22 +19710,10 @@ function bindEvents() {
       animateBeforeRemoval(".trivia-setup-content, .trivia-setup .games-records, .trivia-start-dock", () => {
         if (state.mode !== "trivia" || state.triviaGameType !== previousType) return;
         cleanupTriviaCelebration();
-        state.triviaGameType = button.dataset.triviaMode || "trivia";
+        switchGameDifficulty(button.dataset.triviaMode || "trivia");
         state.triviaGame = null;
         state.puzzleRestartPromptOpen = false;
         resetPuzzleCustomWordChoices();
-        if (state.triviaGameType === "reference-rush") {
-          state.triviaDifficulty = "Easy";
-          localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
-        }
-        if (["word-search", "crossword", "hidden-word"].includes(state.triviaGameType) && state.triviaDifficulty === "All") {
-          state.triviaDifficulty = "Medium";
-          localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
-        }
-        if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") {
-          state.triviaDifficulty = "Hard";
-          localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
-        }
         if (state.triviaGameType === "book-sprint") {
           state.triviaCount = 5;
           localStorage.setItem("lw_trivia_count", String(state.triviaCount));
@@ -19734,6 +19752,7 @@ function bindEvents() {
     state.triviaDifficulty = event.target.value;
     resetPuzzleCustomWordChoices();
     localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+    rememberGameDifficulty();
     scheduleCloudSync();
     renderPreservingReaderScroll();
     if (appMenu) requestAnimationFrame(() => document.getElementById("triviaDifficultySelectToggle")?.focus({ preventScroll: true }));
