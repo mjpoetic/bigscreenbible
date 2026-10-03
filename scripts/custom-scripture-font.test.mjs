@@ -188,3 +188,18 @@ pendingResize();
 assert.equal(renders, beforeSearch + 1, 'Search focus also cancels a previously queued fit');
 assert.ok(source.includes('document.getElementById("presentationSearchInput")?.addEventListener("blur", resumeViewportRefreshAfterInput)'));
 console.log('Big Screen search keyboard resize, native insets, queued fit, and blur recovery passed');
+
+const videoUrlInput = { matches: (selector) => selector.includes("#presentationVideoUrl") };
+viewportContext.state.mode = 'big';
+viewportDocument.activeElement = videoUrlInput;
+pendingResize = null;
+viewportContext.renderAfterViewportChangePreservingReaderScroll();
+assert.equal(pendingResize, null, 'Video URL editing defers keyboard viewport rerenders');
+viewportDocument.activeElement = null;
+viewportContext.renderAfterViewportChangePreservingReaderScroll();
+const beforeVideoResize = renders;
+viewportDocument.activeElement = videoUrlInput;
+pendingResize();
+assert.equal(renders, beforeVideoResize, 'Queued viewport refresh preserves a newly focused video URL');
+assert.match(source, /presentationVideoUrlDraft = event.target.value/);
+assert.match(source, /presentationVideoUrlDraft \?\? state.presentationVideoUrl/);

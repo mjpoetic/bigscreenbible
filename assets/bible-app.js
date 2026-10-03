@@ -787,6 +787,7 @@ const state = {
   presentationPart: 0,
   presentationTheme: initialResolvedAppearance.presentationTheme,
   presentationBackgroundMotion: normalizePresentationBackgroundMotion(localStorage.getItem("lw_presentation_background_motion")),
+  presentationVideoUrlDraft: null,
   presentationVideoUrl: normalizePresentationVideoUrl(localStorage.getItem("lw_presentation_video_url")),
   presentationVideoDim: normalizePresentationVideoDim(localStorage.getItem("lw_presentation_video_dim")),
   presentationVideoBlur: normalizePresentationVideoBlur(localStorage.getItem("lw_presentation_video_blur")),
@@ -2053,7 +2054,7 @@ function scrollTriviaAnswerActionsIntoView() {
 
 function deferViewportRefreshForActiveInput() {
   if (scriptureSearchOwnsViewport()) return true;
-  if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput")) return false;
+  if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput, #presentationVideoUrl")) return false;
   inputViewportRefreshPending = true;
   clearTimeout(presentationResizeTimer);
   delete document.documentElement.dataset.presentationRotating;
@@ -17808,7 +17809,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
       </div>` : ""}
       ${state.presentationBackgroundMotion === "video" ? `<div class="presentation-video-settings">
         <label for="presentationVideoUrl">Direct video URL</label>
-        <input id="presentationVideoUrl" type="url" value="${escapeHtml(state.presentationVideoUrl)}" placeholder="https://example.com/background.mp4" autocomplete="off" />
+        <input id="presentationVideoUrl" type="url" value="${escapeHtml(state.presentationVideoUrlDraft ?? state.presentationVideoUrl)}" placeholder="https://example.com/background.mp4" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         <button type="button" class="ghost-btn" id="presentationVideoApply">Apply video</button>
         <p class="setting-help" id="presentationVideoStatus" role="status">Use a direct HTTPS MP4 or WebM link. Webpage and YouTube links are not supported. Video plays muted; the theme stays visible while loading.</p>
         <label for="presentationVideoDim">Dim <output>${state.presentationVideoDim}%</output></label>
@@ -19913,6 +19914,10 @@ function bindEvents() {
     }
     scheduleCloudSync();
   });
+  document.getElementById("presentationVideoUrl")?.addEventListener("blur", resumeViewportRefreshAfterInput);
+  document.getElementById("presentationVideoUrl")?.addEventListener("input", (event) => {
+    state.presentationVideoUrlDraft = event.target.value;
+  });
   document.getElementById("presentationVideoApply")?.addEventListener("click", () => {
     const input = document.getElementById("presentationVideoUrl");
     const url = normalizePresentationVideoUrl(input.value);
@@ -19921,6 +19926,7 @@ function bindEvents() {
       return;
     }
     state.presentationVideoUrl = url;
+    state.presentationVideoUrlDraft = null;
     localStorage.setItem("lw_presentation_video_url", url);
     scheduleCloudSync();
     render();
