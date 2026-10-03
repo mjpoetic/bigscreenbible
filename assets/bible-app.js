@@ -2054,7 +2054,7 @@ function scrollTriviaAnswerActionsIntoView() {
 
 function deferViewportRefreshForActiveInput() {
   if (scriptureSearchOwnsViewport()) return true;
-  if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput, #presentationVideoUrl")) return false;
+  if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput, #presentationVideoUrl, #puzzleCustomReferenceInput")) return false;
   inputViewportRefreshPending = true;
   clearTimeout(presentationResizeTimer);
   delete document.documentElement.dataset.presentationRotating;
@@ -19562,6 +19562,8 @@ function bindEvents() {
     });
   });
   const puzzleReferenceInput = document.getElementById("puzzleCustomReferenceInput");
+  // Android IME insets can trigger a full viewport refresh while typing.
+  puzzleReferenceInput?.addEventListener("blur", resumeViewportRefreshAfterInput);
   puzzleReferenceInput?.addEventListener("input", (event) => {
     const nextReference = String(event.target.value || "").slice(0, 80);
     if (nextReference !== state.puzzleCustomReference) resetPuzzleCustomWordChoices();

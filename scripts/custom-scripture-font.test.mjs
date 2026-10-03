@@ -203,3 +203,28 @@ pendingResize();
 assert.equal(renders, beforeVideoResize, 'Queued viewport refresh preserves a newly focused video URL');
 assert.match(source, /presentationVideoUrlDraft = event.target.value/);
 assert.match(source, /presentationVideoUrlDraft \?\? state.presentationVideoUrl/);
+
+// Games passage editing must survive Android IME inset and breakpoint refreshes.
+const puzzleInput = {
+  value: 'Psalm 23:1-6',
+  matches: (selector) => selector.split(', ').includes('#puzzleCustomReferenceInput'),
+};
+viewportContext.state.mode = 'trivia';
+viewportDocument.activeElement = null;
+viewportContext.renderAfterViewportChangePreservingReaderScroll();
+const queuedPuzzleRefresh = pendingResize;
+viewportDocument.activeElement = puzzleInput;
+const beforePuzzleResize = renders;
+queuedPuzzleRefresh();
+for (let i = 0; i < 4; i++) viewportContext.renderAfterViewportChangePreservingReaderScroll();
+assert.equal(pendingResize, null, 'Keyboard insets must not schedule a Games rebuild');
+assert.equal(renders, beforePuzzleResize, 'Queued refresh must retain the focused passage field');
+assert.equal(viewportDocument.activeElement, puzzleInput);
+assert.equal(puzzleInput.value, 'Psalm 23:1-6');
+viewportDocument.activeElement = null;
+viewportContext.resumeViewportRefreshAfterInput();
+assert.equal(typeof pendingResize, 'function');
+pendingResize();
+assert.equal(renders, beforePuzzleResize + 1, 'Passage blur resumes deferred Games layout');
+assert.ok(source.includes('puzzleReferenceInput?.addEventListener("blur", resumeViewportRefreshAfterInput)'));
+console.log('Games passage keyboard insets, queued refresh, and blur recovery passed');
