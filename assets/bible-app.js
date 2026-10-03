@@ -1630,7 +1630,7 @@ function isSideToolbarAutoPositioned() {
   return effectiveSideToolbarPosition() !== state.sideToolbarPosition;
 }
 
-function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240, settleFrames = 0 } = {}) {
+function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240, settleFrames = 0, waitForAnimation = false } = {}) {
   const visibleElements = Array.from(document.querySelectorAll(selector))
     .filter((element) => element.getClientRects().length);
   if (visibleElements.some((element) => element.classList.contains(className))) return;
@@ -1640,19 +1640,35 @@ function animateBeforeRemoval(selector, callback, { className = "motion-exit", d
     callback();
     return;
   }
-  elements.forEach((element) => element.classList.add(className));
-  window.setTimeout(() => {
+  let finished = false;
+  let timeout;
+  const pending = new Set(elements);
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    window.clearTimeout(timeout);
+    elements.forEach((element) => element.removeEventListener("animationend", onAnimationEnd));
     let remainingFrames = Math.max(0, Math.floor(settleFrames));
-    const finish = () => {
+    const settle = () => {
       if (!remainingFrames) {
         callback();
         return;
       }
       remainingFrames -= 1;
-      requestAnimationFrame(finish);
+      requestAnimationFrame(settle);
     };
-    finish();
-  }, duration);
+    settle();
+  };
+  const onAnimationEnd = (event) => {
+    if (event.target !== event.currentTarget) return;
+    pending.delete(event.currentTarget);
+    if (!pending.size) finish();
+  };
+  if (waitForAnimation) {
+    elements.forEach((element) => element.addEventListener("animationend", onAnimationEnd));
+  }
+  elements.forEach((element) => element.classList.add(className));
+  timeout = window.setTimeout(finish, duration);
 }
 
 function enforceVersionLimit() {
@@ -18242,12 +18258,15 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
 
 function sharedVersionReturnButton(surface) {
   const version = state.sharedVersionOverride?.returnVersions?.[0];
-  if (!version || version === state.versions[0]) return "";
+  if (!version || version === state.versions[0] || state.sharedVersionOverride.dismissed) return "";
   const displayCode = translationDisplayCode(version);
   return `
+    <span class="shared-version-notice shared-version-notice-${surface}">
     <button class="shared-version-return shared-version-return-${surface}" type="button" data-return-shared-version aria-label="Return to your Bible version, ${escapeHtml(displayCode)}" data-tooltip="Return to ${escapeHtml(displayCode)}">
       ${icons.arrowLeft}<span>Return to ${escapeHtml(displayCode)}</span>
     </button>
+    <button class="shared-version-dismiss" type="button" data-dismiss-shared-version aria-label="Dismiss version return prompt" data-tooltip="Dismiss"><span aria-hidden="true">×</span></button>
+    </span>
   `;
 }
 
@@ -18966,6 +18985,12 @@ function bindEvents() {
       if (!translationCodes.includes(version)) return;
       state.headerVersionMenuOpen = false;
       await setPrimaryVersion(version, { preserveScroll: true, keepPresentationSettings: true });
+    });
+  });
+  document.querySelectorAll("[data-dismiss-shared-version]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.sharedVersionOverride) state.sharedVersionOverride.dismissed = true;
+      document.querySelectorAll(".shared-version-notice").forEach((notice) => notice.remove());
     });
   });
   document.querySelectorAll("[data-return-shared-version]").forEach((button) => {
@@ -25155,20 +25180,22 @@ function dismissLibraryForFooterMenu() {
 }
 
 function closeLibrary() {
-  const readerScroll = captureReaderScroll();
   rememberOpenLibraryState();
   persistLibraryScrollByRail();
+  const drawer = document.querySelector(".library-drawer");
+  const returnFocus = drawer?.contains(document.activeElement);
   animateBeforeRemoval(".library-drawer", () => {
     state.libraryOpen = false;
+    pendingLibraryEnter = false;
+    state.pendingPanelFocus = null;
+    state.pendingLibraryScrollRestore = false;
     localStorage.setItem("lw_library_open", "false");
     scheduleCloudSync();
-    render();
-    restoreReaderScroll(readerScroll);
-    requestAnimationFrame(() => {
-      restoreReaderScroll(readerScroll);
-      requestAnimationFrame(() => restoreReaderScroll(readerScroll));
-    });
-  }, { duration: 260, settleFrames: 1 });
+    // Keep the reader and its composited glass surfaces mounted after the slide.
+    drawer?.remove();
+    document.querySelector(".main-grid")?.classList.add("library-closed");
+    if (returnFocus) document.querySelector(".rail button.active")?.focus({ preventScroll: true });
+  }, { duration: 400, settleFrames: 1, waitForAnimation: true });
 }
 
 function adjustTextScale(delta, { feedback = false } = {}) {
