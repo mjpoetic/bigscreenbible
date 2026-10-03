@@ -24047,10 +24047,9 @@ html[data-theme="dark"] .app-shell {
   .is-expanded-play .hidden-word-layout { flex: 1; min-height: 0; width: 100%; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
   .is-expanded-play .hidden-word-stage { overflow-y: auto; gap: 8px; align-content: center; }
   .is-expanded-play .hidden-word-source { font-size: 12px; gap: 4px 7px; }
-  .is-expanded-play .hidden-word-attempts { display: flex; align-items: center; justify-content: center; gap: 12px; }
-  .is-expanded-play .hidden-word-scroll { min-height: 0; width: auto; background: none; box-shadow: none; }
-  .is-expanded-play .hidden-word-scroll-roller, .is-expanded-play .hidden-word-scroll-paper > span { display: none; }
-  .is-expanded-play .hidden-word-scroll-paper { padding: 4px; gap: 4px; background: none; }
+  .is-expanded-play .hidden-word-attempts { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: center; gap: 10px; }
+  .is-expanded-play .hidden-word-scroll { min-height: 88px; width: 100%; grid-template-columns: 14px minmax(0, 1fr) 14px; }
+  .is-expanded-play .hidden-word-scroll-paper { padding: 8px; gap: 5px; }
   .is-expanded-play .hidden-word-scroll-paper > strong { font-size: 16px; }
   .is-expanded-play .hidden-word-misses { padding: 0; gap: 3px; }
   .is-expanded-play .hidden-word-misses strong { font-size: 14px; }
@@ -24116,10 +24115,6 @@ html[data-theme="dark"] .app-shell {
 }
 @media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
   .is-expanded-play .trivia-header-actions .games-header-action { width: auto; min-width: 44px; padding-inline: 10px; white-space: nowrap; flex-shrink: 0; }
-  .is-expanded-play .hidden-word-scroll { display: block; flex: 0 0 auto; color: var(--ink); filter: none; }
-  .is-expanded-play .hidden-word-scroll-paper { border: 0; overflow: visible; }
-  .is-expanded-play .hidden-word-scroll-track i { background: var(--line); }
-  .is-expanded-play .hidden-word-scroll-track i.is-open { background: var(--gold); }
   .is-expanded-play .hidden-word-misses { flex: 1; min-width: 0; border: 0; background: none; }
 }
 @media (max-width: 460px) and (orientation: portrait) {

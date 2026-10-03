@@ -620,3 +620,22 @@ console.log("Settings update hold tests passed");
   assert.match(styles, /\.mobile-settings-popover\s*\{[^}]*overscroll-behavior:\s*contain/);
   console.log('Settings touch scroll containment tests passed.');
 }
+
+// App choice controls must honor the live-game setup lock on both surfaces.
+const lockedChoiceContext = vm.createContext({
+  escapeHtml: value => String(value),
+  settingsChoiceOptionContent: choice => choice.label,
+});
+vm.runInContext(settingsChoiceMarkupSource, lockedChoiceContext);
+const lockedMarkup = lockedChoiceContext.settingsChoiceMarkup('triviaDifficultySelect', 'Hard', [
+  { value: 'Easy', label: 'Easy' }, { value: 'Hard', label: 'Hard' },
+], { ariaLabel: 'Difficulty', disabled: true });
+assert.match(lockedMarkup, /<select[^>]*disabled aria-disabled="true"/);
+assert.match(lockedMarkup, /<button[^>]*disabled aria-disabled="true"/);
+const blockedMenuContext = vm.createContext({});
+vm.runInContext(openSettingsChoiceMenuSource, blockedMenuContext);
+blockedMenuContext.openSettingsChoiceMenu({
+  disabled: true,
+  closest: () => ({ querySelector: () => ({ disabled: true }) }),
+});
+console.log('Disabled app choice controls preserve the game setup lock.');

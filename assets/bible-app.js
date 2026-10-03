@@ -3473,7 +3473,7 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
   const legacyClasses = config.selectClass ? ` ${config.selectClass}` : "";
   return `
     <div class="settings-choice ${config.wide ? "settings-choice-wide" : ""}" data-settings-choice>
-      <select class="settings-native-choice${legacyClasses}" id="${id}" aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}" aria-hidden="true" tabindex="-1" data-settings-choice-select ${config.wide ? 'data-choice-menu-wide="true"' : ""}>
+      <select class="settings-native-choice${legacyClasses}" id="${id}" aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}" aria-hidden="true" tabindex="-1" data-settings-choice-select ${config.disabled ? 'disabled aria-disabled="true"' : ""} ${config.wide ? 'data-choice-menu-wide="true"' : ""}>
         ${choices.map((choice) => `
           <option value="${escapeHtml(choice.value)}" ${String(choice.value) === normalizedValue ? "selected" : ""} ${choice.disabled ? "disabled" : ""}
             data-choice-label="${escapeHtml(choice.label)}"
@@ -3484,7 +3484,7 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
             ${choice.previewColors?.length ? `data-preview-colors="${escapeHtml(choice.previewColors.join(","))}"` : ""}>${escapeHtml(choice.nativeLabel || choice.label)}</option>
         `).join("")}
       </select>
-      <button class="settings-choice-toggle" type="button" data-settings-choice-toggle aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}, ${escapeHtml(selectedChoice?.nativeLabel || selectedChoice?.label || "")}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}">
+      <button class="settings-choice-toggle" id="${id}Toggle" type="button" ${config.disabled ? 'disabled aria-disabled="true"' : ""} data-settings-choice-toggle aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}, ${escapeHtml(selectedChoice?.nativeLabel || selectedChoice?.label || "")}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}">
         <span class="settings-choice-selected">${settingsChoiceOptionContent(selectedChoice || { label: "" }, { compact: true })}</span>
         <span class="settings-choice-chevron" aria-hidden="true"></span>
       </button>
@@ -3669,7 +3669,7 @@ function positionSettingsChoiceMenu(trigger, menu, wide = false) {
 function openSettingsChoiceMenu(trigger) {
   const root = trigger.closest("[data-settings-choice]");
   const select = root?.querySelector("[data-settings-choice-select]");
-  if (!select) return;
+  if (!select || select.disabled || trigger.disabled) return;
   if (activeSettingsChoiceMenu?.trigger === trigger) {
     closeSettingsChoiceMenu({ restoreFocus: true });
     return;
@@ -3712,7 +3712,7 @@ function openSettingsChoiceMenu(trigger) {
   optionButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const nextValue = button.dataset.settingsChoiceValue;
-      closeSettingsChoiceMenu();
+      closeSettingsChoiceMenu({ restoreFocus: select.id === "triviaDifficultySelect" });
       if (select.value === nextValue) return;
       select.value = nextValue;
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -14381,10 +14381,10 @@ function triviaView() {
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
   const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
-  const difficultyOptions = (isWordSearch ? wordSearchDifficulties() : isCrossword ? crosswordDifficulties() : isHiddenWord ? hiddenWordDifficulties() : triviaDifficulties()).map((difficulty) => {
+  const difficultyChoices = (isWordSearch ? wordSearchDifficulties() : isCrossword ? crosswordDifficulties() : isHiddenWord ? hiddenWordDifficulties() : triviaDifficulties()).map((difficulty) => {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
-    return `<option value="${escapeHtml(difficulty)}" ${difficulty === state.triviaDifficulty ? "selected" : ""}>${escapeHtml(label)}</option>`;
-  }).join("");
+    return { value: difficulty, label };
+  });
   const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : isHiddenWord ? "puzzles" : "questions";
   const countValues = isBookSprint ? bookSprintRoundLengths : triviaRoundLengths;
   const selectedCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
@@ -14556,9 +14556,9 @@ function triviaView() {
                       <span>Category</span>
                       <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
                     </label>
-                    <label class="${isVerseOrder ? "is-hidden" : ""}">
+                    <label for="triviaDifficultySelectToggle" class="${isVerseOrder ? "is-hidden" : ""}">
                       <span>Difficulty</span>
-                      <select id="triviaDifficultySelect" ${challengeSetupLock}>${difficultyOptions}</select>
+                      ${settingsChoiceMarkup("triviaDifficultySelect", state.triviaDifficulty, difficultyChoices, { ariaLabel: "Difficulty", disabled: waitingForLiveChallenge })}
                     </label>
                     <label class="${isWordSearch || isCrossword ? "is-hidden" : ""}">
                       <span>Round length</span>
@@ -19456,11 +19456,13 @@ function bindEvents() {
       renderPreservingReaderScroll();
       return showToast("This setup is locked for the waiting room");
     }
+    const appMenu = event.target.hasAttribute("data-settings-choice-select");
     state.triviaDifficulty = event.target.value;
     resetPuzzleCustomWordChoices();
     localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
     scheduleCloudSync();
     renderPreservingReaderScroll();
+    if (appMenu) requestAnimationFrame(() => document.getElementById("triviaDifficultySelectToggle")?.focus({ preventScroll: true }));
   });
   document.getElementById("triviaCountSelect")?.addEventListener("change", (event) => {
     const pendingChallenge = activeGameChallenge();
@@ -26779,6 +26781,10 @@ function handleGamesEscapeKeydown(event) {
     || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
   event.preventDefault();
   event.stopImmediatePropagation();
+  if (activeSettingsChoiceMenu) {
+    if (!event.repeat) closeSettingsChoiceMenu({ restoreFocus: true });
+    return;
+  }
   if (!event.repeat) exitTriviaGame();
 }
 

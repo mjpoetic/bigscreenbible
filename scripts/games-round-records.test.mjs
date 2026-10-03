@@ -6,6 +6,7 @@ const storage = new Map();
 let exits = 0;
 const context = vm.createContext({ scheduleCloudSync() {},
   state: {mode: 'trivia'}, exitTriviaGame() { exits++; },
+  activeSettingsChoiceMenu: null,
   localStorage: {getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v)},
 });
 for (const name of ['referenceRushBestKey','savedReferenceRushBests','savedReferenceRushBest','recordReferenceRushBest','handleGamesEscapeKeydown']) {
@@ -40,6 +41,17 @@ context.handleGamesEscapeKeydown({...event, ctrlKey: true});
 context.state.mode = 'reader';
 context.handleGamesEscapeKeydown(event);
 assert.equal(exits, 1);
+context.state.mode = 'trivia';
+let menuCloses = 0;
+context.activeSettingsChoiceMenu = {};
+context.closeSettingsChoiceMenu = options => {
+  assert.equal(options.restoreFocus, true);
+  menuCloses++;
+  context.activeSettingsChoiceMenu = null;
+};
+context.handleGamesEscapeKeydown(event);
+assert.equal(menuCloses, 1, 'Escape closes the app difficulty menu first');
+assert.equal(exits, 1, 'Closing difficulty must preserve the options drawer and game');
 console.log('Reference Rush record eligibility, persistence, settings isolation and Games Escape passed.');
 
 let now = 1000;
