@@ -377,3 +377,10 @@ assert.match(styles, /@media \(max-width: 840px\) \{[\s\S]*?\.crossword-keyboard
 assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\) and \(max-height: 720px\) \{[\s\S]*?\.crossword-layout \{/);
 
 console.log("Crossword tests passed");
+
+// Android WebViews expose native system bars through app variables, not env().
+const fittedCrosswordStyle = styles.slice(styles.indexOf('.trivia-reader.is-playing:has(.crossword-game:not(.is-complete)) {'));
+const fittedCrosswordPadding = fittedCrosswordStyle.slice(0, fittedCrosswordStyle.indexOf('\n  }'));
+for (const edge of ['top', 'right', 'bottom', 'left']) {
+  assert.ok(fittedCrosswordPadding.includes(`var(--app-safe-area-${edge}, env(safe-area-inset-${edge}, 0px))`), `Fitted Crossword must respect native ${edge} inset`);
+}
