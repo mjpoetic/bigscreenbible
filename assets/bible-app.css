@@ -23756,3 +23756,26 @@ html[data-theme="dark"] .app-shell {
   .crossword-input-controls { min-height: 32px; }
   .crossword-keyboard { position: static; }
 }
+
+/* Rounded clue utilities preserve the square geometry of the puzzle itself. */
+.crossword-clue-arrow {
+  align-self: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--ink);
+}
+#crosswordDirection {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  padding: 5px 12px;
+  margin-bottom: 4px;
+}
+.crossword-clue-current .crossword-active-clue { border-radius: 16px; }
+.crossword-clue-tabs { border-radius: 999px; padding: 4px; }
+.crossword-clue-tabs button { border-radius: 999px; }
+.crossword-browse-toggle { border-radius: 999px; }
