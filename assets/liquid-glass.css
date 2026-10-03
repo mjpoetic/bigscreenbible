@@ -918,3 +918,72 @@ html[data-control-material="glass"] .games-options-drawer .settings-choice-toggl
   min-height: 44px;
   width: 100%;
 }
+
+/* Account and social controls use one material, including prefixed inputs. */
+html[data-control-material="glass"] .account-popover :is(
+  .account-actions > button, .friend-action-button, .friend-search-button,
+  .social-avatar-more-toggle, .social-profile-avatar-button
+) {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--ink);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+html[data-control-material="glass"] .account-popover :is(
+  .friend-person-row, .remembered-account-row, .friends-tabs, .social-username-input
+) {
+  border: 1px solid var(--glass-edge);
+  border-radius: 18px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] .account-popover .friends-tabs button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+}
+html[data-control-material="glass"] .account-popover .friends-tabs button.active {
+  border-color: color-mix(in srgb, var(--teal) 40%, var(--glass-edge));
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--teal) 18%, var(--glass-solid));
+  box-shadow: var(--glass-shadow);
+}
+html[data-control-material="glass"] .account-popover .account-form .social-username-input {
+  border-radius: 999px;
+  overflow: hidden;
+  color: var(--ink);
+}
+html[data-control-material="glass"] .account-popover .account-form .social-username-input input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  outline: none;
+}
+html[data-control-material="glass"] .account-popover .social-username-input:focus-within {
+  border-color: var(--teal);
+  box-shadow: inset 0 1px 0 var(--glass-light), 0 0 0 2px color-mix(in srgb, var(--teal) 25%, transparent);
+}
+html[data-control-material="glass"] .account-popover :is(
+  .account-actions > button, .friend-action-button, .friend-search-button, .friends-tabs button
+):not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--teal) 40%, var(--glass-edge));
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--teal) 14%, var(--glass-solid));
+  color: var(--ink);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  html[data-control-material="glass"] .account-popover :is(
+    .account-actions > button, .friend-action-button, .friend-search-button,
+    .friend-person-row, .remembered-account-row, .friends-tabs, .social-username-input
+  ) {
+    background: var(--panel);
+    border-color: var(--line);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
