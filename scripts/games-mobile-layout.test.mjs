@@ -267,3 +267,60 @@ console.log("All six games mount answer popups on desktop and responsive layouts
   context.centerActiveTriviaMode(80);
   assert.equal(tabs.scrollLeft, 40, "Reveal only the obscured left edge");
 }
+
+// Responsive mounting preserves the actual exit control (including live locks),
+// and leaves the primary ordering action outside the secondary Controls drawer.
+for (const type of ["trivia", "who-said-it", "reference-rush", "hidden-word", "word-search", "book-sprint", "verse-order"]) {
+  for (const menuKind of ["menu", "end-challenge", "live-lock"]) {
+    const menu = { kind: menuKind };
+    const check = ["book-sprint", "verse-order"].includes(type) ? {} : null;
+    const countdown = type === "reference-rush" ? {} : null;
+    const score = {};
+    const progressChildren = [];
+    const menuChildren = [];
+    const drawerChildren = [];
+    let dock = null;
+    const controls = { append: (...items) => drawerChildren.push(...items) };
+    const nodes = {
+      gamesActiveControlsBody: controls, gamesHintDrawerBody: { append() {} },
+      gamesAnswerDialogBody: { append() {} }, gamesAnswerOverlay: { hidden: true },
+      gamesPlayMenu: { append: item => menuChildren.push(item) },
+    };
+    const game = {
+      querySelector(selector) {
+        if (selector.includes(".games-menu-control")) return menu;
+        if (selector === ".trivia-progress") return { append: item => progressChildren.push(item) };
+        if (selector === ".reference-rush-timer-meter") return countdown;
+        if (selector === "#checkBookSprint, #checkVerseOrder") return check;
+        return null;
+      },
+      querySelectorAll: () => [], after: node => { dock = node; },
+    };
+    const viewportProperties = {};
+    const context = vm.createContext({
+      state: { mode: "trivia", triviaGame: { type, complete: false } },
+      window: { visualViewport: { height: 410, offsetTop: 12 } },
+      isGamesResponsiveScreen: () => true,
+      document: {
+        getElementById: id => nodes[id],
+        querySelector(selector) {
+          if (selector === ".trivia-reader.is-playing") return { style: { setProperty: (key, value) => { viewportProperties[key] = value; } } };
+          if (selector.includes("trivia-score-chip")) return score;
+          return game;
+        },
+        createElement: () => ({ append: item => { assert.equal(item, check); } }),
+      },
+    });
+    vm.runInContext(extractFunction("updateGamesPlayViewport"), context);
+    vm.runInContext(extractFunction("mountMobileGameControls"), context);
+    context.mountMobileGameControls();
+    assert.deepEqual(menuChildren, [menu], `${type} preserves ${menuKind} in the visible menu slot`);
+    assert.equal(Boolean(dock), Boolean(check));
+    assert.equal(drawerChildren.includes(check), false);
+    assert.equal(progressChildren.includes(countdown), Boolean(countdown));
+    assert.equal(progressChildren.includes(score), ["trivia", "who-said-it", "hidden-word"].includes(type));
+    assert.equal(viewportProperties["--games-viewport-height"], "410px");
+    assert.equal(viewportProperties["--games-viewport-top"], "12px");
+  }
+}
+console.log("Expanded play navigation, live locks, ordering dock and keyboard viewport checks passed");

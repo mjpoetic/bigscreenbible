@@ -14169,6 +14169,14 @@ function trapPuzzleRestartDialog(event) {
   }
 }
 
+function updateGamesPlayViewport() {
+  const reader = document.querySelector(".trivia-reader.is-playing");
+  const viewport = window.visualViewport;
+  if (!reader || !viewport) return;
+  reader.style.setProperty("--games-viewport-height", `${viewport.height}px`);
+  reader.style.setProperty("--games-viewport-top", `${viewport.offsetTop}px`);
+}
+
 function mountMobileGameControls() {
   if (state.mode !== "trivia" || !state.triviaGame || state.triviaGame.complete) return;
   const destination = document.getElementById("gamesActiveControlsBody");
@@ -14190,6 +14198,17 @@ function mountMobileGameControls() {
     return;
   }
   if (!isGamesResponsiveScreen()) return;
+  updateGamesPlayViewport();
+  const menuSlot = document.getElementById("gamesPlayMenu");
+  const menu = game.querySelector(".trivia-actions .games-menu-control, .trivia-actions .trivia-end-challenge, .trivia-actions .trivia-live-lock");
+  if (menuSlot && menu) menuSlot.append(menu);
+  const progress = game.querySelector(".trivia-progress");
+  const countdown = game.querySelector(".reference-rush-timer-meter");
+  if (progress && countdown) progress.append(countdown);
+  const score = document.querySelector(".trivia-header .trivia-score-chip");
+  if (progress && score && ["trivia", "who-said-it", "hidden-word"].includes(state.triviaGame.type || "trivia")) {
+    progress.append(score);
+  }
   const hints = game.querySelector(":scope > .reference-rush-hints, .crossword-hints");
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
@@ -14434,14 +14453,15 @@ function triviaView() {
     : "Test your Bible knowledge with multiple-choice questions.";
   const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : state.triviaGame?.type === "hidden-word" ? "Hidden Word" : "";
   return `
-    <section class="reader trivia-reader ${state.triviaGame ? "is-playing" : "is-setup"}">
+    <section class="reader trivia-reader ${state.triviaGame ? `is-playing${!state.triviaGame.complete ? " is-expanded-play" : ""}` : "is-setup"}">
       <article class="trivia-panel ${state.activeGameChallengeId ? "is-live-challenge" : ""} ${state.triviaGame?.type === "word-search" ? "has-word-search" : ""} ${state.triviaGame?.type === "crossword" ? "has-crossword" : ""} ${state.triviaGame?.type === "hidden-word" ? "has-hidden-word" : ""}">
         <div class="trivia-header">
           <div class="trivia-header-copy">
             <div class="trivia-eyebrow">${activePuzzleTitle ? "Games" : gameTitle}</div>
-            <h1>${activePuzzleTitle || "Games"}</h1>
+            <h1>${state.triviaGame && !state.triviaGame.complete ? gameTitle : activePuzzleTitle || "Games"}</h1>
           </div>
           <div class="trivia-header-actions">
+            ${state.triviaGame && !state.triviaGame.complete && state.triviaGame.type !== "crossword" ? '<div class="games-play-menu" id="gamesPlayMenu"></div>' : ""}
             <div class="trivia-score-chip">${triviaScoreLabel()}</div>
             ${state.triviaGame && !state.triviaGame.complete ? `
               ${gameHintsAvailable ? `
@@ -14711,8 +14731,9 @@ function triviaGameView() {
         <span>${escapeHtml(game.category)} · ${escapeHtml(game.difficulty)}</span>
         <strong>${game.index + 1} / ${game.questions.length}</strong>
       </div>
+      ${question.hintUsed ? `<p class="games-used-hint" role="status">${escapeHtml(referenceRushHintLabel(question.hintUsed))} · ${escapeHtml(question.hintMessage)}</p>` : ""}
       <h2>${escapeHtml(question.question)}</h2>
-      <div class="trivia-choices">
+      <div class="trivia-choices ${question.choices.every((choice) => choice.length <= 24) ? "has-short-choices" : ""}">
         ${question.choices.map((choice) => triviaChoiceButton(question, choice, answered)).join("")}
       </div>
       ${!answered ? `
@@ -14896,9 +14917,10 @@ function wordSearchGameView(game) {
           ` : `
             <p class="word-search-instructions">Drag across letters in a straight line. You can also choose the first letter, then the last.</p>
           `}
-          <div class="word-search-list" aria-label="Words to find">
+          <div class="word-search-list is-remaining" aria-label="Words to find">
             ${game.words.map((word) => `<span class="${foundWords.has(word) ? "is-found" : ""}">${foundWords.has(word) ? '<span aria-hidden="true">✓</span>' : ""}<span>${escapeHtml(word)}</span></span>`).join("")}
           </div>
+          ${!game.complete && foundCount ? `<details class="word-search-found"><summary>${foundCount} found ${foundCount === 1 ? "word" : "words"}</summary><div class="word-search-list">${game.words.filter((word) => foundWords.has(word)).map((word) => `<span class="is-found"><span aria-hidden="true">✓</span><span>${escapeHtml(word)}</span></span>`).join("")}</div></details>` : ""}
           <div class="trivia-actions word-search-actions">
             ${triviaExitControl(game)}
             <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
@@ -15323,15 +15345,15 @@ function verseOrderGameView(game) {
         <strong><span id="verseOrderTimer">${formatGameTime(verseOrderElapsedMs(game))}</span> · ${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
       <h2>Put this verse back in order.</h2>
-      <p class="book-sprint-instructions" id="verseOrderInstructions">Tap fragments to add them, or drag them into place. Drag placed fragments to reorder them.</p>
+      <p class="book-sprint-instructions" id="verseOrderInstructions">Tap pieces to add; tap placed pieces to remove. Drag to reorder.</p>
       <div class="verse-order-board">
-        <div class="verse-order-answer book-sprint-answer" data-order-drop-zone aria-label="Selected verse fragments" aria-describedby="verseOrderInstructions">
+        <div class="verse-order-answer book-sprint-answer" data-order-drop-zone aria-label="Your verse" aria-describedby="verseOrderInstructions">
           ${puzzle.selectedIds.length ? puzzle.selectedIds.map((id, index) => {
             const segment = puzzle.segments.find((item) => item.id === id);
             return `<button class="verse-fragment selected-fragment book-sprint-draggable" data-order-selected="${escapeHtml(id)}" data-order-drag="${escapeHtml(id)}" data-order-position="${index}" aria-label="Fragment ${index + 1}: ${escapeHtml(segment?.text || "")}. Tap to remove or drag to reorder." ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(segment?.text || "")}</button>`;
           }).join("") : `<span class="verse-order-placeholder">Build the verse here.</span>`}
         </div>
-        <div class="verse-fragment-bank book-sprint-bank" data-fragment-count="${puzzle.segments.length}" data-order-bank-drop aria-label="Shuffled verse fragments">
+        <div class="verse-fragment-bank book-sprint-bank" data-fragment-count="${puzzle.segments.length}" data-order-bank-drop aria-label="Available pieces">
           ${puzzle.shuffledIds.map((id) => {
             const segment = puzzle.segments.find((item) => item.id === id);
             const isSelected = selectedSet.has(id);
@@ -15377,6 +15399,7 @@ function referenceRushGameView(game) {
         <span>Reference Rush · ${escapeHtml(levelLabel)}</span>
         <strong>${game.index + 1} / ${game.puzzles.length}</strong>
       </div>
+      ${puzzle.hintUsed ? `<p class="games-used-hint" role="status">${escapeHtml(referenceRushHintLabel(puzzle.hintUsed))} · ${escapeHtml(puzzle.hintMessage)}</p>` : ""}
       <div class="reference-rush-stage">
         ${game.timed ? `
           <div class="book-sprint-meter reference-rush-timer-meter" aria-label="Reference Rush countdown">
@@ -15500,12 +15523,12 @@ function bookSprintGameView(game) {
         </button>
       </div>
       <h2>Put these books in Bible order.</h2>
-      <p class="book-sprint-instructions" id="bookSprintInstructions">Tap books to add them, or drag them into place. Drag placed books to reorder them.</p>
+      <p class="book-sprint-instructions" id="bookSprintInstructions">Tap books to add; tap placed books to remove. Drag to reorder.</p>
       <div class="verse-order-board">
-        <div class="verse-order-answer book-sprint-answer" data-book-drop-zone aria-label="Selected books" aria-describedby="bookSprintInstructions">
+        <div class="verse-order-answer book-sprint-answer" data-book-drop-zone aria-label="Your book order" aria-describedby="bookSprintInstructions">
           ${puzzle.selectedBooks.length ? puzzle.selectedBooks.map((book, index) => `<button class="verse-fragment selected-fragment book-sprint-draggable" data-book-selected="${escapeHtml(book)}" data-book-drag="${escapeHtml(book)}" data-book-position="${index}" aria-label="${escapeHtml(book)}, position ${index + 1}. Tap to remove or drag to reorder." ${answered ? "disabled" : ""}><span>${index + 1}</span>${escapeHtml(book)}</button>`).join("") : `<span class="verse-order-placeholder">Build the order here.</span>`}
         </div>
-        <div class="verse-fragment-bank book-sprint-bank" data-book-bank-drop aria-label="Book choices">
+        <div class="verse-fragment-bank book-sprint-bank" data-book-bank-drop aria-label="Available books">
           ${puzzle.shuffledBooks.map((book) => `<button class="verse-fragment book-sprint-draggable ${selectedSet.has(book) ? "is-used" : ""}" data-book-answer="${escapeHtml(book)}" data-book-drag="${escapeHtml(book)}" aria-label="${escapeHtml(book)}. Tap or drag to add." ${selectedSet.has(book) || answered ? "disabled" : ""}>${escapeHtml(book)}</button>`).join("")}
         </div>
       </div>
@@ -15555,7 +15578,7 @@ function whoSaidItGameView(game) {
           </div>
         </div>
         <div class="reference-rush-stage-side">
-          <div class="trivia-choices">
+          <div class="trivia-choices ${question.choices.every((choice) => choice.length <= 18) ? "has-short-choices" : ""}">
             ${question.choices.map((choice) => whoSaidItChoiceButton(question, choice, answered)).join("")}
           </div>
         </div>
@@ -28600,6 +28623,7 @@ window.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("resize", () => {
+  updateGamesPlayViewport();
   restoreScriptureSearchWindowScroll();
   if (state.mode === "big") schedulePresentationViewportFit();
   refreshDraggedPopupPositions();
@@ -28608,6 +28632,7 @@ window.visualViewport?.addEventListener("resize", () => {
   positionFocusWorkspacePanel();
   positionNoteComposer();
 });
+window.visualViewport?.addEventListener("scroll", updateGamesPlayViewport);
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
 window.visualViewport?.addEventListener("scroll", restoreScriptureSearchWindowScroll);

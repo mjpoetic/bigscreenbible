@@ -23996,3 +23996,196 @@ html[data-theme="dark"] .app-shell {
   .puzzle-restart-option small { font-size: 12px; }
   .puzzle-restart-cancel { min-height: 44px; margin-top: 0; }
 }
+
+/* Mobile games share Crossword's immersive play surface. */
+.games-play-menu { display: none; }
+.word-search-found summary { cursor: pointer; padding: 8px; min-height: 44px; color: var(--muted); }
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  body:has(.is-expanded-play) .topbar { visibility: hidden; }
+  .trivia-reader.is-expanded-play {
+    position: fixed; inset: 0; top: var(--games-viewport-top, 0px); bottom: auto;
+    z-index: 30; width: 100%; height: var(--games-viewport-height, 100dvh);
+    padding: max(6px, var(--app-safe-area-top, env(safe-area-inset-top, 0px))) max(8px, var(--app-safe-area-right, env(safe-area-inset-right, 0px))) max(6px, var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))) max(8px, var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+    background: var(--panel); overflow: hidden;
+  }
+  .is-expanded-play .trivia-panel {
+    display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0;
+    padding: 0; gap: 6px; overflow: hidden;
+  }
+  .is-expanded-play .trivia-header { flex: 0 0 auto; min-height: 44px; padding: 0; gap: 6px; }
+  .is-expanded-play .trivia-header h1 { font-size: 18px; margin: 0; }
+  .is-expanded-play .trivia-header .trivia-eyebrow { display: none; }
+  .is-expanded-play .trivia-header-actions { margin-left: auto; gap: 4px; }
+  .is-expanded-play .trivia-score-chip { display: none; }
+  .is-expanded-play .games-header-action { min-height: 44px; padding: 0 10px; }
+  .is-expanded-play .games-play-menu { display: flex; }
+  .games-play-menu .games-menu-control { min-height: 44px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+  .games-play-menu .trivia-live-lock { font-size: 11px; }
+  .is-expanded-play .trivia-game { flex: 1; min-height: 0; padding: 0; gap: 8px; align-content: start; }
+  .is-expanded-play .trivia-progress { min-height: 24px; font-size: 12px; gap: 6px; }
+  .is-expanded-play .trivia-progress > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .is-expanded-play .trivia-progress > strong { flex-shrink: 0; }
+  .is-expanded-play .trivia-choices { gap: 8px; }
+  .is-expanded-play .trivia-choice { min-height: 52px; padding: 12px; }
+  .is-expanded-play .reference-rush-prompt { padding: 14px; }
+  .is-expanded-play .reference-rush-prompt p { font-size: clamp(20px, 5vw, 30px); line-height: 1.35; }
+  .is-expanded-play .bible-trivia-game h2 { font-size: clamp(22px, 5.5vw, 32px); }
+  .is-expanded-play .word-search-toolbar { position: static; width: 100%; gap: 8px; }
+  .is-expanded-play .word-search-game { display: flex; flex-direction: column; overflow-y: auto; }
+  .is-expanded-play .word-search-layout { display: flex; flex-direction: column; flex: 1 0 auto; gap: 8px; height: auto; }
+  .is-expanded-play .word-search-board-shell { flex: 0 0 auto; gap: 4px; }
+  .is-expanded-play .word-search-grid { width: min(100%, 560px); min-width: 0; }
+  .is-expanded-play .word-search-cell { font-size: clamp(16px, 4.8vw, 28px); }
+  .is-expanded-play .word-search-game .word-search-status { position: static; width: auto; height: auto; clip-path: none; margin: 0; min-height: 18px; }
+  .is-expanded-play .word-search-sidebar { display: grid; gap: 6px; padding: 0; border: 0; }
+  .is-expanded-play .word-search-passage-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .is-expanded-play .word-search-passage-heading strong { font-size: 15px; }
+  .is-expanded-play .word-search-instructions { margin: 0; font-size: 12px; }
+  .is-expanded-play .word-search-list { display: flex; flex-wrap: wrap; gap: 5px; overflow: visible; }
+  .is-expanded-play .word-search-list > span { flex: 1 0 auto; min-height: 30px; font-size: 12px; padding: 4px 8px; }
+  .is-expanded-play .hidden-word-game { display: flex; flex-direction: column; overflow: hidden; }
+  .is-expanded-play .hidden-word-layout { flex: 1; min-height: 0; width: 100%; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+  .is-expanded-play .hidden-word-stage { overflow-y: auto; gap: 8px; align-content: center; }
+  .is-expanded-play .hidden-word-source { font-size: 12px; gap: 4px 7px; }
+  .is-expanded-play .hidden-word-attempts { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .is-expanded-play .hidden-word-scroll { min-height: 0; width: auto; background: none; box-shadow: none; }
+  .is-expanded-play .hidden-word-scroll-roller, .is-expanded-play .hidden-word-scroll-paper > span { display: none; }
+  .is-expanded-play .hidden-word-scroll-paper { padding: 4px; gap: 4px; background: none; }
+  .is-expanded-play .hidden-word-scroll-paper > strong { font-size: 16px; }
+  .is-expanded-play .hidden-word-misses { padding: 0; gap: 3px; }
+  .is-expanded-play .hidden-word-misses strong { font-size: 14px; }
+  .is-expanded-play .hidden-word-answer { min-height: 80px; }
+  .is-expanded-play .hidden-word-input { width: 100%; gap: 4px; }
+  .is-expanded-play .hidden-word-keyboard { width: min(100%, 760px); }
+  .is-expanded-play .hidden-word-keyboard button { min-height: 44px; }
+  .is-expanded-play .hidden-word-keyboard-controls button { min-height: 44px; }
+  .is-expanded-play :is(.verse-order-game, .book-sprint-game) h2 { font-size: 20px; margin: 0; text-align: center; }
+  .is-expanded-play .book-sprint-instructions { font-size: 12px; margin: 0; text-align: center; }
+  .is-expanded-play .book-sprint-meter { display: flex; justify-content: center; padding: 0; width: 100%; gap: 6px; background: none; border: 0; }
+  .is-expanded-play .book-sprint-meter > div { min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
+  .is-expanded-play .book-sprint-meter strong { font-size: 20px; }
+  .is-expanded-play .book-sprint-game .book-sprint-meter > div:nth-child(2) { display: none; }
+  .is-expanded-play .verse-order-board { min-height: 0; gap: 10px; }
+  .is-expanded-play .verse-order-answer::before { content: attr(aria-label); display: block; width: 100%; font-size: 12px; color: var(--muted); }
+  .is-expanded-play .verse-fragment-bank::before { content: attr(aria-label); grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+  .is-expanded-play .verse-fragment { min-height: 48px; padding: 10px; }
+  .is-expanded-play .ordering-check-dock { flex: 0 0 auto; padding-top: 4px; }
+  .is-expanded-play .book-sprint-retry { padding: 8px; }
+}
+@media (max-width: 360px) {
+  .is-expanded-play .trivia-header h1 { font-size: 15px; }
+  .is-expanded-play .games-header-action { padding: 0 8px; }
+  .is-expanded-play .games-header-action svg { display: none; }
+  .games-play-menu .games-menu-control { padding: 0 6px; }
+}
+@media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .word-search-game { overflow: hidden; }
+  .is-expanded-play .word-search-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, .65fr); flex: 1; min-height: 0; }
+  .is-expanded-play .word-search-board-shell { grid-template-rows: minmax(0, 1fr) auto; height: 100%; align-content: stretch; }
+  .is-expanded-play .word-search-grid { height: 100%; width: auto; max-width: 100%; max-height: 100%; min-height: 0; align-self: center; }
+  .is-expanded-play .word-search-sidebar { overflow-y: auto; align-content: start; }
+  .is-expanded-play .hidden-word-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .is-expanded-play .hidden-word-input { align-self: center; max-height: 100%; overflow-y: auto; }
+  .is-expanded-play .hidden-word-keyboard button { min-height: 40px; }
+  .is-expanded-play .hidden-word-letter { min-height: 44px; }
+  .is-expanded-play .hidden-word-answer { min-height: 60px; }
+  .is-expanded-play :is(.verse-order-game, .book-sprint-game) { display: flex; flex-direction: column; }
+  .is-expanded-play .verse-order-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); flex: 1; overflow-y: auto; }
+  .is-expanded-play .verse-order-answer { align-content: start; }
+  .is-expanded-play .verse-fragment-bank { align-content: start; }
+  .is-expanded-play .reference-rush-stage .trivia-choices { grid-template-columns: minmax(0, 1fr); }
+}
+@media print {
+  .trivia-reader.is-expanded-play { position: static; height: auto; overflow: visible; }
+  body:has(.is-expanded-play) .topbar { visibility: visible; }
+  .games-play-menu { display: none; }
+}
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .trivia-grid .trivia-reader.is-playing.is-expanded-play { height: var(--games-viewport-height, 100dvh); }
+  .trivia-reader.is-playing.is-expanded-play .trivia-panel { padding: 0; }
+  .trivia-reader.is-expanded-play .trivia-panel .trivia-header h1 { font-size: 18px; }
+  .is-expanded-play .trivia-header-copy { flex: 1; overflow: hidden; }
+  .is-expanded-play .trivia-header h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .is-expanded-play .trivia-header-actions .games-header-action span { display: inline; }
+  .is-expanded-play .trivia-header-actions .games-header-action svg { display: none; }
+  .is-expanded-play .ordering-check-dock { width: 100%; }
+}
+@media (max-width: 360px) {
+  .trivia-reader.is-expanded-play .trivia-panel .trivia-header h1 { font-size: 15px; }
+  .is-expanded-play .games-header-action { font-size: 11px; }
+}
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .trivia-header-actions .games-header-action { width: auto; min-width: 44px; padding-inline: 10px; white-space: nowrap; flex-shrink: 0; }
+  .is-expanded-play .hidden-word-scroll { display: block; flex: 0 0 auto; color: var(--ink); filter: none; }
+  .is-expanded-play .hidden-word-scroll-paper { border: 0; overflow: visible; }
+  .is-expanded-play .hidden-word-scroll-track i { background: var(--line); }
+  .is-expanded-play .hidden-word-scroll-track i.is-open { background: var(--gold); }
+  .is-expanded-play .hidden-word-misses { flex: 1; min-width: 0; border: 0; background: none; }
+}
+@media (max-width: 460px) and (orientation: portrait) {
+  .is-expanded-play .trivia-panel:not(.has-crossword) .trivia-header:has(.games-hint-action) { flex-wrap: wrap; }
+  .is-expanded-play .trivia-panel:not(.has-crossword) .trivia-header:has(.games-hint-action) .trivia-header-copy { flex-basis: 100%; }
+  .is-expanded-play .trivia-panel:not(.has-crossword) .trivia-header:has(.games-hint-action) .trivia-header-actions { width: 100%; }
+  .is-expanded-play .trivia-panel:not(.has-crossword) .trivia-header .games-play-menu { margin-right: auto; }
+}
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .trivia-progress { flex-wrap: wrap; }
+  .is-expanded-play .trivia-progress .trivia-score-chip { display: inline-flex; min-width: 0; min-height: 24px; padding: 2px 8px; font-size: 12px; }
+  .is-expanded-play .trivia-progress .reference-rush-timer-meter { width: auto; min-width: 0; padding: 0; }
+  .is-expanded-play .trivia-progress .reference-rush-timer-meter > div { min-height: 24px; padding: 0 6px; }
+  .is-expanded-play .reference-rush-stage { grid-template-rows: minmax(0, 1fr); }
+  .is-expanded-play .reference-rush-stage-side { grid-row: 1; }
+  .is-expanded-play .reference-rush-stage-main { grid-row: 1; }
+  .is-expanded-play .hidden-word-scroll-track { display: flex; }
+  .is-expanded-play .hidden-word-scroll-track i { flex: 1; }
+  .is-expanded-play .trivia-header-actions { flex-shrink: 0; }
+  .is-expanded-play .games-play-menu .games-menu-control { flex-shrink: 0; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .is-expanded-play .reference-rush-stage { display: flex; flex-direction: column; flex: 1; }
+  .is-expanded-play .reference-rush-stage-main { flex: 1; overflow-y: auto; }
+  .is-expanded-play .reference-rush-stage-side { flex: 0 0 auto; overflow: visible; }
+  .is-expanded-play :is(.reference-rush-game, .who-said-it-game) { display: flex; flex-direction: column; overflow-y: auto; }
+  .is-expanded-play .book-sprint-instructions { -webkit-line-clamp: unset; }
+}
+.word-search-found { display: none; }
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .word-search-found { display: block; }
+  .is-expanded-play .word-search-list.is-remaining > .is-found { display: none; }
+  .is-expanded-play .reference-rush-stage-main, .is-expanded-play .reference-rush-stage-side { display: grid; min-height: 0; min-width: 0; }
+  .is-expanded-play .reference-rush-stage-main { grid-template-rows: minmax(0, 1fr); align-content: stretch; }
+  .is-expanded-play .reference-rush-stage-side { align-content: start; }
+  .is-expanded-play .trivia-panel.has-crossword .trivia-header .trivia-score-chip { display: inline-flex; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .is-expanded-play .reference-rush-prompt { display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .is-expanded-play .reference-rush-prompt p { font-size: clamp(24px, 6.5vw, 32px); flex-shrink: 0; }
+  .is-expanded-play .reference-rush-prompt span { flex-shrink: 0; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .is-expanded-play .reference-rush-prompt { justify-content: safe center; }
+  .is-expanded-play .trivia-choices.has-short-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .is-expanded-play .trivia-choices.has-short-choices .trivia-choice { min-height: 60px; }
+}
+.games-used-hint { display: none; }
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .games-used-hint { display: block; margin: 0; padding: 6px 8px; background: var(--soft); border-radius: 8px; color: var(--teal); font-size: 12px; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .is-expanded-play .bible-trivia-game { display: flex; flex-direction: column; }
+  .is-expanded-play .bible-trivia-game h2 { flex: 1; display: flex; align-items: center; padding: 12px 4px; }
+  .is-expanded-play .bible-trivia-game .trivia-choices { flex: 0 0 auto; }
+}
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .trivia-reader.is-expanded-play .trivia-panel .trivia-header h1 { display: block; }
+  .is-expanded-play .word-search-game .word-search-toolbar .trivia-progress { display: flex; }
+  .is-expanded-play .word-search-toolbar .trivia-progress span { display: none; }
+}
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .trivia-panel.has-crossword .trivia-header-actions .games-header-action { width: 44px; padding: 0; }
+  .is-expanded-play .trivia-panel.has-crossword .trivia-header-actions .games-header-action svg { display: block; }
+  .is-expanded-play .trivia-panel.has-crossword .trivia-header-actions .games-header-action span { display: none; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .is-expanded-play .word-search-grid { width: min(100%, max(240px, calc(var(--games-viewport-height, 100dvh) - 270px)), 560px); }
+}
