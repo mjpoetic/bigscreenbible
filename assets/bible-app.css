@@ -17600,6 +17600,8 @@ svg {
     width: var(--rail-width);
     min-height: 0;
     height: 100%;
+    /* Hover transforms and side-facing tooltips must not create a horizontal scrollbar. */
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 8px 0;
