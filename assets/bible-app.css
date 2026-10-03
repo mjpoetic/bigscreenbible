@@ -24216,6 +24216,7 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .delete-account-dialog button { min-height: 44px; }
 
 .account-card-signed-in button.delete-account-button {
+  margin-top: 4px;
   min-height: 28px;
   padding: 4px 10px;
   font-size: 10px;
@@ -24226,3 +24227,5 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .trivia-setup .game-option-field { display: grid; gap: 7px; min-width: 0; }
 .trivia-setup .game-option-field.is-hidden { display: none; }
 .trivia-setup .game-option-field > span { color: var(--gold); font-size: 12px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+
+.account-card-signed-in .account-legal-links { justify-self: center; text-align: center; flex-wrap: wrap; }
