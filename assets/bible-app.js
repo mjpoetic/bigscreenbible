@@ -6804,8 +6804,11 @@ function updateReadingControlDimming() {
     }
     const idle = surface.matches(".focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle") && !surface.matches(":focus-visible");
     const unavailable = surface.matches(".reader-page-button:not(.available)");
+    // Revealed navigation and playback arrows share the same mist strength,
+    // even when only one happens to sit over a Scripture line.
+    const visibleArrow = rect.width > 0 && rect.height > 0 && surface.matches(".reader-page-button, .reader-auto-scroll-button");
     mist.classList.toggle("is-idle", idle);
-    mist.style.opacity = overlapsText && !idle && !unavailable ? "1" : "0";
+    mist.style.opacity = (overlapsText || visibleArrow) && !idle && !unavailable ? "1" : "0";
     mist.style.left = `${rect.left - 48}px`;
     mist.style.top = `${rect.top - 48}px`;
     mist.style.width = `${rect.width + 96}px`;

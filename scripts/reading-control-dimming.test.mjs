@@ -11,9 +11,11 @@ let surfaceRect = rect(8, 650, 50, 692);
 const text = { getBoundingClientRect: () => rect(16, 100, 350, 900) };
 const scripture = { getBoundingClientRect: () => rect(0, 60, 390, 844), querySelectorAll: () => [text] };
 let idle = false;
+let arrow = false;
+let unavailable = false;
 const mist = { style: {}, setAttribute() {}, classList: { toggle() {} }, remove() {} };
 const shell = { append() {} };
-const surface = { isConnected: true, matches: selector => selector.startsWith(".focus-control-faded") ? idle : false, getBoundingClientRect: () => surfaceRect, classList: { toggle: (name, value) => { enabled = value; } } };
+const surface = { isConnected: true, matches: selector => selector.startsWith(".focus-control-faded") ? idle : selector === ".reader-page-button, .reader-auto-scroll-button" ? arrow : selector === ".reader-page-button:not(.available)" ? unavailable : false, getBoundingClientRect: () => surfaceRect, classList: { toggle: (name, value) => { enabled = value; } } };
 const context = vm.createContext({
   window: { innerWidth: 390, innerHeight: 844 },
   document: {
@@ -27,6 +29,21 @@ const context = vm.createContext({
 vm.runInContext(code, context);
 context.updateReadingControlDimming();
 assert.equal(enabled, false, 'A tall reading container with short text leaves empty-space controls undimmed');
+arrow = true;
+context.updateReadingControlDimming();
+assert.equal(mist.style.opacity, '1', 'A revealed arrow keeps its mist even over empty space');
+lines = [rect(16, 640, 350, 700)];
+context.updateReadingControlDimming();
+assert.equal(mist.style.opacity, '1', 'An arrow over text has the same mist strength');
+unavailable = true;
+context.updateReadingControlDimming();
+assert.equal(mist.style.opacity, '0', 'Unavailable arrows have no mist');
+unavailable = false;
+idle = true;
+context.updateReadingControlDimming();
+assert.equal(mist.style.opacity, '0', 'Idle arrows fade their mist');
+idle = false;
+arrow = false;
 lines = [rect(16, 640, 350, 700)];
 context.updateReadingControlDimming();
 assert.equal(enabled, true, 'Text beneath a revealed control enables dimming');
