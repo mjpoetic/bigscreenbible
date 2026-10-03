@@ -1,6 +1,6 @@
 # Account deletion
 
-The shared Account panel offers Delete account. The dialog identifies the current account, explains permanent deletion, and offers explicit Yes, delete permanently and No, keep my account choices. Guest data and other remembered accounts remain separate. A verified session owns the server operation; a caller cannot choose another target user ID.
+The shared Account panel offers Delete account. The dialog identifies the current account, explains permanent deletion, and offers explicit Yes/No choices followed by a separate final confirmation screen reiterating permanent data loss. Guest data and other remembered accounts remain separate. A verified session owns the server operation; a caller cannot choose another target user ID.
 
 The `delete-account` Edge Function is deployed to project `yyldnatfhzobyeqnvqjv`. Gateway JWT verification is disabled for compatibility with publishable keys, but the function verifies every deletion request with Supabase `auth.getUser` before using server-only admin privileges. It hard-deletes the user, cascades study/profile/friendship/challenge/notification-event records, and explicitly deletes push subscriptions that otherwise retain a detached record. Existing access JWTs may remain cryptographically valid until expiry; deleted users fail the endpoint's user lookup and cannot create account-owned records because their user FK no longer exists.
 

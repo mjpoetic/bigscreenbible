@@ -10945,16 +10945,25 @@ function openDeleteAccountDialog(appleProof = null) {
   dialog.setAttribute("aria-labelledby", "deleteAccountTitle");
   dialog.setAttribute("aria-describedby", "deleteAccountWarning");
   dialog.innerHTML = `<form>
+    <div id="deleteAccountOverview">
     <h2 id="deleteAccountTitle">Are you sure you want to delete your account?</h2>
     <p><strong>${escapeHtml(state.authUser.email || "Your account")}</strong></p>
     <p>This permanently deletes your account, synced notes, bookmarks, highlights, reading history, streak, game records, profile, friendships, and challenges involving you. It cannot be undone or merged into another account.</p>
     <p>The saved account and its study data will also be removed from this device. Other devices may keep local copies until their stored data is cleared.</p>
     ${appleLinked ? "<p>You will confirm with Apple to revoke this account’s Apple authorization.</p>" : ""}
     <p class="delete-account-warning" id="deleteAccountWarning"><strong>This is permanent. Your deleted account and synced data cannot be recovered.</strong></p>
+    </div>
+    <div id="deleteAccountFinal" hidden>
+      <h2 id="deleteAccountFinalTitle">Final confirmation</h2>
+      <p>You are about to permanently delete <strong>${escapeHtml(state.authUser.email || "your account")}</strong>.</p>
+      <p class="delete-account-warning" id="deleteAccountFinalWarning"><strong>Your account and all its synced data will be permanently removed. You cannot undo this or recover the deleted data.</strong></p>
+      <p>Do you still want to delete your account?</p>
+    </div>
     <p id="deleteAccountError" role="alert"></p>
     <div class="account-actions"><button class="ghost-btn" type="button" id="cancelDeleteAccount">No, keep my account</button><button class="ghost-btn delete-account-button" type="submit" id="confirmDeleteAccount">Yes, delete permanently</button></div>
   </form>`;
   document.body.append(dialog);
+  let finalConfirmationShown = false;
   const confirm = dialog.querySelector("[type=submit]");
   dialog.querySelector("#cancelDeleteAccount").onclick = () => dialog.close();
   dialog.addEventListener("close", () => { dialog.remove(); sessionStorage.removeItem(accountDeletionIntentKey); });
@@ -10962,6 +10971,17 @@ function openDeleteAccountDialog(appleProof = null) {
   dialog.querySelector("form").onsubmit = async event => {
     event.preventDefault();
     if (state.authUser?.id !== userId || accountDeletionInProgress) return;
+    if (!finalConfirmationShown) {
+      finalConfirmationShown = true;
+      dialog.querySelector("#deleteAccountOverview").hidden = true;
+      dialog.querySelector("#deleteAccountFinal").hidden = false;
+      dialog.setAttribute("aria-labelledby", "deleteAccountFinalTitle");
+      dialog.setAttribute("aria-describedby", "deleteAccountFinalWarning");
+      confirm.textContent = "Yes, permanently delete my account";
+      // Return focus to the safe action so a repeated Enter cannot confirm deletion.
+      dialog.querySelector("#cancelDeleteAccount").focus();
+      return;
+    }
     accountDeletionInProgress = true;
     confirm.disabled = true;
     dialog.querySelector("#cancelDeleteAccount").disabled = true;
