@@ -32,6 +32,7 @@
     "test:push": "node scripts/push-notifications.test.mjs",
     "test:reference-preview": "node scripts/reference-preview.test.mjs",
     "test:presentation": "node scripts/presentation-display.test.mjs",
+    "test:passage-picker": "node scripts/passage-picker.test.mjs",
     "test:reader-lifecycle": "node scripts/reader-lifecycle-scroll.test.mjs",
     "test:search": "node scripts/search-query.test.mjs && node scripts/search-scope.test.mjs && node scripts/note-search.test.mjs && node scripts/semantic-search-corpus.test.mjs && node scripts/semantic-search-quality.test.mjs",
     "test:settings": "node scripts/settings-disclosures.test.mjs && node scripts/app-update-notification.test.mjs && node scripts/native-app-updates.test.mjs",

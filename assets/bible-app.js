@@ -830,6 +830,7 @@ const state = {
   focusVersePickerBook: "",
   focusVersePickerChapter: 1,
   focusVersePickerVerse: 1,
+  focusVersePickerEndVerse: "",
   settingsSectionsOpen: savedSettingsSectionsOpen(),
   settingsSectionsOpenUpdatedAt: normalizedVersionsUpdatedAt(
     localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
@@ -1543,10 +1544,13 @@ function focusVersePickerData() {
   const verse = verses.includes(Number(state.focusVersePickerVerse))
     ? Number(state.focusVersePickerVerse)
     : verses[0] || 1;
-  return { availableBooks, book, chapters, chapter, verses, verse, chapterKey };
+  const endVerse = verses.includes(Number(state.focusVersePickerEndVerse)) && Number(state.focusVersePickerEndVerse) > verse
+    ? Number(state.focusVersePickerEndVerse) : "";
+  return { availableBooks, book, chapters, chapter, verses, verse, endVerse, chapterKey };
 }
 
 function initializeFocusVersePickerDraft() {
+  state.focusVersePickerEndVerse = "";
   state.focusVersePickerBook = currentBookName();
   state.focusVersePickerChapter = Number(state.reference.match(/(\d+)$/)?.[1]) || 1;
   state.focusVersePickerVerse = state.verse;
@@ -2998,6 +3002,7 @@ function mobileFocusOverlayControls() {
               <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
             </button>
+            <button class="passage-picker-trigger" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog">${icons.book}</button>
             <button type="submit">Go</button>
           </form>
         ` : ""}
@@ -3088,7 +3093,7 @@ function focusWorkspaceToolButtons(buttonClass) {
 
 function mobileFocusWorkspacePanel() {
   const panel = state.focusWorkspacePanel;
-  if (!state.focusMode || !["Verse", "History", "Bookmarks", "Annotations"].includes(panel)) return "";
+  if ((!state.focusMode && panel !== "Verse") || !["Verse", "History", "Bookmarks", "Annotations"].includes(panel)) return "";
   const panelTitle = panel === "Verse" ? "Verse picker" : panel;
   const content = panel === "Verse"
     ? focusVersePickerPanel()
@@ -3105,10 +3110,10 @@ function mobileFocusWorkspacePanel() {
         ? icons.bookmark
         : icons.note;
   return `
-    <section class="mobile-focus-workspace" id="mobileFocusWorkspace" role="dialog" aria-label="Focus Mode ${panelTitle}">
+    <section class="mobile-focus-workspace ${panel === "Verse" ? "passage-picker-workspace" : ""}" id="mobileFocusWorkspace" role="dialog" aria-label="${panelTitle}">
       <header class="mobile-focus-workspace-head">
         <div>
-          <span>Focus tools</span>
+          <span>${state.focusMode ? "Focus tools" : "Passage navigation"}</span>
           <strong>${icon}${panelTitle}</strong>
         </div>
         <button class="glass-close-control" id="mobileFocusWorkspaceClose" type="button" aria-label="Close ${panelTitle}">${icons.clear}</button>
@@ -3127,7 +3132,7 @@ function focusVersePickerPanel() {
   state.focusVersePickerVerse = picker.verse;
   return `
     <form class="focus-mini-verse-picker" id="focusMiniVersePickerForm">
-      <p>Choose a book, chapter, and verse without leaving Focus Mode.</p>
+      <p>Choose a book, chapter, and verse. Add an ending verse to select a passage.</p>
       <div class="focus-mini-verse-picker-grid">
         <div class="focus-picker-field">
           <span>Book</span>
@@ -3142,7 +3147,11 @@ function focusVersePickerPanel() {
           ${settingsChoiceMarkup("focusMiniVerseSelect", picker.verse, picker.verses.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Verse" })}
         </div>
       </div>
-      <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
+      <div class="focus-picker-field passage-end-field">
+        <span>Through verse (optional)</span>
+        ${settingsChoiceMarkup("focusMiniEndVerseSelect", picker.endVerse, [{ value: "", label: "Single verse" }, ...picker.verses.filter((value) => value > picker.verse).map((value) => ({ value: String(value), label: String(value) }))], { ariaLabel: "Through verse (optional)" })}
+      </div>
+      <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}${picker.endVerse ? `–${picker.endVerse}` : ""}`)}</button>
     </form>
   `;
 }
@@ -5075,8 +5084,9 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
         </button>
-        <input id="referenceInput" value="${escapeHtml((notesSearchSource || strongSearchSource) ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search Bible reference or phrase"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+        <input id="referenceInput" value="${escapeHtml((notesSearchSource || strongSearchSource) ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
+        <button class="passage-picker-trigger" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>
         ${desktopFocusTools()}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
@@ -18231,6 +18241,7 @@ function presentation(accountPanelRerender = false) {
   state.presentationPart = partIndex;
   if (verseOfDayItem) state.verse = part.verse;
   const paginated = parts.length > 1;
+  const hasContinuation = partIndex < parts.length - 1;
   const presentationReferenceBase = verseOfDayItem
     ? `${part.reference}${part.versePartCount > 1 ? presentationPartSuffix(part.versePartIndex) : ""}`
     : `${referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
@@ -18334,7 +18345,8 @@ function presentation(accountPanelRerender = false) {
       <div class="presentation-text">
         ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
-          <span class="presentation-copy">${textMarkup}</span>
+          <span class="presentation-copy">${textMarkup}${hasContinuation ? '<span class="presentation-continuation-ellipsis" aria-hidden="true"> …</span>' : ""}</span>
+          ${hasContinuation ? `<span class="presentation-continuation-cue">${escapeHtml(presentationPosition)} · Swipe left or press → to continue</span>` : ""}
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : ""}
           ${apiBibleAttributionMarkup([version], "presentation-attribution")}
@@ -19049,6 +19061,23 @@ function bindEvents() {
       renderPreservingReaderScroll();
     });
   });
+  document.querySelectorAll("[data-passage-picker]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      initializeFocusVersePickerDraft();
+      state.focusWorkspacePanel = "Verse";
+      state.focusReferenceOpen = false;
+      state.focusSearchResultsOpen = false;
+      state.settingsOpen = false;
+      state.accountOpen = false;
+      renderPreservingReaderScroll();
+      document.querySelector("#mobileFocusWorkspace button")?.focus({ preventScroll: true });
+    });
+  });
+  document.getElementById("focusMiniEndVerseSelect")?.addEventListener("change", (event) => {
+    state.focusVersePickerEndVerse = event.currentTarget.value;
+    renderPreservingReaderScroll();
+  });
   document.getElementById("mobileFocusWorkspaceClose")?.addEventListener("click", () => {
     state.focusWorkspacePanel = "";
     renderPreservingReaderScroll();
@@ -19057,11 +19086,13 @@ function bindEvents() {
     state.focusVersePickerBook = event.currentTarget.value;
     state.focusVersePickerChapter = focusVersePickerChapterNumbers(state.focusVersePickerBook)[0] || 1;
     state.focusVersePickerVerse = 1;
+    state.focusVersePickerEndVerse = "";
     renderPreservingReaderScroll();
   });
   document.getElementById("focusMiniChapterSelect")?.addEventListener("change", (event) => {
     state.focusVersePickerChapter = Number(event.currentTarget.value) || 1;
     state.focusVersePickerVerse = 1;
+    state.focusVersePickerEndVerse = "";
     renderPreservingReaderScroll();
   });
   document.getElementById("focusMiniVerseSelect")?.addEventListener("change", (event) => {
@@ -19072,7 +19103,7 @@ function bindEvents() {
     event.preventDefault();
     const picker = focusVersePickerData();
     resetFocusToolSurfaces();
-    gotoReference(`${picker.chapterKey}:${picker.verse}`);
+    gotoReference(`${picker.chapterKey}:${picker.verse}${picker.endVerse ? `-${picker.endVerse}` : ""}`);
   });
   document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
     state.focusSearchResultsOpen = false;
@@ -28006,7 +28037,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
-  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer, .portrait-navigation")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer, .portrait-navigation, .mobile-focus-workspace, .settings-choice-menu, [data-passage-picker]")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }
@@ -28978,7 +29009,7 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("click", closePresentationSearchOnOutsideClick);
 document.addEventListener("click", (event) => {
-  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace, .settings-choice-menu")) return;
+  if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace, .settings-choice-menu, [data-passage-picker]")) return;
   resetFocusToolSurfaces();
   renderPreservingReaderScroll();
 });

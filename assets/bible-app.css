@@ -24325,3 +24325,43 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   .games-record-sparkles { display: none; }
   .game-preview img, .games-records > summary svg, .trivia-mobile-options-chevron svg { transition: none; }
 }
+
+/* Passage navigation shares the search bar without taking over text entry. */
+.passage-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-height: 36px;
+  padding: 7px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.passage-picker-trigger svg { width: 20px; height: 20px; }
+.passage-picker-trigger:hover { background: color-mix(in srgb, var(--teal) 12%, transparent); }
+.passage-picker-trigger:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.passage-end-field { margin-top: 12px; }
+.presentation-continuation-cue {
+  display: block;
+  margin-top: 18px;
+  color: var(--presentation-muted);
+  font: 600 clamp(12px, 1.1vw, 18px) / 1.4 var(--ui-font);
+}
+
+.app-shell .passage-picker-workspace {
+  display: grid;
+  left: 14px;
+  top: 100px;
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100dvh - 128px);
+}
+.app-shell.focus-shell .mobile-focus-passage-popover {
+  grid-template-columns: minmax(0, 1fr) 40px 36px auto;
+}
+.app-shell.focus-shell .mobile-focus-passage-popover.has-inline-clear {
+  grid-template-columns: minmax(0, 1fr) 40px 40px 36px auto;
+}
