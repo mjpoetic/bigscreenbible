@@ -6467,7 +6467,8 @@ select {
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .reader-chapter-swipe-copy strong {
