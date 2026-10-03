@@ -827,6 +827,7 @@ const state = {
   focusSearchResultsOpen: false,
   focusToolsOpen: false,
   focusWorkspacePanel: "",
+  focusVersePickerAnchor: "",
   focusVersePickerBook: "",
   focusVersePickerChapter: 1,
   focusVersePickerVerse: 1,
@@ -3213,16 +3214,31 @@ function positionFocusWorkspacePanel() {
   panel.style.removeProperty("left");
   panel.style.removeProperty("top");
   panel.style.removeProperty("width");
-  if (isCompactScreen()) return;
-  const anchor = document.querySelector(".topbar .search");
+  panel.style.removeProperty("bottom");
+  panel.style.removeProperty("max-height");
+  const versePicker = state.focusWorkspacePanel === "Verse";
+  if (isCompactScreen() && !versePicker) return;
+  const anchor = versePicker && state.focusVersePickerAnchor
+    ? document.querySelector(state.focusVersePickerAnchor)
+    : document.querySelector(".topbar .search");
   if (!anchor) return;
   const anchorRect = anchor.getBoundingClientRect();
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
   const margin = 14;
   const width = Math.min(440, Math.max(400, anchorRect.width), viewportWidth - margin * 2);
   const left = Math.min(Math.max(margin, anchorRect.left), viewportWidth - width - margin);
+  let top = anchorRect.bottom + (versePicker ? 8 : 70);
+  if (versePicker) {
+    panel.style.bottom = "auto";
+    // Floating controls near the bottom need room above rather than off screen.
+    if (viewportHeight - top - margin < Math.min(panel.scrollHeight, 240)) {
+      top = Math.max(margin, anchorRect.top - panel.scrollHeight - 8);
+    }
+    panel.style.maxHeight = `${Math.max(80, viewportHeight - top - margin)}px`;
+  }
   panel.style.left = `${Math.round(left)}px`;
-  panel.style.top = `${Math.round(anchorRect.bottom + 70)}px`;
+  panel.style.top = `${Math.round(top)}px`;
   panel.style.width = `${Math.round(width)}px`;
 }
 
@@ -19046,6 +19062,7 @@ function bindEvents() {
       if (nextPanel === "Verse" && state.focusWorkspacePanel !== "Verse") {
         initializeFocusVersePickerDraft();
       }
+      if (nextPanel === "Verse") state.focusVersePickerAnchor = `[data-focus-workspace="Verse"].${button.classList[0]}`;
       state.focusToolsOpen = true;
       state.focusWorkspacePanel = nextPanel;
       state.focusReferenceOpen = false;
@@ -19059,6 +19076,9 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       initializeFocusVersePickerDraft();
+      state.focusVersePickerAnchor = button.closest(".topbar")
+        ? ".topbar [data-passage-picker]"
+        : ".mobile-floating-passage";
       state.focusWorkspacePanel = "Verse";
       state.focusReferenceOpen = false;
       state.focusSearchResultsOpen = false;
