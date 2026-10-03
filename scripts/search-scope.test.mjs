@@ -26,6 +26,7 @@ function extractFunction(name) {
 const context = {};
 // Exercise the search-to-reference route with the real navigation functions.
 const navigation = {
+  passageSearchInput: value => ({ reference: value, version: null }),
   state: {},
   searchRequestId: 0,
   bibleData: { "John 3": { verses: [{ n: 16 }, { n: 17 }] } },
@@ -64,7 +65,7 @@ for (const mode of ["big", "reader"]) {
       assert.equal(navigation.state.verse, 16);
       assert.equal(navigation.state.presentationPart, 0);
       assert.equal(navigation.state.presentationSearchResultsOpen, false);
-      assert.equal(Boolean(navigation.state.sharedPassage), mode === "reader" && origin !== "ordinary");
+      assert.equal(Boolean(navigation.state.sharedPassage), (mode === "reader" && origin !== "ordinary") || (mode === "big" && reference.includes("-17")));
       assert.deepEqual(Array.from(navigation.state.selectedVerses), reference.includes("-17") ? [16, 17] : []);
     }
   }
@@ -397,3 +398,16 @@ assert.equal(limited.length, 40, "Limit unique verses rather than translation ro
 assert.ok(limited.every((result) => result.matches.length === 3));
 
 console.log("Search scope tests passed");
+
+navigation.translations = [{ code: "KJV", name: "King James Version" }];
+navigation.setPrimaryVersion = version => { navigation.state.versions = [version]; };
+vm.runInContext(`${extractFunction("escapeRegExp")}\n${extractFunction("passageSearchInput")}`, navigation);
+for (const mode of ["reader", "parallel", "big", "focus"]) {
+  navigation.state = { mode: mode === "focus" ? "reader" : mode, focusMode: mode === "focus", versions: ["BSB"] };
+  await navigation.runReferenceOrPhraseSearch("John 3:16 KJV");
+  assert.equal(navigation.state.versions[0], "KJV");
+  assert.equal(navigation.state.reference, "John 3");
+  assert.equal(navigation.state.verse, 16);
+  assert.equal(navigation.state.mode, mode === "focus" ? "reader" : mode);
+}
+console.log("Version-and-passage navigation passed across all reading modes");

@@ -17882,7 +17882,7 @@ function adjacentPresentationContent(direction) {
     };
   }
 
-  const verses = currentChapter().verses;
+  const verses = presentationChapterVerses();
   const verseIndex = verses.findIndex((verse) => verse.n === state.verse);
   const adjacentVerse = verses[verseIndex + direction];
   if (!adjacentVerse) return null;
@@ -18254,9 +18254,10 @@ function presentation(accountPanelRerender = false) {
   const chapters = focusVersePickerChapterNumbers(presentationBook);
   const presentationChapter = Number(state.reference.slice(presentationBook.length + 1)) || chapters[0] || 1;
   const verses = currentChapter().verses.map((item) => item.n);
-  const verseIndex = verses.indexOf(state.verse);
+  const navigationVerses = presentationChapterVerses().map((item) => item.n);
+  const verseIndex = navigationVerses.indexOf(state.verse);
   const canGoBack = verseOfDayItem ? partIndex > 0 : partIndex > 0 || verseIndex > 0;
-  const canGoForward = verseOfDayItem ? partIndex < parts.length - 1 : partIndex < parts.length - 1 || verseIndex < verses.length - 1;
+  const canGoForward = verseOfDayItem ? partIndex < parts.length - 1 : partIndex < parts.length - 1 || verseIndex < navigationVerses.length - 1;
   const previousPage = verseOfDayItem ? parts[partIndex - 1] : null;
   const nextPage = verseOfDayItem ? parts[partIndex + 1] : null;
   const previousLabel = verseOfDayItem && previousPage
@@ -18295,7 +18296,7 @@ function presentation(accountPanelRerender = false) {
           <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
             <div class="presentation-search-field">
-            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
             ${presentationVersionPicker("search", version)}
             </div>
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
@@ -18354,6 +18355,7 @@ function presentation(accountPanelRerender = false) {
         </a>
         <div class="presentation-controls">
           ${presentationReturnButton()}
+          ${state.sharedPassage ? `<button class="ghost-btn" id="presentationContinueChapter" type="button">Continue chapter</button>` : ""}
           <button class="ghost-btn presentation-nav-button presentation-nav-button-prev" id="presentationPrev" aria-label="${previousLabel}" data-tooltip="${previousLabel}" ${canGoBack ? "" : "disabled"}>${icons.chevron}</button>
           <button class="ghost-btn presentation-nav-button" id="presentationNext" aria-label="${nextLabel}" data-tooltip="${nextLabel}" ${canGoForward ? "" : "disabled"}>${icons.chevron}</button>
         </div>
@@ -20158,6 +20160,7 @@ function bindEvents() {
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
   document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
+  document.getElementById("presentationContinueChapter")?.addEventListener("click", continuePresentationChapter);
   document.getElementById("presentationNext")?.addEventListener("click", () => moveVerse(1));
   ["title", "search"].forEach((surface) => {
     const label = surface.charAt(0).toUpperCase() + surface.slice(1);
@@ -23719,9 +23722,18 @@ async function exitFullscreen() {
 
 function gotoReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
+  const input = passageSearchInput(cleaned);
+  if (input.version && parseReference(input.reference)) {
+    const navigated = gotoReference(input.reference, options);
+    if (navigated) void setPrimaryVersion(input.version);
+    return navigated;
+  }
   const shouldTrackReturn = options.returnNavigation !== false;
   const returnTarget = shouldTrackReturn ? captureReaderReturnTarget() : null;
   if (!setReferenceFromString(cleaned)) return false;
+  if (state.mode === "big" && /:\s*\d+\s*[-–—,]/.test(cleaned)) {
+    state.sharedPassage = { verses: [...parsePassageReference(cleaned).verses] };
+  }
   if (options.focusedPassage) {
     const parsed = parsePassageReference(cleaned);
     state.sharedPassage = {
@@ -24928,12 +24940,45 @@ function referenceExists(ref) {
 }
 
 function parseReference(value) {
-  const parsed = parsePassageReference(value);
+  const parsed = parsePassageReference(passageSearchInput(value).reference);
   return parsed ? { key: parsed.key, verse: parsed.verse } : null;
 }
 
 function firstVerseFromReference(value) {
   return parsePassageReference(value)?.verse || "";
+}
+
+function passageSearchInput(value) {
+  const cleaned = String(value || "").trim().replace(/\s+/g, " ");
+  const aliases = translations.flatMap(({ code, displayCode, name }) =>
+    [code, displayCode, name].filter(Boolean).map((alias) => ({ code, alias }))
+  ).sort((a, b) => b.alias.length - a.alias.length);
+  for (const { code, alias } of aliases) {
+    const escaped = escapeRegExp(alias);
+    const prefix = cleaned.match(new RegExp(`^${escaped}\\s+(.+)$`, "i"));
+    const suffix = cleaned.match(new RegExp(`^(.+?)\\s+\\(?${escaped}\\)?$`, "i"));
+    if (prefix || suffix) return { reference: (prefix || suffix)[1].trim(), version: code };
+  }
+  return { reference: cleaned, version: null };
+}
+
+function presentationChapterVerses() {
+  const verses = currentChapter().verses;
+  return state.sharedPassage
+    ? verses.filter((verse) => state.sharedPassage.verses.includes(verse.n))
+    : verses;
+}
+
+function continuePresentationChapter() {
+  if (!state.sharedPassage) return;
+  const lastVerse = Math.max(...state.sharedPassage.verses);
+  state.sharedPassage = null;
+  state.selectedVerses = [];
+  state.verse = currentChapter().verses.find((verse) => verse.n > lastVerse)?.n || lastVerse;
+  state.presentationPart = 0;
+  recordHistory();
+  updateShareUrl();
+  render();
 }
 
 function parsePassageReference(value) {
@@ -27638,7 +27683,7 @@ function moveVerse(direction, options = {}) {
     if (state.isVerseOfDayActive) return;
   }
 
-  const verses = currentChapter().verses.map((verse) => verse.n);
+  const verses = (state.mode === "big" ? presentationChapterVerses() : currentChapter().verses).map((verse) => verse.n);
   const index = verses.indexOf(state.verse);
   const nextIndex = Math.max(0, Math.min(verses.length - 1, index + direction));
   if (nextIndex === index) return;
@@ -27649,7 +27694,7 @@ function moveVerse(direction, options = {}) {
     state.presentationPart = Math.max(0, currentPresentationParts().length - 1);
   }
   state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
+  if (state.mode !== "big") state.sharedPassage = null;
   if (options.extendSelection) extendKeyboardVerseSelection(previousVerse, state.verse);
   else state.keyboardSelectionAnchor = null;
   recordHistory();

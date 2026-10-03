@@ -278,3 +278,37 @@ for (const [requested, expected] of [[8, 8], [80, 80], [160, 160], [999, 160], [
 assert.match(extractFunction("captureCloudSnapshot"), /presentationStarCount: state.presentationStarCount/);
 assert.match(extractFunction("applyCloudSnapshot"), /state.presentationStarCount = normalizePresentationStarCount/);
 assert.match(extractFunction("persistCloudSnapshotLocally"), /lw_presentation_star_count/);
+
+const passageContext = {
+  translations: [
+    { code: "KJV", name: "King James Version" },
+    { code: "NIV", name: "New International Version" },
+    { code: "NASB2020", displayCode: "NASB", name: "New American Standard Bible 2020" },
+  ],
+  state: { mode: "big", verse: 16, presentationPart: 0, sharedPassage: { verses: [16, 17] } },
+  currentChapter: () => ({ verses: [{ n: 15 }, { n: 16 }, { n: 17 }, { n: 18 }] }),
+  currentPresentationParts: () => ["text"],
+  recordHistory() {}, updateShareUrl() {}, render() {},
+};
+vm.createContext(passageContext);
+vm.runInContext([
+  "escapeRegExp", "passageSearchInput", "presentationChapterVerses", "continuePresentationChapter", "moveVerse",
+].map(extractFunction).join("\n"), passageContext);
+for (const [input, version] of [
+  ["NIV John 3:16-18", "NIV"], ["John 3:16 (KJV)", "KJV"],
+  ["John 3:16 King James Version", "KJV"], ["NASB John 3:16", "NASB2020"],
+]) {
+  assert.equal(passageContext.passageSearchInput(input).version, version);
+  assert.match(passageContext.passageSearchInput(input).reference, /^John 3:16/);
+}
+assert.equal(passageContext.passageSearchInput("love one another").version, null);
+passageContext.moveVerse(-1);
+assert.equal(passageContext.state.verse, 16, "Range cannot navigate before its first verse");
+passageContext.state.verse = 17;
+passageContext.moveVerse(1);
+assert.equal(passageContext.state.verse, 17, "Range cannot navigate past its last verse");
+passageContext.continuePresentationChapter();
+assert.equal(passageContext.state.verse, 18);
+assert.equal(passageContext.state.sharedPassage, null);
+assert.equal(passageContext.presentationChapterVerses().length, 4);
+console.log("Version reference inputs and Big Screen range boundaries passed");
