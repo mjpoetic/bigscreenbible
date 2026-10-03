@@ -14990,12 +14990,6 @@ function crosswordGameView(game) {
       </div>
       <div class="crossword-layout">
         <section class="crossword-play" aria-label="Crossword board">
-          ${game.complete ? "" : `
-            <button class="crossword-active-clue" type="button" data-crossword-entry="${activeEntry?.id || ""}">
-              <strong id="crosswordActiveClueLabel">${escapeHtml(crosswordEntryLabel(activeEntry))}</strong>
-              <span id="crosswordActiveClueText">${escapeHtml(activeEntry?.clue || "Choose a clue")}</span>
-            </button>
-          `}
           <div class="crossword-grid-scroll">
             <div
               class="crossword-grid"
@@ -15024,6 +15018,27 @@ function crosswordGameView(game) {
               })).join("")}
             </div>
           </div>
+          ${game.complete ? "" : `
+            <div class="crossword-clue-bar">
+              <button type="button" class="crossword-clue-arrow" data-crossword-step="-1" aria-label="Previous clue">‹</button>
+              <div class="crossword-clue-current">
+                <button type="button" id="crosswordDirection" aria-label="Switch Across or Down">${escapeHtml(crosswordEntryLabel(activeEntry))} · ${activeEntry?.word.length || 0} letters</button>
+                <button class="crossword-active-clue" id="crosswordClueExpand" type="button" aria-expanded="false" aria-label="Expand current clue">
+                  <span id="crosswordActiveClueText">${escapeHtml(activeEntry?.clue || "Choose a clue")}</span>
+                </button>
+              </div>
+              <button type="button" class="crossword-clue-arrow" data-crossword-step="1" aria-label="Next clue">›</button>
+            </div>
+            <button type="button" class="text-btn crossword-browse-toggle" id="crosswordBrowseToggle" aria-expanded="false" aria-controls="crosswordClueBrowser">Clues</button>
+            <div class="crossword-clue-browser" id="crosswordClueBrowser" hidden>
+              <div class="crossword-clue-tabs" role="group" aria-label="Clue direction">
+                <button type="button" data-crossword-tab="across" aria-pressed="true">Across</button>
+                <button type="button" data-crossword-tab="down" aria-pressed="false">Down</button>
+              </div>
+              <div data-crossword-list="across">${clueGroup("across")}</div>
+              <div data-crossword-list="down" hidden>${clueGroup("down")}</div>
+            </div>
+          `}
           <div class="crossword-input-controls">
             <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
             ${game.complete ? "" : `
@@ -22177,10 +22192,22 @@ function updateCrosswordDom({ focus = false } = {}) {
   const activeLabel = document.getElementById("crosswordActiveClueLabel");
   const activeText = document.getElementById("crosswordActiveClueText");
   if (activeLabel) activeLabel.textContent = crosswordEntryLabel(activeEntry);
+  const direction = document.getElementById("crosswordDirection");
+  if (direction) direction.textContent = `${crosswordEntryLabel(activeEntry)} · ${activeEntry?.word.length || 0} letters`;
   if (activeText) activeText.textContent = activeEntry?.clue || "Choose a clue";
   const progress = document.getElementById("crosswordProgress");
   if (progress) progress.textContent = `${game.score} of ${game.entries.length} solved`;
   setCrosswordStatus(game.lastMessage);
+  const gridScroll = document.querySelector(".crossword-grid-scroll");
+  const selected = document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`);
+  if (gridScroll && selected) {
+    const viewport = gridScroll.getBoundingClientRect();
+    const cell = selected.getBoundingClientRect();
+    if (cell.top < viewport.top) gridScroll.scrollTop += cell.top - viewport.top;
+    else if (cell.bottom > viewport.bottom) gridScroll.scrollTop += cell.bottom - viewport.bottom;
+    if (cell.left < viewport.left) gridScroll.scrollLeft += cell.left - viewport.left;
+    else if (cell.right > viewport.right) gridScroll.scrollLeft += cell.right - viewport.right;
+  }
   if (focus && document.activeElement?.id !== "crosswordNativeInput") {
     document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`)?.focus({ preventScroll: true });
   }
@@ -22418,6 +22445,23 @@ function handleCrosswordNativeBeforeInput(event) {
   eraseCrosswordLetter();
 }
 
+function setCrosswordClueBrowserOpen(open) {
+  const browser = document.getElementById("crosswordClueBrowser");
+  if (!browser) return;
+  browser.hidden = !open;
+  const toggle = document.getElementById("crosswordBrowseToggle");
+  toggle?.setAttribute("aria-expanded", String(open));
+  if (toggle) toggle.textContent = open ? "Back to keyboard" : "Clues";
+  const keyboard = document.getElementById("crosswordKeyboard");
+  if (keyboard) keyboard.hidden = open || !state.crosswordKeyboardVisible;
+  if (open) {
+    document.getElementById("crosswordNativeInput")?.blur();
+    const direction = crosswordEntryById(state.triviaGame, state.triviaGame.activeEntryId)?.direction || "across";
+    document.querySelectorAll("[data-crossword-tab]").forEach((tab) => tab.setAttribute("aria-pressed", String(tab.dataset.crosswordTab === direction)));
+    document.querySelectorAll("[data-crossword-list]").forEach((list) => { list.hidden = list.dataset.crosswordList !== direction; });
+  }
+}
+
 function bindCrosswordGrid() {
   const grid = document.getElementById("crosswordGrid");
   if (!grid || state.triviaGame?.complete) return;
@@ -22425,13 +22469,15 @@ function bindCrosswordGrid() {
     const cell = event.target.closest?.("[data-crossword-cell]");
     if (!cell) return;
     selectCrosswordCell(Number(cell.dataset.row), Number(cell.dataset.column));
-    focusCrosswordNativeInput();
+    setCrosswordClueBrowserOpen(false);
+    if (!state.crosswordKeyboardVisible) focusCrosswordNativeInput();
   });
   grid.addEventListener("keydown", handleCrosswordKeydown);
   document.querySelectorAll("[data-crossword-entry]").forEach((clue) => {
     clue.addEventListener("click", () => {
       selectCrosswordEntry(clue.dataset.crosswordEntry, "", { focus: false });
-      focusCrosswordNativeInput();
+      setCrosswordClueBrowserOpen(false);
+      if (!state.crosswordKeyboardVisible) focusCrosswordNativeInput();
     });
   });
   document.querySelectorAll("[data-crossword-key]").forEach((key) => {
@@ -22441,11 +22487,44 @@ function bindCrosswordGrid() {
       else enterCrosswordLetter(key.dataset.crosswordKey);
     });
   });
+  document.querySelectorAll("[data-crossword-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const game = state.triviaGame;
+      const entries = [...game.entries].sort((a, b) => a.direction.localeCompare(b.direction) || a.number - b.number);
+      const index = entries.findIndex((entry) => entry.id === game.activeEntryId);
+      selectCrosswordEntry(entries[(index + Number(button.dataset.crosswordStep) + entries.length) % entries.length].id, "", { focus: false });
+      if (!state.crosswordKeyboardVisible) focusCrosswordNativeInput();
+    });
+  });
+  document.getElementById("crosswordDirection")?.addEventListener("click", () => {
+    const game = state.triviaGame;
+    const active = crosswordEntryById(game, game.activeEntryId);
+    const [row, column] = game.activeCellKey.split(":").map(Number);
+    const crossing = crosswordEntriesAtCell(game, row, column).find((entry) => entry.direction !== active.direction);
+    const next = crossing || game.entries.find((entry) => entry.direction !== active.direction);
+    if (next) selectCrosswordEntry(next.id, crossing ? game.activeCellKey : "", { focus: false });
+  });
+  document.getElementById("crosswordClueExpand")?.addEventListener("click", (event) => {
+    const button = event.currentTarget;
+    const expanded = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(expanded));
+    button.setAttribute("aria-label", expanded ? "Collapse current clue" : "Expand current clue");
+  });
+  document.getElementById("crosswordBrowseToggle")?.addEventListener("click", () => {
+    setCrosswordClueBrowserOpen(document.getElementById("crosswordClueBrowser").hidden);
+  });
+  document.querySelectorAll("[data-crossword-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("[data-crossword-tab]").forEach((tab) => tab.setAttribute("aria-pressed", String(tab === button)));
+      document.querySelectorAll("[data-crossword-list]").forEach((list) => { list.hidden = list.dataset.crosswordList !== button.dataset.crosswordTab; });
+    });
+  });
   const nativeInput = document.getElementById("crosswordNativeInput");
   nativeInput?.addEventListener("keydown", handleCrosswordKeydown);
   nativeInput?.addEventListener("beforeinput", handleCrosswordNativeBeforeInput);
   nativeInput?.addEventListener("input", handleCrosswordNativeInput);
   document.getElementById("crosswordKeyboardToggle")?.addEventListener("click", () => {
+    setCrosswordClueBrowserOpen(false);
     setCrosswordKeyboardVisible(!state.crosswordKeyboardVisible);
   });
   document.getElementById("crosswordHint")?.addEventListener("click", revealCrosswordLetterHint);
