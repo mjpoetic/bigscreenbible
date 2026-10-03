@@ -788,3 +788,49 @@ html[data-control-material="glass"] .crossword-fit-toggle {
   box-shadow: var(--glass-shadow);
   color: var(--glass-ink);
 }
+
+/* Account deletion keeps its red meaning within the shared glass finish. */
+html[data-control-material="glass"] .delete-account-dialog {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--glass-ink);
+}
+html[data-control-material="glass"] .delete-account-dialog .ghost-btn {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  border-color: var(--glass-edge);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--glass-ink);
+}
+html[data-control-material="glass"] button.delete-account-button {
+  background: linear-gradient(145deg, rgba(255, 255, 255, .24), transparent 62%), color-mix(in srgb, #b42318 92%, transparent);
+  border-color: rgba(255, 255, 255, .4);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: #fff;
+}
+html[data-control-material="glass"] button.delete-account-button:hover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, .28), transparent 62%), color-mix(in srgb, #912018 94%, transparent);
+  color: #fff;
+}
+
+/* Signed-in account actions share the same utility-button material. */
+html[data-control-material="glass"] .account-card-signed-in :is(
+  [id$="syncNowButton"], [id$="switchAccountButton"],
+  [id$="signOutButton"], [id$="changePasswordButton"]
+) {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  border: 1px solid var(--glass-edge);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--glass-ink);
+}

@@ -6601,7 +6601,7 @@ function accountPanel(prefix = "") {
       ? ""
       : prefix === "quick"
         ? `<button class="ghost-btn compact-account-btn" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change password</button>`
-        : `<button class="account-secondary-action" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change Password</button>`;
+        : `<button class="ghost-btn compact-account-btn" id="${suffix}changePasswordButton" type="button" ${state.authBusy ? "disabled" : ""}>Change Password</button>`;
     const sessionActions = prefix === "quick"
       ? `
         <div class="account-actions account-session-actions">
@@ -6610,7 +6610,7 @@ function accountPanel(prefix = "") {
         </div>
       `
       : `
-        <button class="account-secondary-action" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out on this device</button>
+        <button class="ghost-btn compact-account-btn" id="${suffix}signOutButton" type="button" ${state.authBusy ? "disabled" : ""}>Sign out on this device</button>
         ${changePasswordButton}
       `;
     return `
@@ -6629,7 +6629,7 @@ function accountPanel(prefix = "") {
         </div>
         ${sessionActions}
         ${passwordTools}
-        <button class="account-secondary-action delete-account-button" type="button" data-delete-account ${state.authBusy ? "disabled" : ""}>Delete account</button>
+        <button class="ghost-btn delete-account-button" type="button" data-delete-account ${state.authBusy ? "disabled" : ""}>Delete account</button>
         <nav class="account-legal-links" aria-label="Legal information">
           <a href="./privacy/">Privacy Policy</a>
           <span aria-hidden="true">·</span>
@@ -10899,27 +10899,25 @@ function openDeleteAccountDialog(appleProof = null) {
   dialog.id = "deleteAccountDialog";
   dialog.className = "delete-account-dialog";
   dialog.setAttribute("aria-labelledby", "deleteAccountTitle");
+  dialog.setAttribute("aria-describedby", "deleteAccountWarning");
   dialog.innerHTML = `<form>
-    <h2 id="deleteAccountTitle">Delete account?</h2>
+    <h2 id="deleteAccountTitle">Are you sure you want to delete your account?</h2>
     <p><strong>${escapeHtml(state.authUser.email || "Your account")}</strong></p>
     <p>This permanently deletes your account, synced notes, bookmarks, highlights, reading history, streak, game records, profile, friendships, and challenges involving you. It cannot be undone or merged into another account.</p>
     <p>The saved account and its study data will also be removed from this device. Other devices may keep local copies until their stored data is cleared.</p>
     ${appleLinked ? "<p>You will confirm with Apple to revoke this account’s Apple authorization.</p>" : ""}
-    <label for="deleteAccountConfirmation">Type DELETE to confirm</label>
-    <input id="deleteAccountConfirmation" autocomplete="off" autocapitalize="characters" required pattern="DELETE" />
+    <p class="delete-account-warning" id="deleteAccountWarning"><strong>This is permanent. Your deleted account and synced data cannot be recovered.</strong></p>
     <p id="deleteAccountError" role="alert"></p>
-    <div class="account-actions"><button class="ghost-btn" type="button" id="cancelDeleteAccount">Cancel</button><button class="primary-btn" type="submit" id="confirmDeleteAccount" disabled>Delete account permanently</button></div>
+    <div class="account-actions"><button class="ghost-btn" type="button" id="cancelDeleteAccount">No, keep my account</button><button class="ghost-btn delete-account-button" type="submit" id="confirmDeleteAccount">Yes, delete permanently</button></div>
   </form>`;
   document.body.append(dialog);
-  const input = dialog.querySelector("input");
   const confirm = dialog.querySelector("[type=submit]");
-  input.addEventListener("input", () => { confirm.disabled = input.value !== "DELETE"; });
   dialog.querySelector("#cancelDeleteAccount").onclick = () => dialog.close();
   dialog.addEventListener("close", () => { dialog.remove(); sessionStorage.removeItem(accountDeletionIntentKey); });
   dialog.addEventListener("cancel", event => { if (accountDeletionInProgress) event.preventDefault(); });
   dialog.querySelector("form").onsubmit = async event => {
     event.preventDefault();
-    if (input.value !== "DELETE" || state.authUser?.id !== userId || accountDeletionInProgress) return;
+    if (state.authUser?.id !== userId || accountDeletionInProgress) return;
     accountDeletionInProgress = true;
     confirm.disabled = true;
     dialog.querySelector("#cancelDeleteAccount").disabled = true;
@@ -10985,13 +10983,13 @@ function openDeleteAccountDialog(appleProof = null) {
       dialog.querySelector("#deleteAccountError").textContent = error?.code === "CANCELED" ? "Apple confirmation canceled. Nothing was deleted." : error?.message || "Could not delete your account. Please try again.";
     } finally {
       accountDeletionInProgress = false; state.authBusy = false;
-      confirm.disabled = input.value !== "DELETE";
+      confirm.disabled = false;
       dialog.querySelector("#cancelDeleteAccount").disabled = false;
       renderPreservingReaderScroll();
     }
   };
   dialog.showModal();
-  input.focus();
+  dialog.querySelector("#cancelDeleteAccount").focus();
 }
 
 function resumeAccountDeletion(session) {
