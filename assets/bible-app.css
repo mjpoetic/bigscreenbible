@@ -24375,10 +24375,10 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   max-height: calc(100dvh - 128px);
 }
 .app-shell.focus-shell .mobile-focus-passage-popover {
-  grid-template-columns: minmax(0, 1fr) 40px 36px auto;
+  grid-template-columns: minmax(0, 1fr) 52px auto;
 }
 .app-shell.focus-shell .mobile-focus-passage-popover.has-inline-clear {
-  grid-template-columns: minmax(0, 1fr) 40px 40px 36px auto;
+  grid-template-columns: minmax(0, 1fr) 50px 52px auto;
 }
 
 /* Retain the cue's space so fading never shifts or resizes Scripture. */
@@ -24389,12 +24389,5 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 @media (prefers-reduced-motion: reduce) {
   .presentation-continuation-cue {
     animation: presentationContinuationFade 1ms linear 2.5s forwards;
-  }
-}
-
-/* The search-bar picker replaces the Focus tools picker outside mobile portrait. */
-@media (min-width: 841px), (orientation: landscape) {
-  .app-shell.focus-shell :is(.desktop-focus-tool-option, .mobile-focus-tool-option)[data-focus-workspace="Verse"] {
-    display: none;
   }
 }
