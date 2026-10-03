@@ -895,3 +895,17 @@ html[data-control-material="glass"] :is(.settings-popover, .mobile-settings-popo
   background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
   color: var(--accent-ink);
 }
+
+/* A soft glass halo signals the logo hold without a hard rectangular frame. */
+html[data-control-material="glass"] .app-shell .brand.version-hold-pending {
+  border-radius: 18px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-solid) 66%, transparent);
+  color: var(--glass-ink);
+  box-shadow: inset 0 1px 0 var(--glass-light), 0 0 18px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+html[data-control-material="glass"] .app-shell .brand.version-hold-pending::before {
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--teal) 40%, var(--glass-edge));
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
