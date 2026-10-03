@@ -104,11 +104,11 @@ html[data-control-material="glass"] :is(.study-section .ghost-btn, .study-popup 
 html[data-control-material="glass"] :is(.study-section .icon-btn, .study-popup .icon-btn, .reader-chrome .icon-btn) { border-radius: 999px; }
 /* The version picker wrapper owns its finish. Avoid a pill nested in the
    old square wrapper and keep menu backdrop sampling independent. */
-html[data-control-material="glass"] .topbar .versions {
+html[data-control-material="glass"] #app .topbar .versions {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-html[data-control-material="glass"] .topbar .versions > .primary-version-toggle {
+html[data-control-material="glass"] #app .topbar .versions > .primary-version-toggle {
   background: transparent;
   box-shadow: none;
   -webkit-backdrop-filter: none;
@@ -1075,13 +1075,13 @@ html[data-control-material="glass"] .settings-search .settings-search-clear:hove
   }
 }
 
-/* Version lists need stronger frost over large Scripture lettering. */
+/* Match reference popups: translucent tint over an independently sampled backdrop. */
 html[data-control-material="glass"] body .primary-version-menu.primary-version-menu.primary-version-menu,
 html[data-control-material="glass"] body .parallel-version-menu.parallel-version-menu.parallel-version-menu,
 html[data-control-material="glass"] body .settings-choice-menu.settings-choice-menu.settings-choice-menu {
-  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-solid) 98%, transparent);
-  -webkit-backdrop-filter: blur(36px) saturate(125%);
-  backdrop-filter: blur(36px) saturate(125%);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-solid) 82%, transparent);
+  -webkit-backdrop-filter: var(--overlay-blur);
+  backdrop-filter: var(--overlay-blur);
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   html[data-control-material="glass"] body .primary-version-menu.primary-version-menu.primary-version-menu,
@@ -1091,4 +1091,23 @@ html[data-control-material="glass"] body .settings-choice-menu.settings-choice-m
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* Keep header/footer backdrop roots out of the dropdown sampling chain.
+   Their existing pseudo-elements retain the chrome's glass finish. */
+html[data-control-material="glass"] .topbar,
+html[data-control-material="glass"] .bottombar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Embedded controls retain their inner reflection without a cast shadow. */
+html[data-control-material="glass"] #app .trivia-mode-tabs > button,
+html[data-control-material="glass"] #app .trivia-mode-scroll,
+html[data-control-material="glass"] #app .settings-search {
+  --glass-shadow: inset 0 1px 0 var(--glass-light);
+  box-shadow: var(--glass-shadow);
+}
+html[data-control-material="glass"] #app .settings-search:focus-within {
+  box-shadow: var(--glass-shadow), inset 0 0 0 2px color-mix(in srgb, var(--teal) 20%, transparent);
 }
