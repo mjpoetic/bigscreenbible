@@ -2430,6 +2430,7 @@ function switchMode(nextMode, options = {}) {
     }
     render();
     restoreModeScrollAfterRender(targetScrollState);
+    if (nextMode === "trivia") revealGameRecords();
   };
   if (options.immediate) return applyModeChange();
   return runModeViewTransition(previousMode, nextMode, applyModeChange);
@@ -12683,7 +12684,7 @@ function arcadeScoreboard(scores, subtitle, detail, label) {
   const summary = setup
     ? `<strong>Your records</strong><small>${scores.length ? `${scores[0].points.toLocaleString()} pts · Personal best` : "No score yet"}</small><span aria-hidden="true">${icons.chevron}</span>`
     : `<span class="scoreboard-show">Show scoreboard</span><span class="scoreboard-hide">Hide scoreboard</span>`;
-  return `<details class="${setup ? "games-records" : "scoreboard-disclosure"}" ${!setup && visible ? "open" : ""}><summary>${summary}</summary><section class="hidden-word-leaderboard arcade-scoreboard" aria-label="${escapeHtml(label)}">
+  return `<details class="${setup ? "games-records" : "scoreboard-disclosure"} ${scores.length ? "has-records" : "is-empty-records"}" ${!setup && visible ? "open" : ""}><summary>${summary}</summary><section class="hidden-word-leaderboard arcade-scoreboard ${scores.length ? "" : "is-empty-records"}" aria-label="${escapeHtml(label)}">
     <header class="arcade-scoreboard-header"><span class="arcade-scoreboard-star" aria-hidden="true">★</span><div><span class="arcade-scoreboard-kicker">PERSONAL BESTS</span><h3>HIGH SCORES</h3></div><span class="arcade-scoreboard-badge">TOP 5</span></header>
     <p class="arcade-scoreboard-context">${escapeHtml(subtitle)}</p>
     <div class="arcade-scoreboard-columns" aria-hidden="true"><span>RANK</span><span>SCORE / RECORD</span></div>
@@ -12691,7 +12692,7 @@ function arcadeScoreboard(scores, subtitle, detail, label) {
       const entry = scores[index];
       return `<li class="arcade-score-row ${entry ? "is-filled" : "is-empty"}"><span class="arcade-score-rank" aria-label="Rank ${index + 1}">${String(index + 1).padStart(2, "0")}</span><div class="arcade-score-record"><strong>${entry ? `${entry.points.toLocaleString()} <small>PTS</small>` : "<span aria-label='No score yet'>— — —</span>"}</strong><span class="arcade-score-detail">${entry ? escapeHtml(detail(entry)) : "YOUR NEXT HIGH SCORE"}</span></div>${index === 0 && entry ? '<span class="arcade-score-crown" aria-label="Personal best">★</span>' : ""}</li>`;
     }).join("")}</ol>
-    <p class="arcade-scoreboard-footer">${scores.length ? "PLAY AGAIN · CHASE YOUR BEST" : "READY, PLAYER? SET YOUR FIRST SCORE"}</p>
+    <p class="arcade-scoreboard-footer">${scores.length ? "PLAY AGAIN · CHASE YOUR BEST" : "PLAY TO SET YOUR FIRST SCORE"}</p>
   </section></details>`;
 }
 
@@ -13799,7 +13800,7 @@ function recordVerseOrderBest(game) {
 
 function verseOrderRecords(version, count, game = null) {
   const best = savedVerseOrderBests()[verseOrderBestKey(version, count)];
-  return `<div class="games-records games-records-static"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"} · ${escapeHtml(version)} · ${count} verses</small>${game ? `<small>Round time: ${formatGameTime(verseOrderElapsedMs(game))}</small>` : ""}</div>`;
+  return `<div class="games-records games-records-static ${best ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"} · ${escapeHtml(version)} · ${count} verses</small>${game ? `<small>Round time: ${formatGameTime(verseOrderElapsedMs(game))}</small>` : ""}</div>`;
 }
 
 function referenceRushBestKey(difficulty, rounds, timed) {
@@ -13836,7 +13837,7 @@ function recordReferenceRushBest(game) {
 
 function referenceRushRecords(difficulty, rounds, timed, game = null) {
   const best = savedReferenceRushBest(difficulty, rounds, timed);
-  return `<div class="games-records games-records-static"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"}</small><small>All references correct · ${timed ? "Timed" : "Untimed"}</small>${game ? `<small>Round time: ${formatGameTime(Math.max(0, game.finishedAt - game.startedAt))}</small>` : ""}</div>`;
+  return `<div class="games-records games-records-static ${best ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"}</small><small>All references correct · ${timed ? "Timed" : "Untimed"}</small>${game ? `<small>Round time: ${formatGameTime(Math.max(0, game.finishedAt - game.startedAt))}</small>` : ""}</div>`;
 }
 
 function bookSprintBestKey(difficulty = state.triviaDifficulty, rounds = state.triviaCount || 10) {
@@ -14306,6 +14307,51 @@ function gamesSocialActivityCount() {
   return friendshipCollections().incoming.length + gameChallengeCollections().incoming.length;
 }
 
+// Effects are attached to explicit reveals, never to timer-driven renders.
+function sparkleGameRecord(panel) {
+  if (!panel?.classList.contains("has-records") || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const target = panel.querySelector(":scope > .arcade-scoreboard") || panel;
+  target.querySelector(".games-record-sparkles")?.remove();
+  const burst = document.createElement("span");
+  burst.className = "games-record-sparkles";
+  burst.setAttribute("aria-hidden", "true");
+  burst.innerHTML = Array.from({ length: 14 }, (_, i) => `<i style="--spark-x:${12 + (i * 37) % 78}%;--spark-y:${8 + (i * 19) % 45}px;--spark-delay:${i * 35}ms">✦</i>`).join("");
+  target.append(burst);
+  window.setTimeout(() => burst.remove(), 1600);
+}
+
+function revealGameRecords() {
+  document.querySelectorAll(".games-records-static.has-records, .scoreboard-disclosure[open].has-records").forEach(sparkleGameRecord);
+}
+
+function bindGameRecordMotion() {
+  document.querySelectorAll("details.games-records, details.scoreboard-disclosure").forEach(panel => {
+    const summary = panel.querySelector(":scope > summary");
+    const body = panel.querySelector(":scope > .arcade-scoreboard");
+    if (!summary || !body) return;
+    summary.addEventListener("click", event => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      event.preventDefault();
+      if (panel.dataset.animating) return;
+      const opening = !panel.open;
+      panel.dataset.animating = "true";
+      panel.open = true;
+      const height = body.getBoundingClientRect().height;
+      const animation = body.animate(opening
+        ? [{ height: "0px", opacity: 0 }, { height: `${height}px`, opacity: 1 }]
+        : [{ height: `${height}px`, opacity: 1 }, { height: "0px", opacity: 0 }],
+        { duration: 260, easing: "ease-in-out" });
+      body.style.overflow = "hidden";
+      animation.onfinish = () => {
+        panel.open = opening;
+        body.style.overflow = "";
+        delete panel.dataset.animating;
+        if (opening && panel.isConnected) sparkleGameRecord(panel);
+      };
+    });
+  });
+}
+
 function gamesDrawerToggleId(drawer = state.gamesDrawerOpen) {
   if (drawer === "options") return "gameOptionsToggle";
   if (drawer === "controls") return "gameControlsToggle";
@@ -14317,16 +14363,22 @@ function setGamesDrawer(drawer = "") {
   const previousDrawer = state.gamesDrawerOpen;
   const nextDrawer = ["options", "social", "controls", "hints"].includes(drawer) ? drawer : "";
   if (previousDrawer === nextDrawer) return;
-  state.gamesDrawerOpen = nextDrawer;
-  renderPreservingReaderScroll();
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    const focusTarget = nextDrawer === "options" && !isGamesResponsiveScreen()
-      ? document.getElementById("gameOptionsToggle")
-      : nextDrawer
-        ? document.querySelector(`.games-drawer-shell[data-games-drawer="${nextDrawer}"] .games-drawer-close`)
-        : document.getElementById(gamesDrawerToggleId(previousDrawer));
-    focusTarget?.focus({ preventScroll: true });
-  }));
+  const update = () => {
+    if (state.mode !== "trivia" || state.gamesDrawerOpen !== previousDrawer) return;
+    state.gamesDrawerOpen = nextDrawer;
+    renderPreservingReaderScroll();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const focusTarget = nextDrawer === "options" && !isGamesResponsiveScreen()
+        ? document.getElementById("gameOptionsToggle")
+        : nextDrawer
+          ? document.querySelector(`.games-drawer-shell[data-games-drawer="${nextDrawer}"] .games-drawer-close`)
+          : document.getElementById(gamesDrawerToggleId(previousDrawer));
+      focusTarget?.focus({ preventScroll: true });
+    }));
+  };
+  if (previousDrawer) {
+    animateBeforeRemoval(`.games-drawer-shell[data-games-drawer="${previousDrawer}"].open`, update, { className: "games-drawer-exit", duration: 220 });
+  } else update();
 }
 
 function openPuzzleRestartPrompt() {
@@ -14749,6 +14801,7 @@ function triviaView() {
             <div class="trivia-setup-main">
               <div class="trivia-setup-content">
               <p class="trivia-setup-copy">${setupCopy}</p>
+              <details class="game-preview"><summary aria-label="${escapeHtml(gameTitle)} gameplay screenshot"><img src="./assets/game-previews/${state.triviaGameType}.webp" width="960" height="600" alt="${escapeHtml(gameTitle)} gameplay preview" decoding="async" /><span>Tap to enlarge</span></summary></details>
               <button
                 class="trivia-mobile-options ${puzzleStartDisabled ? "needs-attention" : ""} ${state.gamesDrawerOpen === "options" ? "active" : ""}"
                 id="gameOptionsToggle"
@@ -14809,7 +14862,7 @@ function triviaView() {
               </div>
               ${isVerseOrder ? verseOrderRecords(verseOrderGameVersion(), selectedCount) : ""}
               ${isReferenceRush ? referenceRushRecords(state.triviaDifficulty, selectedCount, state.referenceRushTimed) : ""}
-              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush", "verse-order"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
+              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static ${(isWordSearch ? wordSearchBest : isCrossword ? crosswordBest : bookSprintBest) ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush", "verse-order"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
               ${isHiddenWord ? hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext) : ["trivia", "who-said-it"].includes(state.triviaGameType) ? quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount }) : ""}
             </div>
             ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
@@ -19519,6 +19572,7 @@ function bindEvents() {
   document.getElementById("exitFocusInline")?.addEventListener("click", toggleFocusMode);
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   document.querySelector(".library")?.addEventListener("scroll", () => rememberLibraryScroll(), { passive: true });
+  bindGameRecordMotion();
   document.querySelectorAll(".scoreboard-disclosure").forEach((panel) => {
     panel.addEventListener("toggle", () => {
       try { localStorage.setItem("lw_scoreboard_visible", String(panel.open)); } catch {}
@@ -19625,32 +19679,42 @@ function bindEvents() {
         showToast("This setup is locked for the waiting room");
         return;
       }
-      cleanupTriviaCelebration();
-      state.triviaGameType = button.dataset.triviaMode || "trivia";
-      state.triviaGame = null;
-      state.puzzleRestartPromptOpen = false;
-      resetPuzzleCustomWordChoices();
-      if (state.triviaGameType === "reference-rush") {
-        state.triviaDifficulty = "Easy";
-        localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
-      }
-      if (["word-search", "crossword", "hidden-word"].includes(state.triviaGameType) && state.triviaDifficulty === "All") {
-        state.triviaDifficulty = "Medium";
-        localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
-      }
-      if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") {
-        state.triviaDifficulty = "Hard";
-        localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
-      }
-      if (state.triviaGameType === "book-sprint") {
-        state.triviaCount = 5;
-        localStorage.setItem("lw_trivia_count", String(state.triviaCount));
-      } else {
-        state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
-      }
-      localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
-      scheduleCloudSync();
-      renderPreservingReaderScroll();
+      if (button.dataset.triviaMode === state.triviaGameType) return;
+      const previousType = state.triviaGameType;
+      animateBeforeRemoval(".trivia-setup-content, .trivia-setup .games-records, .trivia-start-dock", () => {
+        if (state.mode !== "trivia" || state.triviaGameType !== previousType) return;
+        cleanupTriviaCelebration();
+        state.triviaGameType = button.dataset.triviaMode || "trivia";
+        state.triviaGame = null;
+        state.puzzleRestartPromptOpen = false;
+        resetPuzzleCustomWordChoices();
+        if (state.triviaGameType === "reference-rush") {
+          state.triviaDifficulty = "Easy";
+          localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+        }
+        if (["word-search", "crossword", "hidden-word"].includes(state.triviaGameType) && state.triviaDifficulty === "All") {
+          state.triviaDifficulty = "Medium";
+          localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+        }
+        if (!["word-search", "crossword"].includes(state.triviaGameType) && state.triviaDifficulty === "Expert") {
+          state.triviaDifficulty = "Hard";
+          localStorage.setItem("lw_trivia_difficulty", state.triviaDifficulty);
+        }
+        if (state.triviaGameType === "book-sprint") {
+          state.triviaCount = 5;
+          localStorage.setItem("lw_trivia_count", String(state.triviaCount));
+        } else {
+          state.triviaCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
+        }
+        localStorage.setItem("lw_trivia_game_type", state.triviaGameType);
+        scheduleCloudSync();
+        renderPreservingReaderScroll();
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          document.querySelectorAll(".trivia-setup-content, .trivia-setup .games-records, .trivia-start-dock").forEach(element => element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: "ease-out" }));
+        }
+        document.querySelector(`[data-trivia-mode="${state.triviaGameType}"]`)?.focus({ preventScroll: true });
+        revealGameRecords();
+      }, { className: "games-mode-exit", duration: 120 });
     });
   });
   document.getElementById("triviaCategorySelect")?.addEventListener("change", (event) => {
@@ -19732,6 +19796,7 @@ function bindEvents() {
     state.gamesDrawerOpen = "";
     requestGameMusicRestart();
     startTriviaGame();
+    revealGameRecords();
   });
   document.querySelectorAll("[data-puzzle-restart-difficulty]").forEach((button) => {
     button.addEventListener("click", () => restartPuzzleAtDifficulty(button.dataset.puzzleRestartDifficulty));

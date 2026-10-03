@@ -24292,3 +24292,36 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .games-options-drawer .setting-help { margin: 0; }
 .games-options-drawer .reference-rush-timer-option,
 .games-options-drawer .hidden-word-score-rules { width: 100%; min-width: 0; }
+
+/* Games reveals and previews keep the picker steady while content dissolves. */
+.games-mode-exit { animation: gamesContentOut 120ms ease-in both; pointer-events: none; }
+@keyframes gamesContentOut { to { opacity: 0; } }
+.games-drawer-shell.open { animation: gamesContentIn 280ms ease-out both; }
+@keyframes gamesContentIn { from { opacity: 0; } to { opacity: 1; } }
+.games-drawer-shell.games-drawer-exit { animation: gamesContentOut 220ms ease-in both; pointer-events: none; }
+.games-drawer-exit .games-drawer { animation: gamesSheetOut 220ms ease-in both; }
+@keyframes gamesSheetOut { to { opacity: 0; transform: translateY(18px); } }
+.games-records, .scoreboard-disclosure, .arcade-scoreboard { position: relative; }
+.games-records > summary svg, .trivia-mobile-options-chevron svg { transition: transform 260ms ease; }
+.is-empty-records { filter: grayscale(1); }
+.games-records.is-empty-records { background: var(--soft); border-color: var(--line); }
+.arcade-scoreboard.is-empty-records { opacity: .7; }
+.games-record-sparkles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.games-record-sparkles i { position: absolute; left: var(--spark-x); top: var(--spark-y); color: #e5b548; font-style: normal; text-shadow: 0 0 8px #ffd875; opacity: 0; animation: gamesRecordSpark 900ms var(--spark-delay) ease-out both; }
+.games-record-sparkles i:nth-child(even) { color: var(--teal); text-shadow: 0 0 8px #7ee5e0; }
+@keyframes gamesRecordSpark { 0% { opacity: 0; transform: translateY(12px) scale(.3) rotate(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-22px) scale(1.2) rotate(100deg); } }
+.game-preview { width: min(100%, 420px); margin: 0 auto 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); overflow: hidden; box-shadow: 0 5px 16px color-mix(in srgb, var(--ink) 8%, transparent); }
+.game-preview > summary { position: relative; list-style: none; cursor: zoom-in; }
+.game-preview > summary::-webkit-details-marker { display: none; }
+.game-preview img { display: block; width: 100%; height: 180px; object-fit: contain; object-position: center; transition: height 280ms ease; }
+.game-preview[open] img { height: auto; }
+.game-preview[open] > summary { cursor: zoom-out; }
+.game-preview summary > span { position: absolute; bottom: 6px; right: 8px; padding: 3px 7px; border-radius: 5px; background: #102033dc; color: #fff; font-size: 10px; }
+.game-preview[open] summary > span { display: none; }
+.game-preview > summary:focus-visible { outline: 2px solid var(--teal); outline-offset: -3px; }
+@media (orientation: landscape) and (max-height: 720px) { .game-preview img { height: 90px; } }
+@media (prefers-reduced-motion: reduce) {
+  .games-mode-exit, .games-drawer-shell.open, .games-drawer-shell.games-drawer-exit, .games-drawer-exit .games-drawer { animation: none; }
+  .games-record-sparkles { display: none; }
+  .game-preview img, .games-records > summary svg, .trivia-mobile-options-chevron svg { transition: none; }
+}
