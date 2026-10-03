@@ -881,3 +881,17 @@ html[data-control-material="glass"] .presentation .presentation-search .presenta
 html[data-control-material="glass"] .presentation .presentation-search-field:focus-within {
   box-shadow: var(--glass-shadow), 0 0 12px color-mix(in srgb, var(--presentation-accent) 16%, transparent);
 }
+
+/* Shared update actions cover Reader, Parallel and mobile Settings. */
+html[data-control-material="glass"] :is(.settings-popover, .mobile-settings-popover) :is(.app-update-button, .settings-update-shortcut) {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  min-height: 44px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--glass-ink);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] :is(.settings-popover, .mobile-settings-popover) :is(.app-update-button.primary-btn, .settings-update-shortcut) {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+}
