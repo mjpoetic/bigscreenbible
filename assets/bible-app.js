@@ -830,7 +830,6 @@ const state = {
   focusVersePickerBook: "",
   focusVersePickerChapter: 1,
   focusVersePickerVerse: 1,
-  focusVersePickerEndVerse: "",
   settingsSectionsOpen: savedSettingsSectionsOpen(),
   settingsSectionsOpenUpdatedAt: normalizedVersionsUpdatedAt(
     localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
@@ -1544,13 +1543,10 @@ function focusVersePickerData() {
   const verse = verses.includes(Number(state.focusVersePickerVerse))
     ? Number(state.focusVersePickerVerse)
     : verses[0] || 1;
-  const endVerse = verses.includes(Number(state.focusVersePickerEndVerse)) && Number(state.focusVersePickerEndVerse) > verse
-    ? Number(state.focusVersePickerEndVerse) : "";
-  return { availableBooks, book, chapters, chapter, verses, verse, endVerse, chapterKey };
+  return { availableBooks, book, chapters, chapter, verses, verse, chapterKey };
 }
 
 function initializeFocusVersePickerDraft() {
-  state.focusVersePickerEndVerse = "";
   state.focusVersePickerBook = currentBookName();
   state.focusVersePickerChapter = Number(state.reference.match(/(\d+)$/)?.[1]) || 1;
   state.focusVersePickerVerse = state.verse;
@@ -3132,7 +3128,7 @@ function focusVersePickerPanel() {
   state.focusVersePickerVerse = picker.verse;
   return `
     <form class="focus-mini-verse-picker" id="focusMiniVersePickerForm">
-      <p>Choose a book, chapter, and verse. Add an ending verse to select a passage.</p>
+      <p>Choose a book, chapter, and verse.</p>
       <div class="focus-mini-verse-picker-grid">
         <div class="focus-picker-field">
           <span>Book</span>
@@ -3147,11 +3143,7 @@ function focusVersePickerPanel() {
           ${settingsChoiceMarkup("focusMiniVerseSelect", picker.verse, picker.verses.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Verse" })}
         </div>
       </div>
-      <div class="focus-picker-field passage-end-field">
-        <span>Through verse (optional)</span>
-        ${settingsChoiceMarkup("focusMiniEndVerseSelect", picker.endVerse, [{ value: "", label: "Single verse" }, ...picker.verses.filter((value) => value > picker.verse).map((value) => ({ value: String(value), label: String(value) }))], { ariaLabel: "Through verse (optional)" })}
-      </div>
-      <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}${picker.endVerse ? `–${picker.endVerse}` : ""}`)}</button>
+      <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
     </form>
   `;
 }
@@ -19074,10 +19066,6 @@ function bindEvents() {
       document.querySelector("#mobileFocusWorkspace button")?.focus({ preventScroll: true });
     });
   });
-  document.getElementById("focusMiniEndVerseSelect")?.addEventListener("change", (event) => {
-    state.focusVersePickerEndVerse = event.currentTarget.value;
-    renderPreservingReaderScroll();
-  });
   document.getElementById("mobileFocusWorkspaceClose")?.addEventListener("click", () => {
     state.focusWorkspacePanel = "";
     renderPreservingReaderScroll();
@@ -19086,13 +19074,11 @@ function bindEvents() {
     state.focusVersePickerBook = event.currentTarget.value;
     state.focusVersePickerChapter = focusVersePickerChapterNumbers(state.focusVersePickerBook)[0] || 1;
     state.focusVersePickerVerse = 1;
-    state.focusVersePickerEndVerse = "";
     renderPreservingReaderScroll();
   });
   document.getElementById("focusMiniChapterSelect")?.addEventListener("change", (event) => {
     state.focusVersePickerChapter = Number(event.currentTarget.value) || 1;
     state.focusVersePickerVerse = 1;
-    state.focusVersePickerEndVerse = "";
     renderPreservingReaderScroll();
   });
   document.getElementById("focusMiniVerseSelect")?.addEventListener("change", (event) => {
@@ -19103,7 +19089,7 @@ function bindEvents() {
     event.preventDefault();
     const picker = focusVersePickerData();
     resetFocusToolSurfaces();
-    gotoReference(`${picker.chapterKey}:${picker.verse}${picker.endVerse ? `-${picker.endVerse}` : ""}`);
+    gotoReference(`${picker.chapterKey}:${picker.verse}`);
   });
   document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
     state.focusSearchResultsOpen = false;

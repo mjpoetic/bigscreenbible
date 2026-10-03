@@ -8,7 +8,7 @@ function extract(name) {
   return source.slice(start, end);
 }
 const context = {
-  state: { focusVersePickerBook: 'John', focusVersePickerChapter: 3, focusVersePickerVerse: 16, focusVersePickerEndVerse: 18 },
+  state: { focusVersePickerBook: 'John', focusVersePickerChapter: 3, focusVersePickerVerse: 16 },
   books: ['John'], bibleData: { 'John 3': { verses: [16,17,18,19].map(n => ({ n })) } },
   currentBookName: () => 'John', normalizeBookName: name => name === 'John' ? name : '',
 };
@@ -17,12 +17,10 @@ for (const name of ['focusVersePickerChapterNumbers', 'focusVersePickerData', 'p
   vm.runInContext(extract(name), context);
 }
 const picker = context.focusVersePickerData();
-assert.equal(picker.endVerse, 18);
-assert.deepEqual(Array.from(context.parsePassageReference(`${picker.chapterKey}:${picker.verse}-${picker.endVerse}`).verses), [16,17,18]);
-context.state.focusVersePickerVerse = 19;
-assert.equal(context.focusVersePickerData().endVerse, '', 'An ending verse before the start becomes a single verse');
-context.state.focusVersePickerEndVerse = 99;
-assert.equal(context.focusVersePickerData().endVerse, '', 'Unavailable endings are rejected');
+assert.equal(picker.verse, 16);
+assert.deepEqual(Array.from(context.parsePassageReference(`${picker.chapterKey}:${picker.verse}`).verses), [16]);
+context.state.focusVersePickerVerse = 99;
+assert.equal(context.focusVersePickerData().verse, 16, 'Unavailable verses fall back to available data');
 context.state.focusVersePickerChapter = 99;
 assert.equal(context.focusVersePickerData().chapter, 3, 'Unavailable chapters fall back to available data');
-console.log('Passage picker range and availability checks passed');
+console.log('Passage picker single verse and availability checks passed');

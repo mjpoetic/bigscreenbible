@@ -24358,7 +24358,6 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .passage-picker-trigger svg { width: 20px; height: 20px; }
 .passage-picker-trigger:hover { background: color-mix(in srgb, var(--teal) 12%, transparent); }
 .passage-picker-trigger:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-.passage-end-field { margin-top: 12px; }
 .presentation-continuation-cue {
   display: block;
   margin-top: 18px;
