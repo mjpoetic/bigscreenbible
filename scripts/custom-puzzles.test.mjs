@@ -86,7 +86,7 @@ assert.match(source, /data-puzzle-passage-source="random"/);
 assert.match(source, /data-puzzle-passage-source="custom"/);
 assert.match(source, /id="puzzleCustomReferenceInput"/);
 assert.match(source, /id="useCurrentPuzzlePassage"/);
-assert.match(source, /id="puzzleCustomVersionSelect"/);
+assert.match(source, /settingsChoiceMarkup\("puzzleCustomVersionSelect"/);
 assert.match(source, /data-puzzle-custom-word/);
 assert.match(extractFunction("startWordSearchGame"), /customPassage/);
 assert.match(extractFunction("startCrosswordGame"), /customPassage/);

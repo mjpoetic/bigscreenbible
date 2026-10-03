@@ -12214,9 +12214,7 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
   const custom = state.puzzlePassageSource === "custom";
   const hiddenWord = gameType === "hidden-word";
   const version = puzzleCreatorVersion();
-  const versionOptions = bundledPuzzleVersions().map((code) => `
-    <option value="${code}" ${code === version ? "selected" : ""}>${translationDisplayCode(code)} · ${escapeHtml(translationLookup[code]?.name || code)}</option>
-  `).join("");
+  const versionChoices = bundledPuzzleVersions().map((code) => ({ value: code, label: `${translationDisplayCode(code)} · ${translationLookup[code]?.name || code}` }));
   const reviewVisible = custom && !evaluation.pending && Boolean(evaluation.candidates?.length);
   return `
     <section class="puzzle-creator" id="puzzleCreator" aria-labelledby="puzzleCreatorTitle">
@@ -12236,10 +12234,10 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
             <button class="ghost-btn" id="useCurrentPuzzlePassage" type="button" ${challengeSetupLock}>Use current</button>
           </div>
         </label>
-        <label class="puzzle-version-field" for="puzzleCustomVersionSelect">
+        <div class="puzzle-version-field game-option-field">
           <span>Puzzle translation</span>
-          <select id="puzzleCustomVersionSelect" ${challengeSetupLock}>${versionOptions}</select>
-        </label>
+          ${settingsChoiceMarkup("puzzleCustomVersionSelect", version, versionChoices, { ariaLabel: "Puzzle translation", disabled: Boolean(challengeSetupLock), wide: true })}
+        </div>
         <div class="puzzle-creator-status ${evaluation.valid ? "is-ready" : evaluation.pending ? "is-loading" : "is-error"}" id="puzzleCreatorStatus" role="status" aria-live="polite">
           ${puzzleCreatorStatusMarkup(evaluation)}
         </div>
@@ -14585,7 +14583,7 @@ function triviaView() {
   const isHiddenWord = state.triviaGameType === "hidden-word";
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
-  const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}" ${category === state.triviaCategory ? "selected" : ""}>${escapeHtml(category)}</option>`).join("");
+  const categoryChoices = categories.map((category) => ({ value: category, label: category }));
   const difficultyChoices = (isWordSearch ? wordSearchDifficulties() : isCrossword ? crosswordDifficulties() : isHiddenWord ? hiddenWordDifficulties() : triviaDifficulties()).map((difficulty) => {
     const label = isReferenceRush && difficulty === "All" ? "Progressive" : difficulty;
     return { value: difficulty, label };
@@ -14593,7 +14591,7 @@ function triviaView() {
   const countLabel = isBookSprint ? "rounds" : isVerseOrder || isReferenceRush ? "verses" : isHiddenWord ? "puzzles" : "questions";
   const countValues = isBookSprint ? bookSprintRoundLengths : triviaRoundLengths;
   const selectedCount = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
-  const countOptions = countValues.map((count) => `<option value="${count}" ${count === selectedCount ? "selected" : ""}>${count} ${countLabel}</option>`).join("");
+  const countChoices = countValues.map((count) => ({ value: String(count), label: `${count} ${countLabel}` }));
   const gameTitle = isVerseOrder ? "Verse Order" : isReferenceRush ? "Reference Rush" : isBookSprint ? "Book Sprint" : isWhoSaidIt ? "Who Said It?" : isWordSearch ? "Word Search" : isCrossword ? "Crossword" : isHiddenWord ? "Hidden Word" : "Bible Trivia";
   const bookSprintBest = isBookSprint ? savedBookSprintBest(state.triviaDifficulty, selectedCount) : null;
   const puzzleEvaluation = isWordSearch || isCrossword || isHiddenWord
@@ -14757,18 +14755,18 @@ function triviaView() {
                 <div class="games-drawer-scroll">
                   <p class="games-setup-help">${setupHelp}</p>
                   <div class="trivia-setup-controls ${isVerseOrder || isWordSearch || isCrossword ? "single-control" : isHiddenWord || isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
-                    <label class="${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword || isHiddenWord ? "is-hidden" : ""}">
+                    <div class="game-option-field ${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword || isHiddenWord ? "is-hidden" : ""}">
                       <span>Category</span>
-                      <select id="triviaCategorySelect" ${challengeSetupLock}>${categoryOptions}</select>
-                    </label>
-                    <label for="triviaDifficultySelectToggle" class="${isVerseOrder ? "is-hidden" : ""}">
+                      ${settingsChoiceMarkup("triviaCategorySelect", state.triviaCategory, categoryChoices, { ariaLabel: "Category", disabled: waitingForLiveChallenge })}
+                    </div>
+                    <div class="game-option-field ${isVerseOrder ? "is-hidden" : ""}">
                       <span>Difficulty</span>
                       ${settingsChoiceMarkup("triviaDifficultySelect", state.triviaDifficulty, difficultyChoices, { ariaLabel: "Difficulty", disabled: waitingForLiveChallenge })}
-                    </label>
-                    <label class="${isWordSearch || isCrossword ? "is-hidden" : ""}">
+                    </div>
+                    <div class="game-option-field ${isWordSearch || isCrossword ? "is-hidden" : ""}">
                       <span>Round length</span>
-                      <select id="triviaCountSelect" ${challengeSetupLock}>${countOptions}</select>
-                    </label>
+                      ${settingsChoiceMarkup("triviaCountSelect", selectedCount, countChoices, { ariaLabel: "Round length", disabled: waitingForLiveChallenge })}
+                    </div>
                   </div>
                   ${isWordSearch || isCrossword || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}

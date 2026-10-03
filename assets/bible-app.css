@@ -24222,3 +24222,7 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   line-height: 1.2;
   font-weight: 600;
 }
+
+.trivia-setup .game-option-field { display: grid; gap: 7px; min-width: 0; }
+.trivia-setup .game-option-field.is-hidden { display: none; }
+.trivia-setup .game-option-field > span { color: var(--gold); font-size: 12px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
