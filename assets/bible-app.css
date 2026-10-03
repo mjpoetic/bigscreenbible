@@ -2367,7 +2367,8 @@ button {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2393,7 +2394,8 @@ button {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -16828,7 +16830,8 @@ svg {
     width: auto;
     max-height: calc(100dvh - var(--settings-popover-top, 10px) - var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)) - 12px);
     overflow: auto;
-    scrollbar-gutter: stable;
+    scrollbar-gutter: auto;
+    scrollbar-width: thin;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel);
