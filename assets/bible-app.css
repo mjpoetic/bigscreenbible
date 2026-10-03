@@ -24235,20 +24235,25 @@ html[data-theme="dark"] .app-shell {
   .is-expanded-play .word-search-grid { width: min(100%, max(240px, calc(var(--games-viewport-height, 100dvh) - 270px)), 560px); }
 }
 
-/* Give landscape Word Search the full play height and a narrow word bank. */
+/* Center the full-height landscape board together with its narrow word bank. */
 @media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
   .is-expanded-play .word-search-game {
     position: relative;
+    container-type: size;
+    --word-search-bank-width: clamp(200px, 30vw, 300px);
+    --word-search-play-width: min(100cqw, calc(100cqh + var(--word-search-bank-width) + 12px));
     gap: 0;
   }
   .is-expanded-play .word-search-game .word-search-layout {
-    grid-template-columns: minmax(0, 1fr) clamp(150px, 24vw, 230px);
-    gap: 8px;
+    width: var(--word-search-play-width);
+    align-self: center;
+    grid-template-columns: minmax(0, 1fr) var(--word-search-bank-width);
+    gap: 12px;
   }
   .is-expanded-play .word-search-game .word-search-toolbar {
     position: absolute;
-    inset: 0 0 auto auto;
-    width: clamp(150px, 24vw, 230px);
+    inset: 0 calc((100cqw - var(--word-search-play-width)) / 2) auto auto;
+    width: var(--word-search-bank-width);
     flex-wrap: wrap;
     gap: 4px;
   }
@@ -24257,8 +24262,16 @@ html[data-theme="dark"] .app-shell {
     font-size: 11px;
   }
   .is-expanded-play .word-search-toolbar .word-search-timer {
-    min-height: 32px;
-    padding: 3px 6px;
+    min-height: 46px;
+    padding: 6px 10px;
+    column-gap: 10px;
+  }
+  .is-expanded-play .word-search-toolbar .word-search-timer strong {
+    font-size: 25px;
+  }
+  .is-expanded-play .word-search-toolbar .word-search-timer svg {
+    width: 26px;
+    height: 26px;
   }
   .is-expanded-play .word-search-game .word-search-board-shell {
     container-type: size;
@@ -24284,7 +24297,7 @@ html[data-theme="dark"] .app-shell {
     clip-path: inset(50%);
   }
   .is-expanded-play .word-search-game .word-search-sidebar {
-    padding-top: 64px;
+    padding-top: 78px;
     grid-template-rows: none;
     grid-auto-rows: max-content;
     gap: 6px;
@@ -24298,8 +24311,8 @@ html[data-theme="dark"] .app-shell {
   .is-expanded-play .word-search-instructions { display: none; }
   .is-expanded-play .word-search-list {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 8px;
     overflow: visible;
   }
   .is-expanded-play .word-search-list > span {
@@ -24310,6 +24323,10 @@ html[data-theme="dark"] .app-shell {
     background: transparent;
     font-size: 12px;
     line-height: 1.25;
+  }
+  .is-expanded-play .word-search-list > span > span:last-child {
+    overflow-wrap: anywhere;
+    text-overflow: clip;
   }
 }
 
