@@ -8074,7 +8074,14 @@ select {
   -webkit-overflow-scrolling: touch;
 }
 
+/* The board keeps a paper-and-ink palette in both app themes. */
 .crossword-grid {
+  --paper: #ffffff;
+  --ink: #17202e;
+  --muted: #526174;
+  --gold: #9c762c;
+  --teal: #355e78;
+  --success: #287346;
   --crossword-cell-size: clamp(32px, 3.45vw, 44px);
   display: grid;
   grid-template-columns: repeat(var(--crossword-columns), var(--crossword-cell-size));
@@ -23870,4 +23877,23 @@ html[data-theme="dark"] .app-shell {
   .trivia-panel.has-crossword .trivia-score-chip { padding-inline: 8px; font-size: 11px; }
   .crossword-game:not(.is-complete) .crossword-keyboard button { min-height: 32px; padding-block: 4px; }
   .crossword-game:not(.is-complete) .crossword-keyboard-toggle { min-height: 24px; font-size: 12px; }
+}
+
+/* Match the adjacent clue utility, with room around either toggle label. */
+.crossword-game:not(.is-complete) :is(.crossword-fit-toggle, .crossword-browse-toggle) {
+  box-sizing: border-box;
+  min-height: 44px;
+  height: 44px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  align-self: center;
+  justify-self: center;
+}
+@media (max-height: 480px) and (orientation: landscape) and (max-width: 1366px) {
+  .crossword-game:not(.is-complete) .crossword-fit-toggle { align-self: end; justify-self: start; }
+  .crossword-game:not(.is-complete) .crossword-browse-toggle { justify-self: start; }
 }
