@@ -24363,6 +24363,7 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   margin-top: 18px;
   color: var(--presentation-muted);
   font: 600 clamp(12px, 1.1vw, 18px) / 1.4 var(--ui-font);
+  animation: presentationContinuationFade 450ms ease-out 2.5s forwards;
 }
 
 .app-shell .passage-picker-workspace {
@@ -24377,4 +24378,15 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 }
 .app-shell.focus-shell .mobile-focus-passage-popover.has-inline-clear {
   grid-template-columns: minmax(0, 1fr) 40px 40px 36px auto;
+}
+
+/* Retain the cue's space so fading never shifts or resizes Scripture. */
+@keyframes presentationContinuationFade {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presentation-continuation-cue {
+    animation: presentationContinuationFade 1ms linear 2.5s forwards;
+  }
 }
