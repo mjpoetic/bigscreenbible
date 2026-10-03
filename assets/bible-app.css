@@ -24235,6 +24235,84 @@ html[data-theme="dark"] .app-shell {
   .is-expanded-play .word-search-grid { width: min(100%, max(240px, calc(var(--games-viewport-height, 100dvh) - 270px)), 560px); }
 }
 
+/* Give landscape Word Search the full play height and a narrow word bank. */
+@media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .word-search-game {
+    position: relative;
+    gap: 0;
+  }
+  .is-expanded-play .word-search-game .word-search-layout {
+    grid-template-columns: minmax(0, 1fr) clamp(150px, 24vw, 230px);
+    gap: 8px;
+  }
+  .is-expanded-play .word-search-game .word-search-toolbar {
+    position: absolute;
+    inset: 0 0 auto auto;
+    width: clamp(150px, 24vw, 230px);
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .is-expanded-play .word-search-game .word-search-toolbar .trivia-progress {
+    min-height: 18px;
+    font-size: 11px;
+  }
+  .is-expanded-play .word-search-toolbar .word-search-timer {
+    min-height: 32px;
+    padding: 3px 6px;
+  }
+  .is-expanded-play .word-search-game .word-search-board-shell {
+    container-type: size;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+  }
+  .is-expanded-play .word-search-grid {
+    width: min(100cqw, 100cqh);
+    height: min(100cqw, 100cqh);
+    justify-self: start;
+    align-self: start;
+  }
+  .is-expanded-play .word-search-cell {
+    font-size: clamp(12px, calc(min(100cqw, 100cqh) / var(--word-search-size) * .78), 40px);
+  }
+  .is-expanded-play .word-search-game .word-search-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .is-expanded-play .word-search-game .word-search-sidebar {
+    padding-top: 64px;
+    grid-template-rows: none;
+    grid-auto-rows: max-content;
+    gap: 6px;
+    overflow-y: auto;
+  }
+  .is-expanded-play .word-search-passage-heading {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .is-expanded-play .word-search-passage-heading > span { font-size: 10px; }
+  .is-expanded-play .word-search-instructions { display: none; }
+  .is-expanded-play .word-search-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    overflow: visible;
+  }
+  .is-expanded-play .word-search-list > span {
+    min-height: 20px;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+}
+
 .apple-account-btn { margin-top: 8px; }
 
 button.delete-account-button {
