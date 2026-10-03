@@ -103,3 +103,22 @@ assert.match(styles, /\.puzzle-word-choices \{[\s\S]*?overflow-y: auto;/);
 assert.match(styles, /\.puzzle-word-choice:has\(input:focus-visible\)/);
 
 console.log("Custom puzzle creator tests passed");
+
+const warningElements = {
+  puzzleStartWarning: { hidden: true },
+  puzzleStartWarningMessage: { textContent: "" },
+  gameOptionsToggle: { classList: { toggle(name, active) { this[name] = active; } } },
+};
+context.document = { getElementById: (id) => warningElements[id] };
+vm.runInContext(`${extractFunction("puzzleStartWarningMessage")}
+${extractFunction("updatePuzzleStartWarning")}`, context);
+const invalidPassage = { custom: true, valid: false, message: "Choose at least 8 usable words." };
+context.updatePuzzleStartWarning(context.puzzleStartWarningMessage(invalidPassage));
+assert.equal(warningElements.puzzleStartWarning.hidden, false);
+assert.equal(warningElements.puzzleStartWarningMessage.textContent, invalidPassage.message);
+assert.equal(warningElements.gameOptionsToggle.classList["needs-attention"], true);
+context.updatePuzzleStartWarning(context.puzzleStartWarningMessage({ custom: true, valid: true }));
+assert.equal(warningElements.puzzleStartWarning.hidden, true);
+assert.equal(warningElements.gameOptionsToggle.classList["needs-attention"], false);
+assert.equal(context.puzzleStartWarningMessage({ custom: false, valid: true }), "");
+console.log("Collapsed game options validation warning checks passed");

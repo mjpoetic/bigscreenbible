@@ -24232,3 +24232,27 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .trivia-setup .game-option-field > span { color: var(--gold); font-size: 12px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
 
 .account-card-signed-in .account-legal-links { justify-self: center; text-align: center; flex-wrap: wrap; }
+
+/* Keep passage validation visible when game options are collapsed. */
+.trivia-start:disabled {
+  background: var(--soft);
+  color: var(--muted, #666);
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.trivia-mobile-options.needs-attention {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.puzzle-start-warning {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.puzzle-start-warning[hidden] { display: none; }
+.puzzle-start-warning p { margin: 0 0 8px; }
+.puzzle-start-warning .ghost-btn { width: 100%; }

@@ -12265,10 +12265,32 @@ function persistPuzzleCreatorPreferences({ sync = true } = {}) {
   if (sync) scheduleCloudSync();
 }
 
+function puzzleStartWarningMessage(evaluation) {
+  return evaluation?.custom && !evaluation.valid
+    ? evaluation.message || "Choose a longer passage or adjust the selected words."
+    : "";
+}
+
+function updatePuzzleStartWarning(message = "") {
+  const warning = document.getElementById("puzzleStartWarning");
+  const copy = document.getElementById("puzzleStartWarningMessage");
+  if (warning) warning.hidden = !message;
+  if (copy) copy.textContent = message;
+  document.getElementById("gameOptionsToggle")?.classList.toggle("needs-attention", Boolean(message));
+}
+
+function reportPuzzleStartFailure(message) {
+  setGamesDrawer("options");
+  updatePuzzleStartWarning(message);
+  if (state.wordSearchSounds) playWordSearchFeedbackSound("mistake");
+  showToast(message);
+}
+
 function updatePuzzleCreatorDom() {
   const root = document.getElementById("puzzleCreator");
   if (!root || state.puzzlePassageSource !== "custom") return;
   const evaluation = puzzleCreatorEvaluation();
+  updatePuzzleStartWarning(puzzleStartWarningMessage(evaluation));
   const status = document.getElementById("puzzleCreatorStatus");
   if (status) {
     status.className = `puzzle-creator-status ${evaluation.valid ? "is-ready" : evaluation.pending ? "is-loading" : "is-error"}`;
@@ -14729,7 +14751,7 @@ function triviaView() {
               <div class="trivia-setup-content">
               <p class="trivia-setup-copy">${setupCopy}</p>
               <button
-                class="trivia-mobile-options ${state.gamesDrawerOpen === "options" ? "active" : ""}"
+                class="trivia-mobile-options ${puzzleStartDisabled ? "needs-attention" : ""} ${state.gamesDrawerOpen === "options" ? "active" : ""}"
                 id="gameOptionsToggle"
                 type="button"
                 aria-controls="gamesOptionsDrawer"
@@ -14832,7 +14854,11 @@ function triviaView() {
             <div class="trivia-start-dock">
               ${waitingForLiveChallenge
                 ? `<button class="primary-btn trivia-start" id="openGameSocialRoom" type="button">${icons.user}<span>Open waiting room</span></button>`
-                : `<button class="primary-btn trivia-start" id="startTriviaGame" ${puzzleStartDisabled ? 'disabled aria-disabled="true"' : ""}>${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : isHiddenWord ? icons.hiddenWord : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+                : `<button class="primary-btn trivia-start" id="startTriviaGame" aria-describedby="puzzleStartWarningMessage" ${puzzleStartDisabled ? 'disabled aria-disabled="true"' : ""}>${isVerseOrder ? icons.book : isReferenceRush ? icons.search : isBookSprint ? icons.timer : isWhoSaidIt ? icons.quote : isWordSearch ? icons.wordSearch : isCrossword ? icons.crossword : isHiddenWord ? icons.hiddenWord : icons.trivia}<span>Start ${gameTitle}</span></button>`}
+              <div class="puzzle-start-warning" id="puzzleStartWarning" ${puzzleStartDisabled ? "" : "hidden"}>
+                <p id="puzzleStartWarningMessage" role="status" aria-live="polite">${escapeHtml(puzzleStartWarningMessage(puzzleEvaluation))}</p>
+                <button class="ghost-btn" id="puzzleStartOptions" type="button">Update game options</button>
+              </div>
               <small>${escapeHtml(setupSummary)}</small>
             </div>
           </div>
@@ -19522,6 +19548,9 @@ function bindEvents() {
       try { localStorage.setItem("lw_scoreboard_visible", String(panel.open)); } catch {}
     });
   });
+  document.getElementById("puzzleStartOptions")?.addEventListener("click", () => {
+    setGamesDrawer("options");
+  });
   document.getElementById("gameOptionsToggle")?.addEventListener("click", () => {
     setGamesDrawer(state.gamesDrawerOpen === "options" ? "" : "options");
   });
@@ -20696,7 +20725,7 @@ function startHiddenWordGame({ render = true } = {}) {
   const customEvaluation = puzzleCreatorEvaluation("hidden-word", difficulty);
   const customPassage = Boolean(customEvaluation.custom);
   if (customPassage && !customEvaluation.valid) {
-    showToast(customEvaluation.message || "Choose a longer passage for Hidden Word.");
+    reportPuzzleStartFailure(customEvaluation.message || "Choose a longer passage for Hidden Word.");
     return;
   }
   const version = customPassage ? customEvaluation.version : wordSearchVersion();
@@ -20713,7 +20742,7 @@ function startHiddenWordGame({ render = true } = {}) {
     return true;
   }).slice(0, roundCount);
   if (selected.length < roundCount) {
-    showToast(customPassage
+    reportPuzzleStartFailure(customPassage
       ? `Choose a longer passage with at least ${roundCount} usable words for this round.`
       : "A Hidden Word round could not be built yet. Try another difficulty.");
     return;
@@ -20778,7 +20807,7 @@ function startWordSearchGame({ render = true } = {}) {
   const customEvaluation = puzzleCreatorEvaluation("word-search", difficulty);
   const customPassage = Boolean(customEvaluation.custom);
   if (customPassage && !customEvaluation.valid) {
-    showToast(customEvaluation.message || "Choose a longer passage for this Word Search.");
+    reportPuzzleStartFailure(customEvaluation.message || "Choose a longer passage for this Word Search.");
     return;
   }
   const version = customPassage ? customEvaluation.version : wordSearchVersion();
@@ -20809,7 +20838,7 @@ function startWordSearchGame({ render = true } = {}) {
     }
   }
   if (!selected || !generated) {
-    showToast(customPassage
+    reportPuzzleStartFailure(customPassage
       ? "Those passage words would not fit this grid. Review the words, choose a longer passage, or try another difficulty."
       : "A Word Search puzzle could not be built yet. Try another difficulty.");
     return;
@@ -20856,7 +20885,7 @@ function startCrosswordGame({ render = true } = {}) {
   const customEvaluation = puzzleCreatorEvaluation("crossword", difficulty);
   const customPassage = Boolean(customEvaluation.custom);
   if (customPassage && !customEvaluation.valid) {
-    showToast(customEvaluation.message || "Choose a longer passage for this Crossword.");
+    reportPuzzleStartFailure(customEvaluation.message || "Choose a longer passage for this Crossword.");
     return;
   }
   const version = customPassage ? customEvaluation.version : wordSearchVersion();
@@ -20877,7 +20906,7 @@ function startCrosswordGame({ render = true } = {}) {
     }
   }
   if (!selected || !generated) {
-    showToast(customPassage
+    reportPuzzleStartFailure(customPassage
       ? "A connected Crossword could not be built from those words. Allow more words, choose a longer passage, or try another difficulty."
       : "A Crossword puzzle could not be built yet. Try another difficulty.");
     return;
