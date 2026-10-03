@@ -706,3 +706,43 @@ html[data-control-material="glass"] .search-scope-divider { margin: 10px 12px 2p
 html[data-control-material="glass"] .search-scope-divider::before,
 html[data-control-material="glass"] .search-scope-divider::after { display: none; }
 .search-scope-option-check svg { width: 18px; height: 18px; }
+
+/* Welcome and guided tour cards float above the interface as one glass layer. */
+html[data-control-material="glass"] :is(.tutorial-welcome-card, .tutorial-card) {
+  border: 1px solid var(--glass-edge);
+  border-radius: 28px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-solid) 88%, transparent);
+  color: var(--glass-ink);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+html[data-control-material="glass"] :is(.tutorial-welcome-card, .tutorial-card) .tutorial-actions button,
+html[data-control-material="glass"] .tutorial-close {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--glass-ink);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+  min-height: 44px;
+}
+html[data-control-material="glass"] :is(.tutorial-welcome-card, .tutorial-card) .tutorial-actions .primary-btn {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+  box-shadow: var(--glass-shadow);
+}
+html[data-control-material="glass"] .tutorial-close { width: 44px; height: 44px; }
+html[data-control-material="glass"] .tutorial-card h2 { padding-right: 36px; }
+html[data-control-material="glass"] .tutorial-dots span {
+  border: 1px solid var(--glass-edge);
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] .tutorial-dots span.active { background: var(--teal); }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  html[data-control-material="glass"] :is(.tutorial-welcome-card, .tutorial-card) {
+    background: var(--glass-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
