@@ -23515,12 +23515,12 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   z-index: 40;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.20) 0%, rgb(0 0 0 / 0.12) 30%, rgb(0 0 0 / 0.04) 65%, transparent 100%);
+  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.38) 0%, rgb(0 0 0 / 0.24) 30%, rgb(0 0 0 / 0.08) 65%, transparent 100%);
   transition: opacity 160ms ease;
 }
 .reading-control-mist.is-idle { transition: opacity 1.2s ease-in-out; }
 html[data-theme="light"] .reading-control-mist {
-  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.10) 0%, rgb(0 0 0 / 0.06) 30%, rgb(0 0 0 / 0.02) 65%, transparent 100%);
+  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.24) 0%, rgb(0 0 0 / 0.15) 30%, rgb(0 0 0 / 0.05) 65%, transparent 100%);
 }
 @media (prefers-reduced-motion: reduce) {
   .reading-control-mist, .reading-control-mist.is-idle { transition: none; }
