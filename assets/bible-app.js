@@ -7383,12 +7383,8 @@ function versePickerPanel() {
   const chapterKeys = currentBookChapterKeys();
   return `
     <div class="select-row">
-      <select id="chapterSelect">
-        ${chapterKeys.map((key) => `<option ${key === state.reference ? "selected" : ""}>${key}</option>`).join("")}
-      </select>
-      <select id="verseSelect">
-        ${currentChapter().verses.map((verse) => `<option ${verse.n === state.verse ? "selected" : ""}>${verse.n}</option>`).join("")}
-      </select>
+      ${settingsChoiceMarkup("chapterSelect", state.reference, chapterKeys.map((key) => ({ value: key, label: key })), { ariaLabel: "Chapter" })}
+      ${settingsChoiceMarkup("verseSelect", state.verse, currentChapter().verses.map((verse) => ({ value: String(verse.n), label: String(verse.n) })), { ariaLabel: "Verse" })}
     </div>
     <div class="testament-groups">
       ${testamentGroups.map(([label, group]) => `
@@ -27446,7 +27442,7 @@ function clamp(value, min, max) {
 
 function focusWorkspaceTarget(target) {
   const focusMap = {
-    Verse: "#chapterSelect",
+    Verse: "#chapterSelectToggle",
     Search: "#studySearchInput",
     Notes: "#notesSection",
     Annotations: "#notesSection",
