@@ -790,6 +790,7 @@ const state = {
   presentationVideoUrl: normalizePresentationVideoUrl(localStorage.getItem("lw_presentation_video_url")),
   presentationVideoDim: normalizePresentationVideoDim(localStorage.getItem("lw_presentation_video_dim")),
   presentationVideoBlur: normalizePresentationVideoBlur(localStorage.getItem("lw_presentation_video_blur")),
+  presentationStarCount: normalizePresentationStarCount(localStorage.getItem("lw_presentation_star_count")),
   presentationMotionIntensity: normalizePresentationMotionIntensity(localStorage.getItem("lw_presentation_motion_intensity")),
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
@@ -10986,6 +10987,7 @@ function captureCloudSnapshot() {
       presentationVideoUrl: state.presentationVideoUrl,
       presentationVideoDim: state.presentationVideoDim,
       presentationVideoBlur: state.presentationVideoBlur,
+      presentationStarCount: state.presentationStarCount,
       presentationMotionIntensity: state.presentationMotionIntensity,
       presentationTextScale: state.presentationTextScale,
       startBigScreen: state.startBigScreen,
@@ -11243,6 +11245,7 @@ function applyCloudSnapshot(snapshot) {
   state.presentationVideoUrl = normalizePresentationVideoUrl(settings.presentationVideoUrl ?? localStorage.getItem("lw_presentation_video_url"));
   state.presentationVideoDim = normalizePresentationVideoDim(settings.presentationVideoDim ?? localStorage.getItem("lw_presentation_video_dim"));
   state.presentationVideoBlur = normalizePresentationVideoBlur(settings.presentationVideoBlur ?? localStorage.getItem("lw_presentation_video_blur"));
+  state.presentationStarCount = normalizePresentationStarCount(settings.presentationStarCount ?? localStorage.getItem("lw_presentation_star_count"));
   state.presentationMotionIntensity = normalizePresentationMotionIntensity(settings.presentationMotionIntensity ?? localStorage.getItem("lw_presentation_motion_intensity"));
   state.presentationTextScale = clampPresentationTextScale(
     Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
@@ -11354,6 +11357,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_presentation_video_url", String(state.presentationVideoUrl));
   localStorage.setItem("lw_presentation_video_dim", String(state.presentationVideoDim));
   localStorage.setItem("lw_presentation_video_blur", String(state.presentationVideoBlur));
+  localStorage.setItem("lw_presentation_star_count", String(state.presentationStarCount));
   localStorage.setItem("lw_presentation_motion_intensity", state.presentationMotionIntensity);
   localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
   localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
@@ -17640,6 +17644,11 @@ function normalizePresentationBackgroundMotion(value) {
   return ["flow", "stars", "vapor", "video"].includes(value) ? value : "off";
 }
 
+function normalizePresentationStarCount(value) {
+  if (value == null || value === "" || !Number.isFinite(Number(value))) return 32;
+  return Math.round(clamp(Number(value), 8, 160));
+}
+
 function normalizePresentationMotionIntensity(value) {
   return ["medium", "strong"].includes(value) ? value : "subtle";
 }
@@ -17704,12 +17713,12 @@ function presentationBackgroundMotionMarkup() {
   const flowDuration = { subtle: 32, medium: 18, strong: 10 }[intensity];
   const starSpeed = { subtle: 1, medium: 0.65, strong: 0.4 }[intensity];
   const stars = state.presentationBackgroundMotion === "stars"
-    ? Array.from({ length: 32 }, (_, index) => {
+    ? Array.from({ length: normalizePresentationStarCount(state.presentationStarCount) }, (_, index) => {
       const duration = (5 + (index % 5)) * starSpeed;
-      return `<i style="left:${(index * 37 + 11) % 100}%;top:${(index * 53 + 7) % 100}%;--star-size:${index % 3 === 0 ? 3 : 2}px;--star-duration:${duration}s;--star-delay:-${(elapsed + index * 1.7) % duration}s"></i>`;
+      return `<i style="left:${((index * 61.8034 + 11) % 100).toFixed(2)}%;top:${((index * 41.4214 + 7) % 100).toFixed(2)}%;--star-size:${index % 3 === 0 ? 3 : 2}px;--star-duration:${duration}s;--star-delay:-${(elapsed + index * 1.7) % duration}s"></i>`;
     }).join("")
     : "";
-  return `<div class="presentation-motion" data-motion="${state.presentationBackgroundMotion}" data-intensity="${state.presentationMotionIntensity}" aria-hidden="true" style="--flow-duration:${flowDuration}s;--flow-delay:-${elapsed % flowDuration}s">${state.presentationBackgroundMotion === "vapor" ? "<b></b><b></b><b></b>" : stars}</div>`;
+  return `<div class="presentation-motion" data-motion="${state.presentationBackgroundMotion}" data-intensity="${state.presentationMotionIntensity}" aria-hidden="true" style="--flow-duration:${flowDuration}s;--flow-delay:-${elapsed % flowDuration}s">${state.presentationBackgroundMotion === "vapor" ? "<b></b><b></b><b></b>" : stars}</div>${["flow", "vapor"].includes(state.presentationBackgroundMotion) ? '<div class="presentation-motion-shade" aria-hidden="true"></div>' : ""}`;
 }
 
 function presentationSettingsPanelMarkup(version, customFontField = "") {
@@ -17792,6 +17801,10 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         ${settingsChoiceMarkup("presentationMotionIntensitySelect", state.presentationMotionIntensity, [
           { value: "subtle", label: "Subtle" }, { value: "medium", label: "Medium" }, { value: "strong", label: "Strong" },
         ], { label: "Motion intensity", ariaLabel: "Motion intensity", selectClass: "presentation-theme-select" })}
+      </div>` : ""}
+      ${state.presentationBackgroundMotion === "stars" ? `<div class="presentation-star-settings">
+        <label for="presentationStarCount">Number of stars <output>${state.presentationStarCount}</output></label>
+        <input id="presentationStarCount" type="range" min="8" max="160" step="1" value="${state.presentationStarCount}" />
       </div>` : ""}
       ${state.presentationBackgroundMotion === "video" ? `<div class="presentation-video-settings">
         <label for="presentationVideoUrl">Direct video URL</label>
@@ -19887,6 +19900,18 @@ function bindEvents() {
     localStorage.setItem("lw_presentation_motion_intensity", state.presentationMotionIntensity);
     scheduleCloudSync();
     render();
+  });
+  document.getElementById("presentationStarCount")?.addEventListener("input", (event) => {
+    state.presentationStarCount = normalizePresentationStarCount(event.target.value);
+    localStorage.setItem("lw_presentation_star_count", String(state.presentationStarCount));
+    document.querySelector('label[for="presentationStarCount"] output').textContent = String(state.presentationStarCount);
+    const layer = document.querySelector('.presentation-motion[data-motion="stars"]');
+    if (layer) {
+      const template = document.createElement("template");
+      template.innerHTML = presentationBackgroundMotionMarkup();
+      layer.replaceWith(template.content.firstElementChild);
+    }
+    scheduleCloudSync();
   });
   document.getElementById("presentationVideoApply")?.addEventListener("click", () => {
     const input = document.getElementById("presentationVideoUrl");

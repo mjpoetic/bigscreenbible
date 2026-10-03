@@ -23629,15 +23629,17 @@ html[data-theme="dark"] .app-shell {
   pointer-events: none;
   opacity: 0.24;
   /* Keep the brightest motion at the edges, away from central Scripture. */
-  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, #000 85%);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, #000 85%);
+  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.35) 55%, #000 100%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.35) 55%, #000 100%);
 }
 .presentation-motion[data-intensity="medium"] { opacity: 0.4; }
 .presentation-motion[data-intensity="strong"] { opacity: 0.58; }
 .presentation-motion[data-motion="flow"]::before {
   content: "";
   position: absolute;
-  inset: -30%;
+  inset: -60%;
+  mask-image: radial-gradient(ellipse, #000 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse, #000 30%, transparent 70%);
   background:
     radial-gradient(ellipse at 20% 35%, var(--presentation-accent), transparent 48%),
     radial-gradient(ellipse at 80% 65%, currentColor, transparent 45%);
@@ -23655,8 +23657,8 @@ html[data-theme="dark"] .app-shell {
   animation-delay: var(--star-delay);
 }
 @keyframes presentation-light-flow {
-  0%, 100% { transform: translate(-14%, -9%) rotate(-14deg) scale(1); }
-  50% { transform: translate(14%, 9%) rotate(14deg) scale(1.2); }
+  0%, 100% { transform: translate(-10%, -7%) scale(1); }
+  50% { transform: translate(10%, 7%) scale(1.12); }
 }
 @keyframes presentation-star-glow {
   0%, 100% { opacity: 0.12; transform: scale(0.8); }
@@ -23691,3 +23693,15 @@ html[data-theme="dark"] .app-shell {
   .presentation-motion b { animation: none !important; }
   .presentation-video-slot { display: none; }
 }
+
+/* A stationary contrast wash covers bright motion while Scripture remains above it. */
+.presentation-motion-shade {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.48) 0%, rgba(0,0,0,.32) 55%, rgba(0,0,0,.12) 100%);
+}
+.presentation:is([data-presentation-theme="paper"], [data-presentation-theme="dawn"], [data-presentation-theme="meadow"], [data-presentation-theme="blush"], [data-presentation-theme="lavender"], [data-presentation-theme="sapphire"]) .presentation-motion-shade {
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.48) 0%, rgba(255,255,255,.32) 55%, rgba(255,255,255,.12) 100%);
+}
+.presentation-star-settings { display: grid; gap: 10px; min-width: 0; }
+.presentation-star-settings input { width: 100%; }
+@media print { .presentation-motion-shade { display: none !important; } }

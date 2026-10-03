@@ -226,9 +226,10 @@ for (const height of [220, 500]) {
 
 console.log("Presentation display tests passed");
 
-const motionContext = { state: { mode: "big", presentationBackgroundMotion: "off", presentationMotionIntensity: "subtle" }, performance: { now: () => 12500 } };
+const motionContext = { clamp: (value, min, max) => Math.min(max, Math.max(min, value)), state: { mode: "big", presentationBackgroundMotion: "off", presentationMotionIntensity: "subtle" }, performance: { now: () => 12500 } };
 vm.createContext(motionContext);
 vm.runInContext(`${extractFunction("normalizePresentationBackgroundMotion")}
+${extractFunction("normalizePresentationStarCount")}
 ${extractFunction("normalizePresentationMotionIntensity")}
 ${extractFunction("presentationBackgroundMotionMarkup")}
 globalThis.normalizeMotion = normalizePresentationBackgroundMotion; globalThis.motionMarkup = presentationBackgroundMotionMarkup;`, motionContext);
@@ -268,3 +269,12 @@ assert.equal(videoContext.blur(null), 4);
 assert.equal(videoContext.blur(100), 20);
 assert.match(extractFunction("render"), /syncPresentationVideo\(previousVideo\)/);
 console.log("Presentation video source and readability tests passed");
+
+motionContext.state.presentationBackgroundMotion = "stars";
+for (const [requested, expected] of [[8, 8], [80, 80], [160, 160], [999, 160], [0, 8]]) {
+  motionContext.state.presentationStarCount = requested;
+  assert.equal((motionContext.motionMarkup().match(/<i style=/g) || []).length, expected);
+}
+assert.match(extractFunction("captureCloudSnapshot"), /presentationStarCount: state.presentationStarCount/);
+assert.match(extractFunction("applyCloudSnapshot"), /state.presentationStarCount = normalizePresentationStarCount/);
+assert.match(extractFunction("persistCloudSnapshotLocally"), /lw_presentation_star_count/);
