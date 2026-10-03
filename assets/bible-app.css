@@ -9391,6 +9391,27 @@ select {
   margin: clamp(18px, 5vh, 64px) auto 0;
 }
 
+.verse-of-day-reference-picker {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.verse-of-day-reference-picker:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.verse-of-day-reference-picker:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 5px;
+  border-radius: 2px;
+}
+
 .verse-of-day-copy {
   margin: 0;
   font: 400 calc(clamp(27px, 3.4vw, 46px) * var(--text-scale, 1)) / 1.55 var(--scripture-font);

@@ -80,7 +80,60 @@ assert.deepEqual(Array.from(context.state.selectedVerses), [4, 6]);
 assert.match(extractFunction("currentPresentationParts"), /verseOfDayPresentationPages\(\)\.map/);
 assert.match(extractFunction("moveVerse"), /if \(state\.isVerseOfDayActive\) return;/);
 assert.match(extractFunction("openVerseOfDayInReader"), /selectVerseOfDayReference\(reference\)/);
-assert.match(extractFunction("presentation"), /presentation-verse-of-day-reference/);
+assert.match(extractFunction("verseOfDayReaderView"), /data-passage-picker/);
+for (const type of ["book", "chapter", "verse"]) {
+  assert.match(extractFunction("presentation"), new RegExp(`presentationReferencePicker\\("${type}"`));
+}
+assert.doesNotMatch(extractFunction("presentation"), /presentation-verse-of-day-reference/);
 assert.match(extractFunction("presentation"), /Verse \$\{part\.verseIndex \+ 1\} of \$\{part\.verseCount\}/);
+
+// The shared selectors must leave the daily verse sequence and navigate in place.
+const selectionHandlers = {};
+const navigationContext = {
+  state: {},
+  bibleData: {
+    "Romans 12": { verses: [{ n: 4 }, { n: 6 }, { n: 7 }] },
+    "Romans 13": { verses: [{ n: 1 }] },
+    "John 1": { verses: [{ n: 1 }] },
+  },
+  document: {
+    querySelectorAll(selector) {
+      const type = selector.match(/data-presentation-(\w+)-option/)[1];
+      const values = { book: "John", chapter: "13", verse: "7" };
+      return [{
+        dataset: { [`presentation${type[0].toUpperCase()}${type.slice(1)}Option`]: values[type] },
+        addEventListener(event, handler) { selectionHandlers[type] = handler; },
+      }];
+    },
+  },
+  focusVersePickerChapterNumbers: () => [1],
+  currentBookName: () => "Romans",
+  currentChapter: () => navigationContext.bibleData[navigationContext.state.reference],
+  pushCurrentReturnTargetForNavigation() {},
+  recordHistory() {},
+  render() {},
+};
+vm.createContext(navigationContext);
+const handlersStart = source.indexOf('  document.querySelectorAll("[data-presentation-book-option]")');
+const handlersEnd = source.indexOf('  document.getElementById("presentationBackgroundMotionSelect")', handlersStart);
+vm.runInContext(source.slice(handlersStart, handlersEnd), navigationContext);
+for (const [type, expectedReference, expectedVerse] of [
+  ["book", "John 1", 1],
+  ["chapter", "Romans 13", 1],
+  ["verse", "Romans 12", 7],
+]) {
+  navigationContext.state = {
+    mode: "big", reference: "Romans 12", verse: 6,
+    isVerseOfDayActive: true, verseOfDayItem: item, presentationPart: 1,
+    presentationReferenceMenuOpen: type,
+  };
+  selectionHandlers[type]();
+  assert.equal(navigationContext.state.reference, expectedReference);
+  assert.equal(navigationContext.state.verse, expectedVerse);
+  assert.equal(navigationContext.state.isVerseOfDayActive, false);
+  assert.equal(navigationContext.state.presentationPart, 0);
+  assert.equal(navigationContext.state.presentationReferenceMenuOpen, "");
+  assert.equal(navigationContext.state.mode, "big");
+}
 
 console.log("Verse of the Day presentation tests passed");

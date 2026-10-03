@@ -11841,7 +11841,7 @@ function verseOfDayReaderView() {
   if (!item) return "";
   return `
     <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
-      <h1 class="section-title" id="verseOfDayReference">${escapeHtml(verseOfDayReferenceLabel(item))}</h1>
+      <h1 class="section-title" id="verseOfDayReference"><button class="verse-of-day-reference-picker" type="button" data-passage-picker aria-label="Choose passage, currently ${escapeHtml(verseOfDayReferenceLabel(item))}" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}">${escapeHtml(verseOfDayReferenceLabel(item))}</button></h1>
       <p class="verse-of-day-copy">${verseOfDayVerseEntries(item).map((entry) => escapeHtml(entry.text)).join(" ")}</p>
       <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
         <span aria-hidden="true">${icons.book}</span>
@@ -18345,13 +18345,11 @@ function presentation(accountPanelRerender = false) {
         </div>
         <div class="presentation-ref ${paginated ? "paginated" : ""}">
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
-            ${verseOfDayItem
-              ? `<span class="presentation-verse-of-day-reference">${escapeHtml(part.reference)}</span>`
-              : `${presentationReferencePicker("book", availableBooks, presentationBook)}
-                <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
-                ${presentationReferencePicker("chapter", chapters, presentationChapter)}
-                <span class="presentation-reference-colon" aria-hidden="true">:</span>
-                ${presentationReferencePicker("verse", verses, state.verse)}`}
+            ${presentationReferencePicker("book", availableBooks, presentationBook)}
+            <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
+            ${presentationReferencePicker("chapter", chapters, presentationChapter)}
+            <span class="presentation-reference-colon" aria-hidden="true">:</span>
+            ${presentationReferencePicker("verse", verses, state.verse)}
             <button class="ghost-btn presentation-reference-share presentation-reference-share-inline" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
           ${presentationVersionPicker("title", version)}
@@ -19103,7 +19101,9 @@ function bindEvents() {
       initializeFocusVersePickerDraft();
       state.focusVersePickerAnchor = button.closest(".topbar")
         ? ".topbar [data-passage-picker]"
-        : ".mobile-floating-passage";
+        : button.closest(".verse-of-day-reader")
+          ? ".verse-of-day-reader [data-passage-picker]"
+          : ".mobile-floating-passage";
       state.focusWorkspacePanel = "Verse";
       state.focusReferenceOpen = false;
       state.focusSearchResultsOpen = false;
