@@ -457,6 +457,7 @@ let lastReaderViewportSize = null;
 const modeScrollStates = new Map();
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
+let focusSearchLastTapAt = null;
 let focusControlsHideTimer = 0;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
@@ -18529,6 +18530,20 @@ function bindEvents() {
   document.getElementById("mobileSettingsClose")?.addEventListener("click", closeSettingsPopover);
   document.getElementById("mobileFocusPassageToggle")?.addEventListener("click", (event) => {
     event.stopPropagation();
+    // Persist across renders: the first tap replaces this button in #app.
+    const tappedAt = event.timeStamp;
+    const doubleTap = focusSearchLastTapAt !== null
+      && tappedAt - focusSearchLastTapAt >= 0
+      && tappedAt - focusSearchLastTapAt <= 350;
+    focusSearchLastTapAt = doubleTap ? null : tappedAt;
+    if (doubleTap) {
+      state.focusReferenceOpen = false;
+      state.focusSearchResultsOpen = false;
+      resetFocusToolSurfaces();
+      renderPreservingReaderScroll();
+      openQuickActionSearch();
+      return;
+    }
     state.focusReferenceOpen = !state.focusReferenceOpen;
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
