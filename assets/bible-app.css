@@ -24391,3 +24391,10 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
     animation: presentationContinuationFade 1ms linear 2.5s forwards;
   }
 }
+
+/* The search-bar picker replaces the Focus tools picker outside mobile portrait. */
+@media (min-width: 841px), (orientation: landscape) {
+  .app-shell.focus-shell :is(.desktop-focus-tool-option, .mobile-focus-tool-option)[data-focus-workspace="Verse"] {
+    display: none;
+  }
+}
