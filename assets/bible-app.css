@@ -20702,6 +20702,102 @@ svg {
   display: contents;
 }
 
+/* Keep desktop answers beside long passages within the available play area. */
+@media (min-width: 841px) and (min-height: 721px), (min-width: 1367px) {
+  .app-shell.trivia-shell:has(.is-expanded-play .reference-rush-game) {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .trivia-reader.is-expanded-play:has(.reference-rush-game) {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .is-expanded-play .trivia-panel:has(.reference-rush-game) {
+    display: flex;
+    flex-direction: column;
+    width: min(1240px, calc(100% - 32px));
+    height: calc(100% - 32px);
+    min-height: 0;
+    margin: 16px auto;
+    padding: clamp(16px, 2vw, 28px);
+  }
+
+  .is-expanded-play .trivia-panel:has(.reference-rush-game) .trivia-header {
+    flex: 0 0 auto;
+    padding-bottom: 12px;
+  }
+
+  .is-expanded-play .reference-rush-game {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 12px;
+    padding-top: 12px;
+  }
+
+  .is-expanded-play .reference-rush-game > :not(.reference-rush-stage) { flex: 0 0 auto; }
+
+  .is-expanded-play .reference-rush-game .reference-rush-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(240px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+    gap: 12px 20px;
+  }
+
+  .is-expanded-play .reference-rush-game .reference-rush-stage-main {
+    display: grid;
+    grid-column: 1;
+    grid-row: 1 / -1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .is-expanded-play .reference-rush-game .reference-rush-stage-side {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .is-expanded-play .reference-rush-game .reference-rush-timer-meter {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    padding: 0;
+  }
+
+  .is-expanded-play .reference-rush-game .reference-rush-prompt {
+    align-content: start;
+    padding: clamp(16px, 2vw, 26px);
+  }
+
+  .is-expanded-play .reference-rush-game .reference-rush-prompt p {
+    font-size: clamp(22px, 2.1vw, 32px);
+    line-height: 1.35;
+  }
+
+  .is-expanded-play .reference-rush-game .trivia-choices {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .is-expanded-play .reference-rush-game .trivia-choice {
+    min-height: 52px;
+    padding: 12px 16px;
+    font-size: 18px;
+  }
+}
+
 .trivia-mode-picker {
   position: relative;
   display: block;
