@@ -13103,21 +13103,12 @@ function createCrosswordGrid(words, size, entryCount, verses = []) {
 
 function crosswordClueForWord(verses, answer, hiddenAnswers = []) {
   const pattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "i");
-  const replacementPattern = new RegExp(`\\b${escapeRegExp(answer)}\\b`, "gi");
   const verse = verses.find((candidate) => pattern.test(candidate.text));
   if (!verse) return `${answer.length} letters from this passage.`;
   const match = verse.text.match(pattern);
   const matchIndex = match?.index || 0;
   let start = Math.max(0, matchIndex - 58);
   let end = Math.min(verse.text.length, matchIndex + answer.length + 76);
-  (hiddenAnswers || []).forEach((hiddenAnswer) => {
-    const hiddenPattern = new RegExp(`\\b${escapeRegExp(hiddenAnswer)}\\b`, "gi");
-    for (const hiddenMatch of verse.text.matchAll(hiddenPattern)) {
-      const hiddenIndex = hiddenMatch.index || 0;
-      if (hiddenIndex < matchIndex) start = Math.max(start, hiddenIndex + hiddenMatch[0].length);
-      if (hiddenIndex > matchIndex) end = Math.min(end, hiddenIndex);
-    }
-  });
   if (start > 0) {
     const nextSpace = verse.text.indexOf(" ", start);
     if (nextSpace >= 0 && nextSpace < matchIndex) start = nextSpace + 1;
@@ -13126,7 +13117,19 @@ function crosswordClueForWord(verses, answer, hiddenAnswers = []) {
     const nextSpace = verse.text.lastIndexOf(" ", end);
     if (nextSpace > matchIndex) end = nextSpace;
   }
-  const excerpt = verse.text.slice(start, end).replace(replacementPattern, "_____");
+  const hiddenWords = new Set((hiddenAnswers || []).map((word) => word.toUpperCase()));
+  const maskAnswers = (text) => text.replace(/[A-Za-z]+/g, (word) => {
+    if (word.toUpperCase() === answer.toUpperCase()) return "_____";
+    return hiddenWords.has(word.toUpperCase()) ? "[…]" : word;
+  });
+  let excerpt = maskAnswers(verse.text.slice(start, end));
+  // Short snippets can lose all their context when neighboring answers are
+  // concealed. Keep the entire verse rather than making the player guess blind.
+  if ((excerpt.match(/[A-Za-z]+/g) || []).length < 5) {
+    start = 0;
+    end = verse.text.length;
+    excerpt = maskAnswers(verse.text);
+  }
   return `Verse ${verse.n}: ${start > 0 ? "…" : ""}${excerpt}${end < verse.text.length ? "…" : ""}`;
 }
 
@@ -21072,7 +21075,7 @@ function startCrosswordGame({ render = true } = {}) {
   }
   const entries = generated.entries.map((entry) => {
     const hiddenAnswers = generated.entries
-      .filter((candidate) => candidate !== entry && candidate.verse?.n === entry.verse?.n)
+      .filter((candidate) => candidate !== entry)
       .map((candidate) => candidate.word);
     return {
       ...entry,

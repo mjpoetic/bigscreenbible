@@ -241,7 +241,7 @@ assert.equal(
 );
 for (const entry of matthewPuzzle.entries) {
   const hiddenAnswers = matthewPuzzle.entries
-    .filter((candidate) => candidate !== entry && candidate.verse?.n === entry.verse?.n)
+    .filter((candidate) => candidate !== entry)
     .map((candidate) => candidate.word);
   const clue = api.crosswordClueForWord([entry.verse], entry.word, hiddenAnswers);
   hiddenAnswers.forEach((hiddenAnswer) => {
@@ -300,7 +300,7 @@ assert.match(extractFunction("puzzleCreatorEvaluation"), /const defaultCount = g
 assert.match(extractFunction("startCrosswordGame"), /orderedWordSearchPassages\(\)/);
 assert.match(extractFunction("startCrosswordGame"), /crosswordClueForWord/);
 assert.match(extractFunction("startCrosswordGame"), /createCrosswordGrid\(option\.words, config\.size, config\.entryCount, option\.verses\)/);
-assert.match(extractFunction("startCrosswordGame"), /candidate\.verse\?\.n === entry\.verse\?\.n/);
+assert.match(extractFunction("startCrosswordGame"), /candidate !== entry/);
 assert.match(extractFunction("startCrosswordGame"), /recordWordSearchPassage/);
 assert.match(extractFunction("triviaGameView"), /crosswordGameView/);
 assert.match(extractFunction("crosswordGameView"), /role="grid"/);
@@ -455,3 +455,19 @@ assert.equal(clueContext.crosswordGridZoomAvailable(44, true), false, 'Comfortab
 assert.equal(clueContext.crosswordGridZoomAvailable(60, true), false);
 assert.equal(clueContext.crosswordGridZoomAvailable(60, false), true, 'Portrait keeps zoom available');
 console.log('Crossword landscape zoom availability passed');
+
+const proverbsClue = api.crosswordClueForWord([
+  { n: 6, text: "In all your ways acknowledge Him, and He will make your paths straight." },
+], "STRAIGHT", ["PATHS", "ACKNOWLEDGE", "WAYS"]);
+assert.match(proverbsClue, /He will make your/);
+assert.match(proverbsClue, /_____/);
+assert.match(proverbsClue, /\[…\]/);
+assert.doesNotMatch(proverbsClue, /\b(straight|paths|acknowledge|ways)\b/i);
+assert.ok((proverbsClue.replace(/^Verse \d+:/, '').match(/[A-Za-z]+/g) || []).length >= 5);
+const adjacentAnswerClue = api.crosswordClueForWord([
+  { n: 5, text: "Trust in the LORD with all your heart and lean not on your own understanding." },
+], "UNDERSTANDING", ["OWN", "HEART", "TRUST", "LEAN"]);
+assert.match(adjacentAnswerClue, /not on your/);
+assert.doesNotMatch(adjacentAnswerClue, /\b(own|heart|trust|lean|understanding)\b/i);
+assert.match(extractFunction("startCrosswordGame"), /filter\(\(candidate\) => candidate !== entry\)/, 'Every other puzzle answer is concealed, regardless of its assigned verse');
+console.log('Crossword clue context and answer concealment passed');
