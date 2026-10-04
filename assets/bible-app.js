@@ -921,6 +921,7 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
+  crosswordClueSize: Math.max(14, Math.min(24, Number(localStorage.getItem("lw_crossword_clue_size")) || 16)),
   crosswordKeyboardVisible: localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false",
   hiddenWordKeyboardVisible: localStorage.getItem(hiddenWordKeyboardVisibleStorageKey) !== "false",
   wordSearchRecentPassages: savedWordSearchRecentPassages(),
@@ -14930,6 +14931,7 @@ function triviaView() {
                       ${settingsChoiceMarkup("triviaCountSelect", selectedCount, countChoices, { ariaLabel: "Round length", disabled: waitingForLiveChallenge })}
                     </div>
                   </div>
+                  ${isCrossword ? crosswordClueSizeMarkup() : ""}
                   ${isWordSearch || isCrossword || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
                   ${isReferenceRush ? `
@@ -14992,6 +14994,7 @@ function triviaView() {
                 <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close game controls">${icons.clear}</button>
               </div>
               <div class="games-drawer-scroll games-active-controls" id="gamesActiveControlsBody">
+                ${isCrossword ? crosswordClueSizeMarkup() : ""}
                 <div class="game-music-drawer-control">${gameMusicToggleMarkup("gameMusicDrawerToggle")}</div>
                 <button class="book-sprint-sound-toggle" id="gameFeedbackSoundsToggle" type="button" aria-pressed="${state.wordSearchSounds}" aria-label="Sound effects">
                   <span class="book-sprint-sound-icon" aria-hidden="true">${icons.games}</span>
@@ -15339,7 +15342,7 @@ function crosswordGameView(game) {
     </button>
   `).join("");
   return `
-    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}">
+    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}" style="--crossword-clue-size:${state.crosswordClueSize || 16}px">
       <div class="crossword-toolbar word-search-toolbar">
         <div class="trivia-progress">
           <span>Crossword · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
@@ -19699,6 +19702,9 @@ function bindEvents() {
   document.getElementById("puzzleStartOptions")?.addEventListener("click", () => {
     setGamesDrawer("options");
   });
+  document.querySelectorAll("[data-crossword-clue-size]").forEach((button) => {
+    button.addEventListener("click", () => adjustCrosswordClueSize(Number(button.dataset.crosswordClueSize)));
+  });
   document.getElementById("gameOptionsToggle")?.addEventListener("click", () => {
     setGamesDrawer(state.gamesDrawerOpen === "options" ? "" : "options");
   });
@@ -22813,7 +22819,39 @@ function moveCrosswordSelection(rowDelta, columnDelta) {
   selectCrosswordCell(row, column);
 }
 
+function crosswordClueSizeMarkup() {
+  return `<div class="game-option-field crossword-clue-size-option">
+                    <span>Clue text size</span>
+                    <div class="crossword-clue-size-controls" role="group" aria-label="Clue text size">
+                      <button class="ghost-btn" type="button" data-crossword-clue-size="-2" aria-label="Decrease clue text size">A−</button>
+                      <output id="crosswordClueSizeValue">${state.crosswordClueSize}px</output>
+                      <button class="ghost-btn" type="button" data-crossword-clue-size="2" aria-label="Increase clue text size">A+</button>
+                    </div>
+                    <small>Shift + to enlarge · Shift − to shrink · Shift 0 to reset</small>
+                  </div>`;
+}
+
+function adjustCrosswordClueSize(delta, { reset = false } = {}) {
+  state.crosswordClueSize = reset ? 16 : Math.max(14, Math.min(24, (state.crosswordClueSize || 16) + delta));
+  localStorage.setItem("lw_crossword_clue_size", String(state.crosswordClueSize));
+  document.querySelector(".crossword-game")?.style.setProperty("--crossword-clue-size", `${state.crosswordClueSize}px`);
+  const value = document.getElementById("crosswordClueSizeValue");
+  if (value) value.textContent = `${state.crosswordClueSize}px`;
+}
+
+function handleCrosswordClueSizeShortcut(event) {
+  if (state.mode !== "trivia" || state.triviaGame?.type !== "crossword"
+    || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return false;
+  if (!["Equal", "Minus", "Digit0"].includes(event.code)) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  adjustCrosswordClueSize(event.code === "Minus" ? -2 : 2, { reset: event.code === "Digit0" });
+  return true;
+}
+
 function handleCrosswordKeydown(event) {
+  if (handleCrosswordClueSizeShortcut(event)) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (/^[a-z]$/i.test(event.key)) {
     event.preventDefault();
     event.stopPropagation();
@@ -22889,8 +22927,15 @@ function bindCrosswordGrid() {
     const game = state.triviaGame;
     const mobile = window.matchMedia("(max-width: 840px), (max-height: 720px) and (max-width: 1366px)").matches;
     if (!mobile) { grid.style.removeProperty("--crossword-cell-size"); return; }
+    const landscape = window.matchMedia("(orientation: landscape)").matches;
+    if (landscape) {
+      fitScroll.classList.remove("is-enlarged");
+      const toggle = document.getElementById("crosswordFitToggle");
+      toggle?.setAttribute("aria-pressed", "false");
+      if (toggle) toggle.textContent = "Larger grid";
+    }
     const size = Math.min((fitScroll.clientWidth - 8) / game.columns, (fitScroll.clientHeight - 8) / game.rows);
-    if (size > 0) grid.style.setProperty("--crossword-cell-size", `${fitScroll.classList.contains("is-enlarged") ? Math.max(36, size) : size}px`);
+    if (size > 0) grid.style.setProperty("--crossword-cell-size", `${fitScroll.classList.contains("is-enlarged") ? Math.max(44, size * 1.5) : size}px`);
   };
   const observer = new ResizeObserver(fitGrid);
   observer.observe(fitScroll);
@@ -27233,6 +27278,7 @@ function handleGamesEscapeKeydown(event) {
 
 function handleGlobalShortcuts(event) {
   if (document.getElementById("bestTimeCelebration")?.open) return;
+  if (handleCrosswordClueSizeShortcut(event)) return;
   const key = event.key.toLowerCase();
   const modifiedSlash = (event.metaKey || event.ctrlKey) && event.key === "/";
   const typing = isTypingTarget(event.target);
