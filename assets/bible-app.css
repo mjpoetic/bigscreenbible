@@ -24185,8 +24185,8 @@ html[data-theme="dark"] .app-shell {
   .is-expanded-play .games-play-menu .games-menu-control { flex-shrink: 0; }
 }
 @media (max-width: 840px) and (orientation: portrait) {
-  .is-expanded-play .reference-rush-stage { display: flex; flex-direction: column; flex: 1; }
-  .is-expanded-play .reference-rush-stage-main { flex: 1; overflow-y: auto; }
+  .is-expanded-play .reference-rush-stage { display: flex; flex-direction: column; flex: 0 0 auto; gap: 12px; }
+  .is-expanded-play .reference-rush-stage-main { flex: 0 0 auto; overflow: visible; }
   .is-expanded-play .reference-rush-stage-side { flex: 0 0 auto; overflow: visible; }
   .is-expanded-play :is(.reference-rush-game, .who-said-it-game) { display: flex; flex-direction: column; overflow-y: auto; }
   .is-expanded-play .book-sprint-instructions { -webkit-line-clamp: unset; }
@@ -24206,9 +24206,25 @@ html[data-theme="dark"] .app-shell {
   .is-expanded-play .reference-rush-prompt span { flex-shrink: 0; }
 }
 @media (max-width: 840px) and (orientation: portrait) {
-  .is-expanded-play .reference-rush-prompt { justify-content: safe center; }
+  .is-expanded-play .reference-rush-prompt { justify-content: flex-start; padding: 16px 18px; }
+  .is-expanded-play .reference-rush-stage .trivia-choices { gap: 10px; }
+  .is-expanded-play .reference-rush-stage .trivia-choice {
+    min-height: 68px;
+    padding: 14px 16px;
+    font-size: clamp(18px, 4.8vw, 22px);
+    line-height: 1.3;
+  }
   .is-expanded-play .trivia-choices.has-short-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .is-expanded-play .trivia-choices.has-short-choices .trivia-choice { min-height: 60px; }
+  .is-expanded-play .reference-rush-stage .trivia-choices.has-short-choices .trivia-choice { min-height: 68px; }
+}
+@media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .reference-rush-stage .trivia-choice {
+    min-height: 58px;
+    padding: 12px 14px;
+    font-size: clamp(16px, 1.9vw, 19px);
+    line-height: 1.3;
+  }
 }
 .games-used-hint { display: none; }
 @media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
