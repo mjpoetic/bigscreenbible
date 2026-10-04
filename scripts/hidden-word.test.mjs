@@ -138,7 +138,7 @@ assert.match(styles, /@media \(orientation: landscape\) and \(max-width: 1366px\
 console.log("Hidden Word checks passed");
 
 // Exercise scoring through real guesses/hints, including repeat inputs and completion guards.
-const scoring = vm.createContext({ scheduleCloudSync() {}, Date: { now: () => 20000 }, state: {}, localStorage: { data: {}, getItem(key) { return this.data[key] || null; }, setItem(key, value) { this.data[key] = value; } }, hiddenWordBestStorageKey: 'scores', puzzleBestKey: (difficulty, context) => `${difficulty}:${context.customPassage ? context.reference : 'mix'}`, renderPreservingReaderScroll() {}, playWordSearchFeedbackSound() {}, normalizeWordSearchWord: (s) => s.toUpperCase(), shuffleItems: (items) => items, hiddenWordHintTypes: ['context', 'letter'] });
+const scoring = vm.createContext({ scheduleCloudSync() {}, Date: { now: () => 20000 }, state: {}, localStorage: { data: {}, getItem(key) { return this.data[key] || null; }, setItem(key, value) { this.data[key] = value; } }, hiddenWordBestStorageKey: 'scores', puzzleBestKey: (difficulty, context) => `${difficulty}:${context.customPassage ? context.reference : 'mix'}`, renderPreservingReaderScroll() {}, renderHiddenWordGuess() {}, playWordSearchFeedbackSound() {}, normalizeWordSearchWord: (s) => s.toUpperCase(), shuffleItems: (items) => items, hiddenWordHintTypes: ['context', 'letter'] });
 for (const name of ['compareGamePoints', 'perfectTimeBonus', 'hiddenWordAnswerLetters', 'hiddenWordCurrentRound', 'hiddenWordIsSolved', 'hiddenWordHintsRemaining', 'hiddenWordHintOptions', 'finishHiddenWordRound', 'guessHiddenWordLetter', 'useHiddenWordHint', 'savedHiddenWordBests', 'savedHiddenWordScores', 'recordHiddenWordBest']) vm.runInContext(extractFunction(name), scoring);
 function scoringGame(startedAt = 19000) {
   const round = { word: 'AB', startedAt, guessedLetters: [], missedLetters: [], hintedLetters: [], maxMisses: 2 };
@@ -173,3 +173,39 @@ assert.equal(scoring.savedHiddenWordScores('Hard', 1).length, 0);
 assert.equal(scoring.savedHiddenWordScores('Medium', 5).length, 0);
 assert.equal(scoring.savedHiddenWordScores('Medium', 1, { customPassage: true, reference: 'John 1' }).length, 0);
 console.log('Hidden Word scoring and leaderboard checks passed');
+
+// Device input must open synchronously from a tap and collapse the custom keys.
+const input = { id: "hiddenWordNativeInput", value: "A", focus() { focused = true; } };
+let focused = false;
+let keyboardVisible = true;
+const keyboardContext = vm.createContext({
+  document: { getElementById: () => input },
+  hiddenWordCurrentRound: () => ({ complete: false }),
+  setHiddenWordKeyboardVisible: (visible) => { keyboardVisible = visible; },
+});
+vm.runInContext(extractFunction("focusHiddenWordNativeInput"), keyboardContext);
+keyboardContext.focusHiddenWordNativeInput();
+assert.equal(focused, true, "Tapping the answer must focus the device input");
+assert.equal(keyboardVisible, false, "Device input must hide the on-screen keys");
+assert.equal(input.value, "");
+assert.doesNotMatch(source, /hiddenWordDeviceKeyboard/, "No separate device-keyboard button is needed");
+assert.match(styles, /\.is-expanded-play \.hidden-word-attempts \{[^}]*grid-template-columns: minmax\(0, 1fr\);/, "Expanded play must use the full width for its combined scroll");
+
+// Rebuilding after a guess must restore device focus only for active rounds.
+let restoredFocus = 0;
+let roundComplete = false;
+const renderContext = vm.createContext({
+  document: {
+    activeElement: { id: "hiddenWordNativeInput" },
+    getElementById: () => ({ focus() { restoredFocus += 1; } }),
+  },
+  hiddenWordCurrentRound: () => ({ complete: roundComplete }),
+  renderPreservingReaderScroll() {},
+});
+vm.runInContext(extractFunction("renderHiddenWordGuess"), renderContext);
+renderContext.renderHiddenWordGuess();
+assert.equal(restoredFocus, 1, "Typing must restore focus after a guess");
+roundComplete = true;
+renderContext.renderHiddenWordGuess();
+assert.equal(restoredFocus, 1, "Finished rounds must dismiss device input");
+console.log("Hidden Word device keyboard checks passed");

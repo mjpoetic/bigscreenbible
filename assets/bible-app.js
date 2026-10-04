@@ -2108,7 +2108,7 @@ function deferViewportRefreshForActiveInput() {
   if (scriptureSearchOwnsViewport()) return true;
   // Crossword already fits its existing grid to viewport changes. Rebuilding
   // it on Android IME inset events detaches the input and closes the keyboard.
-  if (document.activeElement?.id === "crosswordNativeInput") {
+  if (["crosswordNativeInput", "hiddenWordNativeInput"].includes(document.activeElement?.id)) {
     clearTimeout(presentationResizeTimer);
     return true;
   }
@@ -15799,7 +15799,6 @@ function hiddenWordGameView(game) {
           </div>
           <div class="hidden-word-keyboard-controls">
             <button class="text-btn" id="hiddenWordKeyboardToggle" type="button" aria-controls="hiddenWordKeyboard" aria-expanded="${state.hiddenWordKeyboardVisible}">${state.hiddenWordKeyboardVisible ? "Hide keyboard" : "Show keyboard"}</button>
-            <button class="text-btn hidden-word-device-keyboard" id="hiddenWordDeviceKeyboard" type="button" ${round.complete ? "disabled" : ""}>Use device keyboard</button>
           </div>
           <input class="hidden-word-native-input" id="hiddenWordNativeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Type Hidden Word letters" ${round.complete ? "disabled" : ""} />
         </section>
@@ -23240,6 +23239,16 @@ function finishHiddenWordRound(game, round, solved) {
   }
 }
 
+function renderHiddenWordGuess() {
+  const usingDeviceKeyboard = document.activeElement?.id === "hiddenWordNativeInput";
+  renderPreservingReaderScroll();
+  // Restore focus synchronously within the typing event, before viewport
+  // callbacks run, so the device input stays ready for the next letter.
+  if (usingDeviceKeyboard && !hiddenWordCurrentRound()?.complete) {
+    document.getElementById("hiddenWordNativeInput")?.focus({ preventScroll: true });
+  }
+}
+
 function guessHiddenWordLetter(value) {
   const game = state.triviaGame;
   const round = hiddenWordCurrentRound(game);
@@ -23247,7 +23256,7 @@ function guessHiddenWordLetter(value) {
   if (!game || !round || round.complete || !/^[A-Z]$/.test(letter)) return;
   if (round.guessedLetters.includes(letter) || round.missedLetters.includes(letter)) {
     round.lastMessage = `${letter} was already tried. Choose another letter.`;
-    renderPreservingReaderScroll();
+    renderHiddenWordGuess();
     return;
   }
   if (round.word.includes(letter)) {
@@ -23263,7 +23272,7 @@ function guessHiddenWordLetter(value) {
     if (!attemptsLeft) finishHiddenWordRound(game, round, false);
     else round.lastMessage = `${letter} is not in the puzzle. ${attemptsLeft} ${attemptsLeft === 1 ? "attempt" : "attempts"} left.`;
   }
-  renderPreservingReaderScroll();
+  renderHiddenWordGuess();
 }
 
 function useHiddenWordHint(type) {
@@ -23319,6 +23328,7 @@ function setHiddenWordKeyboardVisible(visible) {
 function focusHiddenWordNativeInput() {
   const input = document.getElementById("hiddenWordNativeInput");
   if (!input || hiddenWordCurrentRound()?.complete) return;
+  setHiddenWordKeyboardVisible(false);
   input.value = "";
   input.focus({ preventScroll: true });
 }
@@ -23344,9 +23354,10 @@ function bindHiddenWordGame() {
     button.addEventListener("click", () => guessHiddenWordLetter(button.dataset.hiddenWordKey));
   });
   document.getElementById("hiddenWordAnswer")?.addEventListener("click", focusHiddenWordNativeInput);
-  document.getElementById("hiddenWordDeviceKeyboard")?.addEventListener("click", focusHiddenWordNativeInput);
   document.getElementById("hiddenWordKeyboardToggle")?.addEventListener("click", () => {
-    setHiddenWordKeyboardVisible(!state.hiddenWordKeyboardVisible);
+    const visible = !state.hiddenWordKeyboardVisible;
+    if (visible) document.getElementById("hiddenWordNativeInput")?.blur();
+    setHiddenWordKeyboardVisible(visible);
   });
   const nativeInput = document.getElementById("hiddenWordNativeInput");
   nativeInput?.addEventListener("keydown", handleHiddenWordKeydown);
