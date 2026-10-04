@@ -8126,7 +8126,7 @@ select {
   top: 2px;
   left: 3px;
   color: var(--muted);
-  font-size: clamp(7px, 0.75vw, 10px);
+  font-size: clamp(10px, calc(var(--crossword-cell-size) * .28), 14px);
   font-weight: 900;
   line-height: 1;
 }
@@ -24609,7 +24609,6 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   .crossword-game:not(.is-complete) .crossword-toolbar-controls { position: relative; height: 44px; pointer-events: none; }
   .crossword-game:not(.is-complete) .crossword-menu-control { position: absolute; left: 0; pointer-events: auto; }
   .crossword-game:not(.is-complete) .word-search-timer { position: absolute; left: 50%; transform: translateX(-50%); pointer-events: auto; }
-  .crossword-game:not(.is-complete) .crossword-fit-toggle { display: none; }
   .crossword-game:not(.is-complete) .crossword-browse-toggle {
     grid-column: 2; justify-self: start; width: auto; padding-inline: 18px;
   }
@@ -24668,7 +24667,7 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
     grid-column: 2 / -1; grid-row: 2;
     display: flex; justify-content: center; gap: 16px; padding: 0;
   }
-  .crossword-game:not(.is-complete) .crossword-utilities .crossword-fit-toggle { display: none; }
+  .crossword-game:not(.is-complete) .crossword-utilities .crossword-fit-toggle { display: block; }
   .crossword-game:not(.is-complete) .crossword-utilities .crossword-input-controls { flex: 0 0 auto; }
   .crossword-game:not(.is-complete) .crossword-utilities :is(.crossword-browse-toggle, .crossword-keyboard-toggle) {
     min-height: 44px; padding-inline: 14px;
@@ -24689,5 +24688,14 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   .crossword-game:not(.is-complete) .crossword-play:has(.crossword-keyboard[hidden]) .crossword-active-clue span {
     font-size: calc(var(--crossword-clue-size, 15px) + 1px);
     -webkit-line-clamp: 4;
+  }
+}
+
+.crossword-cell small { color: var(--ink); }
+.crossword-fit-toggle:disabled { opacity: .45; cursor: default; }
+@media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
+  .crossword-game:not(.is-complete) .crossword-utilities { gap: 8px; }
+  .crossword-game:not(.is-complete) .crossword-utilities :is(.crossword-fit-toggle, .crossword-browse-toggle, .crossword-keyboard-toggle) {
+    padding-inline: 10px; font-size: 12px;
   }
 }

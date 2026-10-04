@@ -447,3 +447,11 @@ assert.equal(prevented, true);
 assert.equal(clueContext.state.crosswordClueSize, 15);
 assert.equal(clueContext.handleCrosswordClueSizeShortcut({ shiftKey: true, ctrlKey: true, code: 'Equal' }), false);
 console.log('Crossword clue size controls and shortcuts passed');
+
+vm.runInContext(extractFunction("crosswordGridZoomAvailable"), clueContext);
+assert.equal(clueContext.crosswordGridZoomAvailable(20, true), true, 'Dense landscape grids can zoom');
+assert.equal(clueContext.crosswordGridZoomAvailable(43, true), true);
+assert.equal(clueContext.crosswordGridZoomAvailable(44, true), false, 'Comfortably sized landscape cells disable zoom');
+assert.equal(clueContext.crosswordGridZoomAvailable(60, true), false);
+assert.equal(clueContext.crosswordGridZoomAvailable(60, false), true, 'Portrait keeps zoom available');
+console.log('Crossword landscape zoom availability passed');

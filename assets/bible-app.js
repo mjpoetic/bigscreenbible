@@ -15409,7 +15409,7 @@ function crosswordGameView(game) {
               <div data-crossword-list="down" hidden>${clueGroup("down")}</div>
             </div>
             <div class="crossword-utilities">
-            <button type="button" class="text-btn crossword-fit-toggle" id="crosswordFitToggle" aria-pressed="false">Larger grid</button>
+            <button type="button" class="text-btn crossword-fit-toggle" id="crosswordFitToggle" aria-pressed="false">Zoom Grid</button>
             <button type="button" class="text-btn crossword-browse-toggle" id="crosswordBrowseToggle" aria-expanded="false" aria-controls="crosswordClueBrowser">Clues</button>
           `}
           <div class="crossword-input-controls">
@@ -22920,6 +22920,10 @@ function setCrosswordClueBrowserOpen(open) {
   }
 }
 
+function crosswordGridZoomAvailable(fittedCellSize, landscape) {
+  return !landscape || fittedCellSize < 44;
+}
+
 function bindCrosswordGrid() {
   const grid = document.getElementById("crosswordGrid");
   if (!grid || state.triviaGame?.complete) return;
@@ -22930,13 +22934,18 @@ function bindCrosswordGrid() {
     const mobile = window.matchMedia("(max-width: 840px), (max-height: 720px) and (max-width: 1366px)").matches;
     if (!mobile) { grid.style.removeProperty("--crossword-cell-size"); return; }
     const landscape = window.matchMedia("(orientation: landscape)").matches;
-    if (landscape) {
-      fitScroll.classList.remove("is-enlarged");
-      const toggle = document.getElementById("crosswordFitToggle");
-      toggle?.setAttribute("aria-pressed", "false");
-      if (toggle) toggle.textContent = "Larger grid";
-    }
     const size = Math.min((fitScroll.clientWidth - 8) / game.columns, (fitScroll.clientHeight - 8) / game.rows);
+    if (size <= 0) return;
+    const zoomAvailable = crosswordGridZoomAvailable(size, landscape);
+    if (!zoomAvailable) fitScroll.classList.remove("is-enlarged");
+    const toggle = document.getElementById("crosswordFitToggle");
+    const enlarged = fitScroll.classList.contains("is-enlarged");
+    if (toggle) {
+      toggle.disabled = !zoomAvailable;
+      toggle.textContent = enlarged ? "Fit Grid" : "Zoom Grid";
+      toggle.setAttribute("aria-pressed", String(enlarged));
+      toggle.title = zoomAvailable ? "Enlarge the grid; scroll to see more squares" : "Grid squares are already large enough";
+    }
     if (size > 0) grid.style.setProperty("--crossword-cell-size", `${fitScroll.classList.contains("is-enlarged") ? Math.max(44, size * 1.5) : size}px`);
   };
   const observer = new ResizeObserver(fitGrid);
@@ -22958,7 +22967,7 @@ function bindCrosswordGrid() {
   viewportChanged();
   document.getElementById("crosswordFitToggle")?.addEventListener("click", (event) => {
     const enlarged = fitScroll.classList.toggle("is-enlarged");
-    event.currentTarget.textContent = enlarged ? "Fit grid" : "Larger grid";
+    event.currentTarget.textContent = enlarged ? "Fit Grid" : "Zoom Grid";
     event.currentTarget.setAttribute("aria-pressed", String(enlarged));
     fitGrid();
     updateCrosswordDom();
