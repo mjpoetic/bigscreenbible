@@ -921,6 +921,7 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
+  crosswordMode: localStorage.getItem("lw_crossword_mode") === "trivia" ? "trivia" : "scripture",
   crosswordClueSize: Math.max(14, Math.min(24, Number(localStorage.getItem("lw_crossword_clue_size")) || 15)),
   crosswordKeyboardVisible: localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false",
   hiddenWordKeyboardVisible: localStorage.getItem(hiddenWordKeyboardVisibleStorageKey) !== "false",
@@ -12158,7 +12159,7 @@ function resetPuzzleCustomWordChoices() {
 }
 
 function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = state.triviaDifficulty) {
-  if (state.puzzlePassageSource !== "custom" || !["word-search", "crossword", "hidden-word"].includes(gameType)) {
+  if ((gameType === "crossword" && state.crosswordMode === "trivia") || state.puzzlePassageSource !== "custom" || !["word-search", "crossword", "hidden-word"].includes(gameType)) {
     return { custom: false, valid: true, title: "Surprise passage", message: "A passage will be selected for you." };
   }
   const pack = parsePuzzlePassageReference(state.puzzleCustomReference);
@@ -12911,6 +12912,94 @@ function quizAnswerPoints(question) {
   return gamePointsReward((question.points || 0) - (question.hintUsed ? 100 : 0), question.points === 1000 && !question.hintUsed ? "" : `${question.scoreSummary || ""}${question.hintUsed ? " · Hint −100" : ""}`);
 }
 
+// Standalone clues: references are revealed only after completion.
+const crosswordTriviaCatalog = [
+  { answer: "EVE", clue: "The first woman.", reference: "Genesis 3:20" },
+  { answer: "ADAM", clue: "The first man.", reference: "Genesis 2:7" },
+  { answer: "NOAH", clue: "Built the vessel that carried his family through the great flood.", reference: "Genesis 6:13-22" },
+  { answer: "ABRAHAM", clue: "Patriarch whose name means father of many nations.", reference: "Genesis 17:5" },
+  { answer: "SARAH", clue: "Mother of the promised son, born when she was ninety.", reference: "Genesis 17:15-19" },
+  { answer: "ISAAC", clue: "Son whose name recalls laughter at an unexpected birth.", reference: "Genesis 21:3-6" },
+  { answer: "JACOB", clue: "Patriarch renamed Israel after wrestling through the night.", reference: "Genesis 32:28" },
+  { answer: "JOSEPH", clue: "Dream interpreter sold by his brothers and later made a ruler in Egypt.", reference: "Genesis 37:28; 41:39-41" },
+  { answer: "MOSES", clue: "Led the Israelites out of Egypt and received the Ten Commandments.", reference: "Exodus 3:10; 31:18" },
+  { answer: "AARON", clue: "First high priest of Israel.", reference: "Exodus 28:1" },
+  { answer: "MIRIAM", clue: "Prophetess who led women with tambourines after the sea crossing.", reference: "Exodus 15:20" },
+  { answer: "JOSHUA", clue: "Leader who brought Israel into the promised land after the wilderness.", reference: "Joshua 1:1-6" },
+  { answer: "RAHAB", clue: "Woman who sheltered two spies and placed a scarlet cord in her window.", reference: "Joshua 2:1-21" },
+  { answer: "RUTH", clue: "Moabite widow who vowed to stay with her mother-in-law.", reference: "Ruth 1:16" },
+  { answer: "NAOMI", clue: "Widow who asked to be called Mara because her life had become bitter.", reference: "Ruth 1:20" },
+  { answer: "BOAZ", clue: "Kinsman who married a Moabite widow after redeeming her family land.", reference: "Ruth 4:9-13" },
+  { answer: "SAMUEL", clue: "Prophet who heard a divine call as a boy serving in the sanctuary.", reference: "1 Samuel 3:1-10" },
+  { answer: "SAUL", clue: "First king of Israel.", reference: "1 Samuel 10:24" },
+  { answer: "DAVID", clue: "Young shepherd who defeated a giant with a sling and stone.", reference: "1 Samuel 17:49-50" },
+  { answer: "GOLIATH", clue: "Philistine champion defeated by a young shepherd.", reference: "1 Samuel 17:4-50" },
+  { answer: "SOLOMON", clue: "King who asked for wisdom rather than riches.", reference: "1 Kings 3:5-12" },
+  { answer: "ELIJAH", clue: "Prophet taken up to heaven in a whirlwind.", reference: "2 Kings 2:11" },
+  { answer: "ELISHA", clue: "Prophet who made an iron axe head float.", reference: "2 Kings 6:6" },
+  { answer: "JONAH", clue: "Prophet who spent three days inside a great fish.", reference: "Jonah 1:17" },
+  { answer: "DANIEL", clue: "Prophet kept safe in a den of lions.", reference: "Daniel 6:22" },
+  { answer: "ESTHER", clue: "Queen who risked her life to save her people.", reference: "Esther 4:16" },
+  { answer: "JOB", clue: "Suffering man whose friends sat silently with him for seven days.", reference: "Job 2:11-13" },
+  { answer: "EZRA", clue: "Scribe who read the Law aloud to the assembled people.", reference: "Nehemiah 8:1-3" },
+  { answer: "NEHEMIAH", clue: "Cupbearer who led the rebuilding of the walls of the holy city.", reference: "Nehemiah 2:1-18" },
+  { answer: "MARY", clue: "Mother who laid her newborn son in a manger.", reference: "Luke 2:7" },
+  { answer: "PETER", clue: "Disciple who denied his teacher three times before the rooster crowed.", reference: "Luke 22:54-62" },
+  { answer: "THOMAS", clue: "Disciple who wanted to see the nail marks before believing in the resurrection.", reference: "John 20:24-29" },
+  { answer: "JUDAS", clue: "Disciple who betrayed his teacher for thirty pieces of silver.", reference: "Matthew 26:14-16" },
+  { answer: "PAUL", clue: "Apostle formerly known as a persecutor named Saul.", reference: "Acts 9:1-20; 13:9" },
+  { answer: "STEPHEN", clue: "Believer stoned after seeing heaven opened.", reference: "Acts 7:55-60" },
+  { answer: "LAZARUS", clue: "Man raised from the dead after four days in a tomb.", reference: "John 11:17-44" },
+  { answer: "ZACCHAEUS", clue: "Short tax collector who climbed a sycamore tree.", reference: "Luke 19:2-4" },
+  { answer: "MARTHA", clue: "Sister distracted by preparations while her sibling listened to their guest.", reference: "Luke 10:38-42" },
+  { answer: "BARNABAS", clue: "Apostolic companion whose name means son of encouragement.", reference: "Acts 4:36" },
+  { answer: "TIMOTHY", clue: "Young ministry companion whose mother and grandmother were praised for their faith.", reference: "2 Timothy 1:5" },
+  { answer: "EDEN", clue: "Garden that was humanity's first home.", reference: "Genesis 2:8" },
+  { answer: "BABEL", clue: "City where the builders' language was confused.", reference: "Genesis 11:9" },
+  { answer: "EGYPT", clue: "Land where the Israelites endured slavery before their exodus.", reference: "Exodus 1:13-14" },
+  { answer: "SINAI", clue: "Mountain where the Law was given to Israel.", reference: "Exodus 19:20; 20:1-17" },
+  { answer: "JERICHO", clue: "City whose walls fell after a shout and trumpet blasts.", reference: "Joshua 6:20" },
+  { answer: "BETHLEHEM", clue: "Town where the Messiah was born.", reference: "Matthew 2:1" },
+  { answer: "NAZARETH", clue: "Town where the Messiah grew up.", reference: "Luke 2:39-40" },
+  { answer: "JERUSALEM", clue: "City where the early believers gathered at Pentecost.", reference: "Acts 2:1-5" },
+  { answer: "JORDAN", clue: "River crossed on dry ground into the promised land.", reference: "Joshua 3:17" },
+  { answer: "NINEVEH", clue: "Great city whose people repented after a reluctant prophet preached.", reference: "Jonah 3:1-10" },
+  { answer: "DAMASCUS", clue: "City approached by a persecutor when a heavenly light stopped him.", reference: "Acts 9:3" },
+  { answer: "PATMOS", clue: "Island where the final biblical book's visions were received.", reference: "Revelation 1:9" },
+  { answer: "ARK", clue: "Large vessel built to survive the great flood.", reference: "Genesis 6:14" },
+  { answer: "MANNA", clue: "Food provided from heaven during the wilderness journey.", reference: "Exodus 16:15" },
+  { answer: "QUAIL", clue: "Birds provided as meat during the wilderness journey.", reference: "Exodus 16:13" },
+  { answer: "DOVE", clue: "Bird that returned with a freshly picked olive leaf.", reference: "Genesis 8:11" },
+  { answer: "RAINBOW", clue: "Sign of the covenant after the great flood.", reference: "Genesis 9:13" },
+  { answer: "SABBATH", clue: "Weekly day set apart for rest.", reference: "Exodus 20:8-10" },
+  { answer: "PASSOVER", clue: "Festival recalling deliverance from slavery in the land of the pharaohs.", reference: "Exodus 12:11-14" },
+  { answer: "PENTECOST", clue: "Day when the Spirit came with a sound like a mighty wind.", reference: "Acts 2:1-4" },
+  { answer: "MANGER", clue: "Feeding trough used as a newborn's resting place.", reference: "Luke 2:7" },
+  { answer: "FRANKINCENSE", clue: "Aromatic resin brought by the wise men alongside gold and myrrh.", reference: "Matthew 2:11" },
+  { answer: "MYRRH", clue: "Fragrant substance brought by the wise men alongside gold and frankincense.", reference: "Matthew 2:11" },
+  { answer: "FIG", clue: "Kind of tree whose leaves were sewn into coverings in the first garden.", reference: "Genesis 3:7" },
+  { answer: "LIONS", clue: "Animals whose mouths were shut to protect a man in their den.", reference: "Daniel 6:22" },
+  { answer: "RAVENS", clue: "Birds that brought a prophet food by a brook.", reference: "1 Kings 17:6" },
+  { answer: "DONKEY", clue: "Animal that spoke to a prophet on the road.", reference: "Numbers 22:28" },
+  { answer: "SERPENT", clue: "Crafty animal that tempted the woman in the first garden.", reference: "Genesis 3:1" },
+  { answer: "FISH", clue: "Creature that swallowed a reluctant prophet.", reference: "Jonah 1:17" },
+  { answer: "SHEEP", clue: "Animal sought by a shepherd who left ninety-nine behind.", reference: "Luke 15:4" },
+  { answer: "SALT", clue: "Seasoning used as an image of the disciples' role in the earth.", reference: "Matthew 5:13" },
+  { answer: "LIGHT", clue: "What believers must let shine before others.", reference: "Matthew 5:16" },
+  { answer: "VINE", clue: "Plant to which the teacher compared himself, with his followers as branches.", reference: "John 15:5" },
+  { answer: "WINE", clue: "Drink produced from water at a wedding.", reference: "John 2:9" },
+  { answer: "CROSS", clue: "Wooden instrument of the crucifixion.", reference: "John 19:17-18" },
+  { answer: "TOMB", clue: "Burial place found empty on the first day of the week.", reference: "John 20:1-8" },
+  { answer: "LOVE", clue: "The greatest of the three enduring virtues.", reference: "1 Corinthians 13:13" },
+  { answer: "FAITH", clue: "Being sure of what we hope for and certain of what we do not see.", reference: "Hebrews 11:1" },
+  { answer: "HOPE", clue: "The middle virtue in the trio that ends with the greatest one.", reference: "1 Corinthians 13:13" },
+  { answer: "GRACE", clue: "Unmerited divine favor through which believers are saved.", reference: "Ephesians 2:8" },
+  { answer: "MERCY", clue: "Compassion promised to those who show compassion to others.", reference: "Matthew 5:7" },
+  { answer: "PEACE", clue: "Blessing pronounced on those who make it between people.", reference: "Matthew 5:9" },
+  { answer: "PRAYER", clue: "Speaking to God, as taught in the Our Father.", reference: "Matthew 6:9-13" },
+  { answer: "BAPTISM", clue: "Rite in which a believer is immersed in water.", reference: "Acts 8:36-38" },
+];
+
 function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
   return {
     Easy: { size: 9, entryCount: 5 },
@@ -12921,11 +13010,53 @@ function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
   }[difficulty] || { size: 11, entryCount: 7 };
 }
 
+function crosswordTriviaDifficultyConfig(difficulty = state.triviaDifficulty) {
+  return {
+    Easy: { size: 13, entryCount: 11 },
+    Medium: { size: 15, entryCount: 15 },
+    Hard: { size: 19, entryCount: 21 },
+    Expert: { size: 21, entryCount: 25 },
+  }[difficulty] || { size: 15, entryCount: 15 };
+}
+
+function crosswordTriviaGrid(difficulty) {
+  const config = crosswordTriviaDifficultyConfig(difficulty);
+  // Select compatible clues before filling so a clue never spells another
+  // puzzle answer. References are deliberately absent from the playing clues.
+  const pool = shuffleItems(crosswordTriviaCatalog);
+  const compatible = [];
+  for (const item of pool) {
+    if (compatible.some((other) => (
+      new RegExp(`\\b${item.answer}\\b`, "i").test(other.clue)
+      || new RegExp(`\\b${other.answer}\\b`, "i").test(item.clue)
+    ))) continue;
+    compatible.push(item);
+  }
+  const byAnswer = new Map(compatible.map((item) => [item.answer, item]));
+  const words = compatible.map((item) => item.answer);
+  // Keep entry counts stable for records; a slightly wider workspace is the
+  // fallback, rather than awarding a full-difficulty record for fewer clues.
+  const grid = createCrosswordGrid(words, config.size, config.entryCount, [], 24)
+    || createCrosswordGrid(words, config.size + 2, config.entryCount, [], 24);
+  if (!grid) return null;
+  return { ...grid, entries: grid.entries.map((entry) => ({
+    ...entry, clue: byAnswer.get(entry.word).clue, reference: byAnswer.get(entry.word).reference,
+  })) };
+}
+
+function crosswordBestKey(difficulty, context = {}) {
+  return context.crosswordMode === "trivia" ? `trivia:${difficulty || "Medium"}` : puzzleBestKey(difficulty, context);
+}
+
 function crosswordDifficulties() {
   return ["Easy", "Medium", "Hard", "Expert"];
 }
 
-function crosswordDifficultyDescription(difficulty) {
+function crosswordDifficultyDescription(difficulty, mode = "scripture") {
+  if (mode === "trivia") {
+    const config = crosswordTriviaDifficultyConfig(difficulty);
+    return `${config.entryCount} Bible trivia clues · ${config.size}×${config.size} workspace`;
+  }
   const config = crosswordDifficultyConfig(difficulty);
   return `${config.size}×${config.size} workspace · ${config.entryCount} passage words`;
 }
@@ -13044,7 +13175,7 @@ function finalizeCrosswordGrid(grid, placements) {
   return { rows, columns, cells, entries, numbers };
 }
 
-function createCrosswordGrid(words, size, entryCount, verses = []) {
+function createCrosswordGrid(words, size, entryCount, verses = [], maxRestarts = 0) {
   const normalizedWords = [...new Set(words.map(normalizeWordSearchWord))]
     .filter((word) => word.length >= 3 && word.length <= size);
   if (normalizedWords.length < entryCount) return null;
@@ -13053,7 +13184,7 @@ function createCrosswordGrid(words, size, entryCount, verses = []) {
   const verseAware = distinctVerseCount > 0;
   let bestGrid = null;
   let bestDistinctVerseCount = -1;
-  for (let restart = 0; restart < (verseAware ? 360 : 180); restart += 1) {
+  for (let restart = 0; restart < (maxRestarts || (verseAware ? 360 : 180)); restart += 1) {
     const ordered = shuffleItems(normalizedWords).sort((first, second) => second.length - first.length + (triviaRandomSource() - 0.5));
     const firstWord = ordered[Math.min(restart % Math.min(5, ordered.length), ordered.length - 1)];
     const grid = Array.from({ length: size }, () => Array(size).fill(null));
@@ -13432,7 +13563,7 @@ function savedCrosswordBests() {
 }
 
 function savedCrosswordBest(difficulty, context = {}) {
-  return savedCrosswordBests()[puzzleBestKey(difficulty, context)] || null;
+  return savedCrosswordBests()[crosswordBestKey(difficulty, context)] || null;
 }
 
 function formatCrosswordBestTime(best) {
@@ -13444,12 +13575,13 @@ function recordCrosswordBest(game) {
   if (!game || game.type !== "crossword" || !game.finishedAt) return null;
   const result = {
     difficulty: game.difficulty,
+    crosswordMode: game.crosswordMode || "scripture",
     elapsedMs: crosswordElapsedMs(game),
     hintCount: Math.min(crosswordHintLimit, Math.max(0, Number(game.hintCount) || 0)),
     completedAt: new Date(game.finishedAt).toISOString(),
   };
   const bests = savedCrosswordBests();
-  const bestKey = puzzleBestKey(game.difficulty, game);
+  const bestKey = crosswordBestKey(game.difficulty, game);
   const previous = bests[bestKey];
   const isNewBest = !previous || result.elapsedMs < previous.elapsedMs;
   if (isNewBest) {
@@ -14504,6 +14636,7 @@ function restartPuzzleAtDifficulty(difficulty) {
   if (!["word-search", "crossword", "hidden-word"].includes(gameType) || !difficulties.includes(difficulty)) return;
   state.puzzleRestartPromptOpen = false;
   state.triviaDifficulty = difficulty;
+  if (gameType === "crossword") state.crosswordMode = currentGame.crosswordMode || "scripture";
   state.puzzlePassageSource = currentGame.customPassage ? "custom" : "random";
   if (currentGame.customPassage) {
     state.puzzleCustomReference = currentGame.reference;
@@ -14748,6 +14881,7 @@ function triviaView() {
   const isWhoSaidIt = state.triviaGameType === "who-said-it";
   const isWordSearch = state.triviaGameType === "word-search";
   const isCrossword = state.triviaGameType === "crossword";
+  const isTriviaCrossword = isCrossword && state.crosswordMode === "trivia";
   const isHiddenWord = state.triviaGameType === "hidden-word";
   const categories = triviaCategories(questions);
   if (["Old Testament", "New Testament"].includes(state.triviaCategory)) state.triviaCategory = "Bible Survey";
@@ -14768,14 +14902,15 @@ function triviaView() {
   const puzzleBestContext = puzzleCreatorBestContext(puzzleEvaluation);
   const wordSearchConfig = wordSearchDifficultyConfig(state.triviaDifficulty);
   const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty, puzzleBestContext) : null;
-  const crosswordConfig = crosswordDifficultyConfig(state.triviaDifficulty);
-  const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty, puzzleBestContext) : null;
+  const crosswordConfig = isTriviaCrossword ? crosswordTriviaDifficultyConfig(state.triviaDifficulty) : crosswordDifficultyConfig(state.triviaDifficulty);
+  const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty, isTriviaCrossword ? { crosswordMode: "trivia" } : puzzleBestContext) : null;
   const hiddenWordConfig = hiddenWordDifficultyConfig(state.triviaDifficulty);
   const referenceRushTime = isReferenceRush
     ? formatCountdownTime(referenceRushDurationMs(state.triviaDifficulty, selectedCount))
     : "";
   const difficultyLabel = isReferenceRush && state.triviaDifficulty === "All" ? "Progressive" : state.triviaDifficulty;
   const setupSummary = [
+    isCrossword ? isTriviaCrossword ? "Bible Trivia" : "Scripture" : "",
     state.triviaGameType === "trivia" ? state.triviaCategory : "",
     isVerseOrder ? "Progressive" : difficultyLabel,
     isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : isHiddenWord ? `${hiddenWordConfig.attempts} attempts each` : `${selectedCount} ${countLabel}`,
@@ -14784,7 +14919,7 @@ function triviaView() {
       ? puzzleEvaluation.pack
         ? `${puzzlePassageLabel(puzzleEvaluation.pack)} ${translationDisplayCode(puzzleEvaluation.version)}`
         : "Choose passage"
-      : isHiddenWord ? "Curated categories" : isWordSearch || isCrossword ? "Surprise passage" : "",
+      : isTriviaCrossword ? "Standalone clues" : isHiddenWord ? "Curated categories" : isWordSearch || isCrossword ? "Surprise passage" : "",
     isWordSearch || isCrossword || isHiddenWord ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
@@ -14809,7 +14944,7 @@ function triviaView() {
           : isWordSearch
             ? "Find words drawn from one Scripture passage—choose your own reference or let Big Screen Bible surprise you."
             : isCrossword
-              ? "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
+              ? isTriviaCrossword ? "Solve Bible names, places, and vocabulary from standalone clues. Each answer is one word. References are revealed when you finish." : "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
               : isHiddenWord
                 ? "Solve hidden Bible words and phrases, one letter at a time. Every puzzle starts with a familiar category and source passage."
             : "Choose a category, then answer multiple-choice questions with a reference reveal after each answer.";
@@ -14819,7 +14954,7 @@ function triviaView() {
     : isBookSprint ? "Put Bible books in order and try to beat your best time."
     : isWhoSaidIt ? "Read a Bible quote and choose who said it."
     : isWordSearch ? "Find hidden words from a chosen or surprise Scripture passage."
-    : isCrossword ? "Solve crossing words with clues from a Scripture passage."
+    : isCrossword ? isTriviaCrossword ? "Solve a Bible crossword from traditional trivia clues." : "Solve crossing words with clues from a Scripture passage."
     : isHiddenWord ? "Uncover Bible words and phrases, one letter at a time."
     : "Test your Bible knowledge with multiple-choice questions.";
   const activePuzzleTitle = state.triviaGame?.type === "word-search" ? "Word Search" : state.triviaGame?.type === "crossword" ? "Crossword" : state.triviaGame?.type === "hidden-word" ? "Hidden Word" : "";
@@ -14937,8 +15072,13 @@ function triviaView() {
                       ${settingsChoiceMarkup("triviaCountSelect", selectedCount, countChoices, { ariaLabel: "Round length", disabled: waitingForLiveChallenge })}
                     </div>
                   </div>
+                  ${isCrossword ? `<div class="game-option-field">
+                    <span>Crossword style</span>
+                    ${settingsChoiceMarkup("crosswordModeSelect", state.crosswordMode, [{ value: "scripture", label: "Scripture · verse clues" }, { value: "trivia", label: "Bible Trivia · traditional clues" }], { ariaLabel: "Crossword style", disabled: waitingForLiveChallenge })}
+                    <small>${crosswordDifficultyDescription(state.triviaDifficulty, state.crosswordMode)}</small>
+                  </div>` : ""}
                   ${isCrossword ? crosswordClueSizeMarkup() : ""}
-                  ${isWordSearch || isCrossword || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
+                  ${isWordSearch || (isCrossword && !isTriviaCrossword) || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
                   ${isReferenceRush ? `
                     <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
@@ -15175,7 +15315,7 @@ function puzzleRestartDialog(game) {
   const isHiddenWord = game.type === "hidden-word";
   const gameLabel = isCrossword ? "Crossword" : isHiddenWord ? "Hidden Word" : "Word Search";
   const difficulties = isCrossword ? crosswordDifficulties() : isHiddenWord ? hiddenWordDifficulties() : wordSearchDifficulties();
-  const difficultyDescription = isCrossword ? crosswordDifficultyDescription : isHiddenWord ? hiddenWordDifficultyDescription : wordSearchDifficultyDescription;
+  const difficultyDescription = isCrossword ? (difficulty) => crosswordDifficultyDescription(difficulty, game.crosswordMode) : isHiddenWord ? hiddenWordDifficultyDescription : wordSearchDifficultyDescription;
   return `
     <section class="puzzle-restart-overlay">
       <button class="puzzle-restart-backdrop" type="button" data-puzzle-restart-dismiss aria-label="Keep current puzzle"></button>
@@ -15322,6 +15462,7 @@ function crosswordRevealCandidate(game) {
 }
 
 function crosswordGameView(game) {
+  const triviaMode = game.crosswordMode === "trivia";
   const completedEntries = new Set(game.completedEntryIds || []);
   const errorCells = new Set(game.errorCellKeys || []);
   const hintedCells = new Set(game.hintedCellKeys || []);
@@ -15351,7 +15492,7 @@ function crosswordGameView(game) {
     <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}" style="--crossword-clue-size:${state.crosswordClueSize || 15}px">
       <div class="crossword-toolbar word-search-toolbar">
         <div class="trivia-progress">
-          <span>Crossword · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
+          <span>${triviaMode ? "Bible Trivia" : "Scripture"} Crossword · ${escapeHtml(game.difficulty)}${triviaMode ? "" : ` · ${escapeHtml(game.version)}`}</span>
           <strong id="crosswordProgress">${game.score} of ${game.entries.length} solved</strong>
         </div>
         <div class="crossword-toolbar-controls">
@@ -15419,7 +15560,7 @@ function crosswordGameView(game) {
             <button type="button" class="text-btn crossword-browse-toggle" id="crosswordBrowseToggle" aria-expanded="false" aria-controls="crosswordClueBrowser">Clues</button>
           `}
           <div class="crossword-input-controls">
-            <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
+            <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? triviaMode ? "Crossword complete. Answers and references are ready to review." : "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
             ${game.complete ? "" : `
               <button
                 class="text-btn crossword-keyboard-toggle"
@@ -15480,7 +15621,7 @@ function crosswordGameView(game) {
         </section>
         <aside class="crossword-sidebar" aria-label="Crossword clues">
           <div class="word-search-passage-heading">
-            <span>${game.complete ? "Puzzle passage" : "Clues from"}</span>
+            <span>${triviaMode ? game.complete ? "Answers and references" : "Traditional clues" : game.complete ? "Puzzle passage" : "Clues from"}</span>
             <strong>${escapeHtml(game.referenceLabel)}</strong>
           </div>
           ${game.complete ? `
@@ -15491,11 +15632,12 @@ function crosswordGameView(game) {
               ${currentAssisted ? `<small class="crossword-assist-note">* Assisted with ${game.hintCount} of 3 letter hints</small>` : ""}
               ${best?.hintCount && !bestAssistedIsCurrent ? `<small class="crossword-assist-note">* Best time used ${best.hintCount} letter ${best.hintCount === 1 ? "hint" : "hints"}</small>` : ""}
             </div>
+            ${triviaMode ? `<div class="crossword-trivia-review">${game.entries.map((entry) => `<article><strong>${escapeHtml(crosswordEntryLabel(entry))} · ${escapeHtml(entry.word)}</strong><p>${escapeHtml(entry.clue)}</p><small>${escapeHtml(entry.reference)}</small></article>`).join("")}</div>` : `
             ${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
               <span>${escapeHtml(game.referenceLabel)}</span>
               <button class="text-btn" id="openTriviaReference" type="button">Open passage</button>
-            </div>
+            </div>`}
           ` : `
             <div class="crossword-clue-columns">
               <section>
@@ -16299,7 +16441,7 @@ function triviaScoreLabel() {
       const config = wordSearchDifficultyConfig(state.triviaDifficulty);
       return `${config.wordCount} words`;
     }
-    if (state.triviaGameType === "crossword") return `${crosswordDifficultyConfig(state.triviaDifficulty).entryCount} clues`;
+    if (state.triviaGameType === "crossword") return `${(state.crosswordMode === "trivia" ? crosswordTriviaDifficultyConfig(state.triviaDifficulty) : crosswordDifficultyConfig(state.triviaDifficulty)).entryCount} clues`;
     if (state.triviaGameType === "hidden-word") return `${normalizedTriviaCount("hidden-word", state.triviaCount)} puzzles`;
     const count = normalizedTriviaCount(state.triviaGameType, state.triviaCount);
     const unit = state.triviaGameType === "book-sprint" ? "rounds" : ["verse-order", "reference-rush"].includes(state.triviaGameType) ? "verses" : "questions";
@@ -19848,6 +19990,13 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  document.getElementById("crosswordModeSelect")?.addEventListener("change", (event) => {
+    if (state.triviaGame || activeGameChallenge()?.status === "pending") return;
+    state.crosswordMode = event.target.value === "trivia" ? "trivia" : "scripture";
+    localStorage.setItem("lw_crossword_mode", state.crosswordMode);
+    renderPreservingReaderScroll();
+    requestAnimationFrame(() => document.getElementById("crosswordModeSelectToggle")?.focus({ preventScroll: true }));
+  });
   document.getElementById("triviaDifficultySelect")?.addEventListener("change", (event) => {
     const pendingChallenge = activeGameChallenge();
     if (pendingChallenge?.status === "pending") {
@@ -21046,6 +21195,7 @@ function startWordSearchGame({ render = true } = {}) {
 
 function startCrosswordGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
+  const triviaMode = state.crosswordMode === "trivia";
   const config = crosswordDifficultyConfig(difficulty);
   const customEvaluation = puzzleCreatorEvaluation("crossword", difficulty);
   const customPassage = Boolean(customEvaluation.custom);
@@ -21054,15 +21204,15 @@ function startCrosswordGame({ render = true } = {}) {
     return;
   }
   const version = customPassage ? customEvaluation.version : wordSearchVersion();
-  const passageOptions = customPassage
+  const passageOptions = triviaMode ? [] : customPassage
     ? [{ pack: customEvaluation.pack, verses: customEvaluation.verses, words: customEvaluation.selectedWords }]
     : orderedWordSearchPassages().map((pack) => ({
       pack,
       verses: wordSearchPassageVerses(pack, version),
       words: crosswordPassageWords(pack, version, difficulty),
     })).filter((option) => option.verses.length && option.words.length >= config.entryCount);
-  let selected = null;
-  let generated = null;
+  let selected = triviaMode ? { pack: { label: "Bible Trivia Crossword" }, verses: [] } : null;
+  let generated = triviaMode ? crosswordTriviaGrid(difficulty) : null;
   for (const option of passageOptions) {
     generated = createCrosswordGrid(option.words, config.size, config.entryCount, option.verses);
     if (generated) {
@@ -21076,7 +21226,7 @@ function startCrosswordGame({ render = true } = {}) {
       : "A Crossword puzzle could not be built yet. Try another difficulty.");
     return;
   }
-  const entries = generated.entries.map((entry) => {
+  const entries = triviaMode ? generated.entries : generated.entries.map((entry) => {
     const hiddenAnswers = generated.entries
       .filter((candidate) => candidate !== entry)
       .map((candidate) => candidate.word);
@@ -21091,10 +21241,11 @@ function startCrosswordGame({ render = true } = {}) {
   localStorage.setItem("lw_trivia_difficulty", difficulty);
   state.triviaGame = {
     type: "crossword",
+    crosswordMode: triviaMode ? "trivia" : "scripture",
     customPassage,
     difficulty,
     version,
-    reference: puzzlePassageReference(selected.pack),
+    reference: triviaMode ? "" : puzzlePassageReference(selected.pack),
     referenceLabel: selected.pack.label || puzzlePassageLabel(selected.pack),
     verses: selected.verses,
     rows: generated.rows,
@@ -21118,7 +21269,7 @@ function startCrosswordGame({ render = true } = {}) {
     score: 0,
     complete: false,
   };
-  recordWordSearchPassage(selected.pack);
+  if (!triviaMode) recordWordSearchPassage(selected.pack);
   if (render) renderPreservingReaderScroll();
 }
 
@@ -22628,6 +22779,8 @@ function updateCrosswordDom({ focus = false } = {}) {
   if (activeText) activeText.textContent = activeEntry?.clue || "Choose a clue";
   const progress = document.getElementById("crosswordProgress");
   if (progress) progress.textContent = `${game.score} of ${game.entries.length} solved`;
+  const scoreChip = document.querySelector(".trivia-header .trivia-score-chip");
+  if (scoreChip) scoreChip.textContent = `${game.score} of ${game.entries.length} solved`;
   setCrosswordStatus(game.lastMessage);
   const gridScroll = document.querySelector(".crossword-grid-scroll");
   const selected = document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`);

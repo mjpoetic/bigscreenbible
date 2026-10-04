@@ -24700,6 +24700,11 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   }
 }
 
+.crossword-trivia-review { display: grid; gap: 12px; }
+.crossword-trivia-review article { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.crossword-trivia-review p { margin-block: 6px; }
+.crossword-trivia-review small { color: var(--muted); }
+
 /* Give mobile Trivia's answers the space previously held by the question. */
 @media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
   .is-expanded-play .bible-trivia-game {

@@ -1,6 +1,6 @@
 # Bible trivia crossword investigation
 
-Investigated October 3, 2026. This is a proposal; the trivia mode is not implemented.
+Investigated October 3, 2026. Bible Trivia Crossword is now implemented alongside Scripture Crossword. The initial version uses a dedicated 84-entry single-word clue bank, 11/15/21/25 clues by difficulty, bounded generation, separate record keys, and answer/reference review on completion.
 
 ## Recommended experience
 
@@ -22,12 +22,12 @@ An offline experiment reused the actual `createCrosswordGrid` engine and all 31 
 
 These are feasibility observations, not device benchmarks or a guarantee across arbitrary word banks. The engine creates connected sparse crosswords; it does not enforce newspaper-style symmetry, dense fill, or multiple crossings per answer. More entries are immediately feasible; a dense traditional layout needs template-based generation or a stronger fill algorithm with a larger clue bank.
 
-## Work needed before shipping
+## Implementation and follow-up
 
-- Build a dedicated, reviewed answer/clue/reference bank. Avoid vague clues with multiple valid names, accidental answer disclosure in other clues, duplicate normalized answers, and unmarked multiword entries. Include EVE as its own answer rather than copying ADAM AND EVE.
-- Add mode selection, mode-aware generation, completion, restart, records, and persisted preferences. Review account record synchronization for the new mode key.
-- Use a bounded generator with retries and a smaller-entry fallback; avoid blocking the UI during larger fills. Evaluate a worker or prebuilt templates if increasing density.
-- Check crossings, clue uniqueness, answer leakage, generation success across seeds, and mobile layout/performance with 15–25 clues. If using templates, ensure every open run has a matching clue and no unintended words form.
+- Implemented: a dedicated 84-entry single-word answer/clue/reference bank. Avoid vague clues with multiple valid names, accidental answer disclosure in other clues, duplicate normalized answers, and unmarked multiword entries. Include EVE as its own answer rather than copying ADAM AND EVE.
+- Implemented: mode selection, mode-aware generation, completion, restart, records, and a local persisted style preference. Review account record synchronization for the new mode key.
+- Implemented: a bounded generator with 24 attempts and a wider-workspace fallback that preserves the required entry count. Evaluate a worker or prebuilt templates if increasing density.
+- Automated checks passed for 120 seeded rounds: connected crossings, clue uniqueness, answer leakage, generation counts, restart, completion, and independent record buckets. Physical mobile performance validation remains outstanding. If using templates, ensure every open run has a matching clue and no unintended words form.
 
 ## Scripture clue repair
 
