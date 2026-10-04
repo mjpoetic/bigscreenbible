@@ -40,6 +40,8 @@ vm.runInContext(`
   let gameMusicAudioContext = null;
   let gameMusicGain = null;
   let gameMusicFadeFrame = 0;
+  let gameMusicLoop = null;
+  let gameMusicLoopRequest = 0;
   let gameMusicTrackKey = "track";
   const state = { gameVolume: 100, modeTransitionSounds: true };
   const gameOutcomeSounds = { complete: { volume: 0.8 } };
@@ -48,7 +50,7 @@ vm.runInContext(`
   const soundVolumeScalar = (value) => value / 100;
   let modeTransitionAudioContext = null;
   let modeTransitionAudioResumePromise = null;
-  ${["primeGameMusicAudio", "setGameMusicOutputVolume", "syncActiveGameAudioVolume", "pauseGameMusic", "cancelGameMusicFade", "primeModeTransitionAudio"].map(extract).join("\n")}
+  ${["primeGameMusicAudio", "setGameMusicOutputVolume", "syncActiveGameAudioVolume", "pauseGameMusic", "stopGameMusicLoop", "cancelGameMusicFade", "primeModeTransitionAudio"].map(extract).join("\n")}
 `, context);
 const run = (code) => vm.runInContext(code, context);
 run("primeGameMusicAudio(); syncActiveGameAudioVolume()");

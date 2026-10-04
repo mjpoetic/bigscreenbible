@@ -481,6 +481,9 @@ let gameMusicGain = null;
 let gameMusicTrackKey = "";
 let gameMusicFadeFrame = 0;
 let gameMusicRestartPending = false;
+let gameMusicLoop = null;
+let gameMusicLoopRequest = 0;
+let gameMusicLoopLoad = null;
 let modeTransitionAudioContext = null;
 let modeTransitionAudioResumePromise = null;
 let referenceRushTimer = 0;
@@ -519,15 +522,15 @@ const hiddenWordBestStorageKey = "lw_hidden_word_scores_v2";
 const crosswordHintLimit = 3;
 const hiddenWordHintTypes = ["context", "letter"];
 const gameMusicTracks = Object.freeze({
-  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3", volume: 0.15 },
-  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3", volume: 0.14 },
-  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.mp3", volume: 0.14 },
-  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3", volume: 0.14 },
-  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3", volume: 0.14 },
-  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3", volume: 0.13 },
-  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.mp3", volume: 0.15 },
-  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3", volume: 0.14 },
-  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", volume: 0.14 },
+  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3", loopSeconds: 48 * 60 / 88, volume: 0.15 },
+  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3", loopSeconds: 48 * 60 / 90, volume: 0.14 },
+  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.mp3", loopSeconds: 64 * 60 / 94, volume: 0.14 },
+  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3", loopSeconds: 64 * 60 / 132, volume: 0.14 },
+  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3", loopSeconds: 48 * 60 / 80, volume: 0.14 },
+  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3", loopSeconds: 48 * 60 / 96, volume: 0.13 },
+  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.mp3", loopSeconds: 64 * 60 / 150, volume: 0.15 },
+  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3", loopSeconds: 64 * 60 / 142, volume: 0.14 },
+  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", loopSeconds: 48 * 60 / 104, volume: 0.14 },
 });
 const gameOutcomeSounds = Object.freeze({
   heaven: { key: "heaven", src: "./assets/audio/game-music/heaven-complete.mp3", volume: 0.13 },
@@ -13785,6 +13788,89 @@ function primeGameMusicAudio() {
   return audio;
 }
 
+// Decode once, then let the audio clock repeat the PCM samples without a
+// media-element seek or MP3 decoder restart at every musical boundary.
+function prepareGameMusicLoopBuffer(buffer, seconds) {
+  const length = Math.min(buffer.length, Math.round(seconds * buffer.sampleRate));
+  const blend = Math.min(Math.round(buffer.sampleRate * 0.005), Math.floor(length / 4));
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    const samples = buffer.getChannelData(channel);
+    const boundary = (samples[0] + samples[length - 1]) / 2;
+    for (let index = 0; index < blend; index += 1) {
+      const weight = (1 + Math.cos(Math.PI * index / blend)) / 2;
+      samples[index] += (boundary - samples[index]) * weight;
+      samples[length - 1 - index] += (boundary - samples[length - 1 - index]) * weight;
+    }
+  }
+  return length / buffer.sampleRate;
+}
+
+function stopGameMusicLoop({ fade = false, reset = false } = {}) {
+  gameMusicLoopRequest += 1;
+  const loop = gameMusicLoop;
+  if (!loop) return;
+  if (loop.source) {
+    const now = gameMusicAudioContext.currentTime;
+    loop.offset = (loop.offset + Math.max(0, now - loop.startedAt)) % loop.duration;
+    const source = loop.source;
+    const gain = loop.gain;
+    loop.source = null;
+    if (fade) {
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.24);
+    }
+    source.onended = () => { source.disconnect(); gain.disconnect(); };
+    source.stop(now + (fade ? 0.24 : 0));
+  }
+  if (reset) gameMusicLoop = null;
+}
+
+async function startGameMusicLoop(track, restart) {
+  gameMusicLoopRequest += 1;
+  const context = gameMusicAudioContext;
+  if (restart || gameMusicLoop?.key !== track.key) stopGameMusicLoop({ reset: true });
+  // stopGameMusicLoop invalidates older asynchronous loads as well.
+  const currentRequest = gameMusicLoopRequest;
+  try {
+    if (!gameMusicLoopLoad || gameMusicLoopLoad.key !== track.key) {
+      gameMusicLoopLoad = {
+        key: track.key,
+        promise: fetch(track.src).then((response) => {
+          if (!response.ok) throw new Error("Game music unavailable");
+          return response.arrayBuffer();
+        }).then((bytes) => context.decodeAudioData(bytes)).then((buffer) => ({
+          buffer, duration: prepareGameMusicLoopBuffer(buffer, track.loopSeconds),
+        })),
+      };
+    }
+    const decoded = await gameMusicLoopLoad.promise;
+    if (currentRequest !== gameMusicLoopRequest) return;
+    if (!gameMusicLoop) gameMusicLoop = { key: track.key, ...decoded, offset: 0, source: null };
+    if (gameMusicLoop.source) return;
+    const loop = gameMusicLoop;
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = loop.buffer;
+    source.loop = true;
+    source.loopStart = 0;
+    source.loopEnd = loop.duration;
+    source.connect(gain);
+    gain.connect(gameMusicGain);
+    gain.gain.setValueAtTime(0, context.currentTime);
+    gain.gain.linearRampToValueAtTime(1, context.currentTime + 0.04);
+    loop.source = source;
+    loop.gain = gain;
+    loop.startedAt = context.currentTime;
+    source.start(loop.startedAt, loop.offset);
+  } catch {
+    if (currentRequest !== gameMusicLoopRequest) return;
+    gameMusicLoopLoad = null;
+    // Retain native playback if fetching or decoding is unsupported.
+    const playback = gameMusicAudio?.play();
+    playback?.catch?.(() => {});
+  }
+}
+
 function setGameMusicOutputVolume(volume) {
   if (gameMusicGain) gameMusicGain.gain.value = volume;
   else if (gameMusicAudio) {
@@ -13800,6 +13886,7 @@ function cancelGameMusicFade() {
 }
 
 function pauseGameMusic({ fade = true } = {}) {
+  stopGameMusicLoop({ fade: fade && !document.hidden });
   const audio = gameMusicAudio;
   if (!audio || audio.paused) {
     cancelGameMusicFade();
@@ -13862,13 +13949,20 @@ function syncGameMusicPlayback() {
     gameMusicTrackKey = track.key;
   }
   setGameMusicOutputVolume(track.volume * soundVolumeScalar(state.gameVolume));
-  if (changedTrack || gameMusicRestartPending) {
+  const restartLoop = changedTrack || gameMusicRestartPending;
+  if (restartLoop) {
     try {
       audio.currentTime = 0;
     } catch {
       // Some engines wait for metadata before accepting a seek; playback still starts at zero.
     }
     gameMusicRestartPending = false;
+  }
+  if (gameMusicGain && typeof gameMusicAudioContext?.createBufferSource === "function") {
+    audio.pause();
+    if (!restartLoop && gameMusicLoop?.source && gameMusicLoop.key === track.key) return;
+    startGameMusicLoop(track, restartLoop);
+    return;
   }
   if (!audio.paused) return;
   const playback = audio.play();
@@ -13896,6 +13990,7 @@ function playGameOutcomeSound(key) {
   if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden) return;
   const audio = primeGameMusicAudio();
   if (!audio) return;
+  stopGameMusicLoop({ reset: true });
   if (key === "perfect" || key === "heaven") lastPerfectCelebration = key;
   cancelGameMusicFade();
   audio.pause();
