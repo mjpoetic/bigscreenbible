@@ -18400,7 +18400,10 @@ function presentationBackgroundMotionMarkup() {
   const stars = state.presentationBackgroundMotion === "stars"
     ? Array.from({ length: normalizePresentationStarCount(state.presentationStarCount) }, (_, index) => {
       const duration = (5 + (index % 5)) * starSpeed;
-      return `<i style="left:${((index * 61.8034 + 11) % 100).toFixed(2)}%;top:${((index * 41.4214 + 7) % 100).toFixed(2)}%;--star-size:${index % 3 === 0 ? 3 : 2}px;--star-duration:${duration}s;--star-delay:-${(elapsed + index * 1.7) % duration}s"></i>`;
+      // Favor tiny stars, with occasional slightly larger points of light.
+      // Stable sizes keep the star field consistent when settings rerender.
+      const size = (1 + 2.5 * Math.pow((index * 0.754877666 + 0.5) % 1, 1.5)).toFixed(2);
+      return `<i style="left:${((index * 61.8034 + 11) % 100).toFixed(2)}%;top:${((index * 41.4214 + 7) % 100).toFixed(2)}%;--star-size:${size}px;--star-duration:${duration}s;--star-delay:-${(elapsed + index * 1.7) % duration}s"></i>`;
     }).join("")
     : "";
   return `<div class="presentation-motion" data-motion="${state.presentationBackgroundMotion}" data-intensity="${state.presentationMotionIntensity}" aria-hidden="true" style="--flow-duration:${flowDuration}s;--flow-delay:-${elapsed % flowDuration}s">${state.presentationBackgroundMotion === "vapor" ? "<b></b><b></b><b></b>" : stars}</div>${["flow", "vapor"].includes(state.presentationBackgroundMotion) ? '<div class="presentation-motion-shade" aria-hidden="true"></div>' : ""}`;
