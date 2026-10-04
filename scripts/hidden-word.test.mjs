@@ -209,3 +209,43 @@ roundComplete = true;
 renderContext.renderHiddenWordGuess();
 assert.equal(restoredFocus, 1, "Finished rounds must dismiss device input");
 console.log("Hidden Word device keyboard checks passed");
+
+// References must not reveal book answers or people with Bible-book names.
+const referenceView = vm.createContext({
+  books: ["Genesis", "Ruth", "Esther", "John", "1 Peter", "2 Timothy"],
+  state: { hiddenWordKeyboardVisible: true },
+  escapeHtml: (value) => String(value ?? ""),
+  translationDisplayCode: (version) => version,
+  hiddenWordCurrentRound: (game) => game.rounds[game.index],
+  hiddenWordHintsMarkup: () => "",
+  hiddenWordDisplayMarkup: () => "",
+  gamePointsReward: () => "",
+  triviaExitControl: () => "",
+  puzzleRestartDialog: () => "",
+});
+vm.runInContext(`${extractFunction("hiddenWordShowsReference")}
+${extractFunction("hiddenWordAnswerLetters")}
+${extractFunction("hiddenWordContextText")}
+${extractFunction("hiddenWordGameView")}`, referenceView);
+for (const [category, word, visible] of [
+  ["Books of the Bible", "GENESIS", false],
+  ["People", "RUTH", false],
+  ["People", "QUEEN ESTHER", false],
+  ["People", "PETER", false],
+  ["People", "TIMOTHY", false],
+  ["People", "MOSES", true],
+  ["Places", "JERICHO", true],
+  ["Bible Vocabulary", "FAITH", true],
+]) {
+  for (const complete of [false, true]) {
+    for (const solved of [false, true]) {
+      const round = { category, word, complete, solved, curated: true,
+        guessedLetters: [], missedLetters: [], maxMisses: 7,
+        passageReference: "Reference sentinel 1:1", referenceLabel: "Reference sentinel 1:1",
+        clue: "A useful clue", verse: { text: "Verse text" }, lastMessage: "", contextRevealed: true };
+      const markup = referenceView.hiddenWordGameView({ difficulty: "Medium", index: 0, rounds: [round], version: "BSB" });
+      assert.equal(markup.includes("Reference sentinel"), visible, `${word}: reference visibility`);
+      assert.equal(markup.includes('id="openTriviaReference"'), visible && complete, `${word}: Bible button visibility`);
+    }
+  }
+}

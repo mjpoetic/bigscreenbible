@@ -15857,9 +15857,20 @@ function hiddenWordHintsMarkup(game, round) {
   `;
 }
 
+function hiddenWordShowsReference(round) {
+  if (round.category === "Books of the Bible") return false;
+  if (round.category !== "People") return true;
+  const answer = ` ${String(round.word || "").toUpperCase().replace(/[^A-Z]+/g, " ").trim()} `;
+  return !books.some((book) => {
+    const name = book.replace(/^[1-3] /, "").toUpperCase();
+    return answer.includes(` ${name} `);
+  });
+}
+
 function hiddenWordGameView(game) {
   if (game.complete) return triviaResultsView(game);
   const round = hiddenWordCurrentRound(game);
+  const showReference = hiddenWordShowsReference(round);
   const guessed = new Set(round.guessedLetters || []);
   const missed = new Set(round.missedLetters || []);
   const misses = round.missedLetters.length;
@@ -15879,12 +15890,14 @@ function hiddenWordGameView(game) {
       </div>
       <div class="hidden-word-layout">
         <section class="hidden-word-stage" aria-labelledby="hiddenWordPrompt">
-          <div class="hidden-word-source" aria-label="Puzzle category and source passage">
+          <div class="hidden-word-source" aria-label="${showReference ? "Puzzle category and source passage" : "Puzzle category"}">
             <span>Category</span>
             <strong>${escapeHtml(round.category)}</strong>
-            <i aria-hidden="true"></i>
-            <span>From</span>
-            <strong>${escapeHtml(round.passageReference)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</strong>
+            ${showReference ? `
+              <i aria-hidden="true"></i>
+              <span>From</span>
+              <strong>${escapeHtml(round.passageReference)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</strong>
+            ` : ""}
           </div>
           <div class="hidden-word-attempts">
             <div class="hidden-word-scroll" style="--hidden-word-progress:${progress}%">
@@ -15932,10 +15945,10 @@ function hiddenWordGameView(game) {
           <strong>${round.solved ? `You solved ${escapeHtml(round.word)}!` : `The answer was ${escapeHtml(round.word)}.`}</strong>
           ${gamePointsReward(round.points, round.scoreSummary)}
           <p>${escapeHtml(round.clue || round.verse.text)}</p>
-          <div class="trivia-reference">
+          ${showReference ? `<div class="trivia-reference">
             <span>${escapeHtml(round.referenceLabel)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</span>
             <button class="text-btn" id="openTriviaReference" type="button">Read in Bible</button>
-          </div>
+          </div>` : ""}
         </div>
         <div class="trivia-actions">
           ${triviaExitControl(game)}
