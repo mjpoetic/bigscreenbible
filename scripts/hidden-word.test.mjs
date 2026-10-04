@@ -122,12 +122,12 @@ assert.match(source, /id="hiddenWordNativeInput"[\s\S]*inputmode="text"/, "Hidde
 assert.match(source, /state\.triviaGame\?\.type\)[\s\S]*guessHiddenWordLetter\(event\.key\)/, "Hidden Word must own physical keyboard letters before global shortcuts");
 assert.match(source, /function hiddenWordContextText\([\s\S]*round\?\.clue \|\| hiddenWordMaskedVerse/, "The Bible clue hint must support curated and passage puzzles");
 assert.match(source, /class="hidden-word-term"/, "Multi-word answers must keep each word grouped on the board");
-assert.match(source, /class="hidden-word-attempts"[\s\S]*class="hidden-word-misses"[\s\S]*id="hiddenWordAnswer"/, "Missed letters must stay in the visible play area above the answer");
+assert.match(source, /class="hidden-word-scroll-paper"[\s\S]*class="hidden-word-misses"[\s\S]*id="hiddenWordAnswer"/, "Missed letters must appear inside the scroll above the answer");
 assert.match(source, /games-answer-overlay \$\{isHiddenWord \? "is-hidden-word-result"/, "Hidden Word must opt into the centered round-result overlay");
 assert.ok(extractFunction("mountMobileGameControls").indexOf("answerDestination.append") < extractFunction("mountMobileGameControls").indexOf("if (!isGamesResponsiveScreen()) return"), "Round results must mount before the responsive controls guard");
 assert.doesNotMatch(source.slice(source.indexOf("function hiddenWordGameView"), source.indexOf("function verseOrderGameView")), /gallows|hangman/i, "Hidden Word must not use gallows or Hangman imagery");
 assert.match(styles, /\.hidden-word-scroll\s*\{/, "Hidden Word must use the Scripture scroll visual");
-assert.match(styles, /\.hidden-word-attempts\s*\{[\s\S]*grid-template-columns: minmax\(0, 620px\) minmax\(190px, 250px\)/, "Desktop Hidden Word must keep misses beside the attempt scroll");
+assert.match(styles, /\.hidden-word-attempts\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/, "Hidden Word must give the combined scroll the full attempt area");
 assert.match(styles, /\.hidden-word-letter\s*\{[\s\S]*width: clamp\(54px,[\s\S]*font-size: clamp\(44px,/, "Desktop answer blanks must dominate the play surface");
 assert.match(styles, /\.hidden-word-keyboard button\s*\{[\s\S]*min-height: 48px/, "Desktop letter controls must retain large touch targets");
 assert.match(styles, /@media \(max-width: 840px\)[\s\S]*\.hidden-word-layout\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/, "Hidden Word must stack for mobile portrait widths");

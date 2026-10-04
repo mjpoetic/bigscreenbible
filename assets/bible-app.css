@@ -8472,7 +8472,7 @@ select {
 
 .hidden-word-attempts {
   display: grid;
-  grid-template-columns: minmax(0, 620px) minmax(190px, 250px);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   justify-content: center;
   gap: 12px;
@@ -8485,8 +8485,8 @@ select {
   grid-template-columns: 18px minmax(0, 1fr) 18px;
   align-items: stretch;
   width: 100%;
-  max-width: 620px;
-  min-height: 112px;
+  max-width: 900px;
+  min-height: clamp(160px, 22vh, 240px);
   color: #4b321f;
   filter: drop-shadow(0 10px 18px color-mix(in srgb, var(--ink) 14%, transparent));
 }
@@ -8719,18 +8719,19 @@ select {
   display: grid;
   gap: 5px;
   width: 100%;
-  min-height: 62px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  padding: 11px 14px;
+  padding-top: 8px;
   text-align: center;
 }
 
+.hidden-word-misses span {
+  color: #72502d;
+}
+
 .hidden-word-misses strong {
-  color: var(--muted);
-  font-size: 15px;
+  color: #4b321f;
+  font-size: clamp(16px, 2vw, 22px);
   letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
 }
 
 .hidden-word-hints {
@@ -8904,7 +8905,7 @@ select {
   }
 
   .puzzle-restart-option {
-    min-height: 88px;
+    min-height: 150px;
     padding: 11px 12px;
   }
 }
@@ -20184,8 +20185,7 @@ svg {
   }
 
   .hidden-word-misses {
-    min-height: 52px;
-    padding: 8px 12px;
+    padding-top: 6px;
   }
 
   .hidden-word-clues {
@@ -20226,7 +20226,7 @@ svg {
 
   .hidden-word-scroll {
     grid-template-columns: 14px minmax(0, 1fr) 14px;
-    min-height: 70px;
+    min-height: clamp(140px, 22vh, 200px);
   }
 
   .hidden-word-scroll-paper {
@@ -20238,9 +20238,8 @@ svg {
   }
 
   .hidden-word-misses {
-    min-height: 40px;
     gap: 3px;
-    padding: 5px 10px;
+    padding-top: 6px;
   }
 
   .hidden-word-misses strong {
@@ -20302,7 +20301,7 @@ svg {
   }
 
   .hidden-word-attempts {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, 145px);
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     width: 100%;
   }
@@ -20320,7 +20319,7 @@ svg {
   }
 
   .hidden-word-scroll {
-    min-height: 44px;
+    min-height: 90px;
   }
 
   .hidden-word-scroll-paper {
@@ -20378,9 +20377,8 @@ svg {
   }
 
   .hidden-word-misses {
-    min-height: 46px;
     gap: 2px;
-    padding: 3px 6px;
+    padding-top: 4px;
   }
 
   .hidden-word-misses span {

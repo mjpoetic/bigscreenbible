@@ -15772,12 +15772,12 @@ function hiddenWordGameView(game) {
                 <div class="hidden-word-scroll-track" aria-label="${misses} of ${round.maxMisses} incorrect attempts">
                   ${Array.from({ length: round.maxMisses }, (_, index) => `<i class="${index < misses ? "is-open" : ""}"></i>`).join("")}
                 </div>
+                <div class="hidden-word-misses" aria-label="Incorrect letters" aria-live="polite">
+                  <span>Missed letters</span>
+                  <strong>${round.missedLetters.length ? round.missedLetters.join(" · ") : "None yet"}</strong>
+                </div>
               </div>
               <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
-            </div>
-            <div class="hidden-word-misses" aria-label="Incorrect letters" aria-live="polite">
-              <span>Not in this puzzle</span>
-              <strong>${round.missedLetters.length ? round.missedLetters.join(" · ") : "None yet"}</strong>
             </div>
           </div>
           <h2 class="sr-only" id="hiddenWordPrompt">Guess the hidden ${answerLetters.length}-letter Bible ${answerKind}</h2>
