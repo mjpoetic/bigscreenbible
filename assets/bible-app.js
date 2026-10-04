@@ -1768,7 +1768,10 @@ function render() {
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   const sideToolbarPosition = effectiveSideToolbarPosition();
   const selectionToolsCollapsedClass = returnSelectionToolsCollapsed() ? "selection-tools-collapsed" : "";
-  if (state.startupApplied) syncModeUrl();
+  if (state.startupApplied && !dataLoading && !dataError) {
+    syncModeUrl();
+    rememberRefreshMode();
+  }
   syncPresentationShell();
   if (dataLoading || dataError) {
     pauseGameMusic({ fade: false });
@@ -24590,11 +24593,44 @@ function levenshteinDistance(a, b, limit = 2) {
   return previous[b.length];
 }
 
+function rememberRefreshMode() {
+  try {
+    sessionStorage.setItem("lw_refresh_mode", JSON.stringify({
+      mode: state.mode,
+      game: state.triviaGameType,
+      reference: state.reference,
+      verse: state.verse,
+    }));
+  } catch { /* Refresh recovery is optional when browser storage is unavailable. */ }
+}
+
+function refreshModeFromSession() {
+  if (window.performance?.getEntriesByType?.("navigation")?.[0]?.type !== "reload") return null;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("lw_refresh_mode") || "null");
+    return saved && ["reader", "parallel", "big", "trivia"].includes(saved.mode) ? saved : null;
+  } catch { return null; }
+}
+
 async function applyStartupExperience({ updateReload = false } = {}) {
   if (state.startupApplied) return;
   state.startupApplied = true;
   const sharedRef = sharedReferenceFromUrl();
   const requestedMode = requestedModeFromUrl();
+  const refreshMode = !updateReload && refreshModeFromSession();
+  if (refreshMode && (!requestedMode || requestedMode === refreshMode.mode)) {
+    state.mode = refreshMode.mode;
+    if (bibleData[refreshMode.reference]) {
+      state.reference = refreshMode.reference;
+      state.verse = currentChapter().verses.some((verse) => verse.n === refreshMode.verse) ? refreshMode.verse : 1;
+    }
+    if (["word-search", "crossword", "hidden-word", "trivia", "verse-order", "reference-rush", "book-sprint", "who-said-it"].includes(refreshMode.game)) {
+      state.triviaGameType = refreshMode.game;
+    }
+    state.pendingVerseFocus = false;
+    if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
+    return;
+  }
   if (updateReload) {
     // Updates include ref for reading-position recovery, not shared-link entry.
     if (sharedRef) setReferenceFromString(sharedRef);
