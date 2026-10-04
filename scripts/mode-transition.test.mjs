@@ -114,7 +114,7 @@ for (const mode of ["reader", "parallel"]) {
   assert.equal(switchModeContext.restoredScrollState, null, "Old Reader position cannot override Big Screen verse");
   assert.equal(switchModeContext.state.verse, 16);
 }
-assert.match(extractFunction("scrollSelectedVerseIntoView"), /options\.halo[\s\S]*classList\.add\("verse-arrival-halo"\)[\s\S]*setTimeout/);
+assert.match(extractFunction("scrollSelectedVerseIntoView"), /options\.halo\) spotlightReaderPassage/);
 
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-old\(root\)/);
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-new\(root\)/);
@@ -124,3 +124,43 @@ assert.match(styles, /@keyframes mode-presentation-reveal/);
 assert.match(styles, /@keyframes mode-presentation-dismiss/);
 
 console.log("Mode transition tests passed");
+
+// Verify that spotlighting never dims an ancestor of a passage verse.
+function spotlightElement(verse) {
+  const classes = new Set();
+  return {
+    dataset: { verse: String(verse) }, children: [], parentElement: null, classes,
+    classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name) },
+    contains(target) { return this.children.some((child) => child === target || child.contains(target)); },
+  };
+}
+function appendSpotlight(parent, ...children) {
+  parent.children.push(...children);
+  for (const child of children) child.parentElement = parent;
+}
+const root = spotlightElement();
+const chrome = spotlightElement();
+const scripture = spotlightElement();
+const paragraph = spotlightElement();
+const rows = [15, 16, 17, 18].map(spotlightElement);
+appendSpotlight(root, chrome, scripture);
+appendSpotlight(scripture, paragraph);
+appendSpotlight(paragraph, ...rows);
+scripture.querySelectorAll = () => rows;
+let spotlightCleanup;
+const spotlightContext = {
+  state: { verse: 16, selectedVerses: [16, 17] },
+  document: { getElementById: () => root },
+  setTimeout: (callback) => { spotlightCleanup = callback; return 1; },
+  clearTimeout() {},
+};
+vm.createContext(spotlightContext);
+vm.runInContext(`${extractFunction("spotlightReaderPassage")}; globalThis.spotlight = spotlightReaderPassage;`, spotlightContext);
+spotlightContext.spotlight(scripture, rows[1]);
+for (const element of [chrome, rows[0], rows[3]]) assert.ok(element.classes.has("verse-arrival-dimmed"));
+for (const element of [scripture, paragraph, rows[1], rows[2]]) assert.ok(!element.classes.has("verse-arrival-dimmed"));
+for (const row of [rows[1], rows[2]]) assert.ok(row.classes.has("verse-arrival-halo"));
+spotlightCleanup();
+for (const element of [chrome, ...rows]) assert.equal(element.classes.size, 0, "Spotlight restores every affected element");
+assert.equal(scripture.clearArrivalSpotlight, undefined);
+console.log("Passage spotlight and cleanup tests passed");

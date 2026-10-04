@@ -24994,3 +24994,18 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
     outline-offset: -2px;
   }
 }
+
+/* Ease surrounding text, highlights, and controls away, then restore them. */
+#app .verse-arrival-dimmed {
+  animation: verse-arrival-dim 3.2s ease-in-out both;
+}
+@keyframes verse-arrival-dim {
+  0%, 100% { opacity: 1; }
+  14%, 72% { opacity: 0.22; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #app .verse-arrival-dimmed {
+    animation: none;
+    opacity: 0.22;
+  }
+}

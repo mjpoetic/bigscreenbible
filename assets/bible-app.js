@@ -28117,16 +28117,46 @@ function normalizeBookName(value) {
   return prefixMatches.length === 1 ? prefixMatches[0] : null;
 }
 
+function spotlightReaderPassage(scripture, selected) {
+  if (!scripture || !selected) return;
+  scripture.clearArrivalSpotlight?.();
+  const passage = (state.selectedVerses || []).includes(Number(state.verse))
+    ? state.selectedVerses.map(Number)
+    : [Number(state.verse)];
+  const focused = [...scripture.querySelectorAll("[data-verse]")]
+    .filter((row) => passage.includes(Number(row.dataset.verse)));
+  if (!focused.length) focused.push(selected);
+  const root = document.getElementById("app");
+  const dimmed = new Set();
+  // Dim sibling branches, never a parent of the focused text. This also
+  // handles inline paragraph verses, Parallel columns, and surrounding chrome.
+  for (const row of focused) {
+    row.classList.add("verse-arrival-halo");
+    for (let node = row; node && node !== root; node = node.parentElement) {
+      for (const sibling of node.parentElement?.children || []) {
+        if (sibling === node || focused.some((verse) => sibling === verse || sibling.contains(verse))) continue;
+        dimmed.add(sibling);
+      }
+    }
+  }
+  for (const element of dimmed) element.classList.add("verse-arrival-dimmed");
+  const cleanup = () => {
+    clearTimeout(timer);
+    for (const row of focused) row.classList.remove("verse-arrival-halo");
+    for (const element of dimmed) element.classList.remove("verse-arrival-dimmed");
+    if (scripture.clearArrivalSpotlight === cleanup) delete scripture.clearArrivalSpotlight;
+  };
+  const timer = setTimeout(cleanup, 3200);
+  scripture.clearArrivalSpotlight = cleanup;
+}
+
 function scrollSelectedVerseIntoView(options = {}) {
   const block = options.block || "center";
   const scripture = document.querySelector(".scripture");
   const selected = scripture?.querySelector(`[data-verse="${state.verse}"]`)
     || document.querySelector(`[data-verse="${state.verse}"]`);
   if (!selected) return;
-  if (options.halo) {
-    selected.classList.add("verse-arrival-halo");
-    setTimeout(() => selected.classList.remove("verse-arrival-halo"), 3200);
-  }
+  if (options.halo) spotlightReaderPassage(scripture, selected);
   const behavior = options.behavior
     || (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth");
   if (scripture && scripture.scrollHeight > scripture.clientHeight) {
