@@ -651,6 +651,18 @@ html[data-control-material="glass"] .games-options-drawer :is(button, input, sel
   outline-offset: 3px;
 }
 
+/* Keep the title version unframed and share's circle on its glyph only. */
+html[data-control-material="glass"] .presentation :is(
+  .presentation-title-version-control .presentation-version-picker-toggle,
+  .presentation-reference-share
+) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 /* A quiet rim for presentation controls; keep glyph contrast unchanged. */
 html[data-control-material="glass"] .presentation :is(
   .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,

@@ -12286,7 +12286,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   background: var(--soft);
 }
 
-.presentation-title-version-control .presentation-version-picker-toggle {
+.presentation .presentation-title-version-control .presentation-version-picker-toggle {
   justify-content: center;
   min-height: 28px;
   padding: 3px 8px;
