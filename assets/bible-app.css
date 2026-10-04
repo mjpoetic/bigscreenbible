@@ -20771,6 +20771,10 @@ svg {
     overflow-y: auto;
   }
 
+  .is-expanded-play .reference-rush-game .reference-rush-stage-side .reference-rush-hints {
+    margin-top: 12px;
+  }
+
   .is-expanded-play .reference-rush-game .reference-rush-timer-meter {
     grid-column: 2;
     grid-row: 1;

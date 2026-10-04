@@ -15917,39 +15917,39 @@ function referenceRushGameView(game) {
           <div class="trivia-choices reference-rush-choices">
             ${puzzle.choices.map((choice) => referenceRushChoiceButton(puzzle, choice, answered)).join("")}
           </div>
+          ${!answered ? `
+            <div class="reference-rush-hints">
+              ${puzzle.hintUsed ? `
+                <div class="reference-rush-hint-result" role="status">
+                  <strong>${escapeHtml(referenceRushHintLabel(puzzle.hintUsed))} used</strong>
+                  <p>${escapeHtml(puzzle.hintMessage)}</p>
+                </div>
+              ` : puzzle.hintMenuOpen && hintOptions.length ? `
+                <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
+                  <div>
+                    <strong>Choose one hint</strong>
+                    <span>Each hint type can be used once per round.</span>
+                  </div>
+                  ${hintOptions.map((hint) => `
+                    <button type="button" data-reference-hint="${escapeHtml(hint.type)}">
+                      <strong>${escapeHtml(hint.label)}</strong>
+                      <span>${escapeHtml(hint.description)}</span>
+                    </button>
+                  `).join("")}
+                  <button class="reference-rush-hint-cancel" id="closeReferenceRushHints" type="button">Cancel</button>
+                </div>
+              ` : hintOptions.length ? `
+                <button class="ghost-btn" id="referenceRushHint" type="button">Choose a hint</button>
+              ` : `
+                <div class="reference-rush-hint-result" role="status">
+                  <strong>All hints used</strong>
+                  <p>Hint types return when you start a new round.</p>
+                </div>
+              `}
+            </div>
+          ` : ""}
         </div>
       </div>
-      ${!answered ? `
-        <div class="reference-rush-hints">
-          ${puzzle.hintUsed ? `
-            <div class="reference-rush-hint-result" role="status">
-              <strong>${escapeHtml(referenceRushHintLabel(puzzle.hintUsed))} used</strong>
-              <p>${escapeHtml(puzzle.hintMessage)}</p>
-            </div>
-          ` : puzzle.hintMenuOpen && hintOptions.length ? `
-            <div class="reference-rush-hint-menu" role="group" aria-label="Choose one hint">
-              <div>
-                <strong>Choose one hint</strong>
-                <span>Each hint type can be used once per round.</span>
-              </div>
-              ${hintOptions.map((hint) => `
-                <button type="button" data-reference-hint="${escapeHtml(hint.type)}">
-                  <strong>${escapeHtml(hint.label)}</strong>
-                  <span>${escapeHtml(hint.description)}</span>
-                </button>
-              `).join("")}
-              <button class="reference-rush-hint-cancel" id="closeReferenceRushHints" type="button">Cancel</button>
-            </div>
-          ` : hintOptions.length ? `
-            <button class="ghost-btn" id="referenceRushHint" type="button">Choose a hint</button>
-          ` : `
-            <div class="reference-rush-hint-result" role="status">
-              <strong>All hints used</strong>
-              <p>Hint types return when you start a new round.</p>
-            </div>
-          `}
-        </div>
-      ` : ""}
       ${answered ? `
         <div class="trivia-feedback ${correct ? "correct" : "incorrect"}">
           <strong>${correct ? "Correct" : "Not quite"}</strong>

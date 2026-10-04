@@ -64,7 +64,7 @@ html[data-control-material="glass"] :is(
   .focused-passage-actions .ghost-btn, .verse-of-day-reader .verse-of-day-read-button,
   .bottombar .nav-button, .bottombar .icon-btn, .bottombar .ghost-btn,
   .rail > button, .portrait-rail-actions > button,
-  .games-header-action, .games-menu-control, .games-drawer-close,
+  .games-header-action, .games-menu-control, .games-drawer-close, #referenceRushHint,
   .trivia-mode-scroll, .trivia-mode-tabs > button, .trivia-mobile-options,
   .parallel-version-trigger, .panel-minihead .icon-btn, .mobile-focus-workspace-head > button,
   .games-active-controls .ghost-btn, .study-section .ghost-btn, .study-section .icon-btn,
@@ -88,7 +88,7 @@ html[data-control-material="glass"] :is(
   .presentation-settings-toggle, .presentation-reference-share,
   .presentation-version-picker-toggle,
   .presentation-search-field, .games-header-action, .games-menu-control,
-  .games-drawer-close, .trivia-mode-scroll, .trivia-mode-tabs > button,
+  .games-drawer-close, #referenceRushHint, .trivia-mode-scroll, .trivia-mode-tabs > button,
   .parallel-version-trigger, .panel-minihead .icon-btn, .mobile-focus-workspace-head > button
 ) { border-radius: 999px; }
 html[data-control-material="glass"] :is(
@@ -174,7 +174,7 @@ html[data-control-material="glass"] :is(.presentation-settings-toggle, .presenta
     .focused-passage-actions .ghost-btn, .rail > button,
     .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-settings-toggle,
     .presentation-bible-toggle, .presentation-fullscreen-toggle, .presentation-account-toggle,
-    .games-header-action, .games-menu-control
+    .games-header-action, .games-menu-control, #referenceRushHint
   ):not(:disabled):not(.active):hover {
     border-color: var(--glass-ink);
     background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-solid) 92%, transparent);
@@ -641,6 +641,9 @@ html[data-control-material="glass"] .games-options-drawer :is(.puzzle-source-opt
   background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
   color: var(--accent-ink);
   box-shadow: inset 0 1px 0 var(--glass-light), 0 3px 10px color-mix(in srgb, var(--teal) 20%, transparent);
+}
+html[data-control-material="glass"] .games-options-drawer .reference-rush-timer-option.active :is(small, svg) {
+  color: inherit;
 }
 html[data-control-material="glass"] .games-options-drawer :is(.hidden-word-score-rules, .puzzle-word-review) { padding: 12px; }
 html[data-control-material="glass"] .games-options-drawer :is(button, input, select):focus-visible {
