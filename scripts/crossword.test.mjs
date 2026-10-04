@@ -424,7 +424,7 @@ const clueStyle = new Map();
 const clueStorage = new Map();
 const clueOutput = {};
 const clueContext = {
-  state: { mode: "trivia", triviaGame: { type: "crossword" }, crosswordClueSize: 16 },
+  state: { mode: "trivia", triviaGame: { type: "crossword" }, crosswordClueSize: 15 },
   localStorage: { setItem: (key, value) => clueStorage.set(key, value) },
   document: {
     querySelector: () => ({ style: { setProperty: (key, value) => clueStyle.set(key, value) } }),
@@ -434,9 +434,9 @@ const clueContext = {
 vm.createContext(clueContext);
 vm.runInContext(`${extractFunction("adjustCrosswordClueSize")}\n${extractFunction("handleCrosswordClueSizeShortcut")}`, clueContext);
 vm.runInContext('adjustCrosswordClueSize(2)', clueContext);
-assert.equal(clueContext.state.crosswordClueSize, 18);
-assert.equal(clueStyle.get('--crossword-clue-size'), '18px');
-assert.equal(clueStorage.get('lw_crossword_clue_size'), '18');
+assert.equal(clueContext.state.crosswordClueSize, 17);
+assert.equal(clueStyle.get('--crossword-clue-size'), '17px');
+assert.equal(clueStorage.get('lw_crossword_clue_size'), '17');
 vm.runInContext('adjustCrosswordClueSize(100)', clueContext);
 assert.equal(clueContext.state.crosswordClueSize, 24);
 vm.runInContext('adjustCrosswordClueSize(-100)', clueContext);
@@ -444,6 +444,6 @@ assert.equal(clueContext.state.crosswordClueSize, 14);
 let prevented = false;
 assert.equal(clueContext.handleCrosswordClueSizeShortcut({ shiftKey: true, code: 'Digit0', preventDefault: () => { prevented = true; }, stopPropagation() {} }), true);
 assert.equal(prevented, true);
-assert.equal(clueContext.state.crosswordClueSize, 16);
+assert.equal(clueContext.state.crosswordClueSize, 15);
 assert.equal(clueContext.handleCrosswordClueSizeShortcut({ shiftKey: true, ctrlKey: true, code: 'Equal' }), false);
 console.log('Crossword clue size controls and shortcuts passed');

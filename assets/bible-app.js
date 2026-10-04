@@ -921,7 +921,7 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
-  crosswordClueSize: Math.max(14, Math.min(24, Number(localStorage.getItem("lw_crossword_clue_size")) || 16)),
+  crosswordClueSize: Math.max(14, Math.min(24, Number(localStorage.getItem("lw_crossword_clue_size")) || 15)),
   crosswordKeyboardVisible: localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false",
   hiddenWordKeyboardVisible: localStorage.getItem(hiddenWordKeyboardVisibleStorageKey) !== "false",
   wordSearchRecentPassages: savedWordSearchRecentPassages(),
@@ -15342,7 +15342,7 @@ function crosswordGameView(game) {
     </button>
   `).join("");
   return `
-    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}" style="--crossword-clue-size:${state.crosswordClueSize || 16}px">
+    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}" style="--crossword-clue-size:${state.crosswordClueSize || 15}px">
       <div class="crossword-toolbar word-search-toolbar">
         <div class="trivia-progress">
           <span>Crossword · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
@@ -15400,8 +15400,6 @@ function crosswordGameView(game) {
               </div>
               <button type="button" class="crossword-clue-arrow" data-crossword-step="1" aria-label="Next clue">›</button>
             </div>
-            <button type="button" class="text-btn crossword-fit-toggle" id="crosswordFitToggle" aria-pressed="false">Larger grid</button>
-            <button type="button" class="text-btn crossword-browse-toggle" id="crosswordBrowseToggle" aria-expanded="false" aria-controls="crosswordClueBrowser">Clues</button>
             <div class="crossword-clue-browser" id="crosswordClueBrowser" hidden>
               <div class="crossword-clue-tabs" role="group" aria-label="Clue direction">
                 <button type="button" data-crossword-tab="across" aria-pressed="true">Across</button>
@@ -15410,6 +15408,9 @@ function crosswordGameView(game) {
               <div data-crossword-list="across">${clueGroup("across")}</div>
               <div data-crossword-list="down" hidden>${clueGroup("down")}</div>
             </div>
+            <div class="crossword-utilities">
+            <button type="button" class="text-btn crossword-fit-toggle" id="crosswordFitToggle" aria-pressed="false">Larger grid</button>
+            <button type="button" class="text-btn crossword-browse-toggle" id="crosswordBrowseToggle" aria-expanded="false" aria-controls="crosswordClueBrowser">Clues</button>
           `}
           <div class="crossword-input-controls">
             <p class="word-search-status crossword-status" id="crosswordStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Crossword complete. The full passage is ready to read." : game.lastMessage)}</p>
@@ -15436,6 +15437,7 @@ function crosswordGameView(game) {
               >
             `}
           </div>
+          ${game.complete ? "" : "</div>"}
           ${game.complete ? "" : `
             <div class="reference-rush-hints crossword-hints">
               ${!hintsRemaining ? `
@@ -22832,7 +22834,7 @@ function crosswordClueSizeMarkup() {
 }
 
 function adjustCrosswordClueSize(delta, { reset = false } = {}) {
-  state.crosswordClueSize = reset ? 16 : Math.max(14, Math.min(24, (state.crosswordClueSize || 16) + delta));
+  state.crosswordClueSize = reset ? 15 : Math.max(14, Math.min(24, (state.crosswordClueSize || 15) + delta));
   localStorage.setItem("lw_crossword_clue_size", String(state.crosswordClueSize));
   document.querySelector(".crossword-game")?.style.setProperty("--crossword-clue-size", `${state.crosswordClueSize}px`);
   const value = document.getElementById("crosswordClueSizeValue");
