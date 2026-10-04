@@ -14713,7 +14713,7 @@ function mountMobileGameControls() {
   if (progress && score && ["trivia", "who-said-it", "hidden-word"].includes(state.triviaGame.type || "trivia")) {
     progress.append(score);
   }
-  const hints = game.querySelector(":scope > .reference-rush-hints, .crossword-hints");
+  const hints = game.querySelector(":scope > .reference-rush-hints, .crossword-hints, .hidden-word-hints");
   if (hints) hintDestination.append(hints);
   const bookSprintSound = game.querySelector(".book-sprint-sound-toggle");
   if (bookSprintSound) destination.append(bookSprintSound);
@@ -15780,6 +15780,7 @@ function hiddenWordGameView(game) {
               <div class="hidden-word-scroll-roller" aria-hidden="true"></div>
             </div>
           </div>
+          ${round.complete ? "" : hiddenWordHintsMarkup(game, round)}
           <h2 class="sr-only" id="hiddenWordPrompt">Guess the hidden ${answerLetters.length}-letter Bible ${answerKind}</h2>
           <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${answerLetters.length}-letter hidden ${answerKind}. Tap to use the device keyboard." style="--hidden-word-length:${answerLetters.length};--hidden-word-longest-term:${longestTerm};--hidden-word-term-count:${wordCount}" ${round.complete ? "disabled" : ""}>
             ${hiddenWordDisplayMarkup(round)}
@@ -15819,7 +15820,6 @@ function hiddenWordGameView(game) {
           <button class="primary-btn" id="nextTriviaQuestion">${game.index === game.rounds.length - 1 ? "Finish round" : "Next puzzle"}</button>
         </div>
       ` : `
-        ${hiddenWordHintsMarkup(game, round)}
         <div class="trivia-actions hidden-word-actions">
           ${triviaExitControl(game)}
           <button class="ghost-btn" id="restartTriviaGame">Restart</button>

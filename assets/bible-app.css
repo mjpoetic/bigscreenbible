@@ -8549,7 +8549,7 @@ select {
   flex-wrap: wrap;
   justify-content: center;
   align-items: end;
-  gap: clamp(18px, 2.8vw, 34px);
+  gap: 18px clamp(32px, 4vw, 52px);
   width: 100%;
   min-height: 132px;
   border: 0;
@@ -8731,6 +8731,8 @@ select {
 }
 
 .hidden-word-hints {
+  display: grid;
+  justify-items: center;
   width: min(100%, 720px);
   margin-inline: auto;
 }
@@ -24877,5 +24879,29 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
     padding: 12px;
     gap: 8px;
     font-size: clamp(18px, 2.2vw, 22px);
+  }
+}
+
+/* Keep long desktop phrases readable without oversized rows. */
+@media (min-width: 841px) {
+  .hidden-word-stage { container-type: inline-size; gap: 12px; }
+  .hidden-word-scroll { min-height: clamp(112px, 15vh, 150px); }
+  .hidden-word-scroll-paper { padding-block: 12px; gap: 5px; }
+  .hidden-word-answer {
+    --hidden-word-cell: clamp(28px, calc(1600px / var(--hidden-word-length)), 58px);
+    min-height: 0;
+    gap: 16px 40px;
+    padding: 4px 8px;
+  }
+  .hidden-word-term { gap: 6px; }
+  .hidden-word-letter {
+    width: min(var(--hidden-word-cell), calc((100cqw - 24px) / var(--hidden-word-longest-term) - 6px));
+    min-height: calc(var(--hidden-word-cell) + 12px);
+    font-size: calc(var(--hidden-word-cell) * .85);
+    border-bottom-width: 4px;
+  }
+  .hidden-word-punctuation {
+    min-height: calc(var(--hidden-word-cell) + 12px);
+    font-size: calc(var(--hidden-word-cell) * .7);
   }
 }
