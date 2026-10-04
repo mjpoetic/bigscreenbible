@@ -24966,3 +24966,31 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   .crossword-sidebar[data-clue-direction="down"] .crossword-clue-columns > section:first-child { display: none; }
   .crossword-clue-columns > section + section { margin-top: 0; }
 }
+
+/* Only the glyph is framed; the larger button remains an invisible hit area. */
+#app #presentation .presentation-reference-share {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#app #presentation .presentation-reference-share:focus-visible {
+  outline: none;
+}
+#app #presentation .presentation-reference-share:focus-visible .presentation-reference-share-glyph {
+  outline: 2px solid var(--presentation-accent);
+  outline-offset: 2px;
+}
+.scripture [data-verse].verse-arrival-halo {
+  animation: verse-arrival-halo 3.2s ease-out both;
+}
+@keyframes verse-arrival-halo {
+  0%, 20% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 65%, transparent), 0 0 24px 6px color-mix(in srgb, var(--teal) 30%, transparent); }
+  100% { box-shadow: 0 0 0 2px transparent, 0 0 24px 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scripture [data-verse].verse-arrival-halo {
+    animation: none;
+    outline: 2px solid color-mix(in srgb, var(--teal) 65%, transparent);
+    outline-offset: -2px;
+  }
+}

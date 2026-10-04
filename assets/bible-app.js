@@ -1873,9 +1873,14 @@ function render() {
   applyCustomScriptureFont();
   if (state.pendingVerseFocus) {
     const focusMode = state.pendingVerseFocus;
+    const halo = Boolean(state.pendingVerseHalo);
+    const focusReference = state.reference;
+    const focusVerse = state.verse;
     state.pendingVerseFocus = false;
+    state.pendingVerseHalo = false;
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      scrollSelectedVerseIntoView({ block: focusMode === "nearest" ? "nearest" : "center" });
+      if (!["reader", "parallel"].includes(state.mode) || state.reference !== focusReference || state.verse !== focusVerse) return;
+      scrollSelectedVerseIntoView({ block: focusMode === "nearest" ? "nearest" : "center", halo });
     }));
   }
   if (state.pendingInlineSearchFocus || state.pendingInlineSearchInputFocus) {
@@ -2451,7 +2456,9 @@ function switchMode(nextMode, options = {}) {
     && ["reader", "parallel"].includes(nextMode)
     && state.isVerseOfDayActive
     && Boolean(state.verseOfDayItem);
-  const targetScrollState = openVerseOfDayPassage
+  const revealPresentationVerse = previousMode === "big"
+    && ["reader", "parallel"].includes(nextMode);
+  const targetScrollState = revealPresentationVerse
     ? null
     : modeScrollStateForTarget(nextMode, previousScrollState);
   const applyModeChange = () => {
@@ -2460,6 +2467,10 @@ function switchMode(nextMode, options = {}) {
     if (openVerseOfDayPassage) {
       selectVerseOfDayReference(state.verseOfDayItem.reference);
       state.pendingVerseFocus = true;
+    }
+    if (revealPresentationVerse) {
+      state.pendingVerseFocus = true;
+      state.pendingVerseHalo = true;
     }
     if (audible) playModeTransitionSound(nextMode);
     if (nextMode !== "trivia") state.gamesDrawerOpen = "";
@@ -2486,7 +2497,7 @@ function switchMode(nextMode, options = {}) {
         state.presentationVersionMenuOpen = "";
         state.presentationReferenceMenuOpen = "";
       }
-      if (["reader", "parallel"].includes(state.mode) && !targetScrollState && !openVerseOfDayPassage) {
+      if (["reader", "parallel"].includes(state.mode) && !targetScrollState && !revealPresentationVerse) {
         state.pendingVerseFocus = "nearest";
       }
     }
@@ -25040,12 +25051,14 @@ function sharedPassageReaderView() {
 
 function openSharedPassageChapter() {
   if (!state.sharedPassage) return;
+  const fromPresentation = state.mode === "big";
   const verses = [...state.sharedPassage.verses];
   state.sharedPassage = null;
   state.mode = "reader";
   state.verse = verses[0] || state.verse;
   state.selectedVerses = verses;
   state.pendingVerseFocus = true;
+  state.pendingVerseHalo = fromPresentation;
   recordHistory();
   updateShareUrl();
   render();
@@ -27896,7 +27909,11 @@ function shortcutWorkspace(target) {
   if (target === "Search" && state.focusMode && state.mode !== "big") {
     return focusFocusModeSearch();
   }
-  if (state.mode === "big") state.mode = "reader";
+  if (state.mode === "big") {
+    state.mode = "reader";
+    state.pendingVerseFocus = true;
+    state.pendingVerseHalo = true;
+  }
   if (state.focusMode) {
     state.focusMode = false;
     localStorage.setItem("lw_focus_mode", "false");
@@ -28103,6 +28120,10 @@ function scrollSelectedVerseIntoView(options = {}) {
   const selected = scripture?.querySelector(`[data-verse="${state.verse}"]`)
     || document.querySelector(`[data-verse="${state.verse}"]`);
   if (!selected) return;
+  if (options.halo) {
+    selected.classList.add("verse-arrival-halo");
+    setTimeout(() => selected.classList.remove("verse-arrival-halo"), 3200);
+  }
   const behavior = options.behavior
     || (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth");
   if (scripture && scripture.scrollHeight > scripture.clientHeight) {

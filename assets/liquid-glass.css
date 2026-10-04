@@ -544,7 +544,7 @@ html[data-control-material="glass"] .mobile-focus-passage-popover > button[type=
 
 /* Keep the Settings gear paired with its accent fill in every open state. */
 /* Keep a generous invisible hit area around a proportional visible circle. */
-html[data-control-material="glass"] .presentation .presentation-reference-share.ghost-btn {
+html[data-control-material="glass"] #app #presentation .presentation-reference-share.ghost-btn {
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -652,7 +652,7 @@ html[data-control-material="glass"] .games-options-drawer :is(button, input, sel
 }
 
 /* Keep the title version unframed and share's circle on its glyph only. */
-html[data-control-material="glass"] .presentation :is(
+html[data-control-material="glass"] #app .presentation :is(
   .presentation-title-version-control .presentation-version-picker-toggle,
   .presentation-reference-share
 ) {

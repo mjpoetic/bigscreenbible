@@ -104,6 +104,18 @@ assert.deepEqual(switchModeContext.state.selectedVerses, [1, 2], "Back to Bible 
 assert.equal(switchModeContext.state.pendingVerseFocus, true, "The cited verse is centered after leaving Big Screen");
 assert.equal(switchModeContext.restoredScrollState, null, "A stale Reader scroll position cannot override the Verse of the Day reference");
 
+for (const mode of ["reader", "parallel"]) {
+  switchModeContext.state.mode = "big";
+  switchModeContext.state.isVerseOfDayActive = false;
+  switchModeContext.state.verse = 16;
+  switchModeContext.changeMode(mode);
+  assert.equal(switchModeContext.state.pendingVerseFocus, true, "Every Bible exit centers the displayed verse");
+  assert.equal(switchModeContext.state.pendingVerseHalo, true, "Every Bible exit requests a temporary halo");
+  assert.equal(switchModeContext.restoredScrollState, null, "Old Reader position cannot override Big Screen verse");
+  assert.equal(switchModeContext.state.verse, 16);
+}
+assert.match(extractFunction("scrollSelectedVerseIntoView"), /options\.halo[\s\S]*classList\.add\("verse-arrival-halo"\)[\s\S]*setTimeout/);
+
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-old\(root\)/);
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-new\(root\)/);
 assert.match(styles, /html\[data-mode-transition="exit-big"\]::view-transition-old\(root\)/);
