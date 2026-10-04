@@ -15714,7 +15714,7 @@ function crosswordGameView(game) {
             </div>
           `}
         </section>
-        <aside class="crossword-sidebar" aria-label="Crossword clues">
+        <aside class="crossword-sidebar" aria-label="Crossword clues" data-clue-direction="${activeEntry?.direction || "across"}">
           <div class="word-search-passage-heading">
             <span>${triviaMode ? game.complete ? "Answers and references" : "Traditional clues" : game.complete ? "Puzzle passage" : "Clues from"}</span>
             <strong>${escapeHtml(game.referenceLabel)}</strong>
@@ -15734,6 +15734,10 @@ function crosswordGameView(game) {
               <button class="text-btn" id="openTriviaReference" type="button">Open passage</button>
             </div>`}
           ` : `
+            <div class="crossword-desktop-tabs" role="group" aria-label="Clue direction">
+              <button type="button" class="text-btn" data-crossword-desktop-tab="across" aria-pressed="${activeEntry?.direction === "across"}">Across</button>
+              <button type="button" class="text-btn" data-crossword-desktop-tab="down" aria-pressed="${activeEntry?.direction === "down"}">Down</button>
+            </div>
             <div class="crossword-clue-columns">
               <section>
                 <h2>Across</h2>
@@ -22861,6 +22865,19 @@ function updateCrosswordDom({ focus = false } = {}) {
     clue.classList.toggle("is-complete", completedEntries.has(entryId));
     clue.setAttribute("aria-pressed", String(entryId === activeEntry?.id));
   });
+  const sidebar = document.querySelector(".crossword-sidebar");
+  if (sidebar && activeEntry) {
+    sidebar.dataset.clueDirection = activeEntry.direction;
+    document.querySelectorAll("[data-crossword-desktop-tab]").forEach((tab) => tab.setAttribute("aria-pressed", String(tab.dataset.crosswordDesktopTab === activeEntry.direction)));
+    const list = sidebar.querySelector(".crossword-clue-columns");
+    const clue = list?.querySelector(`[data-crossword-entry="${activeEntry.id}"]`);
+    if (list && clue) {
+      const bounds = list.getBoundingClientRect();
+      const item = clue.getBoundingClientRect();
+      if (item.top < bounds.top) list.scrollTop += item.top - bounds.top;
+      else if (item.bottom > bounds.bottom) list.scrollTop += item.bottom - bounds.bottom;
+    }
+  }
   const activeLabel = document.getElementById("crosswordActiveClueLabel");
   const activeText = document.getElementById("crosswordActiveClueText");
   if (activeLabel) activeLabel.textContent = crosswordEntryLabel(activeEntry);
@@ -23184,8 +23201,7 @@ function bindCrosswordGrid() {
   const fitGrid = () => {
     if (!grid.isConnected) { observer.disconnect(); return; }
     const game = state.triviaGame;
-    const mobile = window.matchMedia("(max-width: 840px), (max-height: 720px) and (max-width: 1366px)").matches;
-    if (!mobile) { grid.style.removeProperty("--crossword-cell-size"); return; }
+    // Fit desktop and mobile grids within their reserved board area.
     const landscape = window.matchMedia("(orientation: landscape)").matches;
     const size = Math.min((fitScroll.clientWidth - 8) / game.columns, (fitScroll.clientHeight - 8) / game.rows);
     if (size <= 0) return;
@@ -23245,6 +23261,13 @@ function bindCrosswordGrid() {
     if (!state.crosswordKeyboardVisible) focusCrosswordNativeInput();
   });
   grid.addEventListener("keydown", handleCrosswordKeydown);
+  document.querySelectorAll("[data-crossword-desktop-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const sidebar = document.querySelector(".crossword-sidebar");
+      sidebar.dataset.clueDirection = button.dataset.crosswordDesktopTab;
+      document.querySelectorAll("[data-crossword-desktop-tab]").forEach((tab) => tab.setAttribute("aria-pressed", String(tab === button)));
+    });
+  });
   document.querySelectorAll("[data-crossword-entry]").forEach((clue) => {
     clue.addEventListener("click", (event) => {
       selectCrosswordEntry(clue.dataset.crosswordEntry, event.target.closest?.("[data-crossword-answer]")?.dataset.crosswordAnswer || "", { focus: false });
