@@ -7,8 +7,31 @@ const manifest = source.match(/const gameMusicTracks = Object.freeze\(\{[^]*?\n\
 const tracks = vm.runInNewContext(`${manifest}; gameMusicTracks`);
 assert.equal(Object.keys(tracks).length, 9, "All eight games and timed Reference Rush have musical loop boundaries");
 for (const track of Object.values(tracks)) {
-  assert.ok(Number.isFinite(track.loopSeconds) && track.loopSeconds > 20, `${track.key} has a valid musical boundary`);
+  assert.ok(Number.isFinite(track.loopSeconds) && track.loopSeconds > 15, `${track.key} has a valid musical boundary`);
 }
+// Verify the generator performs a musical overlap, not just a sample repair.
+const generator = readFileSync(new URL("./generate-game-music-auditions.mjs", import.meta.url), "utf8");
+const synthContext = vm.createContext({ Buffer });
+vm.runInContext(`const sampleRate = 44100; ${generator.slice(generator.indexOf("function seededRandom"), generator.indexOf("function encodeTrack"))}`, synthContext);
+vm.runInContext(`
+ const synth = new LoopSynth({ bpm: 6000, beats: 32, seed: 1 });
+ synth.left.fill(0.25); synth.right.fill(-0.25);
+ const originalLength = synth.length;
+ synth.crossfadeLoop();
+`, synthContext);
+assert.equal(vm.runInContext("synth.length", synthContext), vm.runInContext("originalLength / 2", synthContext), "Four matching bars are overlapped without changing the beat grid");
+assert.equal(vm.runInContext("synth.left.every(value => Math.abs(value - 0.25) < 1e-10)", synthContext), true, "Complementary blend gains preserve level for matching material");
+assert.equal(vm.runInContext("synth.right.every(value => Math.abs(value + 0.25) < 1e-10)", synthContext), true, "Both channels are blended");
+vm.runInContext(`
+ const contrasting = new LoopSynth({ bpm: 6000, beats: 32, seed: 1 });
+ contrasting.left.fill(0.25); contrasting.right.fill(-0.25);
+ contrasting.left.fill(0.75, contrasting.length / 2);
+ contrasting.right.fill(-0.75, contrasting.length / 2);
+ contrasting.crossfadeLoop();
+`, synthContext);
+assert.equal(vm.runInContext("contrasting.left[0]", synthContext), 0.75, "Blend begins on the outgoing phrase");
+assert.equal(vm.runInContext("contrasting.left[contrasting.length - 1]", synthContext), 0.25, "Blend ends on the incoming phrase");
+assert.ok(Math.abs(vm.runInContext("contrasting.left[Math.floor(contrasting.length / 2)]", synthContext) - 0.5) < 0.001, "Phrases overlap progressively over the chord cycle");
 const starts = [], stops = [];
 let resolveFetch;
 let fallbackPlays = 0;
@@ -27,9 +50,9 @@ const context = vm.createContext({
   audioContext, buffer,
 });
 vm.runInContext(`
- let gameMusicLoop = null, gameMusicLoopRequest = 0, gameMusicLoopLoad = null;
+ let gameMusicLoop = null, gameMusicLoopRequest = 0, gameMusicLoopLoad = null, gameMusicLoopFallbackKey = "";
  let gameMusicAudioContext = audioContext, gameMusicGain = {};
- let gameMusicAudio = { play() { fallback(); return Promise.resolve(); } };
+ let gameMusicAudio = { load() {}, play() { fallback(); return Promise.resolve(); } };
  const track = { key: "test", src: "test.mp3", loopSeconds: 1 };
  ${["prepareGameMusicLoopBuffer", "stopGameMusicLoop", "startGameMusicLoop"].map(extract).join("\n")}
 `, context);
@@ -60,4 +83,5 @@ const failed = run("startGameMusicLoop(track, true)");
 resolveFetch({ ok: false });
 await failed;
 assert.equal(fallbackPlays, 1, "A failed load retains native audio fallback");
+assert.equal(run("gameMusicLoopFallbackKey"), "test", "A failed track stays on native playback rather than retrying decoding on every selection/render");
 console.log("Sample-timed game music loop tests passed");

@@ -45,7 +45,7 @@ assert.match(outcomeManifestSource, /low: \{[^}]*volume: 0\.14 \}/, "The low-res
 for (const [fileName, trackName] of tracks) {
   const assetPath = path.join(rootDir, "assets", "audio", "game-music", fileName);
   assert.ok(existsSync(assetPath), `${fileName} must be generated`);
-  assert.ok(statSync(assetPath).size > 300_000, `${fileName} must contain a complete encoded loop`);
+  assert.ok(statSync(assetPath).size > 200_000, `${fileName} must contain a complete encoded loop`);
   assert.match(manifestSource, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be mapped`);
   assert.match(manifestSource, new RegExp(trackName), `${trackName} must be named in controls`);
   assert.match(generatorSource, new RegExp(fileName.replace(/\.mp3$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);

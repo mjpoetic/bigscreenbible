@@ -10,9 +10,11 @@ function extract(name) {
 }
 
 let connections = 0;
+let contextCreations = 0;
 let resumes = 0;
 let frame;
 class AudioContext {
+  constructor() { contextCreations++; }
   state = "interrupted";
   destination = {};
   createGain() { return { gain: { value: 1 }, connect() {} }; }
@@ -30,7 +32,7 @@ const audio = {
   pause() { this.paused = true; },
 };
 const context = vm.createContext({
-  window: { AudioContext }, audio, document: { hidden: false },
+  window: { AudioContext }, navigator: {}, audio, document: { hidden: false },
   performance: { now: () => 0 },
   requestAnimationFrame: (callback) => { frame = callback; return 1; },
   cancelAnimationFrame() {},
@@ -43,14 +45,16 @@ vm.runInContext(`
   let gameMusicLoop = null;
   let gameMusicLoopRequest = 0;
   let gameMusicTrackKey = "track";
-  const state = { gameVolume: 100, modeTransitionSounds: true };
+  const state = { gameVolume: 100, modeTransitionSounds: true, wordSearchSounds: true, bookSprintSound: true };
+  let wordSearchAudioContext = null, wordSearchAudioResumePromise = null;
+  let bookSprintAudioContext = null, referenceRushAudioContext = null;
   const gameOutcomeSounds = { complete: { volume: 0.8 } };
   const gameMusicTrackForGame = () => ({ volume: 0.6 });
   const ensureGameMusicAudio = () => audio;
   const soundVolumeScalar = (value) => value / 100;
   let modeTransitionAudioContext = null;
   let modeTransitionAudioResumePromise = null;
-  ${["primeGameMusicAudio", "setGameMusicOutputVolume", "syncActiveGameAudioVolume", "pauseGameMusic", "stopGameMusicLoop", "cancelGameMusicFade", "primeModeTransitionAudio"].map(extract).join("\n")}
+  ${["ensureGameAudioContext", "configureAmbientGameAudioSession", "primeGameMusicAudio", "setGameMusicOutputVolume", "syncActiveGameAudioVolume", "pauseGameMusic", "stopGameMusicLoop", "cancelGameMusicFade", "primeModeTransitionAudio", "primeWordSearchAudio", "primeBookSprintAudio", "primeReferenceRushAudio"].map(extract).join("\n")}
 `, context);
 const run = (code) => vm.runInContext(code, context);
 run("primeGameMusicAudio(); syncActiveGameAudioVolume()");
@@ -59,6 +63,13 @@ assert.equal(run("gameMusicGain.gain.value"), 0.6);
 run("state.gameVolume = 25; syncActiveGameAudioVolume()");
 assert.equal(run("gameMusicGain.gain.value"), 0.15, "Slider changes gain even when native volume ignores writes");
 assert.equal(audio.volume, 1);
+const musicContextCount = contextCreations;
+await run("primeWordSearchAudio()");
+run("primeBookSprintAudio(); primeReferenceRushAudio()");
+assert.equal(contextCreations, musicContextCount, "Game interactions must not open another audio device/context");
+assert.equal(run("wordSearchAudioContext === gameMusicAudioContext"), true, "Word selection feedback shares the running music clock");
+assert.equal(run("bookSprintAudioContext === gameMusicAudioContext && referenceRushAudioContext === gameMusicAudioContext"), true, "Countdown cues share the music clock too");
+
 run("state.gameVolume = 0; syncActiveGameAudioVolume()");
 assert.equal(run("gameMusicGain.gain.value"), 0, "Zero fully mutes music");
 run('gameMusicTrackKey = "outcome:complete"; state.gameVolume = 50; primeGameMusicAudio(); syncActiveGameAudioVolume()');

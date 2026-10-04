@@ -484,6 +484,7 @@ let gameMusicRestartPending = false;
 let gameMusicLoop = null;
 let gameMusicLoopRequest = 0;
 let gameMusicLoopLoad = null;
+let gameMusicLoopFallbackKey = "";
 let modeTransitionAudioContext = null;
 let modeTransitionAudioResumePromise = null;
 let referenceRushTimer = 0;
@@ -522,15 +523,15 @@ const hiddenWordBestStorageKey = "lw_hidden_word_scores_v2";
 const crosswordHintLimit = 3;
 const hiddenWordHintTypes = ["context", "letter"];
 const gameMusicTracks = Object.freeze({
-  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3", loopSeconds: 48 * 60 / 88, volume: 0.15 },
-  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3", loopSeconds: 48 * 60 / 90, volume: 0.14 },
-  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.mp3", loopSeconds: 64 * 60 / 94, volume: 0.14 },
-  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3", loopSeconds: 64 * 60 / 132, volume: 0.14 },
-  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3", loopSeconds: 48 * 60 / 80, volume: 0.14 },
-  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3", loopSeconds: 48 * 60 / 96, volume: 0.13 },
-  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.mp3", loopSeconds: 64 * 60 / 150, volume: 0.15 },
-  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3", loopSeconds: 64 * 60 / 142, volume: 0.14 },
-  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3", loopSeconds: 48 * 60 / 104, volume: 0.14 },
+  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3?v=seamless-2", loopSeconds: 32 * 60 / 88, volume: 0.15 },
+  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3?v=seamless-2", loopSeconds: 32 * 60 / 90, volume: 0.14 },
+  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.mp3?v=seamless-2", loopSeconds: 48 * 60 / 94, volume: 0.14 },
+  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3?v=seamless-2", loopSeconds: 48 * 60 / 132, volume: 0.14 },
+  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3?v=seamless-2", loopSeconds: 32 * 60 / 80, volume: 0.14 },
+  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3?v=seamless-2", loopSeconds: 32 * 60 / 96, volume: 0.13 },
+  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.mp3?v=seamless-2", loopSeconds: 48 * 60 / 150, volume: 0.15 },
+  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3?v=seamless-2", loopSeconds: 48 * 60 / 142, volume: 0.14 },
+  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3?v=seamless-2", loopSeconds: 32 * 60 / 104, volume: 0.14 },
 });
 const gameOutcomeSounds = Object.freeze({
   heaven: { key: "heaven", src: "./assets/audio/game-music/heaven-complete.mp3", volume: 0.13 },
@@ -13612,12 +13613,29 @@ function scheduleCrosswordTimer() {
   crosswordTimer = setInterval(updateCrosswordTimerDisplay, 500);
 }
 
+// Music, word feedback, and countdowns share one audio device/clock. Creating
+// another context during a selection can interrupt music on mobile browsers.
+function ensureGameAudioContext() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return null;
+  try {
+    if (!gameMusicAudioContext || gameMusicAudioContext.state === "closed") {
+      configureAmbientGameAudioSession();
+      gameMusicAudioContext = new AudioContext();
+    }
+    return gameMusicAudioContext;
+  } catch {
+    return null;
+  }
+}
+
 function primeWordSearchAudio() {
   if (!state.wordSearchSounds) return null;
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return null;
   try {
-    if (!wordSearchAudioContext) wordSearchAudioContext = new AudioContext();
+    wordSearchAudioContext = ensureGameAudioContext();
+    if (!wordSearchAudioContext) return null;
   } catch {
     return null;
   }
@@ -13769,7 +13787,7 @@ function primeGameMusicAudio() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!gameMusicGain && AudioContext) {
     try {
-      if (!gameMusicAudioContext) gameMusicAudioContext = new AudioContext();
+      if (!ensureGameAudioContext()) return audio;
       const gain = gameMusicAudioContext.createGain();
       gain.gain.value = 0;
       gain.connect(gameMusicAudioContext.destination);
@@ -13865,7 +13883,13 @@ async function startGameMusicLoop(track, restart) {
   } catch {
     if (currentRequest !== gameMusicLoopRequest) return;
     gameMusicLoopLoad = null;
+    gameMusicLoopFallbackKey = track.key;
     // Retain native playback if fetching or decoding is unsupported.
+    if (gameMusicAudio) {
+      gameMusicAudio.src = track.src;
+      gameMusicAudio.loop = true;
+      gameMusicAudio.load();
+    }
     const playback = gameMusicAudio?.play();
     playback?.catch?.(() => {});
   }
@@ -13940,29 +13964,27 @@ function syncGameMusicPlayback() {
   const audio = primeGameMusicAudio();
   if (!audio) return;
   cancelGameMusicFade();
-  audio.loop = true;
   const changedTrack = gameMusicTrackKey !== track.key;
+  if (changedTrack) gameMusicLoopFallbackKey = "";
+  const restartLoop = changedTrack || gameMusicRestartPending;
+  setGameMusicOutputVolume(track.volume * soundVolumeScalar(state.gameVolume));
+  gameMusicTrackKey = track.key;
+  gameMusicRestartPending = false;
+  if (gameMusicGain && gameMusicLoopFallbackKey !== track.key
+    && typeof gameMusicAudioContext?.createBufferSource === "function") {
+    if (!audio.paused) audio.pause();
+    if (!restartLoop && gameMusicLoop?.source && gameMusicLoop.key === track.key) return;
+    startGameMusicLoop(track, restartLoop);
+    return;
+  }
+  audio.loop = true;
   if (changedTrack) {
     audio.pause();
     audio.src = track.src;
     audio.load();
-    gameMusicTrackKey = track.key;
   }
-  setGameMusicOutputVolume(track.volume * soundVolumeScalar(state.gameVolume));
-  const restartLoop = changedTrack || gameMusicRestartPending;
   if (restartLoop) {
-    try {
-      audio.currentTime = 0;
-    } catch {
-      // Some engines wait for metadata before accepting a seek; playback still starts at zero.
-    }
-    gameMusicRestartPending = false;
-  }
-  if (gameMusicGain && typeof gameMusicAudioContext?.createBufferSource === "function") {
-    audio.pause();
-    if (!restartLoop && gameMusicLoop?.source && gameMusicLoop.key === track.key) return;
-    startGameMusicLoop(track, restartLoop);
-    return;
+    try { audio.currentTime = 0; } catch { /* Metadata may not be ready yet. */ }
   }
   if (!audio.paused) return;
   const playback = audio.play();
@@ -14219,7 +14241,8 @@ function primeBookSprintAudio() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
   try {
-    if (!bookSprintAudioContext) bookSprintAudioContext = new AudioContext();
+    bookSprintAudioContext = ensureGameAudioContext();
+    if (!bookSprintAudioContext) return;
   } catch {
     return;
   }
@@ -14299,7 +14322,8 @@ function primeReferenceRushAudio() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
   try {
-    if (!referenceRushAudioContext) referenceRushAudioContext = new AudioContext();
+    referenceRushAudioContext = ensureGameAudioContext();
+    if (!referenceRushAudioContext) return;
   } catch {
     return;
   }
@@ -22709,6 +22733,7 @@ function beginWordSearchPointer(event) {
   if (!game || game.type !== "word-search" || game.complete || event.button !== 0 || wordSearchPointerState) return;
   const start = wordSearchCellFromPoint(grid, event.clientX, event.clientY);
   if (!start) return;
+  primeWordSearchAudio();
   event.preventDefault();
   wordSearchPointerState = {
     pointerId: event.pointerId,

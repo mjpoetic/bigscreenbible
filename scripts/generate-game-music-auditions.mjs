@@ -251,6 +251,24 @@ class LoopSynth {
     }
   }
 
+  // Overlap one complete chord cycle with the start. Matching chords and
+  // downbeats blend together; the loop join stays on the musical grid.
+  crossfadeLoop(beats = 16) {
+    const overlap = Math.round(this.beatTime(beats) * sampleRate);
+    const length = this.length - overlap;
+    for (const channel of [this.left, this.right]) {
+      for (let index = 0; index < overlap; index += 1) {
+        const progress = index / (overlap - 1);
+        const incoming = (1 - Math.cos(Math.PI * progress)) / 2;
+        channel[index] = channel[length + index] * (1 - incoming) + channel[index] * incoming;
+      }
+    }
+    this.left = this.left.slice(0, length);
+    this.right = this.right.slice(0, length);
+    this.length = length;
+    this.duration = length / sampleRate;
+  }
+
   wavBuffer() {
     const bytesPerSample = 2;
     const dataSize = this.length * 2 * bytesPerSample;
@@ -819,6 +837,9 @@ function createFinalRun() {
 }
 
 function encodeTrack(name, synth) {
+  if (!["joyful-complete", "heaven-complete", "level-complete", "whomp-whomp"].includes(name)) {
+    synth.crossfadeLoop();
+  }
   const wavPath = path.join(outputDir, `${name}.wav`);
   const mp3Path = path.join(outputDir, `${name}.mp3`);
   writeFileSync(wavPath, synth.wavBuffer());
