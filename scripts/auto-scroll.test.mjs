@@ -106,7 +106,7 @@ assert.match(source, /localStorage\.setItem\("lw_auto_scroll_speed", state\.auto
 assert.match(source, /id="\$\{controlId\("AutoScrollEnabledToggle"\)\}"/);
 assert.match(source, /data-auto-scroll-speed="\$\{speed\.code\}"/);
 assert.match(source, /When auto-scroll is enabled in Settings, two-finger tap starts or pauses it/);
-assert.match(source, /<span>Start or pause auto-scroll when enabled<\/span>/);
+assert.match(source, /<span>Start or pause auto-scroll when enabled\. In Focus Mode, double tap with two fingers to toggle Focus Reading\.<\/span>/);
 assert.match(source, /toggleReaderAutoScroll\(\{ announce: false \}\)/);
 
 assert.match(styles, /\.reader-auto-scroll-button \{[\s\S]*?position: fixed/);

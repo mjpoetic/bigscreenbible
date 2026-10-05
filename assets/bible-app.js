@@ -4090,7 +4090,7 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("AutoScrollEnabledToggle")}" ${state.autoScrollEnabled ? "checked" : ""} />
         <span>Enable auto-scroll controls</span>
       </label>
-      <p class="setting-help">Shows the floating Play/Pause button in Reader and Parallel. You can also use the A key or a two-finger tap. While scrolling, the screen stays awake on supported browsers.</p>
+      <p class="setting-help">Shows the floating Play/Pause button in Reader and Parallel. You can also use the A key or a two-finger tap. In Focus Mode, double tap with two fingers to toggle Focus Reading. While scrolling, the screen stays awake on supported browsers.</p>
       <span class="setting-label" id="${controlId("AutoScrollSpeedLabel")}">Auto-scroll speed</span>
       <div class="theme-mode-segment auto-scroll-speed-segment" role="group" aria-labelledby="${controlId("AutoScrollSpeedLabel")}" aria-disabled="${state.autoScrollEnabled ? "false" : "true"}">
         ${autoScrollSpeeds.map((speed) => `
@@ -7770,6 +7770,7 @@ function focusReadingControls() {
 }
 
 function toggleFocusReading() {
+  cancelFocusReadingTap();
   if (!["reader", "parallel"].includes(state.mode)) return;
   state.focusReading = !state.focusReading;
   state.focusToolsOpen = false;
@@ -7789,18 +7790,31 @@ function measureFocusReading() {
   const rects = [];
   surface.querySelectorAll(".verse-text, .parallel-copy:not(.parallel-heading-copy), .verse-of-day-copy").forEach(text => {
     const range = document.createRange();
-    range.selectNodeContents(text);
-    const bounds = (text.closest(".parallel-copy, .verse") || text).getBoundingClientRect();
-    for (const rect of range.getClientRects()) {
+    const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+    const textRects = [];
+    while (walker.nextNode()) {
+      if (!walker.currentNode.textContent.trim() || walker.currentNode.parentElement.closest(".sr-only, [aria-hidden='true']")) continue;
+      range.selectNodeContents(walker.currentNode);
+      textRects.push(...range.getClientRects());
+    }
+    const column = text.closest(".parallel-copy");
+    const columnKey = column?.dataset.version || "reader";
+    const bounds = (column || text.closest(".scripture-paragraph, .verse") || text).getBoundingClientRect();
+    for (const rect of textRects) {
       if (rect.width < 1 || rect.height < 1) continue;
       const top = rect.top - clip.top + surface.scrollTop;
       const left = bounds.left - clip.left;
-      const previous = rects.find(line => Math.abs(line.top - top) < 4 && Math.abs(line.left - left) < 4);
-      if (previous) previous.bottom = Math.max(previous.bottom, rect.bottom - clip.top + surface.scrollTop);
-      else rects.push({ top, bottom: rect.bottom - clip.top + surface.scrollTop, left, right: bounds.right - clip.left });
+      const previous = rects.find(line => Math.abs(line.top - top) < 4 && line.columnKey === columnKey);
+      if (previous) {
+        previous.top = Math.min(previous.top, top);
+        previous.bottom = Math.max(previous.bottom, rect.bottom - clip.top + surface.scrollTop);
+        previous.left = Math.min(previous.left, left);
+        previous.right = Math.max(previous.right, bounds.right - clip.left);
+      } else rects.push({ top, bottom: rect.bottom - clip.top + surface.scrollTop, left, right: bounds.right - clip.left, columnKey });
     }
   });
-  rects.sort((a, b) => Math.abs(a.left - b.left) > 4 ? a.left - b.left : a.top - b.top);
+  const columns = [...new Set(rects.map(line => line.columnKey))];
+  rects.sort((a, b) => columns.indexOf(a.columnKey) - columns.indexOf(b.columnKey) || a.top - b.top);
   focusReadingRects = rects;
   if (focusReadingReference !== state.reference) {
     focusReadingReference = state.reference;
@@ -7820,7 +7834,7 @@ function paintFocusReading() {
   let last = first;
   for (let i = 1; i < state.focusReadingLines; i++) {
     const next = focusReadingRects[focusReadingIndex + i];
-    if (!next || Math.abs(next.left - first.left) > 4) break;
+    if (!next || next.columnKey !== first.columnKey) break;
     last = next;
   }
   const top = Math.max(0, Math.min(clip.height, first.top - surface.scrollTop - 3));
@@ -7914,7 +7928,7 @@ function reader(chapterChange = null) {
     ? activeBibleVersionLoadingState()
     : null;
   return `
-    <section class="reader ${state.sharedPassage ? "shared-passage-active" : ""}">
+    <section class="reader ${state.focusMode && state.focusReading ? "focus-reading-active" : ""} ${state.sharedPassage ? "shared-passage-active" : ""}">
       ${readerBookmarkMarker()}
       ${focusReadingControls()}
       ${LEGACY_VERSE_SELECTOR_ENABLED ? `<div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
@@ -19064,7 +19078,7 @@ function shortcutOverlay() {
     ["P", "Open Big Screen"],
     ["Shift + N", "Toggle No buttons in Big Screen (double tap Scripture also works)"],
     ["F", "Toggle focus layout"],
-    ["Shift + R", "Toggle Focus Reading (enters Focus Mode)"],
+    ["Shift + R", "Toggle Focus Reading (enters Focus Mode; two-finger double tap in Focus on touch screens)"],
     ["↑ / ↓ in Focus Reading", "Move the reading guide one line"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
     ["A", "Start or pause Reader / Parallel auto-scroll"],
@@ -19195,7 +19209,7 @@ function shortcutOverlay() {
               </div>
               <figcaption>
                 <strong id="twoFingerGestureTitle">Two-finger tap</strong>
-                <span>Start or pause auto-scroll when enabled</span>
+                <span>Start or pause auto-scroll when enabled. In Focus Mode, double tap with two fingers to toggle Focus Reading.</span>
               </figcaption>
             </figure>
             <figure class="gesture-guide-card" aria-labelledby="doubleTapGestureTitle">
@@ -27664,6 +27678,38 @@ function toggleReaderFocusFromGesture() {
   setTimeout(() => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"), enteringFocus ? 280 : 0);
 }
 
+let focusReadingTapTimer = 0;
+let focusReadingLastTap = null;
+
+function cancelFocusReadingTap() {
+  clearTimeout(focusReadingTapTimer);
+  focusReadingTapTimer = 0;
+  focusReadingLastTap = null;
+}
+
+function handleFocusReadingTwoFingerTap(gesture) {
+  const points = [...gesture.startPoints.values()];
+  const tap = { x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
+    time: Date.now(), reference: state.reference, mode: state.mode };
+  const previous = focusReadingLastTap;
+  if (previous && tap.time - previous.time <= 340 && previous.reference === tap.reference && previous.mode === tap.mode
+      && Math.hypot(tap.x - previous.x, tap.y - previous.y) <= 48) {
+    cancelFocusReadingTap();
+    toggleFocusReading();
+    return;
+  }
+  if (previous) {
+    cancelFocusReadingTap();
+    toggleReaderAutoScrollFromGesture();
+  }
+  focusReadingLastTap = tap;
+  focusReadingTapTimer = setTimeout(() => {
+    cancelFocusReadingTap();
+    if (state.focusMode && state.reference === tap.reference && state.mode === tap.mode) toggleReaderAutoScrollFromGesture();
+  }, 340);
+}
+
 function toggleReaderAutoScrollFromGesture() {
   if (!canUseReaderChapterSwipe()) return;
   toggleReaderAutoScroll();
@@ -27882,6 +27928,7 @@ function handleReaderGestureMove(event) {
   const gesture = readerTouchGesture;
   if (!gesture) return;
   updateReaderGestureMovement(gesture, event.touches);
+  if (gesture.moved) cancelFocusReadingTap();
   if (event.touches?.length !== 2) return;
   const distance = touchDistance(event.touches[0], event.touches[1]);
   if (!gesture.pinchActive && Math.abs(distance - gesture.startDistance) >= readerPinchStartPx) {
@@ -27933,6 +27980,7 @@ function finishReaderBlankTap(event) {
 function handleReaderGestureEnd(event) {
   const gesture = readerTouchGesture;
   if (gesture?.pinchActive) {
+    cancelFocusReadingTap();
     readerTouchGesture = null;
     readerBlankTapStart = null;
     if (event.cancelable) event.preventDefault();
@@ -27946,14 +27994,16 @@ function handleReaderGestureEnd(event) {
     readerBlankTapStart = null;
     if (!gesture.moved && Date.now() - gesture.startedAt <= readerTwoFingerTapMaxMs) {
       if (event.cancelable) event.preventDefault();
-      toggleReaderAutoScrollFromGesture();
-    }
+      if (state.focusMode) handleFocusReadingTwoFingerTap(gesture);
+      else toggleReaderAutoScrollFromGesture();
+    } else cancelFocusReadingTap();
     return;
   }
   if (!event.touches?.length) finishReaderBlankTap(event);
 }
 
 function cancelReaderTouchGesture() {
+  cancelFocusReadingTap();
   if (readerTouchGesture?.pinchActive) finishReaderPinch(readerTouchGesture);
   cancelReaderChapterPull();
   readerTouchGesture = null;

@@ -25274,3 +25274,8 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 #focusReadingStyle { width: 66px; }
 #focusReadingLines { width: 76px; }
 .focus-reading-controls { gap: 3px; }
+
+/* Keep playback above the reading guide toolbar in every Focus viewport. */
+#app .reader.focus-reading-active > .reader-auto-scroll-button {
+  bottom: calc(84px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
