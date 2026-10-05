@@ -24244,6 +24244,9 @@ function gotoReference(value, options = {}) {
     dismissLibraryAfterAction();
   }
   state.pendingVerseFocus = !state.sharedPassage;
+  state.pendingVerseHalo = state.pendingVerseFocus
+    && ["reader", "parallel"].includes(state.mode)
+    && (/:\s*\d+/.test(cleaned) || Number.isFinite(options.focusVerse));
   recordHistory();
   updateShareUrl();
   render();
@@ -25112,6 +25115,7 @@ function openVerseOfDayInReader() {
   state.mode = "reader";
   state.searchQuery = "";
   state.pendingVerseFocus = true;
+  state.pendingVerseHalo = true;
   recordHistory();
   updateShareUrl();
   render();

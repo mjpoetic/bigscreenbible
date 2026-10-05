@@ -70,6 +70,15 @@ for (const mode of ["big", "reader"]) {
     }
   }
 }
+for (const mode of ["reader", "parallel"]) {
+  for (const reference of ["John 3:16", "John 3:16-17", "John 3"]) {
+    navigation.state = { mode, selectedVerses: [], sharedPassage: null };
+    await navigation.runReferenceOrPhraseSearch(reference);
+    assert.equal(navigation.state.mode, mode);
+    assert.equal(navigation.state.pendingVerseHalo, reference.includes(":"), "Only specific verse searches spotlight the passage");
+    assert.equal(navigation.state.pendingVerseFocus, true);
+  }
+}
 vm.createContext(context);
 vm.runInContext(`
   const searchScopeDefinitions = [

@@ -137,3 +137,15 @@ for (const [type, expectedReference, expectedVerse] of [
 }
 
 console.log("Verse of the Day presentation tests passed");
+
+const readContext = {
+  state: { verseOfDayItem: { reference: "John 3:16-17" }, mode: "parallel" },
+  captureReaderReturnTarget: () => null,
+  selectVerseOfDayReference: () => true,
+  recordHistory() {}, updateShareUrl() {}, render() {},
+};
+vm.createContext(readContext);
+vm.runInContext(`${extractFunction("openVerseOfDayInReader")}; openVerseOfDayInReader();`, readContext);
+assert.equal(readContext.state.mode, "reader");
+assert.equal(readContext.state.pendingVerseFocus, true);
+assert.equal(readContext.state.pendingVerseHalo, true, "Read in Bible spotlights the Verse of the Day passage");
