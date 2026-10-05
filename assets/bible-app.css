@@ -23772,7 +23772,10 @@ html[data-theme="dark"] .app-shell {
 }
 
 /* Keep the Settings launcher present and reachable while its sheet is open. */
-.app-shell .mobile-floating-settings.active {
+#app .app-shell .mobile-floating-settings.active,
+#app .app-shell .mobile-floating-settings.active:is(:hover, :focus-visible, :active) {
+  /* Pair the selected fill and glyph even when the revealed-control rules apply. */
+  --reading-control-active-glass: var(--teal);
   opacity: 1;
   pointer-events: auto;
   visibility: visible;
@@ -23780,6 +23783,10 @@ html[data-theme="dark"] .app-shell {
   z-index: 151;
   background: var(--teal);
   color: var(--accent-ink);
+}
+
+#app .app-shell .mobile-floating-settings.active svg {
+  color: inherit;
 }
 
 /* Decorative motion stays inside the presentation's background stacking layer. */
@@ -25020,5 +25027,47 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   #app .verse-arrival-dimmed {
     animation: none;
     filter: opacity(0.22);
+  }
+}
+
+
+/* Shared interaction states for both Classic and Liquid Glass.
+   Keep positioning transforms intact: depth comes from the surface itself. */
+html #app .app-shell :is(
+  .rail button, .portrait-rail-actions button,
+  .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
+  .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option,
+  .reader-auto-scroll-button, .mode-tabs button, .theme-mode-button,
+  .icon-btn, .ghost-btn, .nav-button, .games-header-action, .trivia-mode-tabs button
+):where(:not(#focusToggle, #mobileFocusToggle, .focus-toggle, .mobile-mode-focus))
+:not(:disabled):is(.active, [aria-pressed="true"], [aria-expanded="true"]) {
+  --reading-control-active-glass: var(--teal);
+  background: var(--teal);
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent-ink) 35%, var(--teal));
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.24), inset 0 -1px 0 rgb(255 255 255 / 0.18);
+}
+html #app .app-shell :is(
+  .rail button, .portrait-rail-actions button,
+  .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
+  .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option,
+  .reader-auto-scroll-button, .mode-tabs button, .theme-mode-button,
+  .icon-btn, .ghost-btn, .nav-button, .games-header-action, .trivia-mode-tabs button
+):where(:not(#focusToggle, #mobileFocusToggle, .focus-toggle, .mobile-mode-focus))
+:not(:disabled):is(.active, [aria-pressed="true"], [aria-expanded="true"]) svg {
+  color: inherit;
+}
+
+/* Momentary feedback also covers ordinary actions, menus and game controls.
+   The translucent inset tint preserves special colors, including Focus gold. */
+html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
+  box-shadow: inset 0 3px 6px rgb(0 0 0 / 0.32),
+    inset 0 -1px 0 rgb(255 255 255 / 0.2),
+    inset 0 0 0 100vmax rgb(0 0 0 / 0.12);
+}
+@media (forced-colors: active) {
+  html #app button:not(:disabled):is(.active, [aria-pressed="true"], [aria-expanded="true"], :active) {
+    outline: 2px solid Highlight;
+    outline-offset: -3px;
   }
 }

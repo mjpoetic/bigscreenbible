@@ -7434,7 +7434,7 @@ function rail() {
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
-    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" data-tooltip="${label}">${icon}</button>`;
+    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}
     <div class="portrait-rail-actions">
       <button id="railHelpButton" type="button" aria-label="Help" data-tooltip="Help">${icons.help}</button>
