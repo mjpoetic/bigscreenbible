@@ -773,6 +773,9 @@ const state = {
   strongNumbers: savedStrongNumbers(),
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
+  focusReading: false,
+  focusReadingStyle: localStorage.getItem("lw_focus_reading_style") === "blur" ? "blur" : "dim",
+  focusReadingLines: Math.max(1, Math.min(3, Number(localStorage.getItem("lw_focus_reading_lines")) || 1)),
   focusControlsFade: localStorage.getItem("lw_focus_controls_fade") !== "false",
   focusControlsHide: localStorage.getItem("lw_focus_controls_hide") === "true",
   focusControlsHideSeconds: normalizedFocusControlsHideSeconds(localStorage.getItem("lw_focus_controls_hide_seconds")),
@@ -1810,7 +1813,7 @@ function render() {
   const previousVideo = document.querySelector(".presentation-background-video");
   previousVideo?.remove();
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "classic" ? "classic" : "outline"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -2998,7 +3001,7 @@ function captureAnnotationOpenState() {
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
-    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}">
+    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "classic" ? "classic" : "outline"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}">
       <section class="loading-reader">
         <div class="loading-card">
           <img class="loading-logo-mark" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
@@ -3132,7 +3135,7 @@ function focusWorkspaceToolButtons(buttonClass) {
     ["Bookmarks", "Bookmarks", icons.bookmark],
     ["Annotations", "Annotations", icons.note],
   ];
-  return tools.map(([label, tooltip, icon], index) => `
+  return `<button class="${buttonClass}" type="button" data-focus-reading-toggle aria-label="Focus Reading" aria-keyshortcuts="Shift+R" aria-pressed="${state.focusReading}" data-tooltip="Focus Reading · Shift+R">${icons.book}</button>` + tools.map(([label, tooltip, icon], index) => `
     <button
       class="${buttonClass} ${state.focusWorkspacePanel === label ? "active" : ""}"
       type="button"
@@ -4752,6 +4755,16 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
         <button class="theme-mode-button ${localStorage.getItem("lw_control_material") === "classic" ? "active" : ""}" type="button" data-control-material="classic" aria-pressed="${localStorage.getItem("lw_control_material") === "classic"}">Classic</button>
       </div>
       <p class="setting-help">Choose the finish for navigation and floating controls.</p>
+    </div>
+    ` : ""}
+    ${options.includeControlFinish ? `
+    <div class="setting-group" data-settings-search-item data-settings-search-text="verse selection outline classic highlight selected appearance">
+      <span class="setting-label">Verse selection</span>
+      <div class="theme-mode-segment" role="group" aria-label="Verse selection style">
+        <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") !== "classic" ? "active" : ""}" type="button" data-verse-selection-choice="outline" aria-pressed="${localStorage.getItem("lw_verse_selection_style") !== "classic"}">Outline</button>
+        <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") === "classic" ? "active" : ""}" type="button" data-verse-selection-choice="classic" aria-pressed="${localStorage.getItem("lw_verse_selection_style") === "classic"}">Classic</button>
+      </div>
+      <p class="setting-help">Outline marks selected verses with a border and checkmark. Classic restores the original selection treatment.</p>
     </div>
     ` : ""}
     ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
@@ -7738,6 +7751,150 @@ function readerBookmarkMarker() {
   </details>`;
 }
 
+let focusReadingRects = [];
+let focusReadingIndex = 0;
+let focusReadingReference = "";
+let focusReadingObserver;
+let focusReadingFrame = 0;
+
+function focusReadingControls() {
+  if (!state.focusMode || !state.focusReading) return "";
+  return `<div class="focus-reading-controls" role="group" aria-label="Focus Reading">
+    <button type="button" data-focus-reading-step="-1" aria-label="Previous reading line">${icons.arrowUp}</button>
+    <button type="button" data-focus-reading-step="1" aria-label="Next reading line">${icons.arrowDown}</button>
+    <label><span class="sr-only">Surrounding text</span><select id="focusReadingStyle"><option value="dim" ${state.focusReadingStyle === "dim" ? "selected" : ""}>Dim</option><option value="blur" ${state.focusReadingStyle === "blur" ? "selected" : ""}>Blur</option></select></label>
+    <label><span class="sr-only">Visible lines</span><select id="focusReadingLines">${[1,2,3].map(n => `<option value="${n}" ${state.focusReadingLines === n ? "selected" : ""}>${n} ${n === 1 ? "line" : "lines"}</option>`).join("")}</select></label>
+    <button type="button" data-focus-reading-toggle aria-label="Turn off Focus Reading" data-tooltip="Turn off · Shift+R">×</button>
+    <span class="sr-only" id="focusReadingStatus" role="status"></span>
+  </div>`;
+}
+
+function toggleFocusReading() {
+  if (!["reader", "parallel"].includes(state.mode)) return;
+  state.focusReading = !state.focusReading;
+  if (state.focusReading && !state.focusMode) {
+    state.focusMode = true;
+    state.mobileControlsOpen = false;
+    localStorage.setItem("lw_focus_mode", "true");
+  }
+  renderPreservingReaderScroll();
+}
+
+function measureFocusReading() {
+  const surface = document.querySelector(".scripture");
+  if (!surface || !state.focusMode || !state.focusReading) return;
+  const clip = surface.getBoundingClientRect();
+  const rects = [];
+  surface.querySelectorAll(".verse-text, .parallel-copy:not(.parallel-heading-copy), .verse-of-day-copy").forEach(text => {
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const bounds = text.getBoundingClientRect();
+    for (const rect of range.getClientRects()) {
+      if (rect.width < 1 || rect.height < 1) continue;
+      const top = rect.top - clip.top + surface.scrollTop;
+      const left = bounds.left - clip.left;
+      const previous = rects.find(line => Math.abs(line.top - top) < 4 && Math.abs(line.left - left) < 4);
+      if (previous) previous.bottom = Math.max(previous.bottom, rect.bottom - clip.top + surface.scrollTop);
+      else rects.push({ top, bottom: rect.bottom - clip.top + surface.scrollTop, left, right: bounds.right - clip.left });
+    }
+  });
+  focusReadingRects = rects;
+  if (focusReadingReference !== state.reference) {
+    focusReadingReference = state.reference;
+    focusReadingIndex = Math.max(0, rects.findIndex(line => line.bottom >= surface.scrollTop));
+  }
+  focusReadingIndex = Math.min(focusReadingIndex, Math.max(0, rects.length - 1));
+  paintFocusReading();
+}
+
+function paintFocusReading() {
+  const surface = document.querySelector(".scripture");
+  const guide = document.getElementById("focusReadingGuide");
+  const first = focusReadingRects[focusReadingIndex];
+  if (!surface || !guide || !first) { if (guide) guide.hidden = true; return; }
+  guide.hidden = false;
+  const clip = surface.getBoundingClientRect();
+  let last = first;
+  for (let i = 1; i < state.focusReadingLines; i++) {
+    const next = focusReadingRects[focusReadingIndex + i];
+    if (!next || Math.abs(next.left - first.left) > 4) break;
+    last = next;
+  }
+  const top = Math.max(0, Math.min(clip.height, first.top - surface.scrollTop - 3));
+  const bottom = Math.max(top, Math.min(clip.height, last.bottom - surface.scrollTop + 3));
+  const left = Math.max(0, first.left - 4), right = Math.min(clip.width, first.right + 4);
+  guide.className = `focus-reading-guide ${state.focusReadingStyle}`;
+  Object.assign(guide.style, { left: `${clip.left}px`, top: `${clip.top}px`, width: `${clip.width}px`, height: `${clip.height}px` });
+  const areas = [[0,0,clip.width,top], [0,bottom,clip.width,clip.height-bottom], [0,top,left,bottom-top], [right,top,clip.width-right,bottom-top]];
+  [...guide.children].forEach((mask, index) => {
+    const [x,y,w,h] = areas[index];
+    Object.assign(mask.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+  });
+  document.querySelector('[data-focus-reading-step="-1"]')?.toggleAttribute("disabled", focusReadingIndex === 0);
+  document.querySelector('[data-focus-reading-step="1"]')?.toggleAttribute("disabled", focusReadingIndex >= focusReadingRects.length - 1);
+  const status = document.getElementById("focusReadingStatus");
+  if (status) status.textContent = `Reading line ${focusReadingIndex + 1} of ${focusReadingRects.length}`;
+}
+
+function moveFocusReading(direction) {
+  focusReadingIndex = Math.max(0, Math.min(focusReadingRects.length - 1, focusReadingIndex + direction));
+  const surface = document.querySelector(".scripture");
+  const line = focusReadingRects[focusReadingIndex];
+  if (surface && line) {
+    if (line.top < surface.scrollTop + 40 || line.bottom > surface.scrollTop + surface.clientHeight - 80) {
+      surface.scrollTop = Math.max(0, line.top - surface.clientHeight * 0.35);
+    }
+  }
+  paintFocusReading();
+}
+
+function bindFocusReading() {
+  focusReadingObserver?.disconnect();
+  cancelAnimationFrame(focusReadingFrame);
+  document.querySelectorAll("[data-focus-reading-toggle]").forEach(button => button.addEventListener("click", toggleFocusReading));
+  if (!state.focusMode || !state.focusReading) return;
+  const surface = document.querySelector(".scripture");
+  if (!surface) return;
+  const guide = document.createElement("div");
+  guide.id = "focusReadingGuide";
+  guide.setAttribute("aria-hidden", "true");
+  guide.innerHTML = "<div></div><div></div><div></div><div></div>";
+  document.querySelector(".reader").append(guide);
+  const schedule = () => {
+    cancelAnimationFrame(focusReadingFrame);
+    focusReadingFrame = requestAnimationFrame(measureFocusReading);
+  };
+  focusReadingObserver = new ResizeObserver(schedule);
+  focusReadingObserver.observe(surface);
+  surface.querySelectorAll(".verse-text, .parallel-copy, .verse-of-day-copy").forEach(text => focusReadingObserver.observe(text));
+  surface.addEventListener("scroll", paintFocusReading, { passive: true });
+  surface.addEventListener("click", event => {
+    if (!event.target.closest(".verse-text, .parallel-copy, .verse-of-day-copy") || event.target.closest("button, a, input, select")) return;
+    const clip = surface.getBoundingClientRect();
+    const y = event.clientY - clip.top + surface.scrollTop, x = event.clientX - clip.left;
+    let closest = -1, distance = Infinity;
+    focusReadingRects.forEach((line, index) => {
+      if (x < line.left - 8 || x > line.right + 8) return;
+      const delta = Math.abs((line.top + line.bottom) / 2 - y);
+      if (delta < distance) { closest = index; distance = delta; }
+    });
+    if (closest >= 0) {
+      event.stopImmediatePropagation();
+      focusReadingIndex = closest;
+      paintFocusReading();
+    }
+  }, true);
+  document.querySelectorAll("[data-focus-reading-step]").forEach(button => button.addEventListener("click", () => moveFocusReading(Number(button.dataset.focusReadingStep))));
+  for (const [id, field, storage] of [["focusReadingStyle", "focusReadingStyle", "lw_focus_reading_style"], ["focusReadingLines", "focusReadingLines", "lw_focus_reading_lines"]]) {
+    document.getElementById(id)?.addEventListener("change", event => {
+      state[field] = field === "focusReadingLines" ? Number(event.target.value) : event.target.value;
+      localStorage.setItem(storage, String(state[field]));
+      paintFocusReading();
+    });
+  }
+  schedule();
+}
+
 function reader(chapterChange = null) {
   if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
@@ -7749,6 +7906,7 @@ function reader(chapterChange = null) {
   return `
     <section class="reader ${state.sharedPassage ? "shared-passage-active" : ""}">
       ${readerBookmarkMarker()}
+      ${focusReadingControls()}
       ${LEGACY_VERSE_SELECTOR_ENABLED ? `<div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
         <div class="chapter-tools-clip" id="verseSelectorBar" ${state.verseNavCollapsed ? 'inert aria-hidden="true"' : ""}>
           <div class="chapter-tools ${state.focusMode ? "compact" : ""}">
@@ -18896,6 +19054,8 @@ function shortcutOverlay() {
     ["P", "Open Big Screen"],
     ["Shift + N", "Toggle No buttons in Big Screen (double tap Scripture also works)"],
     ["F", "Toggle focus layout"],
+    ["Shift + R", "Toggle Focus Reading (enters Focus Mode)"],
+    ["↑ / ↓ in Focus Reading", "Move the reading guide one line"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
     ["A", "Start or pause Reader / Parallel auto-scroll"],
     ["Shift + +", "Increase text size in the current reading mode"],
@@ -19231,6 +19391,7 @@ function bindSettingsScrollContainment() {
 }
 
 function bindEvents() {
+  bindFocusReading();
   bindSettingsScrollContainment();
   bindPopupTextGestures();
   document.querySelectorAll("[data-popup-size]").forEach((button) => {
@@ -19725,6 +19886,20 @@ function bindEvents() {
       document.documentElement.dataset.controlMaterial = material;
       document.querySelectorAll("[data-control-material]").forEach((choice) => {
         const active = choice.dataset.controlMaterial === material;
+        choice.classList.toggle("active", active);
+        choice.setAttribute("aria-pressed", String(active));
+      });
+    });
+  });
+  document.querySelectorAll("[data-verse-selection-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const style = button.dataset.verseSelectionChoice === "classic" ? "classic" : "outline";
+      localStorage.setItem("lw_verse_selection_style", style);
+      document.querySelectorAll("[data-verse-selection-style]").forEach((shell) => {
+        shell.dataset.verseSelectionStyle = style;
+      });
+      document.querySelectorAll("[data-verse-selection-choice]").forEach((choice) => {
+        const active = choice.dataset.verseSelectionChoice === style;
         choice.classList.toggle("active", active);
         choice.setAttribute("aria-pressed", String(active));
       });
@@ -27952,6 +28127,17 @@ function handleGlobalShortcuts(event) {
 
   if (typing || state.pushPromptVisible || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
+  if (event.shiftKey && key === "r" && ["reader", "parallel"].includes(state.mode) && !state.settingsOpen && !state.accountOpen) {
+    event.preventDefault();
+    if (!event.repeat) toggleFocusReading();
+    return;
+  }
+  if (state.focusMode && state.focusReading && !event.shiftKey && ["ArrowUp", "ArrowDown"].includes(event.key)
+      && !state.settingsOpen && !state.accountOpen && !state.focusWorkspacePanel && !state.focusReferenceOpen && !state.focusSearchResultsOpen && !document.getElementById("studyPopup")) {
+    event.preventDefault();
+    moveFocusReading(event.key === "ArrowDown" ? 1 : -1);
+    return;
+  }
   if (/^[1-4]$/.test(event.key) && handleGamesChoiceKeydown(event)) return;
 
   if (event.shiftKey && event.code === "Equal") {

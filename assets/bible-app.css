@@ -9945,6 +9945,46 @@ select {
   box-shadow: none;
 }
 
+
+/* Reversible selection treatment. Keep saved highlight fills unchanged. */
+[data-verse-selection-style="outline"] {
+  --verse-selection-ink: #075e68;
+  --verse-selection-halo: #fff;
+}
+
+[data-verse-selection-style="outline"][data-theme="dark"] {
+  --verse-selection-ink: #80e5ed;
+  --verse-selection-halo: #15262c;
+}
+
+.app-shell[data-verse-selection-style="outline"] :is(.verse, .parallel-row, .paragraph-verse):is(.selected, .passage-selected) {
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--verse-selection-ink), 0 0 0 3px var(--verse-selection-halo);
+  filter: none;
+}
+
+.app-shell[data-verse-selection-style="outline"] :is(.verse, .parallel-row, .paragraph-verse):is(.selected, .passage-selected):not(.highlight-selected) {
+  background: transparent;
+}
+
+.app-shell[data-verse-selection-style="outline"] .paragraph-verse:is(.selected, .passage-selected) .verse-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.app-shell[data-verse-selection-style="outline"] :is(.verse, .parallel-row, .paragraph-verse):is(.selected, .passage-selected) .verse-num::before {
+  content: "\2713";
+  display: inline-block;
+  margin-inline-end: 2px;
+  color: var(--verse-selection-ink);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .verse-num {
   position: relative;
   min-height: 0;
@@ -25213,3 +25253,18 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
     animation: none !important;
   }
 }
+
+/* Focus Reading masks only Scripture; the original text stays selectable and accessible. */
+.focus-reading-guide { position: fixed; z-index: 8; pointer-events: none; overflow: hidden; }
+.focus-reading-guide > div { position: absolute; background: color-mix(in srgb, var(--paper) 88%, transparent); }
+.focus-reading-guide.blur > div { background: color-mix(in srgb, var(--paper) 35%, transparent); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+.focus-reading-controls { position: absolute; z-index: 35; bottom: calc(12px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; padding: 6px; max-width: calc(100% - 24px); border: 1px solid var(--border); border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 3px 16px #0002; }
+.focus-reading-controls button, .focus-reading-controls select { min-height: 40px; min-width: 40px; border: 0; border-radius: 10px; padding: 6px; background: var(--paper); color: var(--ink); font: inherit; }
+.focus-reading-controls button { display: grid; place-items: center; cursor: pointer; }
+.focus-reading-controls button:disabled { opacity: .35; cursor: default; }
+.focus-reading-controls svg { width: 20px; height: 20px; }
+.focus-reading-controls :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@supports not (backdrop-filter: blur(5px)) { .focus-reading-guide.blur > div { background: color-mix(in srgb, var(--paper) 88%, transparent); } }
+@media (prefers-reduced-transparency: reduce) { .focus-reading-guide > div, .focus-reading-guide.blur > div { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; } }
+@media (forced-colors: active) { .focus-reading-guide > div, .focus-reading-guide.blur > div { background: Canvas; backdrop-filter: none; -webkit-backdrop-filter: none; } }
+@media print { .focus-reading-guide, .focus-reading-controls { display: none !important; } }
