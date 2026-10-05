@@ -3135,7 +3135,7 @@ function focusWorkspaceToolButtons(buttonClass) {
     ["Bookmarks", "Bookmarks", icons.bookmark],
     ["Annotations", "Annotations", icons.note],
   ];
-  return `<button class="${buttonClass}" type="button" data-focus-reading-toggle aria-label="Focus Reading" aria-keyshortcuts="Shift+R" aria-pressed="${state.focusReading}" data-tooltip="Focus Reading · Shift+R">${icons.book}</button>` + tools.map(([label, tooltip, icon], index) => `
+  return `<button class="${buttonClass}" type="button" data-focus-reading-toggle style="--focus-tool-index: 0" aria-label="Focus Reading" aria-keyshortcuts="Shift+R" aria-pressed="${state.focusReading}" data-tooltip="Focus Reading · Shift+R">${icons.focus}</button>` + tools.map(([label, tooltip, icon], index) => `
     <button
       class="${buttonClass} ${state.focusWorkspacePanel === label ? "active" : ""}"
       type="button"
@@ -3143,7 +3143,7 @@ function focusWorkspaceToolButtons(buttonClass) {
       aria-label="Open ${tooltip}"
       aria-pressed="${state.focusWorkspacePanel === label ? "true" : "false"}"
       data-tooltip="${tooltip}"
-      style="--focus-tool-index: ${index}"
+      style="--focus-tool-index: ${index + 1}"
     >
       ${icon}
     </button>
@@ -4760,7 +4760,7 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
     ${options.includeControlFinish ? `
     <div class="setting-group" data-settings-search-item data-settings-search-text="verse selection outline classic highlight selected appearance">
       <span class="setting-label">Verse selection</span>
-      <div class="theme-mode-segment" role="group" aria-label="Verse selection style">
+      <div class="theme-mode-segment control-finish-segment" role="group" aria-label="Verse selection style">
         <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") !== "classic" ? "active" : ""}" type="button" data-verse-selection-choice="outline" aria-pressed="${localStorage.getItem("lw_verse_selection_style") !== "classic"}">Outline</button>
         <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") === "classic" ? "active" : ""}" type="button" data-verse-selection-choice="classic" aria-pressed="${localStorage.getItem("lw_verse_selection_style") === "classic"}">Classic</button>
       </div>
@@ -7772,6 +7772,8 @@ function focusReadingControls() {
 function toggleFocusReading() {
   if (!["reader", "parallel"].includes(state.mode)) return;
   state.focusReading = !state.focusReading;
+  state.focusToolsOpen = false;
+  if (state.focusReading) focusReadingReference = "";
   if (state.focusReading && !state.focusMode) {
     state.focusMode = true;
     state.mobileControlsOpen = false;
@@ -7788,7 +7790,7 @@ function measureFocusReading() {
   surface.querySelectorAll(".verse-text, .parallel-copy:not(.parallel-heading-copy), .verse-of-day-copy").forEach(text => {
     const range = document.createRange();
     range.selectNodeContents(text);
-    const bounds = text.getBoundingClientRect();
+    const bounds = (text.closest(".parallel-copy, .verse") || text).getBoundingClientRect();
     for (const rect of range.getClientRects()) {
       if (rect.width < 1 || rect.height < 1) continue;
       const top = rect.top - clip.top + surface.scrollTop;
@@ -7798,6 +7800,7 @@ function measureFocusReading() {
       else rects.push({ top, bottom: rect.bottom - clip.top + surface.scrollTop, left, right: bounds.right - clip.left });
     }
   });
+  rects.sort((a, b) => Math.abs(a.left - b.left) > 4 ? a.left - b.left : a.top - b.top);
   focusReadingRects = rects;
   if (focusReadingReference !== state.reference) {
     focusReadingReference = state.reference;
@@ -7867,9 +7870,16 @@ function bindFocusReading() {
   focusReadingObserver = new ResizeObserver(schedule);
   focusReadingObserver.observe(surface);
   surface.querySelectorAll(".verse-text, .parallel-copy, .verse-of-day-copy").forEach(text => focusReadingObserver.observe(text));
-  surface.addEventListener("scroll", paintFocusReading, { passive: true });
+  surface.addEventListener("scroll", () => {
+    const active = focusReadingRects[focusReadingIndex];
+    if (active && (active.bottom < surface.scrollTop || active.top > surface.scrollTop + surface.clientHeight)) {
+      const visible = focusReadingRects.findIndex(line => line.bottom >= surface.scrollTop && line.top <= surface.scrollTop + surface.clientHeight);
+      if (visible >= 0) focusReadingIndex = visible;
+    }
+    paintFocusReading();
+  }, { passive: true });
   surface.addEventListener("click", event => {
-    if (!event.target.closest(".verse-text, .parallel-copy, .verse-of-day-copy") || event.target.closest("button, a, input, select")) return;
+    if (!event.target.closest(".verse-text, .parallel-copy, .verse-of-day-copy") || event.target.closest("a, input, select") || (event.target.closest("button") && !event.target.closest("[data-strong]"))) return;
     const clip = surface.getBoundingClientRect();
     const y = event.clientY - clip.top + surface.scrollTop, x = event.clientX - clip.left;
     let closest = -1, distance = Infinity;

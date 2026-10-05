@@ -25258,7 +25258,7 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 .focus-reading-guide { position: fixed; z-index: 8; pointer-events: none; overflow: hidden; }
 .focus-reading-guide > div { position: absolute; background: color-mix(in srgb, var(--paper) 88%, transparent); }
 .focus-reading-guide.blur > div { background: color-mix(in srgb, var(--paper) 35%, transparent); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
-.focus-reading-controls { position: absolute; z-index: 35; bottom: calc(12px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; padding: 6px; max-width: calc(100% - 24px); border: 1px solid var(--border); border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 3px 16px #0002; }
+.focus-reading-controls { position: absolute; z-index: 35; bottom: calc(12px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; padding: 6px; max-width: calc(100% - 24px); border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 3px 16px #0002; }
 .focus-reading-controls button, .focus-reading-controls select { min-height: 40px; min-width: 40px; border: 0; border-radius: 10px; padding: 6px; background: var(--paper); color: var(--ink); font: inherit; }
 .focus-reading-controls button { display: grid; place-items: center; cursor: pointer; }
 .focus-reading-controls button:disabled { opacity: .35; cursor: default; }
@@ -25268,3 +25268,9 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 @media (prefers-reduced-transparency: reduce) { .focus-reading-guide > div, .focus-reading-guide.blur > div { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; } }
 @media (forced-colors: active) { .focus-reading-guide > div, .focus-reading-guide.blur > div { background: Canvas; backdrop-filter: none; -webkit-backdrop-filter: none; } }
 @media print { .focus-reading-guide, .focus-reading-controls { display: none !important; } }
+
+.focus-reading-controls button { flex: 0 0 40px; }
+.focus-reading-controls select { flex: none; min-width: 0; }
+#focusReadingStyle { width: 66px; }
+#focusReadingLines { width: 76px; }
+.focus-reading-controls { gap: 3px; }
