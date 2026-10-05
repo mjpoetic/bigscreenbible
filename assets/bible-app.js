@@ -24288,7 +24288,7 @@ function gotoReference(value, options = {}) {
   if (options.closeLibrary) {
     dismissLibraryAfterAction();
   }
-  state.pendingVerseFocus = !state.sharedPassage;
+  state.pendingVerseFocus = !state.sharedPassage || Boolean(options.spotlight);
   state.pendingVerseHalo = state.pendingVerseFocus
     && ["reader", "parallel"].includes(state.mode)
     && (/:\s*\d+/.test(cleaned) || Number.isFinite(options.focusVerse));
@@ -24305,7 +24305,10 @@ function submitFocusReference(value, options = {}) {
   if (!cleaned) return;
   state.focusReferenceOpen = false;
   if (normalizedSearchSource(options.source ?? state.searchSource) !== "strongs" && parseReference(cleaned)) {
-    gotoReference(cleaned, { focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive) });
+    gotoReference(cleaned, {
+      focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive),
+      spotlight: true,
+    });
     return;
   }
   state.isVerseOfDayActive = false;
@@ -25095,7 +25098,7 @@ function sharedPassageReaderView() {
   return `
     <section class="verse-of-day-reader shared-passage-reader" aria-labelledby="sharedPassageReference">
       <h1 class="section-title" id="sharedPassageReference">${escapeHtml(formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verses, version)))} <span>(${escapeHtml(translationDisplayCode(version))})</span></h1>
-      ${lines.map((verse) => `<p class="verse-of-day-copy"><button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> ${renderStrongText(verse, version)}</p>`).join("")}
+      ${lines.map((verse) => `<p class="verse-of-day-copy" data-verse="${verse.n}"><button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> ${renderStrongText(verse, version)}</p>`).join("")}
       <div class="focused-passage-actions" role="group" aria-label="Passage actions">
         <button class="ghost-btn verse-of-day-read-button" id="sharedPassageReadChapter" type="button"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button>
         <button class="ghost-btn" id="focusedPassageCopy" type="button" aria-label="Copy passage" data-tooltip="Copy passage"><span aria-hidden="true">${icons.copy}</span><span>Copy</span></button>
@@ -28242,12 +28245,12 @@ function normalizeBookName(value) {
   return prefixMatches.length === 1 ? prefixMatches[0] : null;
 }
 
-function spotlightReaderPassage(scripture, selected) {
+function spotlightReaderPassage(scripture, selected, verses = null) {
   if (!scripture || !selected) return;
   scripture.clearArrivalSpotlight?.();
-  const passage = (state.selectedVerses || []).includes(Number(state.verse))
+  const passage = verses || ((state.selectedVerses || []).includes(Number(state.verse))
     ? state.selectedVerses.map(Number)
-    : [Number(state.verse)];
+    : [Number(state.verse)]);
   const focused = [...scripture.querySelectorAll("[data-verse]")]
     .filter((row) => passage.includes(Number(row.dataset.verse)));
   if (!focused.length) focused.push(selected);
@@ -28349,7 +28352,10 @@ function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
   state.inlineSearchHitIndex = index;
   updateInlineSearchProgress();
   const verseNumber = Number(hit.closest("[data-verse]")?.getAttribute("data-verse"));
-  if (Number.isFinite(verseNumber)) state.verse = verseNumber;
+  if (Number.isFinite(verseNumber)) {
+    state.verse = verseNumber;
+    spotlightReaderPassage(scripture, hit.closest("[data-verse]"), [verseNumber]);
+  }
   const behavior = !smooth || window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
   if (scripture.scrollHeight > scripture.clientHeight) {
     const scriptureBounds = scripture.getBoundingClientRect();

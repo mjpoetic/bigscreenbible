@@ -47,6 +47,7 @@ vm.runInContext(`
   ${extractFunction("setReferenceFromString")}
   ${extractFunction("gotoReference")}
   ${extractFunction("runReferenceOrPhraseSearch")}
+  ${extractFunction("submitFocusReference")}
 `, navigation);
 for (const mode of ["big", "reader"]) {
   for (const origin of ["verse-of-day", "shared-passage", "ordinary"]) {
@@ -76,6 +77,16 @@ for (const mode of ["reader", "parallel"]) {
     await navigation.runReferenceOrPhraseSearch(reference);
     assert.equal(navigation.state.mode, mode);
     assert.equal(navigation.state.pendingVerseHalo, reference.includes(":"), "Only specific verse searches spotlight the passage");
+    assert.equal(navigation.state.pendingVerseFocus, true);
+  }
+}
+for (const mode of ["reader", "parallel"]) {
+  for (const reference of ["John 3:16", "John 3:16-17", "John 3"]) {
+    navigation.state = { mode, focusMode: true, focusReferenceOpen: true, selectedVerses: [], sharedPassage: null };
+    navigation.submitFocusReference(reference, { sourceInputId: "mobileFocusPassageInput" });
+    assert.equal(navigation.state.focusMode, true, "Floating search retains Focus Mode");
+    assert.equal(navigation.state.focusReferenceOpen, false);
+    assert.equal(navigation.state.pendingVerseHalo, reference.includes(":"), "Floating Focus search spotlights specific verses and ranges");
     assert.equal(navigation.state.pendingVerseFocus, true);
   }
 }

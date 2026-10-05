@@ -167,6 +167,11 @@ spotlightCleanup();
 for (const element of [chrome, ...rows]) assert.equal(element.classes.size, 0, "Spotlight restores every affected element");
 assert.equal(scripture.clearArrivalSpotlight, undefined);
 assert.deepEqual(chrome.style.properties, {}, "Cleanup restores original opacity styles");
+spotlightContext.spotlight(scripture, rows[1], [16]);
+assert.ok(rows[1].classes.has("verse-arrival-halo"));
+assert.ok(rows[2].classes.has("verse-arrival-dimmed"), "Chapter search spotlights only the matched verse, even with an existing range selection");
+spotlightCleanup();
+assert.match(extractFunction("scrollInlineSearchHitIntoView"), /spotlightReaderPassage\(scripture, hit\.closest\("\[data-verse\]"\), \[verseNumber\]\)/);
 console.log("Passage spotlight and cleanup tests passed");
 
 const spotlightAnimation = styles.match(/@keyframes verse-arrival-dim \{([\s\S]*?)\n\}/)?.[1];

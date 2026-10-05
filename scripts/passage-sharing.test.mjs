@@ -193,6 +193,7 @@ assert.equal((context.copyTextValue([23,24]).match(/Combined source passage\./g)
 
 const landing = {
   console,
+  refreshModeFromSession: () => "",
   state: { versions: ['KJV'], mode: 'big', startupApplied: false },
   sharedReferenceFromUrl: () => 'John 3:16-17',
   requestedModeFromUrl: () => 'big',
@@ -274,7 +275,8 @@ for (const entry of ['runReferenceOrPhraseSearch','submitFocusReference']) {
     assert.equal(referenceSearch.state.mode,mode === 'focused' ? 'reader' : mode);
     assert.equal(Boolean(referenceSearch.state.sharedPassage),mode === 'focused');
     if (mode === 'focused') assert.deepEqual([...referenceSearch.state.sharedPassage.verses],[5,6]);
-    assert.equal(referenceSearch.state.pendingVerseFocus,mode !== 'focused');
+    assert.equal(referenceSearch.state.pendingVerseFocus, mode !== 'focused' || entry === 'submitFocusReference');
+    assert.equal(referenceSearch.state.pendingVerseHalo, mode !== 'focused' || entry === 'submitFocusReference');
   }
 }
 referenceSearch.state.sharedPassage={verses:[5,6]};
