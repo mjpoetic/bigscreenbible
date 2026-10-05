@@ -18713,7 +18713,7 @@ function presentation(accountPanelRerender = false) {
           </form>
         </div>
         <div class="presentation-ref ${paginated ? "paginated" : ""}">
-          ${state.presentationNoButtons ? `<span class="presentation-reference-label">${escapeHtml(presentationReference)}</span><span class="presentation-version-label">${escapeHtml(translationDisplayCode(version))}</span>` : `
+          ${state.presentationNoButtons ? `<span class="presentation-reference-label">${escapeHtml(presentationReferenceBase)}</span><span class="presentation-version-label">${escapeHtml(translationDisplayCode(version))}</span>` : `
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
             ${presentationReferencePicker("book", availableBooks, presentationBook)}
             <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>

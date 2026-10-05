@@ -25164,7 +25164,17 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 #app .presentation.no-buttons .presentation-top {
   grid-template-columns: minmax(0, 1fr);
 }
-#app .presentation.no-buttons .presentation-ref { grid-column: 1; }
+#app .presentation.no-buttons .presentation-ref {
+  grid-column: 1;
+  justify-self: center;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+#app .presentation.no-buttons :is(.presentation-reference-label, .presentation-version-label) {
+  max-width: 100%;
+}
+#app .presentation.no-buttons .presentation-reference-label { cursor: default; }
 #app .presentation.no-buttons :is(.presentation-search-slot, .presentation-actions,
   .presentation-bottom, .presentation-reference-mobile-share, .shared-version-notice,
   .presentation-part-position, .presentation-continuation-cue, .presentation-verse-of-day-label,
