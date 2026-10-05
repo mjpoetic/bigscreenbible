@@ -28646,6 +28646,9 @@ function dismissSelectionBarOnOutsideClick(event) {
   if (!state.selectedVerses.length) return;
   const target = event.target;
   if (!(target instanceof Element)) return;
+  // Navigation may have just selected a range and queued its arrival scroll.
+  // Let that click finish without rerendering and restoring the old position.
+  if (target.closest("[data-goto]")) return;
   if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer, .portrait-navigation, .mobile-focus-workspace, .settings-choice-menu, [data-passage-picker]")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
