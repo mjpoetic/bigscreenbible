@@ -4193,25 +4193,34 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
 }
 
 @media (min-width: 841px) {
+  .app-shell .search:has(.search-field-tool-button) {
+    padding-right: 0;
+  }
+
   .app-shell.focus-shell .desktop-focus-tools-control {
     position: relative;
     z-index: 142;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 34px;
-    width: 34px;
-    height: 34px;
-    margin-right: -8px;
+    align-self: stretch;
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    margin-right: 0;
   }
 
-  .desktop-focus-tools-toggle {
+  .search .search-field-tool-button {
+    align-self: stretch;
+    flex: 0 0 auto;
+    min-height: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
-    min-width: 34px;
+    width: auto;
+    height: 100%;
+    min-width: 0;
+    aspect-ratio: 1;
     padding: 0;
     border: 1px solid transparent;
     border-radius: 999px;
@@ -4226,16 +4235,16 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
       transform var(--motion-fast) var(--motion-ease);
   }
 
-  .desktop-focus-tools-toggle:hover,
-  .desktop-focus-tools-toggle:focus-visible,
-  .desktop-focus-tools-toggle.active {
+  .search .search-field-tool-button:hover,
+  .search .search-field-tool-button:focus-visible,
+  .search .search-field-tool-button.active {
     border-color: color-mix(in srgb, var(--teal) 28%, transparent);
     background: color-mix(in srgb, var(--teal) 12%, var(--panel));
     color: var(--teal);
     box-shadow: 0 0 16px color-mix(in srgb, var(--teal) 23%, transparent);
   }
 
-  .desktop-focus-tools-toggle:focus-visible {
+  .search .search-field-tool-button:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--teal) 42%, transparent);
     outline-offset: 2px;
   }
@@ -23647,17 +23656,17 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
 }
 
 /* Give revealed reading controls a denser glass surface without changing idle opacity. */
-.app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle) {
+.app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .search-field-tool-button) {
   -webkit-backdrop-filter: blur(18px) saturate(1.2);
   backdrop-filter: blur(18px) saturate(1.2);
 }
 
-.app-shell :is(.reader-page-button.available, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle):not(.focus-control-faded):not(.focus-control-hidden):not(.mobile-settings-idle):not(.reader-top-idle) {
+.app-shell :is(.reader-page-button.available, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .search-field-tool-button):not(.focus-control-faded):not(.focus-control-hidden):not(.mobile-settings-idle):not(.reader-top-idle) {
   opacity: 0.96;
   background: var(--reading-control-active-glass, color-mix(in srgb, var(--paper) 88%, transparent));
 }
 
-.app-shell :is(.reader-page-button.available, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle):not(.focus-control-faded):not(.focus-control-hidden):not(.mobile-settings-idle):not(.reader-top-idle):is(:hover, :focus-visible, :active) {
+.app-shell :is(.reader-page-button.available, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .search-field-tool-button):not(.focus-control-faded):not(.focus-control-hidden):not(.mobile-settings-idle):not(.reader-top-idle):is(:hover, :focus-visible, :active) {
   opacity: 1;
   background: var(--reading-control-active-glass, color-mix(in srgb, var(--soft) 92%, transparent));
 }
@@ -23692,7 +23701,7 @@ html[data-theme="light"] .reading-control-mist {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-html[data-theme="light"] #app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option) {
+html[data-theme="light"] #app .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option) {
   border-color: color-mix(in srgb, var(--ink) 24%, var(--panel));
   box-shadow: none;
 }
@@ -23720,13 +23729,13 @@ html[data-theme="dark"] .app-shell {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))):not(.focus-control-faded):not(.focus-control-hidden) {
+  .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .search-field-tool-button, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))):not(.focus-control-faded):not(.focus-control-hidden) {
     transition: opacity 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
+  .app-shell :is(.reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .search-field-tool-button, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, :where(.mobile-focus-search-results:not(.presentation-search-results))) {
     transition: none;
   }
 }
@@ -25040,7 +25049,7 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 html #app .app-shell :is(
   .rail button, .portrait-rail-actions button,
   .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
-  .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option,
+  .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .reader-auto-scroll-button, .mode-tabs button, .theme-mode-button,
   .icon-btn, .ghost-btn, .nav-button, .games-header-action, .trivia-mode-tabs button
 ):where(:not(#focusToggle, #mobileFocusToggle, .focus-toggle, .mobile-mode-focus))
@@ -25054,7 +25063,7 @@ html #app .app-shell :is(
 html #app .app-shell :is(
   .rail button, .portrait-rail-actions button,
   .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
-  .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option,
+  .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .reader-auto-scroll-button, .mode-tabs button, .theme-mode-button,
   .icon-btn, .ghost-btn, .nav-button, .games-header-action, .trivia-mode-tabs button
 ):where(:not(#focusToggle, #mobileFocusToggle, .focus-toggle, .mobile-mode-focus))

@@ -49,7 +49,7 @@ html[data-control-material="glass"] :is(
   .selection-bar, .reader-top-button, .reader-auto-scroll-button,
   .reader-selection-tools-button, .reader-return-button,
   .mobile-floating-passage, .mobile-floating-settings, .mobile-floating-focus-tools,
-  .desktop-focus-tools-toggle, .mobile-focus-tool-option, .desktop-focus-tool-option,
+  .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .settings-popover, .mobile-settings-popover, .primary-version-menu,
   .parallel-version-menu, .settings-choice-menu, .search-scope-popover,
   .mobile-verse-nav-menu, .verse-action-menu, .streak-popover,
@@ -155,7 +155,7 @@ html[data-control-material="glass"] .mode-tabs > button { border-right-color: tr
 /* Retain clear selected/running/open states, rather than washing out their tint. */
 html[data-control-material="glass"] :is(
   .mode-tabs > button, .theme-mode-button, .topbar .icon-btn, .rail > button,
-  .mobile-floating-focus-tools, .mobile-floating-passage, .desktop-focus-tools-toggle,
+  .mobile-floating-focus-tools, .mobile-floating-passage, .search-field-tool-button,
   .mobile-focus-tool-option, .desktop-focus-tool-option, .reader-auto-scroll-button,
   .games-header-action, .trivia-mode-tabs > button
 ).active {
@@ -442,7 +442,7 @@ html[data-control-material="glass"] :is(.hidden-word-keyboard, .crossword-keyboa
 }
 
 /* Focus and native quick-action sheets use the same dense glass material. */
-html[data-control-material="glass"] :is(.mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-floating-passage, .mobile-floating-settings).active {
+html[data-control-material="glass"] :is(.mobile-floating-focus-tools, .search-field-tool-button, .mobile-floating-passage, .mobile-floating-settings).active {
   /* The revealed-control layer also paints hover/pressed backgrounds. Keep
      its fill paired with the active glyph instead of dark glass + dark ink. */
   --reading-control-active-glass: var(--teal);

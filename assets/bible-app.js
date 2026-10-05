@@ -3095,7 +3095,7 @@ function desktopFocusTools() {
   return `
     <div class="desktop-focus-tools-control ${state.focusToolsOpen ? "expanded" : ""}">
       <button
-        class="desktop-focus-tools-toggle ${state.focusToolsOpen ? "active" : ""}"
+        class="desktop-focus-tools-toggle search-field-tool-button ${state.focusToolsOpen ? "active" : ""}"
         id="desktopFocusToolsToggle"
         type="button"
         aria-label="${state.focusToolsOpen ? "Close Focus tools" : "Open Focus tools"}"
@@ -5142,7 +5142,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </button>
         <input id="referenceInput" value="${escapeHtml((notesSearchSource || strongSearchSource) ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
-        ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
+        ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
         ${desktopFocusTools()}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
