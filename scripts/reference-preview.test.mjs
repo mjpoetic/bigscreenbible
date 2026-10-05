@@ -75,7 +75,8 @@ const crossReferencePreviewMarkup = context.previewMarkup(
 );
 assert.match(crossReferencePreviewMarkup, /data-reference-preview-back/);
 assert.match(crossReferencePreviewMarkup, />←<\/span> Cross references/);
-assert.match(crossReferencePreviewMarkup, /data-popup-goto="Ezekiel 36:16"/);
+assert.match(crossReferencePreviewMarkup, /data-popup-goto="Ezekiel 36:16-17"/);
+assert.doesNotMatch(crossReferencePreviewMarkup, /data-popup-goto="Ezekiel 36:16"/);
 assert.match(crossReferencePreviewMarkup, /<sup>16<\/sup>/);
 assert.match(crossReferencePreviewMarkup, /<sup>17<\/sup>/);
 
@@ -264,3 +265,10 @@ assert.equal((bridgePreview.match(/Combined source passage\./g)||[]).length,1);
 assert.match(bridgePreview, /<sup>23–24<\/sup>/);
 context.parsePassageReference = () => ({key:'John 3', verses:[24]});
 assert.match(context.previewMarkup('John 3:24','CEV'), /<sup>23–24<\/sup>/);
+
+context.crossReferenceItems = () => [{ label: "Ezekiel 36:16-17", goto: "Ezekiel 36:16", preview: "Preview" }];
+context.referenceLabel = () => "Luke 12:16";
+context.icons = { layers: "" };
+vm.runInContext(`${extractFunction("crossReferencesPanel")}; globalThis.panel = crossReferencesPanel;`, context);
+assert.match(context.panel(), /data-goto="Ezekiel 36:16-17"/);
+console.log("Cross-reference navigation preserves full passage ranges");

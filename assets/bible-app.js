@@ -7511,7 +7511,7 @@ function crossReferencesPanel() {
       <div class="study-heading">${icons.layers} ${escapeHtml(referenceLabel())}</div>
       <div class="ref-list">
         ${refs.length
-          ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(ref.goto)}" data-link-navigation="true"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
+          ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(parsePassageReference(ref.label) ? ref.label : ref.goto)}" data-link-navigation="true"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
           : `<div class="empty-state">No cross references are bundled for ${escapeHtml(referenceLabel())}.</div>`}
       </div>
       <div class="source-note">
@@ -17396,7 +17396,7 @@ function referencePreviewPassageMarkup(reference, requestedVersion, options = {}
         <p class="reference-preview-verse"><sup>${n}</sup><span>${escapeHtml(text)}</span></p>
       `).join("")
     : `<div class="empty-state">Scripture text is not available for this reference.</div>`;
-  const goToReference = options.goToReference || reference;
+  const goToReference = parsed.verses.length > 1 ? reference : (options.goToReference || reference);
   return `
     <div class="reference-preview-meta">
       <strong>${escapeHtml(reference)}</strong>
