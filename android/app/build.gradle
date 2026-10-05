@@ -53,3 +53,20 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Do not produce a Play release with silently disabled Firebase delivery.
+tasks.register('verifyReleasePushConfiguration') {
+    doLast {
+        def configFile = file('google-services.json')
+        if (!configFile.exists()) {
+            throw new GradleException('Android push requires android/app/google-services.json. See ANDROID-PUSH-SETUP.md.')
+        }
+        def config = new groovy.json.JsonSlurper().parse(configFile)
+        if (!config.client.any { it.client_info?.android_client_info?.package_name == android.defaultConfig.applicationId }) {
+            throw new GradleException('google-services.json must contain the Android package com.bigscreenbible.app.')
+        }
+    }
+}
+tasks.configureEach { task ->
+    if (task.name == 'preReleaseBuild') task.dependsOn('verifyReleasePushConfiguration')
+}

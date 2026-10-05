@@ -1,3 +1,4 @@
+import { fcmConfiguration, normalizeFCMToken } from "../_shared/fcm.ts";
 import { apnsConfiguration, normalizeNativeSubscription } from "../_shared/apns.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.110.1";
 
@@ -158,7 +159,7 @@ Deno.serve(async (request) => {
 
   if (request.method === "GET") {
     const publicKey = Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY") || "";
-    return jsonResponse(request, { enabled: Boolean(publicKey), publicKey: publicKey || null, nativeEnabled: Boolean(apnsConfiguration()) });
+    return jsonResponse(request, { enabled: Boolean(publicKey), publicKey: publicKey || null, nativeEnabled: Boolean(apnsConfiguration()), androidEnabled: Boolean(fcmConfiguration()) });
   }
   if (request.method !== "POST") return jsonResponse(request, { error: "Method not allowed" }, 405);
 
@@ -171,15 +172,20 @@ Deno.serve(async (request) => {
     const userId = await authenticatedUserId(request, supabase);
 
     if (action === "subscribe-native") {
-      const subscription = normalizeNativeSubscription(body.nativeSubscription);
+      const input = body.nativeSubscription as Record<string, unknown> | null;
+      const android = input?.platform === "android";
+      const fcmToken = android ? normalizeFCMToken(input?.token) : null;
+      const subscription = android ? (fcmToken ? { token: fcmToken, environment: null } : null) : normalizeNativeSubscription(input);
       const preferences = normalizePreferences(body.preferences);
-      if (!subscription || !preferences) return jsonResponse(request, { error: "Invalid iPhone subscription or schedule" }, 400);
-      if (!apnsConfiguration()) return jsonResponse(request, { error: "Apple push delivery is not configured yet" }, 503);
-      const endpoint = `apns:${subscription.environment}:${subscription.token}`;
+      if (!subscription || !preferences) return jsonResponse(request, { error: "Invalid native subscription or schedule" }, 400);
+      if (!(android ? fcmConfiguration() : apnsConfiguration())) return jsonResponse(request, { error: "Native push delivery is not configured yet" }, 503);
+      const transport = android ? "fcm" : "apns";
+      const endpoint = android ? `fcm:${subscription.token}` : `apns:${subscription.environment}:${subscription.token}`;
       const deviceToken = randomToken();
       const deviceTokenHash = await tokenHash(deviceToken);
       const { error } = await supabase.from(tableName).upsert({
-        endpoint, transport: "apns", apns_token: subscription.token, apns_environment: subscription.environment,
+        endpoint, transport, fcm_token: android ? subscription.token : null,
+        apns_token: android ? null : subscription.token, apns_environment: subscription.environment,
         p256dh: null, auth: null, device_token_hash: deviceTokenHash,
         timezone: preferences.timezone, morning_time: preferences.morningTime,
         evening_enabled: preferences.eveningEnabled, evening_time: preferences.eveningTime,
@@ -193,7 +199,7 @@ Deno.serve(async (request) => {
       if (validDeviceToken(body.deviceToken)) {
         await supabase.from(tableName).delete()
           .eq("device_token_hash", await tokenHash(body.deviceToken as string))
-          .eq("transport", "apns").neq("endpoint", endpoint);
+          .eq("transport", transport).neq("endpoint", endpoint);
       }
       return jsonResponse(request, { subscribed: true, deviceToken });
     }

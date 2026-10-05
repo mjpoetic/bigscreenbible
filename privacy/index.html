@@ -32,7 +32,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/apple-touch-icon.png?v=20260713-refined" />
     <link rel="manifest" href="../site.webmanifest?v=20260713-refined" />
     <meta name="theme-color" content="#111d37" />
-    <script src="../assets/theme-catalog.js?v=2026.10.04.10"></script>
+    <script src="../assets/theme-catalog.js?v=2026.10.04.11"></script>
     <link rel="preload" href="../assets/fonts/cinzel-900-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -43,8 +43,8 @@
     <script>
       window.BigScreenBibleThemeCatalog.watchStoredTheme();
     </script>
-    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.10.04.10" />
-    <link rel="stylesheet" href="../assets/liquid-glass.css?v=2026.10.04.10" />
+    <link rel="stylesheet" href="../assets/bible-app.css?v=2026.10.04.11" />
+    <link rel="stylesheet" href="../assets/liquid-glass.css?v=2026.10.04.11" />
   </head>
   <body class="about-body">
     <a class="skip-link" href="#main-content">Skip to policy</a>
@@ -107,7 +107,7 @@
             <li>Game type, category, difficulty, round-length, sound, and timed-mode preferences, plus Book Sprint best times.</li>
             <li>Interface state, such as whether a panel, tutorial, or navigation bar has been opened or collapsed.</li>
             <li>Previously used account identifiers and separate Supabase authentication sessions when you choose to keep multiple accounts ready for switching.</li>
-            <li>Optional notification status, daily reminder times, social-notification choices, timezone, account link while signed in, and a device token used to manage that browser’s push subscription.</li>
+            <li>Optional notification status, daily reminder times, social-notification choices, timezone, account link while signed in, and a device token used to manage that browser or app installation’s push subscription.</li>
           </ul>
           <p>This device data exists even if you do not create an account. It stays in that browser or app web view unless it is cleared, overwritten, or synced to an account as described below.</p>
 
@@ -129,7 +129,7 @@
           <p>Only the two participating signed-in users can read a challenge or its player records. Supabase Realtime delivers authorized database changes to both players so invitations, ready state, scores, progress, and results can update while they play. Challenge records do not include email addresses, messages, notes, bookmarks, highlights, reading history, or reading streaks.</p>
 
           <h3>Optional push-notification information</h3>
-          <p>If you enable notifications, Big Screen Bible stores a push-subscription endpoint and its browser-generated encryption keys, a one-way hash of the device-management token, your browser-reported timezone, your chosen reminder times, whether the evening reminder and each type of social notification are enabled, the last time that device opened Big Screen Bible, and the local dates on which reminders were sent. A Big Screen Bible account is not required for daily reminders.</p>
+          <p>If you enable notifications, Big Screen Bible stores a browser push-subscription endpoint and its browser-generated encryption keys, or a native device token issued by Apple Push Notification service (APNs) on iOS or Firebase Cloud Messaging (FCM) on Android, a one-way hash of the device-management token, your device-reported timezone, your chosen reminder times, whether the evening reminder and each type of social notification are enabled, the last time that device opened Big Screen Bible, and the local dates on which reminders were sent. A Big Screen Bible account is not required for daily reminders.</p>
           <p>While you are signed in, the subscription is associated with your Supabase user ID so it can receive optional friend-request and game-challenge notifications. Private delivery events temporarily store the recipient and initiating user IDs, event type, related friendship or challenge ID, delivery status, retry count, and delivery timestamps. The app unlinks the device from the outgoing account when switching accounts or signing out. Successfully processed delivery events are removed after 30 days.</p>
           <p>The last-opened time is used only to suppress the optional evening reminder when that device has already opened Big Screen Bible during its local day. Push endpoints and delivery events are treated as sensitive and are not exposed through the public database API.</p>
 
@@ -176,6 +176,7 @@
           <p>Big Screen Bible currently relies on the following types of third-party services:</p>
           <ul>
             <li><strong>Supabase:</strong> authentication, account sessions, the user-sync database, and server-side Edge Functions.</li>
+            <li><strong>Native app push services:</strong> Apple APNs on iOS and Google Firebase Cloud Messaging on Android receive the device token and notification content needed to deliver enabled notifications.</li>
             <li><strong>Browser and operating-system push services:</strong> delivery of notifications through the push service selected by your browser or device, which may be operated by Apple, Google, Mozilla, Microsoft, or another browser provider.</li>
             <li><strong>Google:</strong> optional Google Sign-In and Google Fonts. Google Sign-In is only used if you choose it.</li>
             <li><strong>GitHub Pages:</strong> static website hosting for bigscreenbible.com.</li>

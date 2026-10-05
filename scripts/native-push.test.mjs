@@ -15,6 +15,7 @@ const callbacks = {}, storage = new Map(), requests = [];
 const state = { pushEnabled: false, pushBusy: false, pushPermissionDenied: false };
 const plugin = {
   async addListener(name, callback) { callbacks[name] = callback; return { remove() {} }; },
+  async createChannel(channel) { assert.equal(channel.id, "bsb_notifications"); },
   async checkPermissions() { return { receive: permission }; },
   async requestPermissions() { prompts++; return { receive: permission }; },
   async register() { registered++; callbacks.registration({ value: 'ab'.repeat(32) }); },
@@ -25,12 +26,12 @@ const context = vm.createContext({
   window: { Capacitor: { getPlatform: () => 'ios', isPluginAvailable: () => true, Plugins: { PushNotifications: plugin } }, bsbAPNSEnvironment: 'development', location: { href: 'capacitor://localhost/' } },
   localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
   pushPreferences: () => ({ timezone: 'America/New_York' }), renderPreservingReaderScroll() {}, showToast() {},
-  async pushFunctionRequest(method, body) { requests.push({ method, body }); return method === 'GET' ? { nativeEnabled: serverReady } : { deviceToken: 'opaque-device-secret' }; },
+  async pushFunctionRequest(method, body) { requests.push({ method, body }); return method === 'GET' ? { nativeEnabled: serverReady, androidEnabled: serverReady } : { deviceToken: 'opaque-device-secret' }; },
 });
 vm.runInContext(`let nativePushListenersPromise = null, nativePushRegistration = null;
 const pushDeviceTokenStorageKey = 'token', pushPromptDismissedStorageKey = 'dismissed';
 let dataLoading = false, dataError = null;
-${['nativePushPlugin','nativeNotificationDestination','bindNativePushListeners','registerNativePushToken','enableNativePushNotifications','initializeNativePushNotifications','unsubscribePushDevice','clearLocalPushSubscription','pushApiSupported'].map(extract).join('\n')}`, context);
+${['nativePushPermissionMessage','nativePushPlugin','nativeNotificationDestination','bindNativePushListeners','registerNativePushToken','enableNativePushNotifications','initializeNativePushNotifications','unsubscribePushDevice','clearLocalPushSubscription','pushApiSupported'].map(extract).join('\n')}`, context);
 const run = code => vm.runInContext(code, context);
 assert.equal(run('pushApiSupported()'), true, 'Native support works without browser PushManager, Notification or service workers');
 await run('initializeNativePushNotifications()'); assert.equal(prompts, 0); assert.equal(registered, 0);
@@ -46,3 +47,25 @@ assert.equal(run('nativeNotificationDestination("https://bigscreenbible.com/?mod
 run('window.bsbNativePushAvailable = false');
 assert.equal(run('pushApiSupported()'), false, 'Personal Team test build cannot advertise unavailable native push');
 console.log('Native push: permissions, token registration, renewal, setup errors, unsubscribe and trusted notification links passed.');
+
+run('window.bsbNativePushAvailable = true; window.Capacitor.getPlatform = () => "android"');
+assert.equal(run('pushApiSupported()'), true);
+permission = 'denied'; await run('enableNativePushNotifications()'); assert.match(state.pushStatus, /Android Settings/);
+permission = 'granted'; serverReady = true; await run('enableNativePushNotifications()');
+assert.equal(requests.at(-1).body.nativeSubscription.platform, 'android');
+assert.equal(requests.at(-1).body.nativeSubscription.environment, undefined);
+assert.match(state.pushStatus, /Android device/);
+const before = prompts, registrationsBefore = registered; await run('initializeNativePushNotifications()'); assert.equal(prompts, before); assert.equal(registered, registrationsBefore + 1);
+serverReady = false; await run('enableNativePushNotifications()'); assert.match(state.pushStatus, /Android push delivery still needs/);
+await run('unsubscribePushDevice()'); assert.equal(unregistered, 2);
+run('window.Capacitor.isPluginAvailable = () => false');
+assert.equal(run('pushApiSupported()'), false, 'Android must never fall back to browser push');
+console.log('Android permissions, registration, refresh, setup errors and unsubscribe passed.');
+
+let opened = null;
+context.window.location.href = 'https://bigscreenbible.com/';
+context.window.location.assign = destination => { opened = destination; };
+callbacks.pushNotificationActionPerformed({ notification: { data: { url: 'https://bigscreenbible.com/?social=friends&tab=requests' } } });
+assert.equal(opened, 'https://bigscreenbible.com/?social=friends&tab=requests');
+callbacks.pushNotificationActionPerformed({ notification: { data: { url: 'https://evil.test/' } } });
+assert.equal(opened, 'https://bigscreenbible.com/?social=friends&tab=requests', 'Untrusted notification destinations cannot navigate');

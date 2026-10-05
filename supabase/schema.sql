@@ -1620,10 +1620,12 @@ create trigger bsb_game_room_player_enqueue_push
   for each row
   execute function private.enqueue_bsb_social_push_event();
 
--- Add native APNs delivery without changing existing web-push subscriptions.
+
+-- Add Android FCM delivery alongside web push and APNs.
 begin;
 alter table public.bsb_push_subscriptions
   add column if not exists transport text not null default 'web',
+  add column if not exists fcm_token text,
   add column if not exists apns_token text,
   add column if not exists apns_environment text,
   alter column p256dh drop not null,
@@ -1633,11 +1635,16 @@ alter table public.bsb_push_subscriptions
 alter table public.bsb_push_subscriptions
   add constraint bsb_push_transport_check check (
     (transport = 'web' and p256dh is not null and auth is not null
-      and apns_token is null and apns_environment is null)
+      and apns_token is null and apns_environment is null and fcm_token is null)
     or
     (transport = 'apns' and p256dh is null and auth is null
       and apns_token is not null and apns_token ~ '^[a-f0-9]+$' and char_length(apns_token) between 32 and 512 and char_length(apns_token) % 2 = 0
       and apns_environment is not null and apns_environment in ('development', 'production')
-      and endpoint = 'apns:' || apns_environment || ':' || apns_token)
+      and fcm_token is null and endpoint = 'apns:' || apns_environment || ':' || apns_token)
+    or
+    (transport = 'fcm' and p256dh is null and auth is null
+      and apns_token is null and apns_environment is null
+      and fcm_token is not null and fcm_token ~ '^[A-Za-z0-9_:-]{32,4092}$'
+      and endpoint = 'fcm:' || fcm_token)
   );
 commit;

@@ -8504,10 +8504,16 @@ function validPushTime(value) {
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
 }
 
+function nativePushPermissionMessage() {
+  return window.Capacitor?.getPlatform?.() === "android"
+    ? "Notifications are off in Android Settings. Open Settings → Apps → Big Screen Bible → Notifications to allow them."
+    : "Notifications are off in iPhone Settings. Open Settings → Notifications → Big Screen Bible to allow them.";
+}
+
 function nativePushPlugin() {
   if (window.bsbNativePushAvailable === false) return null;
   const capacitor = window.Capacitor;
-  if (capacitor?.getPlatform?.() !== "ios" || !capacitor.isPluginAvailable?.("PushNotifications")) return null;
+  if (!["ios", "android"].includes(capacitor?.getPlatform?.()) || !capacitor.isPluginAvailable?.("PushNotifications")) return null;
   return capacitor.Plugins?.PushNotifications || null;
 }
 
@@ -8529,7 +8535,7 @@ function bindNativePushListeners() {
   const plugin = nativePushPlugin();
   nativePushListenersPromise = Promise.all([
     plugin.addListener("registration", ({ value }) => nativePushRegistration?.resolve(value)),
-    plugin.addListener("registrationError", () => nativePushRegistration?.reject(new Error("Apple could not register this device for notifications. Please try again."))),
+    plugin.addListener("registrationError", () => nativePushRegistration?.reject(new Error("The notification service could not register this device for notifications. Please try again."))),
     plugin.addListener("pushNotificationActionPerformed", ({ notification }) => {
       const destination = nativeNotificationDestination(notification?.data?.url);
       if (destination) window.location.assign(destination);
@@ -8541,7 +8547,7 @@ function bindNativePushListeners() {
 async function registerNativePushToken() {
   await bindNativePushListeners();
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => finish(new Error("Apple notification registration timed out. Check your connection and try again.")), 20000);
+    const timeout = setTimeout(() => finish(new Error("Notification registration timed out. Check your connection and try again.")), 20000);
     const finish = (error, token) => {
       clearTimeout(timeout);
       nativePushRegistration = null;
@@ -8557,7 +8563,9 @@ async function enableNativePushNotifications({ requestPermission = true, quiet =
   const plugin = nativePushPlugin();
   if (!plugin || state.pushBusy) return;
   state.pushBusy = true;
-  state.pushStatus = "Connecting this iPhone…";
+  const android = window.Capacitor.getPlatform() === "android";
+  const device = android ? "Android device" : "iPhone";
+  state.pushStatus = `Connecting this ${device}…`;
   if (!quiet) renderPreservingReaderScroll();
   try {
     const permission = requestPermission ? await plugin.requestPermissions() : await plugin.checkPermissions();
@@ -8565,16 +8573,17 @@ async function enableNativePushNotifications({ requestPermission = true, quiet =
     if (permission.receive !== "granted") {
       clearLocalPushSubscription();
       state.pushStatus = state.pushPermissionDenied
-        ? "Notifications are off in iPhone Settings. Open Settings → Notifications → Big Screen Bible to allow them."
+        ? nativePushPermissionMessage()
         : "Enable notifications for daily reminders and signed-in friend activity.";
       return;
     }
-    const token = await registerNativePushToken();
     const config = await pushFunctionRequest("GET");
-    if (!config.nativeEnabled) throw new Error("iPhone permission is allowed. Apple push delivery still needs to be configured for Big Screen Bible.");
+    if (!(android ? config.androidEnabled : config.nativeEnabled)) throw new Error(`${device} permission is allowed. ${android ? "Android" : "Apple"} push delivery still needs to be configured for Big Screen Bible.`);
+    if (android) await plugin.createChannel({ id: "bsb_notifications", name: "Bible reminders and friend activity", importance: 3, visibility: 0, vibration: true });
+    const token = await registerNativePushToken();
     const result = await pushFunctionRequest("POST", {
       action: "subscribe-native",
-      nativeSubscription: { token, environment: window.bsbAPNSEnvironment },
+      nativeSubscription: { token, platform: android ? "android" : "ios", environment: android ? undefined : window.bsbAPNSEnvironment },
       deviceToken: localStorage.getItem(pushDeviceTokenStorageKey) || "",
       preferences: pushPreferences(),
     });
@@ -8583,13 +8592,13 @@ async function enableNativePushNotifications({ requestPermission = true, quiet =
     localStorage.setItem("lw_push_enabled", "true");
     state.pushEnabled = true;
     state.pushPermissionDenied = false;
-    state.pushStatus = "Notifications are enabled on this iPhone.";
+    state.pushStatus = `Notifications are enabled on this ${device}.`;
     localStorage.removeItem(pushPromptDismissedStorageKey);
     if (!quiet) showToast("Notifications enabled");
   } catch (error) {
     // Keep an existing subscription credential so a temporary outage does not
     // orphan an enabled device or prevent a later unsubscribe/account unlink.
-    state.pushStatus = error?.message || "iPhone notifications could not be connected.";
+    state.pushStatus = error?.message || `${device} notifications could not be connected.`;
     if (!quiet) showToast("Could not connect notifications");
   } finally {
     state.pushBusy = false;
@@ -8604,7 +8613,7 @@ async function initializeNativePushNotifications() {
   if (permission.receive !== "granted") {
     clearLocalPushSubscription();
     state.pushStatus = state.pushPermissionDenied
-      ? "Notifications are off in iPhone Settings. Open Settings → Notifications → Big Screen Bible to allow them."
+      ? nativePushPermissionMessage()
       : "Enable notifications for daily reminders and signed-in friend activity.";
     return;
   }
@@ -8622,7 +8631,7 @@ async function unsubscribePushDevice() {
 
 function pushApiSupported() {
   if (nativePushPlugin()) return true;
-  if (window.Capacitor?.getPlatform?.() === "ios") return false;
+  if (["ios", "android"].includes(window.Capacitor?.getPlatform?.())) return false;
   return Boolean(
     window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window,
   );
@@ -8762,14 +8771,14 @@ async function initializePushNotifications() {
   if (!validPushTime(state.pushEveningTime)) state.pushEveningTime = "18:00";
   if (!state.pushSupported) {
     clearLocalPushSubscription();
-    state.pushStatus = window.Capacitor?.getPlatform?.() === "ios"
-      ? "Notifications aren't available in this test build. A push-enabled iPhone build is required."
+    state.pushStatus = ["ios", "android"].includes(window.Capacitor?.getPlatform?.())
+      ? "Notifications aren't available in this test build. A push-enabled app build is required."
       : "This browser does not support site notifications. On iPhone or iPad, add the site to the Home Screen first.";
     return;
   }
   if (nativePushPlugin()) {
     try { await initializeNativePushNotifications(); }
-    catch { state.pushStatus = "iPhone notification settings could not be read. Please reopen the app."; }
+    catch { state.pushStatus = "Notification settings could not be read. Please reopen the app."; }
     return;
   }
   if (Notification.permission === "denied") {

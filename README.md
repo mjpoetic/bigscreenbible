@@ -227,3 +227,7 @@ preferences. Typing a URL in Safari is not an equivalent Universal Link test.
 For Android, use `adb shell pm verify-app-links --re-verify com.bigscreenbible.app`
 then `adb shell pm get-app-links com.bigscreenbible.app`; the domain must report
 `verified` before treating a normal URL-launch test as proof of association.
+
+### Native Android push notifications
+
+Android uses Firebase Cloud Messaging through Capacitor. See [ANDROID-PUSH-SETUP.md](ANDROID-PUSH-SETUP.md) for Firebase setup, server deployment, release build requirements, and physical-device verification.

@@ -4,3 +4,10 @@ node_modules/
 www/
 android/app/src/main/assets/public/
 ios/App/App/public/
+
+# Local Firebase configuration and server credentials
+android/app/google-services.json
+*firebase-adminsdk*.json
+*service-account*.json
+supabase/functions/.env
+.env.local

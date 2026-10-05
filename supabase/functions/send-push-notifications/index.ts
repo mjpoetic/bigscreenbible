@@ -1,3 +1,4 @@
+import { fcmConfiguration, sendFCMNotification } from "../_shared/fcm.ts";
 import { sendAPNSNotification, normalizeNativeSubscription, apnsConfiguration } from "../_shared/apns.ts";
 // @deno-types="npm:@types/web-push@3.6.4"
 import webpush from "npm:web-push@3.6.7";
@@ -14,7 +15,8 @@ type SubscriptionRow = PushSchedule & {
   id: string;
   user_id: string | null;
   endpoint: string;
-  transport: "web" | "apns";
+  transport: "web" | "apns" | "fcm";
+  fcm_token: string | null;
   apns_token: string | null;
   apns_environment: string | null;
   p256dh: string;
@@ -224,6 +226,7 @@ function eventIsStillActionable(
 }
 
 async function sendToSubscription(subscription: SubscriptionRow, payload: Record<string, unknown>) {
+  if (subscription.transport === "fcm") return sendFCMNotification(subscription.fcm_token || "", payload);
   if (subscription.transport === "apns") {
     const native = normalizeNativeSubscription({ token: subscription.apns_token, environment: subscription.apns_environment });
     if (!native) throw new Error("Invalid stored Apple push subscription");
@@ -271,7 +274,7 @@ async function loadMorningVerse(supabase: DatabaseClient, now: Date) {
 
 async function sendDailyNotifications(supabase: DatabaseClient, now: Date) {
   const { data: rows, error: rowsError } = await supabase.from(subscriptionTable)
-    .select("id, user_id, endpoint, p256dh, auth, transport, apns_token, apns_environment, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
+    .select("id, user_id, endpoint, p256dh, auth, transport, apns_token, apns_environment, fcm_token, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
     .eq("enabled", true)
     .order("updated_at", { ascending: true })
     .limit(2000);
@@ -385,7 +388,7 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
   ] = await Promise.all([
     supabase.from("bsb_profiles").select("user_id, username, display_name").in("user_id", actorIds),
     supabase.from(subscriptionTable)
-      .select("id, user_id, endpoint, p256dh, auth, transport, apns_token, apns_environment, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
+      .select("id, user_id, endpoint, p256dh, auth, transport, apns_token, apns_environment, fcm_token, timezone, morning_time, evening_enabled, evening_time, last_opened_at, last_morning_sent_on, last_evening_sent_on, friend_request_notifications, game_challenge_notifications, challenge_accepted_notifications")
       .eq("enabled", true)
       .in("user_id", recipientIds),
     friendshipIds.length
@@ -536,7 +539,7 @@ Deno.serve(async (request) => {
   const vapidPublicKey = Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY") || "";
   const vapidPrivateKey = Deno.env.get("WEB_PUSH_VAPID_PRIVATE_KEY") || "";
   const vapidSubject = Deno.env.get("WEB_PUSH_SUBJECT") || "mailto:support@bigscreenbible.com";
-  if ((!vapidPublicKey || !vapidPrivateKey) && !apnsConfiguration()) {
+  if ((!vapidPublicKey || !vapidPrivateKey) && !apnsConfiguration() && !fcmConfiguration()) {
     return jsonResponse(request, { error: "Web Push VAPID keys are not configured" }, 503);
   }
 
