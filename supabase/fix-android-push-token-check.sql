@@ -1,12 +1,5 @@
--- Add Android FCM delivery alongside web push and APNs.
+-- Fix PostgreSQL repetition limits while preserving FCM token validation.
 begin;
-alter table public.bsb_push_subscriptions
-  add column if not exists transport text not null default 'web',
-  add column if not exists fcm_token text,
-  add column if not exists apns_token text,
-  add column if not exists apns_environment text,
-  alter column p256dh drop not null,
-  alter column auth drop not null;
 alter table public.bsb_push_subscriptions
   drop constraint if exists bsb_push_transport_check;
 alter table public.bsb_push_subscriptions

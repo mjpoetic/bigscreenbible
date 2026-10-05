@@ -1644,7 +1644,7 @@ alter table public.bsb_push_subscriptions
     or
     (transport = 'fcm' and p256dh is null and auth is null
       and apns_token is null and apns_environment is null
-      and fcm_token is not null and fcm_token ~ '^[A-Za-z0-9_:-]{32,4092}$'
+      and fcm_token is not null and char_length(fcm_token) between 32 and 4092 and fcm_token ~ '^[A-Za-z0-9_:-]+$'
       and endpoint = 'fcm:' || fcm_token)
   );
 commit;
