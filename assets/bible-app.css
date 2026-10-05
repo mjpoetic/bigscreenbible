@@ -23087,6 +23087,17 @@ svg {
 .reader-forward-button { translate: 0 -54px; }
 .reader-forward-button svg { rotate: 180deg; }
 .app-shell:has(.reader-forward-button) .reader-selection-tools-button { translate: 0 -54px; }
+
+/* Landscape Reader controls share the reading edge beside a visible right rail.
+   The page buttons remain positioned by their group, not individually. */
+@media (orientation: landscape) {
+  .app-shell[data-side-toolbar-position="right"]:has(.main-grid:not(.focus-mode) > .rail) .reader-page-controls,
+  .app-shell[data-side-toolbar-position="right"]:has(.main-grid:not(.focus-mode) > .rail) .reader-return-button,
+  .app-shell[data-side-toolbar-position="right"]:has(.main-grid:not(.focus-mode) > .rail) .reader-selection-tools-button {
+    right: calc(var(--rail-width) + 12px + var(--app-safe-area-right, env(safe-area-inset-right, 0px))) !important;
+    left: auto !important;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .presentation .presentation-bottom,
   .presentation .presentation-reference-share,
