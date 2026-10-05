@@ -7077,6 +7077,7 @@ function startReaderAutoScroll({ announce = true } = {}) {
 }
 
 function toggleReaderAutoScroll({ announce = true } = {}) {
+  cancelFocusReadingTap();
   if (state.autoScrollActive) {
     pauseReaderAutoScroll({ announce });
     return false;
@@ -21038,7 +21039,7 @@ function bindEvents() {
   scriptureTouchSurface?.addEventListener("touchmove", handleReaderChapterSwipeMove, { passive: false });
   scriptureTouchSurface?.addEventListener("touchend", handleReaderChapterSwipeEnd, { passive: false });
   scriptureTouchSurface?.addEventListener("touchcancel", cancelReaderChapterSwipe, { passive: true });
-  scriptureTouchSurface?.addEventListener("touchstart", handleReaderGestureStart, { passive: true });
+  scriptureTouchSurface?.addEventListener("touchstart", handleReaderGestureStart, { passive: false });
   scriptureTouchSurface?.addEventListener("touchmove", handleReaderGestureMove, { passive: false });
   scriptureTouchSurface?.addEventListener("touchend", handleReaderGestureEnd, { passive: false });
   scriptureTouchSurface?.addEventListener("touchcancel", cancelReaderTouchGesture, { passive: true });
@@ -27678,6 +27679,7 @@ function toggleReaderFocusFromGesture() {
   setTimeout(() => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"), enteringFocus ? 280 : 0);
 }
 
+const focusReadingDoubleTapMs = 450;
 let focusReadingTapTimer = 0;
 let focusReadingLastTap = null;
 
@@ -27693,21 +27695,19 @@ function handleFocusReadingTwoFingerTap(gesture) {
     y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
     time: Date.now(), reference: state.reference, mode: state.mode };
   const previous = focusReadingLastTap;
-  if (previous && tap.time - previous.time <= 340 && previous.reference === tap.reference && previous.mode === tap.mode
+  if (previous && (gesture.startedAt ?? tap.time) - previous.time <= focusReadingDoubleTapMs && previous.reference === tap.reference && previous.mode === tap.mode
       && Math.hypot(tap.x - previous.x, tap.y - previous.y) <= 48) {
     cancelFocusReadingTap();
     toggleFocusReading();
     return;
   }
-  if (previous) {
-    cancelFocusReadingTap();
-    toggleReaderAutoScrollFromGesture();
-  }
+  // Coalesce unmatched rapid taps instead of toggling playback twice.
+  cancelFocusReadingTap();
   focusReadingLastTap = tap;
   focusReadingTapTimer = setTimeout(() => {
     cancelFocusReadingTap();
     if (state.focusMode && state.reference === tap.reference && state.mode === tap.mode) toggleReaderAutoScrollFromGesture();
-  }, 340);
+  }, focusReadingDoubleTapMs);
 }
 
 function toggleReaderAutoScrollFromGesture() {
@@ -27720,6 +27720,13 @@ function beginReaderTwoFingerGesture(event, surface) {
   if (touches.length !== 2 || !readerGestureTouchesAllowed(touches, surface)) {
     readerTouchGesture = null;
     return;
+  }
+  // Own the two-finger sequence before WebKit's native gesture recognizers
+  // can cancel a stationary double tap. Pinch resizing is handled below.
+  if (event.cancelable) event.preventDefault();
+  if (focusReadingLastTap && Date.now() - focusReadingLastTap.time <= focusReadingDoubleTapMs) {
+    clearTimeout(focusReadingTapTimer);
+    focusReadingTapTimer = 0;
   }
   readerChapterTouchStart = null;
   readerBlankTapStart = null;
@@ -27909,7 +27916,6 @@ function handleReaderGestureStart(event) {
   if (!canUseReaderChapterSwipe()) return;
   const surface = event.currentTarget;
   if (event.touches?.length === 1) {
-    pauseReaderAutoScroll();
     readerTouchGesture = null;
     beginReaderBlankTap(event, surface);
     return;
@@ -27922,6 +27928,10 @@ function handleReaderGestureStart(event) {
 }
 
 function handleReaderGestureMove(event) {
+  if (event.touches?.length === 1 && !readerTouchGesture) {
+    cancelFocusReadingTap();
+    pauseReaderAutoScroll();
+  }
   if (readerBlankTapStart && touchMovedBeyond(readerBlankTapStart, event.touches?.[0])) {
     readerBlankTapStart = null;
   }
@@ -27999,7 +28009,11 @@ function handleReaderGestureEnd(event) {
     } else cancelFocusReadingTap();
     return;
   }
-  if (!event.touches?.length) finishReaderBlankTap(event);
+  if (!event.touches?.length) {
+    cancelFocusReadingTap();
+    pauseReaderAutoScroll();
+    finishReaderBlankTap(event);
+  }
 }
 
 function cancelReaderTouchGesture() {

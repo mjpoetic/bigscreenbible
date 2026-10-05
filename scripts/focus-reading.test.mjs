@@ -79,7 +79,7 @@ let now=1000, pending=new Map(), timerId=0, readingToggles=0, autoToggles=0;
 const gestureContext=vm.createContext({state:{focusMode:true,mode:'reader',reference:'John 3'},Date:{now:()=>now},Math,
  setTimeout:fn=>{pending.set(++timerId,fn);return timerId;},clearTimeout:id=>pending.delete(id),
  toggleFocusReading:()=>readingToggles++,toggleReaderAutoScrollFromGesture:()=>autoToggles++});
-vm.runInContext(source.slice(source.indexOf('let focusReadingTapTimer = 0'),source.indexOf('function toggleReaderAutoScrollFromGesture()')),gestureContext);
+vm.runInContext(source.slice(source.indexOf('const focusReadingDoubleTapMs ='),source.indexOf('function toggleReaderAutoScrollFromGesture()')),gestureContext);
 const gesture={startPoints:new Map([[1,{x:100,y:100}],[2,{x:150,y:100}]])};
 gestureContext.handleFocusReadingTwoFingerTap(gesture);now+=200;gestureContext.handleFocusReadingTwoFingerTap(gesture);
 assert.equal(readingToggles,1);assert.equal(autoToggles,0);assert.equal(pending.size,0,'Double tap consumes pending auto-scroll tap');
