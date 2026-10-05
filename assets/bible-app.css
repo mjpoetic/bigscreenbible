@@ -24699,9 +24699,21 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   background: var(--presentation-button-bg);
 }
 .presentation .shared-version-dismiss {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
   color: var(--presentation-muted);
   border-color: var(--presentation-button-border);
   background: var(--presentation-button-bg);
+}
+.shared-version-dismiss svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 /* The glass notice supplies the outline; its return action stays unframed. */

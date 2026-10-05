@@ -18615,7 +18615,7 @@ function sharedVersionReturnButton(surface) {
     <button class="shared-version-return shared-version-return-${surface}" type="button" data-return-shared-version aria-label="Return to your Bible version, ${escapeHtml(displayCode)}" data-tooltip="Return to ${escapeHtml(displayCode)}">
       ${icons.arrowLeft}<span>Return to ${escapeHtml(displayCode)}</span>
     </button>
-    <button class="shared-version-dismiss" type="button" data-dismiss-shared-version aria-label="Dismiss version return prompt" data-tooltip="Dismiss"><span aria-hidden="true">×</span></button>
+    <button class="shared-version-dismiss" type="button" data-dismiss-shared-version aria-label="Dismiss version return prompt" data-tooltip="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </span>
   `;
 }
