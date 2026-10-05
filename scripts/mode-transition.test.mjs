@@ -129,6 +129,7 @@ console.log("Mode transition tests passed");
 function spotlightElement(verse) {
   const classes = new Set();
   return {
+    style: { properties: {}, setProperty(name, value) { this.properties[name] = value; }, removeProperty(name) { delete this.properties[name]; } },
     dataset: { verse: String(verse) }, children: [], parentElement: null, classes,
     classList: { add: (name) => classes.add(name), remove: (name) => classes.delete(name) },
     contains(target) { return this.children.some((child) => child === target || child.contains(target)); },
@@ -150,6 +151,7 @@ scripture.querySelectorAll = () => rows;
 let spotlightCleanup;
 const spotlightContext = {
   state: { verse: 16, selectedVerses: [16, 17] },
+  window: { getComputedStyle: (element) => ({ opacity: element === chrome ? "0" : "1" }) },
   document: { getElementById: () => root },
   setTimeout: (callback) => { spotlightCleanup = callback; return 1; },
   clearTimeout() {},
@@ -157,18 +159,20 @@ const spotlightContext = {
 vm.createContext(spotlightContext);
 vm.runInContext(`${extractFunction("spotlightReaderPassage")}; globalThis.spotlight = spotlightReaderPassage;`, spotlightContext);
 spotlightContext.spotlight(scripture, rows[1]);
+assert.equal(chrome.style.properties["--arrival-base-opacity"], "0", "Hidden feedback keeps its zero opacity during spotlight");
 for (const element of [chrome, rows[0], rows[3]]) assert.ok(element.classes.has("verse-arrival-dimmed"));
 for (const element of [scripture, paragraph, rows[1], rows[2]]) assert.ok(!element.classes.has("verse-arrival-dimmed"));
 for (const row of [rows[1], rows[2]]) assert.ok(row.classes.has("verse-arrival-halo"));
 spotlightCleanup();
 for (const element of [chrome, ...rows]) assert.equal(element.classes.size, 0, "Spotlight restores every affected element");
 assert.equal(scripture.clearArrivalSpotlight, undefined);
+assert.deepEqual(chrome.style.properties, {}, "Cleanup restores original opacity styles");
 console.log("Passage spotlight and cleanup tests passed");
 
 const spotlightAnimation = styles.match(/@keyframes verse-arrival-dim \{([\s\S]*?)\n\}/)?.[1];
 assert.ok(spotlightAnimation, "Spotlight dim animation exists");
-assert.match(spotlightAnimation, /filter: opacity\(0\.22\)/);
-assert.doesNotMatch(spotlightAnimation, /(?:^|[;{\s])opacity\s*:/, "Dimming must not reveal opacity-hidden gesture feedback");
+assert.match(spotlightAnimation, /opacity: calc\(var\(--arrival-base-opacity, 1\) \* 0\.22\)/);
+assert.doesNotMatch(spotlightAnimation, /filter\s*:/, "Dimming must preserve fixed control containing blocks");
 
 // Returning from a later Big Screen range page still reveals the whole range.
 switchModeContext.state.mode = "big";
@@ -183,7 +187,7 @@ scripture.scrollTop = 100;
 scripture.clientHeight = 400;
 scripture.scrollHeight = 2000;
 scripture.getBoundingClientRect = () => ({ top: 100 });
-scripture.querySelector = () => rows[1];
+scripture.querySelector = (selector) => selector === ".selection-bar" ? null : rows[1];
 scripture.scrollTo = (options) => { scrolled = options; };
 rows[1].getBoundingClientRect = () => ({ top: 500, bottom: 560, height: 60 });
 rows[2].getBoundingClientRect = () => ({ top: 560, bottom: 640, height: 80 });
@@ -202,3 +206,12 @@ assert.equal(scrolled.top, 476, "A long passage starts at the top with a reading
 scrollContext.scroll({ halo: true, behavior: "auto" });
 assert.equal(scrolled.behavior, "auto");
 console.log("Short and overflowing passage positioning tests passed");
+
+const toolbar = { getBoundingClientRect: () => ({ height: 100 }) };
+scripture.querySelector = (selector) => selector === ".selection-bar" ? toolbar : rows[1];
+scrollContext.window.getComputedStyle = () => ({ position: "sticky" });
+scrollContext.scroll({ halo: true });
+assert.equal(scrolled.top, 364, "Long passage clears the portrait toolbar and reading margin");
+rows[2].getBoundingClientRect = () => ({ top: 560, bottom: 640, height: 80 });
+scrollContext.scroll({ halo: true });
+assert.equal(scrolled.top, 314, "Short passage centers in the area below the toolbar");

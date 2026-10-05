@@ -28264,11 +28264,20 @@ function spotlightReaderPassage(scripture, selected) {
       }
     }
   }
-  for (const element of dimmed) element.classList.add("verse-arrival-dimmed");
+  for (const element of dimmed) {
+    // Opacity preserves fixed-position descendants; filters create a new
+    // containing block and make floating controls jump during the spotlight.
+    const opacity = window.getComputedStyle(element).opacity;
+    element.style.setProperty("--arrival-base-opacity", opacity);
+    element.classList.add("verse-arrival-dimmed");
+  }
   const cleanup = () => {
     clearTimeout(timer);
     for (const row of focused) row.classList.remove("verse-arrival-halo");
-    for (const element of dimmed) element.classList.remove("verse-arrival-dimmed");
+    for (const element of dimmed) {
+      element.classList.remove("verse-arrival-dimmed");
+      element.style.removeProperty("--arrival-base-opacity");
+    }
     if (scripture.clearArrivalSpotlight === cleanup) delete scripture.clearArrivalSpotlight;
   };
   const timer = setTimeout(cleanup, 3200);
@@ -28295,17 +28304,24 @@ function scrollSelectedVerseIntoView(options = {}) {
     const passageBottom = Math.max(...passageBounds.map((bounds) => bounds.bottom));
     const passageHeight = passageBottom - passageTop;
     const followMargin = 24;
+    const toolbar = scripture.querySelector(".selection-bar");
+    const toolbarBounds = toolbar?.getBoundingClientRect();
+    const toolbarInset = toolbarBounds && window.getComputedStyle(toolbar).position === "sticky"
+      ? Math.min(toolbarBounds.height + 12, scripture.clientHeight / 2)
+      : 0;
+    const visibleHeight = scripture.clientHeight - toolbarInset;
     let nextTop = scripture.scrollTop
       + passageTop
       - scriptureBounds.top
-      - (passageHeight > scripture.clientHeight - followMargin * 2
+      - toolbarInset
+      - (passageHeight > visibleHeight - followMargin * 2
         ? followMargin
-        : (scripture.clientHeight - passageHeight) / 2);
+        : (visibleHeight - passageHeight) / 2);
     if (block === "nearest") {
       const selectedTop = selectedBounds.top - scriptureBounds.top;
       const selectedBottom = selectedBounds.bottom - scriptureBounds.top;
-      if (selectedTop < followMargin) {
-        nextTop = scripture.scrollTop + selectedTop - followMargin;
+      if (selectedTop < toolbarInset + followMargin) {
+        nextTop = scripture.scrollTop + selectedTop - toolbarInset - followMargin;
       } else if (selectedBottom > scripture.clientHeight - followMargin) {
         nextTop = scripture.scrollTop + selectedBottom - scripture.clientHeight + followMargin;
       } else {

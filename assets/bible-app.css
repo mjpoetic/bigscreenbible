@@ -25040,18 +25040,19 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   }
 }
 
-/* Dim without overriding opacity: hidden gesture feedback must stay hidden. */
+/* Multiply existing opacity so hidden feedback stays hidden, without a filter
+   that changes the containing block of fixed-position controls. */
 #app .verse-arrival-dimmed {
   animation: verse-arrival-dim 3.2s ease-in-out both;
 }
 @keyframes verse-arrival-dim {
-  0%, 100% { filter: opacity(1); }
-  14%, 72% { filter: opacity(0.22); }
+  0%, 100% { opacity: var(--arrival-base-opacity, 1); }
+  14%, 72% { opacity: calc(var(--arrival-base-opacity, 1) * 0.22); }
 }
 @media (prefers-reduced-motion: reduce) {
   #app .verse-arrival-dimmed {
     animation: none;
-    filter: opacity(0.22);
+    opacity: calc(var(--arrival-base-opacity, 1) * 0.22);
   }
 }
 
@@ -25185,3 +25186,19 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
   pointer-events: none !important;
 }
 .presentation-no-buttons-help { font-size: 12px; line-height: 1.5; }
+
+/* Reserve reading space for portrait selection tools rather than covering text. */
+@media (max-width: 840px) and (orientation: portrait) {
+  #app .app-shell .reader .scripture .selection-bar {
+    position: sticky;
+    top: 0 !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto;
+    max-width: 100%;
+    margin: 0 0 16px;
+    transform: none;
+    animation: none !important;
+  }
+}
