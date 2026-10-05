@@ -25143,3 +25143,23 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 @media print {
   .reader-bookmark-marker, .reader-bookmark-menu { display: none !important; }
 }
+
+/* Explicit presentation state: interaction never reveals chrome. */
+#app .presentation.open.no-buttons {
+  grid-template-rows: minmax(calc(76px + var(--app-safe-area-top, env(safe-area-inset-top, 0px))), auto) minmax(0, 1fr);
+  touch-action: none;
+}
+#app .presentation.no-buttons .presentation-top {
+  grid-template-columns: minmax(0, 1fr);
+}
+#app .presentation.no-buttons .presentation-ref { grid-column: 1; }
+#app .presentation.no-buttons :is(.presentation-search-slot, .presentation-actions,
+  .presentation-bottom, .presentation-reference-mobile-share, .shared-version-notice,
+  .presentation-part-position, .presentation-continuation-cue, .presentation-verse-of-day-label,
+  .presentation-attribution, .presentation-scale-feedback, .presentation-swipe-preview,
+  .presentation-search-results, .bible-version-loading-indicator) { display: none !important; }
+#app .app-shell:has(.presentation.open.no-buttons) > :not(.presentation) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.presentation-no-buttons-help { font-size: 12px; line-height: 1.5; }

@@ -312,3 +312,79 @@ assert.equal(passageContext.state.verse, 18);
 assert.equal(passageContext.state.sharedPassage, null);
 assert.equal(passageContext.presentationChapterVerses().length, 4);
 console.log("Version reference inputs and Big Screen range boundaries passed");
+
+// Exercise the explicit presentation state and gesture, including accidental drags.
+const minimalContext = {
+  state: { mode: "big", presentationNoButtons: false, presentationSearchOpen: true, accountOpen: true },
+  document: { getElementById: () => ({ focus() {}, classList: { add() {} } }) },
+  clearTimeout() {}, setTimeout() {}, render() {},
+  Date: { now: () => minimalContext.now }, now: 1000,
+};
+vm.createContext(minimalContext);
+vm.runInContext(`
+  let presentationTapStart = null;
+  let presentationLastTap = null;
+  let presentationControlsTimer = null;
+  ${extractFunction("setPresentationNoButtons")}
+  ${extractFunction("revealPresentationControls")}
+  ${extractFunction("beginPresentationTap")}
+  ${extractFunction("finishPresentationTap")}
+`, minimalContext);
+const tapEvent = (x = 10, interactive = false) => ({
+  isPrimary: true, button: 0, pointerId: 1, clientX: x, clientY: 10,
+  target: { closest: () => interactive ? {} : null }, preventDefault() {},
+});
+function tap(x = 10, interactive = false) {
+  minimalContext.beginPresentationTap(tapEvent(x, interactive));
+  minimalContext.now += 40;
+  minimalContext.finishPresentationTap(tapEvent(x, interactive));
+}
+tap();
+assert.equal(minimalContext.state.presentationNoButtons, false);
+minimalContext.now += 100;
+tap();
+assert.equal(minimalContext.state.presentationNoButtons, true, "Double tap enters No buttons");
+assert.equal(minimalContext.state.presentationSearchOpen, false);
+assert.equal(minimalContext.state.accountOpen, false);
+minimalContext.revealPresentationControls();
+assert.equal(minimalContext.state.presentationControlsVisible, false, "Movement cannot reveal controls");
+minimalContext.now += 500;
+tap(); minimalContext.now += 100; tap();
+assert.equal(minimalContext.state.presentationNoButtons, false, "Double tap exits No buttons");
+tap(10, true); tap(10, true);
+assert.equal(minimalContext.state.presentationNoButtons, false, "Control taps never toggle the mode");
+minimalContext.beginPresentationTap(tapEvent());
+minimalContext.now += 50;
+minimalContext.finishPresentationTap(tapEvent(100));
+tap();
+assert.equal(minimalContext.state.presentationNoButtons, false, "A swipe cannot count as a first tap");
+minimalContext.state.mode = "reader";
+minimalContext.setPresentationNoButtons(true);
+assert.equal(minimalContext.state.presentationNoButtons, false, "Mode is scoped to Big Screen");
+console.log("No buttons state and double tap tests passed");
+const shortcutContext = {
+  state: { mode: "big", presentationNoButtons: false },
+  isTypingTarget: (target) => Boolean(target?.typing),
+  setPresentationNoButtons(enabled) { shortcutContext.state.presentationNoButtons = enabled; },
+  document: { getElementById: () => null },
+  handleCrosswordClueSizeShortcut: () => false,
+  gameChallengePopupIsVisible: () => false,
+  canUseVerseKeyboardNavigation: () => false,
+  canUseReaderKeyboardNavigation: () => false,
+  moveVerse(direction) { shortcutContext.direction = direction; },
+};
+vm.createContext(shortcutContext);
+vm.runInContext(extractFunction("handleGlobalShortcuts"), shortcutContext);
+const keyEvent = (key, extra = {}) => ({ key, shiftKey: false, target: {}, preventDefault() {}, ...extra });
+shortcutContext.handleGlobalShortcuts(keyEvent("N", { shiftKey: true }));
+assert.equal(shortcutContext.state.presentationNoButtons, true);
+shortcutContext.handleGlobalShortcuts(keyEvent("N", { shiftKey: true, repeat: true }));
+assert.equal(shortcutContext.state.presentationNoButtons, true, "Holding the shortcut never toggles repeatedly");
+shortcutContext.handleGlobalShortcuts(keyEvent("?"));
+assert.equal(shortcutContext.state.presentationNoButtons, true, "Help cannot appear until the mode is exited");
+shortcutContext.handleGlobalShortcuts(keyEvent("ArrowRight"));
+assert.equal(shortcutContext.direction, 1, "Passage navigation remains available");
+shortcutContext.handleGlobalShortcuts(keyEvent("Escape"));
+assert.equal(shortcutContext.state.presentationNoButtons, false, "Escape restores controls and stays in Big Screen");
+assert.equal(shortcutContext.state.mode, "big");
+console.log("No buttons keyboard tests passed");

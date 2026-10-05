@@ -784,6 +784,7 @@ const state = {
   selectedStrong: "G2316",
   selectedStrongWord: "God",
   mobileControlsOpen: false,
+  presentationNoButtons: false,
   presentationSearchOpen: false,
   presentationSearchResultsOpen: false,
   presentationSettingsOpen: false,
@@ -1751,6 +1752,7 @@ function restoreAccountPanelScroll(scrollState) {
 }
 
 function render() {
+  if (state.mode !== "big") state.presentationNoButtons = false;
   finishReaderVerseHold();
   parallelVersionDragCleanup?.();
   pauseReaderAutoScroll({ updateControl: false });
@@ -18483,6 +18485,8 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
+        <button class="ghost-btn" id="presentationNoButtonsToggle" type="button" aria-keyshortcuts="Shift+N">No buttons</button>
+        <p class="presentation-no-buttons-help">Double tap Scripture or press Shift + N to toggle. Escape exits.</p>
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
@@ -18695,7 +18699,7 @@ function presentation(accountPanelRerender = false) {
     </div>
   `;
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       ${presentationBackgroundMotionMarkup()}
       <div class="presentation-top">
         <div class="presentation-search-slot">
@@ -18709,6 +18713,7 @@ function presentation(accountPanelRerender = false) {
           </form>
         </div>
         <div class="presentation-ref ${paginated ? "paginated" : ""}">
+          ${state.presentationNoButtons ? `<span class="presentation-reference-label">${escapeHtml(presentationReference)}</span><span class="presentation-version-label">${escapeHtml(translationDisplayCode(version))}</span>` : `
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
             ${presentationReferencePicker("book", availableBooks, presentationBook)}
             <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
@@ -18718,6 +18723,7 @@ function presentation(accountPanelRerender = false) {
             <button class="ghost-btn presentation-reference-share presentation-reference-share-inline" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
           ${presentationVersionPicker("title", version)}
+          `}
           <div class="presentation-reference-mobile-share">
             <button class="ghost-btn presentation-reference-share presentation-reference-share-mobile" id="presentationShareMobile" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
@@ -18874,6 +18880,7 @@ function shortcutOverlay() {
     [`${platformKey} /`, "Open Help"],
     ["Shift + ?", "Open keyboard shortcuts"],
     ["P", "Open Big Screen"],
+    ["Shift + N", "Toggle No buttons in Big Screen (double tap Scripture also works)"],
     ["F", "Toggle focus layout"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
     ["A", "Start or pause Reader / Parallel auto-scroll"],
@@ -20791,6 +20798,10 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("pointermove", (event) => {
     if (event.pointerType === "mouse") revealPresentationControls();
   });
+  document.getElementById("presentationNoButtonsToggle")?.addEventListener("click", () => setPresentationNoButtons(true));
+  document.getElementById("presentation")?.addEventListener("pointerdown", beginPresentationTap, true);
+  document.getElementById("presentation")?.addEventListener("pointerup", finishPresentationTap, true);
+  document.getElementById("presentation")?.addEventListener("pointercancel", () => { presentationTapStart = null; presentationLastTap = null; });
   document.getElementById("presentation")?.addEventListener("pointerdown", handlePresentationPointerDown);
   document.getElementById("presentation")?.addEventListener("touchstart", handlePresentationTouchStart, { passive: true });
   document.getElementById("presentation")?.addEventListener("touchmove", handlePresentationTouchMove, { passive: false });
@@ -26481,8 +26492,61 @@ function updateTutorialSpotlight() {
   card.style.bottom = "auto";
 }
 
-function revealPresentationControls(duration = 3200) {
+let presentationTapStart = null;
+let presentationLastTap = null;
+
+function setPresentationNoButtons(enabled) {
   if (state.mode !== "big") return;
+  state.presentationNoButtons = enabled;
+  presentationTapStart = null;
+  presentationLastTap = null;
+  clearTimeout(presentationControlsTimer);
+  state.presentationControlsVisible = !enabled;
+  if (enabled) {
+    state.presentationSearchOpen = false;
+    state.presentationSearchResultsOpen = false;
+    state.presentationSettingsOpen = false;
+    state.presentationVersionMenuOpen = "";
+    state.presentationReferenceMenuOpen = "";
+    state.accountOpen = false;
+    state.shortcutsOpen = false;
+    state.aboutMenuOpen = false;
+  }
+  render();
+  document.getElementById("presentation")?.focus({ preventScroll: true });
+  if (!enabled) revealPresentationControls();
+}
+
+function beginPresentationTap(event) {
+  if (!event.isPrimary || event.button !== 0 || event.target.closest("button, a, input, select, textarea, [role='dialog']")) {
+    presentationTapStart = null;
+    presentationLastTap = null;
+    return;
+  }
+  presentationTapStart = { x: event.clientX, y: event.clientY, time: Date.now(), id: event.pointerId };
+}
+
+function finishPresentationTap(event) {
+  const start = presentationTapStart;
+  presentationTapStart = null;
+  const now = Date.now();
+  if (!start || start.id !== event.pointerId || now - start.time > 300
+    || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 12) {
+    presentationLastTap = null;
+    return;
+  }
+  const previous = presentationLastTap;
+  if (previous && now - previous.time < 350
+    && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 32) {
+    event.preventDefault();
+    setPresentationNoButtons(!state.presentationNoButtons);
+    return;
+  }
+  presentationLastTap = { x: event.clientX, y: event.clientY, time: now };
+}
+
+function revealPresentationControls(duration = 3200) {
+  if (state.mode !== "big" || state.presentationNoButtons) return;
   clearTimeout(presentationControlsTimer);
   if (!state.presentationControlsVisible) {
     state.presentationControlsVisible = true;
@@ -27708,6 +27772,22 @@ function handleGamesEscapeKeydown(event) {
 }
 
 function handleGlobalShortcuts(event) {
+  const noButtonsToggle = state.mode === "big" && event.shiftKey && event.key.toLowerCase() === "n"
+    && !event.ctrlKey && !event.metaKey && !event.altKey && !isTypingTarget(event.target);
+  if (noButtonsToggle || (state.mode === "big" && state.presentationNoButtons && event.key === "Escape")) {
+    event.preventDefault();
+    if (!event.repeat) setPresentationNoButtons(!state.presentationNoButtons);
+    return;
+  }
+  if (state.mode === "big" && state.presentationNoButtons) {
+    // Keep navigation and resizing available without opening other app surfaces.
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
+      && !(event.shiftKey && ["Equal", "Minus", "Digit0"].includes(event.code))
+      && !(event.shiftKey && event.key.toLowerCase() === "f")) {
+      if (!event.ctrlKey && !event.metaKey && !event.altKey) event.preventDefault();
+      return;
+    }
+  }
   if (document.getElementById("bestTimeCelebration")?.open) return;
   if (handleCrosswordClueSizeShortcut(event)) return;
   const key = event.key.toLowerCase();
