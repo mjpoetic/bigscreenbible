@@ -297,8 +297,9 @@ Deno.serve(async (request) => {
     if (error instanceof AuthenticationError) {
       return jsonResponse(request, { error: error.message }, 401);
     }
-    const message = error instanceof Error ? error.message : "Push subscription request failed";
-    console.error("[Push subscriptions]", message);
+    const databaseError = error && typeof error === "object" ? error as Record<string, unknown> : null;
+    const message = error instanceof Error ? error.message : typeof databaseError?.message === "string" ? databaseError.message : "Push subscription request failed";
+    console.error("[Push subscriptions]", databaseError?.code ?? "", message);
     return jsonResponse(request, { error: "Push subscription request failed" }, 500);
   }
 });
