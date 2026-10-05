@@ -2461,9 +2461,16 @@ function switchMode(nextMode, options = {}) {
   const targetScrollState = revealPresentationVerse
     ? null
     : modeScrollStateForTarget(nextMode, previousScrollState);
+  const presentationPassage = revealPresentationVerse && state.sharedPassage?.verses?.length
+    ? [...state.sharedPassage.verses]
+    : null;
   const applyModeChange = () => {
     state.mode = nextMode;
     state.sharedPassage = null;
+    if (presentationPassage) {
+      state.selectedVerses = presentationPassage;
+      state.verse = presentationPassage[0];
+    }
     if (openVerseOfDayPassage) {
       selectVerseOfDayReference(state.verseOfDayItem.reference);
       state.pendingVerseFocus = true;
@@ -28148,6 +28155,7 @@ function spotlightReaderPassage(scripture, selected) {
   };
   const timer = setTimeout(cleanup, 3200);
   scripture.clearArrivalSpotlight = cleanup;
+  return focused;
 }
 
 function scrollSelectedVerseIntoView(options = {}) {
@@ -28156,17 +28164,25 @@ function scrollSelectedVerseIntoView(options = {}) {
   const selected = scripture?.querySelector(`[data-verse="${state.verse}"]`)
     || document.querySelector(`[data-verse="${state.verse}"]`);
   if (!selected) return;
-  if (options.halo) spotlightReaderPassage(scripture, selected);
+  const focused = options.halo ? spotlightReaderPassage(scripture, selected) : null;
   const behavior = options.behavior
     || (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth");
   if (scripture && scripture.scrollHeight > scripture.clientHeight) {
     const scriptureBounds = scripture.getBoundingClientRect();
     const selectedBounds = selected.getBoundingClientRect();
+    const passageBounds = focused?.length
+      ? focused.map((row) => row.getBoundingClientRect())
+      : [selectedBounds];
+    const passageTop = Math.min(...passageBounds.map((bounds) => bounds.top));
+    const passageBottom = Math.max(...passageBounds.map((bounds) => bounds.bottom));
+    const passageHeight = passageBottom - passageTop;
     const followMargin = 24;
     let nextTop = scripture.scrollTop
-      + selectedBounds.top
+      + passageTop
       - scriptureBounds.top
-      - ((scripture.clientHeight - selectedBounds.height) / 2);
+      - (passageHeight > scripture.clientHeight - followMargin * 2
+        ? followMargin
+        : (scripture.clientHeight - passageHeight) / 2);
     if (block === "nearest") {
       const selectedTop = selectedBounds.top - scriptureBounds.top;
       const selectedBottom = selectedBounds.bottom - scriptureBounds.top;

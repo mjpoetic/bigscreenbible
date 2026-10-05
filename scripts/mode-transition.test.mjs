@@ -114,7 +114,7 @@ for (const mode of ["reader", "parallel"]) {
   assert.equal(switchModeContext.restoredScrollState, null, "Old Reader position cannot override Big Screen verse");
   assert.equal(switchModeContext.state.verse, 16);
 }
-assert.match(extractFunction("scrollSelectedVerseIntoView"), /options\.halo\) spotlightReaderPassage/);
+assert.match(extractFunction("scrollSelectedVerseIntoView"), /options\.halo \? spotlightReaderPassage/);
 
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-old\(root\)/);
 assert.match(styles, /html\[data-mode-transition="enter-big"\]::view-transition-new\(root\)/);
@@ -164,3 +164,41 @@ spotlightCleanup();
 for (const element of [chrome, ...rows]) assert.equal(element.classes.size, 0, "Spotlight restores every affected element");
 assert.equal(scripture.clearArrivalSpotlight, undefined);
 console.log("Passage spotlight and cleanup tests passed");
+
+const spotlightAnimation = styles.match(/@keyframes verse-arrival-dim \{([\s\S]*?)\n\}/)?.[1];
+assert.ok(spotlightAnimation, "Spotlight dim animation exists");
+assert.match(spotlightAnimation, /filter: opacity\(0\.22\)/);
+assert.doesNotMatch(spotlightAnimation, /(?:^|[;{\s])opacity\s*:/, "Dimming must not reveal opacity-hidden gesture feedback");
+
+// Returning from a later Big Screen range page still reveals the whole range.
+switchModeContext.state.mode = "big";
+switchModeContext.state.sharedPassage = { verses: [16, 17] };
+switchModeContext.state.verse = 17;
+switchModeContext.changeMode("reader");
+assert.equal(switchModeContext.state.verse, 16);
+assert.deepEqual(Array.from(switchModeContext.state.selectedVerses), [16, 17]);
+
+let scrolled;
+scripture.scrollTop = 100;
+scripture.clientHeight = 400;
+scripture.scrollHeight = 2000;
+scripture.getBoundingClientRect = () => ({ top: 100 });
+scripture.querySelector = () => rows[1];
+scripture.scrollTo = (options) => { scrolled = options; };
+rows[1].getBoundingClientRect = () => ({ top: 500, bottom: 560, height: 60 });
+rows[2].getBoundingClientRect = () => ({ top: 560, bottom: 640, height: 80 });
+const scrollContext = {
+  state: { verse: 16 }, document: { querySelector: () => scripture },
+  window: { matchMedia: () => ({ matches: false }) },
+  spotlightReaderPassage: () => [rows[1], rows[2]],
+};
+vm.createContext(scrollContext);
+vm.runInContext(`${extractFunction("scrollSelectedVerseIntoView")}; globalThis.scroll = scrollSelectedVerseIntoView;`, scrollContext);
+scrollContext.scroll({ halo: true });
+assert.equal(scrolled.top, 370, "A short passage is centered as a whole");
+rows[2].getBoundingClientRect = () => ({ top: 560, bottom: 1100, height: 540 });
+scrollContext.scroll({ halo: true });
+assert.equal(scrolled.top, 476, "A long passage starts at the top with a reading margin");
+scrollContext.scroll({ halo: true, behavior: "auto" });
+assert.equal(scrolled.behavior, "auto");
+console.log("Short and overflowing passage positioning tests passed");
