@@ -10279,6 +10279,7 @@ function openStreakEncouragement(reference) {
   state.streakPopoverOpen = false;
   state.accountOpen = false;
   state.pendingVerseFocus = true;
+  state.pendingVerseHalo = ["reader", "parallel"].includes(state.mode);
   recordHistory();
   render();
 }

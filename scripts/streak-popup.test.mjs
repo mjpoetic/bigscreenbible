@@ -80,3 +80,29 @@ assert.match(styles, /\.streak-popup\.continuing\s*\{[^}]*animation:\s*none;/);
 assert.match(styles, /\.streak-popup\.motion-exit\s*\{[^}]*animation:\s*streakPopupOut/);
 
 console.log("Streak popup tests passed");
+
+const navigation = {
+  state: {}, captureReaderReturnTarget: () => null,
+  setReferenceFromString(reference) {
+    navigation.state.reference = "John 3";
+    navigation.state.verse = 16;
+    navigation.state.selectedVerses = reference.endsWith("-17") ? [16, 17] : [];
+    return true;
+  },
+  showToast() {}, recordHistory() {}, render() {},
+};
+vm.createContext(navigation);
+vm.runInContext(`${extractFunction("openStreakEncouragement")}; globalThis.openReference = openStreakEncouragement;`, navigation);
+for (const mode of ["reader", "parallel", "trivia", "big"]) {
+  for (const reference of ["John 3:16", "John 3:16-17"]) {
+    navigation.state = { mode, streakPopoverOpen: true, accountOpen: true };
+    navigation.openReference(reference);
+    assert.equal(navigation.state.pendingVerseFocus, true);
+    assert.equal(navigation.state.pendingVerseHalo, mode !== "big");
+    assert.equal(navigation.state.mode, mode === "trivia" ? "reader" : mode);
+    assert.equal(navigation.state.streakPopoverOpen, false);
+    assert.equal(navigation.state.accountOpen, false);
+    assert.deepEqual(navigation.state.selectedVerses, reference.endsWith("-17") ? [16, 17] : []);
+  }
+}
+console.log("Daily Streak verse and passage spotlight navigation passed");
