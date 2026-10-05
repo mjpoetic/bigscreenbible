@@ -123,6 +123,49 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 // Expose only the public APNs environment, never a provider signing credential.
 class BSBBridgeViewController: CAPBridgeViewController {
     private let offlineStore = BSBOfflineStore()
+    private var toolbarOrientationScript: WKUserScript?
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        publishToolbarOrientation()
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            self?.publishToolbarOrientation()
+        }
+    }
+
+    private func publishToolbarOrientation() {
+        guard UIDevice.current.userInterfaceIdiom == .phone,
+              let orientation = view.window?.windowScene?.interfaceOrientation,
+              orientation != .unknown, let webView = webView else { return }
+        let side: String
+        switch orientation {
+        // Interface landscapeRight puts the original top/camera edge on the left.
+        case .landscapeRight: side = max(view.safeAreaInsets.left, view.safeAreaInsets.right) > 20 ? "left" : "none"
+        case .landscapeLeft: side = max(view.safeAreaInsets.left, view.safeAreaInsets.right) > 20 ? "right" : "none"
+        default: side = "none"
+        }
+        let source = """
+        if (window.bsbIOSCameraSide !== '\(side)') {
+          window.bsbIOSCameraSide = '\(side)';
+          window.dispatchEvent(new Event('bsb-ios-orientation-change'));
+        }
+        """
+        // Keep reloads/live-site navigation informed before the web app starts.
+        if toolbarOrientationScript?.source != source {
+            let content = webView.configuration.userContentController
+            let retained = content.userScripts.filter { $0 !== toolbarOrientationScript }
+            content.removeAllUserScripts()
+            retained.forEach { content.addUserScript($0) }
+            let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+            content.addUserScript(script)
+            toolbarOrientationScript = script
+        }
+        webView.evaluateJavaScript(source, completionHandler: nil)
+    }
 
     override func instanceDescriptor() -> InstanceDescriptor {
         let descriptor = super.instanceDescriptor()

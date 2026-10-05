@@ -1624,8 +1624,17 @@ function currentSafeAreaInsets() {
   return { left, right };
 }
 
+let iosToolbarManualCameraSide = null;
+
 function effectiveSideToolbarPosition() {
   if (!isSideToolbarToggleEnabled()) return state.sideToolbarPosition;
+  const cameraSide = window.bsbIOSCameraSide;
+  if (cameraSide === "left" || cameraSide === "right") {
+    if (iosToolbarManualCameraSide === cameraSide) return state.sideToolbarPosition;
+    return cameraSide === "left" ? "right" : "left";
+  }
+  // Native iOS portrait/no-camera-side should retain the saved preference.
+  if (cameraSide === "none") return state.sideToolbarPosition;
   const { left, right } = currentSafeAreaInsets();
   const sideDifference = 8;
   if (left > right + sideDifference) return "right";
@@ -7430,9 +7439,9 @@ function rail() {
   const currentSide = effectiveSideToolbarPosition();
   const nextSide = currentSide === "right" ? "left" : "right";
   const autoPositioned = isSideToolbarAutoPositioned();
-  const sideToggleLabel = autoPositioned ? "Toolbar avoiding Dynamic Island" : `Move toolbar ${nextSide}`;
+  const sideToggleLabel = autoPositioned && !window.bsbIOSCameraSide ? "Toolbar avoiding Dynamic Island" : `Move toolbar ${nextSide}`;
   const sideToggleIcon = nextSide === "left" ? icons.chevronLeft : icons.chevron;
-  const sideToggleEnabled = isSideToolbarToggleEnabled() && !autoPositioned;
+  const sideToggleEnabled = isSideToolbarToggleEnabled() && (!autoPositioned || Boolean(window.bsbIOSCameraSide));
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
@@ -8294,7 +8303,12 @@ function setStrongNumbers(enabled, rerender = false) {
 
 function setSideToolbarPosition(position) {
   const nextPosition = position === "right" ? "right" : "left";
-  if (state.sideToolbarPosition === nextPosition) return;
+  const iosManualMove = ["left", "right"].includes(window.bsbIOSCameraSide);
+  if (iosManualMove) iosToolbarManualCameraSide = window.bsbIOSCameraSide;
+  if (state.sideToolbarPosition === nextPosition) {
+    if (iosManualMove) renderPreservingReaderScroll();
+    return;
+  }
   state.sideToolbarPosition = nextPosition;
   localStorage.setItem("lw_side_toolbar_position", nextPosition);
   scheduleCloudSync();
@@ -28989,6 +29003,10 @@ window.addEventListener("resize", () => {
   }
 });
 window.addEventListener("bsb-insets-change", renderAfterViewportChangePreservingReaderScroll);
+window.addEventListener("bsb-ios-orientation-change", () => {
+  iosToolbarManualCameraSide = null;
+  renderAfterViewportChangePreservingReaderScroll();
+});
 window.addEventListener("orientationchange", () => {
   if (state.mode === "big") {
     schedulePresentationViewportFit(true);
