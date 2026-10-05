@@ -18093,6 +18093,19 @@ svg {
       font-size: 8px;
     }
 
+    .presentation-bottom.has-continue-chapter {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 6px;
+    }
+
+    .presentation-bottom.has-continue-chapter .presentation-brand-copy {
+      display: none;
+    }
+
+    .presentation-bottom.has-continue-chapter .presentation-controls {
+      gap: 6px;
+    }
+
     .presentation-controls {
       grid-row: 1;
       justify-self: center;

@@ -18718,7 +18718,7 @@ function presentation(accountPanelRerender = false) {
         ${bibleVersionLoadingIndicator(versionLoadingState)}
       </div>
       <div class="presentation-scale-feedback" id="presentationScaleFeedback" role="status" aria-live="polite"><span class="presentation-scale-feedback-mark" aria-hidden="true">Aa</span><span class="presentation-scale-feedback-label">${Math.round(state.presentationTextScale * 100)}%</span></div>
-      <div class="presentation-bottom">
+      <div class="presentation-bottom${state.sharedPassage ? " has-continue-chapter" : ""}">
         <a class="presentation-brand" id="presentationBrandVerseOfDay" href="#verse-of-the-day" aria-label="Open verse of the day">
           <img class="presentation-brand-mark" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
