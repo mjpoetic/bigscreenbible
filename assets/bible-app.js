@@ -7704,6 +7704,29 @@ function historyPanel() {
 // selector implementation and saved preferences available for a future restore.
 const LEGACY_VERSE_SELECTOR_ENABLED = false;
 
+function readerChapterBookmarks() {
+  if (!["reader", "parallel"].includes(state.mode)) return [];
+  return state.bookmarks.map((ref) => ({ ref, passage: parseReference(ref) }))
+    .filter(({ passage }) => passage?.key === state.reference)
+    .sort((a, b) => a.passage.verse - b.passage.verse);
+}
+
+function readerBookmarkMarker() {
+  const bookmarks = readerChapterBookmarks();
+  if (!bookmarks.length) return "";
+  const glyph = `<span aria-hidden="true">${icons.bookmark}</span>`;
+  if (bookmarks.length === 1) {
+    const { ref } = bookmarks[0];
+    return `<button class="reader-bookmark-marker" type="button" data-goto="${escapeHtml(ref)}" aria-label="Go to bookmark: ${escapeHtml(ref)}" data-tooltip="Go to ${escapeHtml(ref)}">${glyph}</button>`;
+  }
+  return `<details class="reader-bookmark-menu">
+    <summary class="reader-bookmark-marker" aria-label="Choose from ${bookmarks.length} bookmarks in this chapter" data-tooltip="Chapter bookmarks">${glyph}<span class="reader-bookmark-count">${bookmarks.length}</span></summary>
+    <div class="reader-bookmark-options" role="group" aria-label="Chapter bookmarks">
+      ${bookmarks.map(({ ref }) => `<button type="button" data-goto="${escapeHtml(ref)}">${escapeHtml(ref)}</button>`).join("")}
+    </div>
+  </details>`;
+}
+
 function reader(chapterChange = null) {
   if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
@@ -7714,6 +7737,7 @@ function reader(chapterChange = null) {
     : null;
   return `
     <section class="reader ${state.sharedPassage ? "shared-passage-active" : ""}">
+      ${readerBookmarkMarker()}
       ${LEGACY_VERSE_SELECTOR_ENABLED ? `<div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
         <div class="chapter-tools-clip" id="verseSelectorBar" ${state.verseNavCollapsed ? 'inert aria-hidden="true"' : ""}>
           <div class="chapter-tools ${state.focusMode ? "compact" : ""}">

@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
+const extract = name => source.match(new RegExp(`function ${name}\\([^]*?\\n\\}`))[0];
+const state = { mode: 'reader', reference: 'John 3', bookmarks: ['Psalm 23:1', 'John 3:16-18', 'invalid', 'John 3:2'] };
+const context = vm.createContext({ state, icons: { bookmark: '<svg></svg>' }, escapeHtml: value => value.replaceAll('&', '&amp;').replaceAll('"', '&quot;'), parseReference(ref) {
+  const match = ref.match(/^(.*) :(\d+)/) || ref.match(/^(.*):(\d+)/);
+  return match ? { key: match[1], verse: Number(match[2]) } : null;
+} });
+vm.runInContext(['readerChapterBookmarks', 'readerBookmarkMarker'].map(extract).join('\n'), context);
+const run = code => vm.runInContext(code, context);
+assert.equal(run('readerChapterBookmarks().map(item => item.ref).join("|")'), 'John 3:2|John 3:16-18');
+assert.match(run('readerBookmarkMarker()'), /<details/);
+assert.match(run('readerBookmarkMarker()'), /data-goto="John 3:16-18"/);
+state.bookmarks = ['John 3:16'];
+assert.match(run('readerBookmarkMarker()'), /aria-label="Go to bookmark: John 3:16"/);
+assert.doesNotMatch(run('readerBookmarkMarker()'), /<details/);
+state.mode = 'parallel';
+assert.match(run('readerBookmarkMarker()'), /data-goto="John 3:16"/);
+state.reference = 'John 4';
+assert.equal(run('readerBookmarkMarker()'), '');
+state.reference = 'John 3'; state.mode = 'big';
+assert.equal(run('readerBookmarkMarker()'), '');
+console.log('Chapter bookmark filtering, ordering, range links and Reader/Parallel markers passed.');

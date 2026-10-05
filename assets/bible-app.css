@@ -25071,3 +25071,62 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
     outline-offset: -3px;
   }
 }
+
+/* Saved chapter bookmarks remain within reach while Scripture scrolls. */
+.reader-bookmark-marker {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 44px;
+  min-height: 48px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: var(--paper);
+  color: var(--gold, #b88932);
+  cursor: pointer;
+  list-style: none;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 12%);
+}
+.reader-bookmark-marker::-webkit-details-marker { display: none; }
+.reader-bookmark-marker svg { display: block; width: 24px; height: 28px; fill: currentColor; }
+.reader-bookmark-marker:hover { background: var(--soft); }
+.reader-bookmark-marker:focus-visible,
+.reader-bookmark-options button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.reader-bookmark-count { font-size: 12px; font-weight: 700; }
+.reader-bookmark-options {
+  position: absolute;
+  z-index: 13;
+  top: 54px;
+  right: 12px;
+  max-width: calc(100% - 24px);
+  max-height: min(50vh, 320px);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+.reader-bookmark-options button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.reader-bookmark-options button:hover { background: var(--soft); }
+@media print {
+  .reader-bookmark-marker, .reader-bookmark-menu { display: none !important; }
+}
