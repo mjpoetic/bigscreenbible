@@ -6973,7 +6973,7 @@ function updateReaderAutoScrollControl() {
   button.classList.toggle("active", state.autoScrollActive);
   button.setAttribute("aria-pressed", state.autoScrollActive ? "true" : "false");
   button.setAttribute("aria-label", `${action} auto-scroll at ${speed.name.toLowerCase()} speed`);
-  button.dataset.tooltip = `${action} auto-scroll (A)`;
+  button.dataset.tooltip = `${action} auto-scroll (A) · Hold for Focus Reading`;
   button.innerHTML = state.autoScrollActive ? icons.pause : icons.play;
 }
 
@@ -7867,6 +7867,17 @@ function toggleFocusReading() {
     localStorage.setItem("lw_focus_mode", "true");
   }
   renderPreservingReaderScroll();
+  if (state.focusReading) {
+    const surface = document.querySelector(".scripture");
+    // Reader restoration runs for two frames. Measure the restored viewport
+    // before choosing and centering the opening line.
+    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!surface?.isConnected || document.querySelector(".scripture") !== surface || !state.focusReading || !state.focusMode) return;
+      focusReadingReference = "";
+      measureFocusReading();
+      moveFocusReading(0, { automatic: true });
+    })));
+  }
 }
 
 function measureFocusReading() {
@@ -8173,6 +8184,49 @@ function readerChapterPullIndicators() {
   `;
 }
 
+let readerAutoScrollHoldConsumed = false;
+
+function bindReaderAutoScrollButton(button) {
+  if (!button) return;
+  let timer = 0, start = null;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = 0;
+    start = null;
+  };
+  button.addEventListener("pointerdown", event => {
+    cancel();
+    if (event.button !== 0 || event.isPrimary === false) return;
+    readerAutoScrollHoldConsumed = false;
+    start = { x: event.clientX, y: event.clientY };
+    timer = setTimeout(() => {
+      cancel();
+      if (!button.isConnected) return;
+      readerAutoScrollHoldConsumed = true;
+      if (!state.focusReading || !state.focusMode) toggleFocusReading();
+      else revealMobileSettingsButton();
+    }, 650);
+  });
+  button.addEventListener("pointermove", event => {
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) cancel();
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave", "lostpointercapture", "blur"]) button.addEventListener(type, cancel);
+  button.addEventListener("contextmenu", event => { if (timer || readerAutoScrollHoldConsumed) event.preventDefault(); });
+  button.addEventListener("keydown", event => {
+    if (["Enter", " "].includes(event.key)) readerAutoScrollHoldConsumed = false;
+  });
+  button.addEventListener("click", event => {
+    cancel();
+    if (readerAutoScrollHoldConsumed) {
+      readerAutoScrollHoldConsumed = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    toggleReaderAutoScroll({ announce: false });
+  });
+}
+
 function readerAutoScrollButton() {
   if (!state.autoScrollEnabled && !(state.focusMode && state.focusReading)) return "";
   const speed = autoScrollSpeeds.find((option) => option.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
@@ -8185,7 +8239,7 @@ function readerAutoScrollButton() {
       type="button"
       aria-label="${action} auto-scroll at ${speed.name.toLowerCase()} speed"
       aria-pressed="${active ? "true" : "false"}"
-      data-tooltip="${action} auto-scroll (A)"
+      data-tooltip="${action} auto-scroll (A) · Hold for Focus Reading"
     >
       ${active ? icons.pause : icons.play}
     </button>
@@ -21116,9 +21170,7 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationTouchEnd, { passive: false });
   document.getElementById("presentation")?.addEventListener("touchcancel", cancelPresentationTouch, { passive: true });
   const scriptureTouchSurface = document.querySelector(".scripture");
-  document.getElementById("readerAutoScrollButton")?.addEventListener("click", () => {
-    toggleReaderAutoScroll({ announce: false });
-  });
+  bindReaderAutoScrollButton(document.getElementById("readerAutoScrollButton"));
   bindReaderVerseHold(scriptureTouchSurface);
   bindReaderChapterEdgeBuffer(scriptureTouchSurface);
   scriptureTouchSurface?.addEventListener("wheel", handleReaderChapterWheel, { passive: false });

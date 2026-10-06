@@ -25290,3 +25290,5 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
   .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
   .mobile-focus-tools-control, .mobile-focus-tools-fan, .desktop-focus-tools-fan
 ) { display: none !important; }
+
+.reader-auto-scroll-button { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

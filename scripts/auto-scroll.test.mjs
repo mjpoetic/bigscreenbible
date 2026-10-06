@@ -218,3 +218,37 @@ assert.match(extractFunction("pauseReaderAutoScroll"), /releaseReaderAutoScrollW
 assert.match(source, /window.addEventListener\("pagehide", \(\) => pauseReaderAutoScroll/);
 
 console.log("Auto-scroll and screen wake-lock tests passed");
+
+const holdTimers = new Map(); let holdTimerId = 0, holdOpened = 0, holdPlayed = 0, holdRevealed = 0;
+const holdContext = vm.createContext({
+  state: { focusReading: false, focusMode: true },
+  setTimeout: fn => { holdTimers.set(++holdTimerId, fn); return holdTimerId; },
+  clearTimeout: id => holdTimers.delete(id),
+  toggleFocusReading: () => { holdOpened++; holdContext.state.focusReading = true; },
+  revealMobileSettingsButton: () => holdRevealed++, toggleReaderAutoScroll: () => holdPlayed++,
+});
+vm.runInContext(`let readerAutoScrollHoldConsumed = false; ${extractFunction("bindReaderAutoScrollButton")}`, holdContext);
+const holdButton = () => {
+  const listeners = new Map(); const button = { isConnected: true, addEventListener: (type, fn) => listeners.set(type, fn) };
+  holdContext.bindReaderAutoScrollButton(button);
+  return { button, fire: (type, extra = {}) => listeners.get(type)?.({ button: 0, isPrimary: true, clientX: 20, clientY: 20, preventDefault() {}, stopImmediatePropagation() {}, ...extra }) };
+};
+const firstHold = holdButton();
+firstHold.fire('pointerdown'); firstHold.fire('pointerup'); firstHold.fire('click');
+assert.equal(holdPlayed, 1, 'Short tap preserves playback'); assert.equal(holdTimers.size, 0);
+firstHold.fire('pointerdown'); [...holdTimers.values()][0]();
+assert.equal(holdOpened, 1, 'Hold opens Focus Reading');
+const rebuiltHold = holdButton(); rebuiltHold.fire('click');
+assert.equal(holdPlayed, 1, 'Release click after Reader rerender never toggles playback');
+rebuiltHold.fire('pointerdown'); rebuiltHold.fire('pointerup'); rebuiltHold.fire('click');
+assert.equal(holdPlayed, 2, 'Next deliberate tap still works');
+rebuiltHold.fire('pointerdown'); [...holdTimers.values()][0](); rebuiltHold.fire('pointerup'); rebuiltHold.fire('click');
+assert.equal(holdOpened, 1, 'Holding active Focus Reading keeps it open'); assert.equal(holdRevealed, 1);
+for (const type of ['pointermove', 'pointercancel', 'pointerleave', 'blur']) {
+  rebuiltHold.fire('pointerdown'); rebuiltHold.fire(type, { clientX: 40 });
+  assert.equal(holdTimers.size, 0, `${type} cancels a pending hold`);
+}
+rebuiltHold.fire('pointerdown', { button: 2 }); assert.equal(holdTimers.size, 0, 'Secondary click never starts hold');
+rebuiltHold.fire('pointerdown'); rebuiltHold.button.isConnected = false; [...holdTimers.values()][0]();
+assert.equal(holdOpened, 1, 'Detached button cannot open Focus Reading');
+console.log('Auto-scroll hold: tap, hold, release suppression, rerender, active mode, and cancellation passed.');

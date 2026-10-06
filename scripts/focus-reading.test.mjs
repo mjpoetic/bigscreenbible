@@ -13,7 +13,7 @@ const surface = {scrollTop:0,scrollHeight:1000,isConnected:true,clientHeight:200
 let renders = 0;
 const context = vm.createContext({state:{focusMode:true,focusReading:true,focusReadingLines:2,focusReadingStyle:'dim',mode:'parallel',reference:'John 3'},
  document:{querySelector:s=>s==='.scripture'?surface:null,getElementById:id=>id==='focusReadingGuide'?guide:status,createTreeWalker:t=>({currentNode:t,done:false,nextNode(){if(this.done)return false;this.done=true;return true;}}),createRange:()=>({selectNodeContents(t){this.text=t;},getClientRects(){return this.text.lines;}})},
- window:{matchMedia:()=>({matches:true})},cancelAnimationFrame:()=>{},activeAutoScrollSpeed:()=>({pixelsPerSecond:10}),pauseReaderAutoScroll:()=>{context.state.autoScrollActive=false;},showToast:()=>{},NodeFilter:{SHOW_TEXT:4},cancelFocusReadingTap:()=>{},localStorage:{setItem(){}},renderPreservingReaderScroll:()=>renders++});
+ window:{matchMedia:()=>({matches:true})},requestAnimationFrame:()=>0,cancelAnimationFrame:()=>{},activeAutoScrollSpeed:()=>({pixelsPerSecond:10}),pauseReaderAutoScroll:()=>{context.state.autoScrollActive=false;},showToast:()=>{},NodeFilter:{SHOW_TEXT:4},cancelFocusReadingTap:()=>{},localStorage:{setItem(){}},renderPreservingReaderScroll:()=>renders++});
 vm.runInContext(code,context);
 context.measureFocusReading();
 assert.equal(status.textContent,'Reading line 1 of 5','Deduplicates inline rects and orders by column');
@@ -124,3 +124,14 @@ context.cancelFocusReadingMotion();assert.equal(frames.size,0,'Manual interactio
 context.window.matchMedia=()=>({matches:true});context.moveFocusReading(1);
 assert.equal(frames.size,0,'Reduced motion uses immediate placement');
 console.log('Focus Reading motion: interpolation, final alignment, interruption, and reduced-motion fallback passed.');
+
+context.document.createRange = () => ({ selectNodeContents(t) { this.text = t; }, getClientRects() { return this.text.lines.map(r => ({ ...r, top: r.top - surface.scrollTop, bottom: r.bottom - surface.scrollTop })); } });
+context.state.focusReading = false; context.state.mode = 'reader'; surface.scrollTop = 0;
+context.toggleFocusReading();
+assert.equal(frames.size, 1, 'Opening defers positioning until scroll restoration');
+sample(1000); surface.scrollTop = 70;
+sample(1016); sample(1032);
+assert.equal(status.textContent, 'Reading line 2 of 4', 'Opening chooses the line in the restored viewport');
+assert.equal(surface.scrollTop, 0, 'Opening centers that line without starting playback');
+assert.equal(context.state.autoScrollActive, false);
+console.log('Focus Reading opening: restored viewport, immediate positioning, and paused playback passed.');
