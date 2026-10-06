@@ -18987,8 +18987,6 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
-        <button class="ghost-btn" id="presentationNoButtonsToggle" type="button" aria-keyshortcuts="Shift+N">No buttons</button>
-        <p class="presentation-no-buttons-help">Double tap Scripture or press Shift + N to toggle. Escape exits.</p>
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
@@ -19063,6 +19061,11 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
     `;
   } else if (page === "presenting") {
     content = `
+      <section class="presentation-settings-page-section">
+        <h3>Presentation interface</h3>
+        <button class="ghost-btn" id="presentationNoButtonsToggle" type="button" aria-keyshortcuts="Shift+N">No buttons</button>
+        <p class="presentation-no-buttons-help">Double tap Scripture or press Shift + N to toggle. Escape exits.</p>
+      </section>
       <section class="presentation-settings-page-section">
         <h3>Copy & sharing</h3>
         <div class="presentation-settings-choice-field">
