@@ -4979,6 +4979,21 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   gap: 10px;
 }
 
+.ambient-settings { gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.ambient-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ambient-heading strong { color: var(--ink); font-size: 15px; }
+.ambient-play { min-width: 76px; min-height: 44px; flex-shrink: 0; }
+.ambient-settings .setting-help { margin: 0; }
+.ambient-status { min-height: 1.5em; }
+.ambient-credits { font-size: 12px; color: var(--muted); }
+.ambient-credits summary { cursor: pointer; padding: 6px 0; }
+.ambient-credits p { padding: 5px 0; }
+.ambient-credits a { color: var(--teal); }
+.ambient-now { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-destination-item:has(.ambient-quick-pause:not([hidden])) { padding-right: 72px; }
+.ambient-quick-pause { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); min-height: 44px; font-size: 12px; }
+.ambient-settings [hidden], .ambient-now[hidden], .ambient-quick-pause[hidden] { display: none !important; }
+
 .sound-volume-control {
   display: grid;
   gap: 7px;
@@ -25304,7 +25319,6 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 }
 .scripture-skip-links:focus-within { top: calc(12px + env(safe-area-inset-top)); }
 .scripture-skip-links button { background: #fff; color: #111; padding: 12px; border: 2px solid #111; }
-.scripture-reading-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
 .scripture-reading-dialog {
   box-sizing: border-box;
   width: min(760px, 100%);
@@ -25329,7 +25343,6 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 .scripture-reading-dialog .scripture-reading-credit { font-size: .85em; }
 .scripture-reading-dialog button { color: #111; background: #eee; }
 .scripture-reading-dialog :focus-visible { outline: 3px solid #005fcc; outline-offset: 3px; }
-.scripture-presentation-reading { width: 42px; padding-inline: 0; }
 .scripture-reading-dialog .scripture-attribution,
 .scripture-reading-dialog .verse-of-day-attribution { color: #333; font-size: .85em; }
 .scripture-reading-dialog a { color: #005fcc; }

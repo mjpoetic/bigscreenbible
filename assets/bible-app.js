@@ -755,6 +755,7 @@ const state = {
   popupTextScale: clampPopupTextScale(localStorage.getItem("lw_popup_text_scale") || 1),
   popupPinchEnabled: localStorage.getItem("lw_popup_pinch_enabled") !== "false",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
+  scriptureScreenReading: localStorage.getItem("lw_scripture_screen_reading") === "true",
   interfaceTextSize: normalizedInterfaceTextSize(localStorage.getItem("lw_interface_text_size")),
   modeTransitionSounds: localStorage.getItem("lw_mode_transition_sounds") === "true",
   modeTransitionVolume: normalizedSoundVolume(localStorage.getItem("lw_mode_transition_volume")),
@@ -1784,7 +1785,7 @@ function render() {
   closeMobileVerseNavMenu();
   closeSocialAvatarPicker();
   const app = document.querySelector("#app");
-  const readingFocus = document.activeElement?.matches?.("#scriptureReadingRegion, .verse-text[tabindex], .parallel-copy[tabindex], .section-title[tabindex], .verse-of-day-copy[tabindex]")
+  const readingFocus = state.scriptureScreenReading && document.activeElement?.matches?.("#scriptureReadingRegion, .verse-text[tabindex], .parallel-copy[tabindex], .section-title[tabindex], .verse-of-day-copy[tabindex]")
     ? document.activeElement.closest("#scriptureReadingRegion") : null;
   const readingFocusSnapshot = readingFocus ? {
     label: readingFocus.getAttribute("aria-label"),
@@ -1820,7 +1821,7 @@ function render() {
   previousVideo?.remove();
   app.innerHTML = `
     <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "classic" ? "classic" : "outline"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
-      ${state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
+      ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -1858,6 +1859,7 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  window.bsbAmbient?.syncControls();
   if (readingFocusSnapshot && document.activeElement === document.body) {
     const region = document.getElementById("scriptureReadingRegion");
     if (region?.getAttribute("aria-label") === readingFocusSnapshot.label) {
@@ -4032,9 +4034,37 @@ function handleControlHaptic(event) {
   playControlHaptic();
 }
 
+function ambientSoundsMarkup(prefix = "") {
+  const ambient = window.bsbAmbient;
+  if (!ambient) return "";
+  const id = (name) => settingsControlId(prefix, name);
+  const choices = ambient.catalog.map(sound => ({ value: sound.key, label: sound.name, group: sound.music ? "Music" : "Nature & noise" }));
+  const timers = [0, 15, 30, 60].map(minutes => ({ value: String(minutes), label: minutes ? `${minutes} minutes` : "No timer" }));
+  return `<div class="ambient-settings setting-group" aria-label="Ambient Sounds">
+    <div class="ambient-heading"><strong id="${id("AmbientSoundSelectLabel")}">Ambient Sounds</strong><button class="ghost-btn ambient-play" type="button" data-ambient-play aria-pressed="${ambient.active()}">${ambient.active() ? "Pause" : "Play"}</button></div>
+    <p class="setting-help">A peaceful background for reading, study, or prayer.</p>
+    ${settingsChoiceMarkup(id("AmbientSoundSelect"), ambient.preferences.sound, choices, { label: "Ambient sound", wide: true }).replace("<select ", "<select data-ambient-sound ")}
+    <p class="ambient-status setting-help" data-ambient-status role="status">Ready when you are</p>
+    <div class="sound-volume-control">
+      <div class="sound-volume-heading"><label class="setting-label" for="${id("AmbientVolume")}">Ambient volume</label><output for="${id("AmbientVolume")}" data-ambient-volume-output>${ambient.preferences.volume}%</output></div>
+      <input class="sound-volume-slider" id="${id("AmbientVolume")}" type="range" min="0" max="100" step="5" value="${ambient.preferences.volume}" data-ambient-volume aria-label="Ambient volume" />
+    </div>
+    <div class="sound-volume-control" data-ambient-rain-group ${ambient.selected().music ? "" : "hidden"}>
+      <div class="sound-volume-heading"><label class="setting-label" for="${id("AmbientRain")}">Mix in rain</label><output for="${id("AmbientRain")}" data-ambient-rain-output>${ambient.preferences.rain}%</output></div>
+      <input class="sound-volume-slider" id="${id("AmbientRain")}" type="range" min="0" max="100" step="5" value="${ambient.preferences.rain}" data-ambient-rain aria-label="Rain mix" />
+    </div>
+    <div class="setting-group"><span class="setting-label">Sleep timer</span>
+      ${settingsChoiceMarkup(id("AmbientTimerSelect"), String(ambient.preferences.minutes), timers, { label: "Sleep timer", wide: true }).replace("<select ", "<select data-ambient-timer ")}
+    </div>
+    <p class="setting-help">Fades gently at the end of the timer. Playback pauses when you leave the site or app.</p>
+    <details class="ambient-credits"><summary>About these sounds</summary><p class="setting-help" data-ambient-credit>${escapeHtml(ambient.selected().credit)}</p><p class="setting-help">Nature recordings are CC0. Music is created for Big Screen Bible.</p><a href="./assets/audio/ambient/SOURCES.md" target="_blank" rel="noopener">Audio sources & credits</a></details>
+  </div>`;
+}
+
 function soundsSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("sounds", "Sounds", `
+    ${ambientSoundsMarkup(prefix)}
     ${hapticsSettingsMarkup(prefix)}
     <div class="setting-group sounds-settings">
       <label class="setting-checkbox">
@@ -4167,6 +4197,7 @@ function scriptureReadingEntries(source, fromVerse = false) {
 }
 
 function openScriptureReadingView(fromVerse = false, trigger = document.activeElement) {
+  if (!state.scriptureScreenReading) return;
   document.getElementById("scriptureReadingDialog")?.close();
   const source = scriptureReadingSource();
   const entries = scriptureReadingEntries(source, fromVerse);
@@ -4201,11 +4232,19 @@ function bindScriptureReadingAccessibility() {
   if (state.mode === "big") {
     document.querySelectorAll(".app-shell > .topbar, .app-shell > .main-grid, #footerBar, #footerCollapseToggle").forEach((node) => { node.inert = true; });
   }
+  document.querySelectorAll("[data-scripture-screen-reading-toggle]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const toggleId = input.id;
+      setScriptureScreenReading(input.checked);
+      requestAnimationFrame(() => document.getElementById(toggleId)?.focus({ preventScroll: true }));
+    });
+  });
   document.querySelectorAll("[data-scripture-reading-view]").forEach((button) => {
     button.addEventListener("click", () => openScriptureReadingView(button.dataset.scriptureReadingView === "verse", button));
   });
   document.querySelectorAll("[data-scripture-start]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (!state.scriptureScreenReading) return;
       const source = scriptureReadingSource();
       const verse = button.dataset.scriptureStart === "verse"
         ? [...(source?.querySelectorAll("[data-verse]") || [])].find((node) => Number(node.dataset.verse) === Number(state.verse))
@@ -4219,12 +4258,28 @@ function bindScriptureReadingAccessibility() {
   });
 }
 
+function setScriptureScreenReading(enabled) {
+  state.scriptureScreenReading = Boolean(enabled);
+  localStorage.setItem("lw_scripture_screen_reading", String(state.scriptureScreenReading));
+  if (!state.scriptureScreenReading) document.getElementById("scriptureReadingDialog")?.close();
+  renderPreservingReaderScroll();
+}
+
+function scriptureScreenReadingSettings(prefix = "") {
+  const toggleId = prefix ? `${prefix}ScriptureScreenReadingToggle` : "scriptureScreenReadingToggle";
+  return `<div class="setting-group" data-settings-search-item data-settings-search-text="screen reading screen reader Siri Speak Screen VoiceOver native speech selection">
+    <label class="setting-checkbox"><input type="checkbox" id="${toggleId}" data-scripture-screen-reading-toggle ${state.scriptureScreenReading ? "checked" : ""} /><span>Enable Scripture screen reading</span></label>
+    <p class="setting-help">Open plain Scripture for Speak Screen or Siri “read the screen”. Text selection works without verse-hold actions. Your device controls speech and playback. This preference is saved on this device.</p>
+    ${state.scriptureScreenReading ? `<div class="settings-page-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage" ${state.mode === "trivia" ? "disabled" : ""}>Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse" ${state.mode === "trivia" ? "disabled" : ""}>From current verse</button></div>` : ""}
+  </div>`;
+}
+
 function accessibilitySettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedSize = interfaceTextSizes.find((size) => size.code === state.interfaceTextSize) || interfaceTextSizes[0];
   return settingsDisclosure("accessibility", "Accessibility", `
     ${popupTextSettingsMarkup(prefix)}
-    <div class="setting-group"><span class="setting-label">Screen reading</span><p class="setting-help">Open plain Scripture for Speak Screen or Siri “read the screen”. Text selection is available without verse-hold actions. Your device controls speech and playback.</p><button class="ghost-btn" type="button" data-scripture-reading-view="passage">Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse">From current verse</button></div>
+    ${scriptureScreenReadingSettings(prefix)}
     <div class="setting-group accessibility-settings">
       <span class="setting-label" id="${controlId("InterfaceTextSizeLabel")}">Interface text</span>
       <div class="theme-mode-segment accessibility-size-segment" role="group" aria-labelledby="${controlId("InterfaceTextSizeLabel")}">
@@ -4763,6 +4818,7 @@ function stageAppUpdatePositionRestore(scrollState, restoredVersion) {
 }
 
 const settingsPages = Object.freeze({
+  accessibility: "Accessibility",
   appearance: "Appearance & Text",
   reading: "Scripture & Reading",
   sounds: "Sounds",
@@ -4877,6 +4933,7 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
 
 function settingsDestinationRow(page, title, summary, searchText) {
   const glyphs = {
+    accessibility: icons.info,
     appearance: icons.highlighter,
     reading: icons.book,
     sounds: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4 6 8H3v8h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>',
@@ -4893,11 +4950,13 @@ function settingsDestinationRow(page, title, summary, searchText) {
         <span class="settings-destination-copy">
           <strong>${title}</strong>
           ${page === "app" ? `<small>${escapeHtml(summary)}</small>` : ""}
+          ${page === "sounds" ? '<small class="ambient-now" data-ambient-now hidden></small>' : ""}
         </span>
         ${updateAvailable ? '<span class="settings-update-space" aria-hidden="true"></span>' : ""}
         <span class="settings-destination-chevron" aria-hidden="true"></span>
       </button>
       ${updateAvailable ? `<button type="button" class="settings-update-shortcut" data-settings-update-now aria-label="Update app now" ${state.appUpdateBusy ? "disabled" : ""}>${state.appUpdateRefreshing ? "Updating…" : "Update"}</button>` : ""}
+      ${page === "sounds" ? '<button class="ghost-btn ambient-quick-pause" type="button" data-ambient-quick-pause aria-label="Pause ambient sounds" hidden>Pause</button>' : ""}
     </div>
   `;
 }
@@ -5000,8 +5059,9 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
       ${result("appearance", "ControlFinishGroup", "Control finish", "Appearance & Text", "liquid glass classic transparency navigation floating controls")}
       ${result("appearance", "ThemeFamilySelect", "Theme family", "Appearance & Text", "palette colors linked themes")}
-      ${result("appearance", "PopupTextSizeLabel", "Popup text size", "Appearance & Text", "pinch zoom dialogs search Strong cross references preview")}
-      ${result("appearance", "InterfaceTextSizeLabel", "Interface text size", "Appearance & Text", "accessibility navigation menus")}
+      ${result("accessibility", "PopupTextSizeLabel", "Popup text size", "Accessibility", "pinch zoom dialogs search Strong cross references preview")}
+      ${result("accessibility", "InterfaceTextSizeLabel", "Interface text size", "Accessibility", "accessibility navigation menus")}
+      ${result("accessibility", "ScriptureScreenReadingToggle", "Scripture screen reading", "Accessibility", "Siri Speak Screen VoiceOver native speech reading view selection")}
       ${result("reading", "ParagraphLayoutToggle", "Paragraph layout", "Scripture & Reading", "scripture display")}
       ${result("reading", "SectionHeadingsToggle", "Section headings", "Scripture & Reading", "scripture display")}
       ${result("reading", "RedLettersToggle", "Words of Jesus in red", "Scripture & Reading", "red letters")}
@@ -5013,6 +5073,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "AutoScrollSpeedLabel", "Auto-scroll speed", "Scripture & Reading", "automatic scrolling")}
       ${result("reading", "SideToolbarPositionLabel", "Landscape toolbar position", "Scripture & Reading", "left right side")}
       ${result("sounds", "ModeTransitionSoundsToggle", "Mode transition sounds", "Sounds", "audio cue")}
+      ${result("sounds", "AmbientSoundSelect", "Ambient Sounds", "Sounds", "rain ocean white pink brown noise peaceful piano hymn Amazing Grace spiritual lo-fi music sleep timer")}
       ${result("sounds", "ModeTransitionVolume", "Mode transition volume", "Sounds", "audio loudness")}
       ${result("sounds", "GameMusicToggle", "Game music and result sounds", "Sounds", "audio")}
       ${result("sounds", "GameVolume", "Game volume", "Sounds", "music result feedback countdown loudness")}
@@ -5070,8 +5131,9 @@ function mainSettingsRootMarkup(prefix = "") {
     </div>
     <nav class="settings-destinations" aria-label="More settings" data-settings-search-group data-settings-browse-only>
       ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system interface text accessibility liquid glass classic control finish")}
+      ${settingsDestinationRow("accessibility", "Accessibility", `Screen reading ${state.scriptureScreenReading ? "on" : "off"}`, "accessibility screen reading screen reader Siri Speak Screen VoiceOver selection interface text popup size")}
       ${settingsDestinationRow("reading", "Scripture & Reading", `${Math.round(state.textScale * 100)}% · ${state.paragraphLayout ? "Paragraph" : "Verse-by-verse"}`, "scripture display reading paragraph headings red letters words of Jesus Strong numbers chapter navigation page speed auto scroll landscape toolbar")}
-      ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds audio volume transition game music result feedback word search")}
+      ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds ambient rain ocean white pink brown noise peaceful piano hymn lo-fi sleep timer audio volume transition game music result feedback word search")}
       ${settingsDestinationRow("sharing", "Sharing & Printing", `${selectedShareFormat} · ${selectedPrintLayout}`, "copy sharing share format printing print layout verse numbers version name")}
       ${settingsDestinationRow("startup", "Startup & Notifications", startupSummary, "startup reminders notifications morning evening friend requests game challenges streak quiet mode verse of the day")}
       ${window.bsbOffline ? settingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone", "offline download downloaded internet storage airplane BSB KJV WEB ASV BBE YLT") : ""}
@@ -5091,9 +5153,9 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
           ${settingsAppearanceMarkup(prefix, { includeFamily: true, includeControlFinish: true })}
         </div>
       </section>
-      ${accessibilitySettings(prefix, drilldown)}
     `;
   }
+  if (page === "accessibility") return accessibilitySettings(prefix, drilldown);
   if (page === "reading") return `${displaySettings(prefix, drilldown)}${readingSettings(prefix, drilldown)}`;
   if (page === "offline") return offlineBibleSettings(prefix);
   if (page === "sounds") return soundsSettings(prefix, drilldown);
@@ -8180,7 +8242,6 @@ function reader(chapterChange = null) {
         `}
       </div>
       ` : ""}
-      <div class="scripture-reading-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage">Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse">From current verse</button></div>
       <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
@@ -14443,6 +14504,7 @@ function syncGameMusicPlayback() {
   const track = gameMusicTrackForGame(game);
   const shouldPlay = Boolean(
     state.gameMusicEnabled
+    && !window.bsbAmbient?.active()
     && state.mode === "trivia"
     && game
     && !game.complete
@@ -14501,7 +14563,7 @@ function playGameOutcomeSound(key) {
     key = lastPerfectCelebration === "perfect" ? "heaven" : "perfect";
   }
   const sound = gameOutcomeSounds[key];
-  if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden) return;
+  if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden || window.bsbAmbient?.active()) return;
   const audio = primeGameMusicAudio();
   if (!audio) return;
   stopGameMusicLoop({ reset: true });
@@ -18791,6 +18853,7 @@ function presentationSettingsDisclosure(key, label, content) {
 }
 
 const presentationSettingsPages = Object.freeze({
+  accessibility: "Accessibility",
   look: "Look & Feel",
   presenting: "Presenting",
   offline: "Offline Bibles",
@@ -18928,6 +18991,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
+          ${presentationSettingsDestinationRow("accessibility", "Accessibility", `Screen reading ${state.scriptureScreenReading ? "on" : "off"}`)}
           ${presentationSettingsDestinationRow("presenting", "Presenting", `Sharing · Sound ${state.modeTransitionSounds ? "on" : "off"}`)}
           ${window.bsbOffline ? presentationSettingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone") : ""}
           ${presentationSettingsDestinationRow("app", "Help & App", `Version ${appVersion}`)}
@@ -18937,7 +19001,9 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
   }
 
   let content = "";
-  if (page === "offline") {
+  if (page === "accessibility") {
+    content = scriptureScreenReadingSettings("presentation");
+  } else if (page === "offline") {
     content = offlineBibleSettings("presentation");
   } else if (page === "look") {
     content = `
@@ -19129,7 +19195,6 @@ function presentation(accountPanelRerender = false) {
   const accountButton = accountQuickButtonContent();
   const settingsMenu = `
     <div class="presentation-settings-menu presentation-bottom-settings-menu">
-      <button class="ghost-btn scripture-presentation-reading" type="button" data-scripture-reading-view="passage" aria-label="Scripture reading view" data-tooltip="Scripture reading view"><span aria-hidden="true">${icons.book}</span></button>
       <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
@@ -30300,6 +30365,8 @@ document.addEventListener("visibilitychange", () => {
   notePushVisit();
   maybeCheckForAppUpdate();
 });
+window.bsbAmbient?.configure({ getContext: ensureGameAudioContext });
+document.addEventListener("bsb-ambient-change", syncGameMusicPlayback);
 window.addEventListener("pagehide", () => pauseGameMusic({ fade: false }));
 window.addEventListener("pagehide", () => pauseReaderAutoScroll({ updateControl: false }));
 window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);

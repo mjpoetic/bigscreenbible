@@ -1,10 +1,14 @@
 # Native screen reading
 
-Reader and Parallel Study offer **Scripture reading view** above the passage, and
-**From current verse** opens the remaining displayed verses beginning at the
-current verse. Accessibility settings also offer these actions. Big Screen has a
-book button labeled **Scripture reading view** beside Settings; it opens the
-currently displayed text, including only the displayed part of a split verse.
+Open **Settings → Accessibility** and turn on **Enable Scripture screen reading**.
+The feature is off by default and the choice is saved on this device. Turn it off
+in the same menu to disable reading views and Scripture focus shortcuts.
+
+Reading-view controls are available only inside Accessibility. **Scripture reading
+view** opens the displayed passage and **From current verse** opens the remaining
+verses from the current verse. Big Screen settings also have an Accessibility
+menu; its view contains only the currently displayed text, including only the
+displayed part of a split verse.
 
 The reading dialog contains the passage heading, displayed translation(s), plain
 Scripture, enabled section headings, required copyright/source notices, and a
@@ -19,7 +23,7 @@ by selecting text in the dialog. Opening the view does not automatically start
 speech or enable an OS accessibility setting. Focus begins at the passage title;
 closing returns focus to the opening control when it is still present.
 
-Keyboard/screen-reader shortcuts at the start of the app, **Go to passage** and
+When the feature is enabled, keyboard/screen-reader shortcuts at the start of the app, **Go to passage** and
 **Go to current verse**, focus the Scripture directly. These appear visually on
 keyboard focus. Routine renders preserve explicitly focused Reader Scripture
 within the same passage. Big Screen excludes the workspace covered underneath
@@ -27,7 +31,7 @@ it from accessibility navigation.
 
 ## Validation
 
-`npm run test:screen-reading` checks verse filtering, combined verses, parallel
+`npm run test:screen-reading` checks enable/disable behavior, device preference persistence, verse filtering, combined verses, parallel
 translation order, markup escaping, modal focus, and closing behavior. Existing
 Reader lifecycle, touch gestures, verse hold, presentation, and interface text
 checks also pass. Browser accessibility-tree checks confirm isolation of the
