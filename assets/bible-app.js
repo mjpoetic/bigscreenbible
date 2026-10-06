@@ -4269,7 +4269,7 @@ function scriptureScreenReadingSettings(prefix = "") {
   const toggleId = prefix ? `${prefix}ScriptureScreenReadingToggle` : "scriptureScreenReadingToggle";
   return `<div class="setting-group" data-settings-search-item data-settings-search-text="screen reading screen reader Siri Speak Screen VoiceOver native speech selection">
     <label class="setting-checkbox"><input type="checkbox" id="${toggleId}" data-scripture-screen-reading-toggle ${state.scriptureScreenReading ? "checked" : ""} /><span>Enable Scripture screen reading</span></label>
-    <p class="setting-help">Open plain Scripture for Speak Screen or Siri “read the screen”. Text selection works without verse-hold actions. Your device controls speech and playback. This preference is saved on this device.</p>
+    <p class="setting-help">Open a simplified Scripture view for your device’s reading and accessibility tools. Start at the beginning of a passage or your current verse, and select text without activating verse actions.</p>
     ${state.scriptureScreenReading ? `<div class="settings-page-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage" ${state.mode === "trivia" ? "disabled" : ""}>Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse" ${state.mode === "trivia" ? "disabled" : ""}>From current verse</button></div>` : ""}
   </div>`;
 }
