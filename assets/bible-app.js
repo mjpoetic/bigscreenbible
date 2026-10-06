@@ -18854,6 +18854,7 @@ function presentationSettingsDisclosure(key, label, content) {
 
 const presentationSettingsPages = Object.freeze({
   accessibility: "Accessibility",
+  sounds: "Sounds",
   look: "Look & Feel",
   presenting: "Presenting",
   offline: "Offline Bibles",
@@ -18863,7 +18864,7 @@ const presentationSettingsPages = Object.freeze({
 function presentationSettingsDestinationRow(page, title, summary) {
   return `
     <button class="presentation-settings-destination" type="button" data-presentation-settings-page="${page}">
-      <span><strong>${title}</strong><small>${escapeHtml(summary)}</small></span>
+      <span><strong>${title}</strong><small>${escapeHtml(summary)}</small>${page === "sounds" ? '<small data-ambient-now hidden></small>' : ""}</span>
       <span class="presentation-settings-destination-chevron" aria-hidden="true"></span>
     </button>
   `;
@@ -18993,6 +18994,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
           ${presentationSettingsDestinationRow("accessibility", "Accessibility", `Screen reading ${state.scriptureScreenReading ? "on" : "off"}`)}
           ${presentationSettingsDestinationRow("presenting", "Presenting", `Sharing · Sound ${state.modeTransitionSounds ? "on" : "off"}`)}
+          ${presentationSettingsDestinationRow("sounds", "Sounds", "Ambient sounds · Sleep timer")}
           ${window.bsbOffline ? presentationSettingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone") : ""}
           ${presentationSettingsDestinationRow("app", "Help & App", `Version ${appVersion}`)}
         </nav>
@@ -19003,6 +19005,8 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
   let content = "";
   if (page === "accessibility") {
     content = scriptureScreenReadingSettings("presentation");
+  } else if (page === "sounds") {
+    content = ambientSoundsMarkup("presentation");
   } else if (page === "offline") {
     content = offlineBibleSettings("presentation");
   } else if (page === "look") {

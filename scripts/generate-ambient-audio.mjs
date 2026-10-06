@@ -69,8 +69,11 @@ function music(name, hymn = false) {
     const offset = Math.round(delay * rate);
     for (let c = 0; c < 2; c++) for (let i = 0; i < length; i++) channels[c][i] += dry[1 - c][(i - offset + length) % length] * level;
   }
+  let energy = 0, peak = 0;
+  for (const channel of channels) for (const value of channel) { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
+  const level = Math.min(0.065 / Math.sqrt(energy / (length * 2)), 0.7 / peak);
   const pcm = Buffer.alloc(length * 4);
-  for (let i = 0; i < length; i++) for (let c = 0; c < 2; c++) pcm.writeInt16LE(Math.round(Math.tanh(channels[c][i]) * 28000), i * 4 + c * 2);
+  for (let i = 0; i < length; i++) for (let c = 0; c < 2; c++) pcm.writeInt16LE(Math.round(channels[c][i] * level * 32767), i * 4 + c * 2);
   const temporary = path.join(out, `${name}.pcm`);
   writeFileSync(temporary, pcm);
   const result = spawnSync("ffmpeg", ["-y", "-v", "error", "-f", "s16le", "-ar", String(rate), "-ac", "2", "-i", temporary, "-c:a", "libmp3lame", "-b:a", "128k", path.join(out, `${name}.mp3`)], { encoding: "utf8" });

@@ -105,6 +105,22 @@
     const seam = Math.min(512, samples.length / 2);
     const last = samples[samples.length - 1];
     for (let i = 0; i < seam; i++) samples[i] = last * (1 - i / seam) + samples[i] * i / seam;
+    return balanceBuffer(buffer);
+  }
+  function balanceBuffer(buffer) {
+    let energy = 0, peak = 0;
+    for (let c = 0; c < buffer.numberOfChannels; c++) for (const value of buffer.getChannelData(c)) {
+      energy += value * value;
+      peak = Math.max(peak, Math.abs(value));
+    }
+    const rms = Math.sqrt(energy / (buffer.length * buffer.numberOfChannels));
+    if (rms > 0) {
+      const scale = Math.min(0.065 / rms, 0.7 / peak);
+      for (let c = 0; c < buffer.numberOfChannels; c++) {
+        const samples = buffer.getChannelData(c);
+        for (let i = 0; i < samples.length; i++) samples[i] *= scale;
+      }
+    }
     return buffer;
   }
   async function bufferFor(sound) {
@@ -122,7 +138,7 @@
           const last = channel[length - 1];
           for (let i = 0; i < 128; i++) channel[i] = last * (1 - i / 128) + channel[i] * i / 128;
         }
-        return buffer;
+        return balanceBuffer(buffer);
       })() : Promise.resolve(noiseBuffer(sound.key));
       buffers.set(sound.key, promise);
       promise.catch(() => buffers.delete(sound.key));
