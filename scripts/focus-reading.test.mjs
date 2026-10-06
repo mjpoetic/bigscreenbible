@@ -9,11 +9,11 @@ const rect = (top,left=10,right=290) => ({top,bottom:top+20,left,right,width:rig
 const text = (left, lines) => ({ closest:()=>({dataset:{version:left===310?'AMP':'BSB'},getBoundingClientRect:()=>({left,right:left+280})}), getBoundingClientRect:()=>({left,right:left+280}), lines, textContent:'Scripture',parentElement:{closest:()=>null} });
 // Nested inline markup produces duplicate rectangles; a parallel column has independent lines.
 const texts = [text(10,[rect(80),rect(80),rect(110)]),text(310,[rect(80,310,590),rect(110,310,590)]),text(10,[rect(150)])];
-const surface = {scrollTop:0,clientHeight:200,getBoundingClientRect:()=>({top:50,left:0,width:600,height:200}),querySelectorAll:()=>texts};
+const surface = {scrollTop:0,scrollHeight:1000,isConnected:true,clientHeight:200,getBoundingClientRect:()=>({top:50,left:0,width:600,height:200}),querySelectorAll:()=>texts};
 let renders = 0;
 const context = vm.createContext({state:{focusMode:true,focusReading:true,focusReadingLines:2,focusReadingStyle:'dim',mode:'parallel',reference:'John 3'},
  document:{querySelector:s=>s==='.scripture'?surface:null,getElementById:id=>id==='focusReadingGuide'?guide:status,createTreeWalker:t=>({currentNode:t,done:false,nextNode(){if(this.done)return false;this.done=true;return true;}}),createRange:()=>({selectNodeContents(t){this.text=t;},getClientRects(){return this.text.lines;}})},
- activeAutoScrollSpeed:()=>({pixelsPerSecond:10}),pauseReaderAutoScroll:()=>{context.state.autoScrollActive=false;},showToast:()=>{},NodeFilter:{SHOW_TEXT:4},cancelFocusReadingTap:()=>{},localStorage:{setItem(){}},renderPreservingReaderScroll:()=>renders++});
+ window:{matchMedia:()=>({matches:true})},cancelAnimationFrame:()=>{},activeAutoScrollSpeed:()=>({pixelsPerSecond:10}),pauseReaderAutoScroll:()=>{context.state.autoScrollActive=false;},showToast:()=>{},NodeFilter:{SHOW_TEXT:4},cancelFocusReadingTap:()=>{},localStorage:{setItem(){}},renderPreservingReaderScroll:()=>renders++});
 vm.runInContext(code,context);
 context.measureFocusReading();
 assert.equal(status.textContent,'Reading line 1 of 5','Deduplicates inline rects and orders by column');
@@ -104,3 +104,23 @@ assert.equal(context.state.autoScrollActive,false,'Playback stops after reading 
 context.state.autoScrollActive=true;context.moveFocusReading(-1);
 assert.equal(context.state.autoScrollActive,false,'Manual navigation pauses automatic reading');
 console.log('Focus Reading playback: pacing, ordered progress, final line, and manual pause passed.');
+
+// Sample the actual animation at start, midpoint, and completion.
+context.state.autoScrollActive=false;context.moveFocusReading(-100);
+const frames=new Map();let frameId=0;
+context.requestAnimationFrame=fn=>{frames.set(++frameId,fn);return frameId;};
+context.cancelAnimationFrame=id=>frames.delete(id);
+context.window.matchMedia=()=>({matches:false});
+const sample=time=>{const [id,fn]=frames.entries().next().value;frames.delete(id);fn(time);};
+const contentTop=()=>parseFloat(guide.children[0].style.height)+surface.scrollTop;
+const before=contentTop();context.moveFocusReading(1);sample(0);sample(210);
+assert.ok(contentTop()>before && contentTop()<before+30,'Ruler passes through an intermediate position');
+context.advanceFocusReadingAutoScroll(10000);
+assert.equal(status.textContent,'Reading line 2 of 4','Playback lets the current glide finish before advancing');
+sample(420);assert.equal(contentTop(),before+30,'Ruler settles exactly on next line');
+context.moveFocusReading(1);sample(500);sample(600);
+context.moveFocusReading(-1);assert.equal(frames.size,1,'Rapid input replaces the old animation');
+context.cancelFocusReadingMotion();assert.equal(frames.size,0,'Manual interaction cancels animation');
+context.window.matchMedia=()=>({matches:true});context.moveFocusReading(1);
+assert.equal(frames.size,0,'Reduced motion uses immediate placement');
+console.log('Focus Reading motion: interpolation, final alignment, interruption, and reduced-motion fallback passed.');

@@ -7767,6 +7767,7 @@ function readerBookmarkMarker() {
 let focusReadingAutoElapsed = 0;
 
 function advanceFocusReadingAutoScroll(elapsedMs) {
+  if (focusReadingMoving) return;
   const line = focusReadingRects[focusReadingIndex];
   if (!line) return pauseReaderAutoScroll();
   const duration = Math.max(500, (line.bottom - line.top) / activeAutoScrollSpeed().pixelsPerSecond * 1000);
@@ -7786,6 +7787,57 @@ let focusReadingIndex = 0;
 let focusReadingReference = "";
 let focusReadingObserver;
 let focusReadingFrame = 0;
+let focusReadingMotionFrame = 0;
+let focusReadingVisualRect = null;
+let focusReadingMoving = false;
+
+function focusReadingWindowRect() {
+  const first = focusReadingRects[focusReadingIndex];
+  if (!first) return null;
+  let last = first;
+  for (let i = 1; i < state.focusReadingLines; i++) {
+    const next = focusReadingRects[focusReadingIndex + i];
+    if (!next || next.columnKey !== first.columnKey) break;
+    last = next;
+  }
+  return { top: first.top, bottom: last.bottom, left: first.left, right: first.right };
+}
+
+function cancelFocusReadingMotion() {
+  cancelAnimationFrame(focusReadingMotionFrame);
+  focusReadingMotionFrame = 0;
+  focusReadingMoving = false;
+}
+
+function animateFocusReadingWindow(surface, target, scrollTop, automatic) {
+  cancelFocusReadingMotion();
+  const from = focusReadingVisualRect || target;
+  const startScroll = surface.scrollTop;
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reduced) {
+    surface.scrollTop = scrollTop;
+    paintFocusReading(target);
+    return;
+  }
+  const line = focusReadingRects[focusReadingIndex];
+  const dwell = Math.max(500, (line.bottom - line.top) / activeAutoScrollSpeed().pixelsPerSecond * 1000);
+  const duration = automatic ? Math.min(700, dwell * 0.75) : 420;
+  let startedAt = null;
+  focusReadingMoving = true;
+  const step = timestamp => {
+    if (!surface.isConnected || !state.focusMode || !state.focusReading) return cancelFocusReadingMotion();
+    if (startedAt === null) startedAt = timestamp;
+    const progress = Math.min(1, Math.max(0, (timestamp - startedAt) / duration));
+    const eased = progress * progress * (3 - 2 * progress);
+    const rect = {};
+    for (const key of ["top", "bottom", "left", "right"]) rect[key] = from[key] + (target[key] - from[key]) * eased;
+    surface.scrollTop = startScroll + (scrollTop - startScroll) * eased;
+    paintFocusReading(rect);
+    if (progress < 1) focusReadingMotionFrame = requestAnimationFrame(step);
+    else { focusReadingMotionFrame = 0; focusReadingMoving = false; }
+  };
+  focusReadingMotionFrame = requestAnimationFrame(step);
+}
 
 function focusReadingControls() {
   if (!state.focusMode || !state.focusReading) return "";
@@ -7854,22 +7906,19 @@ function measureFocusReading() {
   paintFocusReading();
 }
 
-function paintFocusReading() {
+function paintFocusReading(rect = null) {
   const surface = document.querySelector(".scripture");
   const guide = document.getElementById("focusReadingGuide");
   const first = focusReadingRects[focusReadingIndex];
   if (!surface || !guide || !first) { if (guide) guide.hidden = true; return; }
   guide.hidden = false;
   const clip = surface.getBoundingClientRect();
-  let last = first;
-  for (let i = 1; i < state.focusReadingLines; i++) {
-    const next = focusReadingRects[focusReadingIndex + i];
-    if (!next || next.columnKey !== first.columnKey) break;
-    last = next;
-  }
-  const top = Math.max(0, Math.min(clip.height, first.top - surface.scrollTop - 3));
-  const bottom = Math.max(top, Math.min(clip.height, last.bottom - surface.scrollTop + 3));
-  const left = Math.max(0, first.left - 4), right = Math.min(clip.width, first.right + 4);
+  rect = rect || (focusReadingMoving ? focusReadingVisualRect : focusReadingWindowRect());
+  if (!rect) return;
+  focusReadingVisualRect = rect;
+  const top = Math.max(0, Math.min(clip.height, rect.top - surface.scrollTop - 3));
+  const bottom = Math.max(top, Math.min(clip.height, rect.bottom - surface.scrollTop + 3));
+  const left = Math.max(0, rect.left - 4), right = Math.min(clip.width, rect.right + 4);
   guide.className = `focus-reading-guide ${state.focusReadingStyle}`;
   Object.assign(guide.style, { left: `${clip.left}px`, top: `${clip.top}px`, width: `${clip.width}px`, height: `${clip.height}px` });
   const areas = [[0,0,clip.width,top], [0,bottom,clip.width,clip.height-bottom], [0,top,left,bottom-top], [right,top,clip.width-right,bottom-top]];
@@ -7888,21 +7937,24 @@ function moveFocusReading(direction, { automatic = false } = {}) {
   focusReadingIndex = Math.max(0, Math.min(focusReadingRects.length - 1, focusReadingIndex + direction));
   const surface = document.querySelector(".scripture");
   const line = focusReadingRects[focusReadingIndex];
-  if (surface && line) {
-    if (line.top < surface.scrollTop + 40 || line.bottom > surface.scrollTop + surface.clientHeight - 80) {
-      surface.scrollTop = Math.max(0, line.top - surface.clientHeight * 0.35);
-    }
+  if (!surface || !line) return;
+  let scrollTop = surface.scrollTop;
+  if (automatic || line.top < scrollTop + 40 || line.bottom > scrollTop + surface.clientHeight - 80) {
+    scrollTop = Math.max(0, Math.min(surface.scrollHeight - surface.clientHeight, line.top - surface.clientHeight * 0.35));
   }
-  paintFocusReading();
+  animateFocusReadingWindow(surface, focusReadingWindowRect(), scrollTop, automatic);
 }
 
 function bindFocusReading() {
+  cancelFocusReadingMotion();
+  focusReadingVisualRect = null;
   focusReadingObserver?.disconnect();
   cancelAnimationFrame(focusReadingFrame);
   document.querySelectorAll("[data-focus-reading-toggle]").forEach(button => button.addEventListener("click", toggleFocusReading));
   if (!state.focusMode || !state.focusReading) return;
   const surface = document.querySelector(".scripture");
   if (!surface) return;
+  for (const event of ["wheel", "touchstart", "pointerdown"]) surface.addEventListener(event, cancelFocusReadingMotion, { passive: true });
   const guide = document.createElement("div");
   guide.id = "focusReadingGuide";
   guide.setAttribute("aria-hidden", "true");
@@ -7917,7 +7969,7 @@ function bindFocusReading() {
   surface.querySelectorAll(".verse-text, .parallel-copy, .verse-of-day-copy").forEach(text => focusReadingObserver.observe(text));
   surface.addEventListener("scroll", () => {
     const active = focusReadingRects[focusReadingIndex];
-    if (active && (active.bottom < surface.scrollTop || active.top > surface.scrollTop + surface.clientHeight)) {
+    if (!focusReadingMoving && active && (active.bottom < surface.scrollTop || active.top > surface.scrollTop + surface.clientHeight)) {
       const visible = focusReadingRects.findIndex(line => line.bottom >= surface.scrollTop && line.top <= surface.scrollTop + surface.clientHeight);
       if (visible >= 0) focusReadingIndex = visible;
     }
@@ -7937,7 +7989,7 @@ function bindFocusReading() {
       if (state.autoScrollActive) pauseReaderAutoScroll();
       event.stopImmediatePropagation();
       focusReadingIndex = closest;
-      paintFocusReading();
+      animateFocusReadingWindow(surface, focusReadingWindowRect(), surface.scrollTop, false);
     }
   }, true);
   document.querySelectorAll("[data-focus-reading-step]").forEach(button => button.addEventListener("click", () => moveFocusReading(Number(button.dataset.focusReadingStep))));
