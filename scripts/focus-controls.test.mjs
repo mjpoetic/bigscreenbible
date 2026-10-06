@@ -4,13 +4,14 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const functions = source.slice(source.indexOf('function normalizedFocusControlsHideSeconds('), source.indexOf('function resetFocusToolSurfaces('));
 let timers = new Map(), nextId = 0;
-const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown'].map(id => ({
+const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls'].map(id => ({
   id, focused: false, classes: new Set(),
   classList: { add(...names) { names.forEach(n => this.owner.classes.add(n)); }, remove(...names) { names.forEach(n => this.owner.classes.delete(n)); } },
   matches() { return this.focused; },
 }));
 controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
+  activeSettingsChoiceMenu: null,
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
   document: { querySelectorAll: selector => selector.startsWith(".reader-page-button")
     ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")))
@@ -37,6 +38,13 @@ controls[1].focused = true;
 wake(); run(3200); run(10000);
 assert.equal(controls[1].classes.size, 0, 'Keyboard-focused auto-scroll stays visible');
 controls[1].focused = false;
+context.activeSettingsChoiceMenu = { trigger: { closest: () => controls[4] } };
+wake(); assert.equal(timers.size, 0, 'An open Focus Reading dropdown keeps controls visible');
+context.activeSettingsChoiceMenu = null;
+controls[4].focused = true;
+wake(); run(3200); run(10000);
+assert.equal(controls[4].classes.size, 0, 'Focus within the reading controls prevents fading');
+controls[4].focused = false;
 context.state.autoScrollActive = true;
 const oldTimer = nextId;
 context.revealMobileSettingsButton({ type: 'scroll' });

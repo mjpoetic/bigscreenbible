@@ -46,7 +46,7 @@ html[data-control-material="glass"] .presentation:is(
 /* Floating surfaces and exposed utility controls. Do not use a global button
    selector: verse-number/Strong's buttons and puzzle input are content. */
 html[data-control-material="glass"] :is(
-  .selection-bar, .reader-top-button, .reader-auto-scroll-button,
+  .selection-bar, .focus-reading-controls, .reader-top-button, .reader-auto-scroll-button,
   .reader-selection-tools-button, .reader-return-button,
   .mobile-floating-passage, .mobile-floating-settings, .mobile-floating-focus-tools,
   .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
@@ -1289,4 +1289,13 @@ html[data-control-material="glass"] .bottombar :is(.chapter-nav, .bottom-action)
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* One material surface keeps the reading ruler controls light and compact. */
+html[data-control-material="glass"] .focus-reading-controls button {
+  background: transparent;
+  box-shadow: none;
+}
+html[data-control-material="glass"] .focus-reading-controls button:not(:disabled):is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--glass-ink) 10%, transparent);
 }

@@ -3729,6 +3729,7 @@ function closeSettingsChoiceMenu(options = {}) {
   window.removeEventListener("resize", closeSettingsChoiceMenu);
   window.removeEventListener("scroll", closeSettingsChoiceMenuOnScroll, true);
   activeSettingsChoiceMenu = null;
+  if (trigger?.closest(".focus-reading-controls")) revealMobileSettingsButton();
   if (options.restoreFocus && trigger?.isConnected) trigger.focus({ preventScroll: true });
 }
 
@@ -3754,7 +3755,8 @@ function positionSettingsChoiceMenu(trigger, menu, wide = false) {
   const viewportPadding = 8;
   const bounds = trigger.getBoundingClientRect();
   const preferredWidth = wide ? Math.max(bounds.width, 310)
-    : trigger.closest(".focus-mini-verse-picker") ? Math.max(bounds.width, 112) : bounds.width;
+    : trigger.closest(".focus-reading-controls") ? Math.max(bounds.width, 144)
+      : trigger.closest(".focus-mini-verse-picker") ? Math.max(bounds.width, 112) : bounds.width;
   const width = Math.min(preferredWidth, window.innerWidth - (viewportPadding * 2));
   menu.style.width = `${width}px`;
   menu.style.maxHeight = `${Math.max(120, window.innerHeight - (viewportPadding * 2))}px`;
@@ -3785,6 +3787,7 @@ function openSettingsChoiceMenu(trigger) {
     return;
   }
   closeSettingsChoiceMenu();
+  if (trigger.closest(".focus-reading-controls") && state.autoScrollActive) pauseReaderAutoScroll();
   const menu = document.createElement("div");
   menu.className = "settings-choice-menu";
   menu.id = `${select.id}Menu`;
@@ -3863,6 +3866,7 @@ function openSettingsChoiceMenu(trigger) {
   });
 
   activeSettingsChoiceMenu = { menu, trigger, select };
+  if (trigger.closest(".focus-reading-controls")) revealMobileSettingsButton();
   document.addEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
   window.addEventListener("resize", closeSettingsChoiceMenu);
   window.addEventListener("scroll", closeSettingsChoiceMenuOnScroll, true);
@@ -6806,7 +6810,7 @@ function scheduleStreakPopupDismiss() {
 
 let readingControlDimmingFrame = 0;
 const readingControlMistLayers = new Map();
-const readingDimmingSurfaceSelector = ".reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)";
+const readingDimmingSurfaceSelector = ".focus-reading-controls, .reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)";
 
 function readingRectsOverlap(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
@@ -6882,11 +6886,11 @@ function floatingControlsFadeEnabled() {
 
 function focusFloatingControls() {
   if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls")];
 }
 
 function focusControlsInUse() {
-  return state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive;
+  return state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || Boolean(activeSettingsChoiceMenu?.trigger?.closest(".focus-reading-controls"));
 }
 
 function revealMobileSettingsButton(event) {
@@ -6906,7 +6910,7 @@ function revealMobileSettingsButton(event) {
     const dimControls = (className) => {
       if (focusControlsInUse()) return;
       focusFloatingControls().forEach((button) => {
-        if (button.matches(":focus-visible") || (button.id === "mobileFloatingSettings" && state.appUpdateAvailable)) return;
+        if (button.matches(":focus-visible, :has(:focus-visible)") || (button.id === "mobileFloatingSettings" && state.appUpdateAvailable)) return;
         button.classList.add(className);
       });
       scheduleReadingControlDimming();
@@ -7844,8 +7848,8 @@ function focusReadingControls() {
   return `<div class="focus-reading-controls" role="group" aria-label="Focus Reading">
     <button type="button" data-focus-reading-step="-1" aria-label="Previous reading line">${icons.arrowUp}</button>
     <button type="button" data-focus-reading-step="1" aria-label="Next reading line">${icons.arrowDown}</button>
-    <label><span class="sr-only">Surrounding text</span><select id="focusReadingStyle"><option value="dim" ${state.focusReadingStyle === "dim" ? "selected" : ""}>Dim</option><option value="blur" ${state.focusReadingStyle === "blur" ? "selected" : ""}>Blur</option></select></label>
-    <label><span class="sr-only">Visible lines</span><select id="focusReadingLines">${[1,2,3].map(n => `<option value="${n}" ${state.focusReadingLines === n ? "selected" : ""}>${n} ${n === 1 ? "line" : "lines"}</option>`).join("")}</select></label>
+    ${settingsChoiceMarkup("focusReadingStyle", state.focusReadingStyle, [{ value: "dim", label: "Dim" }, { value: "blur", label: "Blur" }], { ariaLabel: "Surrounding text" })}
+    ${settingsChoiceMarkup("focusReadingLines", state.focusReadingLines, [1,2,3].map(n => ({ value: String(n), label: `${n} ${n === 1 ? "line" : "lines"}` })), { ariaLabel: "Visible lines" })}
     <button type="button" data-focus-reading-toggle aria-label="Turn off Focus Reading" data-tooltip="Turn off · Shift+R">×</button>
     <span class="sr-only" id="focusReadingStatus" role="status"></span>
   </div>`;
@@ -7997,6 +8001,13 @@ function bindFocusReading() {
     document.getElementById(id)?.addEventListener("change", event => {
       state[field] = field === "focusReadingLines" ? Number(event.target.value) : event.target.value;
       localStorage.setItem(storage, String(state[field]));
+      const trigger = document.getElementById(`${id}Toggle`);
+      const choice = settingsChoiceFromOption(event.target.selectedOptions[0]);
+      if (trigger) {
+        trigger.querySelector(".settings-choice-selected").innerHTML = settingsChoiceOptionContent(choice, { compact: true });
+        trigger.setAttribute("aria-label", `${event.target.getAttribute("aria-label")}, ${choice.label}`);
+      }
+      cancelFocusReadingMotion();
       paintFocusReading();
     });
   }
