@@ -25279,3 +25279,10 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 #app .reader.focus-reading-active > .reader-auto-scroll-button {
   bottom: calc(84px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
 }
+
+/* Focus Reading keeps its reading/playback controls and removes side chrome. */
+#app .app-shell:has(.reader.focus-reading-active) :is(
+  .reader-page-controls, .reader-return-button, .reader-selection-tools-button, .reader-bookmark-marker,
+  .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
+  .mobile-focus-tools-control, .mobile-focus-tools-fan, .desktop-focus-tools-fan
+) { display: none !important; }

@@ -88,7 +88,7 @@ assert.match(source, /id="readerAutoScrollButton"/);
 assert.match(source, /\{ code: "slow", name: "Slow", pixelsPerSecond: 10 \}/);
 assert.match(source, /\{ code: "normal", name: "Normal", pixelsPerSecond: 24 \}/);
 assert.match(source, /\{ code: "fast", name: "Fast", pixelsPerSecond: 48 \}/);
-assert.match(extractFunction("readerAutoScrollButton"), /if \(!state\.autoScrollEnabled\) return ""/);
+assert.match(extractFunction("readerAutoScrollButton"), /if \(!state\.autoScrollEnabled && !\(state\.focusMode && state\.focusReading\)\) return ""/);
 assert.match(source, /aria-pressed="\$\{active \? "true" : "false"\}"/);
 assert.match(source, /\["A", "Start or pause Reader \/ Parallel auto-scroll"\]/);
 assert.match(
@@ -98,7 +98,7 @@ assert.match(
 assert.match(extractFunction("handleReaderGestureEnd"), /toggleReaderAutoScrollFromGesture\(\)/);
 assert.match(extractFunction("finishReaderBlankTap"), /toggleReaderFocusFromGesture\(\)/);
 assert.doesNotMatch(extractFunction("readerAutoScrollStep"), /moveChapter/);
-assert.match(extractFunction("startReaderAutoScroll"), /if \(!state\.autoScrollEnabled\)/);
+assert.match(extractFunction("startReaderAutoScroll"), /if \(!state\.autoScrollEnabled && !focusReadingActive\)/);
 assert.match(source, /autoScrollEnabled: state\.autoScrollEnabled/);
 assert.match(source, /localStorage\.setItem\("lw_auto_scroll_enabled", String\(state\.autoScrollEnabled\)\)/);
 assert.match(source, /autoScrollSpeed: state\.autoScrollSpeed/);

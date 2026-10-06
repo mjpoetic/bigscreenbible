@@ -7028,6 +7028,14 @@ function readerAutoScrollStep(timestamp) {
     pauseReaderAutoScroll();
     return;
   }
+  if (state.focusMode && state.focusReading) {
+    if (!readerAutoScrollLastTime) readerAutoScrollLastTime = timestamp;
+    const elapsed = Math.min(100, Math.max(0, timestamp - readerAutoScrollLastTime));
+    readerAutoScrollLastTime = timestamp;
+    advanceFocusReadingAutoScroll(elapsed);
+    if (state.autoScrollActive) readerAutoScrollFrame = requestAnimationFrame(readerAutoScrollStep);
+    return;
+  }
   const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
   if (maxScrollTop <= 1 || readerAutoScrollPosition >= maxScrollTop - 0.5) {
     pauseReaderAutoScroll();
@@ -7051,22 +7059,26 @@ function readerAutoScrollStep(timestamp) {
 }
 
 function startReaderAutoScroll({ announce = true } = {}) {
-  if (!state.autoScrollEnabled) {
+  const focusReadingActive = state.focusMode && state.focusReading;
+  if (!state.autoScrollEnabled && !focusReadingActive) {
     if (announce) showToast("Enable auto-scroll in Settings first");
     return false;
   }
   const scripture = readerAutoScrollSurface();
   if (!scripture) return false;
   const maxScrollTop = Math.max(0, scripture.scrollHeight - scripture.clientHeight);
-  if (maxScrollTop <= 1) {
+  if (focusReadingActive) measureFocusReading();
+  if (focusReadingActive && !focusReadingRects.length) return false;
+  if (!focusReadingActive && maxScrollTop <= 1) {
     if (announce) showToast("This passage does not need auto-scroll");
     return false;
   }
-  if (scripture.scrollTop >= maxScrollTop - 1) {
+  if (!focusReadingActive && scripture.scrollTop >= maxScrollTop - 1) {
     if (announce) showToast("End of chapter");
     return false;
   }
   state.autoScrollActive = true;
+  focusReadingAutoElapsed = 0;
   requestReaderAutoScrollWakeLock();
   readerAutoScrollLastTime = 0;
   readerAutoScrollPosition = scripture.scrollTop;
@@ -7752,6 +7764,23 @@ function readerBookmarkMarker() {
   </details>`;
 }
 
+let focusReadingAutoElapsed = 0;
+
+function advanceFocusReadingAutoScroll(elapsedMs) {
+  const line = focusReadingRects[focusReadingIndex];
+  if (!line) return pauseReaderAutoScroll();
+  const duration = Math.max(500, (line.bottom - line.top) / activeAutoScrollSpeed().pixelsPerSecond * 1000);
+  focusReadingAutoElapsed += elapsedMs;
+  if (focusReadingAutoElapsed < duration) return;
+  focusReadingAutoElapsed = 0;
+  if (focusReadingIndex >= focusReadingRects.length - 1) {
+    pauseReaderAutoScroll();
+    showToast("End of chapter");
+    return;
+  }
+  moveFocusReading(1, { automatic: true });
+}
+
 let focusReadingRects = [];
 let focusReadingIndex = 0;
 let focusReadingReference = "";
@@ -7854,7 +7883,8 @@ function paintFocusReading() {
   if (status) status.textContent = `Reading line ${focusReadingIndex + 1} of ${focusReadingRects.length}`;
 }
 
-function moveFocusReading(direction) {
+function moveFocusReading(direction, { automatic = false } = {}) {
+  if (!automatic && state.autoScrollActive) pauseReaderAutoScroll();
   focusReadingIndex = Math.max(0, Math.min(focusReadingRects.length - 1, focusReadingIndex + direction));
   const surface = document.querySelector(".scripture");
   const line = focusReadingRects[focusReadingIndex];
@@ -7904,6 +7934,7 @@ function bindFocusReading() {
       if (delta < distance) { closest = index; distance = delta; }
     });
     if (closest >= 0) {
+      if (state.autoScrollActive) pauseReaderAutoScroll();
       event.stopImmediatePropagation();
       focusReadingIndex = closest;
       paintFocusReading();
@@ -8080,7 +8111,7 @@ function readerChapterPullIndicators() {
 }
 
 function readerAutoScrollButton() {
-  if (!state.autoScrollEnabled) return "";
+  if (!state.autoScrollEnabled && !(state.focusMode && state.focusReading)) return "";
   const speed = autoScrollSpeeds.find((option) => option.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
   const active = state.autoScrollActive;
   const action = active ? "Pause" : "Start";

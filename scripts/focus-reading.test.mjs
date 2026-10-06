@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
-const code = source.slice(source.indexOf('let focusReadingRects = []'), source.indexOf('function reader(chapterChange'));
+const code = source.slice(source.indexOf('let focusReadingAutoElapsed = 0'), source.indexOf('function reader(chapterChange'));
 const status = { textContent: '' };
 const guide = { style: {}, children: Array.from({length:4},()=>({style:{}})) };
 const rect = (top,left=10,right=290) => ({top,bottom:top+20,left,right,width:right-left,height:20});
@@ -13,7 +13,7 @@ const surface = {scrollTop:0,clientHeight:200,getBoundingClientRect:()=>({top:50
 let renders = 0;
 const context = vm.createContext({state:{focusMode:true,focusReading:true,focusReadingLines:2,focusReadingStyle:'dim',mode:'parallel',reference:'John 3'},
  document:{querySelector:s=>s==='.scripture'?surface:null,getElementById:id=>id==='focusReadingGuide'?guide:status,createTreeWalker:t=>({currentNode:t,done:false,nextNode(){if(this.done)return false;this.done=true;return true;}}),createRange:()=>({selectNodeContents(t){this.text=t;},getClientRects(){return this.text.lines;}})},
- NodeFilter:{SHOW_TEXT:4},cancelFocusReadingTap:()=>{},localStorage:{setItem(){}},renderPreservingReaderScroll:()=>renders++});
+ activeAutoScrollSpeed:()=>({pixelsPerSecond:10}),pauseReaderAutoScroll:()=>{context.state.autoScrollActive=false;},showToast:()=>{},NodeFilter:{SHOW_TEXT:4},cancelFocusReadingTap:()=>{},localStorage:{setItem(){}},renderPreservingReaderScroll:()=>renders++});
 vm.runInContext(code,context);
 context.measureFocusReading();
 assert.equal(status.textContent,'Reading line 1 of 5','Deduplicates inline rects and orders by column');
@@ -90,3 +90,17 @@ assert.equal(pending.size,0,'Pinch, movement, or touch cancellation clears delay
 gestureContext.handleFocusReadingTwoFingerTap(gesture);gestureContext.state.reference='John 4';[...pending.values()][0]();
 assert.equal(autoToggles,1,'Delayed tap never acts on a different chapter');
 console.log('Two-finger gesture: double toggle, single auto-scroll, cancellation, and chapter changes passed.');
+
+context.measureFocusReading();context.state.autoScrollActive=true;
+context.moveFocusReading(-100,{automatic:true});
+context.advanceFocusReadingAutoScroll(1999);
+assert.equal(status.textContent,'Reading line 1 of 4','Guide holds the line at selected speed');
+context.advanceFocusReadingAutoScroll(1);
+assert.equal(status.textContent,'Reading line 2 of 4','Playback advances one visual line');
+context.advanceFocusReadingAutoScroll(2000);context.advanceFocusReadingAutoScroll(2000);
+assert.equal(status.textContent,'Reading line 4 of 4');
+context.advanceFocusReadingAutoScroll(2000);
+assert.equal(context.state.autoScrollActive,false,'Playback stops after reading the final line');
+context.state.autoScrollActive=true;context.moveFocusReading(-1);
+assert.equal(context.state.autoScrollActive,false,'Manual navigation pauses automatic reading');
+console.log('Focus Reading playback: pacing, ordered progress, final line, and manual pause passed.');
