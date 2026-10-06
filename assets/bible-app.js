@@ -1784,6 +1784,12 @@ function render() {
   closeMobileVerseNavMenu();
   closeSocialAvatarPicker();
   const app = document.querySelector("#app");
+  const readingFocus = document.activeElement?.matches?.("#scriptureReadingRegion, .verse-text[tabindex], .parallel-copy[tabindex], .section-title[tabindex], .verse-of-day-copy[tabindex]")
+    ? document.activeElement.closest("#scriptureReadingRegion") : null;
+  const readingFocusSnapshot = readingFocus ? {
+    label: readingFocus.getAttribute("aria-label"),
+    verse: document.activeElement.closest("[data-verse]")?.dataset.verse,
+  } : null;
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   const sideToolbarPosition = effectiveSideToolbarPosition();
   const selectionToolsCollapsedClass = returnSelectionToolsCollapsed() ? "selection-tools-collapsed" : "";
@@ -1814,6 +1820,7 @@ function render() {
   previousVideo?.remove();
   app.innerHTML = `
     <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "classic" ? "classic" : "outline"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+      ${state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || state.mode === "trivia" ? "" : rail()}
@@ -1851,6 +1858,15 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  if (readingFocusSnapshot && document.activeElement === document.body) {
+    const region = document.getElementById("scriptureReadingRegion");
+    if (region?.getAttribute("aria-label") === readingFocusSnapshot.label) {
+      const row = [...region.querySelectorAll("[data-verse]")].find((node) => node.dataset.verse === readingFocusSnapshot.verse);
+      const target = row?.querySelector(".verse-text, .parallel-copy") || region;
+      target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+    }
+  }
   // Apply compact account placement before the replacement panel can paint.
   positionAccountPopover();
   restoreSettingsPanelScroll(settingsScrollState);
@@ -4128,11 +4144,87 @@ function readingSettings(prefix = "", options = {}) {
   `, options);
 }
 
+// Keep native OS speech in charge; this view supplies only selectable Scripture.
+function scriptureReadingSource() {
+  return document.querySelector(state.mode === "big" ? ".presentation-text" : "#scriptureReadingRegion");
+}
+
+function scriptureReadingEntries(source, fromVerse = false) {
+  if (!source) return [];
+  const starts = [...source.querySelectorAll("[data-verse]")].map((node) => Number(node.dataset.verse)).filter((number) => number <= Number(state.verse));
+  const start = starts.length ? Math.max(...starts) : Number(state.verse);
+  return [...source.querySelectorAll(".verse-text, .parallel-copy:not(.parallel-heading-copy), .verse-of-day-copy, .presentation-copy, .scripture-heading")]
+    .filter((node) => {
+      const row = node.closest("[data-verse], [data-heading-verse]");
+      return !fromVerse || !row || Number(row.dataset.verse || row.dataset.headingVerse) >= start;
+    })
+    .map((node) => ({
+      text: node.textContent.trim(),
+      version: node.dataset.version || "",
+      heading: node.matches(".scripture-heading"),
+    }))
+    .filter((entry) => entry.text);
+}
+
+function openScriptureReadingView(fromVerse = false, trigger = document.activeElement) {
+  document.getElementById("scriptureReadingDialog")?.close();
+  const source = scriptureReadingSource();
+  const entries = scriptureReadingEntries(source, fromVerse);
+  if (!entries.length) return showToast("No Scripture is available to read yet.");
+  pauseReaderAutoScroll({ updateControl: true });
+  finishReaderVerseHold();
+  const dialog = document.createElement("dialog");
+  dialog.id = "scriptureReadingDialog";
+  dialog.className = "scripture-reading-dialog";
+  dialog.setAttribute("aria-labelledby", "scriptureReadingTitle");
+  const passageTitle = source.querySelector("h1")?.textContent.trim() || (state.mode === "big" ? activePassageLabel() : state.reference);
+  const readingVersions = state.mode === "parallel" && !state.isVerseOfDayActive ? activeVersions() : [state.versions[0] || "BSB"];
+  const title = `${passageTitle}${fromVerse && source.querySelector("[data-verse]") ? ` — from verse ${state.verse}` : ""}`;
+  const attribution = state.mode === "big"
+    ? document.querySelector(".presentation-passage")
+    : source;
+  const credits = [...(attribution?.querySelectorAll("[class*='attribution']") || [])]
+    .filter((node) => !node.parentElement.closest("[class*='attribution']"))
+    .map((node) => node.outerHTML);
+  dialog.innerHTML = `<article aria-label="Scripture"><h1 id="scriptureReadingTitle" tabindex="-1">${escapeHtml(title)}</h1><p class="scripture-reading-version">${escapeHtml(readingVersions.map(translationDisplayCode).join(" / "))}</p>${entries.map((entry) => entry.heading ? `<h2>${escapeHtml(entry.text)}</h2>` : `<p>${entry.version ? `<span class="scripture-reading-version">${escapeHtml(translationDisplayCode(entry.version))}: </span>` : ""}${escapeHtml(entry.text)}</p>`).join("")}${credits.join("")}</article><form method="dialog"><button class="ghost-btn" autofocus>Close reading view</button></form>`;
+  document.body.append(dialog);
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+  }, { once: true });
+  dialog.showModal();
+  dialog.querySelector("h1").focus({ preventScroll: true });
+}
+
+function bindScriptureReadingAccessibility() {
+  // The Big Screen visually covers the workspace; exclude that covered copy.
+  if (state.mode === "big") {
+    document.querySelectorAll(".app-shell > .topbar, .app-shell > .main-grid, #footerBar, #footerCollapseToggle").forEach((node) => { node.inert = true; });
+  }
+  document.querySelectorAll("[data-scripture-reading-view]").forEach((button) => {
+    button.addEventListener("click", () => openScriptureReadingView(button.dataset.scriptureReadingView === "verse", button));
+  });
+  document.querySelectorAll("[data-scripture-start]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const source = scriptureReadingSource();
+      const verse = button.dataset.scriptureStart === "verse"
+        ? [...(source?.querySelectorAll("[data-verse]") || [])].find((node) => Number(node.dataset.verse) === Number(state.verse))
+        : null;
+      const target = verse?.querySelector(".verse-text, .parallel-copy") || source?.querySelector("h1, .verse-of-day-copy, .presentation-copy") || source;
+      if (!target) return;
+      target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+  });
+}
+
 function accessibilitySettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   const selectedSize = interfaceTextSizes.find((size) => size.code === state.interfaceTextSize) || interfaceTextSizes[0];
   return settingsDisclosure("accessibility", "Accessibility", `
     ${popupTextSettingsMarkup(prefix)}
+    <div class="setting-group"><span class="setting-label">Screen reading</span><p class="setting-help">Open plain Scripture for Speak Screen or Siri “read the screen”. Text selection is available without verse-hold actions. Your device controls speech and playback.</p><button class="ghost-btn" type="button" data-scripture-reading-view="passage">Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse">From current verse</button></div>
     <div class="setting-group accessibility-settings">
       <span class="setting-label" id="${controlId("InterfaceTextSizeLabel")}">Interface text</span>
       <div class="theme-mode-segment accessibility-size-segment" role="group" aria-labelledby="${controlId("InterfaceTextSizeLabel")}">
@@ -8088,7 +8180,8 @@ function reader(chapterChange = null) {
         `}
       </div>
       ` : ""}
-      <article class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
+      <div class="scripture-reading-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage">Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse">From current verse</button></div>
+      <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
@@ -19036,6 +19129,7 @@ function presentation(accountPanelRerender = false) {
   const accountButton = accountQuickButtonContent();
   const settingsMenu = `
     <div class="presentation-settings-menu presentation-bottom-settings-menu">
+      <button class="ghost-btn scripture-presentation-reading" type="button" data-scripture-reading-view="passage" aria-label="Scripture reading view" data-tooltip="Scripture reading view"><span aria-hidden="true">${icons.book}</span></button>
       <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
@@ -19564,6 +19658,7 @@ function bindSettingsScrollContainment() {
 }
 
 function bindEvents() {
+  bindScriptureReadingAccessibility();
   bindFocusReading();
   bindSettingsScrollContainment();
   bindPopupTextGestures();
