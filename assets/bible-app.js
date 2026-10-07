@@ -2153,15 +2153,24 @@ function deferViewportRefreshForActiveInput() {
     clearTimeout(presentationResizeTimer);
     return true;
   }
-  if (!document.activeElement?.matches?.(".custom-font-input, #presentationSearchInput, #presentationVideoUrl, #puzzleCustomReferenceInput")) return false;
+  // Native IME insets and height-based breakpoints affect every editor, not
+  // just Scripture search. Keep the actual node (and unsaved text) attached.
+  if (!document.activeElement?.matches?.('.custom-font-input, #presentationSearchInput, #presentationVideoUrl, #puzzleCustomReferenceInput, textarea, input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="url"], input[type="tel"], input[type="number"], [contenteditable="true"], [contenteditable=""]')) return false;
   inputViewportRefreshPending = true;
   clearTimeout(presentationResizeTimer);
   delete document.documentElement.dataset.presentationRotating;
   return true;
 }
 
+// Wait through focus transfers and keyboard dismissal before applying deferred
+// layout. A transfer from email to password must keep the same form alive.
+document.addEventListener("focusout", () => {
+  setTimeout(resumeViewportRefreshAfterInput, 450);
+});
+
 function resumeViewportRefreshAfterInput() {
   if (!inputViewportRefreshPending) return;
+  if (deferViewportRefreshForActiveInput()) return;
   inputViewportRefreshPending = false;
   renderAfterViewportChangePreservingReaderScroll();
 }
