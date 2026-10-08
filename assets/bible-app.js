@@ -1297,6 +1297,7 @@ function recordReadingStreak(date = new Date()) {
 const icons = {
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-2.9 2-2.9 4"/><path d="M12 17h.01"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>',
+  scriptureReader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h10M3 9h8M3 13h5M3 17h5"/><path d="m12 12 4-3v12l-4-3h-2v-6z"/><path d="M19 12a5 5 0 0 1 0 6M21 9a9 9 0 0 1 0 12"/></svg>',
   bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
   bookmarkAdd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10v18l-5-3.5L5 21z"/><path d="M19 3v6M16 6h6" stroke-width="2.1"/></svg>',
   note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
@@ -4475,7 +4476,7 @@ function setScriptureScreenReading(enabled) {
 
 function scriptureReaderQuickButton(extraClass = "") {
   if (!state.scriptureScreenReading || state.mode === "trivia") return "";
-  return `<button class="icon-btn scripture-reader-quick ${extraClass}" type="button" data-scripture-reading-view="passage" aria-label="Open Scripture reader" aria-keyshortcuts="Shift+I" aria-haspopup="dialog" data-tooltip="Scripture reader · Shift+I">${icons.book}</button>`;
+  return `<button class="icon-btn scripture-reader-quick ${extraClass}" type="button" data-scripture-reading-view="passage" aria-label="Open Scripture reader" aria-keyshortcuts="Shift+I" aria-haspopup="dialog" data-tooltip="Scripture reader · Shift+I">${icons.scriptureReader}</button>`;
 }
 
 function handleScriptureReaderShortcut(event) {
@@ -4502,7 +4503,7 @@ function scriptureScreenReadingSettings(prefix = "") {
   const toggleId = prefix ? `${prefix}ScriptureScreenReadingToggle` : "scriptureScreenReadingToggle";
   return `<div class="setting-group" data-settings-search-item data-settings-search-text="screen reading screen reader Siri Speak Screen VoiceOver native speech selection">
     <label class="setting-checkbox"><input type="checkbox" id="${toggleId}" data-scripture-screen-reading-toggle ${state.scriptureScreenReading ? "checked" : ""} /><span>Enable Scripture screen reading</span></label>
-    <p class="setting-help">Open a full-screen Scripture reader with adjustable text, colors, spacing, passage focus, and read-aloud controls. Start at the beginning of a passage or your current verse. Your device’s accessibility tools and text selection remain available. Press Shift+I to enable and open the reader, or use the book button near the reading controls. Turn this setting off to hide that button.</p>
+    <p class="setting-help">Open a full-screen Scripture reader with adjustable text, colors, spacing, passage focus, and read-aloud controls. Start at the beginning of a passage or your current verse. Your device’s accessibility tools and text selection remain available. Press Shift+I to enable and open the reader, or use the Scripture reader button near the reading controls. Turn this setting off to hide that button.</p>
     ${state.scriptureScreenReading ? `<div class="settings-page-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage" ${state.mode === "trivia" ? "disabled" : ""}>Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse" ${state.mode === "trivia" ? "disabled" : ""}>From current verse</button></div>` : ""}
   </div>`;
 }

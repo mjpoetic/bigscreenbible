@@ -131,11 +131,12 @@ assert.match(fallbackControl('[data-reading-status]').textContent, /device’s s
 console.log('Scripture screen-reading and immersive workspace checks passed');
 
 // Quick access follows the opt-in setting and does not intercept editing or OS keys.
-context.icons = { book: '<svg></svg>' };
+context.icons = { scriptureReader: '<svg data-reader-icon></svg>' };
 state.mode = 'reader'; state.scriptureScreenReading = false;
 assert.equal(context.scriptureReaderQuickButton(), '');
 state.scriptureScreenReading = true;
 assert.match(context.scriptureReaderQuickButton(), /aria-keyshortcuts="Shift\+I"/);
+assert.match(context.scriptureReaderQuickButton(), /data-reader-icon/);
 state.mode = 'trivia';
 assert.equal(context.scriptureReaderQuickButton(), '');
 state.mode = 'reader';

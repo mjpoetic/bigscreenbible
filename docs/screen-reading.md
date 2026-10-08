@@ -77,4 +77,6 @@ Reader's verse-hold behavior still works after closing the reading view.
 
 Press **Shift+I** while reading to enable and open the Scripture reader. Press it again (or Escape) to close the workspace. The shortcut ignores text fields, composition, other dialogs, modifier combinations, and Games. It also works in Big Screen’s No buttons mode.
 
-When enabled, a compact book button appears near the bottom reading controls in Reader, Parallel, and Focus layouts, and beside Settings in Big Screen. Turning the Accessibility setting off removes these buttons. Enabling the feature does not start speech.
+When enabled, a compact text-and-speaker button appears near the bottom reading controls in Reader, Parallel, and Focus layouts, and beside Settings in Big Screen. Turning the Accessibility setting off removes these buttons. Enabling the feature does not start speech.
+
+The reader dialog owns safe-area padding, including when its controls are hidden. In mobile portrait Big Screen, the reader and Settings buttons stack within the existing Settings column. The reader launchers follow the selected Liquid Glass material and its accessibility fallbacks.
