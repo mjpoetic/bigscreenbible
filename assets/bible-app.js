@@ -4376,7 +4376,7 @@ function bindImmersiveScriptureReader(dialog, preferences) {
     dialog.querySelector("[data-reading-hide]").focus({ preventScroll: true });
   });
   // Isolate workspace keys from the underlying app, retaining native dialog Escape/Tab.
-  dialog.addEventListener("keydown", (event) => { event.stopPropagation(); });
+  dialog.addEventListener("keydown", (event) => { handleScriptureReaderShortcut(event); event.stopPropagation(); });
   const suspend = () => { if (document.hidden) stop(); };
   const pageHide = () => stop();
   document.addEventListener("visibilitychange", suspend);
@@ -4473,11 +4473,36 @@ function setScriptureScreenReading(enabled) {
   renderPreservingReaderScroll();
 }
 
+function scriptureReaderQuickButton(extraClass = "") {
+  if (!state.scriptureScreenReading || state.mode === "trivia") return "";
+  return `<button class="icon-btn scripture-reader-quick ${extraClass}" type="button" data-scripture-reading-view="passage" aria-label="Open Scripture reader" aria-keyshortcuts="Shift+I" aria-haspopup="dialog" data-tooltip="Scripture reader · Shift+I">${icons.book}</button>`;
+}
+
+function handleScriptureReaderShortcut(event) {
+  if (!event.shiftKey || event.key.toLowerCase() !== "i" || event.metaKey || event.ctrlKey || event.altKey
+      || event.isComposing || isTypingTarget(event.target)) return false;
+  const dialog = document.getElementById("scriptureReadingDialog");
+  if (dialog?.open) {
+    event.preventDefault();
+    if (!event.repeat) dialog.close();
+    return true;
+  }
+  if (!["reader", "parallel", "big"].includes(state.mode) || state.pushPromptVisible || state.shortcutsOpen
+      || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible
+      || document.querySelector("dialog[open]") || document.getElementById("studyPopup")) return false;
+  event.preventDefault();
+  if (!event.repeat) {
+    if (!state.scriptureScreenReading) setScriptureScreenReading(true);
+    openScriptureReadingView(false, document.activeElement);
+  }
+  return true;
+}
+
 function scriptureScreenReadingSettings(prefix = "") {
   const toggleId = prefix ? `${prefix}ScriptureScreenReadingToggle` : "scriptureScreenReadingToggle";
   return `<div class="setting-group" data-settings-search-item data-settings-search-text="screen reading screen reader Siri Speak Screen VoiceOver native speech selection">
     <label class="setting-checkbox"><input type="checkbox" id="${toggleId}" data-scripture-screen-reading-toggle ${state.scriptureScreenReading ? "checked" : ""} /><span>Enable Scripture screen reading</span></label>
-    <p class="setting-help">Open a full-screen Scripture reader with adjustable text, colors, spacing, passage focus, and read-aloud controls. Start at the beginning of a passage or your current verse. Your device’s accessibility tools and text selection remain available.</p>
+    <p class="setting-help">Open a full-screen Scripture reader with adjustable text, colors, spacing, passage focus, and read-aloud controls. Start at the beginning of a passage or your current verse. Your device’s accessibility tools and text selection remain available. Press Shift+I to enable and open the reader, or use the book button near the reading controls. Turn this setting off to hide that button.</p>
     ${state.scriptureScreenReading ? `<div class="settings-page-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage" ${state.mode === "trivia" ? "disabled" : ""}>Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse" ${state.mode === "trivia" ? "disabled" : ""}>From current verse</button></div>` : ""}
   </div>`;
 }
@@ -5139,8 +5164,8 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
   `;
 }
 
-function settingsDestinationRow(page, title, summary, searchText) {
-  const glyphs = {
+function settingsDestinationGlyphs() {
+  return {
     accessibility: icons.info,
     appearance: icons.highlighter,
     reading: icons.book,
@@ -5149,6 +5174,10 @@ function settingsDestinationRow(page, title, summary, searchText) {
     startup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10a7 7 0 0 1 14 0c0 6 2 7 2 7H3s2-1 2-7M9 21h6M12 1v2"/></svg>',
     app: icons.info,
   };
+}
+
+function settingsDestinationRow(page, title, summary, searchText) {
+  const glyphs = settingsDestinationGlyphs();
   const updateAvailable = page === "app" && state.appUpdateAvailable;
   const tooltip = updateAvailable ? `${summary} · Update available. Press and hold to update.` : summary;
   return `
@@ -8458,6 +8487,7 @@ function reader(chapterChange = null) {
       ${readerChapterPullIndicators()}
       ${versionLoadingState ? bibleVersionLoadingIndicator(versionLoadingState) : chapterChangeIndicator(chapterChange)}
       ${state.mode === "reader" || state.mode === "parallel" ? `
+        ${scriptureReaderQuickButton(`reader-auto-scroll-button scripture-reader-launcher ${state.autoScrollEnabled || (state.focusMode && state.focusReading) ? "beside-playback" : ""}`)}
         ${readerAutoScrollButton()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
@@ -19106,9 +19136,12 @@ const presentationSettingsPages = Object.freeze({
 });
 
 function presentationSettingsDestinationRow(page, title, summary) {
+  const glyphs = settingsDestinationGlyphs();
+  const glyph = page === "look" ? glyphs.appearance : page === "presenting" ? icons.screen : page === "offline" ? icons.book : glyphs[page];
   return `
     <button class="presentation-settings-destination" type="button" data-presentation-settings-page="${page}">
-      <span><strong>${title}</strong><small>${escapeHtml(summary)}</small>${page === "sounds" ? '<small data-ambient-now hidden></small>' : ""}</span>
+      <span class="presentation-settings-destination-icon" aria-hidden="true">${glyph || icons.settings}</span>
+      <span class="presentation-settings-destination-copy"><strong>${title}</strong><small>${escapeHtml(summary)}</small>${page === "sounds" ? '<small data-ambient-now hidden></small>' : ""}</span>
       <span class="presentation-settings-destination-chevron" aria-hidden="true"></span>
     </button>
   `;
@@ -19446,6 +19479,7 @@ function presentation(accountPanelRerender = false) {
   const accountButton = accountQuickButtonContent();
   const settingsMenu = `
     <div class="presentation-settings-menu presentation-bottom-settings-menu">
+      ${scriptureReaderQuickButton("ghost-btn")}
       <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
       <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
@@ -19637,6 +19671,7 @@ function shortcutOverlay() {
     ["P", "Open Big Screen"],
     ["Shift + N", "Toggle No buttons in Big Screen (double tap Scripture also works)"],
     ["F", "Toggle focus layout"],
+    ["Shift + I", "Open / close Scripture reader (enables its Accessibility setting)"],
     ["Shift + R", "Toggle Focus Reading (enters Focus Mode; two-finger double tap in Focus on touch screens)"],
     ["↑ / ↓ in Focus Reading", "Move the reading guide one line"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
@@ -28602,6 +28637,7 @@ function handleGamesEscapeKeydown(event) {
 }
 
 function handleGlobalShortcuts(event) {
+  if (event.shiftKey && event.key.toLowerCase() === "i" && handleScriptureReaderShortcut(event)) return;
   const noButtonsToggle = state.mode === "big" && event.shiftKey && event.key.toLowerCase() === "n"
     && !event.ctrlKey && !event.metaKey && !event.altKey && !isTypingTarget(event.target);
   if (noButtonsToggle || (state.mode === "big" && state.presentationNoButtons && event.key === "Escape")) {

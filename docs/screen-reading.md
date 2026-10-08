@@ -72,3 +72,9 @@ return, all reader preferences, Read aloud start/pause/resume/stop, voice/speed
 changes, speech stopping on exit/background, portrait/landscape scrolling, a combined verse translation, Parallel Study,
 Verse of the Day source links, and Big Screen split verses. Confirm the normal
 Reader's verse-hold behavior still works after closing the reading view.
+
+## Quick access
+
+Press **Shift+I** while reading to enable and open the Scripture reader. Press it again (or Escape) to close the workspace. The shortcut ignores text fields, composition, other dialogs, modifier combinations, and Games. It also works in Big Screen’s No buttons mode.
+
+When enabled, a compact book button appears near the bottom reading controls in Reader, Parallel, and Focus layouts, and beside Settings in Big Screen. Turning the Accessibility setting off removes these buttons. Enabling the feature does not start speech.

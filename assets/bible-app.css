@@ -12687,7 +12687,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 
 .presentation-settings-destination {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 10px;
+  grid-template-columns: 20px minmax(0, 1fr) 10px;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -12707,7 +12707,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   outline: 0;
 }
 
-.presentation-settings-destination > span:first-child {
+.presentation-settings-destination-copy {
   display: grid;
   min-width: 0;
   gap: 2px;
@@ -12730,6 +12730,18 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   color: var(--presentation-muted);
   font-size: 9px;
   font-weight: 650;
+}
+
+.presentation-settings-destination-icon {
+  display: flex;
+  width: 20px;
+  height: 20px;
+  color: var(--presentation-accent);
+}
+
+.presentation-settings-destination-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .presentation-settings-page-titlebar {
@@ -25511,3 +25523,9 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
   .immersive-reader-voice-panel { bottom: calc(100% + 8px); right: 16px; }
 }
 html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !important; }
+
+/* Share the existing reading-control placement, with room for optional playback. */
+.scripture-reader-launcher.beside-playback { left: calc(50% - 56px); }
+.scripture-reader-quick svg { width: 22px; height: 22px; pointer-events: none; }
+.presentation-bottom-settings-menu:has(.scripture-reader-quick) { display: flex; gap: 8px; }
+@media print { .scripture-reader-quick { display: none !important; } }
