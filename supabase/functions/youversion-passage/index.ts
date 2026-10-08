@@ -23,7 +23,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const parserVersion = "2026-08-21-youversion-structure";
+const parserVersion = "2026-10-08-publisher-footnotes";
 
 type AuthorizedBible = {
   code: YouVersionTranslationCode;
@@ -50,6 +50,7 @@ type PassageVerse = {
   sectionHeadings?: Array<{ text: string; level: number }>;
   lineBreaks?: number[];
   wordsOfJesus?: Array<{ start: number; end: number }>;
+  footnotes?: Array<{ id: string; text: string; reference?: string }>;
 };
 
 let authorizedBibleCache:
@@ -309,7 +310,7 @@ async function chapterPassageHtml(
   const query = new URLSearchParams({
     format: "html",
     include_headings: "true",
-    include_notes: "false",
+    include_notes: ["NIV", "NASB2020", "AMP"].includes(bible.code) ? "true" : "false",
   });
   const payload = await youVersionRequest(
     `/v1/bibles/${encodeURIComponent(String(bible.id))}/passages/${

@@ -5,6 +5,7 @@ export type EsvVerse = {
   text: string;
   paragraphStart: boolean;
   sectionHeadings?: Array<{ text: string; level: number }>;
+  footnotes?: Array<{ id: string; text: string; reference?: string }>;
 };
 
 export function cleanVerseText(text: string) {
@@ -44,8 +45,23 @@ function splitTrailingEsvHeadings(text: string) {
 export function parseEsvVerses(
   passages: string[],
   options: { normalizePsalm119?: boolean } = {},
-) {
-  const body = passages.join("\n").replace(/\u00a0/g, " ");
+): EsvVerse[] {
+  // Parse each passage separately: the API restarts note numbering per passage.
+  if (passages.length > 1) {
+    return passages.flatMap((passage) => parseEsvVerses([passage], options));
+  }
+  const passage = String(passages[0] || "").replace(/\u00a0/g, " ");
+  const footer = /(?:^|\n)[ \t]*Footnotes[ \t]*\r?\n/i.exec(passage);
+  const body = footer ? passage.slice(0, footer.index) : passage;
+  const notes = new Map<string, { id: string; text: string; reference: string }>();
+  if (footer) {
+    const noteBody = passage.slice(footer.index + footer[0].length);
+    const notePattern = /(?:^|\n)[ \t]*\((\d+)\)[ \t]+(\d+:\d+(?:[–-]\d+)?)\s+([\s\S]*?)(?=\n[ \t]*\(\d+\)[ \t]+\d+:\d+|$)/g;
+    for (const note of noteBody.matchAll(notePattern)) {
+      const text = cleanVerseText(note[3].replace(/\*([^*]+)\*/g, "$1"));
+      if (text) notes.set(note[1], { id: note[1], reference: note[2], text });
+    }
+  }
   const verses: EsvVerse[] = [];
   const markerPattern = /\[(\d+)\]\s*([\s\S]*?)(?=\s*\[\d+\]|$)/g;
   let match: RegExpExecArray | null;
@@ -59,7 +75,13 @@ export function parseEsvVerses(
     const { verseText, headings: trailingHeadings } = splitTrailingEsvHeadings(
       match[2],
     );
-    const text = cleanVerseText(verseText);
+    const footnotes: NonNullable<EsvVerse["footnotes"]> = [];
+    const text = cleanVerseText(verseText.replace(/\((\d+)\)/g, (caller, id) => {
+      const note = notes.get(id);
+      if (!note) return caller;
+      if (!footnotes.some((item) => item.id === id)) footnotes.push(note);
+      return "";
+    }));
     const sectionHeadings = pendingHeadings.concat(leadingHeadings);
     const paragraphStart = verses.length === 0 ||
       /\n\s*\n/.test(leadingText) ||
@@ -70,6 +92,7 @@ export function parseEsvVerses(
         text,
         paragraphStart,
         ...(sectionHeadings.length ? { sectionHeadings } : {}),
+        ...(footnotes.length ? { footnotes } : {}),
       });
     }
     pendingHeadings = trailingHeadings;

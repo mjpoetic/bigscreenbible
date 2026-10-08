@@ -30,6 +30,7 @@ export function extractYouVersionChapterHtml(value: unknown) {
       ...(parsed.sectionHeadings.has(n)
         ? { sectionHeadings: parsed.sectionHeadings.get(n) }
         : {}),
+      ...(parsed.footnotes.has(n) ? { footnotes: parsed.footnotes.get(n) } : {}),
     }))
     .filter((verse) => Number.isInteger(verse.n) && verse.n > 0 && verse.text)
     .sort((a, b) => a.n - b.n);
@@ -46,6 +47,7 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
     }>
   >();
   const paragraphStarts = new Set<number>();
+  const footnotes = new Map<number, Array<{ id: string; text: string; reference?: string }>>();
   const sectionHeadings = new Map<
     number,
     Array<{ text: string; level: number }>
@@ -62,6 +64,9 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
     scriptureBlock: boolean;
     paragraphBlock: boolean;
     boundaryApplied: boolean;
+    note?: { n: number; id: string; characters: string[]; references: string[] };
+    noteReference: boolean;
+    noteLabel: boolean;
   }> = [];
   let skippedDepth = 0;
   let wordsOfJesusDepth = 0;
@@ -71,6 +76,15 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
     if (!element) return;
     if (element.skipped) skippedDepth -= 1;
     if (element.wordsOfJesus) wordsOfJesusDepth -= 1;
+    if (element.note) {
+      const text = element.note.characters.join("").replace(/\s+/g, " ").trim();
+      const reference = element.note.references.join("").replace(/\s+/g, " ").trim();
+      if (text && element.note.n > 0) {
+        const notes = footnotes.get(element.note.n) || [];
+        notes.push({ id: element.note.id, text, ...(reference ? { reference } : {}) });
+        footnotes.set(element.note.n, notes);
+      }
+    }
     if (!element.headingCharacters) return;
     const text = cleanYouVersionHeadingText(element.headingCharacters.join(""));
     if (text) pendingHeadings.push({ text, level: element.headingLevel });
@@ -95,6 +109,14 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
   ) {
     if (!token.startsWith("<")) {
       const decoded = decodeHtmlEntities(token);
+      const noteElement = elements.findLast((element) => element.note);
+      if (noteElement?.note) {
+        if (elements.some((element) => element.noteLabel)) continue;
+        if (elements.some((element) => element.noteReference)) {
+          noteElement.note.references.push(decoded);
+        } else noteElement.note.characters.push(decoded);
+        continue;
+      }
       const headingElement = elements.findLast((element) =>
         Boolean(element.headingCharacters)
       );
@@ -147,7 +169,8 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
     }
 
     const classes = htmlClassTokens(token);
-    if (splitByVerse && classes.includes("yv-v")) {
+    const insideNote = elements.some((element) => element.note);
+    if (splitByVerse && !skippedDepth && classes.includes("yv-v")) {
       const verseNumber = Number(htmlAttribute(token, "v"));
       currentVerse = Number.isInteger(verseNumber) && verseNumber > 0
         ? verseNumber
@@ -156,7 +179,7 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
         verses.set(currentVerse, []);
       }
     }
-    const headingLevel = youVersionHeadingLevel(classes);
+    const headingLevel = insideNote ? 0 : youVersionHeadingLevel(classes);
     const heading = headingLevel > 0;
     const skipped = heading ||
       classes.some((className) =>
@@ -167,7 +190,10 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
     const paragraphBlock = isYouVersionParagraphBlock(classes);
     const selfClosing = /\/\s*>$/.test(token) ||
       ["br", "hr", "img", "input", "meta", "link"].includes(name);
-    if (name === "br" && currentVerse >= 0) pendingExplicitLineBreak = true;
+    if (insideNote && ["br", "p", "div", "li"].includes(name)) {
+      elements.findLast((element) => element.note)?.note?.characters.push(" ");
+    }
+    if (name === "br" && currentVerse >= 0 && !skippedDepth) pendingExplicitLineBreak = true;
     if (selfClosing) continue;
     elements.push({
       name,
@@ -178,13 +204,24 @@ function youVersionHtmlCharacters(value: unknown, splitByVerse: boolean) {
       scriptureBlock,
       paragraphBlock,
       boundaryApplied: false,
+      ...(!skippedDepth && splitByVerse && currentVerse > 0 &&
+          classes.includes("yv-n") && classes.includes("f")
+        ? { note: {
+          n: currentVerse,
+          id: htmlAttribute(token, "id") || `${currentVerse}-f-${(footnotes.get(currentVerse)?.length || 0) + 1}`,
+          characters: [], references: [],
+        } }
+        : {}),
+      noteReference: classes.includes("fr"),
+      noteLabel: ["yv-nlbl", "yv-vlbl", "yv-clbl"].some((label) => classes.includes(label)) ||
+        ["script", "style"].includes(name),
     });
     if (skipped) skippedDepth += 1;
     if (wordsOfJesus) wordsOfJesusDepth += 1;
   }
 
   while (elements.length) closeElement(elements.pop());
-  return { verses, paragraphStarts, sectionHeadings };
+  return { verses, paragraphStarts, sectionHeadings, footnotes };
 }
 
 function normalizedYouVersionText(

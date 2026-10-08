@@ -8677,13 +8677,12 @@ function parallelVerseMarkup(verse, version) {
 }
 
 function publisherFootnotesForVerse(verse, version) {
-  if (version !== "NLT") return [];
   const notes = verse?.footnotes?.[version];
   return Array.isArray(notes) ? notes.filter((note) => typeof note?.text === "string" && note.text.trim()) : [];
 }
 
 function publisherFootnoteButtonMarkup(verse, version, chapterKey = state.reference) {
-  if (state.mode === "big" || window.bsbOffline?.active) return "";
+  if (state.mode === "big" || (window.bsbOffline?.active && isRemoteTranslation(version))) return "";
   const notes = publisherFootnotesForVerse(verse, version);
   if (!notes.length) return "";
   const reference = `${chapterKey}:${versionVerseLabel(verse, version)}`;
@@ -29739,6 +29738,7 @@ async function initializeBibleData() {
       loadBibleParagraphMetadata(),
       loadBibleSectionHeadingMetadata(),
       loadBibleRedLetterMetadata(),
+      loadBibleFootnoteMetadata(),
     ]);
     const bundledVersions = new Set([
       "BSB",
@@ -30011,7 +30011,7 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       chapter.verses.push(verse);
     }
     verse[version] = normalizeRemoteProviderText(version, text);
-    if (version === "NLT" && Array.isArray(footnotes) && footnotes.length) {
+    if (Array.isArray(footnotes) && footnotes.length) {
       verse.footnotes = verse.footnotes || {};
       verse.footnotes[version] = footnotes
         .map((note) => ({
@@ -30066,6 +30066,13 @@ async function loadBibleParagraphMetadata() {
     optional: true,
   });
   bibleParagraphs = window.BIGSCREEN_BIBLE_PARAGRAPHS || null;
+}
+
+async function loadBibleFootnoteMetadata() {
+  await loadBibleBundleScript("footnotes", {
+    globalName: "BIGSCREEN_BIBLE_FOOTNOTES",
+    optional: true,
+  });
 }
 
 async function loadBibleSectionHeadingMetadata() {
@@ -30223,6 +30230,7 @@ function rebuildBibleData() {
   applyParagraphMetadata(merged);
   applySectionHeadingMetadata(merged);
   applyRedLetterMetadata(merged);
+  applyFootnoteMetadata(merged);
   Object.values(merged).forEach((chapter) => chapter.verses.sort((a, b) => a.n - b.n));
   bibleData = merged;
   remoteVersionData.forEach((payload, loadKey) => {
@@ -30242,6 +30250,21 @@ function applyParagraphMetadata(merged) {
         if (!startSet.has(verse.n)) return;
         verse.paragraphStart = verse.paragraphStart || {};
         verse.paragraphStart[version] = true;
+      });
+    });
+  });
+}
+
+function applyFootnoteMetadata(merged) {
+  Object.entries(window.BIGSCREEN_BIBLE_FOOTNOTES?.versions || {}).forEach(([version, chapters]) => {
+    Object.entries(chapters || {}).forEach(([key, verseNotes]) => {
+      const chapter = merged[key];
+      if (!chapter) return;
+      chapter.verses.forEach((verse) => {
+        const notes = verseNotes[verse.n];
+        if (!verse[version] || !Array.isArray(notes)) return;
+        verse.footnotes = verse.footnotes || {};
+        verse.footnotes[version] = notes;
       });
     });
   });

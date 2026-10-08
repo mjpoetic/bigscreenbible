@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
-const parserVersion = "2026-08-12-section-heading-boundaries";
+const parserVersion = "2026-10-08-publisher-footnotes";
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
 
@@ -134,8 +134,8 @@ Deno.serve(async (request) => {
   esvUrl.searchParams.set("include-passage-references", "false");
   esvUrl.searchParams.set("include-verse-numbers", "true");
   esvUrl.searchParams.set("include-first-verse-numbers", "true");
-  esvUrl.searchParams.set("include-footnotes", "false");
-  esvUrl.searchParams.set("include-footnote-body", "false");
+  esvUrl.searchParams.set("include-footnotes", "true");
+  esvUrl.searchParams.set("include-footnote-body", "true");
   esvUrl.searchParams.set("include-headings", "true");
   esvUrl.searchParams.set("include-short-copyright", "false");
   esvUrl.searchParams.set("include-passage-horizontal-lines", "false");

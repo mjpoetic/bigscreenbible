@@ -111,11 +111,19 @@ Licensed remote translations are provider-based:
 
 - ESV uses the Crossway ESV Supabase Edge Function.
 - CEV, NKJV, and NLT use the API.Bible Supabase Edge Function.
-- NLT publisher footnotes are fetched with the chapter and shown through verse-level footnote buttons in Reader, Focus, and Parallel. They remain separate from personal notes and from copied, shared, printed, or presented Scripture text. Run `npm run test:footnotes` to check parsing and client metadata handling.
+- Publisher footnotes are supported for NLT, ESV, NIV 2011, NASB 2020, AMP, BSB, and WEB through verse-level buttons in Reader, Focus, and Parallel. Online versions fetch notes with the chapter; BSB and WEB use bundled source notes, including in the native offline reader. Notes remain separate from personal notes and from copied, shared, printed, presented, and simplified screen-reading Scripture text. Run `npm run test:footnotes` to check parsing and client metadata handling.
 - NIV 2011 and NASB 2020 use the YouVersion Supabase Edge Function. API.Bible support remains available for rollback while its licenses remain active. See [migration and rollback](PROVIDER-MIGRATION.md).
 - AMP and NIrV use the YouVersion Platform Supabase Edge Function. NIrV is identified in the version picker as an easy-reading choice for children and new readers.
 - API keys remain Supabase secrets; the browser only calls the project Edge Functions.
 - Provider copyright notices and API.Bible FUMS view tracking are included in the rendered experience.
+
+BSB and WEB footnotes are generated from the same local eBible.org USFM sources used for other metadata:
+
+```bash
+node scripts/build-footnote-metadata.mjs BSB=sources/engbsb_usfm WEB=sources/engwebp_usfm
+```
+
+The generated `assets/bibles/footnotes.js` records source hashes and contains 4,810 BSB and 1,228 WEB notes. WEB has five note-only verse positions absent from its Scripture bundle; those notes appear at the preceding included verse with their original reference retained. The importer rejects other missing verse positions rather than silently assigning notes to a different verse.
 
 Verse of the Day is fetched server-side from the VerseoftheDay.com / Heartlight RSS feed, cached once per Eastern calendar day in Supabase, and reduced to the item reference, verse text, and linked attribution. The bundled curated rotation remains the offline/failure fallback.
 

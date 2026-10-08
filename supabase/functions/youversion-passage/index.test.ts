@@ -18,6 +18,19 @@ function assertEquals(actual: unknown, expected: unknown) {
   }
 }
 
+Deno.test("preserves YouVersion footnotes separately from Scripture, red letters, and line breaks", () => {
+  const prefix = '<div class="p"><span class="yv-v" v="5"></span><span class="yv-vlbl">5</span><span class="wj">Light';
+  const notes = '<span class="yv-n f" id="note-1"><span class="fr">1:5</span><span class="ft">Or <i>understood</i> &amp; grasped.</span></span><span class="yv-n f"><span class="yv-nlbl">b</span>Second<br>note.</span><span class="yv-n x">Cross reference.</span>';
+  const suffix = ' shines.</span></div><div class="q1">In the darkness.</div><div class="p"><span class="yv-v" v="6"></span>Next verse.</div>';
+  const actual = extractYouVersionChapterHtml(prefix + notes + suffix);
+  assertEquals(actual.map(({ footnotes: _notes, ...verse }) => verse), extractYouVersionChapterHtml(prefix + suffix));
+  assertEquals(actual[0].footnotes, [
+    { id: "note-1", text: "Or understood & grasped.", reference: "1:5" },
+    { id: "5-f-2", text: "Second note." },
+  ]);
+  assertEquals(actual[1].footnotes, undefined);
+});
+
 Deno.test("removes YouVersion pilcrow paragraph markers from AMP text", () => {
   assertEquals(
     cleanPlainText(
