@@ -1326,6 +1326,7 @@ const icons = {
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="11" height="13" rx="1.5"/><path d="M5 16H4a1.5 1.5 0 0 1-1.5-1.5v-10A1.5 1.5 0 0 1 4 3h9.5A1.5 1.5 0 0 1 15 4.5V5"/></svg>',
   print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9V3h12v6"/><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M17 12h.01"/></svg>',
   info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 10v7"/><path d="M12 7h.01"/></svg>',
+  footnote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V7a3 3 0 0 1 3-3Z"/><path d="M7 9h10M7 13h7"/></svg>',
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
   cross: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M6.5 8.5h11"/></svg>',
@@ -1765,6 +1766,7 @@ function restoreAccountPanelScroll(scrollState) {
 }
 
 function render() {
+  if (document.getElementById("studyPopup")?.classList.contains("publisher-footnote-popup")) closeStudyPopup(true);
   if (state.mode !== "big") state.presentationNoButtons = false;
   finishReaderVerseHold();
   parallelVersionDragCleanup?.();
@@ -8671,7 +8673,45 @@ function parallelVerseMarkup(verse, version) {
   const range = verse.verseRanges?.[version];
   if (range && verse.n !== range.start) return `<small class="combined-verse-notice">Included in verses ${versionVerseLabel(verse, version)}.</small>`;
   const label = range ? `<small class="combined-verse-notice">${versionVerseLabel(verse, version)} </small>` : "";
-  return label + renderStrongText(verse, version);
+  return label + renderStrongText(verse, version) + publisherFootnoteButtonMarkup(verse, version);
+}
+
+function publisherFootnotesForVerse(verse, version) {
+  if (version !== "NLT") return [];
+  const notes = verse?.footnotes?.[version];
+  return Array.isArray(notes) ? notes.filter((note) => typeof note?.text === "string" && note.text.trim()) : [];
+}
+
+function publisherFootnoteButtonMarkup(verse, version, chapterKey = state.reference) {
+  if (state.mode === "big" || window.bsbOffline?.active) return "";
+  const notes = publisherFootnotesForVerse(verse, version);
+  if (!notes.length) return "";
+  const reference = `${chapterKey}:${versionVerseLabel(verse, version)}`;
+  const label = `${notes.length === 1 ? "Footnote" : `${notes.length} footnotes`} for ${reference} (${translationDisplayCode(version)})`;
+  return ` <button class="publisher-footnote-trigger" type="button" data-publisher-footnote="${verse.n}" data-footnote-chapter="${escapeHtml(chapterKey)}" data-footnote-version="${escapeHtml(version)}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-expanded="false" data-tooltip="Footnotes"><span aria-hidden="true">${icons.footnote}</span></button>`;
+}
+
+function publisherFootnotePopupMarkup(verse, version, chapterKey) {
+  const notes = publisherFootnotesForVerse(verse, version);
+  return `<p class="publisher-footnote-source">${escapeHtml(translationLookup[version]?.name || version)} · Publisher footnotes</p>
+    <ol class="publisher-footnote-list">${notes.map((note) => `<li>${note.reference ? `<span class="publisher-footnote-reference">${escapeHtml(note.reference)}</span> ` : ""}${escapeHtml(note.text)}</li>`).join("")}</ol>
+    ${apiBibleAttributionMarkup([version], "publisher-footnote-attribution", chapterKey)}`;
+}
+
+function openPublisherFootnotePopup(anchor) {
+  const { footnoteChapter: chapterKey, footnoteVersion: version, publisherFootnote: number } = anchor.dataset;
+  const verse = bibleData[chapterKey]?.verses.find((item) => item.n === Number(number));
+  if (!publisherFootnotesForVerse(verse, version).length) return;
+  const currentPopup = document.getElementById("studyPopup");
+  if (currentPopup?.studyPopupAnchor === anchor) {
+    closeStudyPopup(false, true);
+    return;
+  }
+  closeVerseActionMenu(true);
+  const popup = showStudyPopup(anchor, publisherFootnotePopupMarkup(verse, version, chapterKey),
+    `${chapterKey}:${versionVerseLabel(verse, version)} (${translationDisplayCode(version)})`,
+    { className: "publisher-footnote-popup" });
+  popup.querySelector(".study-popup-close")?.focus({ preventScroll: true });
 }
 
 function getVerseText(verse, version, chapterKey = state.reference) {
@@ -12418,7 +12458,7 @@ function readerView() {
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${versionVerseLabel(verse, version)}</button>
           ${verseNoteIndicatorsMarkup(verse.n)}
         </span>
-        <span class="verse-text">${renderStrongText(verse, version)}</span>
+        <span class="verse-text">${renderStrongText(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</span>
         ${verseCopyButton(verse.n)}
       </p>
     `).join("")}
@@ -12544,7 +12584,7 @@ function paragraphReaderView(verses, version) {
               <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" data-cross-ref-hold="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}. Press and hold for cross references" aria-expanded="false">${versionVerseLabel(verse, version)}</button>
               ${verseNoteIndicatorsMarkup(verse.n)}
             </span>
-            <span class="verse-text">${renderStrongText(verse, version)}</span>
+            <span class="verse-text">${renderStrongText(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</span>
           </span>
         `).join(" ")}
       </p>
@@ -18231,7 +18271,7 @@ function positionStudyPopup(anchor, popup) {
 function closeStudyPopupOnOutside(event) {
   const popup = document.getElementById("studyPopup");
   if (!popup) return;
-  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference]")) return;
+  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference], [data-publisher-footnote]")) return;
   closeStudyPopup();
 }
 
@@ -20945,6 +20985,13 @@ function bindEvents() {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       openReferencePreviewPopup(button, button.dataset.scriptureReference || "");
+    });
+  });
+  document.querySelectorAll("[data-publisher-footnote]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openPublisherFootnotePopup(button);
     });
   });
   document.querySelectorAll("[data-verse-actions]").forEach((button) => {
@@ -25634,7 +25681,7 @@ function sharedPassageReaderView() {
   return `
     <section class="verse-of-day-reader shared-passage-reader" aria-labelledby="sharedPassageReference">
       <h1 class="section-title" id="sharedPassageReference">${escapeHtml(formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verses, version)))} <span>(${escapeHtml(translationDisplayCode(version))})</span></h1>
-      ${lines.map((verse) => `<p class="verse-of-day-copy" data-verse="${verse.n}"><button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> ${renderStrongText(verse, version)}</p>`).join("")}
+      ${lines.map((verse) => `<p class="verse-of-day-copy" data-verse="${verse.n}"><button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> ${renderStrongText(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</p>`).join("")}
       <div class="focused-passage-actions" role="group" aria-label="Passage actions">
         <button class="ghost-btn verse-of-day-read-button" id="sharedPassageReadChapter" type="button"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button>
         <button class="ghost-btn" id="focusedPassageCopy" type="button" aria-label="Copy passage" data-tooltip="Copy passage"><span aria-hidden="true">${icons.copy}</span><span>Copy</span></button>
@@ -29950,9 +29997,14 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       ...verse, n: start + index, verseRange: { start, end },
       paragraphStart: index === 0 && verse.paragraphStart,
       sectionHeadings: index === 0 ? verse.sectionHeadings : [],
+      footnotes: index === 0 ? verse.footnotes : [],
     }));
   });
-  verses.forEach(({ n, text, paragraphStart, sectionHeadings, lineBreaks, wordsOfJesus, verseRange }) => {
+  // A replacement response without notes must clear any previously loaded notes.
+  chapter.verses.forEach((verse) => {
+    if (verse.footnotes) delete verse.footnotes[version];
+  });
+  verses.forEach(({ n, text, paragraphStart, sectionHeadings, lineBreaks, wordsOfJesus, verseRange, footnotes }) => {
     if (!Number.isFinite(Number(n)) || !text) return;
     let verse = chapter.verses.find((item) => item.n === Number(n));
     if (!verse) {
@@ -29960,6 +30012,16 @@ function mergeRemoteVersionChapter(version, chapterKey, verses) {
       chapter.verses.push(verse);
     }
     verse[version] = normalizeRemoteProviderText(version, text);
+    if (version === "NLT" && Array.isArray(footnotes) && footnotes.length) {
+      verse.footnotes = verse.footnotes || {};
+      verse.footnotes[version] = footnotes
+        .map((note) => ({
+          id: String(note?.id || ""),
+          text: String(note?.text || "").trim(),
+          reference: String(note?.reference || "").trim(),
+        }))
+        .filter((note) => note.text);
+    }
     if (verseRange) {
       verse.verseRanges = verse.verseRanges || {};
       verse.verseRanges[version] = verseRange;

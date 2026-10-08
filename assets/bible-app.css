@@ -11499,6 +11499,58 @@ select {
   text-decoration: underline;
 }
 
+.publisher-footnote-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  margin-inline: 2px;
+  padding: 6px;
+  vertical-align: middle;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.publisher-footnote-trigger span,
+.publisher-footnote-trigger svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.publisher-footnote-trigger:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  .publisher-footnote-trigger { width: 44px; min-height: 44px; }
+}
+
+.publisher-footnote-source {
+  color: var(--muted);
+  font: 600 calc(12px * var(--popup-text-scale, 1)) / 1.5 var(--ui-font);
+}
+
+.publisher-footnote-list {
+  margin: 12px 0;
+  padding-inline-start: 24px;
+  font: 400 calc(16px * var(--popup-text-scale, 1)) / 1.6 var(--ui-font);
+  overflow-wrap: anywhere;
+}
+
+.publisher-footnote-list li + li { margin-top: 12px; }
+.publisher-footnote-reference { font-weight: 700; }
+
+@media print {
+  .publisher-footnote-trigger, .publisher-footnote-popup { display: none !important; }
+}
+
 .study-popup {
   position: fixed;
   z-index: 210;

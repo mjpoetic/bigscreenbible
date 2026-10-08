@@ -111,6 +111,7 @@ Licensed remote translations are provider-based:
 
 - ESV uses the Crossway ESV Supabase Edge Function.
 - CEV, NKJV, and NLT use the API.Bible Supabase Edge Function.
+- NLT publisher footnotes are fetched with the chapter and shown through verse-level footnote buttons in Reader, Focus, and Parallel. They remain separate from personal notes and from copied, shared, printed, or presented Scripture text. Run `npm run test:footnotes` to check parsing and client metadata handling.
 - NIV 2011 and NASB 2020 use the YouVersion Supabase Edge Function. API.Bible support remains available for rollback while its licenses remain active. See [migration and rollback](PROVIDER-MIGRATION.md).
 - AMP and NIrV use the YouVersion Platform Supabase Edge Function. NIrV is identified in the version picker as an easy-reading choice for children and new readers.
 - API keys remain Supabase secrets; the browser only calls the project Edge Functions.

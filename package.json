@@ -4,6 +4,7 @@
   "private": true,
   "description": "A clean Bible reader, study workspace, scripture display tool, and Bible games experience.",
   "scripts": {
+    "test:footnotes": "deno test supabase/functions/api-bible-passage/content-parser.test.ts && node scripts/publisher-footnotes.test.mjs",
     "audio:auditions": "node scripts/generate-game-music-auditions.mjs",
     "audio:game-music": "node scripts/generate-game-music-auditions.mjs --production",
     "audio:ambient": "node scripts/generate-ambient-audio.mjs",

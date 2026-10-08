@@ -5,6 +5,8 @@ export type ApiBibleContentNode = {
   type?: string;
   text?: string;
   attrs?: {
+    id?: string;
+    caller?: string;
     number?: string;
     style?: string;
     verseId?: string;
@@ -25,6 +27,7 @@ type ParsedVerse = {
   verseEnd?: number;
   sectionHeadings?: SectionHeading[];
   wordsOfJesus?: Array<{ start: number; end: number }>;
+  footnotes?: Array<{ id: string; text: string; reference?: string }>;
 };
 
 type ParagraphState = {
@@ -158,6 +161,7 @@ function joinNodeText(parts: string[]) {
 
 function collectNodeText(node: ApiBibleContentNode): string {
   if (!node || typeof node !== "object") return "";
+  if (node.name === "note") return "";
   if (node.type === "text" && typeof node.text === "string") return node.text;
   return joinNodeText((node.items || []).map(collectNodeText));
 }
@@ -278,6 +282,7 @@ export function parseVerseContent(
   let sawPsalm119Verse = false;
   let lastVerseNumber = 0;
   const verseEnds = new Map<number, number>();
+  const footnotes = new Map<number, NonNullable<ParsedVerse["footnotes"]>>();
   let activeBridge: { start: number; end: number } | null = null;
 
   const appendText = (
@@ -304,6 +309,34 @@ export function parseVerseContent(
     wordsOfJesus = false,
   ) => {
     if (!node || typeof node !== "object") return;
+
+    // Notes have their own text tree; never visit it as Scripture, including
+    // cross-reference and unsupported note styles.
+    if (node.name === "note") {
+      if (!["f", "fe"].includes(node.attrs?.style || "")) return;
+      const verseNumber = activeBridge?.start || verseNumberFromId(node.attrs?.verseId) ||
+        paragraphState.currentVerse || lastVerseNumber;
+      if (!verseNumber) return;
+      const references: string[] = [];
+      const noteText = (part: ApiBibleContentNode): string => {
+        if (part.attrs?.style === "fr") {
+          references.push(collectNodeText(part));
+          return "";
+        }
+        if (part.type === "text") return part.text || "";
+        return joinNodeText((part.items || []).map(noteText));
+      };
+      const text = cleanHeadingText(joinNodeText((node.items || []).map(noteText)));
+      if (!text) return;
+      const notes = footnotes.get(verseNumber) || [];
+      const id = node.attrs?.id || `${node.attrs?.verseId || verseNumber}!f.${notes.length + 1}`;
+      const reference = cleanHeadingText(joinNodeText(references));
+      if (!notes.some((note) => note.id === id)) {
+        notes.push({ id, text, ...(reference ? { reference } : {}) });
+      }
+      footnotes.set(verseNumber, notes);
+      return;
+    }
 
     if (node.name === "verse") {
       if (isPsalm119VerseId(node.attrs?.verseId)) sawPsalm119Verse = true;
@@ -427,6 +460,7 @@ export function parseVerseContent(
           ? { sectionHeadings: sectionHeadings.get(n) }
           : {}),
         ...(wordsOfJesus.length ? { wordsOfJesus } : {}),
+        ...(footnotes.has(n) ? { footnotes: footnotes.get(n) } : {}),
       };
     })
     .filter(({ text }) => text.length > 0);

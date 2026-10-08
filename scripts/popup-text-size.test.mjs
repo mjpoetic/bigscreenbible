@@ -44,6 +44,7 @@ const strongPopup = {
   addEventListener(name, fn) { strongListeners[name] = fn; listenerCount++; },
 };
 Object.assign(context, {
+  icons: { clear: '<svg></svg>' },
   normalizeStrongCodes: codes => codes, strongEntry: () => ({ code: 'G1401' }),
   strongLookupCard: () => '<div class="strong-card">Servant</div>',
   strongLexiconStatus: 'ready', escapeHtml: value => value,

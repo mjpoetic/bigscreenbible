@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
+function extract(name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.ok(start >= 0, name);
+  const next = source.indexOf('\nfunction ', start + 1);
+  const asyncNext = source.indexOf('\nasync function ', start + 1);
+  const end = Math.min(...[next, asyncNext].filter(n => n >= 0));
+  return source.slice(start, end);
+}
+const ctx = {
+  state: { mode: 'reader', reference: 'Luke 4' }, window: {},
+  bibleData: { 'Luke 4': { verses: [{ n: 33, BSB: 'Other version.', footnotes: { BSB: [{text:'Preserved.'}] } }] } },
+  normalizeRemoteProviderText: (_, text) => text,
+  translationDisplayCode: v => v,
+  translationLookup: { NLT: { name: 'New Living Translation' } },
+  icons: { footnote: '<svg></svg>' },
+  escapeHtml: value => String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'),
+  apiBibleAttributionMarkup: (versions, cls, chapter) => `<aside>${versions[0]} ${chapter}</aside>`,
+};
+vm.createContext(ctx);
+vm.runInContext(['versionVerseLabel', 'publisherFootnotesForVerse', 'publisherFootnoteButtonMarkup', 'publisherFootnotePopupMarkup', 'mergeRemoteVersionChapter'].map(extract).join('\n'), ctx);
+const remote = [{n:33,text:'Scripture.',footnotes:[{id:'n1',reference:'4:33',text:'Greek unclean; also in 4:36.'}]}];
+ctx.mergeRemoteVersionChapter('NLT','Luke 4',remote);
+const verse = ctx.bibleData['Luke 4'].verses[0];
+assert.equal(verse.NLT,'Scripture.');
+assert.equal(verse.footnotes.NLT[0].text,remote[0].footnotes[0].text);
+assert.match(ctx.publisherFootnoteButtonMarkup(verse,'NLT'),/Footnote for Luke 4:33 \(NLT\)/);
+assert.match(ctx.publisherFootnoteButtonMarkup(verse,'NLT','Luke 5'),/data-footnote-chapter="Luke 5"/);
+assert.equal(ctx.publisherFootnoteButtonMarkup(verse,'BSB'),'');
+assert.equal(ctx.publisherFootnoteButtonMarkup({n:1},'NLT'),'');
+ctx.state.mode='big'; assert.equal(ctx.publisherFootnoteButtonMarkup(verse,'NLT'),'');
+ctx.state.mode='reader'; ctx.window.bsbOffline={active:true}; assert.equal(ctx.publisherFootnoteButtonMarkup(verse,'NLT'),'');
+ctx.window.bsbOffline=null;
+verse.footnotes.NLT[0].text='<img src=x onerror=alert(1)>';
+const popup = ctx.publisherFootnotePopupMarkup(verse,'NLT','Luke 4');
+assert.match(popup,/&lt;img/); assert.doesNotMatch(popup,/<img/); assert.match(popup,/Publisher footnotes/);
+ctx.mergeRemoteVersionChapter('NLT','Luke 4',[{n:33,text:'Refreshed.'}]);
+assert.equal(verse.footnotes.NLT,undefined);
+assert.equal(verse.footnotes.BSB[0].text,'Preserved.');
+ctx.mergeRemoteVersionChapter('NLT','Luke 4',[{n:33,verseEnd:34,text:'Combined.',footnotes:remote[0].footnotes}]);
+assert.equal(ctx.bibleData['Luke 4'].verses[0].footnotes.NLT.length,1);
+assert.equal(ctx.publisherFootnotesForVerse(ctx.bibleData['Luke 4'].verses[1],'NLT').length,0);
+console.log('Publisher footnote data and markup tests passed');

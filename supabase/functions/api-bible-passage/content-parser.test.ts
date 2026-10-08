@@ -473,3 +473,49 @@ Deno.test("preserves combined verse markers without assigning text to only the l
     throw new Error(JSON.stringify(result));
   }
 });
+
+// Real provider note nodes, with synthetic verse text to keep licensed fixtures small.
+import nltNotes from "./fixtures/nlt-luke4-footnotes.json" with { type: "json" };
+
+Deno.test("extracts the verified NLT Luke footnotes without changing Scripture or red-letter offsets", () => {
+  const content: ApiBibleContentNode[] = nltNotes.map((note, index) => ({
+    name: "para", type: "tag", items: [
+      { name: "verse", attrs: { number: String(index ? 44 : 33) } },
+      { name: "char", attrs: { style: "wj" }, items: [
+        { type: "text", text: "Before", attrs: { verseId: note.attrs.verseId } },
+        note,
+        { type: "text", text: ", after.", attrs: { verseId: note.attrs.verseId } },
+      ] },
+    ],
+  }));
+  const actual = parseVerseContent(content);
+  assertEquals(actual.map((verse) => verse.footnotes), [
+    [{ id: "LUK.4.33!f.1", text: "Greek unclean; also in 4:36.", reference: "4:33" }],
+    [{ id: "LUK.4.44!f.1", text: "Some manuscripts read Galilee.", reference: "4:44" }],
+  ]);
+  const stripNotes = (node: ApiBibleContentNode): ApiBibleContentNode => ({
+    ...node, ...(node.items ? { items: node.items.filter((child) => child.name !== "note").map(stripNotes) } : {}),
+  });
+  assertEquals(actual.map(({ footnotes: _notes, ...verse }) => verse), parseVerseContent(content.map(stripNotes)));
+});
+
+Deno.test("keeps multiple footnotes on a bridged verse and excludes cross references and empty notes", () => {
+  const note = (style: string, text: string, id?: string): ApiBibleContentNode => ({
+    name: "note", attrs: { style, ...(id ? { id } : {}) },
+    items: [{ type: "text", text }],
+  });
+  const actual = parseVerseContent([{ name: "para", items: [
+    { name: "verse", attrs: { number: "10–11", verseId: "LUK.4.11" } },
+    { type: "text", text: "Combined Scripture.", attrs: { verseId: "LUK.4.11" } },
+    note("f", "First note.", "first"),
+    note("fe", "Second note."),
+    note("f", "Duplicate note.", "first"),
+    note("x", "Excluded cross reference."),
+    note("unknown", "Excluded unknown note."),
+    note("f", "  "),
+  ] }]);
+  assertEquals(actual, [{
+    n: 10, text: "Combined Scripture.", paragraphStart: true, verseEnd: 11,
+    footnotes: [{ id: "first", text: "First note." }, { id: "10!f.2", text: "Second note." }],
+  }]);
+});

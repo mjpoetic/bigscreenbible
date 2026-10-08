@@ -1,0 +1,124 @@
+[
+  {
+    "name": "note",
+    "type": "tag",
+    "attrs": {
+      "caller": "*",
+      "style": "f",
+      "id": "LUK.4.33!f.1",
+      "verseId": "LUK.4.33"
+    },
+    "items": [
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "fr",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "4:33 ",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "ft",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "Greek ",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "fqa",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "unclean; ",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "ft",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "also in 4:36.",
+            "type": "text"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "note",
+    "type": "tag",
+    "attrs": {
+      "caller": "*",
+      "style": "f",
+      "id": "LUK.4.44!f.1",
+      "verseId": "LUK.4.44"
+    },
+    "items": [
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "fr",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "4:44 ",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "ft",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "Some manuscripts read ",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "char",
+        "type": "tag",
+        "attrs": {
+          "style": "fqa",
+          "closed": "false"
+        },
+        "items": [
+          {
+            "text": "Galilee.",
+            "type": "text"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -13,7 +13,7 @@ const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
 const maximumSearchQueryLength = 120;
 const maximumSearchResults = 20;
-const parserVersion = "2026-09-07-combined-verses";
+const parserVersion = "2026-10-08-nlt-footnotes";
 
 type AuthorizedBible = {
   code: ApiBibleTranslationCode;
@@ -315,7 +315,7 @@ Deno.serve(async (request) => {
 
     const query = new URLSearchParams({
       "content-type": "json",
-      "include-notes": "false",
+      "include-notes": version === "NLT" ? "true" : "false",
       "include-titles": "true",
       "include-chapter-numbers": "false",
       "include-verse-numbers": "true",
