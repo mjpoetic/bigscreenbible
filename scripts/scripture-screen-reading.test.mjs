@@ -6,7 +6,7 @@ const code = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'u
 const functions = code.slice(code.indexOf('function scriptureReadingSource()'), code.indexOf('function accessibilitySettings('));
 const state = { scriptureScreenReading: true, mode: 'reader', verse: 3, reference: 'John 1', versions: ['BSB', 'KJV'] };
 const row = n => ({ dataset: { verse: String(n) } });
-const node = (n, text, version = '') => ({ textContent: text, dataset: { version }, matches: () => false, closest: () => n === null ? null : row(n) });
+const node = (n, text, version = '') => ({ textContent: text, dataset: { version }, cloneNode: () => ({ textContent: text, querySelectorAll: () => [] }), matches: () => false, closest: () => n === null ? null : row(n) });
 let nodes = [node(1, ' In the beginning '), node(2, 'He was with God.'), node(3, '<All things>'), node(4, 'In Him was life.')];
 let rows = [1, 2, 3, 4].map(row);
 const source = { querySelectorAll: selector => selector === '[data-verse]' ? rows : selector.includes('attribution') ? [] : nodes, querySelector: selector => selector === 'h1' ? { textContent: 'John 1' } : row(1) };
@@ -15,8 +15,10 @@ let closeCallback;
 const savedPreferences = new Map();
 let renders = 0;
 const dialog = { setAttribute() {}, querySelector: () => ({ focus() { focused = true; } }), addEventListener(type, callback) { if (type === 'close') closeCallback = callback; }, showModal() { modal = true; }, remove() { removed = true; } };
-const context = vm.createContext({ state, localStorage: { setItem: (key, value) => savedPreferences.set(key, value) }, renderPreservingReaderScroll() { renders++; }, document: { querySelector: () => source, getElementById: () => null, createElement: () => dialog, body: { append() {} } }, escapeHtml: s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'), activePassageLabel: () => 'John 1', activeVersions: () => state.versions, translationDisplayCode: s => s, pauseReaderAutoScroll() {}, finishReaderVerseHold() {}, showToast() { throw new Error('Unexpected empty passage'); } });
+const context = vm.createContext({ state, localStorage: { getItem: key => savedPreferences.get(key) || null, setItem: (key, value) => savedPreferences.set(key, value) }, renderPreservingReaderScroll() { renders++; }, document: { documentElement: { classList: { add() {}, remove() {} } }, querySelector: selector => selector === ".scripture-reading-dialog[open]" ? null : source, getElementById: () => null, createElement: () => dialog, body: { append() {} } }, escapeHtml: s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'), activePassageLabel: () => 'John 1', activeVersions: () => state.versions, translationDisplayCode: s => s, pauseReaderAutoScroll() {}, finishReaderVerseHold() {}, showToast() { throw new Error('Unexpected empty passage'); } });
 vm.runInContext(functions, context);
+const bindWorkspace = context.bindImmersiveScriptureReader;
+context.bindImmersiveScriptureReader = () => {};
 const entries = from => JSON.parse(JSON.stringify(context.scriptureReadingEntries(source, from)));
 assert.equal(entries(false).length, 4);
 assert.deepEqual(entries(true).map(e => e.text), ['<All things>', 'In Him was life.']);
@@ -27,7 +29,7 @@ assert.deepEqual(entries(true).map(e => e.text), ['Combined two and three', 'Fou
 nodes = [node(2, 'BSB text', 'BSB'), node(2, 'KJV text', 'KJV'), node(4, 'Next verse', 'BSB')];
 assert.deepEqual(entries(true).map(e => e.version), ['BSB', 'KJV', 'BSB']);
 // Enabled section headings retain their semantic role and follow verse filtering.
-const heading = { textContent: 'Section', dataset: {}, matches: () => true, closest: () => ({ dataset: { headingVerse: '1' } }) };
+const heading = { cloneNode: () => ({ textContent: 'Section', querySelectorAll: () => [] }), textContent: 'Section', dataset: {}, matches: () => true, closest: () => ({ dataset: { headingVerse: '1' } }) };
 nodes = [heading, node(2, 'Text')];
 assert.equal(entries(false)[0].heading, true);
 assert.equal(entries(true).some(e => e.heading), false);
@@ -55,4 +57,75 @@ assert.equal(savedPreferences.get('lw_scripture_screen_reading'), 'true');
 assert.equal(renders, 2);
 assert.ok(context.scriptureScreenReadingSettings().includes('data-scripture-reading-view="passage"'));
 assert.ok(context.scriptureScreenReadingSettings('presentation').includes('id="presentationScriptureScreenReadingToggle"'));
-console.log('Scripture screen-reading checks passed');
+// Preferences are bounded, validated, and resilient to malformed saved data.
+const defaults = JSON.parse(JSON.stringify(context.normalizedScriptureReaderPreferences()));
+assert.equal(defaults.size, 26);
+assert.equal(context.normalizedScriptureReaderPreferences({ size: 100, rate: 0.1, theme: 'unknown' }).size, 48);
+assert.equal(context.normalizedScriptureReaderPreferences({ rate: 0.1 }).rate, 0.5);
+assert.equal(context.normalizedScriptureReaderPreferences(null).theme, 'light');
+assert.ok(dialog.innerHTML.includes('Text preferences'));
+assert.ok(dialog.innerHTML.includes('data-reading-play'));
+
+// Exercise the workspace's real event handlers with a device speech engine double.
+class Element {
+  constructor(text = '') { this.textContent = text; this.dataset = {}; this.handlers = {}; this.classes = new Set(); this.classList = { toggle: (key, on) => on ? this.classes.add(key) : this.classes.delete(key) }; }
+  addEventListener(type, callback) { (this.handlers[type] ||= []).push(callback); }
+  removeEventListener(type, callback) { this.handlers[type] = (this.handlers[type] || []).filter(item => item !== callback); }
+  fire(type) { for (const callback of this.handlers[type] || []) callback({ stopPropagation() {} }); }
+  setAttribute(key, value) { this[key] = value; }
+  focus() { this.focused = true; }
+  scrollIntoView() { this.scrolled = true; }
+}
+const controls = new Map();
+const control = selector => { if (!controls.has(selector)) controls.set(selector, new Element()); return controls.get(selector); };
+const passages = [new Element('First verse'), new Element('Second verse'), new Element('Third verse')];
+const preferencesInput = new Element(); preferencesInput.type = 'select-one'; preferencesInput.dataset.readingPreference = 'theme';
+const workspace = new Element(); workspace.style = { setProperty() {} };
+workspace.querySelector = control;
+workspace.querySelectorAll = selector => selector === '[data-reading-passage]' ? passages : selector === '[data-reading-preference]' ? [preferencesInput] : [];
+workspace.close = () => workspace.fire('close');
+control('article').querySelector = control;
+let spoken = [], cancellations = 0, paused = 0, resumed = 0;
+const engine = new Element();
+Object.assign(engine, { getVoices: () => [], speak: utterance => spoken.push(utterance), cancel: () => cancellations++, pause: () => paused++, resume: () => resumed++ });
+const fakeWindow = new Element(); fakeWindow.speechSynthesis = engine;
+fakeWindow.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; } };
+context.window = fakeWindow;
+context.document.addEventListener = () => {};
+context.document.removeEventListener = () => {};
+context.document.documentElement = { lang: 'en' };
+bindWorkspace(workspace, { ...defaults, focus: 'one' });
+assert.ok(passages[0].classes.has('reading-in-focus'));
+control('[data-reading-play]').fire('click');
+assert.equal(spoken[0].text, 'First verse');
+spoken[0].onstart();
+assert.ok(passages[0].scrolled);
+control('[data-reading-play]').fire('click'); assert.equal(paused, 1);
+control('[data-reading-play]').fire('click'); assert.equal(resumed, 2);
+spoken[0].onend(); assert.equal(spoken[1].text, 'Second verse');
+control('[data-reading-next]').fire('click'); assert.equal(spoken[2].text, 'Third verse');
+assert.ok(passages[2].classes.has('reading-in-focus'));
+control('[data-reading-hide]').fire('click'); assert.equal(control('header').hidden, true);
+assert.equal(control('footer').hidden, true);
+control('[data-reading-show]').fire('click'); assert.equal(control('header').hidden, false);
+preferencesInput.value = 'dark'; preferencesInput.fire('change'); assert.equal(workspace.dataset.theme, 'dark');
+assert.equal(JSON.parse(savedPreferences.get('lw_scripture_reader_preferences')).theme, 'dark');
+workspace.close();
+assert.ok(cancellations >= 2);
+const count = spoken.length;
+spoken.at(-1).onend(); assert.equal(spoken.length, count, 'Closing cannot queue another verse');
+assert.equal(engine.handlers.voiceschanged.length, 0, 'Voice listener is removed on close');
+// Missing speech support keeps the visual/accessibility workspace usable.
+context.window = new Element();
+const fallbackControls = new Map();
+const fallbackControl = selector => { if (!fallbackControls.has(selector)) fallbackControls.set(selector, new Element()); return fallbackControls.get(selector); };
+const fallback = new Element();
+fallback.style = { setProperty() {} };
+fallback.querySelector = fallbackControl;
+fallback.querySelectorAll = selector => selector === '[data-reading-passage]' ? passages : [];
+fallbackControl('article').querySelector = fallbackControl;
+bindWorkspace(fallback, defaults);
+assert.equal(fallbackControl('[data-reading-play]').disabled, true);
+assert.equal(fallbackControl('[data-reading-voice-controls]').hidden, true);
+assert.match(fallbackControl('[data-reading-status]').textContent, /device’s screen-reading tools/);
+console.log('Scripture screen-reading and immersive workspace checks passed');

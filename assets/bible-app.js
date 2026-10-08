@@ -4200,11 +4200,195 @@ function scriptureReadingEntries(source, fromVerse = false) {
       return !fromVerse || !row || Number(row.dataset.verse || row.dataset.headingVerse) >= start;
     })
     .map((node) => ({
-      text: node.textContent.trim(),
+      text: (() => {
+        const copy = node.cloneNode(true);
+        copy.querySelectorAll(".publisher-footnote-trigger, [aria-hidden='true'], .sr-only").forEach((item) => item.remove());
+        return copy.textContent.trim();
+      })(),
       version: node.dataset.version || "",
       heading: node.matches(".scripture-heading"),
     }))
     .filter((entry) => entry.text);
+}
+
+function normalizedScriptureReaderPreferences(value = {}) {
+  if (!value || typeof value !== "object") value = {};
+  const choice = (key, allowed, fallback) => allowed.includes(value[key]) ? value[key] : fallback;
+  const number = (key, min, max, fallback) => Number.isFinite(Number(value[key])) ? Math.min(max, Math.max(min, Number(value[key]))) : fallback;
+  return {
+    size: number("size", 18, 48, 26),
+    font: choice("font", ["sans", "serif", "mono"], "sans"),
+    theme: choice("theme", ["light", "sepia", "dark"], "light"),
+    spacing: choice("spacing", ["normal", "wide"], "normal"),
+    width: choice("width", ["narrow", "comfortable", "wide"], "comfortable"),
+    focus: choice("focus", ["off", "one", "three"], "off"),
+    rate: number("rate", 0.5, 2, 1),
+    voice: typeof value.voice === "string" ? value.voice.slice(0, 500) : "",
+  };
+}
+
+function scriptureReaderPreferences() {
+  try { return normalizedScriptureReaderPreferences(JSON.parse(localStorage.getItem("lw_scripture_reader_preferences") || "{}") || {}); }
+  catch { return normalizedScriptureReaderPreferences(); }
+}
+
+function scriptureReaderControls(preferences) {
+  const select = (key, label, options) => `<label>${label}<select data-reading-preference="${key}">${options.map(([value, text]) => `<option value="${value}" ${preferences[key] === value ? "selected" : ""}>${text}</option>`).join("")}</select></label>`;
+  return `<header class="immersive-reader-toolbar" aria-label="Reading workspace controls">
+    <button type="button" data-reading-close>← Back</button>
+    <span class="immersive-reader-brand">Scripture reader</span>
+    <details class="immersive-reader-preferences"><summary>Text preferences</summary><div class="immersive-reader-options">
+      <label>Text size <output data-reading-size-value>${preferences.size}px</output><input aria-label="Reading text size" type="range" min="18" max="48" step="1" value="${preferences.size}" data-reading-preference="size" /></label>
+      ${select("font", "Font", [["sans", "Sans serif"], ["serif", "Serif"], ["mono", "Monospace"]])}
+      ${select("theme", "Page color", [["light", "Light"], ["sepia", "Sepia"], ["dark", "Dark"]])}
+      ${select("spacing", "Text spacing", [["normal", "Standard"], ["wide", "Extra spacing"]])}
+      ${select("width", "Column width", [["narrow", "Narrow"], ["comfortable", "Comfortable"], ["wide", "Wide"]])}
+      ${select("focus", "Passage focus", [["off", "Off"], ["one", "One passage"], ["three", "Three passages"]])}
+      <button type="button" data-reading-reset>Reset preferences</button>
+    </div></details>
+    <button type="button" data-reading-hide>Hide controls</button>
+  </header>`;
+}
+
+function bindImmersiveScriptureReader(dialog, preferences) {
+  const article = dialog.querySelector("article");
+  const paragraphs = [...dialog.querySelectorAll("[data-reading-passage]")];
+  const position = dialog.querySelector("[data-reading-position]");
+  const status = dialog.querySelector("[data-reading-status]");
+  const play = dialog.querySelector("[data-reading-play]");
+  const synth = window.speechSynthesis;
+  const canSpeak = Boolean(synth && window.SpeechSynthesisUtterance);
+  let current = 0;
+  let utterance = null;
+  let paused = false;
+  let closed = false;
+  let voices = [];
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const save = () => localStorage.setItem("lw_scripture_reader_preferences", JSON.stringify(preferences));
+  const apply = () => {
+    for (const key of ["font", "theme", "spacing", "width", "focus"]) dialog.dataset[key] = preferences[key];
+    dialog.style.setProperty("--reading-size", `${preferences.size}px`);
+    dialog.querySelector("[data-reading-size-value]").textContent = `${preferences.size}px`;
+  };
+  const paint = (scroll = false) => {
+    const count = preferences.focus === "three" ? 3 : 1;
+    paragraphs.forEach((node, index) => {
+      node.classList.toggle("reading-current", index === current);
+      node.classList.toggle("reading-in-focus", index >= current && index < current + count);
+    });
+    position.textContent = `Passage ${current + 1} of ${paragraphs.length}`;
+    dialog.querySelector("[data-reading-previous]").disabled = current === 0;
+    dialog.querySelector("[data-reading-next]").disabled = current === paragraphs.length - 1;
+    if (scroll) paragraphs[current]?.scrollIntoView({ block: "center", behavior: reducedMotion ? "instant" : "smooth" });
+  };
+  const stop = (announce = false) => {
+    const wasSpeaking = Boolean(utterance);
+    utterance = null;
+    paused = false;
+    if (wasSpeaking) synth?.cancel();
+    dialog.dataset.speaking = "false";
+    play.textContent = "Read aloud";
+    play.setAttribute("aria-pressed", "false");
+    if (announce) status.textContent = "Reading stopped.";
+  };
+  const speak = () => {
+    if (closed || !canSpeak || !paragraphs[current]) return;
+    const next = new window.SpeechSynthesisUtterance(paragraphs[current].textContent.trim());
+    utterance = next;
+    next.rate = preferences.rate;
+    next.lang = document.documentElement.lang || "en";
+    const voice = voices.find((item) => item.voiceURI === preferences.voice);
+    if (voice) next.voice = voice;
+    next.onstart = () => {
+      if (utterance !== next || closed) return;
+      dialog.dataset.speaking = "true";
+      if (status.textContent !== "Reading aloud.") status.textContent = "Reading aloud.";
+      paint(true);
+    };
+    next.onend = () => {
+      if (utterance !== next || closed) return;
+      utterance = null;
+      if (current < paragraphs.length - 1) { current++; paint(); speak(); }
+      else { stop(); status.textContent = "End of passage."; }
+    };
+    next.onerror = () => {
+      if (utterance !== next || closed) return;
+      stop();
+      status.textContent = "Read aloud is unavailable. You can use your device’s screen-reading tools instead.";
+    };
+    play.textContent = "Pause";
+    play.setAttribute("aria-pressed", "true");
+    try { synth.speak(next); } catch { next.onerror(); }
+  };
+  const move = (direction) => {
+    const resume = Boolean(utterance) && !paused;
+    stop();
+    current = Math.max(0, Math.min(paragraphs.length - 1, current + direction));
+    paint(true);
+    if (resume) speak();
+  };
+  const populateVoices = () => {
+    if (!canSpeak || closed) return;
+    voices = synth.getVoices();
+    dialog.querySelector("[data-reading-preference='voice']").innerHTML = `<option value="">Device default</option>${voices.map((voice) => `<option value="${escapeHtml(voice.voiceURI)}" ${preferences.voice === voice.voiceURI ? "selected" : ""}>${escapeHtml(`${voice.name} (${voice.lang})`)}</option>`).join("")}`;
+  };
+  dialog.querySelectorAll("[data-reading-preference]").forEach((input) => {
+    input.addEventListener(input.type === "range" ? "input" : "change", () => {
+      const key = input.dataset.readingPreference;
+      preferences = normalizedScriptureReaderPreferences({ ...preferences, [key]: input.value });
+      save(); apply(); paint();
+      // Changing voice or speed takes effect from the current passage.
+      if (["voice", "rate"].includes(key) && utterance) {
+        const resume = !paused;
+        stop();
+        if (resume) speak();
+      }
+    });
+  });
+  dialog.querySelector("[data-reading-reset]").addEventListener("click", () => {
+    stop(); preferences = normalizedScriptureReaderPreferences(); save(); apply(); paint();
+    dialog.querySelectorAll("[data-reading-preference]").forEach((input) => { input.value = preferences[input.dataset.readingPreference]; });
+    status.textContent = "Reading preferences reset.";
+  });
+  play.disabled = !canSpeak;
+  dialog.querySelector("[data-reading-voice-controls]").hidden = !canSpeak;
+  if (!canSpeak) status.textContent = "Use your device’s screen-reading tools to listen to this passage.";
+  play.addEventListener("click", () => {
+    if (!utterance) { synth?.cancel(); synth?.resume(); speak(); }
+    else if (paused) { paused = false; synth.resume(); play.textContent = "Pause"; status.textContent = "Reading aloud."; }
+    else { paused = true; synth.pause(); play.textContent = "Resume"; status.textContent = "Reading paused."; }
+  });
+  dialog.querySelector("[data-reading-stop]").addEventListener("click", () => stop(true));
+  dialog.querySelector("[data-reading-previous]").addEventListener("click", () => move(-1));
+  dialog.querySelector("[data-reading-next]").addEventListener("click", () => move(1));
+  dialog.querySelector("[data-reading-start]").addEventListener("click", () => article.querySelector("h1").focus());
+  dialog.querySelector("[data-reading-close]").addEventListener("click", () => dialog.close());
+  const toolbar = dialog.querySelector("header");
+  const footer = dialog.querySelector("footer");
+  const restore = dialog.querySelector("[data-reading-show]");
+  dialog.querySelector("[data-reading-hide]").addEventListener("click", () => {
+    toolbar.hidden = true; footer.hidden = true; restore.hidden = false;
+    dialog.querySelector("details").open = false;
+    article.querySelector("h1").focus({ preventScroll: true });
+  });
+  restore.addEventListener("click", () => {
+    toolbar.hidden = false; footer.hidden = false; restore.hidden = true;
+    dialog.querySelector("[data-reading-hide]").focus({ preventScroll: true });
+  });
+  // Isolate workspace keys from the underlying app, retaining native dialog Escape/Tab.
+  dialog.addEventListener("keydown", (event) => { event.stopPropagation(); });
+  const suspend = () => { if (document.hidden) stop(); };
+  const pageHide = () => stop();
+  document.addEventListener("visibilitychange", suspend);
+  window.addEventListener("pagehide", pageHide);
+  synth?.addEventListener("voiceschanged", populateVoices);
+  dialog.addEventListener("close", () => {
+    closed = true; stop();
+    document.removeEventListener("visibilitychange", suspend);
+    window.removeEventListener("pagehide", pageHide);
+    synth?.removeEventListener("voiceschanged", populateVoices);
+  }, { once: true });
+  apply(); paint(); populateVoices();
 }
 
 function openScriptureReadingView(fromVerse = false, trigger = document.activeElement) {
@@ -4228,12 +4412,25 @@ function openScriptureReadingView(fromVerse = false, trigger = document.activeEl
   const credits = [...(attribution?.querySelectorAll("[class*='attribution']") || [])]
     .filter((node) => !node.parentElement.closest("[class*='attribution']"))
     .map((node) => node.outerHTML);
-  dialog.innerHTML = `<article aria-label="Scripture"><h1 id="scriptureReadingTitle" tabindex="-1">${escapeHtml(title)}</h1><p class="scripture-reading-version">${escapeHtml(readingVersions.map(translationDisplayCode).join(" / "))}</p>${entries.map((entry) => entry.heading ? `<h2>${escapeHtml(entry.text)}</h2>` : `<p>${entry.version ? `<span class="scripture-reading-version">${escapeHtml(translationDisplayCode(entry.version))}: </span>` : ""}${escapeHtml(entry.text)}</p>`).join("")}${credits.join("")}</article><form method="dialog"><button class="ghost-btn" autofocus>Close reading view</button></form>`;
+  const preferences = scriptureReaderPreferences();
+  let passageIndex = 0;
+  dialog.innerHTML = `${scriptureReaderControls(preferences)}
+    <div class="immersive-reader-scroll"><article aria-label="Scripture" class="immersive-reader-text"><h1 id="scriptureReadingTitle" tabindex="-1">${escapeHtml(title)}</h1><p class="scripture-reading-version">${escapeHtml(readingVersions.map(translationDisplayCode).join(" / "))}</p>${entries.map((entry) => entry.heading ? `<h2>${escapeHtml(entry.text)}</h2>` : `<p data-reading-passage="${passageIndex++}">${entry.version ? `<span class="scripture-reading-version">${escapeHtml(translationDisplayCode(entry.version))}: </span>` : ""}${escapeHtml(entry.text)}</p>`).join("")}${credits.join("")}</article></div>
+    <footer class="immersive-reader-playback" aria-label="Reading controls">
+      <div class="immersive-reader-navigation"><button type="button" data-reading-previous aria-label="Previous passage">↑</button><span data-reading-position></span><button type="button" data-reading-next aria-label="Next passage">↓</button><button type="button" data-reading-start>Go to Scripture</button></div>
+      <div class="immersive-reader-speech"><button type="button" data-reading-play aria-pressed="false">Read aloud</button><button type="button" data-reading-stop>Stop</button><details class="immersive-reader-voice-options" data-reading-voice-controls><summary>Voice &amp; speed</summary><div class="immersive-reader-voice-panel"><label>Speed<select data-reading-preference="rate">${[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => `<option value="${rate}" ${preferences.rate === rate ? "selected" : ""}>${rate}×</option>`).join("")}</select></label><label>Voice<select data-reading-preference="voice"><option value="">Device default</option></select></label></div></details></div>
+      <span class="immersive-reader-status" data-reading-status role="status" aria-live="polite"></span>
+    </footer>
+    <button type="button" class="immersive-reader-show" data-reading-show hidden>Show controls</button>`;
+  document.documentElement.classList.add("scripture-reader-open");
   document.body.append(dialog);
   dialog.addEventListener("close", () => {
     dialog.remove();
-    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    if (!document.querySelector(".scripture-reading-dialog[open]")) document.documentElement.classList.remove("scripture-reader-open");
+    const returnTarget = trigger?.isConnected ? trigger : document.getElementById(state.mode === "big" ? "presentationSettingsToggle" : "settingsToggle");
+    returnTarget?.focus({ preventScroll: true });
   }, { once: true });
+  bindImmersiveScriptureReader(dialog, preferences);
   dialog.showModal();
   dialog.querySelector("h1").focus({ preventScroll: true });
 }
@@ -4280,7 +4477,7 @@ function scriptureScreenReadingSettings(prefix = "") {
   const toggleId = prefix ? `${prefix}ScriptureScreenReadingToggle` : "scriptureScreenReadingToggle";
   return `<div class="setting-group" data-settings-search-item data-settings-search-text="screen reading screen reader Siri Speak Screen VoiceOver native speech selection">
     <label class="setting-checkbox"><input type="checkbox" id="${toggleId}" data-scripture-screen-reading-toggle ${state.scriptureScreenReading ? "checked" : ""} /><span>Enable Scripture screen reading</span></label>
-    <p class="setting-help">Open a simplified Scripture view for your device’s reading and accessibility tools. Start at the beginning of a passage or your current verse, and select text without activating verse actions.</p>
+    <p class="setting-help">Open a full-screen Scripture reader with adjustable text, colors, spacing, passage focus, and read-aloud controls. Start at the beginning of a passage or your current verse. Your device’s accessibility tools and text selection remain available.</p>
     ${state.scriptureScreenReading ? `<div class="settings-page-actions"><button class="ghost-btn" type="button" data-scripture-reading-view="passage" ${state.mode === "trivia" ? "disabled" : ""}>Scripture reading view</button><button class="ghost-btn" type="button" data-scripture-reading-view="verse" ${state.mode === "trivia" ? "disabled" : ""}>From current verse</button></div>` : ""}
   </div>`;
 }
