@@ -11503,11 +11503,11 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  min-height: 32px;
-  margin-inline: 2px;
-  padding: 6px;
-  vertical-align: middle;
+  width: 24px;
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+  vertical-align: super;
   border: 0;
   border-radius: 4px;
   background: transparent;
@@ -11516,31 +11516,32 @@ select {
   touch-action: manipulation;
 }
 
-.publisher-footnote-trigger span,
-.publisher-footnote-trigger svg {
+.publisher-footnote-trigger span {
   display: block;
-  width: 14px;
-  height: 14px;
+  font: 600 20px / 1 "Inter", Arial, sans-serif;
 }
 
 .publisher-footnote-trigger:focus-visible {
   outline: 2px solid var(--teal);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-@media (pointer: coarse) {
-  .publisher-footnote-trigger { width: 44px; min-height: 44px; }
-}
-
-.publisher-footnote-source {
+.publisher-footnote-popup .publisher-footnote-attribution {
+  margin: 12px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
   color: var(--muted);
-  font: 600 calc(12px * var(--popup-text-scale, 1)) / 1.5 var(--ui-font);
+  font: 400 calc(10px * var(--popup-text-scale, 1)) / 1.4 "Inter", Arial, sans-serif;
+}
+
+.publisher-footnote-popup .publisher-footnote-attribution span {
+  font: inherit;
 }
 
 .publisher-footnote-list {
   margin: 12px 0;
   padding-inline-start: 24px;
-  font: 400 calc(16px * var(--popup-text-scale, 1)) / 1.6 var(--ui-font);
+  font: 400 calc(16px * var(--popup-text-scale, 1)) / 1.6 "Inter", Arial, sans-serif;
   overflow-wrap: anywhere;
 }
 

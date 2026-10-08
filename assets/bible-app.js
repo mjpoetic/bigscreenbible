@@ -8688,13 +8688,12 @@ function publisherFootnoteButtonMarkup(verse, version, chapterKey = state.refere
   if (!notes.length) return "";
   const reference = `${chapterKey}:${versionVerseLabel(verse, version)}`;
   const label = `${notes.length === 1 ? "Footnote" : `${notes.length} footnotes`} for ${reference} (${translationDisplayCode(version)})`;
-  return ` <button class="publisher-footnote-trigger" type="button" data-publisher-footnote="${verse.n}" data-footnote-chapter="${escapeHtml(chapterKey)}" data-footnote-version="${escapeHtml(version)}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-expanded="false" data-tooltip="Footnotes"><span aria-hidden="true">${icons.footnote}</span></button>`;
+  return `<button class="publisher-footnote-trigger" type="button" data-publisher-footnote="${verse.n}" data-footnote-chapter="${escapeHtml(chapterKey)}" data-footnote-version="${escapeHtml(version)}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-expanded="false" data-tooltip="Footnotes"><span aria-hidden="true">*</span></button>`;
 }
 
 function publisherFootnotePopupMarkup(verse, version, chapterKey) {
   const notes = publisherFootnotesForVerse(verse, version);
-  return `<p class="publisher-footnote-source">${escapeHtml(translationLookup[version]?.name || version)} · Publisher footnotes</p>
-    <ol class="publisher-footnote-list">${notes.map((note) => `<li>${note.reference ? `<span class="publisher-footnote-reference">${escapeHtml(note.reference)}</span> ` : ""}${escapeHtml(note.text)}</li>`).join("")}</ol>
+  return `<ol class="publisher-footnote-list">${notes.map((note) => `<li>${note.reference ? `<span class="publisher-footnote-reference">${escapeHtml(note.reference)}</span> ` : ""}${escapeHtml(note.text)}</li>`).join("")}</ol>
     ${apiBibleAttributionMarkup([version], "publisher-footnote-attribution", chapterKey)}`;
 }
 

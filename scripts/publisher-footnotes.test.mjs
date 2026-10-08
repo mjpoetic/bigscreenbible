@@ -36,7 +36,7 @@ ctx.state.mode='reader'; ctx.window.bsbOffline={active:true}; assert.equal(ctx.p
 ctx.window.bsbOffline=null;
 verse.footnotes.NLT[0].text='<img src=x onerror=alert(1)>';
 const popup = ctx.publisherFootnotePopupMarkup(verse,'NLT','Luke 4');
-assert.match(popup,/&lt;img/); assert.doesNotMatch(popup,/<img/); assert.match(popup,/Publisher footnotes/);
+assert.match(popup,/&lt;img/); assert.doesNotMatch(popup,/<img/); assert.doesNotMatch(popup,/Publisher footnotes|publisher-footnote-source/);
 ctx.mergeRemoteVersionChapter('NLT','Luke 4',[{n:33,text:'Refreshed.'}]);
 assert.equal(verse.footnotes.NLT,undefined);
 assert.equal(verse.footnotes.BSB[0].text,'Preserved.');
