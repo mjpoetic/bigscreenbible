@@ -4251,14 +4251,75 @@ function scriptureReaderControls(preferences) {
   </header>`;
 }
 
+function scriptureReaderSpeechEngine() {
+  const capacitor = window.Capacitor;
+  if (capacitor?.getPlatform?.() !== "android" || !capacitor.isNativePlatform?.()) {
+    return window.speechSynthesis && window.SpeechSynthesisUtterance
+      ? { synth: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance } : null;
+  }
+  // An older installed shell may receive newer web assets before its native update.
+  if (!capacitor.isPluginAvailable?.("BSBSpeech")) return null;
+  const plugin = capacitor.Plugins?.BSBSpeech || capacitor.registerPlugin("BSBSpeech");
+  let voices = [], active = null, disposed = false, paused = false, finishedWhilePaused = false, serial = 0;
+  let commands = Promise.resolve();
+  const session = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const command = (method, args = {}, utterance = active?.utterance) => {
+    commands = commands.then(() => {
+      if (method === "speak" && (disposed || active?.utterance !== utterance)) return;
+      return plugin[method]({ ...args, owner: session });
+    }).catch(() => {
+      if (!disposed && active?.utterance === utterance) utterance?.onerror?.();
+    });
+  };
+  const listener = plugin.addListener("speechEvent", event => {
+    if (disposed || event.id !== active?.id) return;
+    const utterance = active.utterance;
+    if (event.type === "start" && !paused) utterance.onstart?.();
+    else if (event.type === "done") {
+      if (paused) { finishedWhilePaused = true; return; }
+      active = null; utterance.onend?.();
+    }
+    else if (["error", "interrupted"].includes(event.type)) { active = null; utterance.onerror?.({ error: event.type }); }
+  });
+  const ready = Promise.all([listener, plugin.getVoices()]).then(([, result]) => { voices = result.voices || []; });
+  return {
+    ready,
+    Utterance: class { constructor(text) { this.text = text; } },
+    synth: {
+      getVoices: () => voices,
+      speak(utterance) {
+        if (disposed) return;
+        const id = `${session}-${++serial}`;
+        active = { id, utterance }; paused = false; finishedWhilePaused = false;
+        command("speak", { id, text: utterance.text, rate: utterance.rate, lang: utterance.lang, voice: utterance.voice?.voiceURI || "" }, utterance);
+      },
+      cancel() { active = null; paused = false; finishedWhilePaused = false; command("stop"); },
+      pause() { paused = true; command("pause"); },
+      resume() {
+        paused = false;
+        if (finishedWhilePaused && active) {
+          const utterance = active.utterance;
+          active = null; finishedWhilePaused = false;
+          Promise.resolve().then(() => { if (!disposed) utterance.onend?.(); });
+        } else command("resume");
+      },
+    },
+    dispose() {
+      disposed = true; active = null; command("stop");
+      listener.then(handle => handle.remove()).catch(() => {});
+    },
+  };
+}
+
 function bindImmersiveScriptureReader(dialog, preferences) {
   const article = dialog.querySelector("article");
   const paragraphs = [...dialog.querySelectorAll("[data-reading-passage]")];
   const position = dialog.querySelector("[data-reading-position]");
   const status = dialog.querySelector("[data-reading-status]");
   const play = dialog.querySelector("[data-reading-play]");
-  const synth = window.speechSynthesis;
-  const canSpeak = Boolean(synth && window.SpeechSynthesisUtterance);
+  const speech = scriptureReaderSpeechEngine();
+  const synth = speech?.synth;
+  let canSpeak = Boolean(speech && !speech.ready);
   let current = 0;
   let utterance = null;
   let paused = false;
@@ -4294,7 +4355,7 @@ function bindImmersiveScriptureReader(dialog, preferences) {
   };
   const speak = () => {
     if (closed || !canSpeak || !paragraphs[current]) return;
-    const next = new window.SpeechSynthesisUtterance(paragraphs[current].textContent.trim());
+    const next = new speech.Utterance(paragraphs[current].textContent.trim());
     utterance = next;
     next.rate = preferences.rate;
     next.lang = document.documentElement.lang || "en";
@@ -4312,10 +4373,10 @@ function bindImmersiveScriptureReader(dialog, preferences) {
       if (current < paragraphs.length - 1) { current++; paint(); speak(); }
       else { stop(); status.textContent = "End of passage."; }
     };
-    next.onerror = () => {
+    next.onerror = (event) => {
       if (utterance !== next || closed) return;
       stop();
-      status.textContent = "Read aloud is unavailable. You can use your device’s screen-reading tools instead.";
+      status.textContent = event?.error === "interrupted" ? "Reading stopped." : "Read aloud is unavailable. You can use your device’s screen-reading tools instead.";
     };
     play.textContent = "Pause";
     play.setAttribute("aria-pressed", "true");
@@ -4353,7 +4414,21 @@ function bindImmersiveScriptureReader(dialog, preferences) {
   });
   play.disabled = !canSpeak;
   dialog.querySelector("[data-reading-voice-controls]").hidden = !canSpeak;
-  if (!canSpeak) status.textContent = "Use your device’s screen-reading tools to listen to this passage.";
+  if (!canSpeak) {
+    const olderAndroidShell = window.Capacitor?.isNativePlatform?.() && window.Capacitor?.getPlatform?.() === "android"
+      && !window.Capacitor?.isPluginAvailable?.("BSBSpeech");
+    status.textContent = speech?.ready ? "Preparing your device’s speech engine…" : olderAndroidShell
+      ? "Update the installed Android app to use Read Aloud. Your device’s screen-reading tools remain available."
+      : "Use your device’s screen-reading tools to listen to this passage.";
+  }
+  speech?.ready?.then(() => {
+    if (closed) return;
+    canSpeak = true; play.disabled = false;
+    dialog.querySelector("[data-reading-voice-controls]").hidden = false;
+    populateVoices(); status.textContent = "Ready to read aloud.";
+  }).catch(() => {
+    if (!closed) status.textContent = "Read aloud is unavailable. Check your device’s text-to-speech engine and installed voices.";
+  });
   play.addEventListener("click", () => {
     if (!utterance) { synth?.cancel(); synth?.resume(); speak(); }
     else if (paused) { paused = false; synth.resume(); play.textContent = "Pause"; status.textContent = "Reading aloud."; }
@@ -4382,12 +4457,13 @@ function bindImmersiveScriptureReader(dialog, preferences) {
   const pageHide = () => stop();
   document.addEventListener("visibilitychange", suspend);
   window.addEventListener("pagehide", pageHide);
-  synth?.addEventListener("voiceschanged", populateVoices);
+  synth?.addEventListener?.("voiceschanged", populateVoices);
   dialog.addEventListener("close", () => {
     closed = true; stop();
     document.removeEventListener("visibilitychange", suspend);
     window.removeEventListener("pagehide", pageHide);
-    synth?.removeEventListener("voiceschanged", populateVoices);
+    synth?.removeEventListener?.("voiceschanged", populateVoices);
+    speech?.dispose?.();
   }, { once: true });
   apply(); paint(); populateVoices();
 }

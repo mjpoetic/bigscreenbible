@@ -163,3 +163,28 @@ assert.equal(shortcut(), true); assert.equal(closedByShortcut, 1);
 assert.equal(shortcut({ repeat: true }), true); assert.equal(closedByShortcut, 1);
 assert.ok(prevented > 0);
 console.log('Scripture reader quick access and keyboard guards passed');
+
+// Native availability arrives asynchronously and must not revive a closed reader.
+const nativeWorkspace = () => {
+  const controls = new Map();
+  const get = selector => { if (!controls.has(selector)) controls.set(selector, new Element()); return controls.get(selector); };
+  const view = new Element(); view.style = { setProperty() {} }; view.querySelector = get;
+  view.querySelectorAll = selector => selector === '[data-reading-passage]' ? passages : [];
+  get('article').querySelector = get;
+  return { view, get };
+};
+let initializeNative, disposedNative = 0;
+context.scriptureReaderSpeechEngine = () => ({ synth: engine, Utterance: fakeWindow.SpeechSynthesisUtterance,
+  ready: new Promise(resolve => { initializeNative = resolve; }), dispose() { disposedNative++; } });
+const nativeView = nativeWorkspace(); bindWorkspace(nativeView.view, defaults);
+assert.equal(nativeView.get('[data-reading-play]').disabled, true);
+assert.match(nativeView.get('[data-reading-status]').textContent, /Preparing/);
+initializeNative(); await Promise.resolve(); await Promise.resolve();
+assert.equal(nativeView.get('[data-reading-play]').disabled, false);
+assert.equal(nativeView.get('[data-reading-voice-controls]').hidden, false);
+assert.match(nativeView.get('[data-reading-status]').textContent, /Ready/);
+nativeView.view.fire('close'); assert.equal(disposedNative, 1);
+const closedNativeView = nativeWorkspace(); bindWorkspace(closedNativeView.view, defaults);
+closedNativeView.view.fire('close'); initializeNative(); await Promise.resolve(); await Promise.resolve();
+assert.equal(closedNativeView.get('[data-reading-play]').disabled, true);
+console.log('Native speech initialization and close-during-initialization passed');

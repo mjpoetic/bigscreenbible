@@ -80,3 +80,11 @@ Press **Shift+I** while reading to enable and open the Scripture reader. Press i
 When enabled, a compact text-and-speaker button appears near the bottom reading controls in Reader, Parallel, and Focus layouts, and beside Settings in Big Screen. Turning the Accessibility setting off removes these buttons. Enabling the feature does not start speech.
 
 The reader dialog owns safe-area padding, including when its controls are hidden. In mobile portrait Big Screen, the reader and Settings buttons stack within the existing Settings column. The reader launchers follow the selected Liquid Glass material and its accessibility fallbacks.
+
+## Native Android Read Aloud
+
+The installed Android app uses the device's TextToSpeech engine through BSBSpeech. Web browsers and iOS retain browser speech. Install a rebuilt Android app to receive this bridge; a web update alone cannot add it to an older shell. The regular Android build loads the live website, so the matching web assets must also be published for end-to-end use.
+
+Read Aloud enables after native speech initialization. Voice and speed preferences use the installed engine; missing voices or engine failures produce an explanatory status. Android pauses by stopping synthesis and resumes at the last word-position callback. Engines without word positions can restart the current chunk. Long passages split at word boundaries within Android's input limit. Stop, close, background, and activity destruction stop speech; stale completions cannot advance the passage. No microphone permission is needed.
+
+Physical-device checks: verify voice availability, audible output, pause/resume, speed changes, passage highlighting and advancement, long paragraphs, next/previous while speaking, close/reopen, background/foreground, and missing voice data.
