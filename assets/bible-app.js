@@ -17542,7 +17542,7 @@ function parallelVersionSelectorMarkup(version, index, { mobile = false } = {}) 
       ${activeVersions().length > 1 ? `<button class="parallel-version-grip" type="button" data-reorder-parallel-version="${version}" aria-label="Reorder ${translationDisplayCode(version)}. Drag or use Left and Right arrow keys. Leftmost version is primary." data-tooltip="Drag to reorder · Leftmost is primary"><svg viewBox="0 0 16 20" width="12" height="18" aria-hidden="true"><path d="M5 4h0M11 4h0M5 10h0M11 10h0M5 16h0M11 16h0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>` : ""}
       <button class="parallel-version-trigger" type="button" data-parallel-version-toggle="${index}" aria-label="Change ${translationDisplayCode(version)} Bible version" aria-haspopup="listbox" aria-expanded="${state.parallelVersionMenuIndex === index ? "true" : "false"}">
         <span>${translationDisplayCode(version)}</span>
-        <span class="parallel-version-trigger-chevron" aria-hidden="true">⌄</span>
+        <svg class="parallel-version-trigger-chevron" viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       ${removeButton}
     </div>
