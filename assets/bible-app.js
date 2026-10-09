@@ -7354,7 +7354,7 @@ function floatingControlsFadeEnabled() {
 
 function focusFloatingControls() {
   if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher")];
 }
 
 function focusControlsInUse() {

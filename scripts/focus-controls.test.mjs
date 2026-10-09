@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const functions = source.slice(source.indexOf('function normalizedFocusControlsHideSeconds('), source.indexOf('function resetFocusToolSurfaces('));
 let timers = new Map(), nextId = 0;
-const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls'].map(id => ({
+const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls', 'scriptureReaderLauncher'].map(id => ({
   id, focused: false, classes: new Set(),
   classList: { add(...names) { names.forEach(n => this.owner.classes.add(n)); }, remove(...names) { names.forEach(n => this.owner.classes.delete(n)); } },
   matches() { return this.focused; },
@@ -15,7 +15,9 @@ const context = vm.createContext({
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
   document: { querySelectorAll: selector => selector.startsWith(".reader-page-button")
     ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")))
-    : controls, getElementById: id => controls.find(b => b.id === id) },
+    : selector.startsWith("#mobileFloatingSettings")
+      ? controls.filter(b => b.id !== "scriptureReaderLauncher" || selector.includes(".scripture-reader-launcher"))
+      : controls, getElementById: id => controls.find(b => b.id === id) },
   setTimeout: (fn, delay) => { timers.set(++nextId, { fn, delay }); return nextId; },
   clearTimeout: id => timers.delete(id),
   scheduleReadingControlDimming: () => {},
@@ -38,6 +40,10 @@ controls[1].focused = true;
 wake(); run(3200); run(10000);
 assert.equal(controls[1].classes.size, 0, 'Keyboard-focused auto-scroll stays visible');
 controls[1].focused = false;
+controls[5].focused = true;
+wake(); run(3200); run(10000);
+assert.equal(controls[5].classes.size, 0, 'Keyboard-focused Scripture reader launcher stays visible');
+controls[5].focused = false;
 context.activeSettingsChoiceMenu = { trigger: { closest: () => controls[4] } };
 wake(); assert.equal(timers.size, 0, 'An open Focus Reading dropdown keeps controls visible');
 context.activeSettingsChoiceMenu = null;
