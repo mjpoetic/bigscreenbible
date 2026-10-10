@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const functions = source.slice(source.indexOf('function normalizedFocusControlsHideSeconds('), source.indexOf('function resetFocusToolSurfaces('));
 let timers = new Map(), nextId = 0;
-const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls', 'scriptureReaderLauncher'].map(id => ({
+const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls', 'scriptureReaderLauncher', 'readerReturnButton', 'readerForwardButton'].map(id => ({
   id, focused: false, classes: new Set(),
   classList: { add(...names) { names.forEach(n => this.owner.classes.add(n)); }, remove(...names) { names.forEach(n => this.owner.classes.delete(n)); } },
   matches() { return this.focused; },
@@ -14,7 +14,7 @@ const context = vm.createContext({
   activeSettingsChoiceMenu: null,
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
   document: { querySelectorAll: selector => selector.startsWith(".reader-page-button")
-    ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")))
+    ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
     : selector.startsWith("#mobileFloatingSettings")
       ? controls.filter(b => b.id !== "scriptureReaderLauncher" || selector.includes(".scripture-reader-launcher"))
       : controls, getElementById: id => controls.find(b => b.id === id) },
@@ -69,11 +69,21 @@ for (const mode of ['reader', 'parallel']) {
   wake(); run(3200);
   assert.ok(controls[1].classes.has('focus-control-faded'), `${mode}: auto-scroll fades outside Focus`);
   assert.ok(controls[3].classes.has('focus-control-faded'), `${mode}: desktop boundary arrow fades outside Focus`);
+  for (const index of [5, 6, 7]) {
+    assert.ok(controls[index].classes.has('focus-control-faded'), `${mode}: Scripture reader and history controls fade outside Focus`);
+  }
   assert.equal(controls[0].classes.size, 0, `${mode}: other controls stay unchanged`);
   run(10000);
   assert.ok(controls[1].classes.has('focus-control-hidden'), `${mode}: optional hiding works`);
+  assert.ok([5, 6, 7].every(index => controls[index].classes.has('focus-control-hidden')), `${mode}: optional hiding includes Scripture reader and history controls`);
   wake();
   assert.ok(controls.every(b => b.classes.size === 0), `${mode}: interaction restores controls`);
+  controls[5].focused = true;
+  controls[6].focused = true;
+  wake(); run(3200); run(10000);
+  assert.ok([5, 6].every(index => controls[index].classes.size === 0), `${mode}: keyboard-focused Scripture reader and Go Back stay visible`);
+  controls[5].focused = false;
+  controls[6].focused = false;
   context.state.autoScrollActive = true;
   const timerBeforeScroll = nextId;
   context.revealMobileSettingsButton({ type: 'scroll' });
