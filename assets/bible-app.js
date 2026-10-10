@@ -2489,20 +2489,19 @@ function setModeTransitionVolume(value, options = {}) {
 
 function switchMode(nextMode, options = {}) {
   if (!["reader", "parallel", "big", "trivia"].includes(nextMode)) return;
-  if (nextMode === state.mode) return;
+  const openVerseOfDayPassage = ["reader", "parallel"].includes(nextMode)
+    && state.isVerseOfDayActive
+    && Boolean(state.verseOfDayItem);
+  if (nextMode === state.mode && !openVerseOfDayPassage) return;
   if (nextMode === "trivia" && currentGameReferenceReturn()) return returnToTriviaGame();
   if (nextMode !== "trivia") cleanupTriviaCelebration();
   const audible = Boolean(options.audible && state.modeTransitionSounds);
   if (audible) primeModeTransitionAudio();
   const previousMode = state.mode;
   const previousScrollState = rememberModeScrollState();
-  const openVerseOfDayPassage = previousMode === "big"
-    && ["reader", "parallel"].includes(nextMode)
-    && state.isVerseOfDayActive
-    && Boolean(state.verseOfDayItem);
   const revealPresentationVerse = previousMode === "big"
     && ["reader", "parallel"].includes(nextMode);
-  const targetScrollState = revealPresentationVerse
+  const targetScrollState = revealPresentationVerse || openVerseOfDayPassage
     ? null
     : modeScrollStateForTarget(nextMode, previousScrollState);
   const presentationPassage = revealPresentationVerse && state.sharedPassage?.verses?.length
@@ -2518,6 +2517,7 @@ function switchMode(nextMode, options = {}) {
     if (openVerseOfDayPassage) {
       selectVerseOfDayReference(state.verseOfDayItem.reference);
       state.pendingVerseFocus = true;
+      state.pendingVerseHalo = true;
     }
     if (revealPresentationVerse) {
       state.pendingVerseFocus = true;
@@ -2548,7 +2548,7 @@ function switchMode(nextMode, options = {}) {
         state.presentationVersionMenuOpen = "";
         state.presentationReferenceMenuOpen = "";
       }
-      if (["reader", "parallel"].includes(state.mode) && !targetScrollState && !revealPresentationVerse) {
+      if (["reader", "parallel"].includes(state.mode) && !targetScrollState && !revealPresentationVerse && !openVerseOfDayPassage) {
         state.pendingVerseFocus = "nearest";
       }
     }

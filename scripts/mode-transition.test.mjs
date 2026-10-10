@@ -104,6 +104,24 @@ assert.deepEqual(switchModeContext.state.selectedVerses, [1, 2], "Back to Bible 
 assert.equal(switchModeContext.state.pendingVerseFocus, true, "The cited verse is centered after leaving Big Screen");
 assert.equal(switchModeContext.restoredScrollState, null, "A stale Reader scroll position cannot override the Verse of the Day reference");
 
+for (const previousMode of ["reader", "parallel", "big"]) {
+  for (const nextMode of ["reader", "parallel"]) {
+    switchModeContext.state = {
+      mode: previousMode,
+      modeTransitionSounds: false,
+      isVerseOfDayActive: true,
+      verseOfDayItem: { reference: "Psalm 116:1-2" },
+    };
+    switchModeContext.changeMode(nextMode);
+    assert.equal(switchModeContext.state.mode, nextMode);
+    assert.equal(switchModeContext.state.isVerseOfDayActive, false);
+    assert.deepEqual(switchModeContext.state.selectedVerses, [1, 2]);
+    assert.equal(switchModeContext.state.pendingVerseFocus, true, `${previousMode} → ${nextMode} centers the daily passage`);
+    assert.equal(switchModeContext.state.pendingVerseHalo, true);
+    assert.equal(switchModeContext.restoredScrollState, null);
+  }
+}
+
 for (const mode of ["reader", "parallel"]) {
   switchModeContext.state.mode = "big";
   switchModeContext.state.isVerseOfDayActive = false;
