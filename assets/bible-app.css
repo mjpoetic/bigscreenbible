@@ -25656,7 +25656,27 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 }
 .game-start-countdown[data-step="2"] strong { color: color-mix(in srgb, var(--ink) 65%, var(--gold)); text-shadow: 0 0 35px color-mix(in srgb, var(--gold) 25%, transparent); }
 .game-start-countdown[data-step="1"] strong { color: color-mix(in srgb, var(--ink) 65%, var(--teal)); text-shadow: 0 0 35px color-mix(in srgb, var(--teal) 25%, transparent); }
-.game-start-countdown[data-step="go"] strong { color: color-mix(in srgb, var(--ink) 65%, var(--success)); text-shadow: 0 0 35px color-mix(in srgb, var(--success) 25%, transparent); }
+/* Clip the highlight only, keeping the Go lettering clear of the points. */
+.game-start-countdown[data-step="go"] strong {
+  font-size: clamp(60px, 10vw, 110px);
+  padding: 12px 36px;
+  margin-block: 14px;
+  position: relative;
+  isolation: isolate;
+  color: var(--accent-ink);
+  background: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--teal) 35%, transparent));
+}
+.game-start-countdown[data-step="go"] strong::before {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+  z-index: -1;
+  background: var(--teal);
+  clip-path: polygon(50.0% 0.0%, 60.1% 12.3%, 75.0% 6.7%, 77.6% 22.4%, 93.3% 25.0%, 87.7% 39.9%, 100.0% 50.0%, 87.7% 60.1%, 93.3% 75.0%, 77.6% 77.6%, 75.0% 93.3%, 60.1% 87.7%, 50.0% 100.0%, 39.9% 87.7%, 25.0% 93.3%, 22.4% 77.6%, 6.7% 75.0%, 12.3% 60.1%, 0.0% 50.0%, 12.3% 39.9%, 6.7% 25.0%, 22.4% 22.4%, 25.0% 6.7%, 39.9% 12.3%);
+}
+
 .game-countdown-actions { display: flex; justify-content: center; gap: 12px; }
 .game-countdown-actions button { min-width: 110px; }
 .game-countdown-actions .primary-btn { color: var(--accent-ink); }
