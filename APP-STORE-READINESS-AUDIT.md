@@ -103,3 +103,5 @@ In release `2026.10.11.23`, the app's Read Aloud is disabled for NLT, NKJV, and 
 API.Bible's current terms include a limited ephemeral TTS permission for specified CEV editions (Section 9.10); CEV remains disabled as requested until edition and conditions are confirmed. Pro alone does not remove the general copyrighted-content TTS restriction. [API.Bible terms](https://api.bible/terms-and-conditions).
 
 The moderation email setup has since been completed: Resend accepted the delivery test, and Dane confirmed receipt. Dane also reported completing authenticator setup; enrollment on every alternate moderator account has not been independently confirmed.
+
+Release `2026.10.11.25` extends the same Read Aloud restriction to NIV, NIrV, NASB 2020 (including the NASB display alias), and AMP at Dane's request pending permission. The existing NLT, NKJV, and CEV restrictions remain. Regression checks cover every restricted code in Reader, Focus, Big Screen, and mixed Parallel workspaces and ensure restricted content does not initialize the speech engine. This precaution does not revoke or dispute the active YouVersion text licenses observed in the portal.

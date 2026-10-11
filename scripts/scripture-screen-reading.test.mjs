@@ -47,7 +47,7 @@ closeCallback(); assert.ok(removed && returned, 'Closing removes dialog and rest
 // Restrictions follow every reading mode, including mixed Parallel passages.
 for (const mode of ['reader', 'focus', 'big', 'parallel']) {
   state.mode = mode;
-  for (const version of ['NLT', 'NKJV', 'CEV']) {
+  for (const version of ['NLT', 'NKJV', 'CEV', 'NIV', 'NIRV', 'NASB2020', 'NASB', 'AMP']) {
     state.versions = mode === 'parallel' ? ['BSB', version] : [version];
     context.openScriptureReadingView();
     assert.deepEqual(blockedVersions, [version], `${mode}: ${version} cannot enable Read Aloud`);
@@ -206,7 +206,7 @@ console.log('Native speech initialization and close-during-initialization passed
 // even if its disabled control is triggered programmatically.
 let speechInitializations = 0;
 context.scriptureReaderSpeechEngine = () => { speechInitializations++; return { synth: engine, Utterance: fakeWindow.SpeechSynthesisUtterance }; };
-for (const version of ['NLT', 'NKJV', 'CEV']) {
+for (const version of ['NLT', 'NKJV', 'CEV', 'NIV', 'NIRV', 'NASB2020', 'NASB', 'AMP']) {
   const restricted = nativeWorkspace();
   const spokenBefore = spoken.length;
   bindWorkspace(restricted.view, defaults, [version]);

@@ -4270,7 +4270,7 @@ function scriptureReadingSource() {
 
 function scriptureReaderRestrictedVersions(versions, entries = []) {
   // Keep these translations visual-only until Read Aloud rights are confirmed.
-  const restricted = new Set(["NLT", "NKJV", "CEV"]);
+  const restricted = new Set(["NLT", "NKJV", "CEV", "NIV", "NIRV", "NASB2020", "NASB", "AMP"]);
   return [...new Set([...versions, ...entries.map(entry => entry.version)]
     .map(version => String(version || "").trim().toUpperCase())
     .filter(version => restricted.has(version)))];
