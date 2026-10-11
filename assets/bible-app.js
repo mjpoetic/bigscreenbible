@@ -28205,7 +28205,7 @@ function closePresentationSettingsOnOutsidePointerDown(event) {
 function closeAccountPopoverOnOutsidePointerDown(event) {
   if (
     !state.accountOpen
-    || event.target.closest?.(".account-popover.open, #accountQuickButton, #presentationAccountButton")
+    || event.target.closest?.(".account-popover.open, .settings-choice-menu, #accountQuickButton, #presentationAccountButton")
   ) return;
   toggleAccountMenu(false);
 }

@@ -338,6 +338,20 @@ accountPointerDownOn({ id: "accountQuickButton" });
 accountPointerDownOn({ id: "presentationAccountButton" });
 assert.equal(accountCloseCalls, 0, "Account stays open for pointer presses inside the popup or on either site-wide toggle");
 
+// Dropdown menus are mounted outside the account panel. Match the real selector
+// so a missing menu exemption fails this regression.
+for (const control of ["menu surface", "option", "option label"]) {
+  accountOutsidePointerDownContext.handleOutsidePointerDown({
+    target: {
+      closest(selector) {
+        return selector.split(",").map(part => part.trim()).includes(".settings-choice-menu")
+          ? { className: "settings-choice-menu" } : null;
+      },
+    },
+  });
+  assert.equal(accountCloseCalls, 0, `Account stays open when pressing a dropdown ${control}`);
+}
+
 accountPointerDownOn(null);
 assert.equal(accountCloseCalls, 1, "An outside pointer press closes Account");
 
