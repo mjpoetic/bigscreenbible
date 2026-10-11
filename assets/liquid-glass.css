@@ -1339,3 +1339,24 @@ html[data-control-material="glass"] .games-drawer .challenge-setup-card .primary
     background: var(--glass-solid);
   }
 }
+
+/* Primary friend-request actions share the social drawer's glass buttons. */
+html[data-control-material="glass"] .games-social-drawer .friend-action-button.primary-btn {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--glass-ink);
+  box-shadow: var(--glass-shadow);
+}
+html[data-control-material="glass"] .games-social-drawer .friend-action-button.primary-btn:not(:disabled):hover {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-solid) 90%, transparent);
+}
+html[data-control-material="glass"] .games-social-drawer .friend-action-button.primary-btn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  html[data-control-material="glass"] .games-social-drawer .friend-action-button.primary-btn {
+    background: var(--glass-solid);
+  }
+}
