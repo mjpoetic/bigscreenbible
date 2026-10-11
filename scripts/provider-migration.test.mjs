@@ -82,3 +82,75 @@ for (const version of ['CEV', 'NKJV', 'NASB2020']) {
   assert.ok(attribution([version]).includes('rel="noopener noreferrer"'));
 }
 console.log('Safe publisher attribution and independent link deduplication tests passed');
+
+const cacheContext = vm.createContext({
+  state: {reference: 'John 3'},
+  remoteVersionData: new Map(),
+  remoteVersionCacheMaxAgeMs: 86400000,
+  bibleData: Object.fromEntries(['John 1', 'John 2', 'John 3', 'John 4'].map(key => [key, {verses: [{n: 1, WEB: 'Keep this text', footnotes: {WEB: [{text: 'Keep note'}]}}]}])),
+  normalizeRemoteProviderText: (_version, text) => text,
+});
+vm.runInContext(['remoteVersionLoadKey', 'removeRemoteVersionChapter', 'pruneExpiredRemoteVersionData', 'cacheRemoteVersionChapter', 'mergeRemoteVersionChapter'].map(extractProviderFunction).join('\n'), cacheContext);
+const cacheEval = expression => vm.runInContext(expression, cacheContext);
+const addChapter = (version, chapter, count = 1) => cacheEval(`cacheRemoteVersionChapter('${version}', '${chapter}', {verses: Array.from({length:${count}}, (_,i) => ({n:i+1,text:'Remote text',footnotes:[{text:'Remote note'}],lineBreaks:[3],wordsOfJesus:[{start:0,end:4}]}))})`);
+addChapter('NLT', 'John 1');
+addChapter('NLT', 'John 3');
+addChapter('NLT', 'John 2');
+assert.equal(cacheEval('remoteVersionData.size'), 2);
+assert.equal(cacheEval("bibleData['John 1'].verses[0].NLT"), undefined);
+assert.equal(cacheEval("bibleData['John 1'].verses[0].footnotes.NLT"), undefined);
+assert.equal(cacheEval("bibleData['John 1'].verses[0].wordsOfJesus.NLT"), undefined);
+assert.equal(cacheEval("bibleData['John 1'].verses[0].lineBreaks.NLT"), undefined);
+assert.equal(cacheEval("bibleData['John 1'].verses[0].WEB"), 'Keep this text');
+assert.equal(cacheEval("bibleData['John 1'].verses[0].footnotes.WEB[0].text"), 'Keep note');
+assert.ok(cacheEval("remoteVersionData.has('NLT:John 3')"));
+addChapter('NIV', 'John 4');
+assert.ok(cacheEval("remoteVersionData.has('NLT:John 3')"));
+cacheEval("pruneExpiredRemoteVersionData(Date.now() + remoteVersionCacheMaxAgeMs + 1)");
+assert.equal(cacheEval('remoteVersionData.size'), 0);
+assert.equal(cacheEval("bibleData['John 3'].verses[0].NLT"), undefined);
+addChapter('ESV', 'John 1', 300);
+addChapter('ESV', 'John 3', 300);
+assert.equal(cacheEval('remoteVersionData.size'), 1);
+assert.ok(cacheEval("remoteVersionData.has('ESV:John 3')"));
+assert.throws(() => addChapter('ESV', 'John 2', 501), /permitted cache size/);
+assert.equal(cacheEval('remoteVersionData.size'), 1);
+// Refreshing a chapter removes verses and metadata absent in its replacement.
+addChapter('ESV', 'John 3', 1);
+assert.equal(cacheEval("bibleData['John 3'].verses.length"), 1);
+
+console.log('Remote cache bounds, expiry, replacement, and translation isolation passed');
+
+// Exercise the fetch path with duplicate callers and out-of-order completion.
+const pendingFetches = [];
+Object.assign(cacheContext, {
+  window: {BigScreenBibleSupabase: {anonKey: 'public-test-key'}},
+  isRemoteTranslation: () => true,
+  remoteVersionErrors: new Map(), remoteVersionRequests: new Map(),
+  remoteVersionRerenders: new Set(), loadingVersions: new Set(),
+  translationProvider: () => ({}), remoteFunctionUrl: (_version, chapter) => chapter,
+  trackApiBibleView: () => {}, renderPreservingReaderScroll: () => {}, console,
+  fetch: url => new Promise(resolve => pendingFetches.push({url, resolve})),
+});
+vm.runInContext(extractProviderFunction('ensureRemoteBibleVersion'), cacheContext);
+cacheEval('remoteVersionData.clear()');
+const first = cacheEval("ensureRemoteBibleVersion('NLT', 'John 1')");
+const duplicate = cacheEval("ensureRemoteBibleVersion('NLT', 'John 1')");
+const main = cacheEval("ensureRemoteBibleVersion('NLT', 'John 3')");
+const preview = cacheEval("ensureRemoteBibleVersion('NLT', 'John 2', {rerender:false})");
+assert.equal(pendingFetches.length, 3);
+const finish = chapter => pendingFetches.find(item => item.url === chapter).resolve({ok:true,json: async () => ({verses:[{n:1,text:'Fetched text'}]})});
+finish('John 3'); await main;
+finish('John 2'); await preview;
+finish('John 1'); await Promise.all([first, duplicate]);
+assert.equal(cacheEval('remoteVersionData.size'), 2);
+assert.ok(cacheEval("remoteVersionData.has('NLT:John 3')"));
+assert.equal(cacheEval('remoteVersionRequests.size'), 0);
+assert.equal(cacheEval('loadingVersions.size'), 0);
+assert.ok(cacheEval("pruneExpiredRemoteVersionData(Date.now() + remoteVersionCacheMaxAgeMs + 1)"));
+const reload = cacheEval("ensureRemoteBibleVersion('NLT', 'John 3')");
+assert.equal(pendingFetches.length, 4);
+pendingFetches[3].resolve({ok:true,json: async () => ({verses:[{n:1,text:'Fresh text'}]})});
+await reload;
+assert.equal(cacheEval("bibleData['John 3'].verses[0].NLT"), 'Fresh text');
+console.log('Concurrent remote loads, active-chapter retention, and expired refetch passed');

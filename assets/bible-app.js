@@ -678,6 +678,7 @@ let handledSocialNotificationDeepLink = "";
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
 const remoteVersionData = new Map();
+const remoteVersionCacheMaxAgeMs = 24 * 60 * 60 * 1000;
 const remoteVersionErrors = new Map();
 const remoteVersionRequests = new Map();
 const remoteVersionRerenders = new Set();
@@ -1781,6 +1782,11 @@ function restoreAccountPanelScroll(scrollState) {
 }
 
 function render() {
+  if (pruneExpiredRemoteVersionData()) {
+    activeVersions().filter(isRemoteTranslation).forEach((version) => {
+      ensureRemoteBibleVersion(version, state.reference);
+    });
+  }
   if (document.getElementById("studyPopup")?.classList.contains("publisher-footnote-popup")) closeStudyPopup(true);
   if (state.mode !== "big") state.presentationNoButtons = false;
   finishReaderVerseHold();
@@ -19382,6 +19388,7 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
     goToReference: normalizeHeadingReference(options.goToReference || normalizedReference),
   };
   const version = state.versions[0] || "BSB";
+  pruneExpiredRemoteVersionData();
   const needsRemoteText = isRemoteTranslation(version)
     && !remoteVersionData.has(remoteVersionLoadKey(version, parsed.key));
   const initialContent = needsRemoteText
@@ -31424,11 +31431,72 @@ function trackApiBibleView(fumsToken) {
   window.fums?.("trackView", fumsToken);
 }
 
+function removeRemoteVersionChapter(loadKey) {
+  const separator = loadKey.indexOf(":");
+  const version = loadKey.slice(0, separator);
+  const chapterKey = loadKey.slice(separator + 1);
+  remoteVersionData.delete(loadKey);
+  const chapter = bibleData[chapterKey];
+  if (!chapter) return;
+  chapter.verses.forEach((verse) => {
+    delete verse[version];
+    for (const property of ["strong", "paragraphStart", "sectionHeadings", "wordsOfJesus", "footnotes", "verseRanges", "lineBreaks"]) {
+      if (verse[property]) delete verse[property][version];
+    }
+  });
+  chapter.verses = chapter.verses.filter((verse) =>
+    Object.entries(verse).some(([key, value]) => key !== "n" && typeof value === "string" && value));
+}
+
+function pruneExpiredRemoteVersionData(now = Date.now()) {
+  let removed = false;
+  remoteVersionData.forEach((payload, loadKey) => {
+    if (!Number.isFinite(payload.cachedAt) || now - payload.cachedAt >= remoteVersionCacheMaxAgeMs || now < payload.cachedAt) {
+      removeRemoteVersionChapter(loadKey);
+      removed = true;
+    }
+  });
+  return removed;
+}
+
+function cacheRemoteVersionChapter(version, chapterKey, payload) {
+  const loadKey = remoteVersionLoadKey(version, chapterKey);
+  const countVerses = (item) => (item.verses || []).reduce((total, verse) =>
+    total + Math.max(1, Number(verse.verseEnd) - Number(verse.n) + 1 || 1), 0);
+  if (version === "ESV" && countVerses(payload) > 500) {
+    throw new Error("ESV passage exceeds the permitted cache size.");
+  }
+  pruneExpiredRemoteVersionData();
+  removeRemoteVersionChapter(loadKey);
+  remoteVersionData.set(loadKey, { ...payload, cachedAt: Date.now() });
+  // Keep the reading chapter and one recent preview/navigation chapter per version.
+  const entries = Array.from(remoteVersionData.entries()).filter(([key]) => key.startsWith(`${version}:`));
+  let retainedVerses = entries.reduce((total, [, item]) => total + countVerses(item), 0);
+  let retainedChapters = entries.length;
+  const mainKey = remoteVersionLoadKey(version, state.reference);
+  const candidates = entries.sort(([a], [b]) => Number(a === mainKey) - Number(b === mainKey));
+  for (const [key, item] of candidates) {
+    if (retainedChapters <= 2 && (version !== "ESV" || retainedVerses <= 500)) break;
+    if (key === loadKey) continue;
+    removeRemoteVersionChapter(key);
+    retainedChapters -= 1;
+    retainedVerses -= countVerses(item);
+  }
+  mergeRemoteVersionChapter(version, chapterKey, payload.verses || []);
+  return remoteVersionData.get(loadKey);
+}
+
 async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
   if (window.bsbOffline?.active) return null;
   if (!isRemoteTranslation(version)) return null;
+  pruneExpiredRemoteVersionData();
   const loadKey = remoteVersionLoadKey(version, chapterKey);
-  if (remoteVersionData.has(loadKey)) return remoteVersionData.get(loadKey);
+  if (remoteVersionData.has(loadKey)) {
+    const cached = remoteVersionData.get(loadKey);
+    remoteVersionData.delete(loadKey);
+    remoteVersionData.set(loadKey, cached);
+    return cached;
+  }
   if (remoteVersionErrors.has(loadKey)) return null;
   if (options.rerender !== false) remoteVersionRerenders.add(loadKey);
   if (remoteVersionRequests.has(loadKey)) return remoteVersionRequests.get(loadKey);
@@ -31459,9 +31527,7 @@ async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
       }
       const verses = Array.isArray(payload.verses) ? payload.verses : [];
       if (!verses.length) throw new Error(`${version} returned no verses`);
-      const versionPayload = { ...payload, verses };
-      remoteVersionData.set(loadKey, versionPayload);
-      mergeRemoteVersionChapter(version, chapterKey, verses);
+      const versionPayload = cacheRemoteVersionChapter(version, chapterKey, { ...payload, verses });
       if (provider.tracksFums) trackApiBibleView(payload.fumsToken);
       return versionPayload;
     } catch (error) {
@@ -32000,7 +32066,23 @@ document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
+window.setInterval(() => {
+  if (pruneExpiredRemoteVersionData()) {
+    closeStudyPopup(true);
+    activeVersions().filter(isRemoteTranslation).forEach((version) => {
+      ensureRemoteBibleVersion(version, state.reference);
+    });
+    renderPreservingReaderScroll();
+  }
+}, 60 * 1000);
 document.addEventListener("visibilitychange", () => {
+  if (pruneExpiredRemoteVersionData()) {
+    closeStudyPopup(true);
+    activeVersions().filter(isRemoteTranslation).forEach((version) => {
+      ensureRemoteBibleVersion(version, state.reference);
+    });
+    renderPreservingReaderScroll();
+  }
   syncAppUpdateNotification();
   if (document.visibilityState === "hidden") {
     pauseGameMusic({ fade: false });
