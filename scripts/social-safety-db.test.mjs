@@ -21,9 +21,9 @@ try {
  create table realtime.messages(extension text, private boolean); alter table realtime.messages enable row level security;
  create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;`);
  let schema=read('supabase/schema.sql');
- const safety=read('supabase/migrations/20261011014213_social_safety.sql');
+ const safety=read('supabase/migrations/20261011024750_social_safety.sql');
  assert.ok(schema.endsWith(safety),'Cumulative schema must match safety migration');
- schema=schema.split('-- Social safety migration 20261011014213')[0];
+ schema=schema.split('-- Social safety migration 20261011024750')[0];
  schema=schema.replace(/do \$\$[\s\S]*?\$\$;/g, block => block.includes('pg_publication_tables') ? '' : block);
  schema=schema.slice(0,schema.indexOf('create extension if not exists vector'))+schema.slice(schema.indexOf('create table if not exists public.bsb_push_subscriptions'));
  await db.exec(schema);

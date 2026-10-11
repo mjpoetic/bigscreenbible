@@ -4,9 +4,11 @@ Implemented for Community Standards version `2026-10-10`.
 
 ## Release order
 
-The migration is tested locally and **has not been applied to production**.
+The migration was applied to production on **October 10, 2026 at 10:47 p.m. America/New_York** (Supabase migration version `20261011024750`). The updated website and push sender were already deployed. Database existence, RLS, private report access, and server-only push-guard permissions were verified after deployment; existing account and social-table counts were unchanged.
 
-1. Apply `supabase/migrations/20261011014213_social_safety.sql` to project `yyldnatfhzobyeqnvqjv`. It adds consent, blocks, reports, suspension enforcement, and safety checks for existing social tables and RPCs. Existing users are deliberately not marked as having accepted the new terms. They retain private Bible/study access and must accept in their social profile to resume social features.
+A manual pre-release database archive was exported and its checksums verified. Account and app recovery, followed by the migration, passed on an isolated PostgreSQL 17 instance. This was a scoped restore test: managed platform schemas/extensions and semantic vector search were excluded. See [database recovery](DATABASE-RECOVERY.md) for the backup location, scope, and recovery procedure. Physical-device and signed-in multi-account checks below remain pending.
+
+1. Apply `supabase/migrations/20261011024750_social_safety.sql` to project `yyldnatfhzobyeqnvqjv`. It adds consent, blocks, reports, suspension enforcement, and safety checks for existing social tables and RPCs. Existing users are deliberately not marked as having accepted the new terms. They retain private Bible/study access and must accept in their social profile to resume social features.
 2. Deploy the updated website and `send-push-notifications` Edge Function in the same release window. Do not deploy the sender first: it depends on `bsb_social_push_allowed`. Until the updated website loads, existing users may see social-access errors.
 3. Sync the built web assets into iOS/Android, build the release shells, and test on both physical devices. The default shells load the live website, so local bundles alone do not publish this change.
 4. Confirm two real test accounts can accept standards, search, send/accept requests, play a room, report, block, and unblock. Blocking must hide both profiles from each other, remove the friendship, cancel a shared room, and prevent new requests/invitations. Test a third participant in a group room: the entire shared room ends. A sent OS notification or information previously viewed cannot be recalled.
@@ -14,7 +16,7 @@ The migration is tested locally and **has not been applied to production**.
 
 ## Review reports
 
-Assign an operator to review this queue **at least daily**, with priority for threats, exploitation, or child-safety concerns. The app queues reports; it does not send moderator alerts. Checking the queue and acting on reports is an ongoing responsibility, and must be in place before store submission.
+Dane Hurst has committed to reviewing this queue **daily**. Review it **at least daily**, with priority for threats, exploitation, or child-safety concerns. The app queues reports; it does not send moderator alerts. Checking the queue and acting on reports is an ongoing responsibility, and must be in place before store submission.
 
 Use the Supabase dashboard SQL editor with administrator access. Do not expose admin credentials or these actions in the public app. Reports are not readable by app users, including the reporter. The reported person is not given the reporter's identity.
 

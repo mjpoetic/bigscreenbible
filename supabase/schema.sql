@@ -1649,7 +1649,7 @@ alter table public.bsb_push_subscriptions
   );
 commit;
 
--- Social safety migration 20261011014213
+-- Social safety migration 20261011024750
 -- Social consent, reports, blocks, and moderator-only suspension.
 create table public.bsb_social_consents (
  user_id uuid primary key references auth.users(id) on delete cascade,
