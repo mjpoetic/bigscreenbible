@@ -1300,10 +1300,8 @@ html[data-control-material="glass"] .focus-reading-controls button:not(:disabled
   background: color-mix(in srgb, var(--glass-ink) 10%, transparent);
 }
 
-/* Native friend navigation retains the platform picker and glass control surface. */
-html[data-control-material="glass"] .friends-navigation select {
-  appearance: auto;
-  -webkit-appearance: auto;
+/* Friend navigation shares the app's glass dropdown material. */
+html[data-control-material="glass"] .friends-navigation .settings-choice-toggle {
   border: 1px solid var(--glass-edge);
   border-radius: 999px;
   background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
@@ -1312,11 +1310,10 @@ html[data-control-material="glass"] .friends-navigation select {
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
 }
-html[data-control-material="glass"] .friends-navigation select:focus-visible {
+html[data-control-material="glass"] .friends-navigation .settings-choice-toggle:focus-visible {
   outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
-.friends-navigation select option { background: var(--panel); color: var(--ink); }
 @media (prefers-reduced-transparency: reduce) {
-  html[data-control-material="glass"] .friends-navigation select { background: var(--glass-solid); }
+  html[data-control-material="glass"] .friends-navigation .settings-choice-toggle { background: var(--glass-solid); }
 }

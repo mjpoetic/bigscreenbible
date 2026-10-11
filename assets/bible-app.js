@@ -7060,10 +7060,10 @@ function friendsCard(prefix = "") {
         ${requestCount ? `<span class="friend-request-count" aria-label="${requestCount} incoming friend ${requestCount === 1 ? "request" : "requests"}">${requestCount}</span>` : ""}
       </div>
       <div class="friends-navigation">
-        <label for="${prefix ? `${prefix}-` : ""}friendsView">View</label>
-        <select id="${prefix ? `${prefix}-` : ""}friendsView" data-friends-view>
-          ${tabs.map(([tab, label]) => `<option value="${tab}" ${state.friendsPanelTab === tab ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
-        </select>
+        <label for="${prefix ? `${prefix}-` : ""}friendsViewToggle">View</label>
+        ${settingsChoiceMarkup(`${prefix ? `${prefix}-` : ""}friendsView`, state.friendsPanelTab,
+          tabs.map(([value, label]) => ({ value, label })), { ariaLabel: "Friends view" })
+          .replace("<select ", "<select data-friends-view ")}
       </div>
       <p class="friends-status" role="status" aria-live="polite">${escapeHtml(
         state.friendshipStatus === "loading" ? "Loading friends…" : state.friendshipMessage,
@@ -21506,7 +21506,7 @@ function bindEvents() {
       state.friendsPanelTab = select.value;
       state.friendshipMessage = "";
       renderPreservingReaderScroll();
-      document.getElementById(selectId)?.focus({ preventScroll: true });
+      document.getElementById(`${selectId}Toggle`)?.focus({ preventScroll: true });
     });
   });
   document.querySelectorAll("[data-open-find-people]").forEach((button) => {

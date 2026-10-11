@@ -25725,18 +25725,9 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   min-width: 0;
 }
 .friends-navigation label { color: var(--muted); font-size: 11px; font-weight: 800; }
-.friends-navigation select {
-  flex: 1;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--ink);
-  font: inherit;
-  font-size: 12px;
-}
+.friends-navigation .settings-choice { flex: 1; min-width: 0; }
+.friends-navigation .settings-choice-toggle { width: 100%; min-height: 38px; }
+
 .friend-person-row > .friend-person-copy:first-child { grid-column: 1 / -1; }
 .challenge-find-people { width: 100%; text-align: left; cursor: pointer; color: var(--ink); }
 .challenge-find-people:hover { border-color: var(--teal); }
@@ -25833,7 +25824,6 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   white-space: normal;
 }
 
-.friends-navigation select { appearance: auto; -webkit-appearance: auto; }
 .game-friend-requests { display: grid; gap: 10px; margin-bottom: 14px; }
 
 /* Long category names need more cells without crowding the letters. */

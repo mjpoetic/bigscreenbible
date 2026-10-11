@@ -119,7 +119,9 @@ assert.equal(context.state.accountOpen, true);
 assert.equal(focused, true);
 assert.equal(scrolled, true);
 assert.match(extractFunction("gameChallengeSetupCard"), /<button[^>]*data-open-find-people/);
-assert.match(extractFunction("friendsCard"), /<select[^>]*data-friends-view/);
+assert.match(extractFunction("friendsCard"), /settingsChoiceMarkup/);
+assert.match(extractFunction("friendsCard"), /data-friends-view/);
+assert.doesNotMatch(extractFunction("friendsCard"), /<select id=/);
 assert.match(styles, /grid-template-columns: 34px minmax\(0, 1fr\);/);
 assert.match(styles, /\.friend-person-actions \{\s*grid-column: 1 \/ -1;/);
 
