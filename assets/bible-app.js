@@ -14942,6 +14942,7 @@ function syncGameMusicPlayback() {
   const track = gameMusicTrackForGame(game);
   const shouldPlay = Boolean(
     state.gameMusicEnabled
+    && !gameCountdownActive
     && !window.bsbAmbient?.active()
     && state.mode === "trivia"
     && game
@@ -22201,7 +22202,9 @@ async function startGameCountdown() {
   gameCountdownActive = true;
   let overlay;
   try {
-    if (state.wordSearchSounds) {
+    // Unlock music during the Start gesture even when countdown effects are off.
+    if (state.gameMusicEnabled) primeGameMusicAudio();
+    if (state.gameMusicEnabled || state.wordSearchSounds) {
       const context = ensureGameAudioContext();
       context?.resume().catch(() => {});
     }
@@ -22246,6 +22249,8 @@ async function startGameCountdown() {
   } finally {
     overlay?.remove();
     gameCountdownActive = false;
+    // The final render happens while countdownActive still blocks playback.
+    syncGameMusicPlayback();
   }
 }
 
