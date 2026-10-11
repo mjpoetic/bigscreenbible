@@ -481,6 +481,7 @@ let gameMusicGain = null;
 let gameMusicTrackKey = "";
 let gameMusicFadeFrame = 0;
 let gameMusicRestartPending = false;
+let gameMusicPlaybackGame = null;
 let gameMusicLoop = null;
 let gameMusicLoopRequest = 0;
 let gameMusicLoopLoad = null;
@@ -14963,9 +14964,10 @@ function syncGameMusicPlayback() {
   cancelGameMusicFade();
   const changedTrack = gameMusicTrackKey !== track.key;
   if (changedTrack) gameMusicLoopFallbackKey = "";
-  const restartLoop = changedTrack || gameMusicRestartPending;
+  const restartLoop = changedTrack || gameMusicRestartPending || gameMusicPlaybackGame !== game;
   setGameMusicOutputVolume(track.volume * soundVolumeScalar(state.gameVolume));
   gameMusicTrackKey = track.key;
+  gameMusicPlaybackGame = game;
   gameMusicRestartPending = false;
   if (gameMusicGain && gameMusicLoopFallbackKey !== track.key
     && typeof gameMusicAudioContext?.createBufferSource === "function") {
@@ -14975,7 +14977,8 @@ function syncGameMusicPlayback() {
     return;
   }
   audio.loop = true;
-  if (changedTrack) {
+  if (restartLoop) {
+    // Reload even the same track: seeking can fail before media is ready.
     audio.pause();
     audio.src = track.src;
     audio.load();
