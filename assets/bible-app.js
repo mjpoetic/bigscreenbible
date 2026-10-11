@@ -22174,7 +22174,83 @@ function triviaPool() {
   });
 }
 
-function startTriviaGame({ render = true } = {}) {
+let gameCountdownActive = false;
+
+function playGameCountdownTone(go = false) {
+  if (!state.wordSearchSounds || state.gameVolume <= 0) return;
+  const context = ensureGameAudioContext();
+  if (!context || context.state !== "running") return;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const now = context.currentTime;
+  const duration = go ? .32 : .12;
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(go ? 1040 : 520, now);
+  gain.gain.setValueAtTime(.0001, now);
+  gain.gain.exponentialRampToValueAtTime(.12 * soundVolumeScalar(state.gameVolume), now + .01);
+  gain.gain.exponentialRampToValueAtTime(.0001, now + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+  oscillator.start(now);
+  oscillator.stop(now + duration);
+}
+
+async function startGameCountdown() {
+  if (gameCountdownActive) return;
+  gameCountdownActive = true;
+  let overlay;
+  try {
+    if (state.wordSearchSounds) {
+      const context = ensureGameAudioContext();
+      context?.resume().catch(() => {});
+    }
+    const previousGame = state.triviaGame;
+    startTriviaGame({ render: false, ready: true });
+    const game = state.triviaGame;
+    if (!game || game === previousGame) return;
+    const pausedAt = Date.now();
+    pauseTriviaGameForReference(game, pausedAt);
+    renderPreservingReaderScroll();
+    overlay = document.createElement("dialog");
+    overlay.className = "game-start-countdown";
+    overlay.setAttribute("aria-label", "Game starting");
+    overlay.innerHTML = '<div role="status" aria-live="assertive" aria-atomic="true"><small>Get ready</small><strong>3</strong></div><button type="button" class="ghost-btn">Cancel</button>';
+    let cancelled = false;
+    const cancel = () => { cancelled = true; overlay.close(); };
+    overlay.addEventListener("keydown", event => event.stopPropagation());
+    overlay.addEventListener("cancel", cancel);
+    overlay.querySelector("button").addEventListener("click", cancel);
+    document.body.append(overlay);
+    overlay.showModal();
+    for (const label of ["3", "2", "1", "Go!"]) {
+      if (cancelled || state.mode !== "trivia" || state.triviaGame !== game) break;
+      overlay.querySelector("strong").textContent = label;
+      playGameCountdownTone(label === "Go!");
+      await new Promise(resolve => setTimeout(resolve, label === "Go!" ? 300 : 1000));
+    }
+    if (state.triviaGame !== game || state.mode !== "trivia") return;
+    if (cancelled) {
+      state.triviaGame = null;
+      renderPreservingReaderScroll();
+      document.getElementById("startTriviaGame")?.focus({ preventScroll: true });
+      return;
+    }
+    resumeTriviaGameAfterReference(game);
+    const elapsed = Date.now() - pausedAt;
+    for (const key of ["questionStartedAt", "puzzleStartedAt"]) {
+      if (game[key]) game[key] += elapsed;
+    }
+    if (!["book-sprint", "reference-rush"].includes(game.type) && game.startedAt) game.startedAt += elapsed;
+    renderPreservingReaderScroll();
+  } finally {
+    overlay?.remove();
+    gameCountdownActive = false;
+  }
+}
+
+function startTriviaGame({ render = true, ready = false } = {}) {
+  if (render && !ready) return startGameCountdown();
   cleanupTriviaCelebration();
   state.gamesDrawerOpen = "";
   if (state.triviaGameType === "word-search") return startWordSearchGame({ render });
