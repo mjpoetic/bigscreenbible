@@ -3227,7 +3227,8 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   padding-top: 2px;
 }
 
-.social-profile-privacy label {
+.social-profile-privacy label,
+label.social-terms-consent {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: start;
@@ -3235,24 +3236,28 @@ details.social-profile-card[open] .social-profile-disclosure-icon {
   color: var(--ink);
 }
 
-.social-profile-privacy input {
+.social-profile-privacy input,
+.social-terms-consent input {
   width: 18px;
   height: 18px;
   margin: 1px 0 0;
   accent-color: var(--teal);
 }
 
-.social-profile-privacy span {
+.social-profile-privacy span,
+.social-terms-consent > span {
   display: grid;
   gap: 2px;
 }
 
-.social-profile-privacy strong {
+.social-profile-privacy strong,
+.social-terms-consent strong {
   font-size: 11px;
   line-height: 1.25;
 }
 
-.social-profile-privacy small {
+.social-profile-privacy small,
+.social-terms-consent small {
   color: var(--muted);
   font-size: 9px;
   font-weight: 700;
@@ -25543,8 +25548,7 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 @media print { .scripture-reader-quick { display: none !important; } }
 
 /* Social safety controls inherit the account panel's accessible theme. */
-.social-terms-consent { display: flex; align-items: flex-start; gap: .65rem; font-size: .9rem; line-height: 1.5; }
-.social-terms-consent input { margin-top: .3rem; flex: 0 0 auto; }
+.social-terms-consent { margin: 0; font-size: 11px; line-height: 1.35; }
 .social-safety-dialog form { display: grid; gap: .75rem; }
 .social-safety-dialog select, .social-safety-dialog textarea { width: 100%; box-sizing: border-box; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: .6rem; padding: .75rem; font: inherit; }
 .friend-person-actions { flex-wrap: wrap; }

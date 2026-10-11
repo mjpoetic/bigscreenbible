@@ -6337,7 +6337,7 @@ function socialProfileCard(prefix = "") {
               <span><strong>Allow friend requests</strong><small>Discoverable profiles can send you a request when this is on.</small></span>
             </label>
           </div>
-          ${!state.socialConsent ? `<label class="social-terms-consent"><input id="${suffix}socialTermsAccepted" type="checkbox" required ${draft.termsAccepted ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} /><span>I agree to the <a href="./terms/#community-standards" target="_blank" rel="noopener">Community Standards and Terms of Service</a>. I will not post offensive content or harass others.</span></label>` : `<p class="social-terms-consent">Community Standards accepted · <a href="./terms/#community-standards" target="_blank" rel="noopener">Read standards</a></p>`}
+          ${!state.socialConsent ? `<label class="social-terms-consent"><input id="${suffix}socialTermsAccepted" type="checkbox" required ${draft.termsAccepted ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} /><span><strong>I agree to the <a href="./terms/#community-standards" target="_blank" rel="noopener">Community Standards and Terms of Service</a>.</strong><small>I will use respectful profile names and treat others respectfully.</small></span></label>` : `<p class="social-terms-consent">Community Standards accepted · <a href="./terms/#community-standards" target="_blank" rel="noopener">Read standards</a></p>`}
           <button class="primary-btn compact-account-btn social-profile-save" type="submit" ${state.socialProfileBusy ? "disabled" : ""}>
             ${state.socialProfileBusy ? "Saving…" : hasProfile ? "Save profile" : "Create profile"}
           </button>
