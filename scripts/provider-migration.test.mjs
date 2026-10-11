@@ -55,3 +55,30 @@ assert.equal(vm.runInContext("uniqueVersionVerses(bibleData['John 3'].verses,'NK
 assert.equal(vm.runInContext("versionVerseLabel(bibleData['John 3'].verses[1],'CEV')",bridgeContext),'23–24');
 assert.equal(vm.runInContext("expandedVersionVerseNumbers('John 3',[24],'CEV').join(',')",bridgeContext),'23,24');
 console.log('Combined-verse merge and cross-translation isolation tests passed');
+
+const attributionContext = vm.createContext({
+  state: {reference: 'John 3'},
+  remoteVersionData: new Map([
+    ['NIV', {copyright: '<script>unsafe</script>'}],
+    ['AMP', {copyright: '<script>unsafe</script>'}],
+  ]),
+  remoteVersionLoadKey: version => version,
+  translationProvider: version => ({showsAttribution: version !== 'WEB', tracksFums: version === 'NLT'}),
+  escapeHtml: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
+});
+vm.runInContext(extractProviderFunction('apiBibleAttributionMarkup'), attributionContext);
+const attribution = versions => vm.runInContext(`apiBibleAttributionMarkup(${JSON.stringify(versions)})`, attributionContext);
+const mixedAttribution = attribution(['NIV', 'NIRV', 'AMP', 'NLT']);
+assert.ok(mixedAttribution.includes('&lt;script&gt;unsafe&lt;/script&gt;'));
+assert.ok(!mixedAttribution.includes('<script>'));
+assert.equal((mixedAttribution.match(/unsafe/g) || []).length, 1);
+assert.equal((mixedAttribution.match(/href="https:\/\/www.biblica.com\/"/g) || []).length, 1);
+assert.ok(mixedAttribution.includes('href="https://www.lockman.org/"'));
+assert.ok(mixedAttribution.includes('href="https://api.bible/"'));
+assert.ok(attribution(['ESV']).includes('ESV® Bible © 2001 by Crossway'));
+assert.ok(attribution(['ESV']).includes('/terms/#bible-rights'));
+assert.equal(attribution(['WEB']), '');
+for (const version of ['CEV', 'NKJV', 'NASB2020']) {
+  assert.ok(attribution([version]).includes('rel="noopener noreferrer"'));
+}
+console.log('Safe publisher attribution and independent link deduplication tests passed');

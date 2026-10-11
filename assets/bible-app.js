@@ -62,6 +62,7 @@ const bibleProviders = {
   esv: {
     type: "remote",
     edgeFunction: "esv-passage",
+    showsAttribution: true,
   },
   apiBible: {
     type: "remote",
@@ -31480,19 +31481,43 @@ async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
 function apiBibleAttributionMarkup(versions, className = "", chapterKey = state.reference) {
   const notices = [];
   const seen = new Set();
+  const links = new Map();
+  const publishers = {
+    NIV: ["https://www.biblica.com/", "Biblica"],
+    NIRV: ["https://www.biblica.com/", "Biblica"],
+    NASB2020: ["https://www.lockman.org/", "The Lockman Foundation"],
+    NASB: ["https://www.lockman.org/", "The Lockman Foundation"],
+    AMP: ["https://www.lockman.org/", "The Lockman Foundation"],
+    NLT: ["https://www.tyndale.com/", "Tyndale"],
+    NKJV: ["https://www.thomasnelsonbibles.com/", "Thomas Nelson"],
+    CEV: ["https://www.americanbible.org/", "American Bible Society"],
+    ESV: ["https://www.esv.org/", "ESV (Crossway)"],
+  };
   versions.forEach((version) => {
-    if (!translationProvider(version).showsAttribution) return;
+    const provider = translationProvider(version);
+    if (!provider.showsAttribution) return;
     const payload = remoteVersionData.get(remoteVersionLoadKey(version, chapterKey));
-    const copyright = String(payload?.copyright || "").trim();
-    if (!copyright || seen.has(copyright)) return;
-    seen.add(copyright);
-    notices.push(`<span>${escapeHtml(copyright)}</span>`);
+    // Publisher destinations are fixed; provider metadata is always escaped text.
+    const copyright = String(payload?.copyright || (version === "ESV"
+      ? "ESV® Bible © 2001 by Crossway. Used by permission. All rights reserved."
+      : "")).trim();
+    if (copyright && !seen.has(copyright)) {
+      seen.add(copyright);
+      notices.push(`<span>${escapeHtml(copyright)}</span>`);
+    }
+    const publisher = publishers[String(version).toUpperCase()];
+    if (publisher) links.set(publisher[0], publisher[1]);
+    if (provider.tracksFums) links.set("https://api.bible/", "API.Bible");
+    if (version === "ESV") links.set("/terms/#bible-rights", "Full ESV copyright and copying limits");
   });
-  if (!notices.length) return "";
+  if (!notices.length && !links.size) return "";
   const classes = ["scripture-attribution", className].filter(Boolean).join(" ");
+  const publisherLinks = Array.from(links, ([url, label]) =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`).join(" · ");
   return `
     <aside class="${classes}" aria-label="Bible translation copyright">
       ${notices.join("")}
+      <span>${publisherLinks}</span>
     </aside>
   `;
 }
