@@ -25628,7 +25628,7 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 .game-start-countdown {
   border: 0;
   background: transparent;
-  color: white;
+  color: var(--ink);
   text-align: center;
   padding: 24px;
   overflow: visible;
@@ -25636,27 +25636,27 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 .game-start-countdown::backdrop { background: rgb(0 0 0 / .72); }
 .game-start-countdown small { display: block; font-size: 18px; }
 .game-start-countdown strong { display: block; min-width: 200px; font-size: clamp(80px, 14vw, 150px); line-height: 1.3; }
-.game-start-countdown button { color: white; min-height: 44px; }
+.game-start-countdown button { min-height: 44px; }
 @media (min-width: 960px), (min-width: 780px) and (orientation: landscape) {
   .trivia-reader.is-setup .trivia-mode-picker.can-scroll-previous { padding-left: 36px; }
   .trivia-reader.is-setup .trivia-mode-picker.can-scroll-next { padding-right: 36px; }
 }
 
 .game-start-countdown {
-  border: 1px solid rgb(255 255 255 / .2);
+  border: 1px solid var(--line);
   border-radius: 28px;
-  background: radial-gradient(circle at 50% 35%, #23486c, #101b32 75%);
-  box-shadow: 0 20px 90px #0008, 0 0 50px #65b7ff30;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--teal) 12%, var(--paper)), var(--paper) 85%);
+  box-shadow: var(--shadow), 0 0 50px color-mix(in srgb, var(--teal) 18%, transparent);
   padding: 30px;
 }
 .game-start-countdown strong {
-  color: #ffcf68;
-  text-shadow: 0 0 35px #ffcf6860;
+  color: color-mix(in srgb, var(--ink) 65%, var(--gold));
+  text-shadow: 0 0 35px color-mix(in srgb, var(--gold) 25%, transparent);
   font-weight: 900;
 }
-.game-start-countdown[data-step="2"] strong { color: #ff9c72; text-shadow: 0 0 35px #ff9c7260; }
-.game-start-countdown[data-step="1"] strong { color: #80c4ff; text-shadow: 0 0 35px #80c4ff60; }
-.game-start-countdown[data-step="go"] strong { color: #78efd0; text-shadow: 0 0 35px #78efd060; }
+.game-start-countdown[data-step="2"] strong { color: color-mix(in srgb, var(--ink) 65%, var(--gold)); text-shadow: 0 0 35px color-mix(in srgb, var(--gold) 25%, transparent); }
+.game-start-countdown[data-step="1"] strong { color: color-mix(in srgb, var(--ink) 65%, var(--teal)); text-shadow: 0 0 35px color-mix(in srgb, var(--teal) 25%, transparent); }
+.game-start-countdown[data-step="go"] strong { color: color-mix(in srgb, var(--ink) 65%, var(--success)); text-shadow: 0 0 35px color-mix(in srgb, var(--success) 25%, transparent); }
 .game-countdown-actions { display: flex; justify-content: center; gap: 12px; }
 .game-countdown-actions button { min-width: 110px; }
-.game-countdown-actions .primary-btn { color: #081729; }
+.game-countdown-actions .primary-btn { color: var(--accent-ink); }

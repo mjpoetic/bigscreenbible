@@ -2513,6 +2513,7 @@ function switchMode(nextMode, options = {}) {
     ? [...state.sharedPassage.verses]
     : null;
   const applyModeChange = () => {
+    if (nextMode === "trivia" && previousMode !== "trivia") requestGameMusicRestart();
     state.mode = nextMode;
     state.sharedPassage = null;
     if (presentationPassage) {
@@ -14946,7 +14947,6 @@ function syncGameMusicPlayback() {
   const track = gameMusicTrackForGame(game);
   const shouldPlay = Boolean(
     state.gameMusicEnabled
-    && !gameCountdownActive
     && !window.bsbAmbient?.active()
     && state.mode === "trivia"
     && game
@@ -22222,6 +22222,7 @@ async function startGameCountdown() {
     if (!game || game === previousGame) return;
     const pausedAt = Date.now();
     game.countdownStartedAt = pausedAt;
+    requestGameMusicRestart();
     pauseTriviaGameForReference(game, pausedAt);
     renderPreservingReaderScroll();
     overlay = document.createElement("dialog");
@@ -22236,7 +22237,7 @@ async function startGameCountdown() {
     overlay.addEventListener("cancel", cancel);
     overlay.querySelector("[data-countdown-cancel]").addEventListener("click", cancel);
     overlay.querySelector("[data-countdown-start]").addEventListener("click", () => { skip = true; wake?.(); });
-    document.body.append(overlay);
+    (document.querySelector(".app-shell") || document.body).append(overlay);
     overlay.showModal();
     for (const label of ["3", "2", "1", "Go!"]) {
       if (cancelled || state.mode !== "trivia" || state.triviaGame !== game) break;
@@ -22273,7 +22274,7 @@ async function startGameCountdown() {
   } finally {
     overlay?.remove();
     gameCountdownActive = false;
-    // The final render happens while countdownActive still blocks playback.
+    // Keep the soundtrack continuous when the countdown ends or is skipped.
     syncGameMusicPlayback();
   }
 }
@@ -25013,6 +25014,7 @@ function currentGameReferenceReturn() {
 function returnToTriviaGame() {
   const target = currentGameReferenceReturn();
   if (!target) return;
+  requestGameMusicRestart();
   resumeTriviaGameAfterReference(target.game);
   state.gameReferenceReturn = null;
   state.mode = "trivia";
