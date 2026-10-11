@@ -122,3 +122,19 @@ assert.match(extractFunction("gameChallengeSetupCard"), /<button[^>]*data-open-f
 assert.match(extractFunction("friendsCard"), /<select[^>]*data-friends-view/);
 assert.match(styles, /grid-template-columns: 34px minmax\(0, 1fr\);/);
 assert.match(styles, /\.friend-person-actions \{\s*grid-column: 1 \/ -1;/);
+
+context.state.socialProfile = {};
+context.state.socialSafetyReady = true;
+context.state.socialConsent = true;
+context.state.socialAccessAllowed = true;
+context.friendshipOtherUserId = () => "requester";
+context.friendshipProfile = () => ({ username: "requester_name" });
+context.friendshipActionButton = action => `<button>${action}</button>`;
+context.friendshipPersonRow = (person, actions) => `<article>@${person.username}${actions}</article>`;
+vm.runInContext(`${extractFunction("incomingFriendRequestsCard")}
+globalThis.renderRequests = incomingFriendRequestsCard;`, context);
+assert.match(context.renderRequests(), /@requester_name/);
+assert.match(context.renderRequests(), /accept/);
+assert.match(context.renderRequests(), /decline/);
+assert.match(extractFunction("toggleAccountMenu"), /state.friendsPanelTab = "requests"/);
+assert.match(source, /\$\{incomingFriendRequestsCard\(\)\}/);

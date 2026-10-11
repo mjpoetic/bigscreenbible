@@ -934,6 +934,9 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
+  wordSearchMode: localStorage.getItem("lw_word_search_mode") === "categories" ? "categories" : "scripture",
+  wordSearchCategory: localStorage.getItem("lw_word_search_category") || "prophets",
+  wordSearchTestament: ["ot", "nt"].includes(localStorage.getItem("lw_word_search_testament")) ? localStorage.getItem("lw_word_search_testament") : "all",
   crosswordMode: localStorage.getItem("lw_crossword_mode") === "trivia" ? "trivia" : "scripture",
   crosswordClueSize: Math.max(14, Math.min(24, Number(localStorage.getItem("lw_crossword_clue_size")) || 15)),
   crosswordKeyboardVisible: localStorage.getItem(crosswordKeyboardVisibleStorageKey) !== "false",
@@ -6931,6 +6934,21 @@ function friendshipSearchResultRow(profile) {
   );
 }
 
+function incomingFriendRequestsCard() {
+  if (!state.authUser || !state.socialProfile || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed) return "";
+  const incoming = friendshipCollections().incoming;
+  if (!incoming.length) return "";
+  return `<section class="account-card game-friend-requests">
+    <div class="friend-list-heading"><strong>Friend requests</strong><span>${incoming.length}</span></div>
+    <div class="friend-list-group">${incoming.map(friendship => friendshipPersonRow(
+      friendshipProfile(friendshipOtherUserId(friendship)),
+      friendshipActionButton("accept", "Accept", { friendshipId: friendship.id, primary: true })
+        + friendshipActionButton("decline", "Decline", { friendshipId: friendship.id }),
+      "Sent you a request",
+    )).join("")}</div>
+  </section>`;
+}
+
 function friendsPanelContent(prefix = "") {
   const suffix = prefix ? `${prefix}-` : "";
   const collections = friendshipCollections();
@@ -11191,6 +11209,12 @@ function toggleAccountMenu(forceOpen = null) {
   }
   state.accountOpen = nextOpen;
   if (state.accountOpen) {
+    if (friendshipCollections().incoming.length) {
+      state.friendsPanelTab = "requests";
+      setSocialConnectionsOpen(true);
+    } else if (gameChallengeCollections().incoming.length) {
+      setSocialConnectionsOpen(true);
+    }
     state.settingsOpen = false;
     if (state.mode === "big") {
       state.presentationControlsVisible = true;
@@ -11217,7 +11241,15 @@ function toggleAccountMenu(forceOpen = null) {
       || document.getElementById("quick-newPassword")
       || document.getElementById("accountEmail")
       || document.getElementById("newPassword");
-    accountField?.focus?.();
+    if (friendshipCollections().incoming.length) {
+      const requests = document.querySelector(".friends-card");
+      requests?.scrollIntoView?.({ block: "nearest" });
+      requests?.querySelector("[data-friend-action]")?.focus({ preventScroll: true });
+    } else if (gameChallengeCollections().incoming.length) {
+      document.querySelector(".game-challenges-card")?.scrollIntoView?.({ block: "nearest" });
+    } else {
+      accountField?.focus?.();
+    }
   });
 }
 
@@ -13153,7 +13185,7 @@ function resetPuzzleCustomWordChoices() {
 }
 
 function puzzleCreatorEvaluation(gameType = state.triviaGameType, difficulty = state.triviaDifficulty) {
-  if ((gameType === "crossword" && state.crosswordMode === "trivia") || state.puzzlePassageSource !== "custom" || !["word-search", "crossword", "hidden-word"].includes(gameType)) {
+  if ((gameType === "word-search" && state.wordSearchMode === "categories") || (gameType === "crossword" && state.crosswordMode === "trivia") || state.puzzlePassageSource !== "custom" || !["word-search", "crossword", "hidden-word"].includes(gameType)) {
     return { custom: false, valid: true, title: "Surprise passage", message: "A passage will be selected for you." };
   }
   const pack = parsePuzzlePassageReference(state.puzzleCustomReference);
@@ -14272,6 +14304,756 @@ function crosswordVerseCapacity(verses, words) {
   ))).size;
 }
 
+// Curated category entries keep display labels separate from grid letters.
+const wordSearchCategoryCatalog = [
+  {
+    "id": "prophets",
+    "label": "Prophets",
+    "entries": [
+      {
+        "label": "Isaiah",
+        "fact": "Saw a vision of the Lord in the temple.",
+        "reference": "Isaiah 6:1-8"
+      },
+      {
+        "label": "Jeremiah",
+        "fact": "Was called to prophesy while still young.",
+        "reference": "Jeremiah 1:4-10"
+      },
+      {
+        "label": "Ezekiel",
+        "fact": "Saw a vision of a valley of dry bones.",
+        "reference": "Ezekiel 37:1-14"
+      },
+      {
+        "label": "Daniel",
+        "fact": "Prayed even when a royal decree forbade it.",
+        "reference": "Daniel 6:10"
+      },
+      {
+        "label": "Hosea",
+        "fact": "Called Israel to return to the Lord.",
+        "reference": "Hosea 14:1-2"
+      },
+      {
+        "label": "Joel",
+        "fact": "Spoke of God pouring out His Spirit.",
+        "reference": "Joel 2:28-29"
+      },
+      {
+        "label": "Amos",
+        "fact": "Was a shepherd before being called to prophesy.",
+        "reference": "Amos 7:14-15"
+      },
+      {
+        "label": "Obadiah",
+        "fact": "Prophesied against Edom.",
+        "reference": "Obadiah 1:1-4"
+      },
+      {
+        "label": "Jonah",
+        "fact": "Was sent to preach in Nineveh.",
+        "reference": "Jonah 3:1-5"
+      },
+      {
+        "label": "Micah",
+        "fact": "Called for justice, mercy, and humility before God.",
+        "reference": "Micah 6:8"
+      },
+      {
+        "label": "Nahum",
+        "fact": "Announced judgment against Nineveh.",
+        "reference": "Nahum 1:1"
+      },
+      {
+        "label": "Habakkuk",
+        "fact": "Asked God questions about injustice.",
+        "reference": "Habakkuk 1:2-4"
+      },
+      {
+        "label": "Zephaniah",
+        "fact": "Prophesied during the reign of Josiah.",
+        "reference": "Zephaniah 1:1"
+      },
+      {
+        "label": "Haggai",
+        "fact": "Urged the people to rebuild the temple.",
+        "reference": "Haggai 1:7-8"
+      },
+      {
+        "label": "Zechariah",
+        "fact": "Called the people to return to the Lord.",
+        "reference": "Zechariah 1:1-3"
+      },
+      {
+        "label": "Malachi",
+        "fact": "Spoke of a messenger preparing the way.",
+        "reference": "Malachi 3:1"
+      },
+      {
+        "label": "Nathan",
+        "fact": "Confronted David using a story about a lamb.",
+        "reference": "2 Samuel 12:1-7"
+      },
+      {
+        "label": "Elijah",
+        "fact": "Challenged the prophets of Baal on Mount Carmel.",
+        "reference": "1 Kings 18:20-39"
+      },
+      {
+        "label": "Elisha",
+        "fact": "Succeeded Elijah as prophet.",
+        "reference": "2 Kings 2:9-15"
+      },
+      {
+        "label": "Samuel",
+        "fact": "Heard the Lord calling him as a boy.",
+        "reference": "1 Samuel 3:1-10"
+      }
+    ]
+  },
+  {
+    "id": "rulers",
+    "label": "Kings and Rulers",
+    "entries": [
+      {
+        "label": "Saul",
+        "fact": "Was anointed king by Samuel.",
+        "reference": "1 Samuel 10:1"
+      },
+      {
+        "label": "David",
+        "fact": "Was anointed while his brothers were present.",
+        "reference": "1 Samuel 16:11-13"
+      },
+      {
+        "label": "Solomon",
+        "fact": "Asked God for wisdom to govern.",
+        "reference": "1 Kings 3:5-12"
+      },
+      {
+        "label": "Rehoboam",
+        "fact": "Rejected the advice of the older counselors.",
+        "reference": "1 Kings 12:6-14"
+      },
+      {
+        "label": "Jeroboam",
+        "fact": "Set up golden calves at Bethel and Dan.",
+        "reference": "1 Kings 12:28-30"
+      },
+      {
+        "label": "Asa",
+        "fact": "Removed idols from Judah.",
+        "reference": "1 Kings 15:11-13"
+      },
+      {
+        "label": "Jehoshaphat",
+        "fact": "Appointed judges in Judah.",
+        "reference": "2 Chronicles 19:4-7"
+      },
+      {
+        "label": "Ahab",
+        "fact": "Ruled Israel from Samaria.",
+        "reference": "1 Kings 16:29-33"
+      },
+      {
+        "label": "Jehu",
+        "fact": "Was anointed king of Israel.",
+        "reference": "2 Kings 9:1-6"
+      },
+      {
+        "label": "Joash",
+        "fact": "Became king at seven years old.",
+        "reference": "2 Kings 11:21"
+      },
+      {
+        "label": "Uzziah",
+        "fact": "Became king of Judah at sixteen.",
+        "reference": "2 Chronicles 26:1-3"
+      },
+      {
+        "label": "Hezekiah",
+        "fact": "Prayed after receiving a threatening letter.",
+        "reference": "2 Kings 19:14-19"
+      },
+      {
+        "label": "Josiah",
+        "fact": "Responded to the discovery of the Book of the Law.",
+        "reference": "2 Kings 22:8-13"
+      },
+      {
+        "label": "Cyrus",
+        "fact": "Authorized the rebuilding of the temple in Jerusalem.",
+        "reference": "Ezra 1:1-4"
+      },
+      {
+        "label": "Nebuchadnezzar",
+        "fact": "Had a dream of a great statue.",
+        "reference": "Daniel 2:1-3"
+      },
+      {
+        "label": "Darius",
+        "fact": "Signed the decree that led to Daniel’s ordeal.",
+        "reference": "Daniel 6:6-9"
+      },
+      {
+        "label": "Esther",
+        "fact": "Became queen and later pleaded for her people.",
+        "reference": "Esther 4:13-16"
+      },
+      {
+        "label": "Pharaoh",
+        "fact": "Refused Moses’ request to release Israel.",
+        "reference": "Exodus 5:1-2"
+      }
+    ]
+  },
+  {
+    "id": "women",
+    "label": "Women of the Bible",
+    "entries": [
+      {
+        "label": "Eve",
+        "fact": "Was named as the mother of all the living.",
+        "reference": "Genesis 3:20"
+      },
+      {
+        "label": "Sarah",
+        "fact": "Laughed when told she would have a son.",
+        "reference": "Genesis 18:9-14"
+      },
+      {
+        "label": "Hagar",
+        "fact": "Encountered the angel of the Lord in the wilderness.",
+        "reference": "Genesis 16:7-13"
+      },
+      {
+        "label": "Rebekah",
+        "fact": "Drew water for Abraham’s servant and his camels.",
+        "reference": "Genesis 24:15-20"
+      },
+      {
+        "label": "Rachel",
+        "fact": "Met Jacob while tending her father’s sheep.",
+        "reference": "Genesis 29:6-12"
+      },
+      {
+        "label": "Leah",
+        "fact": "Was the mother of Judah.",
+        "reference": "Genesis 29:35"
+      },
+      {
+        "label": "Miriam",
+        "fact": "Led the women in song after the sea crossing.",
+        "reference": "Exodus 15:20-21"
+      },
+      {
+        "label": "Deborah",
+        "fact": "Served as a prophetess and judge.",
+        "reference": "Judges 4:4-5"
+      },
+      {
+        "label": "Ruth",
+        "fact": "Stayed with Naomi and adopted her people and faith.",
+        "reference": "Ruth 1:16-17"
+      },
+      {
+        "label": "Naomi",
+        "fact": "Returned to Bethlehem with Ruth.",
+        "reference": "Ruth 1:22"
+      },
+      {
+        "label": "Hannah",
+        "fact": "Prayed for a son and later brought Samuel to the Lord.",
+        "reference": "1 Samuel 1:26-28"
+      },
+      {
+        "label": "Abigail",
+        "fact": "Brought food to David and urged him to avoid bloodshed.",
+        "reference": "1 Samuel 25:18-31"
+      },
+      {
+        "label": "Esther",
+        "fact": "Risked approaching the king to help her people.",
+        "reference": "Esther 4:15-16"
+      },
+      {
+        "label": "Elizabeth",
+        "fact": "Was the mother of John the Baptist.",
+        "reference": "Luke 1:13"
+      },
+      {
+        "label": "Mary",
+        "fact": "Was told she would give birth to Jesus.",
+        "reference": "Luke 1:30-33"
+      },
+      {
+        "label": "Martha",
+        "fact": "Welcomed Jesus into her home.",
+        "reference": "Luke 10:38-42"
+      },
+      {
+        "label": "Lydia",
+        "fact": "Was a seller of purple cloth who welcomed Paul.",
+        "reference": "Acts 16:14-15"
+      },
+      {
+        "label": "Priscilla",
+        "fact": "Helped explain the way of God to Apollos.",
+        "reference": "Acts 18:24-26"
+      },
+      {
+        "label": "Tabitha",
+        "fact": "Was known for good works and helping the poor.",
+        "reference": "Acts 9:36"
+      }
+    ]
+  },
+  {
+    "id": "disciples",
+    "label": "Apostles and Disciples",
+    "entries": [
+      {
+        "label": "Peter",
+        "fact": "Left his nets to follow Jesus.",
+        "reference": "Matthew 4:18-20"
+      },
+      {
+        "label": "Andrew",
+        "fact": "Brought his brother Simon to Jesus.",
+        "reference": "John 1:40-42"
+      },
+      {
+        "label": "James",
+        "fact": "Was a son of Zebedee and brother of John.",
+        "reference": "Matthew 4:21-22"
+      },
+      {
+        "label": "John",
+        "fact": "Was called alongside his brother James.",
+        "reference": "Matthew 4:21-22"
+      },
+      {
+        "label": "Philip",
+        "fact": "Invited Nathanael to come and see Jesus.",
+        "reference": "John 1:43-46"
+      },
+      {
+        "label": "Bartholomew",
+        "fact": "Was named among the twelve apostles.",
+        "reference": "Matthew 10:2-4"
+      },
+      {
+        "label": "Thomas",
+        "fact": "Confessed Jesus as his Lord and God.",
+        "reference": "John 20:26-29"
+      },
+      {
+        "label": "Matthew",
+        "fact": "Left the tax booth to follow Jesus.",
+        "reference": "Matthew 9:9"
+      },
+      {
+        "label": "Thaddaeus",
+        "fact": "Was listed among the twelve apostles.",
+        "reference": "Matthew 10:2-4"
+      },
+      {
+        "label": "Matthias",
+        "fact": "Was chosen to take Judas’ place among the apostles.",
+        "reference": "Acts 1:23-26"
+      },
+      {
+        "label": "Paul",
+        "fact": "Was sent with Barnabas on a missionary journey.",
+        "reference": "Acts 13:2-3"
+      },
+      {
+        "label": "Barnabas",
+        "fact": "Encouraged believers in Antioch.",
+        "reference": "Acts 11:22-24"
+      },
+      {
+        "label": "Silas",
+        "fact": "Prayed and sang with Paul in prison.",
+        "reference": "Acts 16:25"
+      },
+      {
+        "label": "Timothy",
+        "fact": "Joined Paul on his travels.",
+        "reference": "Acts 16:1-3"
+      },
+      {
+        "label": "Titus",
+        "fact": "Was entrusted with appointing elders in Crete.",
+        "reference": "Titus 1:4-5"
+      },
+      {
+        "label": "Apollos",
+        "fact": "Was an eloquent teacher instructed by Priscilla and Aquila.",
+        "reference": "Acts 18:24-26"
+      },
+      {
+        "label": "Stephen",
+        "fact": "Was chosen to help serve the growing church.",
+        "reference": "Acts 6:3-5"
+      },
+      {
+        "label": "Ananias",
+        "fact": "Was sent to visit Saul in Damascus.",
+        "reference": "Acts 9:10-17"
+      }
+    ]
+  },
+  {
+    "id": "places",
+    "label": "Places of the Bible",
+    "entries": [
+      {
+        "label": "Eden",
+        "fact": "Was the garden where God placed the first man.",
+        "reference": "Genesis 2:8"
+      },
+      {
+        "label": "Babel",
+        "fact": "Was the site of a city and tower.",
+        "reference": "Genesis 11:1-9"
+      },
+      {
+        "label": "Egypt",
+        "fact": "Was the land from which Israel was delivered.",
+        "reference": "Exodus 12:40-42"
+      },
+      {
+        "label": "Canaan",
+        "fact": "Was the land Abraham was called to enter.",
+        "reference": "Genesis 12:5-7"
+      },
+      {
+        "label": "Sinai",
+        "fact": "Was the mountain where God spoke to Moses.",
+        "reference": "Exodus 19:18-20"
+      },
+      {
+        "label": "Jericho",
+        "fact": "Had walls that fell after Israel marched around it.",
+        "reference": "Joshua 6:20"
+      },
+      {
+        "label": "Bethlehem",
+        "fact": "Was the birthplace of Jesus.",
+        "reference": "Matthew 2:1"
+      },
+      {
+        "label": "Jerusalem",
+        "fact": "Was the city where Solomon built the temple.",
+        "reference": "2 Chronicles 3:1"
+      },
+      {
+        "label": "Nazareth",
+        "fact": "Was the town where Jesus grew up.",
+        "reference": "Luke 2:39-40"
+      },
+      {
+        "label": "Galilee",
+        "fact": "Was a region where Jesus taught and healed.",
+        "reference": "Matthew 4:23"
+      },
+      {
+        "label": "Jordan",
+        "fact": "Was the river where Jesus was baptized.",
+        "reference": "Mark 1:9"
+      },
+      {
+        "label": "Samaria",
+        "fact": "Was a region Jesus traveled through.",
+        "reference": "John 4:3-5"
+      },
+      {
+        "label": "Nineveh",
+        "fact": "Was the city where Jonah preached.",
+        "reference": "Jonah 3:1-5"
+      },
+      {
+        "label": "Babylon",
+        "fact": "Was the city to which captives from Judah were taken.",
+        "reference": "Daniel 1:1-4"
+      },
+      {
+        "label": "Damascus",
+        "fact": "Was Saul’s destination when Jesus appeared to him.",
+        "reference": "Acts 9:1-6"
+      },
+      {
+        "label": "Antioch",
+        "fact": "Was where the disciples were first called Christians.",
+        "reference": "Acts 11:26"
+      },
+      {
+        "label": "Corinth",
+        "fact": "Was a city where Paul taught for eighteen months.",
+        "reference": "Acts 18:1-11"
+      },
+      {
+        "label": "Ephesus",
+        "fact": "Was a city where Paul taught in the hall of Tyrannus.",
+        "reference": "Acts 19:8-10"
+      },
+      {
+        "label": "Patmos",
+        "fact": "Was the island where John received his revelation.",
+        "reference": "Revelation 1:9"
+      },
+      {
+        "label": "Emmaus",
+        "fact": "Was the village toward which two disciples walked.",
+        "reference": "Luke 24:13-15"
+      }
+    ]
+  },
+  {
+    "id": "animals",
+    "label": "Animals of the Bible",
+    "entries": [
+      {
+        "label": "Lion",
+        "fact": "Was the animal Samson encountered near Timnah.",
+        "reference": "Judges 14:5-6"
+      },
+      {
+        "label": "Lamb",
+        "fact": "Appears in John’s description of Jesus.",
+        "reference": "John 1:29"
+      },
+      {
+        "label": "Sheep",
+        "fact": "Appear in Jesus’ teaching about the good shepherd.",
+        "reference": "John 10:11-14"
+      },
+      {
+        "label": "Goat",
+        "fact": "Was an animal used in the Day of Atonement ritual.",
+        "reference": "Leviticus 16:7-10"
+      },
+      {
+        "label": "Dove",
+        "fact": "Was sent out by Noah after the flood.",
+        "reference": "Genesis 8:8-12"
+      },
+      {
+        "label": "Raven",
+        "fact": "Was sent out by Noah before the dove.",
+        "reference": "Genesis 8:7"
+      },
+      {
+        "label": "Camel",
+        "fact": "Was among the animals watered by Rebekah.",
+        "reference": "Genesis 24:19-20"
+      },
+      {
+        "label": "Donkey",
+        "fact": "Was the animal Jesus rode into Jerusalem.",
+        "reference": "John 12:14-15"
+      },
+      {
+        "label": "Horse",
+        "fact": "Appears in the proverb about preparation for battle.",
+        "reference": "Proverbs 21:31"
+      },
+      {
+        "label": "Oxen",
+        "fact": "Appears in the command about not muzzling a working animal.",
+        "reference": "Deuteronomy 25:4"
+      },
+      {
+        "label": "Serpent",
+        "fact": "Appears in the account of the garden.",
+        "reference": "Genesis 3:1"
+      },
+      {
+        "label": "Fish",
+        "fact": "Was used in Jesus’ feeding of the five thousand.",
+        "reference": "Matthew 14:17-21"
+      },
+      {
+        "label": "Sparrow",
+        "fact": "Appears in Jesus’ teaching about God’s care.",
+        "reference": "Matthew 10:29-31"
+      },
+      {
+        "label": "Eagle",
+        "fact": "Appears in Isaiah’s promise of renewed strength.",
+        "reference": "Isaiah 40:31"
+      },
+      {
+        "label": "Bear",
+        "fact": "Was an animal David defended his flock against.",
+        "reference": "1 Samuel 17:34-35"
+      },
+      {
+        "label": "Fox",
+        "fact": "Appears in Jesus’ saying about animals having homes.",
+        "reference": "Luke 9:58"
+      },
+      {
+        "label": "Wolf",
+        "fact": "Appears in Jesus’ warning about false prophets.",
+        "reference": "Matthew 7:15"
+      },
+      {
+        "label": "Ant",
+        "fact": "Appears in Proverbs as an example of diligence.",
+        "reference": "Proverbs 6:6-8"
+      },
+      {
+        "label": "Locust",
+        "fact": "Was one of the plagues in Egypt.",
+        "reference": "Exodus 10:12-15"
+      },
+      {
+        "label": "Deer",
+        "fact": "Appears in a psalm’s picture of longing for God.",
+        "reference": "Psalm 42:1"
+      }
+    ]
+  },
+  {
+    "id": "opponents",
+    "label": "Opponents and Betrayers",
+    "entries": [
+      {
+        "label": "Cain",
+        "fact": "Killed his brother Abel.",
+        "reference": "Genesis 4:8"
+      },
+      {
+        "label": "Pharaoh",
+        "fact": "Refused to release Israel when Moses first asked.",
+        "reference": "Exodus 5:1-2"
+      },
+      {
+        "label": "Goliath",
+        "fact": "Challenged Israel’s army.",
+        "reference": "1 Samuel 17:8-10"
+      },
+      {
+        "label": "Saul",
+        "fact": "Pursued David despite David sparing his life.",
+        "reference": "1 Samuel 24:1-22"
+      },
+      {
+        "label": "Doeg",
+        "fact": "Killed the priests of Nob.",
+        "reference": "1 Samuel 22:18-19"
+      },
+      {
+        "label": "Absalom",
+        "fact": "Led a rebellion against his father David.",
+        "reference": "2 Samuel 15:10-14"
+      },
+      {
+        "label": "Ahithophel",
+        "fact": "Joined Absalom’s conspiracy.",
+        "reference": "2 Samuel 15:12"
+      },
+      {
+        "label": "Ahab",
+        "fact": "Allowed Naboth’s vineyard to be taken after Naboth was killed.",
+        "reference": "1 Kings 21:15-16"
+      },
+      {
+        "label": "Jezebel",
+        "fact": "Arranged false accusations against Naboth.",
+        "reference": "1 Kings 21:8-14"
+      },
+      {
+        "label": "Haman",
+        "fact": "Plotted to destroy the Jews.",
+        "reference": "Esther 3:5-6"
+      },
+      {
+        "label": "Sanballat",
+        "fact": "Opposed the rebuilding of Jerusalem’s wall.",
+        "reference": "Nehemiah 4:1-3"
+      },
+      {
+        "label": "Tobiah",
+        "fact": "Mocked the rebuilding of Jerusalem’s wall.",
+        "reference": "Nehemiah 4:3"
+      },
+      {
+        "label": "Herod",
+        "fact": "Ordered the killing of children in Bethlehem.",
+        "reference": "Matthew 2:16"
+      },
+      {
+        "label": "Judas Iscariot",
+        "fact": "Betrayed Jesus with a kiss.",
+        "reference": "Matthew 26:47-50"
+      },
+      {
+        "label": "Caiaphas",
+        "fact": "Was the high priest involved in the plot against Jesus.",
+        "reference": "Matthew 26:3-4"
+      },
+      {
+        "label": "Pilate",
+        "fact": "Handed Jesus over to be crucified.",
+        "reference": "Matthew 27:24-26"
+      },
+      {
+        "label": "Elymas",
+        "fact": "Tried to turn the proconsul away from the faith.",
+        "reference": "Acts 13:8"
+      },
+      {
+        "label": "Demetrius",
+        "fact": "Stirred up opposition to Paul’s teaching in Ephesus.",
+        "reference": "Acts 19:24-29"
+      }
+    ]
+  }
+];
+
+function wordSearchCategories() {
+  return [{ value: "random", label: "Random category" }, ...wordSearchCategoryCatalog.map(({ id, label }) => ({ value: id, label })), { value: "books", label: "Books of the Bible" }];
+}
+
+function normalizedWordSearchCategory(value) {
+  return wordSearchCategories().some((category) => category.value === value) ? value : "prophets";
+}
+
+function wordSearchCategoryLabel(value) {
+  return wordSearchCategories().find((category) => category.value === normalizedWordSearchCategory(value)).label;
+}
+
+function wordSearchCategoryEntries(category, testament = "all") {
+  const entries = category === "books"
+    ? bookDefinitions.flatMap(([book], index) => {
+      const oldTestament = index < books.indexOf("Matthew");
+      if (testament === "ot" && !oldTestament || testament === "nt" && oldTestament) return [];
+      return [{ label: book === "Psalm" ? "Psalms" : book, fact: `Book ${index + 1} of the Bible · ${oldTestament ? "Old" : "New"} Testament.`, reference: `${book} 1:1` }];
+    })
+    : wordSearchCategoryCatalog.find(({ id }) => id === normalizedWordSearchCategory(category))?.entries || [];
+  return entries.map((entry) => ({ ...entry, word: normalizeWordSearchWord(entry.label.replace(/^1 /, "First ").replace(/^2 /, "Second ").replace(/^3 /, "Third ")) }));
+}
+
+function wordSearchCategoryConfig(difficulty, category, testament = "all") {
+  const config = wordSearchDifficultyConfig(difficulty);
+  const entries = wordSearchCategoryEntries(category, testament);
+  return { ...config, size: Math.max(config.size, ...entries.map(({ word }) => word.length)) };
+}
+
+function wordSearchBestKey(difficulty, context = {}) {
+  return context.wordSearchMode === "categories"
+    ? `category:${normalizedWordSearchCategory(context.wordSearchCategory)}:${context.wordSearchCategory === "books" ? context.wordSearchTestament || "all" : "all"}:${difficulty || "Medium"}`
+    : puzzleBestKey(difficulty, context);
+}
+
+function wordSearchCategoryReviewMarkup(game) {
+  return `<div class="word-search-category-review">${game.categoryEntries.map((entry) => `<article><strong>${escapeHtml(entry.label)}</strong><p>${escapeHtml(entry.fact)}</p><button class="text-btn" type="button" data-word-search-reference="${escapeHtml(entry.word)}">${escapeHtml(entry.reference)} · Read</button></article>`).join("")}</div>`;
+}
+
 function normalizeWordSearchWord(value) {
   return String(value || "")
     .normalize("NFD")
@@ -14481,7 +15263,7 @@ function savedWordSearchBests() {
 }
 
 function savedWordSearchBest(difficulty, context = {}) {
-  return savedWordSearchBests()[puzzleBestKey(difficulty, context)] || null;
+  return savedWordSearchBests()[wordSearchBestKey(difficulty, context)] || null;
 }
 
 function recordWordSearchBest(game) {
@@ -14492,7 +15274,7 @@ function recordWordSearchBest(game) {
     completedAt: new Date(game.finishedAt).toISOString(),
   };
   const bests = savedWordSearchBests();
-  const bestKey = puzzleBestKey(game.difficulty, game);
+  const bestKey = wordSearchBestKey(game.difficulty, game);
   const previous = bests[bestKey];
   const beatPrevious = Boolean(previous && result.elapsedMs < previous.elapsedMs);
   const isNewBest = !previous || beatPrevious;
@@ -15813,6 +16595,11 @@ function restartPuzzleAtDifficulty(difficulty) {
   state.puzzleRestartPromptOpen = false;
   state.triviaDifficulty = difficulty;
   if (gameType === "crossword") state.crosswordMode = currentGame.crosswordMode || "scripture";
+  if (gameType === "word-search") {
+    state.wordSearchMode = currentGame.wordSearchMode || "scripture";
+    state.wordSearchCategory = currentGame.wordSearchCategoryChoice || currentGame.wordSearchCategory || state.wordSearchCategory;
+    state.wordSearchTestament = currentGame.wordSearchTestament || "all";
+  }
   state.puzzlePassageSource = currentGame.customPassage ? "custom" : "random";
   if (currentGame.customPassage) {
     state.puzzleCustomReference = currentGame.reference;
@@ -16056,6 +16843,8 @@ function triviaView() {
   const isBookSprint = state.triviaGameType === "book-sprint";
   const isWhoSaidIt = state.triviaGameType === "who-said-it";
   const isWordSearch = state.triviaGameType === "word-search";
+  const isCategoryWordSearch = isWordSearch && state.wordSearchMode === "categories";
+  if (isWordSearch) state.wordSearchCategory = normalizedWordSearchCategory(state.wordSearchCategory);
   const isCrossword = state.triviaGameType === "crossword";
   const isTriviaCrossword = isCrossword && state.crosswordMode === "trivia";
   const isHiddenWord = state.triviaGameType === "hidden-word";
@@ -16076,8 +16865,8 @@ function triviaView() {
     ? puzzleCreatorEvaluation(state.triviaGameType, state.triviaDifficulty)
     : null;
   const puzzleBestContext = puzzleCreatorBestContext(puzzleEvaluation);
-  const wordSearchConfig = wordSearchDifficultyConfig(state.triviaDifficulty);
-  const wordSearchBest = isWordSearch ? savedWordSearchBest(state.triviaDifficulty, puzzleBestContext) : null;
+  const wordSearchConfig = isCategoryWordSearch ? wordSearchCategoryConfig(state.triviaDifficulty, state.wordSearchCategory, state.wordSearchTestament) : wordSearchDifficultyConfig(state.triviaDifficulty);
+  const wordSearchBest = isCategoryWordSearch && state.wordSearchCategory === "random" ? null : isWordSearch ? savedWordSearchBest(state.triviaDifficulty, isCategoryWordSearch ? state : puzzleBestContext) : null;
   const crosswordConfig = isTriviaCrossword ? crosswordTriviaDifficultyConfig(state.triviaDifficulty) : crosswordDifficultyConfig(state.triviaDifficulty);
   const crosswordBest = isCrossword ? savedCrosswordBest(state.triviaDifficulty, isTriviaCrossword ? { crosswordMode: "trivia" } : puzzleBestContext) : null;
   const hiddenWordConfig = hiddenWordDifficultyConfig(state.triviaDifficulty);
@@ -16089,13 +16878,13 @@ function triviaView() {
     isCrossword ? isTriviaCrossword ? "Bible Trivia" : "Scripture" : "",
     state.triviaGameType === "trivia" ? state.triviaCategory : "",
     isVerseOrder ? "Progressive" : difficultyLabel,
-    isWordSearch ? `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : isHiddenWord ? `${hiddenWordConfig.attempts} attempts each` : `${selectedCount} ${countLabel}`,
+    isWordSearch ? isCategoryWordSearch && state.wordSearchCategory === "random" ? "Grid varies by category" : `${wordSearchConfig.size}×${wordSearchConfig.size} grid` : isCrossword ? `${crosswordConfig.entryCount} clues` : isHiddenWord ? `${hiddenWordConfig.attempts} attempts each` : `${selectedCount} ${countLabel}`,
     isReferenceRush ? state.referenceRushTimed ? "Timed" : "Untimed" : "",
     puzzleEvaluation?.custom
       ? puzzleEvaluation.pack
         ? `${puzzlePassageLabel(puzzleEvaluation.pack)} ${translationDisplayCode(puzzleEvaluation.version)}`
         : "Choose passage"
-      : isTriviaCrossword ? "Standalone clues" : isHiddenWord ? "Curated categories" : isWordSearch || isCrossword ? "Surprise passage" : "",
+      : isCategoryWordSearch ? `${wordSearchCategoryLabel(state.wordSearchCategory)}${state.wordSearchCategory === "books" && state.wordSearchTestament !== "all" ? ` · ${state.wordSearchTestament === "ot" ? "Old" : "New"} Testament` : ""}` : isTriviaCrossword ? "Standalone clues" : isHiddenWord ? "Curated categories" : isWordSearch || isCrossword ? "Surprise passage" : "",
     isWordSearch || isCrossword || isHiddenWord ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
@@ -16118,7 +16907,7 @@ function triviaView() {
         : isWhoSaidIt
           ? "Read the quote, then choose who said it before opening the reference."
           : isWordSearch
-            ? "Find words drawn from one Scripture passage—choose your own reference or let Big Screen Bible surprise you."
+            ? isCategoryWordSearch ? "Find names and words from your chosen Bible category. Finish to discover a fact and Scripture reference for each answer. Spaces are omitted; numbered books use FIRST, SECOND, or THIRD in the grid." : "Find words drawn from one Scripture passage—choose your own reference or let Big Screen Bible surprise you."
             : isCrossword
               ? isTriviaCrossword ? "Solve Bible names, places, and vocabulary from standalone clues. Each answer is one word. References are revealed when you finish." : "Solve connected Across and Down entries using verse excerpts from a passage you choose or a built-in favorite."
               : isHiddenWord
@@ -16129,7 +16918,7 @@ function triviaView() {
     : isReferenceRush ? "Read a verse and use its clues to find the reference."
     : isBookSprint ? "Put Bible books in order and try to beat your best time."
     : isWhoSaidIt ? "Read a Bible quote and choose who said it."
-    : isWordSearch ? "Find hidden words from a chosen or surprise Scripture passage."
+    : isWordSearch ? "Find hidden words from a Scripture passage or Bible category."
     : isCrossword ? isTriviaCrossword ? "Solve a Bible crossword from traditional trivia clues." : "Solve crossing words with clues from a Scripture passage."
     : isHiddenWord ? "Uncover Bible words and phrases, one letter at a time."
     : "Test your Bible knowledge with multiple-choice questions.";
@@ -16248,13 +17037,23 @@ function triviaView() {
                       ${settingsChoiceMarkup("triviaCountSelect", selectedCount, countChoices, { ariaLabel: "Round length", disabled: waitingForLiveChallenge })}
                     </div>
                   </div>
+                  ${isWordSearch ? `<div class="game-option-field">
+                    <span>Puzzle source</span>
+                    ${settingsChoiceMarkup("wordSearchModeSelect", state.wordSearchMode, [{ value: "scripture", label: "Scripture passage" }, { value: "categories", label: "Bible categories" }], { ariaLabel: "Word Search puzzle source", disabled: waitingForLiveChallenge })}
+                  </div>${isCategoryWordSearch ? `<div class="game-option-field">
+                    <span>Bible category</span>
+                    ${settingsChoiceMarkup("wordSearchCategorySelect", state.wordSearchCategory, wordSearchCategories(), { ariaLabel: "Word Search category", disabled: waitingForLiveChallenge })}
+                  </div>${state.wordSearchCategory === "books" ? `<div class="game-option-field">
+                    <span>Books to include</span>
+                    ${settingsChoiceMarkup("wordSearchTestamentSelect", state.wordSearchTestament, [{ value: "all", label: "All books" }, { value: "ot", label: "Old Testament" }, { value: "nt", label: "New Testament" }], { ariaLabel: "Books to include", disabled: waitingForLiveChallenge })}
+                  </div>` : ""}<p class="games-setup-help">${state.wordSearchCategory === "random" ? "Grid varies by category" : `${wordSearchConfig.size}×${wordSearchConfig.size}`} · ${wordSearchConfig.wordCount} words · ${escapeHtml(wordSearchDifficultyDescription(state.triviaDifficulty).split(" · ").slice(2).join(" · "))}</p>` : ""}` : ""}
                   ${isCrossword ? `<div class="game-option-field">
                     <span>Crossword style</span>
                     ${settingsChoiceMarkup("crosswordModeSelect", state.crosswordMode, [{ value: "scripture", label: "Scripture · verse clues" }, { value: "trivia", label: "Bible Trivia · traditional clues" }], { ariaLabel: "Crossword style", disabled: waitingForLiveChallenge })}
                     <small>${crosswordDifficultyDescription(state.triviaDifficulty, state.crosswordMode)}</small>
                   </div>` : ""}
                   ${isCrossword ? crosswordClueSizeMarkup() : ""}
-                  ${isWordSearch || (isCrossword && !isTriviaCrossword) || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
+                  ${(isWordSearch && !isCategoryWordSearch) || (isCrossword && !isTriviaCrossword) || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
                   ${isReferenceRush ? `
                     <button class="reference-rush-timer-option ${state.referenceRushTimed ? "active" : ""}" id="referenceRushTimerToggle" type="button" aria-pressed="${state.referenceRushTimed}" ${challengeSetupLock}>
@@ -16274,7 +17073,7 @@ function triviaView() {
               </div>
               ${isVerseOrder ? verseOrderRecords(verseOrderGameVersion(), selectedCount) : ""}
               ${isReferenceRush ? referenceRushRecords(state.triviaDifficulty, selectedCount, state.referenceRushTimed) : ""}
-              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static ${(isWordSearch ? wordSearchBest : isCrossword ? crosswordBest : bookSprintBest) ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush", "verse-order"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
+              ${isWordSearch || isCrossword || isBookSprint ? `<div class="games-records games-records-static ${(isWordSearch ? wordSearchBest : isCrossword ? crosswordBest : bookSprintBest) ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${escapeHtml(isWordSearch ? wordSearchBest ? `${formatGameTime(wordSearchBest.elapsedMs)} · Best time` : isCategoryWordSearch && state.wordSearchCategory === "random" ? "Best times are saved by the chosen category" : "No best time yet" : isCrossword ? `${formatCrosswordBestTime(crosswordBest)}${crosswordBest?.hintCount ? " · Assisted" : ""}` : bookSprintBestLabel(bookSprintBest))}</small></div>` : !isHiddenWord && !["trivia", "who-said-it", "reference-rush", "verse-order"].includes(state.triviaGameType) ? `<div class="games-records games-records-static"><strong>Your records</strong><small>Records aren’t saved for this game</small></div>` : ""}
               ${isHiddenWord ? hiddenWordLeaderboard(state.triviaDifficulty, selectedCount, puzzleBestContext) : ["trivia", "who-said-it"].includes(state.triviaGameType) ? quizLeaderboard({ type: state.triviaGameType, difficulty: state.triviaDifficulty, category: state.triviaCategory, count: selectedCount }) : ""}
             </div>
             ${socialSupported ? `<div class="games-drawer-shell ${state.gamesDrawerOpen === "social" ? "open" : ""}" data-games-drawer="social">
@@ -16288,6 +17087,7 @@ function triviaView() {
                   <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close social games">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
+                  ${incomingFriendRequestsCard()}
                   ${gameChallengeSetupCard()}
                 </div>
               </aside>
@@ -16516,6 +17316,8 @@ function puzzleRestartDialog(game) {
 }
 
 function wordSearchGameView(game) {
+  const categoryMode = game.wordSearchMode === "categories";
+  const wordLabel = (word) => categoryMode ? game.categoryEntries.find((entry) => entry.word === word)?.label || word : word;
   const foundWords = new Set(game.foundWords);
   const foundCells = wordSearchFoundCellKeys(game);
   const previewCells = new Set((game.selectionPreview || []).map(wordSearchCellKey));
@@ -16532,7 +17334,7 @@ function wordSearchGameView(game) {
     <div class="trivia-game word-search-game ${game.complete ? "is-complete" : ""}">
       <div class="word-search-toolbar">
         <div class="trivia-progress">
-          <span>Word Search · ${escapeHtml(game.difficulty)} · ${escapeHtml(game.version)}</span>
+          <span>Word Search · ${escapeHtml(game.difficulty)} · ${escapeHtml(categoryMode ? game.referenceLabel : game.version)}</span>
           <strong>${foundCount} of ${game.words.length} found</strong>
         </div>
         <div class="word-search-timer" aria-label="Word Search timer and best result">
@@ -16544,7 +17346,7 @@ function wordSearchGameView(game) {
       <div class="word-search-layout">
         <div class="word-search-board-shell">
           <div
-            class="word-search-grid"
+            class="word-search-grid ${game.size > 12 ? "is-large-grid" : ""}"
             id="wordSearchGrid"
             role="grid"
             aria-label="${game.size} by ${game.size} Word Search grid"
@@ -16565,11 +17367,11 @@ function wordSearchGameView(game) {
             })).join("")}
             ${wordSearchFoundOutlines(game)}
           </div>
-          <p class="word-search-status" id="wordSearchStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? "Puzzle complete. The full passage is ready to read." : game.lastSelectionMessage)}</p>
+          <p class="word-search-status" id="wordSearchStatus" role="status" aria-live="polite">${escapeHtml(game.complete ? categoryMode ? "Puzzle complete. Explore the facts and references for your answers." : "Puzzle complete. The full passage is ready to read." : game.lastSelectionMessage)}</p>
         </div>
         <aside class="word-search-sidebar" aria-label="Word Search details">
           <div class="word-search-passage-heading">
-            <span>${game.complete ? "Puzzle passage" : "Find words from"}</span>
+            <span>${categoryMode ? "Bible category" : game.complete ? "Puzzle passage" : "Find words from"}</span>
             <strong>${escapeHtml(game.referenceLabel)}</strong>
           </div>
           ${game.complete ? `
@@ -16577,21 +17379,21 @@ function wordSearchGameView(game) {
               <span>${game.wordSearchBeatBest ? "New fastest time" : game.wordSearchHadPrevious ? "Completed in" : "Best time set"}</span>
               <strong>${elapsed}</strong>
               ${game.wordSearchHadPrevious && game.wordSearchTarget
-                ? `<small>${game.wordSearchBeatBest ? "Previous time to beat" : game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(game.wordSearchBeatBest ? game.wordSearchTarget.elapsedMs : best?.elapsedMs)}</small>`
-                : `<small>${game.customPassage ? "The next puzzle from this passage" : `The next ${escapeHtml(game.difficulty)} puzzle`} will count down from this time.</small>`}
+                ? `<small>${game.wordSearchBeatBest ? "Previous time to beat" : categoryMode ? "Best for this category" : game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(game.wordSearchBeatBest ? game.wordSearchTarget.elapsedMs : best?.elapsedMs)}</small>`
+                : `<small>${categoryMode ? "The next puzzle in this category at this difficulty" : game.customPassage ? "The next puzzle from this passage" : `The next ${escapeHtml(game.difficulty)} puzzle`} will count down from this time.</small>`}
             </div>
-            ${wordSearchPassageMarkup(game)}
+            ${categoryMode ? wordSearchCategoryReviewMarkup(game) : `${wordSearchPassageMarkup(game)}
             <div class="trivia-reference word-search-reference">
               <span>${escapeHtml(game.referenceLabel)}</span>
               <button class="text-btn" id="openTriviaReference" type="button">Open passage</button>
-            </div>
+            </div>`}
           ` : `
             <p class="word-search-instructions">Drag across letters in a straight line. You can also choose the first letter, then the last.</p>
           `}
           <div class="word-search-list is-remaining" aria-label="Words to find">
-            ${game.words.map((word) => `<span class="${foundWords.has(word) ? "is-found" : ""}">${foundWords.has(word) ? '<span aria-hidden="true">✓</span>' : ""}<span>${escapeHtml(word)}</span></span>`).join("")}
+            ${game.words.map((word) => `<span class="${foundWords.has(word) ? "is-found" : ""}">${foundWords.has(word) ? '<span aria-hidden="true">✓</span>' : ""}<span>${escapeHtml(wordLabel(word))}</span></span>`).join("")}
           </div>
-          ${!game.complete && foundCount ? `<details class="word-search-found"><summary>${foundCount} found ${foundCount === 1 ? "word" : "words"}</summary><div class="word-search-list">${game.words.filter((word) => foundWords.has(word)).map((word) => `<span class="is-found"><span aria-hidden="true">✓</span><span>${escapeHtml(word)}</span></span>`).join("")}</div></details>` : ""}
+          ${!game.complete && foundCount ? `<details class="word-search-found"><summary>${foundCount} found ${foundCount === 1 ? "word" : "words"}</summary><div class="word-search-list">${game.words.filter((word) => foundWords.has(word)).map((word) => `<span class="is-found"><span aria-hidden="true">✓</span><span>${escapeHtml(wordLabel(word))}</span></span>`).join("")}</div></details>` : ""}
           <div class="trivia-actions word-search-actions">
             ${triviaExitControl(game)}
             <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
@@ -17482,6 +18284,7 @@ function showBestTimeCelebration(game, best) {
       <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best?.hintCount || game.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}${outcome.accuracy}% ${["word-search", "crossword"].includes(game.type) ? "completed" : "accuracy"}. ${best ? (highScore ? "That’s your highest score yet!" : "That’s your fastest yet!") : outcome.tier === "perfect" ? "Every one correct — wonderful work!" : "Every round is a chance to learn. Try again!"}${game.timeBonus ? ` Perfect Time Bonus +${game.timeBonus}.` : ""}${roundTime != null ? ` ${highScore ? "Solving time" : "Round time"}: ${formatGameTime(roundTime)}.` : ""}</p>
       <p class="best-time-status" role="status">Ready for another round?</p>
       <div class="best-time-actions">
+        ${game.type === "word-search" && game.wordSearchMode === "categories" ? '<button type="button" class="primary-btn" data-best-time-action="review">Explore answers</button>' : ""}
         <button type="button" class="primary-btn" data-best-time-action="retry">Try again</button>
         <button type="button" class="ghost-btn" data-best-time-action="menu">Games menu</button>
       </div>
@@ -17503,7 +18306,10 @@ function showBestTimeCelebration(game, best) {
     if (!button || button.disabled) return;
     const action = button.dataset.bestTimeAction;
     cleanupTriviaCelebration();
-    if (action === "menu") {
+    if (action === "review") {
+      renderPreservingReaderScroll();
+      requestAnimationFrame(() => document.querySelector("[data-word-search-reference]")?.focus({ preventScroll: true }));
+    } else if (action === "menu") {
       exitTriviaGame();
     } else {
       state.activeGameChallengeId = "";
@@ -20663,10 +21469,22 @@ function bindEvents() {
     disclosure.addEventListener("toggle", () => {
       setSocialConnectionsOpen(disclosure.open);
     });
+    const openIncomingRequests = () => {
+      if (!disclosure.open && friendshipCollections().incoming.length) {
+        state.friendsPanelTab = "requests";
+        setSocialConnectionsOpen(true);
+        renderPreservingReaderScroll();
+        return true;
+      }
+      return false;
+    };
+    disclosure.querySelector("summary")?.addEventListener("click", (event) => {
+      if (openIncomingRequests()) event.preventDefault();
+    });
     disclosure.querySelector("summary")?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      disclosure.open = !disclosure.open;
+      if (!openIncomingRequests()) disclosure.open = !disclosure.open;
     });
   });
   document.getElementById("quick-profileUsername")?.addEventListener("blur", (event) => {
@@ -21229,6 +22047,19 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  for (const [id, key, storageKey, normalize] of [
+    ["wordSearchModeSelect", "wordSearchMode", "lw_word_search_mode", (value) => value === "categories" ? "categories" : "scripture"],
+    ["wordSearchCategorySelect", "wordSearchCategory", "lw_word_search_category", normalizedWordSearchCategory],
+    ["wordSearchTestamentSelect", "wordSearchTestament", "lw_word_search_testament", (value) => ["ot", "nt"].includes(value) ? value : "all"],
+  ]) {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      if (state.triviaGame || activeGameChallenge()?.status === "pending") return;
+      state[key] = normalize(event.target.value);
+      localStorage.setItem(storageKey, state[key]);
+      renderPreservingReaderScroll();
+      requestAnimationFrame(() => document.getElementById(`${id}Toggle`)?.focus({ preventScroll: true }));
+    });
+  }
   document.getElementById("crosswordModeSelect")?.addEventListener("change", (event) => {
     if (state.triviaGame || activeGameChallenge()?.status === "pending") return;
     state.crosswordMode = event.target.value === "trivia" ? "trivia" : "scripture";
@@ -21331,7 +22162,13 @@ function bindEvents() {
   });
   document.getElementById("gamesAnswerDialogBody")?.addEventListener("keydown", handleGamesAnswerKeydown);
   document.getElementById("nextTriviaQuestion")?.addEventListener("click", nextTriviaQuestion);
-  document.getElementById("openTriviaReference")?.addEventListener("click", openTriviaReference);
+  document.getElementById("openTriviaReference")?.addEventListener("click", () => openTriviaReference());
+  document.querySelectorAll("[data-word-search-reference]").forEach((button) => button.addEventListener("click", () => {
+    const game = state.triviaGame;
+    if (game?.type !== "word-search" || game.wordSearchMode !== "categories" || !game.complete) return;
+    const entry = game.categoryEntries.find(({ word }) => word === button.dataset.wordSearchReference);
+    if (entry) openTriviaReference(entry.reference);
+  }));
   document.querySelectorAll("[data-trivia-answer]").forEach((button) => {
     button.addEventListener("click", () => answerTriviaQuestion(button.dataset.triviaAnswer));
   });
@@ -22469,7 +23306,15 @@ function startHiddenWordGame({ render = true } = {}) {
 
 function startWordSearchGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
-  const config = wordSearchDifficultyConfig(difficulty);
+  const categoryMode = state.wordSearchMode === "categories";
+  const categoryChoice = normalizedWordSearchCategory(state.wordSearchCategory);
+  const categoryChoices = wordSearchCategories().filter(({ value }) => value !== "random");
+  const category = categoryMode && categoryChoice === "random"
+    ? categoryChoices[Math.floor(triviaRandomSource() * categoryChoices.length)].value
+    : categoryChoice;
+  const testament = categoryChoice === "books" && ["ot", "nt"].includes(state.wordSearchTestament) ? state.wordSearchTestament : "all";
+  const config = categoryMode ? wordSearchCategoryConfig(difficulty, category, testament) : wordSearchDifficultyConfig(difficulty);
+  const categoryPool = categoryMode ? wordSearchCategoryEntries(category, testament) : [];
   const customEvaluation = puzzleCreatorEvaluation("word-search", difficulty);
   const customPassage = Boolean(customEvaluation.custom);
   if (customPassage && !customEvaluation.valid) {
@@ -22477,11 +23322,13 @@ function startWordSearchGame({ render = true } = {}) {
     return;
   }
   const version = customPassage ? customEvaluation.version : wordSearchVersion();
-  const bestContext = customPassage
+  const bestContext = categoryMode ? { wordSearchMode: "categories", wordSearchCategory: category, wordSearchTestament: testament } : customPassage
     ? { customPassage: true, reference: customEvaluation.reference, version }
     : {};
   const target = savedWordSearchBest(difficulty, bestContext);
-  const passageOptions = customPassage
+  const passageOptions = categoryMode
+    ? Array.from({ length: 24 }, () => ({ pack: { label: wordSearchCategoryLabel(category) }, verses: [], words: shuffleItems(categoryPool).slice(0, config.wordCount).map(({ word }) => word) }))
+    : customPassage
     ? [{ pack: customEvaluation.pack, verses: customEvaluation.verses, words: customEvaluation.selectedWords }]
     : orderedWordSearchPassages().map((pack) => ({
       pack,
@@ -22515,10 +23362,15 @@ function startWordSearchGame({ render = true } = {}) {
   if (target) primeWordSearchAudio();
   state.triviaGame = {
     type: "word-search",
+    wordSearchMode: categoryMode ? "categories" : "scripture",
+    wordSearchCategory: categoryMode ? category : null,
+    wordSearchCategoryChoice: categoryChoice,
+    wordSearchTestament: testament,
+    categoryEntries: categoryMode ? generated.placements.map(({ word }) => categoryPool.find((entry) => entry.word === word)) : [],
     customPassage,
     difficulty,
     version,
-    reference: puzzlePassageReference(selected.pack),
+    reference: categoryMode ? "" : puzzlePassageReference(selected.pack),
     referenceLabel: selected.pack.label || puzzlePassageLabel(selected.pack),
     verses: selected.verses,
     size: config.size,
@@ -22541,7 +23393,7 @@ function startWordSearchGame({ render = true } = {}) {
     score: 0,
     complete: false,
   };
-  recordWordSearchPassage(selected.pack);
+  if (!categoryMode) recordWordSearchPassage(selected.pack);
   if (render) renderPreservingReaderScroll();
 }
 
@@ -25103,9 +25955,9 @@ function scheduleGameReferenceVerseFocus(reference, verse) {
   document.fonts?.ready?.then(focusReference).catch(() => {});
 }
 
-function openTriviaReference() {
+function openTriviaReference(referenceOverride = "") {
   const game = state.triviaGame;
-  const reference = game?.type === "word-search" || game?.type === "crossword"
+  const reference = referenceOverride || (game?.type === "word-search" || game?.type === "crossword"
     ? game.reference
     : game?.type === "hidden-word"
       ? game.rounds?.[game.index]?.reference
@@ -25113,7 +25965,7 @@ function openTriviaReference() {
     ? game.puzzles?.[game.index]?.reference
     : game?.type === "who-said-it"
       ? game.questions?.[game.index]?.reference
-    : game?.questions?.[game.index]?.reference;
+    : game?.questions?.[game.index]?.reference);
   const gameScrollState = captureReaderScroll();
   if (!reference || !setReferenceFromString(reference)) return showToast("Reference is not available");
   pauseTriviaGameForReference(game);

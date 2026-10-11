@@ -281,7 +281,7 @@ assert.match(timerDisplaySource, /playWordSearchCountdownTick\(secondsRemaining\
 assert.match(timerDisplaySource, /game\.complete \? "Finished" : "Time"/);
 assert.match(extractFunction("scheduleWordSearchTimer"), /setInterval/);
 assert.match(extractFunction("recordWordSearchBest"), /beatPrevious/);
-assert.match(extractFunction("savedWordSearchBest"), /puzzleBestKey\(difficulty, context\)/);
+assert.match(extractFunction("savedWordSearchBest"), /wordSearchBestKey\(difficulty, context\)/);
 assert.match(extractFunction("mountMobileGameControls"), /word-search-actions/);
 assert.match(extractFunction("openTriviaReference"), /game\?\.type === "word-search"[\s\S]*?game\.reference/);
 

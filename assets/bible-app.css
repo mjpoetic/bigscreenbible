@@ -25809,3 +25809,38 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 }
 /* Initial dialog focus belongs to the announcement, not an action button. */
 .game-start-countdown > [role="status"]:focus { outline: none; }
+
+.word-search-category-review {
+  display: grid;
+  gap: 12px;
+}
+
+.word-search-category-review article {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.word-search-category-review p {
+  margin: 6px 0;
+  line-height: 1.5;
+}
+
+.word-search-category-review .text-btn {
+  min-height: 44px;
+  text-align: left;
+  white-space: normal;
+}
+
+.friends-navigation select { appearance: auto; -webkit-appearance: auto; }
+.game-friend-requests { display: grid; gap: 10px; margin-bottom: 14px; }
+
+/* Long category names need more cells without crowding the letters. */
+.word-search-grid.is-large-grid {
+  container-type: inline-size;
+}
+
+.word-search-grid.is-large-grid .word-search-cell {
+  font-size: clamp(10px, calc(100cqw / var(--word-search-size) * .72), 32px);
+}
