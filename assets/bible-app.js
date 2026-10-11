@@ -14468,6 +14468,7 @@ function wordSearchFoundOutlines(game) {
 }
 
 function wordSearchElapsedMs(game = state.triviaGame) {
+  if (game?.countdownStartedAt) return 0;
   if (!game || game.type !== "word-search" || !game.startedAt) return 0;
   return Math.max(0, (game.finishedAt || Date.now()) - game.startedAt);
 }
@@ -14540,11 +14541,13 @@ function scheduleWordSearchTimer() {
   wordSearchTimer = 0;
   updateWordSearchTimerDisplay();
   const game = state.triviaGame;
+  if (game?.countdownStartedAt) return;
   if (state.mode !== "trivia" || game?.type !== "word-search" || game.complete) return;
   wordSearchTimer = setInterval(updateWordSearchTimerDisplay, 500);
 }
 
 function crosswordElapsedMs(game = state.triviaGame) {
+  if (game?.countdownStartedAt) return 0;
   if (!game || game.type !== "crossword" || !game.startedAt) return 0;
   return Math.max(0, (game.finishedAt || Date.now()) - game.startedAt);
 }
@@ -14600,6 +14603,7 @@ function scheduleCrosswordTimer() {
   crosswordTimer = 0;
   updateCrosswordTimerDisplay();
   const game = state.triviaGame;
+  if (game?.countdownStartedAt) return;
   if (state.mode !== "trivia" || game?.type !== "crossword" || game.complete) return;
   crosswordTimer = setInterval(updateCrosswordTimerDisplay, 500);
 }
@@ -15065,6 +15069,7 @@ function normalizedTriviaCount(gameType = state.triviaGameType, count = state.tr
 }
 
 function bookSprintElapsedMs(game = state.triviaGame) {
+  if (game?.countdownStartedAt) return 0;
   if (!game || game.type !== "book-sprint" || !game.startedAt) return 0;
   return Math.max(0, (game.finishedAt || game.referencePausedAt || Date.now()) - game.startedAt);
 }
@@ -15102,6 +15107,7 @@ function resumeTriviaGameAfterReference(game = state.triviaGame, resumedAt = Dat
 }
 
 function verseOrderElapsedMs(game = state.triviaGame) {
+  if (game?.countdownStartedAt) return 0;
   if (game?.type !== "verse-order") return 0;
   return (game.elapsedMs || 0) + (game.puzzleStartedAt && !game.complete
     ? Math.max(0, Date.now() - game.puzzleStartedAt) : 0);
@@ -15225,6 +15231,7 @@ function scheduleBookSprintTimer() {
   bookSprintTimer = 0;
   updateBookSprintTimerDisplay();
   const game = state.triviaGame;
+  if (game?.countdownStartedAt) return;
   if (state.mode !== "trivia" || !["book-sprint", "verse-order"].includes(game?.type) || game.complete || game.referencePausedAt) return;
   bookSprintTimer = setInterval(updateBookSprintTimerDisplay, 500);
 }
@@ -15344,6 +15351,7 @@ function scheduleReferenceRushTimer() {
   referenceRushTimer = 0;
   updateReferenceRushTimerDisplay();
   const game = state.triviaGame;
+  if (game?.countdownStartedAt) return;
   if (state.mode !== "trivia" || game?.type !== "reference-rush" || !game.timed || game.complete || game.finishedAt || game.referencePausedAt) return;
   referenceRushTimer = setInterval(updateReferenceRushTimerDisplay, 250);
 }
@@ -22213,24 +22221,38 @@ async function startGameCountdown() {
     const game = state.triviaGame;
     if (!game || game === previousGame) return;
     const pausedAt = Date.now();
+    game.countdownStartedAt = pausedAt;
     pauseTriviaGameForReference(game, pausedAt);
     renderPreservingReaderScroll();
     overlay = document.createElement("dialog");
     overlay.className = "game-start-countdown";
     overlay.setAttribute("aria-label", "Game starting");
-    overlay.innerHTML = '<div role="status" aria-live="assertive" aria-atomic="true"><small>Get ready</small><strong>3</strong></div><button type="button" class="ghost-btn">Cancel</button>';
+    overlay.innerHTML = '<div role="status" aria-live="assertive" aria-atomic="true"><small>Get ready</small><strong>3</strong></div><div class="game-countdown-actions"><button type="button" class="ghost-btn" data-countdown-cancel>Cancel</button><button type="button" class="primary-btn" data-countdown-start>Start now</button></div>';
     let cancelled = false;
-    const cancel = () => { cancelled = true; overlay.close(); };
+    let skip = false;
+    let wake;
+    const cancel = () => { cancelled = true; wake?.(); overlay.close(); };
     overlay.addEventListener("keydown", event => event.stopPropagation());
     overlay.addEventListener("cancel", cancel);
-    overlay.querySelector("button").addEventListener("click", cancel);
+    overlay.querySelector("[data-countdown-cancel]").addEventListener("click", cancel);
+    overlay.querySelector("[data-countdown-start]").addEventListener("click", () => { skip = true; wake?.(); });
     document.body.append(overlay);
     overlay.showModal();
     for (const label of ["3", "2", "1", "Go!"]) {
       if (cancelled || state.mode !== "trivia" || state.triviaGame !== game) break;
-      overlay.querySelector("strong").textContent = label;
+      if (skip && label !== "Go!") continue;
+      const number = overlay.querySelector("strong");
+      number.textContent = label;
+      overlay.dataset.step = label === "Go!" ? "go" : label;
+      if (!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+        number.animate?.([{ transform: "scale(.65)", opacity: .3 }, { transform: "scale(1.12)", opacity: 1, offset: .6 }, { transform: "scale(1)", opacity: 1 }], { duration: 420, easing: "ease-out" });
+      }
       playGameCountdownTone(label === "Go!");
-      await new Promise(resolve => setTimeout(resolve, label === "Go!" ? 300 : 1000));
+      await new Promise(resolve => {
+        const timer = setTimeout(resolve, label === "Go!" ? 300 : 1000);
+        wake = () => { clearTimeout(timer); resolve(); };
+      });
+      wake = null;
     }
     if (state.triviaGame !== game || state.mode !== "trivia") return;
     if (cancelled) {
@@ -22245,6 +22267,8 @@ async function startGameCountdown() {
       if (game[key]) game[key] += elapsed;
     }
     if (!["book-sprint", "reference-rush"].includes(game.type) && game.startedAt) game.startedAt += elapsed;
+    delete game.countdownStartedAt;
+    gameCountdownActive = false;
     renderPreservingReaderScroll();
   } finally {
     overlay?.remove();
