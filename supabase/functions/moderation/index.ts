@@ -38,7 +38,8 @@ export async function handleModeration(request: Request, supplied?: ReturnType<t
     if (!input || typeof input!=='object' || Array.isArray(input)) return reply(request,400,{error:'Invalid request.'});
     const actions=['access','queue','detail','review','resolve','dismiss','note','suspend','restore_access','remove_profile'];
     if (!actions.includes(input.action)) return reply(request,400,{error:'Invalid action.'});
-    const payload: Record<string,unknown>={action:input.action,session_id:claims.session_id};
+    const verifiedAt=Math.max(0,...(Array.isArray(claims.amr) ? claims.amr : []).filter((entry: {method?:string;timestamp?:number})=>entry.method==='totp' && Number.isFinite(entry.timestamp)).map((entry: {timestamp:number})=>entry.timestamp));
+    const payload: Record<string,unknown>={action:input.action,session_id:claims.session_id,assurance:claims.aal || 'aal1',mfa_verified_at:verifiedAt};
     if (input.action==='queue') {
       payload.status=String(input.status || 'active'); payload.reason=String(input.reason || 'all');
       payload.search=String(input.search || '').slice(0,100);
@@ -54,9 +55,10 @@ export async function handleModeration(request: Request, supplied?: ReturnType<t
     }
     const {data,error}=await admin.rpc('bsb_moderation',{operator_id:identity.user.id,payload});
     if (error) {
-      const status=({'42501':403,'40001':409,'P0002':404,'22023':400,'22P02':400} as Record<string,number>)[error.code] || 500;
+      const status=({'42501':403,'28000':428,'40001':409,'P0002':404,'22023':400,'22P02':400} as Record<string,number>)[error.code] || 500;
       return reply(request,status,{error:status===500 ? 'Moderation could not finish. Try again.' : error.message});
     }
+    if(input.action==='queue' && data?.alerts) data.alerts.configured=Boolean(Deno.env.get('RESEND_API_KEY') && Deno.env.get('MODERATION_EMAIL_FROM'));
     return reply(request,200,data);
   } catch {
     return reply(request,400,{error:'Could not verify this request. Sign in again if your session expired.'});

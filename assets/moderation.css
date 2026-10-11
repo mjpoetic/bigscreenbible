@@ -21,3 +21,5 @@ dl { display:grid; grid-template-columns:130px minmax(0,1fr); gap:8px 14px; } dt
 .history { padding-left:20px; } .history li { margin-bottom:16px; } .history p,.report-details { white-space:pre-wrap; overflow-wrap:anywhere; }
 #notice { min-height:24px; color:var(--ink); } .footnote { font-size:14px; } .snapshot { border-left:3px solid var(--line); padding-left:14px; }
 @media(max-width:760px) { body { padding:16px; } .columns { grid-template-columns:1fr; } .filters label { width:100%; } dl { grid-template-columns:100px minmax(0,1fr); } }
+
+.mfa-qr { display:block; max-width:240px; width:100%; background:white; padding:12px; margin:16px 0; } .mfa-secret { display:block; overflow-wrap:anywhere; user-select:all; padding:12px; } #mfa input { display:block; margin:8px 0 16px; }

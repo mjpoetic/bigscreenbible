@@ -20,3 +20,14 @@ Deno.test('A conflicting edit returns 409',async()=>{
  const response=await handleModeration(request({action:'review',report_id:id,note:'Reviewed',expected_updated_at:new Date().toISOString()}),admin as never);
  if(response.status!==409) throw new Error('Conflict was not surfaced');
 });
+
+Deno.test('Caller cannot supply MFA assurance or verification time',async()=>{
+ const admin=mock();await handleModeration(request({action:'access',assurance:'aal2',mfa_verified_at:Date.now()/1000}),admin as never);
+ const payload=admin.calls[0].payload as Record<string,unknown>;
+ if(payload.assurance!=='aal1' || payload.mfa_verified_at!==0) throw new Error('Caller forged MFA');
+});
+Deno.test('MFA required is a step-up response, not a logout',async()=>{
+ const admin=mock();admin.rpc=()=>Promise.resolve({data:null,error:{code:'28000',message:'Verify authenticator'}}) as never;
+ const response=await handleModeration(request({action:'queue'}),admin as never);
+ if(response.status!==428) throw new Error('MFA step-up status missing');
+});

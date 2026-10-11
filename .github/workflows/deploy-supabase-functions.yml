@@ -55,3 +55,6 @@ jobs:
 
       - name: Deploy Moderation Edge Function
         run: supabase functions deploy moderation --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Deploy Moderation Alert Sender
+        run: supabase functions deploy moderation-alerts --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

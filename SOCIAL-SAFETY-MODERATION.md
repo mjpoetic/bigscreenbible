@@ -16,7 +16,7 @@ A manual pre-release database archive was exported and its checksums verified. A
 
 ## Review reports
 
-Dane Hurst has committed to reviewing this queue **daily**. Review it **at least daily**, with priority for threats, exploitation, or child-safety concerns. The app queues reports; it does not send moderator alerts. Checking the queue and acting on reports is an ongoing responsibility, and must be in place before store submission.
+Dane Hurst has committed to reviewing this queue **daily**. Review it **at least daily**, with priority for threats, exploitation, or child-safety concerns. Reports are queued for privacy-preserving email alerts when the verified Resend sender and server credentials are configured. Email is supplementary; delivery and inbox placement are not guaranteed. Checking the queue and acting on reports is an ongoing responsibility, and must be in place before store submission.
 
 Open `/moderation/` on the Big Screen Bible website after signing in through the main app in the same browser and on the same hostname. Click Refresh if needed. Moderator access is granted separately to the four existing, confirmed app accounts authorized by Dane; changing a profile or email cannot grant access.
 
@@ -24,7 +24,7 @@ The queue supports status/reason filters, profile search, and 25-report pages. S
 
 Confirmed abuse can be handled with Suspend social access and Remove profile. Suspension hides the profile, disables social writes/invitations, cancels active rooms and deletes queued social notifications. Private reading/study remains available. Restore social access lifts the restriction; cancelled games and removed friendships are not restored. Profile removal does not delete the account. Moderator accounts require administrator review for account restrictions.
 
-The queue refreshes every minute while visible. It sends no email or background alerts. Review it daily. Reports are limited to 10 per reporter per day and one report about the same person per hour; urgent follow-up is available at support@bigscreenbible.com.
+The queue refreshes every minute while visible. A protected server scheduler checks email alerts every five minutes, batches up to 500 new reports into count-only messages, and sends one daily backlog reminder at or after 9 a.m. America/New_York. Failed delivery is retried with stable provider idempotency keys; after six attempts or 20 hours, administrator review is required. Provider acceptance is recorded separately from inbox delivery. Configure `RESEND_API_KEY` (sending-only permission) and `MODERATION_EMAIL_FROM` (verified domain) in Supabase Edge Function secrets. The approved recipient lives in the private database settings, not browser code. The dashboard shows configuration and delivery problems. Review it daily regardless of email. Reports are limited to 10 per reporter per day and one report about the same person per hour; urgent follow-up is available at support@bigscreenbible.com.
 
 Authorization is checked by the `moderation` Edge Function using a verified user token, a live Auth session, and `private.bsb_social_moderators`. Reports and audit data remain unavailable to ordinary app accounts. Only the server can invoke moderation RPCs. To revoke moderator privileges immediately, an administrator removes that account's row from the private allowlist. Do not put service credentials in the browser.
 
@@ -39,3 +39,13 @@ The automated name filter catches a small set of abusive terms, not all objectio
 `npm run test:moderation` checks real PostgreSQL permissions, session/allowlist enforcement, conflict handling, audit evidence, restrictions, and access revocation, plus Edge Function identity and request validation.
 
 Moderator database migration `20261011062241` and the authenticated `moderation` Edge Function were deployed October 11, 2026. All four requested, confirmed app accounts were added to the private allowlist. No existing report was resolved and no production account was restricted during deployment.
+
+## Moderator two-factor authentication
+
+Private report reads and actions require a verified TOTP authenticator, a live matching Auth session/factor, and a signed-token TOTP verification time within 15 minutes. Only the server derives MFA claims; request-body assurances are ignored. Moderator discovery returns no reports before verification. Reading, study, and ordinary accounts do not acquire a moderation MFA requirement.
+
+Use the moderator-only Account shortcut or `/moderation/`. Each account enrolls separately: choose Set up authenticator, scan its QR code privately, enter its six-digit code, and verify. The setup key is shown only in the current enrollment screen and is cleared when the page leaves or the account changes. Do not paste keys or codes into chat. Add a backup authenticator after verification; protect the backup independently. The page has a local-session sign-out button. Ordinary moderators cannot appoint moderators; that remains an administrator action.
+
+No email-only MFA reset or bypass is provided. If every authenticator is lost, an administrator must establish identity through a trusted channel, revoke affected sessions, and remove the lost factor through Supabase administration before fresh enrollment. Keep the Supabase administration account protected with its own MFA. The app does not manufacture recovery codes that Supabase cannot verify.
+
+MFA enforcement migration `20261011070156`, email outbox migration `20261011070133`, and both protected Edge Functions were deployed October 11, 2026. The four approved moderator accounts require enrollment; deployment does not enroll their authenticators. Resend credentials and inbox delivery must be verified separately.

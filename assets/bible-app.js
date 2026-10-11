@@ -955,6 +955,7 @@ const state = {
   authConfigured: isSupabaseConfigured(),
   authClient: null,
   authUser: null,
+  moderatorAccessUserId: null,
   authStatus: "idle",
   authMessage: "",
   authEmailCueId: "",
@@ -7304,6 +7305,7 @@ function accountPanel(prefix = "") {
       `;
     return `
       ${streakCard(prefix)}
+      ${state.authUser?.id && state.moderatorAccessUserId === state.authUser.id ? `<section class="account-card"><div class="account-card-head"><span class="setting-label">Moderation</span></div><p>Review private reports. Authenticator verification is required.</p><a class="ghost-btn compact-account-btn" href="https://bigscreenbible.com/moderation/">Open moderation dashboard</a></section>` : ""}
       ${socialProfileCard(prefix)}
       ${socialConnectionsSection(prefix)}
       <section class="account-card account-card-signed-in">
@@ -9971,6 +9973,7 @@ async function initializeSupabaseAuth() {
     state.syncStatus = session?.user ? "loading" : "local";
     state.syncMessage = session?.user ? "Loading your saved settings..." : "Sign in to carry your settings across devices.";
     if (session?.user) {
+      void loadModeratorAccess(session);
       await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships(), loadGameChallenges()]);
       subscribeToGameChallenges();
       notePushVisit(true);
@@ -9982,6 +9985,8 @@ async function initializeSupabaseAuth() {
     client.auth.onAuthStateChange((event, session) => {
       const previousUserId = state.authUser?.id || "";
       state.authUser = session?.user || null;
+      state.moderatorAccessUserId = null;
+      if (session?.user) setTimeout(() => { void loadModeratorAccess(session); }, 0);
       state.authBusy = false;
       if (event === "PASSWORD_RECOVERY") {
         state.passwordRecoveryMode = true;
@@ -10027,6 +10032,25 @@ async function initializeSupabaseAuth() {
     state.authMessage = "Supabase sign in is configured, but the connection failed.";
     state.syncStatus = "error";
   }
+}
+
+async function loadModeratorAccess(session) {
+  const previousAccess = state.moderatorAccessUserId;
+  state.moderatorAccessUserId = null;
+  const userId = session?.user?.id;
+  if (!userId || !session.access_token) return;
+  try {
+    const { url, anonKey } = supabaseCredentials();
+    const response = await fetch(`${url}/functions/v1/moderation`, {
+      method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json", apikey: anonKey, Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: "access" }),
+    });
+    const result = response.ok ? await response.json() : null;
+    if (state.authUser?.id !== userId) return;
+    state.moderatorAccessUserId = result?.allowed === true ? userId : null;
+    if (previousAccess !== state.moderatorAccessUserId) renderPreservingReaderScroll();
+  } catch { if (state.authUser?.id === userId) state.moderatorAccessUserId = null; }
 }
 
 function authRedirectUrl() {
@@ -12146,6 +12170,7 @@ function openDeleteAccountDialog(appleProof = null) {
       if (!result.ok || body.deleted !== true || body.userId !== userId) throw new Error(body.error || "Account deletion is unavailable. Please try again later.");
       // Change owner before sign-out so its listener cannot re-save the deleted account snapshot.
       state.authUser = null;
+    state.moderatorAccessUserId = null;
       setPendingAccountSwitch(false);
       setAccountDataOwner(guestDataOwner);
       applyCloudSnapshot(guestBrowserSnapshot() || blankLocalSnapshot());
@@ -12213,6 +12238,7 @@ async function signOutAccount() {
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw error;
     state.authUser = null;
+    state.moderatorAccessUserId = null;
     resetSocialProfileState();
     resetFriendshipState();
     resetGameChallengeState();

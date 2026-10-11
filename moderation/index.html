@@ -5,16 +5,19 @@
   <meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">
   <title>Moderation · Big Screen Bible</title>
   <link rel="icon" href="../favicon.ico">
-  <link rel="stylesheet" href="../assets/moderation.css?v=2026.10.11.21">
-  <script defer src="../assets/supabase-config.js?v=2026.10.11.21"></script>
+  <link rel="stylesheet" href="../assets/moderation.css?v=2026.10.11.22">
+  <script defer src="../assets/supabase-config.js?v=2026.10.11.22"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
-  <script defer src="../assets/moderation.js?v=2026.10.11.21"></script>
+  <script defer src="../assets/moderation.js?v=2026.10.11.22"></script>
 </head>
 <body>
   <header><div><a href="../">Big Screen Bible</a><h1>Moderation</h1><p>Review reports and protect the social experience.</p></div><div><span id="account"></span><button id="refresh">Refresh</button></div></header>
   <p id="notice" role="status" aria-live="polite"></p>
   <section id="access" class="panel"><h2>Private moderator workspace</h2><p id="access-message">Checking your sign-in…</p><p><a href="../" class="button">Sign in through Big Screen Bible</a> Then return here and refresh.</p></section>
+  <section id="mfa" class="panel" hidden aria-label="Moderator two-factor verification"></section>
   <main id="workspace" hidden>
+    <section class="panel"><h2>Moderator security</h2><p>Reports require an authenticator check within the last 15 minutes. Keep a backup authenticator in a secure place. Losing every authenticator requires an administrator identity review.</p><button id="add-authenticator" type="button">Add backup authenticator</button><button id="lock-moderation" type="button">Sign out on this device</button></section>
+    <p id="alerts-status" role="status"></p>
     <div id="summary" class="summary" aria-label="Report counts"></div>
     <form id="filters" class="panel filters">
       <label>Status<select id="status"><option value="active">Needs attention</option><option value="open">Open</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option><option value="all">All reports</option></select></label>
@@ -23,7 +26,7 @@
     </form>
     <div class="columns"><section class="panel"><h2>Report queue</h2><p>Oldest reports first. A report is an allegation, not proof.</p><div id="queue"></div><nav aria-label="Report pages"><button id="previous">Previous</button><span id="page"></span><button id="next">Next</button></nav></section>
       <section id="detail" class="panel" aria-label="Report review"><h2>Select a report</h2><p>Review the profile snapshot, details, and action history before taking action.</p></section></div>
-    <p class="footnote">While this page is visible, the queue checks for updates every minute. It does not send email or background alerts. Social suspensions leave private reading and study available.</p>
+    <p class="footnote">While this page is visible, the queue checks for updates every minute. Configured email alerts check every five minutes; a daily backlog reminder follows at or after 9 a.m. Eastern. Email delivery is not guaranteed—review this queue daily. Social suspensions leave private reading and study available.</p>
   </main>
 </body>
 </html>

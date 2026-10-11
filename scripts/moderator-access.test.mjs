@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const source=readFileSync(new URL('../assets/bible-app.js',import.meta.url),'utf8');
+const start=source.indexOf('async function loadModeratorAccess('),end=source.indexOf('\nfunction authRedirectUrl()',start);
+const state={authUser:{id:'a'},moderatorAccessUserId:null};let resolveResponse;
+const context={state,supabaseCredentials:()=>({url:'https://example.com',anonKey:'public'}),renderPreservingReaderScroll:()=>{},fetch:()=>new Promise(resolve=>resolveResponse=resolve)};
+vm.createContext(context);vm.runInContext(source.slice(start,end)+';globalThis.loadAccess=loadModeratorAccess;',context);
+let pending=context.loadAccess({user:{id:'a'},access_token:'token-a'});state.authUser={id:'b'};resolveResponse({ok:true,json:async()=>({allowed:true})});await pending;
+assert.equal(state.moderatorAccessUserId,null,'A stale response cannot grant the next account a shortcut');
+pending=context.loadAccess({user:{id:'b'},access_token:'token-b'});resolveResponse({ok:false});await pending;assert.equal(state.moderatorAccessUserId,null);
+pending=context.loadAccess({user:{id:'b'},access_token:'token-b'});resolveResponse({ok:true,json:async()=>({allowed:true,mfa_required:true})});await pending;assert.equal(state.moderatorAccessUserId,'b','A moderator can find enrollment before verifying MFA');
+await context.loadAccess(null);assert.equal(state.moderatorAccessUserId,null);
+console.log('Moderator shortcut access and account-switch isolation passed.');

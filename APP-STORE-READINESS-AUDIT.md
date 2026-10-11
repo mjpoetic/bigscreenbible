@@ -89,3 +89,9 @@ Planning estimate: approximately 3–5 focused working days for release preparat
 - [Google account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111)
 - [Google UGC policy](https://support.google.com/googleplay/android-developer/answer/9876937)
 - [Android 16 KB page-size compatibility](https://developer.android.com/guide/practices/page-sizes)
+
+## October 11 moderation update
+
+The social safeguards and private moderation dashboard were implemented after this audit. Dane confirmed the other social controls work. Moderator authenticator enrollment, recent-MFA enforcement, private email queuing, and a moderator-only Account shortcut were added in web release `2026.10.11.22`. Automated authorization, account-switching, delivery-retry, and privacy checks passed. The four moderator accounts require their own authenticator enrollment. A live scheduler check reports missing email sender configuration, so alerts are not yet delivering.
+
+This closes specific implementation gaps; it does not certify the entire Developer Program Policies declaration. Mobile content rights remain unverified in this task, and the native encryption/export classification has not been completed. Do not treat app creation declarations as a substitute for those reviews. [Google app setup](https://support.google.com/googleplay/android-developer/answer/9859152), [Google intellectual property policy](https://support.google.com/googleplay/android-developer/answer/9888072), [BIS encryption guidance](https://www.bis.gov/learn-support/encryption-controls).
