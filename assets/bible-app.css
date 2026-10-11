@@ -230,6 +230,64 @@ html {
   --shadow: 0 18px 48px rgba(118, 70, 28, 0.1);
 }
 
+
+[data-theme-preset="sunset-light"] {
+  --bg: linear-gradient(145deg, #faf5fc 0%, #f2eaf5 52%, #fbe7e0 100%);
+  --browser-chrome: #f2eaf5;
+  --paper: #fffaff;
+  --panel: rgba(255, 250, 255, 0.95);
+  --ink: #302039;
+  --muted: #746079;
+  --soft: #eaddec;
+  --line: #d6c2db;
+  --teal: #874668;
+  --teal-dark: #6d3453;
+  --accent-ink: #ffffff;
+  --accent-hover: #6d3453;
+  --gold: #a14b31;
+  --gold-soft: #f8ded2;
+  --success: #557349;
+  --shadow: 0 18px 48px rgba(38, 24, 42, 0.14);
+}
+
+[data-theme-preset="daybreak"] {
+  --bg: linear-gradient(145deg, #fff8ef 0%, #fae9df 55%, #e9f0f6 100%);
+  --browser-chrome: #fae9df;
+  --paper: #fffbf7;
+  --panel: rgba(255, 251, 247, 0.95);
+  --ink: #302824;
+  --muted: #776056;
+  --soft: #f4e2d8;
+  --line: #dfc8bb;
+  --teal: #9b5435;
+  --teal-dark: #7d4028;
+  --accent-ink: #ffffff;
+  --accent-hover: #7d4028;
+  --gold: #95611b;
+  --gold-soft: #f7e6bf;
+  --success: #557349;
+  --shadow: 0 18px 48px rgba(38, 24, 42, 0.14);
+}
+
+[data-theme-preset="dawn-blue"] {
+  --bg: radial-gradient(circle at 18% 12%, rgba(247, 183, 146, 0.14), transparent 32%), linear-gradient(145deg, #101d30 0%, #182b40 55%, #283c50 100%);
+  --browser-chrome: #182b40;
+  --paper: #142437;
+  --panel: rgba(20, 36, 55, 0.95);
+  --ink: #fff5e9;
+  --muted: #c6c8d1;
+  --soft: #273b50;
+  --line: #44566b;
+  --teal: #f3b99a;
+  --teal-dark: #ffd0b3;
+  --accent-ink: #302019;
+  --accent-hover: #ffd0b3;
+  --gold: #f6d296;
+  --gold-soft: #3c3540;
+  --success: #accbaf;
+  --shadow: 0 18px 48px rgba(38, 24, 42, 0.14);
+}
+
 [data-theme-preset="meadow"] {
   --bg: linear-gradient(145deg, #f4f9ec 0%, #e5f0d8 54%, #d9ebe1 100%);
   --browser-chrome: #e5f0d8;
@@ -25902,4 +25960,50 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
     padding: 8px 0 0;
     align-content: start;
   }
+}
+
+/* Dawn and dusk projection palettes keep the passage surface subdued. */
+html[data-presentation-mode="big"][data-presentation-theme="sunset"],
+.presentation[data-presentation-theme="sunset"] {
+  background: radial-gradient(ellipse at 12% 8%, rgba(174, 99, 183, 0.16), transparent 40%), radial-gradient(ellipse at 90% 90%, rgba(231, 110, 74, 0.12), transparent 40%), #241326;
+  background-color: #241326;
+}
+.presentation[data-presentation-theme="sunset"] {
+  color: #fff4e9;
+  --presentation-accent: #ffc09c;
+  --presentation-muted: #d5baca;
+  --presentation-button-bg: rgba(255, 255, 255, 0.08);
+  --presentation-button-border: rgba(255, 230, 218, 0.3);
+  --ink: #fff4e9;
+  --muted: #d5baca;
+  --panel: #241326;
+  --soft: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 230, 218, 0.24);
+}
+.presentation[data-presentation-theme="sunset"] :is(.presentation-settings-popover, .presentation-account-popover, .presentation-version-menu, .presentation-reference-menu) {
+  background: #241326;
+  color: #fff4e9;
+}
+
+/* Dawn and dusk projection palettes keep the passage surface subdued. */
+html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
+.presentation[data-presentation-theme="sunrise"] {
+  background: radial-gradient(ellipse at 12% 8%, rgba(245, 198, 158, 0.12), transparent 40%), radial-gradient(ellipse at 90% 90%, rgba(142, 176, 210, 0.10), transparent 40%), #14283b;
+  background-color: #14283b;
+}
+.presentation[data-presentation-theme="sunrise"] {
+  color: #fff6e8;
+  --presentation-accent: #f5c69e;
+  --presentation-muted: #c6cfdb;
+  --presentation-button-bg: rgba(255, 255, 255, 0.08);
+  --presentation-button-border: rgba(255, 230, 218, 0.3);
+  --ink: #fff6e8;
+  --muted: #c6cfdb;
+  --panel: #14283b;
+  --soft: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 230, 218, 0.24);
+}
+.presentation[data-presentation-theme="sunrise"] :is(.presentation-settings-popover, .presentation-account-popover, .presentation-version-menu, .presentation-reference-menu) {
+  background: #14283b;
+  color: #fff6e8;
 }

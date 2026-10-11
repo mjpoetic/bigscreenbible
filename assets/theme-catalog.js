@@ -6,6 +6,8 @@
     { code: "parchment", name: "Parchment", mode: "light" },
     { code: "clarity", name: "Clarity", mode: "light" },
     { code: "dawn", name: "Dawn", mode: "light" },
+    { code: "sunset-light", name: "Sunset Light", mode: "light" },
+    { code: "daybreak", name: "Daybreak", mode: "light" },
     { code: "meadow", name: "Meadow", mode: "light" },
     { code: "blush", name: "Blush", mode: "light" },
     { code: "lavender", name: "Lavender", mode: "light" },
@@ -16,6 +18,7 @@
     { code: "chapel", name: "Chapel", mode: "dark" },
     { code: "aurora", name: "Aurora", mode: "dark" },
     { code: "dusk", name: "Dusk", mode: "dark" },
+    { code: "dawn-blue", name: "Dawn Blue", mode: "dark" },
     { code: "forest-night", name: "Forest Night", mode: "dark" },
     { code: "rose-night", name: "Rose Night", mode: "dark" },
     { code: "violet-night", name: "Violet Night", mode: "dark" },
@@ -32,6 +35,8 @@
   const appearanceStorageKey = "lw_appearance_v2";
 
   const presentationThemes = Object.freeze([
+    { code: "sunset", name: "Sunset" },
+    { code: "sunrise", name: "Sunrise" },
     { code: "deep", name: "Deep" },
     { code: "warm", name: "Warm" },
     { code: "ember", name: "Ember" },
@@ -55,7 +60,9 @@
     { code: "neutral", name: "Neutral", light: "paper", dark: "midnight", presentation: { light: "paper", dark: "midnight" } },
     { code: "heritage", name: "Heritage", light: "parchment", dark: "chapel", presentation: { light: "warm", dark: "warm" } },
     { code: "clarity", name: "Clarity", light: "clarity", dark: "contrast", presentation: { light: "paper", dark: "contrast" } },
-    { code: "sunrise", name: "Sunrise", light: "dawn", dark: "dusk", presentation: { light: "dawn", dark: "warm" } },
+    // Keep the original family identifier so saved Sunrise choices become Sunset.
+    { code: "sunrise", name: "Sunset", light: "sunset-light", dark: "dusk", presentation: { light: "sunset", dark: "sunset" } },
+    { code: "daybreak", name: "Sunrise", light: "daybreak", dark: "dawn-blue", presentation: { light: "sunrise", dark: "sunrise" } },
     { code: "meadow", name: "Meadow", light: "meadow", dark: "forest-night", presentation: { light: "meadow", dark: "deep" } },
     { code: "rose", name: "Rose", light: "blush", dark: "rose-night", presentation: { light: "blush", dark: "rose-night" } },
     { code: "violet", name: "Violet", light: "lavender", dark: "violet-night", presentation: { light: "lavender", dark: "violet-night" } },
@@ -72,6 +79,8 @@
   const defaultThemeFamily = "sapphire";
 
   const presentationThemeColors = Object.freeze({
+    sunset: "#241326",
+    sunrise: "#14283b",
     deep: "#004f54",
     warm: "#4b3021",
     ember: "#5a210f",
@@ -94,6 +103,9 @@
     parchment: "#f3ecdd",
     clarity: "#f5f7f8",
     dawn: "#f7ead2",
+    "sunset-light": "#f2eaf5",
+    daybreak: "#fae9df",
+    "dawn-blue": "#182b40",
     meadow: "#e5f0d8",
     blush: "#f8e5ee",
     lavender: "#eae3fb",

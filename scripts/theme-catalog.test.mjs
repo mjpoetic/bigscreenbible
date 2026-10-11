@@ -40,18 +40,18 @@ const darkCodes = catalog.themePresets.filter(({ mode }) => mode === "dark").map
 const presentationCodes = Array.from(catalog.presentationThemeCodes);
 
 assert.deepEqual(Array.from(lightCodes), [
-  "paper", "parchment", "clarity", "dawn", "meadow", "blush", "lavender", "sapphire", "opal", "clementine",
+  "paper", "parchment", "clarity", "dawn", "sunset-light", "daybreak", "meadow", "blush", "lavender", "sapphire", "opal", "clementine",
 ]);
 assert.deepEqual(Array.from(darkCodes), [
-  "midnight", "chapel", "aurora", "dusk", "forest-night", "rose-night", "violet-night", "nocturne", "ember-night", "contrast",
+  "midnight", "chapel", "aurora", "dusk", "dawn-blue", "forest-night", "rose-night", "violet-night", "nocturne", "ember-night", "contrast",
 ]);
 assert.deepEqual(presentationCodes, [
-  "deep", "warm", "ember", "paper", "dawn", "aurora", "meadow", "blush", "lavender", "sapphire",
+  "sunset", "sunrise", "deep", "warm", "ember", "paper", "dawn", "aurora", "meadow", "blush", "lavender", "sapphire",
   "rose-night", "violet-night", "nocturne", "midnight", "contrast",
 ]);
-assert.equal(lightCodes.length, 10);
-assert.equal(darkCodes.length, 10);
-assert.equal(presentationCodes.length, 15);
+assert.equal(lightCodes.length, 12);
+assert.equal(darkCodes.length, 11);
+assert.equal(presentationCodes.length, 17);
 assert.equal(catalog.defaultThemePresets.light, "sapphire");
 assert.equal(catalog.defaultThemePresets.dark, "aurora");
 assert.equal(catalog.defaultPresentationTheme, "aurora");
@@ -59,7 +59,7 @@ assert.equal(catalog.appearanceSchemaVersion, 2);
 assert.equal(catalog.appearanceStorageKey, "lw_appearance_v2");
 assert.equal(catalog.defaultThemeFamily, "sapphire");
 assert.deepEqual(Array.from(catalog.themeFamilies, ({ code }) => code), [
-  "neutral", "heritage", "clarity", "sunrise", "meadow", "rose", "violet", "sapphire", "celestial", "ember",
+  "neutral", "heritage", "clarity", "sunrise", "daybreak", "meadow", "rose", "violet", "sapphire", "celestial", "ember",
 ]);
 
 assert.equal(catalog.resolveThemeMode("light", true), "light");
@@ -124,6 +124,18 @@ for (const [name, foreground, background, minimum] of [
   ["Ember Big Screen text", "#fff8f2", "#5a210f", 7],
 ]) {
   assert.ok(contrastRatio(foreground, background) >= minimum, `${name} should meet its contrast target`);
+}
+
+assert.equal(catalog.themeFamilyLookup.sunrise.name, "Sunset");
+assert.equal(catalog.resolveAppearance({ themeFamily: "sunrise", colorScheme: "dark" }).preset, "dusk");
+assert.equal(catalog.resolveThemeFamilyPreset("sunrise", "light"), "sunset-light");
+assert.equal(catalog.resolveThemeFamilyPreset("daybreak", "dark"), "dawn-blue");
+for (const mode of ["light", "dark"]) {
+  assert.equal(catalog.resolveThemeFamilyPresentation("sunrise", mode), "sunset");
+  assert.equal(catalog.resolveThemeFamilyPresentation("daybreak", mode), "sunrise");
+}
+for (const [foreground, background] of [["#302039", "#fffaff"], ["#746079", "#fffaff"], ["#302824", "#fffbf7"], ["#776056", "#fffbf7"], ["#c6c8d1", "#142437"], ["#d5baca", "#241326"], ["#c6cfdb", "#14283b"]]) {
+  assert.ok(contrastRatio(foreground, background) >= 4.5);
 }
 
 const normalizedAppearance = catalog.normalizeAppearance({
