@@ -459,6 +459,7 @@ let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let focusSearchLastTapAt = null;
 let focusControlsHideTimer = 0;
+let suppressSettingsSearchHoldClickUntil = 0;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
 let suppressMobileControlsClickUntil = 0;
@@ -3566,6 +3567,69 @@ function applySettingsSearch(root, query = state.settingsSearchQuery) {
   if (status) status.textContent = normalizedQuery
     ? `${visibleCount} ${visibleCount === 1 ? "setting" : "settings"} found`
     : "";
+}
+
+function openSettingsSearchFromHold(anchor) {
+  state.focusReferenceOpen = false;
+  state.focusSearchResultsOpen = false;
+  resetFocusToolSurfaces();
+  state.settingsOpen = true;
+  state.settingsPage = "root";
+  state.settingsSearchQuery = "";
+  state.settingsAnchor = anchor;
+  state.accountOpen = false;
+  renderPreservingReaderScroll();
+  positionSettingsPopover(anchor);
+  const root = document.querySelector(isCompactScreen()
+    ? ".mobile-settings-popover" : ".settings-popover.open");
+  const input = root?.querySelector('.settings-search input[type="search"]');
+  input?.focus({ preventScroll: true });
+  input?.scrollIntoView({ block: "nearest" });
+}
+
+function bindSettingsSearchHoldControls() {
+  ["settingsToggle", "railSettingsToggle", "mobileFloatingSettings"].forEach((id) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+    let gesture = null;
+    let timer = 0;
+    const cancel = () => {
+      clearTimeout(timer);
+      gesture = null;
+      button.classList.remove("settings-hold-pending");
+    };
+    button.addEventListener("click", (event) => {
+      if (event.detail === 0 || Date.now() >= suppressSettingsSearchHoldClickUntil) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+    button.addEventListener("pointerdown", (event) => {
+      if (event.isPrimary === false || event.button !== 0) return;
+      cancel();
+      gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, ready: false };
+      button.classList.add("settings-hold-pending");
+      timer = setTimeout(() => {
+        if (gesture && button.isConnected) gesture.ready = true;
+      }, 450);
+    });
+    button.addEventListener("pointermove", (event) => {
+      if (!gesture || gesture.pointerId !== event.pointerId) return;
+      if (Math.abs(event.clientX - gesture.x) > 12 || Math.abs(event.clientY - gesture.y) > 12) cancel();
+    });
+    button.addEventListener("pointerup", (event) => {
+      if (!gesture || gesture.pointerId !== event.pointerId) return;
+      const ready = gesture.ready;
+      cancel();
+      if (!ready) return;
+      event.preventDefault();
+      suppressSettingsSearchHoldClickUntil = Date.now() + 800;
+      playControlHaptic();
+      // Focus during release so mobile browsers can open the software keyboard.
+      openSettingsSearchFromHold(id === "mobileFloatingSettings" ? "floating" : "header");
+    });
+    ["pointercancel", "pointerleave", "lostpointercapture"].forEach((name) => button.addEventListener(name, cancel));
+    button.addEventListener("contextmenu", (event) => event.preventDefault());
+  });
 }
 
 function bindSettingsSearchControls() {
@@ -21409,6 +21473,7 @@ function bindEvents() {
     });
   });
   bindSettingsSearchControls();
+  bindSettingsSearchHoldControls();
   bindSettingsChoiceMenus();
   for (const prefix of ["", "mobile", "presentation"]) {
     document.getElementById(settingsControlId(prefix, "CombinedColorSelect"))?.addEventListener("change", (event) => {
