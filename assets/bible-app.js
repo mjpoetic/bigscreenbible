@@ -482,6 +482,7 @@ let gameMusicTrackKey = "";
 let gameMusicFadeFrame = 0;
 let gameMusicRestartPending = false;
 let gameMusicPlaybackGame = null;
+let gameAudioUnlockedContext = null;
 let gameMusicLoop = null;
 let gameMusicLoopRequest = 0;
 let gameMusicLoopLoad = null;
@@ -14626,6 +14627,27 @@ function ensureGameAudioContext() {
   }
 }
 
+// Unlock actual buffer playback inside the Start gesture, before the countdown
+// or a track download moves playback outside mobile user activation.
+function primeGameAudioPlayback() {
+  const context = ensureGameAudioContext();
+  if (!context) return null;
+  if (gameAudioUnlockedContext !== context && typeof context.createBuffer === "function") {
+    try {
+      const silent = context.createBufferSource();
+      silent.buffer = context.createBuffer(1, 1, context.sampleRate);
+      silent.connect(context.destination);
+      silent.onended = () => silent.disconnect();
+      silent.start();
+      gameAudioUnlockedContext = context;
+    } catch {
+      // A later Start gesture can retry unlocking the same context.
+    }
+  }
+  if (["suspended", "interrupted"].includes(context.state)) context.resume().catch(() => {});
+  return context;
+}
+
 function primeWordSearchAudio() {
   if (!state.wordSearchSounds) return null;
   const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -14873,10 +14895,17 @@ async function startGameMusicLoop(track, restart) {
     gain.connect(gameMusicGain);
     gain.gain.setValueAtTime(0, context.currentTime);
     gain.gain.linearRampToValueAtTime(1, context.currentTime + 0.04);
+    const startedAt = context.currentTime;
+    try {
+      source.start(startedAt, loop.offset);
+    } catch (error) {
+      source.disconnect();
+      gain.disconnect();
+      throw error;
+    }
     loop.source = source;
     loop.gain = gain;
-    loop.startedAt = context.currentTime;
-    source.start(loop.startedAt, loop.offset);
+    loop.startedAt = startedAt;
   } catch {
     if (currentRequest !== gameMusicLoopRequest) return;
     gameMusicLoopLoad = null;
@@ -14963,8 +14992,8 @@ function syncGameMusicPlayback() {
   if (!audio) return;
   cancelGameMusicFade();
   const changedTrack = gameMusicTrackKey !== track.key;
-  if (changedTrack) gameMusicLoopFallbackKey = "";
   const restartLoop = changedTrack || gameMusicRestartPending || gameMusicPlaybackGame !== game;
+  if (restartLoop) gameMusicLoopFallbackKey = "";
   setGameMusicOutputVolume(track.volume * soundVolumeScalar(state.gameVolume));
   gameMusicTrackKey = track.key;
   gameMusicPlaybackGame = game;
@@ -22216,8 +22245,7 @@ async function startGameCountdown() {
     // Unlock music during the Start gesture even when countdown effects are off.
     if (state.gameMusicEnabled) primeGameMusicAudio();
     if (state.gameMusicEnabled || state.wordSearchSounds) {
-      const context = ensureGameAudioContext();
-      context?.resume().catch(() => {});
+      primeGameAudioPlayback();
     }
     const previousGame = state.triviaGame;
     startTriviaGame({ render: false, ready: true });
