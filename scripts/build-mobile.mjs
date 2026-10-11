@@ -14,6 +14,7 @@ const entries = [
   "about.html",
   "privacy",
   "terms",
+  "moderation",
   "favicon.ico",
   "site.webmanifest",
   "push-sw.js",

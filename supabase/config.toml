@@ -21,3 +21,7 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = false
+
+# getUser verification plus live session and private moderator checks inside the handler.
+[functions.moderation]
+verify_jwt = false

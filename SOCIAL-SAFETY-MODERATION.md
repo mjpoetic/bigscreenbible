@@ -6,7 +6,7 @@ Implemented for Community Standards version `2026-10-10`.
 
 The migration was applied to production on **October 10, 2026 at 10:47 p.m. America/New_York** (Supabase migration version `20261011024750`). The updated website and push sender were already deployed. Database existence, RLS, private report access, and server-only push-guard permissions were verified after deployment; existing account and social-table counts were unchanged.
 
-A manual pre-release database archive was exported and its checksums verified. Account and app recovery, followed by the migration, passed on an isolated PostgreSQL 17 instance. This was a scoped restore test: managed platform schemas/extensions and semantic vector search were excluded. See [database recovery](DATABASE-RECOVERY.md) for the backup location, scope, and recovery procedure. Physical-device and signed-in multi-account checks below remain pending.
+A manual pre-release database archive was exported and its checksums verified. Account and app recovery, followed by the migration, passed on an isolated PostgreSQL 17 instance. This was a scoped restore test: managed platform schemas/extensions and semantic vector search were excluded. See [database recovery](DATABASE-RECOVERY.md) for the backup location, scope, and recovery procedure. Dane confirmed that the other social safeguards are working on October 11, 2026. This is user confirmation; it does not establish store approval or replace release-build checks.
 
 1. Apply `supabase/migrations/20261011024750_social_safety.sql` to project `yyldnatfhzobyeqnvqjv`. It adds consent, blocks, reports, suspension enforcement, and safety checks for existing social tables and RPCs. Existing users are deliberately not marked as having accepted the new terms. They retain private Bible/study access and must accept in their social profile to resume social features.
 2. Deploy the updated website and `send-push-notifications` Edge Function in the same release window. Do not deploy the sender first: it depends on `bsb_social_push_allowed`. Until the updated website loads, existing users may see social-access errors.
@@ -18,41 +18,15 @@ A manual pre-release database archive was exported and its checksums verified. A
 
 Dane Hurst has committed to reviewing this queue **daily**. Review it **at least daily**, with priority for threats, exploitation, or child-safety concerns. The app queues reports; it does not send moderator alerts. Checking the queue and acting on reports is an ongoing responsibility, and must be in place before store submission.
 
-Use the Supabase dashboard SQL editor with administrator access. Do not expose admin credentials or these actions in the public app. Reports are not readable by app users, including the reporter. The reported person is not given the reporter's identity.
+Open `/moderation/` on the Big Screen Bible website after signing in through the main app in the same browser and on the same hostname. Click Refresh if needed. Moderator access is granted separately to the four existing, confirmed app accounts authorized by Dane; changing a profile or email cannot grant access.
 
-```sql
-select id, created_at, reporter_id, reported_id, reason, details,
-       profile_snapshot, status
-from public.bsb_social_reports
-where status in ('open', 'reviewing')
-order by created_at;
-```
+The queue supports status/reason filters, profile search, and 25-report pages. Select a report to see its profile snapshot and written details. Investigate before acting: a report is an allegation, not proof. Use Start review, Resolve report, Dismiss report, or Save note. Every action requires a note and records the moderator, time, and before/after state. Concurrent changes require reloading the report.
 
-Review the profile snapshot and context. Avoid automatic suspension from report counts: false reports must not become a way to harass users. Reports are limited to 10 per reporter per day, and one report about the same person per hour; urgent follow-up is available at support@bigscreenbible.com.
+Confirmed abuse can be handled with Suspend social access and Remove profile. Suspension hides the profile, disables social writes/invitations, cancels active rooms and deletes queued social notifications. Private reading/study remains available. Restore social access lifts the restriction; cancelled games and removed friendships are not restored. Profile removal does not delete the account. Moderator accounts require administrator review for account restrictions.
 
-Use the actual report/account UUIDs in these templates:
+The queue refreshes every minute while visible. It sends no email or background alerts. Review it daily. Reports are limited to 10 per reporter per day and one report about the same person per hour; urgent follow-up is available at support@bigscreenbible.com.
 
-```sql
--- Mark a report as under review.
-update public.bsb_social_reports
-set status = 'reviewing'
-where id = '<report UUID>'::uuid;
-
--- Suspend confirmed abuse. This hides the profile from other users,
--- disables social writes/invitations, cancels active rooms involving them,
--- and deletes queued social notifications. Private reading/study stays available.
-insert into private.bsb_social_suspensions(user_id, reason)
-values ('<reported account UUID>'::uuid, 'Confirmed harassment; report <report UUID>');
-
--- Resolve or dismiss after review; use dismissed for unsubstantiated reports.
-update public.bsb_social_reports
-set status = 'resolved', reviewed_at = now()
-where id = '<report UUID>'::uuid;
-
--- Lift a suspension after review/appeal. Cancelled games remain cancelled.
-delete from private.bsb_social_suspensions
-where user_id = '<account UUID>'::uuid;
-```
+Authorization is checked by the `moderation` Edge Function using a verified user token, a live Auth session, and `private.bsb_social_moderators`. Reports and audit data remain unavailable to ordinary app accounts. Only the server can invoke moderation RPCs. To revoke moderator privileges immediately, an administrator removes that account's row from the private allowlist. Do not put service credentials in the browser.
 
 Communicate outcomes or appeals through the support channel as appropriate. The app gives suspended users the support address. Remove prohibited content if confirmed: delete the offending `bsb_profiles` row using the operator dashboard; the user can recreate a respectful profile only after their suspension is lifted. Preserve report evidence for the investigation. Account deletion cascades consent, blocks, reports associated with either account, and suspensions; there is no separate indefinite evidence-retention system.
 
@@ -61,3 +35,7 @@ Communicate outcomes or appeals through the support channel as appropriate. The 
 The automated name filter catches a small set of abusive terms, not all objectionable content, languages, or evasions. Human moderation is required. Profiles have preset avatars and no public image upload/chat, but usernames, display names, requests, and game interactions are social content.
 
 `npm run test:social-safety` runs an isolated PostgreSQL runtime with actual RLS, grants, functions, and triggers, plus client consent/escaping/control checks. Platform Auth/Realtime functions are stubbed and unrelated vector/publication setup is omitted. Run existing social/friend/game/push regressions too. These tests do not establish physical-device behavior, delivery latency, or store approval.
+
+`npm run test:moderation` checks real PostgreSQL permissions, session/allowlist enforcement, conflict handling, audit evidence, restrictions, and access revocation, plus Edge Function identity and request validation.
+
+Moderator database migration `20261011062241` and the authenticated `moderation` Edge Function were deployed October 11, 2026. All four requested, confirmed app accounts were added to the private allowlist. No existing report was resolved and no production account was restricted during deployment.

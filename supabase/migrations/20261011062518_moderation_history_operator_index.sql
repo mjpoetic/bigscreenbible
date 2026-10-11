@@ -1,0 +1,1 @@
+create index bsb_moderation_history_moderator_idx on private.bsb_moderation_history(moderator_id);

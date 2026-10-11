@@ -52,3 +52,6 @@ jobs:
 
       - name: Deploy Semantic Bible Search Edge Function
         run: supabase functions deploy semantic-bible-search --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Deploy Moderation Edge Function
+        run: supabase functions deploy moderation --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
