@@ -28,9 +28,9 @@ jobs:
           persist-credentials: false
 
       - name: Set up Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 2.119.0
 
       - name: Deploy ESV Edge Function
         run: supabase functions deploy esv-passage --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
