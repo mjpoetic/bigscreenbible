@@ -25741,3 +25741,69 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 .challenge-find-people { width: 100%; text-align: left; cursor: pointer; color: var(--ink); }
 .challenge-find-people:hover { border-color: var(--teal); }
 .challenge-find-people:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+
+/* Countdown glass follows the selected theme and keeps an opaque fallback. */
+.game-start-countdown:not([data-step="go"]) {
+  background: var(--paper);
+  border-color: color-mix(in srgb, var(--line) 80%, var(--ink));
+  box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, white 55%, transparent);
+}
+.game-start-countdown::backdrop { background: rgb(0 0 0 / .58); }
+.game-countdown-actions button {
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--ink));
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 45%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--ink) 12%, transparent),
+    0 6px 18px rgb(0 0 0 / .16);
+}
+.game-countdown-actions .ghost-btn { background: var(--paper); color: var(--ink); }
+.game-countdown-actions .primary-btn {
+  background: linear-gradient(155deg, color-mix(in srgb, var(--teal) 92%, white), var(--teal) 65%);
+  color: var(--accent-ink);
+}
+.game-countdown-actions button:focus-visible { outline: 3px solid var(--teal); outline-offset: 4px; }
+.game-countdown-actions .ghost-btn:hover { background: color-mix(in srgb, var(--teal) 10%, var(--paper)); }
+.game-countdown-actions .primary-btn:hover { background: var(--accent-hover); }
+.game-start-countdown:not([data-step="go"]) strong {
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 75%, transparent),
+    0 8px 24px color-mix(in srgb, var(--teal) 18%, transparent);
+}
+.game-start-countdown[data-step="go"] strong {
+  filter: none;
+  text-shadow: 0 2px 3px color-mix(in srgb, var(--teal-dark) 45%, transparent);
+}
+.game-start-countdown[data-step="go"] strong::before {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--teal) 85%, white), var(--teal) 45%, var(--teal-dark));
+  box-shadow: inset 0 3px 0 color-mix(in srgb, white 55%, transparent),
+    inset 0 -3px 0 color-mix(in srgb, var(--ink) 20%, transparent);
+}
+@supports ((backdrop-filter: blur(18px)) or (-webkit-backdrop-filter: blur(18px))) {
+  .game-start-countdown:not([data-step="go"]) {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--paper) 94%, transparent), color-mix(in srgb, var(--paper) 82%, transparent));
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+  }
+  .game-countdown-actions button,
+  .game-start-countdown[data-step="go"] strong::before {
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+  }
+  .game-countdown-actions .ghost-btn { background: color-mix(in srgb, var(--paper) 92%, transparent); }
+  .game-start-countdown[data-step="go"] strong::before {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--teal) 85%, white), color-mix(in srgb, var(--teal) 94%, transparent) 45%, var(--teal-dark));
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .game-start-countdown:not([data-step="go"]), .game-countdown-actions .ghost-btn { background: var(--paper); }
+  .game-countdown-actions .primary-btn, .game-start-countdown[data-step="go"] strong::before { background: var(--teal); }
+  .game-start-countdown, .game-countdown-actions button, .game-start-countdown strong::before {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .game-start-countdown:not([data-step="go"]), .game-countdown-actions button { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .game-start-countdown strong { color: CanvasText; text-shadow: none; }
+  .game-start-countdown[data-step="go"] strong { color: HighlightText; }
+  .game-start-countdown[data-step="go"] strong::before { background: Highlight; forced-color-adjust: none; }
+}
