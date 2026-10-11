@@ -4,14 +4,15 @@ const assert = require('assert/strict');
 const source = fs.readFileSync('assets/bible-app.js', 'utf8');
 const fn = source.slice(source.indexOf('async function startGameCountdown()'), source.indexOf('function startTriviaGame('));
 async function run(cancelled, skip = false, dismissGo = false) {
-  let now = 10000, removed = false, labels = [], events = {}, primed = false, playback = false;
+  let now = 10000, removed = false, labels = [], events = {}, primed = false, playback = false, focusTarget = null;
   const label = { set textContent(value) { labels.push(value); } };
-  const overlay = { dataset: {}, setAttribute() {}, querySelector(s) { return s === 'strong' ? label : { addEventListener(n, f) { events[s] = f; } }; }, addEventListener(n, f) { events[n] = f; }, showModal() {}, close() {}, remove() { removed = true; } };
+  const overlay = { dataset: {}, setAttribute() {}, querySelector(s) { return s === 'strong' ? label : { focus() { focusTarget = s; }, addEventListener(n, f) { events[s] = f; } }; }, addEventListener(n, f) { events[n] = f; }, showModal() {}, close() {}, remove() { removed = true; } };
   const state = { mode: 'trivia', wordSearchSounds: false, gameMusicEnabled: true };
   const ctx = { window: {}, clearTimeout() {}, state, gameCountdownActive: false, Date: { now: () => now }, document: { querySelector() { return this.body; }, createElement: () => overlay, body: { append() {} }, getElementById() { return null; } }, startTriviaGame() { state.triviaGame = { type: 'trivia', questionStartedAt: now }; }, requestGameMusicRestart() {}, pauseTriviaGameForReference() {}, resumeTriviaGameAfterReference() {}, renderPreservingReaderScroll() { ctx.syncGameMusicPlayback(); }, playGameCountdownTone() {}, primeGameMusicAudio() { primed = true; }, primeGameAudioPlayback() { assert.equal(primed, true); }, syncGameMusicPlayback() { playback = !!state.triviaGame; }, setTimeout(f, delay) { assert.equal(primed, true, 'Music must be unlocked before leaving the Start gesture with effects disabled'); if (dismissGo && overlay.dataset.step === 'go') { queueMicrotask(() => events.click({ target: { closest: () => null } })); return 1; } now += delay; assert.ok(state.triviaGame.countdownStartedAt); assert.equal(playback, true, 'Music must play throughout the countdown'); if (cancelled) events['[data-countdown-cancel]'](); if (skip) events['[data-countdown-start]'](); f(); } };
   vm.createContext(ctx);
   vm.runInContext(fn, ctx);
   await ctx.startGameCountdown();
+  assert.equal(focusTarget, '[role="status"]', 'Initial focus must go to the countdown, not Cancel');
   assert.equal(removed, true);
   assert.equal(ctx.gameCountdownActive, false);
   if (cancelled) { assert.equal(state.triviaGame, null); assert.equal(playback, false); }

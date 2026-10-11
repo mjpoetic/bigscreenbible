@@ -22284,7 +22284,7 @@ async function startGameCountdown() {
     overlay = document.createElement("dialog");
     overlay.className = "game-start-countdown";
     overlay.setAttribute("aria-label", "Game starting");
-    overlay.innerHTML = '<div role="status" aria-live="assertive" aria-atomic="true"><small>Get ready</small><strong>3</strong></div><div class="game-countdown-actions"><button type="button" class="ghost-btn" data-countdown-cancel>Cancel</button><button type="button" class="primary-btn" data-countdown-start>Start now</button></div>';
+    overlay.innerHTML = '<div role="status" aria-live="assertive" aria-atomic="true" tabindex="-1" autofocus><small>Get ready</small><strong>3</strong></div><div class="game-countdown-actions"><button type="button" class="ghost-btn" data-countdown-cancel>Cancel</button><button type="button" class="primary-btn" data-countdown-start>Start now</button></div>';
     let cancelled = false;
     let skip = false;
     let wake;
@@ -22299,6 +22299,7 @@ async function startGameCountdown() {
     overlay.querySelector("[data-countdown-start]").addEventListener("click", () => { skip = true; wake?.(); });
     (document.querySelector(".app-shell") || document.body).append(overlay);
     overlay.showModal();
+    overlay.querySelector('[role="status"]').focus({ preventScroll: true });
     for (const label of ["3", "2", "1", "Go!"]) {
       if (cancelled || state.mode !== "trivia" || state.triviaGame !== game) break;
       if (skip && label !== "Go!") continue;

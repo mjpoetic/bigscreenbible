@@ -25807,3 +25807,5 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   .game-start-countdown[data-step="go"] strong { color: HighlightText; }
   .game-start-countdown[data-step="go"] strong::before { background: Highlight; forced-color-adjust: none; }
 }
+/* Initial dialog focus belongs to the announcement, not an action button. */
+.game-start-countdown > [role="status"]:focus { outline: none; }
