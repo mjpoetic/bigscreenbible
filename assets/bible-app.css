@@ -3386,7 +3386,7 @@ label.social-terms-consent {
 
 .friend-person-row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -3417,9 +3417,8 @@ label.social-terms-consent {
 .friend-person-copy strong,
 .friend-person-copy span,
 .friend-person-copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .friend-person-copy strong {
@@ -3441,9 +3440,10 @@ label.social-terms-consent {
 }
 
 .friend-person-actions {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 4px;
 }
@@ -25716,3 +25716,28 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   line-height: 1;
 }
 .game-start-countdown[data-step="go"] strong::before { inset: 0; }
+
+/* Keep connection navigation compact and names independent of action widths. */
+.friends-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.friends-navigation label { color: var(--muted); font-size: 11px; font-weight: 800; }
+.friends-navigation select {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.friend-person-row > .friend-person-copy:first-child { grid-column: 1 / -1; }
+.challenge-find-people { width: 100%; text-align: left; cursor: pointer; color: var(--ink); }
+.challenge-find-people:hover { border-color: var(--teal); }
+.challenge-find-people:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }

@@ -93,3 +93,32 @@ assert.match(styles, /\.social-connections-card\[open\] \.social-connections-act
 assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
 
 console.log("Social connections tests passed");
+
+// Game prompts must open the account directly at friend search and close the drawer.
+let focused = false;
+let scrolled = false;
+const searchInput = {
+  focus() { focused = true; },
+  scrollIntoView() { scrolled = true; },
+};
+context.state.gamesDrawerOpen = "social";
+context.state.focusMode = true;
+context.state.settingsOpen = true;
+context.renderPreservingReaderScroll = () => {};
+context.requestAnimationFrame = callback => callback();
+context.document = {
+  getElementById: id => id === "quick-friendSearchInput" ? searchInput : null,
+  querySelector: () => null,
+};
+vm.runInContext(`${extractFunction("openFindPeopleFromGame")}
+openFindPeopleFromGame();`, context);
+assert.equal(context.state.gamesDrawerOpen, "");
+assert.equal(context.state.friendsPanelTab, "find");
+assert.equal(context.state.socialConnectionsOpen, true);
+assert.equal(context.state.accountOpen, true);
+assert.equal(focused, true);
+assert.equal(scrolled, true);
+assert.match(extractFunction("gameChallengeSetupCard"), /<button[^>]*data-open-find-people/);
+assert.match(extractFunction("friendsCard"), /<select[^>]*data-friends-view/);
+assert.match(styles, /grid-template-columns: 34px minmax\(0, 1fr\);/);
+assert.match(styles, /\.friend-person-actions \{\s*grid-column: 1 \/ -1;/);

@@ -7041,16 +7041,11 @@ function friendsCard(prefix = "") {
         </div>
         ${requestCount ? `<span class="friend-request-count" aria-label="${requestCount} incoming friend ${requestCount === 1 ? "request" : "requests"}">${requestCount}</span>` : ""}
       </div>
-      <div class="friends-tabs" role="tablist" aria-label="Friends">
-        ${tabs.map(([tab, label]) => `
-          <button
-            type="button"
-            role="tab"
-            aria-selected="${state.friendsPanelTab === tab}"
-            class="${state.friendsPanelTab === tab ? "active" : ""}"
-            data-friends-tab="${tab}"
-          >${escapeHtml(label)}</button>
-        `).join("")}
+      <div class="friends-navigation">
+        <label for="${prefix ? `${prefix}-` : ""}friendsView">View</label>
+        <select id="${prefix ? `${prefix}-` : ""}friendsView" data-friends-view>
+          ${tabs.map(([tab, label]) => `<option value="${tab}" ${state.friendsPanelTab === tab ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+        </select>
       </div>
       <p class="friends-status" role="status" aria-live="polite">${escapeHtml(
         state.friendshipStatus === "loading" ? "Loading friends…" : state.friendshipMessage,
@@ -15617,6 +15612,23 @@ function gameRoomLobbyCard(challenge) {
   `;
 }
 
+function openFindPeopleFromGame() {
+  state.gamesDrawerOpen = "";
+  state.focusMode = false;
+  state.settingsOpen = false;
+  state.friendsPanelTab = "find";
+  state.friendshipMessage = "";
+  setSocialConnectionsOpen(true);
+  state.accountOpen = true;
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => {
+    const target = document.getElementById("quick-friendSearchInput")
+      || document.querySelector(".social-profile-card input, .account-popover input");
+    (target || document.querySelector(".friends-card"))?.scrollIntoView?.({ block: "nearest" });
+    target?.focus({ preventScroll: true });
+  });
+}
+
 function gameChallengeSetupCard() {
   if (state.authUser && state.socialProfile && (!state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed)) return `<section class="challenge-setup-card"><strong>Community Standards</strong><small>Open your Account profile to accept the standards or review social access.</small></section>`;
   if (!state.authUser || !state.socialProfile) {
@@ -15627,6 +15639,7 @@ function gameChallengeSetupCard() {
           <strong>Sign in to send live challenges</strong>
         </div>
         <small>Create a social profile and add a friend first.</small>
+        <button class="primary-btn" type="button" data-open-find-people>Sign in &amp; add friends</button>
       </section>
     `;
   }
@@ -15638,12 +15651,13 @@ function gameChallengeSetupCard() {
   }).filter((item) => item.profile);
   if (!friends.length) {
     return `
-      <section class="challenge-setup-card">
+      <button class="challenge-setup-card challenge-find-people" type="button" data-open-find-people>
         <div>
           <span>Play with friends</span>
           <strong>Add a friend to unlock live challenges</strong>
         </div>
-      </section>
+        <small>Find people →</small>
+      </button>
     `;
   }
   const friendIds = new Set(friends.map((item) => item.userId));
@@ -20667,13 +20681,18 @@ function bindEvents() {
     });
   });
   document.getElementById("quick-friendSearchForm")?.addEventListener("submit", (event) => searchFriends(event, "quick"));
-  document.querySelectorAll("[data-friends-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (!["friends", "requests", "find", "blocked"].includes(button.dataset.friendsTab)) return;
-      state.friendsPanelTab = button.dataset.friendsTab;
+  document.querySelectorAll("[data-friends-view]").forEach((select) => {
+    select.addEventListener("change", () => {
+      if (!["friends", "requests", "find", "blocked"].includes(select.value)) return;
+      const selectId = select.id;
+      state.friendsPanelTab = select.value;
       state.friendshipMessage = "";
       renderPreservingReaderScroll();
+      document.getElementById(selectId)?.focus({ preventScroll: true });
     });
+  });
+  document.querySelectorAll("[data-open-find-people]").forEach((button) => {
+    button.addEventListener("click", openFindPeopleFromGame);
   });
   document.querySelectorAll("[data-friend-action]").forEach((button) => {
     button.addEventListener("click", () => handleFriendAction(button));
