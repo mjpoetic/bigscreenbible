@@ -10,6 +10,7 @@ function extract(name) {
 }
 
 let connections = 0;
+let rejectMediaRouting = false;
 let contextCreations = 0;
 let resumes = 0;
 let frame;
@@ -20,6 +21,7 @@ class AudioContext {
   createGain() { return { gain: { value: 1 }, connect() {} }; }
   createMediaElementSource() {
     connections += 1;
+    if (rejectMediaRouting) throw new Error("Native media routing unavailable");
     return { connect() {} };
   }
   resume() { resumes += 1; this.state = "running"; return Promise.resolve(); }
@@ -41,6 +43,7 @@ vm.runInContext(`
   let gameMusicAudio = audio;
   let gameMusicAudioContext = null;
   let gameMusicGain = null;
+  let gameMusicMediaConnected = false;
   let gameMusicFadeFrame = 0;
   let gameMusicLoop = null;
   let gameMusicLoopRequest = 0;
@@ -85,8 +88,15 @@ await run("primeModeTransitionAudio()");
 assert.equal(resumes, 2, "Interrupted transition context resumes");
 assert.equal(run("modeTransitionAudioContext.state"), "running");
 // A browser without Web Audio retains native volume and explicit mute.
-run("gameMusicGain = null; window.AudioContext = undefined; setGameMusicOutputVolume(0)");
+run("gameMusicGain = null; gameMusicMediaConnected = false; window.AudioContext = undefined; setGameMusicOutputVolume(0)");
 assert.equal(audio.muted, true);
 run("setGameMusicOutputVolume(0.5)");
 assert.equal(audio.muted, false);
 console.log("iOS audio volume regression tests passed");
+
+// A native media-source failure must not disable sample-timed buffer music.
+context.window.AudioContext = AudioContext;
+rejectMediaRouting = true;
+run("gameMusicAudioContext = null; gameMusicGain = null; gameMusicMediaConnected = false; primeGameMusicAudio()");
+assert.equal(run("Boolean(gameMusicGain)"), true, "Buffer music keeps its Web Audio gain even when native media routing fails");
+assert.equal(run("gameMusicMediaConnected"), false);

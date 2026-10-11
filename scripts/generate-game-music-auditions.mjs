@@ -332,7 +332,6 @@ function createGameTheme({
   for (let bar = 0; bar < bars; bar += 1) {
     const beat = bar * 4;
     const chord = chords[bar % chords.length];
-    const laterPass = bar >= bars / 2;
     addChord(synth, beat, chord.notes, {
       amplitude: 0.1 + energy * 0.055,
       type: chordType,
@@ -361,7 +360,7 @@ function createGameTheme({
         beat: beat + step * (4 / arpSteps),
         beats: energy > 0.68 ? 0.2 : 0.38,
         note: arpNotes[step % arpNotes.length] + 12,
-        amplitude: 0.018 + energy * 0.026 + (laterPass ? brightness * 0.008 : 0),
+        amplitude: 0.018 + energy * 0.026 + brightness * 0.008,
         type: "pulse",
         pulseWidth: step % 2 ? 0.32 : 0.42,
         release: 0.045,
@@ -369,23 +368,21 @@ function createGameTheme({
       });
     }
 
-    if (bar >= 1) {
-      melody.forEach((note, step) => {
-        if (!Number.isFinite(note)) return;
-        synth.addTone({
-          beat: beat + step * 0.5,
-          beats: step % 4 === 3 ? 0.66 : 0.4,
-          note: note + (bar % 4 === 2 ? 2 : 0),
-          amplitude: 0.04 + energy * 0.035,
-          type: leadType,
-          attack: leadType === "triangle" ? 0.018 : 0.006,
-          release: leadType === "triangle" ? 0.14 : 0.065,
-          vibratoDepth: leadType === "triangle" ? 0.0018 : 0,
-          pan: step % 2 ? 0.16 : -0.16,
-          octaveLayer: laterPass ? brightness * 0.2 : 0,
-        });
+    melody.forEach((note, step) => {
+      if (!Number.isFinite(note)) return;
+      synth.addTone({
+        beat: beat + step * 0.5,
+        beats: step % 4 === 3 ? 0.66 : 0.4,
+        note: note + (bar % 4 === 2 ? 2 : 0),
+        amplitude: 0.04 + energy * 0.035,
+        type: leadType,
+        attack: leadType === "triangle" ? 0.018 : 0.006,
+        release: leadType === "triangle" ? 0.14 : 0.065,
+        vibratoDepth: leadType === "triangle" ? 0.0018 : 0,
+        pan: step % 2 ? 0.16 : -0.16,
+        octaveLayer: brightness * 0.2,
       });
-    }
+    });
 
     synth.addKick(beat, 0.17 + energy * 0.16);
     synth.addKick(beat + 2, 0.14 + energy * 0.14);
@@ -395,7 +392,7 @@ function createGameTheme({
     }
     synth.addSnare(beat + 1, 0.08 + energy * 0.12, 0.08);
     synth.addSnare(beat + 3, 0.09 + energy * 0.13, -0.08);
-    const hatSteps = energy > 0.78 && laterPass ? 16 : 8;
+    const hatSteps = energy > 0.78 ? 16 : 8;
     for (let step = 0; step < hatSteps; step += 1) {
       synth.addHat(
         beat + step * (4 / hatSteps),
@@ -725,19 +722,17 @@ function createStillWaters() {
       });
     });
 
-    if (bar >= 2) {
-      leadPhrases[bar % leadPhrases.length].forEach(([offset, note, length], noteIndex) => synth.addTone({
-        beat: beat + offset,
-        beats: length,
-        note: note + (bar >= 8 && noteIndex === 2 ? 12 : 0),
-        amplitude: bar >= 8 ? 0.061 : 0.052,
-        type: "triangle",
-        attack: 0.02,
-        release: 0.16,
-        vibratoDepth: 0.002,
-        pan: noteIndex % 2 ? 0.18 : -0.18,
-      }));
-    }
+    leadPhrases[bar % leadPhrases.length].forEach(([offset, note, length], noteIndex) => synth.addTone({
+      beat: beat + offset,
+      beats: length,
+      note,
+      amplitude: 0.056,
+      type: "triangle",
+      attack: 0.02,
+      release: 0.16,
+      vibratoDepth: 0.002,
+      pan: noteIndex % 2 ? 0.18 : -0.18,
+    }));
 
     synth.addKick(beat, 0.2);
     synth.addKick(beat + 2, 0.16);
@@ -766,7 +761,7 @@ function createFinalRun() {
   for (let bar = 0; bar < 16; bar += 1) {
     const beat = bar * 4;
     const chord = chords[bar % chords.length];
-    const pressure = bar >= 8 ? 1 : 0;
+    const pressure = 1; // Timed play keeps its energy through the loop boundary.
     addChord(synth, beat, chord.notes, {
       amplitude: pressure ? 0.11 : 0.085,
       type: "pulse",
@@ -802,18 +797,16 @@ function createFinalRun() {
       });
     }
 
-    if (bar >= 4) {
-      motif.forEach((note, index) => synth.addTone({
-        beat: beat + index * 0.5,
-        beats: index % 4 === 3 ? 0.46 : 0.36,
-        note: note + (bar % 4 === 1 ? -2 : bar % 4 === 2 ? 2 : 0),
-        amplitude: pressure ? 0.085 : 0.063,
-        type: "square",
-        release: 0.065,
-        pan: 0.08,
-        octaveLayer: pressure && bar >= 12 ? 0.22 : 0,
-      }));
-    }
+    motif.forEach((note, index) => synth.addTone({
+      beat: beat + index * 0.5,
+      beats: index % 4 === 3 ? 0.46 : 0.36,
+      note: note + (bar % 4 === 1 ? -2 : bar % 4 === 2 ? 2 : 0),
+      amplitude: pressure ? 0.085 : 0.063,
+      type: "square",
+      release: 0.065,
+      pan: 0.08,
+      octaveLayer: 0.11,
+    }));
 
     synth.addKick(beat, pressure ? 0.34 : 0.29);
     synth.addKick(beat + 1.5, pressure ? 0.24 : 0.18);
@@ -837,19 +830,21 @@ function createFinalRun() {
 }
 
 function encodeTrack(name, synth) {
-  if (!["joyful-complete", "heaven-complete", "level-complete", "whomp-whomp"].includes(name)) {
+  const looping = !["joyful-complete", "heaven-complete", "level-complete", "whomp-whomp"].includes(name);
+  if (looping) {
     synth.crossfadeLoop();
   }
   const wavPath = path.join(outputDir, `${name}.wav`);
   const mp3Path = path.join(outputDir, `${name}.mp3`);
   writeFileSync(wavPath, synth.wavBuffer());
+  if (looping && productionMode) return { name, duration: synth.duration, wavPath };
 
   const result = spawnSync("ffmpeg", [
     "-y", "-hide_banner", "-loglevel", "error", "-i", wavPath,
     "-codec:a", "libmp3lame", "-b:a", "128k", "-write_xing", "1", mp3Path,
   ], { encoding: "utf8" });
   if (result.status !== 0) throw new Error(result.stderr || `ffmpeg failed for ${name}`);
-  unlinkSync(wavPath);
+  if (!looping) unlinkSync(wavPath);
   return { name, duration: synth.duration, mp3Path };
 }
 

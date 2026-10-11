@@ -9,15 +9,15 @@ const cssSource = readFileSync(path.join(rootDir, "assets", "bible-app.css"), "u
 const generatorSource = readFileSync(path.join(rootDir, "scripts", "generate-game-music-auditions.mjs"), "utf8");
 
 const tracks = [
-  ["word-garden.mp3", "Word Garden"],
-  ["unfolding-mystery.mp3", "Unfolding Mystery"],
-  ["still-waters-16bit.mp3", "Still Waters"],
-  ["bright-answers.mp3", "Bright Answers"],
-  ["ordered-light.mp3", "Ordered Light"],
-  ["quiet-clues.mp3", "Quiet Clues"],
-  ["reference-rush-final-run.mp3", "Final Run"],
-  ["canon-run.mp3", "Canon Run"],
-  ["hidden-voice.mp3", "Hidden Voice"],
+  ["word-garden.wav", "Word Garden"],
+  ["unfolding-mystery.wav", "Unfolding Mystery"],
+  ["still-waters-16bit.wav", "Still Waters"],
+  ["bright-answers.wav", "Bright Answers"],
+  ["ordered-light.wav", "Ordered Light"],
+  ["quiet-clues.wav", "Quiet Clues"],
+  ["reference-rush-final-run.wav", "Final Run"],
+  ["canon-run.wav", "Canon Run"],
+  ["hidden-voice.wav", "Hidden Voice"],
 ];
 
 const outcomeSounds = [
@@ -48,7 +48,7 @@ for (const [fileName, trackName] of tracks) {
   assert.ok(statSync(assetPath).size > 200_000, `${fileName} must contain a complete encoded loop`);
   assert.match(manifestSource, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be mapped`);
   assert.match(manifestSource, new RegExp(trackName), `${trackName} must be named in controls`);
-  assert.match(generatorSource, new RegExp(fileName.replace(/\.mp3$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);
+  assert.match(generatorSource, new RegExp(fileName.replace(/\.(mp3|wav)$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);
 }
 
 for (const [fileName, outcomeKey] of outcomeSounds) {
@@ -57,7 +57,7 @@ for (const [fileName, outcomeKey] of outcomeSounds) {
   assert.ok(statSync(assetPath).size > 35_000, `${fileName} must contain a complete encoded outcome cue`);
   assert.match(outcomeManifestSource, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be mapped`);
   assert.match(outcomeManifestSource, new RegExp(`\\b${outcomeKey}\\b`), `${fileName} must map to the ${outcomeKey} outcome`);
-  assert.match(generatorSource, new RegExp(fileName.replace(/\.mp3$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);
+  assert.match(generatorSource, new RegExp(fileName.replace(/\.(mp3|wav)$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${fileName} must be reproducible`);
 }
 
 assert.match(appSource, /game\.type === "reference-rush" && game\.timed\s*\? "reference-rush-timed"/, "Timed Reference Rush must select Final Run");

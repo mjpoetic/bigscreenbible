@@ -478,6 +478,7 @@ let bookSprintAudioContext = null;
 let gameMusicAudio = null;
 let gameMusicAudioContext = null;
 let gameMusicGain = null;
+let gameMusicMediaConnected = false;
 let gameMusicTrackKey = "";
 let gameMusicFadeFrame = 0;
 let gameMusicRestartPending = false;
@@ -525,15 +526,15 @@ const hiddenWordBestStorageKey = "lw_hidden_word_scores_v2";
 const crosswordHintLimit = 3;
 const hiddenWordHintTypes = ["context", "letter"];
 const gameMusicTracks = Object.freeze({
-  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.mp3?v=seamless-2", loopSeconds: 32 * 60 / 88, volume: 0.15 },
-  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.mp3?v=seamless-2", loopSeconds: 32 * 60 / 90, volume: 0.14 },
-  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.mp3?v=seamless-2", loopSeconds: 48 * 60 / 94, volume: 0.14 },
-  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.mp3?v=seamless-2", loopSeconds: 48 * 60 / 132, volume: 0.14 },
-  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.mp3?v=seamless-2", loopSeconds: 32 * 60 / 80, volume: 0.14 },
-  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.mp3?v=seamless-2", loopSeconds: 32 * 60 / 96, volume: 0.13 },
-  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.mp3?v=seamless-2", loopSeconds: 48 * 60 / 150, volume: 0.15 },
-  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.mp3?v=seamless-2", loopSeconds: 48 * 60 / 142, volume: 0.14 },
-  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.mp3?v=seamless-2", loopSeconds: 32 * 60 / 104, volume: 0.14 },
+  "word-search": { key: "word-search", name: "Word Garden", src: "./assets/audio/game-music/word-garden.wav?v=continuous-1", loopSeconds: 32 * 60 / 88, volume: 0.15 },
+  crossword: { key: "crossword", name: "Still Waters", src: "./assets/audio/game-music/still-waters-16bit.wav?v=continuous-1", loopSeconds: 32 * 60 / 90, volume: 0.14 },
+  "hidden-word": { key: "hidden-word", name: "Unfolding Mystery", src: "./assets/audio/game-music/unfolding-mystery.wav?v=continuous-1", loopSeconds: 48 * 60 / 94, volume: 0.14 },
+  trivia: { key: "trivia", name: "Bright Answers", src: "./assets/audio/game-music/bright-answers.wav?v=continuous-1", loopSeconds: 48 * 60 / 132, volume: 0.14 },
+  "verse-order": { key: "verse-order", name: "Ordered Light", src: "./assets/audio/game-music/ordered-light.wav?v=continuous-1", loopSeconds: 32 * 60 / 80, volume: 0.14 },
+  "reference-rush": { key: "reference-rush", name: "Quiet Clues", src: "./assets/audio/game-music/quiet-clues.wav?v=continuous-1", loopSeconds: 32 * 60 / 96, volume: 0.13 },
+  "reference-rush-timed": { key: "reference-rush-timed", name: "Final Run", src: "./assets/audio/game-music/reference-rush-final-run.wav?v=continuous-1", loopSeconds: 48 * 60 / 150, volume: 0.15 },
+  "book-sprint": { key: "book-sprint", name: "Canon Run", src: "./assets/audio/game-music/canon-run.wav?v=continuous-1", loopSeconds: 48 * 60 / 142, volume: 0.14 },
+  "who-said-it": { key: "who-said-it", name: "Hidden Voice", src: "./assets/audio/game-music/hidden-voice.wav?v=continuous-1", loopSeconds: 32 * 60 / 104, volume: 0.14 },
 });
 const gameOutcomeSounds = Object.freeze({
   heaven: { key: "heaven", src: "./assets/audio/game-music/heaven-complete.mp3", volume: 0.13 },
@@ -14810,9 +14811,14 @@ function primeGameMusicAudio() {
       const gain = gameMusicAudioContext.createGain();
       gain.gain.value = 0;
       gain.connect(gameMusicAudioContext.destination);
-      const source = gameMusicAudioContext.createMediaElementSource(audio);
-      source.connect(gain);
       gameMusicGain = gain;
+      try {
+        const source = gameMusicAudioContext.createMediaElementSource(audio);
+        source.connect(gain);
+        gameMusicMediaConnected = true;
+      } catch {
+        // Buffer music can still loop seamlessly if native media routing fails.
+      }
       audio.volume = 1;
       audio.muted = false;
     } catch {
@@ -14923,7 +14929,7 @@ async function startGameMusicLoop(track, restart) {
 
 function setGameMusicOutputVolume(volume) {
   if (gameMusicGain) gameMusicGain.gain.value = volume;
-  else if (gameMusicAudio) {
+  if (!gameMusicMediaConnected && gameMusicAudio) {
     gameMusicAudio.volume = volume;
     gameMusicAudio.muted = volume === 0;
   }
@@ -22266,6 +22272,10 @@ async function startGameCountdown() {
     const cancel = () => { cancelled = true; wake?.(); overlay.close(); };
     overlay.addEventListener("keydown", event => event.stopPropagation());
     overlay.addEventListener("cancel", cancel);
+    overlay.addEventListener("click", event => {
+      if (overlay.dataset.step !== "go" || event.target.closest?.("strong, button")) return;
+      wake?.();
+    });
     overlay.querySelector("[data-countdown-cancel]").addEventListener("click", cancel);
     overlay.querySelector("[data-countdown-start]").addEventListener("click", () => { skip = true; wake?.(); });
     (document.querySelector(".app-shell") || document.body).append(overlay);
@@ -22277,11 +22287,14 @@ async function startGameCountdown() {
       number.textContent = label;
       overlay.dataset.step = label === "Go!" ? "go" : label;
       if (!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
-        number.animate?.([{ transform: "scale(.65)", opacity: .3 }, { transform: "scale(1.12)", opacity: 1, offset: .6 }, { transform: "scale(1)", opacity: 1 }], { duration: 420, easing: "ease-out" });
+        number.animate?.(label === "Go!"
+          ? [{ transform: "scale(.25)", opacity: .4 }, { transform: "scale(1)", opacity: 1 }]
+          : [{ transform: "scale(.65)", opacity: .3 }, { transform: "scale(1.12)", opacity: 1, offset: .6 }, { transform: "scale(1)", opacity: 1 }],
+          { duration: label === "Go!" ? 900 : 420, easing: "cubic-bezier(.16, 1, .3, 1)" });
       }
       playGameCountdownTone(label === "Go!");
       await new Promise(resolve => {
-        const timer = setTimeout(resolve, label === "Go!" ? 300 : 1000);
+        const timer = setTimeout(resolve, label === "Go!" ? 1500 : 1000);
         wake = () => { clearTimeout(timer); resolve(); };
       });
       wake = null;

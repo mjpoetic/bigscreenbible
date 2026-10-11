@@ -3,21 +3,21 @@ const vm = require('vm');
 const assert = require('assert/strict');
 const source = fs.readFileSync('assets/bible-app.js', 'utf8');
 const fn = source.slice(source.indexOf('async function startGameCountdown()'), source.indexOf('function startTriviaGame('));
-async function run(cancelled, skip = false) {
+async function run(cancelled, skip = false, dismissGo = false) {
   let now = 10000, removed = false, labels = [], events = {}, primed = false, playback = false;
   const label = { set textContent(value) { labels.push(value); } };
   const overlay = { dataset: {}, setAttribute() {}, querySelector(s) { return s === 'strong' ? label : { addEventListener(n, f) { events[s] = f; } }; }, addEventListener(n, f) { events[n] = f; }, showModal() {}, close() {}, remove() { removed = true; } };
   const state = { mode: 'trivia', wordSearchSounds: false, gameMusicEnabled: true };
-  const ctx = { window: {}, clearTimeout() {}, state, gameCountdownActive: false, Date: { now: () => now }, document: { querySelector() { return this.body; }, createElement: () => overlay, body: { append() {} }, getElementById() { return null; } }, startTriviaGame() { state.triviaGame = { type: 'trivia', questionStartedAt: now }; }, requestGameMusicRestart() {}, pauseTriviaGameForReference() {}, resumeTriviaGameAfterReference() {}, renderPreservingReaderScroll() { ctx.syncGameMusicPlayback(); }, playGameCountdownTone() {}, primeGameMusicAudio() { primed = true; }, primeGameAudioPlayback() { assert.equal(primed, true); }, syncGameMusicPlayback() { playback = !!state.triviaGame; }, setTimeout(f, delay) { assert.equal(primed, true, 'Music must be unlocked before leaving the Start gesture with effects disabled'); now += delay; assert.ok(state.triviaGame.countdownStartedAt); assert.equal(playback, true, 'Music must play throughout the countdown'); if (cancelled) events['[data-countdown-cancel]'](); if (skip) events['[data-countdown-start]'](); f(); } };
+  const ctx = { window: {}, clearTimeout() {}, state, gameCountdownActive: false, Date: { now: () => now }, document: { querySelector() { return this.body; }, createElement: () => overlay, body: { append() {} }, getElementById() { return null; } }, startTriviaGame() { state.triviaGame = { type: 'trivia', questionStartedAt: now }; }, requestGameMusicRestart() {}, pauseTriviaGameForReference() {}, resumeTriviaGameAfterReference() {}, renderPreservingReaderScroll() { ctx.syncGameMusicPlayback(); }, playGameCountdownTone() {}, primeGameMusicAudio() { primed = true; }, primeGameAudioPlayback() { assert.equal(primed, true); }, syncGameMusicPlayback() { playback = !!state.triviaGame; }, setTimeout(f, delay) { assert.equal(primed, true, 'Music must be unlocked before leaving the Start gesture with effects disabled'); if (dismissGo && overlay.dataset.step === 'go') { queueMicrotask(() => events.click({ target: { closest: () => null } })); return 1; } now += delay; assert.ok(state.triviaGame.countdownStartedAt); assert.equal(playback, true, 'Music must play throughout the countdown'); if (cancelled) events['[data-countdown-cancel]'](); if (skip) events['[data-countdown-start]'](); f(); } };
   vm.createContext(ctx);
   vm.runInContext(fn, ctx);
   await ctx.startGameCountdown();
   assert.equal(removed, true);
   assert.equal(ctx.gameCountdownActive, false);
   if (cancelled) { assert.equal(state.triviaGame, null); assert.equal(playback, false); }
-  else { assert.equal(playback, true, 'Music must synchronize after countdown is released'); assert.deepEqual(labels, skip ? ['3', 'Go!'] : ['3', '2', '1', 'Go!']); assert.equal(state.triviaGame.countdownStartedAt, undefined); assert.equal(state.triviaGame.questionStartedAt, now); }
+  else { assert.equal(playback, true, 'Music must synchronize after countdown is released'); assert.deepEqual(labels, skip ? ['3', 'Go!'] : ['3', '2', '1', 'Go!']); assert.equal(state.triviaGame.countdownStartedAt, undefined); assert.equal(state.triviaGame.questionStartedAt, now); if (dismissGo) assert.equal(now, 13000, 'Outside click skips the Go hold'); else if (!skip) assert.equal(now, 14500, 'Go remains visible for 1.5 seconds'); }
 }
-(async () => { await run(false); await run(true); await run(false, true); console.log('Countdown music unlock, playback handoff, timing and cancellation passed'); })();
+(async () => { await run(false); await run(true); await run(false, true); await run(false, false, true); console.log('Countdown music unlock, playback handoff, timing and cancellation passed'); })();
 
 for (const name of ['wordSearchElapsedMs', 'crosswordElapsedMs', 'bookSprintElapsedMs', 'verseOrderElapsedMs']) {
   const start = source.indexOf('function ' + name + '(');
