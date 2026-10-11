@@ -18,7 +18,8 @@ const dialog = { setAttribute() {}, querySelector: () => ({ focus() { focused = 
 const context = vm.createContext({ state, localStorage: { getItem: key => savedPreferences.get(key) || null, setItem: (key, value) => savedPreferences.set(key, value) }, renderPreservingReaderScroll() { renders++; }, document: { documentElement: { classList: { add() {}, remove() {} } }, querySelector: selector => selector === ".scripture-reading-dialog[open]" ? null : source, getElementById: () => null, createElement: () => dialog, body: { append() {} } }, escapeHtml: s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'), activePassageLabel: () => 'John 1', activeVersions: () => state.versions, translationDisplayCode: s => s, pauseReaderAutoScroll() {}, finishReaderVerseHold() {}, showToast() { throw new Error('Unexpected empty passage'); } });
 vm.runInContext(functions, context);
 const bindWorkspace = context.bindImmersiveScriptureReader;
-context.bindImmersiveScriptureReader = () => {};
+let blockedVersions = [];
+context.bindImmersiveScriptureReader = (_dialog, _preferences, versions) => { blockedVersions = Array.from(versions); };
 const entries = from => JSON.parse(JSON.stringify(context.scriptureReadingEntries(source, from)));
 assert.equal(entries(false).length, 4);
 assert.deepEqual(entries(true).map(e => e.text), ['<All things>', 'In Him was life.']);
@@ -43,6 +44,18 @@ assert.ok(dialog.innerHTML.includes('>BSB</p>'), 'Reader labels only its display
 assert.ok(!dialog.innerHTML.includes('BSB / KJV'));
 assert.ok(!dialog.innerHTML.includes('data-verse='), 'Plain reading view cannot trigger verse-hold actions');
 closeCallback(); assert.ok(removed && returned, 'Closing removes dialog and restores its trigger');
+// Restrictions follow every reading mode, including mixed Parallel passages.
+for (const mode of ['reader', 'focus', 'big', 'parallel']) {
+  state.mode = mode;
+  for (const version of ['NLT', 'NKJV', 'CEV']) {
+    state.versions = mode === 'parallel' ? ['BSB', version] : [version];
+    context.openScriptureReadingView();
+    assert.deepEqual(blockedVersions, [version], `${mode}: ${version} cannot enable Read Aloud`);
+  }
+}
+assert.deepEqual(Array.from(context.scriptureReaderRestrictedVersions(['BSB'], [{ version: 'nlt' }])), ['NLT'], 'Rendered translation labels also enforce restrictions');
+assert.deepEqual(Array.from(context.scriptureReaderRestrictedVersions(['BSB', 'KJV', 'WEB'])), [], 'Other translations retain speech');
+state.mode = 'reader'; state.versions = ['BSB', 'KJV'];
 assert.equal(context.scriptureReadingEntries(null).length, 0);
 // Off means no dialog can be opened, and the device preference survives reload.
 context.setScriptureScreenReading(false);
@@ -188,3 +201,25 @@ const closedNativeView = nativeWorkspace(); bindWorkspace(closedNativeView.view,
 closedNativeView.view.fire('close'); initializeNative(); await Promise.resolve(); await Promise.resolve();
 assert.equal(closedNativeView.get('[data-reading-play]').disabled, true);
 console.log('Native speech initialization and close-during-initialization passed');
+
+// A restricted workspace must never initialize or invoke browser/native speech,
+// even if its disabled control is triggered programmatically.
+let speechInitializations = 0;
+context.scriptureReaderSpeechEngine = () => { speechInitializations++; return { synth: engine, Utterance: fakeWindow.SpeechSynthesisUtterance }; };
+for (const version of ['NLT', 'NKJV', 'CEV']) {
+  const restricted = nativeWorkspace();
+  const spokenBefore = spoken.length;
+  bindWorkspace(restricted.view, defaults, [version]);
+  assert.equal(restricted.get('[data-reading-play]').disabled, true);
+  assert.equal(restricted.get('[data-reading-stop]').disabled, true);
+  assert.equal(restricted.get('[data-reading-voice-controls]').hidden, true);
+  assert.match(restricted.get('[data-reading-status]').textContent, new RegExp(version));
+  restricted.get('[data-reading-play]').fire('click');
+  restricted.get('[data-reading-next]').fire('click');
+  restricted.get('[data-reading-reset]').fire('click');
+  assert.match(restricted.get('[data-reading-status]').textContent, /currently unavailable/);
+  assert.equal(spoken.length, spokenBefore);
+  restricted.view.fire('close');
+}
+assert.equal(speechInitializations, 0, 'Restricted content never reaches either speech engine');
+console.log('Translation restrictions block speech while retaining reading controls');

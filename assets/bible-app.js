@@ -4268,6 +4268,14 @@ function scriptureReadingSource() {
   return document.querySelector(state.mode === "big" ? ".presentation-text" : "#scriptureReadingRegion");
 }
 
+function scriptureReaderRestrictedVersions(versions, entries = []) {
+  // Keep these translations visual-only until Read Aloud rights are confirmed.
+  const restricted = new Set(["NLT", "NKJV", "CEV"]);
+  return [...new Set([...versions, ...entries.map(entry => entry.version)]
+    .map(version => String(version || "").trim().toUpperCase())
+    .filter(version => restricted.has(version)))];
+}
+
 function scriptureReadingEntries(source, fromVerse = false) {
   if (!source) return [];
   const starts = [...source.querySelectorAll("[data-verse]")].map((node) => Number(node.dataset.verse)).filter((number) => number <= Number(state.verse));
@@ -4388,13 +4396,15 @@ function scriptureReaderSpeechEngine() {
   };
 }
 
-function bindImmersiveScriptureReader(dialog, preferences) {
+function bindImmersiveScriptureReader(dialog, preferences, restrictedVersions = []) {
   const article = dialog.querySelector("article");
   const paragraphs = [...dialog.querySelectorAll("[data-reading-passage]")];
   const position = dialog.querySelector("[data-reading-position]");
   const status = dialog.querySelector("[data-reading-status]");
   const play = dialog.querySelector("[data-reading-play]");
-  const speech = scriptureReaderSpeechEngine();
+  const restrictionMessage = restrictedVersions.length
+    ? `Read aloud is currently unavailable for ${restrictedVersions.join(", ")}. You can still read and adjust the text.` : "";
+  const speech = restrictionMessage ? null : scriptureReaderSpeechEngine();
   const synth = speech?.synth;
   let canSpeak = Boolean(speech && !speech.ready);
   let current = 0;
@@ -4428,7 +4438,7 @@ function bindImmersiveScriptureReader(dialog, preferences) {
     dialog.dataset.speaking = "false";
     play.textContent = "Read aloud";
     play.setAttribute("aria-pressed", "false");
-    if (announce) status.textContent = "Reading stopped.";
+    if (announce) status.textContent = restrictionMessage || "Reading stopped.";
   };
   const speak = () => {
     if (closed || !canSpeak || !paragraphs[current]) return;
@@ -4487,16 +4497,17 @@ function bindImmersiveScriptureReader(dialog, preferences) {
   dialog.querySelector("[data-reading-reset]").addEventListener("click", () => {
     stop(); preferences = normalizedScriptureReaderPreferences(); save(); apply(); paint();
     dialog.querySelectorAll("[data-reading-preference]").forEach((input) => { input.value = preferences[input.dataset.readingPreference]; });
-    status.textContent = "Reading preferences reset.";
+    status.textContent = restrictionMessage || "Reading preferences reset.";
   });
   play.disabled = !canSpeak;
+  dialog.querySelector("[data-reading-stop]").disabled = Boolean(restrictionMessage);
   dialog.querySelector("[data-reading-voice-controls]").hidden = !canSpeak;
   if (!canSpeak) {
     const olderAndroidShell = window.Capacitor?.isNativePlatform?.() && window.Capacitor?.getPlatform?.() === "android"
       && !window.Capacitor?.isPluginAvailable?.("BSBSpeech");
-    status.textContent = speech?.ready ? "Preparing your device’s speech engine…" : olderAndroidShell
+    status.textContent = restrictionMessage || (speech?.ready ? "Preparing your device’s speech engine…" : olderAndroidShell
       ? "Update the installed Android app to use Read Aloud. Your device’s screen-reading tools remain available."
-      : "Use your device’s screen-reading tools to listen to this passage.";
+      : "Use your device’s screen-reading tools to listen to this passage.");
   }
   speech?.ready?.then(() => {
     if (closed) return;
@@ -4507,6 +4518,7 @@ function bindImmersiveScriptureReader(dialog, preferences) {
     if (!closed) status.textContent = "Read aloud is unavailable. Check your device’s text-to-speech engine and installed voices.";
   });
   play.addEventListener("click", () => {
+    if (!canSpeak || closed) return;
     if (!utterance) { synth?.cancel(); synth?.resume(); speak(); }
     else if (paused) { paused = false; synth.resume(); play.textContent = "Pause"; status.textContent = "Reading aloud."; }
     else { paused = true; synth.pause(); play.textContent = "Resume"; status.textContent = "Reading paused."; }
@@ -4584,7 +4596,7 @@ function openScriptureReadingView(fromVerse = false, trigger = document.activeEl
     const returnTarget = trigger?.isConnected ? trigger : document.getElementById(state.mode === "big" ? "presentationSettingsToggle" : "settingsToggle");
     returnTarget?.focus({ preventScroll: true });
   }, { once: true });
-  bindImmersiveScriptureReader(dialog, preferences);
+  bindImmersiveScriptureReader(dialog, preferences, scriptureReaderRestrictedVersions(readingVersions, entries));
   dialog.showModal();
   dialog.querySelector("h1").focus({ preventScroll: true });
 }
