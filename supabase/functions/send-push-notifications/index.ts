@@ -444,7 +444,10 @@ async function sendSocialNotifications(supabase: DatabaseClient, actorId: string
       continue;
     }
     claimed += 1;
-    if (!eventIsStillActionable(event, friendshipsById, challengesById, challengePlayersByRoomAndUser)) {
+    // Recheck after claiming: the batch may have been loaded before a block or suspension.
+    const { data: socialAllowed, error: safetyError } = await supabase.rpc("bsb_social_push_allowed", { actor_id: event.actor_id, recipient_id: event.recipient_id });
+    if (safetyError) throw safetyError; // Fail closed when safety state is unavailable.
+    if (!socialAllowed || !eventIsStillActionable(event, friendshipsById, challengesById, challengePlayersByRoomAndUser)) {
       const { error } = await supabase.from(eventTable)
         .update({ status: "sent", sent_at: new Date().toISOString(), claimed_at: null, last_error: null })
         .eq("id", event.id)

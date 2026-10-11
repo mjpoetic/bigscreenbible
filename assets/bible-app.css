@@ -25541,3 +25541,11 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   .presentation-bottom-settings-menu:has(.scripture-reader-quick) { flex-direction: column; width: 44px; }
 }
 @media print { .scripture-reader-quick { display: none !important; } }
+
+/* Social safety controls inherit the account panel's accessible theme. */
+.social-terms-consent { display: flex; align-items: flex-start; gap: .65rem; font-size: .9rem; line-height: 1.5; }
+.social-terms-consent input { margin-top: .3rem; flex: 0 0 auto; }
+.social-safety-dialog form { display: grid; gap: .75rem; }
+.social-safety-dialog select, .social-safety-dialog textarea { width: 100%; box-sizing: border-box; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: .6rem; padding: .75rem; font: inherit; }
+.friend-person-actions { flex-wrap: wrap; }
+.social-player-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }

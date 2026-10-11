@@ -48,6 +48,8 @@ const expectedAvatarKeys = [
 ];
 const state = {
   authUser: { id: "user-123", email: "private@example.com" },
+  socialSafetyReady: true,
+  socialConsent: true,
   socialProfile: null,
   socialProfileDraft: null,
   socialProfileStatus: "ready",

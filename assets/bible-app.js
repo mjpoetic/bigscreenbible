@@ -603,6 +603,7 @@ const readerPageControlDoubleActivationMs = 380;
 const cloudSyncTable = "bsb_user_sync";
 const socialProfileTable = "bsb_profiles";
 const friendshipTable = "bsb_friendships";
+const socialTermsVersion = "2026-10-10";
 const gameChallengeTable = "bsb_game_challenges";
 const gameChallengePlayerTable = "bsb_game_challenge_players";
 const accountDataOwnerStorageKey = "lw_account_data_owner";
@@ -961,6 +962,10 @@ const state = {
   socialProfileBusy: false,
   socialProfileOpen: false,
   socialConnectionsOpen: localStorage.getItem(socialConnectionsOpenStorageKey) === "true",
+  socialConsent: false,
+  socialSafetyReady: false,
+  socialAccessAllowed: false,
+  socialBlocks: [],
   friendships: [],
   friendshipProfiles: {},
   friendshipStatus: "idle",
@@ -6332,6 +6337,7 @@ function socialProfileCard(prefix = "") {
               <span><strong>Allow friend requests</strong><small>Discoverable profiles can send you a request when this is on.</small></span>
             </label>
           </div>
+          ${!state.socialConsent ? `<label class="social-terms-consent"><input id="${suffix}socialTermsAccepted" type="checkbox" required ${draft.termsAccepted ? "checked" : ""} ${state.socialProfileBusy ? "disabled" : ""} /><span>I agree to the <a href="./terms/#community-standards" target="_blank" rel="noopener">Community Standards and Terms of Service</a>. I will not post offensive content or harass others.</span></label>` : `<p class="social-terms-consent">Community Standards accepted · <a href="./terms/#community-standards" target="_blank" rel="noopener">Read standards</a></p>`}
           <button class="primary-btn compact-account-btn social-profile-save" type="submit" ${state.socialProfileBusy ? "disabled" : ""}>
             ${state.socialProfileBusy ? "Saving…" : hasProfile ? "Save profile" : "Create profile"}
           </button>
@@ -6372,7 +6378,7 @@ function friendshipForUser(profileUserId, userId = state.authUser?.id || "") {
 }
 
 function friendshipProfile(userId) {
-  return state.friendshipProfiles[userId] || state.gameChallengeProfiles[userId] || null;
+  return state.friendshipProfiles[userId] || state.gameChallengeProfiles[userId] || { userId, username: "", displayName: "Profile unavailable", avatarKey: "initials" };
 }
 
 function gameChallengeTitle(gameType) {
@@ -6851,6 +6857,10 @@ function friendshipPersonRow(profile, actions = "", note = "") {
     displayName: "Profile unavailable",
     avatarKey: "initials",
   };
+  if (person.userId && person.userId !== state.authUser?.id) {
+    actions += friendshipActionButton("report", "Report", { profileId: person.userId });
+    actions += friendshipActionButton("block", "Block", { profileId: person.userId, danger: true });
+  }
   const username = person.username ? `@${escapeHtml(person.username)}` : "Profile unavailable";
   const displayName = person.displayName ? `<strong>${escapeHtml(person.displayName)}</strong>` : "";
   return `
@@ -6920,6 +6930,9 @@ function friendshipSearchResultRow(profile) {
 function friendsPanelContent(prefix = "") {
   const suffix = prefix ? `${prefix}-` : "";
   const collections = friendshipCollections();
+  if (state.friendsPanelTab === "blocked") {
+    return state.socialBlocks.map(block => `<article class="friend-person-row"><div class="friend-person-copy"><strong>@${escapeHtml(block.username_snapshot || "Blocked person")}</strong><small>Cannot contact you through friends or games</small></div><div class="friend-person-actions">${friendshipActionButton("report", "Report", { profileId: block.blocked_id })}${friendshipActionButton("unblock", "Unblock", { profileId: block.blocked_id })}</div></article>`).join("") || '<p class="friend-empty-state">No blocked people.</p>';
+  }
   if (state.friendsPanelTab === "requests") {
     const incomingRows = collections.incoming.map((friendship) => {
       const profile = friendshipProfile(friendshipOtherUserId(friendship));
@@ -7006,12 +7019,14 @@ function friendsCard(prefix = "") {
       </section>
     `;
   }
+  if (!state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed) return `<section class="account-card friends-card"><strong>Community Standards</strong><p>${state.socialConsent && !state.socialAccessAllowed ? 'Social access is suspended. Contact support@bigscreenbible.com for help or an appeal.' : state.socialSafetyReady ? 'Accept the Community Standards in your profile above to use friends and games.' : 'Social safety settings are loading or unavailable. Try signing in again.'}</p></section>`;
   const collections = friendshipCollections();
   const requestCount = collections.incoming.length;
   const tabs = [
     ["friends", `Friends · ${collections.friends.length}`],
     ["requests", requestCount ? `Requests · ${requestCount}` : "Requests"],
     ["find", "Find people"],
+    ["blocked", `Blocked · ${state.socialBlocks.length}`],
   ];
   return `
     <section class="account-card friends-card" aria-busy="${state.friendshipStatus === "loading"}">
@@ -9944,6 +9959,11 @@ function authRedirectUrl() {
 }
 
 function resetSocialProfileState() {
+  state.socialConsent = false;
+  state.socialSafetyReady = false;
+  state.socialAccessAllowed = false;
+  state.socialBlocks = [];
+  document.getElementById("socialSafetyDialog")?.close();
   state.socialProfile = null;
   state.socialProfileDraft = null;
   state.socialProfileStatus = "idle";
@@ -10100,19 +10120,6 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
       }),
     );
     if (loadSequence !== gameChallengeLoadSequence) return;
-    const previousActiveChallenge = previousChallenges
-      .find((challenge) => challenge.id === previousActiveChallengeId);
-    const preserveRunningChallenge = Boolean(
-      previousActiveChallenge
-      && previousActiveChallenge.status === "accepted"
-      && state.triviaGame?.challengeId === previousActiveChallengeId
-      && !challenges.some((challenge) => challenge.id === previousActiveChallengeId),
-    );
-    if (preserveRunningChallenge) {
-      challenges = [previousActiveChallenge, ...challenges];
-      playersByChallenge[previousActiveChallengeId] = previousPlayers[previousActiveChallengeId] || [];
-      challengeProfiles = { ...state.gameChallengeProfiles, ...challengeProfiles };
-    }
     state.gameChallenges = challenges;
     state.gameChallengePlayers = playersByChallenge;
     state.gameChallengeProfiles = challengeProfiles;
@@ -10650,6 +10657,7 @@ function captureSocialProfileDraft(prefix = "") {
   const friendRequestsInput = document.getElementById(`${suffix}profileFriendRequests`);
   const current = state.socialProfileDraft || socialProfileDraft();
   const next = {
+    termsAccepted: document.getElementById(`${suffix}socialTermsAccepted`) ? document.getElementById(`${suffix}socialTermsAccepted`).checked : current.termsAccepted || false,
     username: usernameInput ? normalizeProfileUsername(usernameInput.value) : current.username,
     displayName: displayNameInput ? displayNameInput.value.trim().slice(0, 40) : current.displayName,
     avatarKey: socialAvatarKeys.includes(current.avatarKey) ? current.avatarKey : "initials",
@@ -10662,8 +10670,9 @@ function captureSocialProfileDraft(prefix = "") {
 
 function socialProfileErrorMessage(error) {
   if (error?.code === "23505") return "That username is already taken. Choose another.";
+  if (error?.code === "23514" && error.message === "Choose a respectful username and display name.") return error.message;
   if (error?.code === "23514") return "One of the profile choices is not valid. Review the form and try again.";
-  if (error?.code === "42501") return "Your profile could not be saved because account access is not ready yet.";
+  if (error?.code === "42501") return "Accept the Community Standards first. If social access is suspended, contact support@bigscreenbible.com.";
   return error?.message || "Your social profile could not be saved. Please try again.";
 }
 
@@ -10686,14 +10695,27 @@ async function loadSocialProfile() {
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
+    const { data: consent, error: consentError } = await client.from("bsb_social_consents").select("terms_version").eq("user_id", userId).maybeSingle();
+    if (consentError) throw consentError;
+    const { data: blocks, error: blocksError } = await client.from("bsb_user_blocks").select("blocked_id, username_snapshot").eq("blocker_id", userId).order("created_at", { ascending: false });
+    if (blocksError) throw blocksError;
+    if (state.authUser?.id !== userId) return;
+    const { data: access, error: accessError } = await client.rpc("bsb_social_access_allowed");
+    if (accessError) throw accessError;
+    if (state.authUser?.id !== userId) return;
+    state.socialAccessAllowed = access === true;
+    state.socialConsent = consent?.terms_version === socialTermsVersion;
+    state.socialBlocks = blocks || [];
+    state.socialSafetyReady = true;
     state.socialProfile = data ? normalizedSocialProfile(data) : null;
     state.socialProfileDraft = socialProfileDraft(state.socialProfile);
     state.socialProfileStatus = "ready";
     state.socialProfileMessage = data ? "" : "Choose a unique username to create your social profile.";
-    state.socialProfileOpen = !data;
+    state.socialProfileOpen = !data || !state.socialConsent;
     rememberAuthenticatedAccount(state.authUser, state.socialProfile);
   } catch (error) {
     console.warn("Social profile load failed", error);
+    state.socialSafetyReady = false;
     state.socialProfileStatus = "error";
     state.socialProfileMessage = socialProfileErrorMessage(error);
   } finally {
@@ -10757,6 +10779,7 @@ async function loadFriendships({ render = true } = {}) {
 
 async function searchFriends(event, prefix = "") {
   event.preventDefault();
+  if (!state.socialConsent || !state.socialSafetyReady) return showToast("Accept the Community Standards in your profile first");
   if (!state.socialProfile) return showToast("Create your social profile first");
   const suffix = prefix ? `${prefix}-` : "";
   const input = document.getElementById(`${suffix}friendSearchInput`);
@@ -10913,15 +10936,72 @@ function handleFriendAction(button) {
     requestAnimationFrame(() => document.querySelector(`[data-challenge-friend="${CSS.escape(profileId)}"]`)?.focus());
     return;
   }
+  if (["report", "block", "unblock"].includes(action)) return openSocialSafetyDialog(action, profileId, button);
   if (action === "send") return sendFriendRequest(profileId);
   if (action === "accept") return acceptFriendRequest(friendshipId);
   if (["cancel", "decline", "remove"].includes(action)) return deleteFriendship(friendshipId, action);
+}
+
+function openSocialSafetyDialog(action, profileId, opener) {
+  if (!profileId || !state.authUser || document.getElementById("socialSafetyDialog")) return;
+  const userId = state.authUser.id;
+  const dialog = document.createElement("dialog");
+  dialog.id = "socialSafetyDialog";
+  dialog.className = "delete-account-dialog social-safety-dialog";
+  dialog.setAttribute("aria-labelledby", "socialSafetyTitle");
+  const reporting = action === "report";
+  const label = reporting ? "Report person or profile" : action === "block" ? "Block this person?" : "Unblock this person?";
+  dialog.innerHTML = `<form><h2 id="socialSafetyTitle">${label}</h2>
+    <p>${reporting ? 'Report an offensive profile or harmful behavior. Reports are private and go to the moderation queue. You can also block this person immediately.' : action === 'block' ? 'This removes your friendship, stops requests and invitations in both directions, and ends any shared game rooms, including group rooms. They will not receive a block notification.' : 'You can find each other and send new requests again. Previous friendships and cancelled games will not be restored.'}</p>
+    ${reporting ? `<label for="socialReportReason">Reason</label><select id="socialReportReason" required><option value="">Choose a reason</option><option value="harassment">Harassment or threats</option><option value="hate">Hate or offensive profile</option><option value="sexual">Sexual or exploitative content</option><option value="impersonation">Impersonation</option><option value="spam">Spam or scams</option><option value="other">Other safety concern</option></select><label for="socialReportDetails">Details (optional)</label><textarea id="socialReportDetails" maxlength="1000" rows="4" placeholder="Describe what happened. Do not include passwords or private account information."></textarea>` : ''}
+    <p role="alert" id="socialSafetyError"></p><p>For urgent concerns, contact <a href="mailto:support@bigscreenbible.com">support@bigscreenbible.com</a>.</p>
+    <div class="account-actions"><button class="ghost-btn" type="button" data-safety-cancel>Cancel</button><button class="primary-btn" type="submit">${reporting ? 'Send report' : action === 'block' ? 'Block person' : 'Unblock person'}</button></div></form>`;
+  document.body.append(dialog);
+  let busy = false;
+  dialog.querySelector("[data-safety-cancel]").onclick = () => dialog.close();
+  dialog.addEventListener("cancel", event => { if (busy) event.preventDefault(); });
+  dialog.addEventListener("close", () => { dialog.remove(); if (opener?.isConnected) opener.focus(); });
+  dialog.querySelector("form").onsubmit = async event => {
+    event.preventDefault();
+    if (busy || state.authUser?.id !== userId) return;
+    busy = true;
+    dialog.querySelectorAll("button").forEach(button => button.disabled = true);
+    try {
+      const client = createSupabaseClient();
+      const session = await authenticatedSupabaseSession(client);
+      if (session?.user?.id !== userId) throw new Error("The active account changed. Try again.");
+      let result;
+      if (reporting) result = await client.from("bsb_social_reports").insert({ reporter_id: userId, reported_id: profileId, reason: dialog.querySelector("select").value, details: dialog.querySelector("textarea").value.trim() });
+      else if (action === "block") result = await client.from("bsb_user_blocks").insert({ blocker_id: userId, blocked_id: profileId });
+      else result = await client.from("bsb_user_blocks").delete().eq("blocker_id", userId).eq("blocked_id", profileId);
+      if (result.error) throw result.error;
+      if (state.authUser?.id !== userId) return dialog.close();
+      if (!reporting) {
+        state.friendSearchResults = [];
+        state.challengeOpponentIds = [];
+        await loadSocialProfile();
+        await loadFriendships({ render: false });
+        await loadGameChallenges();
+      }
+      dialog.close();
+      showToast(reporting ? "Report submitted for review" : action === "block" ? "Person blocked" : "Person unblocked");
+    } catch (error) {
+      dialog.querySelector("#socialSafetyError").textContent = error?.message || "This action could not be completed. Try again.";
+    } finally {
+      busy = false;
+      dialog.querySelectorAll("button").forEach(button => button.disabled = false);
+    }
+  };
+  dialog.showModal();
+  dialog.querySelector("[data-safety-cancel]").focus();
 }
 
 async function saveSocialProfile(event, prefix = "") {
   event.preventDefault();
   if (!state.authUser) return showToast("Sign in before creating a profile");
   const draft = captureSocialProfileDraft(prefix);
+  if (!state.socialSafetyReady) return showToast("Social safety settings are unavailable. Sign in again.");
+  if (!state.socialConsent && !draft.termsAccepted) return showToast("Accept the Community Standards first");
   const validationMessage = socialProfileValidationMessage(draft.username, draft.displayName);
   if (validationMessage) {
     state.socialProfileMessage = validationMessage;
@@ -10938,6 +11018,12 @@ async function saveSocialProfile(event, prefix = "") {
     const session = await authenticatedSupabaseSession(client);
     const userId = session?.user?.id;
     if (!userId) throw new Error("Sign in again before saving your profile.");
+    if (!state.socialConsent) {
+      const { error: consentError } = await client.from("bsb_social_consents").insert({ user_id: userId, terms_version: socialTermsVersion });
+      if (consentError && consentError.code !== "23505") throw consentError;
+      if (state.authUser?.id !== userId) throw new Error("The active account changed.");
+      state.socialConsent = true;
+    }
     const payload = {
       user_id: userId,
       username: draft.username,
@@ -10952,6 +11038,7 @@ async function saveSocialProfile(event, prefix = "") {
       .select("user_id, username, display_name, avatar_key, is_discoverable, allow_friend_requests, created_at, updated_at")
       .single();
     if (error) throw error;
+    state.socialAccessAllowed = true;
     state.socialProfile = normalizedSocialProfile(data);
     state.socialProfileDraft = socialProfileDraft(state.socialProfile);
     state.socialProfileStatus = "ready";
@@ -15380,6 +15467,7 @@ function liveGameChallengeScoreboard() {
                   <small>${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
                   <strong>${player.score ?? 0}</strong>
                 `}
+              ${player.userId !== state.authUser?.id ? `<div class="social-player-actions">${friendshipActionButton("report", "Report", {profileId: player.userId})}${friendshipActionButton("block", "Block", {profileId: player.userId, danger: true})}</div>` : ""}
             </li>
           `;
         }).join("")}
@@ -15406,6 +15494,7 @@ function refreshLiveGameChallengeScoreboard() {
   const replacement = template.content.firstElementChild;
   if (!replacement) return false;
   current.replaceWith(replacement);
+  replacement.querySelectorAll("[data-friend-action]").forEach(button => button.addEventListener("click", () => handleFriendAction(button)));
   updateLiveBookSprintTimes();
   return true;
 }
@@ -15428,6 +15517,7 @@ function gameRoomLobbyPlayer(challenge, player) {
       <span class="game-room-presence ${online ? "is-online" : ""}">
         <span aria-hidden="true"></span>${online ? "Online" : "Offline"}
       </span>
+      ${!isSelf ? `<div class="social-player-actions">${friendshipActionButton("report", "Report", {profileId: player.userId})}${friendshipActionButton("block", "Block", {profileId: player.userId, danger: true})}</div>` : ""}
     </li>
   `;
 }
@@ -15481,6 +15571,7 @@ function gameRoomLobbyCard(challenge) {
 }
 
 function gameChallengeSetupCard() {
+  if (state.authUser && state.socialProfile && (!state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed)) return `<section class="challenge-setup-card"><strong>Community Standards</strong><small>Open your Account profile to accept the standards or review social access.</small></section>`;
   if (!state.authUser || !state.socialProfile) {
     return `
       <section class="challenge-setup-card">
@@ -20531,7 +20622,7 @@ function bindEvents() {
   document.getElementById("quick-friendSearchForm")?.addEventListener("submit", (event) => searchFriends(event, "quick"));
   document.querySelectorAll("[data-friends-tab]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (!["friends", "requests", "find"].includes(button.dataset.friendsTab)) return;
+      if (!["friends", "requests", "find", "blocked"].includes(button.dataset.friendsTab)) return;
       state.friendsPanelTab = button.dataset.friendsTab;
       state.friendshipMessage = "";
       renderPreservingReaderScroll();
@@ -30787,6 +30878,34 @@ window.addEventListener("pageshow", () => {
   notePushVisit();
   maybeCheckForAppUpdate();
 });
+let socialSafetyRefreshBusy = false;
+window.setInterval(async () => {
+  if (!state.authUser || document.visibilityState !== "visible" || socialSafetyRefreshBusy || (!state.accountOpen && !state.activeGameChallengeId)) return;
+  socialSafetyRefreshBusy = true;
+  const userId = state.authUser.id;
+  try {
+    const client = createSupabaseClient();
+    const { data: access, error } = await client.rpc("bsb_social_access_allowed");
+    if (error) throw error;
+    if (state.authUser?.id !== userId) return;
+    if (state.socialAccessAllowed !== (access === true)) {
+      state.socialAccessAllowed = access === true;
+      if (!state.socialAccessAllowed) {
+        if (state.triviaGame?.challengeId) state.triviaGame = null;
+        resetGameChallengeState();
+      }
+      renderPreservingReaderScroll();
+    }
+    if (state.socialAccessAllowed) {
+      const activeRoomId = state.activeGameChallengeId;
+      await loadFriendships({ render: false });
+      await loadGameChallenges({ render: false });
+      if (activeRoomId && state.activeGameChallengeId !== activeRoomId) renderPreservingReaderScroll();
+    }
+  } catch (error) {
+    console.warn("Social safety refresh failed", error);
+  } finally { socialSafetyRefreshBusy = false; }
+}, 30000);
 window.setInterval(readerLifecycleHeartbeatTick, readerLifecycleHeartbeatIntervalMs);
 window.setInterval(() => {
   notePushVisit();
