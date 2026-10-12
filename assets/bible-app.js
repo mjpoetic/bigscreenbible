@@ -1903,6 +1903,7 @@ function render() {
     positionFocusSearchResults();
     positionFocusWorkspacePanel();
     positionNoteComposer();
+    centerOpenBibleMenus();
     restoreSettingsPanelScroll(settingsScrollState);
     restoreAccountPanelScroll(accountScrollState);
     applyPopupPosition("help");
@@ -3892,6 +3893,21 @@ function positionSettingsChoiceMenu(trigger, menu, wide = false) {
   menu.classList.toggle("opens-above", openAbove);
 }
 
+function centerSelectedMenuOption(menu) {
+  const selected = menu?.querySelector('[role="option"][aria-selected="true"]:not(:disabled)');
+  if (!selected || !menu.clientHeight) return;
+  const menuBounds = menu.getBoundingClientRect();
+  const optionBounds = selected.getBoundingClientRect();
+  // Scroll only the list, preserving the Scripture and surrounding page position.
+  menu.scrollTop += optionBounds.top - menuBounds.top - menu.clientTop
+    - (menu.clientHeight - optionBounds.height) / 2;
+}
+
+function centerOpenBibleMenus() {
+  document.querySelectorAll(".open > .primary-version-menu, .parallel-version-menu, .open > .presentation-reference-menu")
+    .forEach(centerSelectedMenuOption);
+}
+
 function openSettingsChoiceMenu(trigger) {
   const root = trigger.closest("[data-settings-choice]");
   const select = root?.querySelector("[data-settings-choice-select]");
@@ -3984,7 +4000,11 @@ function openSettingsChoiceMenu(trigger) {
   document.addEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
   window.addEventListener("resize", closeSettingsChoiceMenu);
   window.addEventListener("scroll", closeSettingsChoiceMenuOnScroll, true);
-  requestAnimationFrame(() => selectedButton?.focus({ preventScroll: true }));
+  requestAnimationFrame(() => {
+    if (activeSettingsChoiceMenu?.menu !== menu) return;
+    centerSelectedMenuOption(menu);
+    selectedButton?.focus({ preventScroll: true });
+  });
 }
 
 function bindSettingsChoiceMenus() {

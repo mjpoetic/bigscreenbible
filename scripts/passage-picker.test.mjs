@@ -24,3 +24,22 @@ assert.equal(context.focusVersePickerData().verse, 16, 'Unavailable verses fall 
 context.state.focusVersePickerChapter = 99;
 assert.equal(context.focusVersePickerData().chapter, 3, 'Unavailable chapters fall back to available data');
 console.log('Passage picker single verse and availability checks passed');
+
+vm.runInContext(extract('centerSelectedMenuOption'), context);
+const selectedOption = { getBoundingClientRect: () => ({ top: 780, height: 40 }) };
+const menu = {
+  clientHeight: 240, clientTop: 2, scrollTop: 0,
+  querySelector: () => selectedOption,
+  getBoundingClientRect: () => ({ top: 100 }),
+};
+context.centerSelectedMenuOption(menu);
+assert.equal(menu.scrollTop, 578, 'A distant selection is centered within the list');
+selectedOption.getBoundingClientRect = () => ({ top: 102, height: 40 });
+context.centerSelectedMenuOption(menu);
+assert.equal(menu.scrollTop, 478, 'Reopening can center a selection above the current list position');
+menu.clientHeight = 0;
+context.centerSelectedMenuOption(menu);
+assert.equal(menu.scrollTop, 478, 'Hidden menus are left alone');
+assert.match(extract('openSettingsChoiceMenu'), /centerSelectedMenuOption\(menu\)/);
+assert.match(extract('centerOpenBibleMenus'), /parallel-version-menu/);
+console.log('Selected picker option scroll checks passed');
