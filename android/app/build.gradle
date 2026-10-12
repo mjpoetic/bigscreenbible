@@ -31,6 +31,8 @@ repositories {
 }
 
 dependencies {
+    // DataStore 1.2.1 fixes 16 KB RELRO alignment in its native shared counter.
+    implementation "androidx.datastore:datastore-preferences:1.2.1"
     implementation "androidx.browser:browser:1.9.0"
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"

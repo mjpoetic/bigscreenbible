@@ -11,3 +11,8 @@ android/app/google-services.json
 *service-account*.json
 supabase/functions/.env
 .env.local
+
+# Local store archives and signing artifacts
+/store-builds/
+*.jks
+*.keystore
