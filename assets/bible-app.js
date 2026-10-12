@@ -461,6 +461,7 @@ let mobileSettingsIdleTimer = 0;
 let focusSearchLastTapAt = null;
 let focusControlsHideTimer = 0;
 let suppressSettingsSearchHoldClickUntil = 0;
+let settingsSearchLastClick = null;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
 let suppressMobileControlsClickUntil = 0;
@@ -3608,9 +3609,22 @@ function bindSettingsSearchHoldControls() {
       button.classList.remove("settings-hold-pending");
     };
     button.addEventListener("click", (event) => {
-      if (event.detail === 0 || Date.now() >= suppressSettingsSearchHoldClickUntil) return;
+      if (event.detail === 0) return;
+      const now = Date.now();
+      if (now < suppressSettingsSearchHoldClickUntil) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
+      // The first click rerenders settings, so keep the timestamp across bindings.
+      const doubleClick = settingsSearchLastClick?.id === id
+        && now - settingsSearchLastClick.at >= 0
+        && now - settingsSearchLastClick.at <= 350;
+      settingsSearchLastClick = doubleClick ? null : { id, at: now };
+      if (!doubleClick) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      openSettingsSearchFromHold(id === "mobileFloatingSettings" ? "floating" : "header");
     }, true);
     button.addEventListener("pointerdown", (event) => {
       if (event.isPrimary === false || event.button !== 0) return;
@@ -3631,6 +3645,7 @@ function bindSettingsSearchHoldControls() {
       cancel();
       if (!ready) return;
       event.preventDefault();
+      settingsSearchLastClick = null;
       suppressSettingsSearchHoldClickUntil = Date.now() + 800;
       playControlHaptic();
       // Focus during release so mobile browsers can open the software keyboard.
