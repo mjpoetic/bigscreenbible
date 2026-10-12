@@ -3637,6 +3637,7 @@ function bindSettingsSearchHoldControls() {
       openSettingsSearchFromHold(id === "mobileFloatingSettings" ? "floating" : "header");
     });
     ["pointercancel", "pointerleave", "lostpointercapture"].forEach((name) => button.addEventListener(name, cancel));
+    button.addEventListener("selectstart", (event) => event.preventDefault());
     button.addEventListener("contextmenu", (event) => event.preventDefault());
   });
 }

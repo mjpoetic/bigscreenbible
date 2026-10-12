@@ -26007,3 +26007,14 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   background: #14283b;
   color: #fff6e8;
 }
+
+/* Keep native text selection and touch callouts from taking over settings holds. */
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings),
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings) * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings) {
+  touch-action: manipulation;
+}

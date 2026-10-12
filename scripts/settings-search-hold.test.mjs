@@ -15,6 +15,8 @@ for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSetting
     handlers[name]?.forEach(fn => fn(event));
     return event;
   };
+  assert.equal(fire('selectstart').prevented, true, 'Native selection must not take over the hold');
+  assert.equal(fire('contextmenu').prevented, true, 'Native callout must not take over the hold');
   fire('pointerdown'); fire('pointerup');
   assert.equal(opened.length, 0, 'Short tap preserves ordinary settings action');
   fire('pointerdown'); timeout(); fire('pointerup');
@@ -29,3 +31,11 @@ for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSetting
   assert.equal(timeout, null, 'Right click does not start hold');
 }
 console.log('Settings search hold gesture tests passed');
+
+const styles = readFileSync(new URL('../assets/bible-app.css', import.meta.url), 'utf8');
+const holdStyles = styles.slice(styles.indexOf('/* Keep native text selection and touch callouts'));
+assert.match(holdStyles, /-webkit-user-select: none/);
+assert.match(holdStyles, /user-select: none/);
+assert.match(holdStyles, /-webkit-touch-callout: none/);
+assert.match(holdStyles, /touch-action: manipulation/);
+assert.match(holdStyles, /:is\(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings\) \*/);
