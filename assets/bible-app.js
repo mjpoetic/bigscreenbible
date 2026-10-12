@@ -3920,7 +3920,7 @@ function centerSelectedMenuOption(menu) {
 }
 
 function centerOpenBibleMenus() {
-  document.querySelectorAll(".open > .primary-version-menu, .parallel-version-menu, .open > .presentation-reference-menu")
+  document.querySelectorAll(".open > .primary-version-menu, .focus-brand-version-menu, .parallel-version-menu, .open > .presentation-reference-menu")
     .forEach(centerSelectedMenuOption);
 }
 
@@ -3936,6 +3936,9 @@ function openSettingsChoiceMenu(trigger) {
   if (trigger.closest(".focus-reading-controls") && state.autoScrollActive) pauseReaderAutoScroll();
   const menu = document.createElement("div");
   menu.className = "settings-choice-menu";
+  if (trigger.closest(".focus-mini-verse-picker") || /version/i.test(select.id)) {
+    menu.classList.add("bible-picker-choice-menu");
+  }
   menu.id = `${select.id}Menu`;
   menu.setAttribute("role", "listbox");
   menu.setAttribute("aria-label", select.getAttribute("aria-label") || "Choose an option");

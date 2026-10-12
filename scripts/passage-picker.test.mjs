@@ -43,3 +43,13 @@ assert.equal(menu.scrollTop, 478, 'Hidden menus are left alone');
 assert.match(extract('openSettingsChoiceMenu'), /centerSelectedMenuOption\(menu\)/);
 assert.match(extract('centerOpenBibleMenus'), /parallel-version-menu/);
 console.log('Selected picker option scroll checks passed');
+
+context.document = { querySelectorAll: selector => {
+  assert.ok(selector.includes('.focus-brand-version-menu'), 'The logo hold version menu must be included');
+  return [menu];
+} };
+menu.clientHeight = 240;
+context.centerOpenBibleMenus = undefined;
+vm.runInContext(extract('centerOpenBibleMenus'), context);
+context.centerOpenBibleMenus();
+assert.equal(menu.scrollTop, 378, 'The logo version menu also centers its current selection');
