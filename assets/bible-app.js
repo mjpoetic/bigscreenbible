@@ -19178,7 +19178,14 @@ function passagePreviewForReference(ref) {
   const version = state.versions[0] || "BSB";
   const lines = uniqueVersionVerses((bibleData[parsed.key]?.verses || [])
     .filter((verse) => selected.has(verse.n)), version)
-    .map((verse) => getVerseText(verse, version, parsed.key));
+    // Saved lists can span hundreds of chapters, including collapsed shelves.
+    // getVerseText starts remote loads that rerender the app on completion.
+    // With the bounded remote cache those loads evict each other and repeat,
+    // detaching inputs/buttons mid-interaction. Previews only use resident text;
+    // opening a passage remains responsible for loading its translation.
+    .map((verse) => isRemoteTranslation(version)
+      ? (window.bsbOffline?.active ? "" : verse[version] || "")
+      : getVerseText(verse, version, parsed.key));
   return lines.join(" ");
 }
 
