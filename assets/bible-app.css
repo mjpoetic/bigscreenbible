@@ -12382,9 +12382,20 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   border-radius: 2px;
 }
 
+.presentation-reference-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .presentation-part-position {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  white-space: nowrap;
   color: var(--presentation-muted);
-  font: 700 clamp(8px, 0.66vw, 10px) / 1.2 var(--ui-font);
+  font: 600 clamp(10px, 0.8vw, 12px) / 1.2 var(--ui-font);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   opacity: 0.72;
@@ -24823,14 +24834,6 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .passage-picker-trigger svg { width: 20px; height: 20px; }
 .passage-picker-trigger:hover { background: color-mix(in srgb, var(--teal) 12%, transparent); }
 .passage-picker-trigger:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-.presentation-continuation-cue {
-  display: block;
-  margin-top: 18px;
-  color: var(--presentation-muted);
-  font: 600 clamp(12px, 1.1vw, 18px) / 1.4 var(--ui-font);
-  animation: presentationContinuationFade 450ms ease-out 2.5s forwards;
-}
-
 .app-shell .passage-picker-workspace {
   display: grid;
   left: 14px;
@@ -24843,17 +24846,6 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 }
 .app-shell.focus-shell .mobile-focus-passage-popover.has-inline-clear {
   grid-template-columns: minmax(0, 1fr) 50px 52px auto;
-}
-
-/* Retain the cue's space so fading never shifts or resizes Scripture. */
-@keyframes presentationContinuationFade {
-  from { opacity: 1; }
-  to { opacity: 0; visibility: hidden; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .presentation-continuation-cue {
-    animation: presentationContinuationFade 1ms linear 2.5s forwards;
-  }
 }
 
 /* Shared-version prompts have a separate, accessible dismissal control. */
@@ -25376,7 +25368,7 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 #app .presentation.no-buttons .presentation-reference-label { cursor: default; }
 #app .presentation.no-buttons :is(.presentation-search-slot, .presentation-actions,
   .presentation-bottom, .presentation-reference-mobile-share, .shared-version-notice,
-  .presentation-part-position, .presentation-continuation-cue, .presentation-verse-of-day-label,
+  .presentation-verse-of-day-label,
   .presentation-attribution, .presentation-scale-feedback, .presentation-swipe-preview,
   .presentation-search-results, .bible-version-loading-indicator) { display: none !important; }
 #app .app-shell:has(.presentation.open.no-buttons) > :not(.presentation) {

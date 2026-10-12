@@ -20657,19 +20657,14 @@ function presentation(accountPanelRerender = false) {
   state.presentationPart = partIndex;
   if (verseOfDayItem) state.verse = part.verse;
   const paginated = parts.length > 1;
-  const hasContinuation = partIndex < parts.length - 1;
-  const presentationReferenceBase = verseOfDayItem
-    ? `${part.reference}${part.versePartCount > 1 ? presentationPartSuffix(part.versePartIndex) : ""}`
-    : `${referenceLabel()}${paginated ? presentationPartSuffix(partIndex) : ""}`;
+  const presentationReferenceBase = verseOfDayItem ? part.reference : referenceLabel();
   const presentationReference = verseOfDayItem
     ? `${presentationReferenceBase} (${translationDisplayCode(state.versions[0])})`
     : presentationReferenceBase;
-  const presentationPosition = verseOfDayItem
-    ? [
-      part.verseCount > 1 ? `Verse ${part.verseIndex + 1} of ${part.verseCount}` : "",
-      part.versePartCount > 1 ? `Part ${part.versePartIndex + 1} of ${part.versePartCount}` : "",
-    ].filter(Boolean).join(" · ")
-    : paginated ? `Part ${partIndex + 1} of ${parts.length}` : "";
+  const presentationPosition = paginated ? `${partIndex + 1} of ${parts.length}` : "";
+  const presentationProgress = presentationPosition
+    ? `<span class="presentation-part-position" aria-label="Page ${partIndex + 1} of ${parts.length}">${escapeHtml(presentationPosition)}</span>`
+    : "";
   const fullscreenActive = isFullscreenActive();
   const fullscreenIcon = fullscreenActive ? icons.fullscreenExit : icons.fullscreenEnter;
   const fullscreenLabel = fullscreenActive ? "Exit fullscreen" : "Enter fullscreen";
@@ -20728,13 +20723,14 @@ function presentation(accountPanelRerender = false) {
           </form>
         </div>
         <div class="presentation-ref ${paginated ? "paginated" : ""}">
-          ${state.presentationNoButtons ? `<span class="presentation-reference-label">${escapeHtml(presentationReferenceBase)}</span><span class="presentation-version-label">${escapeHtml(translationDisplayCode(version))}</span>` : `
+          ${state.presentationNoButtons ? `<span class="presentation-reference-row"><span class="presentation-reference-label">${escapeHtml(presentationReferenceBase)}</span>${presentationProgress}</span><span class="presentation-version-label">${escapeHtml(translationDisplayCode(version))}</span>` : `
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
             ${presentationReferencePicker("book", availableBooks, presentationBook)}
             <span class="presentation-reference-space" aria-hidden="true">&nbsp;</span>
             ${presentationReferencePicker("chapter", chapters, presentationChapter)}
             <span class="presentation-reference-colon" aria-hidden="true">:</span>
             ${presentationReferencePicker("verse", verses, state.verse)}
+            ${presentationProgress}
             <button class="ghost-btn presentation-reference-share presentation-reference-share-inline" id="presentationShare" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
           ${presentationVersionPicker("title", version)}
@@ -20743,7 +20739,6 @@ function presentation(accountPanelRerender = false) {
             <button class="ghost-btn presentation-reference-share presentation-reference-share-mobile" id="presentationShareMobile" type="button" aria-label="Share ${escapeHtml(presentationReference)}" data-presentation-share data-tooltip="Share passage"><span class="presentation-reference-share-glyph" aria-hidden="true">${icons.share}</span></button>
           </div>
           ${sharedVersionReturnButton("presentation")}
-          ${presentationPosition ? `<span class="presentation-part-position">${escapeHtml(presentationPosition)}</span>` : ""}
         </div>
         <div class="presentation-actions">
           ${showsBrowserFullscreenControls() ? `<button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>` : ""}
@@ -20763,8 +20758,7 @@ function presentation(accountPanelRerender = false) {
       <div class="presentation-text">
         ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
-          <span class="presentation-copy">${textMarkup}${hasContinuation ? '<span class="presentation-continuation-ellipsis" aria-hidden="true"> …</span>' : ""}</span>
-          ${hasContinuation ? `<span class="presentation-continuation-cue">${escapeHtml(presentationPosition)} · Swipe left or press → to continue</span>` : ""}
+          <span class="presentation-copy">${textMarkup}</span>
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : ""}
           ${apiBibleAttributionMarkup([version], "presentation-attribution")}

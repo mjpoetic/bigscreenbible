@@ -85,7 +85,7 @@ for (const type of ["book", "chapter", "verse"]) {
   assert.match(extractFunction("presentation"), new RegExp(`presentationReferencePicker\\("${type}"`));
 }
 assert.doesNotMatch(extractFunction("presentation"), /presentation-verse-of-day-reference/);
-assert.match(extractFunction("presentation"), /Verse \$\{part\.verseIndex \+ 1\} of \$\{part\.verseCount\}/);
+assert.match(extractFunction("presentation"), /const presentationPosition = paginated \? `\$\{partIndex \+ 1\} of \$\{parts.length\}`/);
 
 // The shared selectors must leave the daily verse sequence and navigate in place.
 const selectionHandlers = {};
