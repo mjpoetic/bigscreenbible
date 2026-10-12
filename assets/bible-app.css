@@ -25863,6 +25863,29 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   background: var(--panel);
 }
 
+/* iOS WebKit: avoid compositing a scrolling, nested glass panel beneath a
+   retained transform animation. Use one opaque surface for Focus tools and
+   search results on both iPhone and iPad, including standalone/native apps. */
+@supports (-webkit-touch-callout: none) {
+  #app .app-shell :is(.mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)) {
+    /* Some themes use an alpha panel color; paper supplies the opaque base. */
+    background: linear-gradient(var(--panel), var(--panel)), var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
+    transition: none;
+    transform: none;
+    opacity: 1;
+  }
+
+  #app .app-shell :is(.mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)) *,
+  #app .app-shell :is(.mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results))::before,
+  #app .app-shell :is(.mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results))::after {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 .word-search-category-review p {
   margin: 6px 0;
   line-height: 1.5;
