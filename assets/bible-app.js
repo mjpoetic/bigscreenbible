@@ -3658,8 +3658,9 @@ function bindSettingsSearchHoldControls() {
 }
 
 function bindSettingsSearchControls() {
-  document.querySelectorAll(".settings-popover.open, .mobile-settings-popover").forEach((root) => {
+  document.querySelectorAll(".settings-popover.open, .mobile-settings-popover, .presentation-settings-popover.open").forEach((root) => {
     const input = root.querySelector('.settings-search input[type="search"]');
+    if (!input) return;
     const clear = root.querySelector(".settings-search-clear");
     input?.addEventListener("input", () => {
       state.settingsSearchQuery = input.value;
@@ -20352,10 +20353,18 @@ const presentationSettingsPages = Object.freeze({
 });
 
 function presentationSettingsDestinationRow(page, title, summary) {
+  const searchTerms = {
+    look: "theme family color palette appearance background motion flowing light starlight stars vapor video loop intensity dim blur popup text font size zoom",
+    accessibility: "screen reading screen reader selection speak VoiceOver native speech",
+    presenting: "no buttons interface copy sharing Bible text format sound mode transition volume haptics vibration",
+    sounds: "ambient rain white pink brown noise sleep timer volume",
+    offline: "download included Bibles storage translations",
+    app: "help tour about update version keyboard shortcuts",
+  };
   const glyphs = settingsDestinationGlyphs();
   const glyph = page === "look" ? glyphs.appearance : page === "presenting" ? icons.screen : page === "offline" ? icons.book : glyphs[page];
   return `
-    <button class="presentation-settings-destination" type="button" data-presentation-settings-page="${page}">
+    <button class="presentation-settings-destination" type="button" data-presentation-settings-page="${page}" data-settings-search-item data-settings-search-text="${escapeHtml(`${title} ${summary} ${searchTerms[page] || ""}`)}">
       <span class="presentation-settings-destination-icon" aria-hidden="true">${glyph || icons.settings}</span>
       <span class="presentation-settings-destination-copy"><strong>${title}</strong><small>${escapeHtml(summary)}</small>${page === "sounds" ? '<small data-ambient-now hidden></small>' : ""}</span>
       <span class="presentation-settings-destination-chevron" aria-hidden="true"></span>
@@ -20453,7 +20462,8 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
   if (page === "root") {
     return `
       <div class="presentation-settings-page presentation-settings-page-root ${transitionClass}">
-        <div class="presentation-settings-choice-field">
+        ${settingsSearchMarkup("presentation")}
+        <div class="presentation-settings-choice-field" data-settings-search-item data-settings-search-text="Bible version translation">
           <span>Bible version</span>
           ${settingsChoiceMarkup("presentationVersionSelect", version, bibleVersionSettingsChoices(), {
             label: "Bible version",
@@ -20463,7 +20473,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           })}
         </div>
         ${settingsColorMenuMarkup("presentation", true)}
-      <div class="presentation-settings-choice-field">
+      <div class="presentation-settings-choice-field" data-settings-search-item data-settings-search-text="Scripture font typeface typography custom Google font">
         <span>Scripture font</span>
         ${settingsChoiceMarkup("presentationScriptureFontSelect", state.presentationScriptureFont, scriptureFontSettingsChoices(), {
           label: "Scripture font",
@@ -20472,7 +20482,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         })}
         ${customFontField}
       </div>
-        <div class="presentation-text-size-setting">
+        <div class="presentation-text-size-setting" data-settings-search-item data-settings-search-text="Scripture text size zoom">
           <span>Text size</span>
           <div class="presentation-text-size-control" role="group" aria-label="Big Screen text size controls">
             <button type="button" id="presentationDecreaseText" aria-label="Decrease Big Screen text size">A−</button>
@@ -20480,7 +20490,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
-        <button class="ghost-btn presentation-help-btn" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
+        <button class="ghost-btn presentation-help-btn" data-settings-search-item data-settings-search-text="Help tour tutorial" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
           ${presentationSettingsDestinationRow("accessibility", "Accessibility", `Screen reading ${state.scriptureScreenReading ? "on" : "off"}`)}
@@ -22814,6 +22824,7 @@ function bindEvents() {
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
     if (state.presentationSettingsOpen) return closePresentationSettings();
     state.presentationSettingsOpen = true;
+    state.settingsSearchQuery = "";
     state.presentationSettingsPage = "root";
     state.presentationVersionMenuOpen = "";
     state.presentationReferenceMenuOpen = "";

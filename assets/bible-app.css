@@ -26046,3 +26046,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     outline-offset: -2px;
   }
 }
+
+/* Keep Big Screen settings search within the existing compact popover. */
+.presentation-settings-popover .settings-search { min-height: 38px; padding: 3px 8px; }
+.presentation-settings-popover .settings-search input { min-height: 30px; padding: 0; }
+.presentation-settings-popover [hidden] { display: none !important; }
