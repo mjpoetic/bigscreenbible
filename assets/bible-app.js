@@ -1928,7 +1928,7 @@ function render() {
     }
   });
   applyCustomScriptureFont();
-  if (state.pendingVerseFocus) {
+  if (state.pendingVerseFocus && !document.querySelector(".scripture.bible-version-loading")) {
     const focusMode = state.pendingVerseFocus;
     const halo = Boolean(state.pendingVerseHalo);
     const focusReference = state.reference;
@@ -2119,11 +2119,21 @@ function syncAndroidChrome(presentation, color) {
 
 function renderPreservingReaderScroll(options = {}) {
   const scrollState = captureReaderScroll(options);
+  const navigating = Boolean(state.pendingVerseFocus);
+  const reference = state.reference;
+  const verse = state.verse;
   render();
-  restoreReaderScroll(scrollState);
+  // A chapter arriving from the network must finish the requested navigation.
+  // Delayed restores from an earlier render must not undo a newer arrival.
+  const restore = () => {
+    if (!navigating && state.reference === reference && state.verse === verse) {
+      restoreReaderScroll(scrollState);
+    }
+  };
+  restore();
   requestAnimationFrame(() => {
-    restoreReaderScroll(scrollState);
-    requestAnimationFrame(() => restoreReaderScroll(scrollState));
+    restore();
+    requestAnimationFrame(restore);
   });
 }
 
@@ -8308,7 +8318,16 @@ function closeNoteComposer() {
 
 function positionNoteComposer() {
   const composer = document.getElementById("noteComposer");
-  if (!composer || isCompactScreen()) return;
+  if (!composer) return;
+  if (isCompactScreen()) {
+    const viewport = fixedPopoverViewport();
+    const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+    composer.style.setProperty("--note-keyboard-inset", `${Math.round(inset)}px`);
+    composer.style.setProperty("--note-viewport-height", `${Math.round(viewport.height)}px`);
+    return;
+  }
+  composer.style.removeProperty("--note-keyboard-inset");
+  composer.style.removeProperty("--note-viewport-height");
   const margin = 14;
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
@@ -32098,6 +32117,7 @@ window.visualViewport?.addEventListener("resize", () => {
 window.visualViewport?.addEventListener("scroll", updateGamesPlayViewport);
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
+window.visualViewport?.addEventListener("scroll", positionNoteComposer);
 window.visualViewport?.addEventListener("scroll", restoreScriptureSearchWindowScroll);
 window.addEventListener("scroll", restoreScriptureSearchWindowScroll, { passive: true });
 document.addEventListener("pointerdown", closeOpenPopoversOnOutsidePointerDown);

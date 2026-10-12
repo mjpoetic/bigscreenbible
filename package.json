@@ -31,7 +31,7 @@
     "test:headings": "node scripts/section-heading-groups.test.mjs",
     "test:header-brand": "node scripts/header-brand-sizing.test.mjs",
     "test:mode-transition": "node scripts/mode-transition.test.mjs",
-    "test:notes": "node scripts/note-composer.test.mjs && node scripts/annotation-preview-loading.test.mjs",
+    "test:notes": "node scripts/note-composer.test.mjs && node scripts/annotation-preview-loading.test.mjs && node scripts/annotation-navigation.test.mjs && node scripts/annotation-mobile-viewport.test.mjs",
     "test:page-navigation": "node scripts/page-navigation.test.mjs && node scripts/reader-history.test.mjs",
     "test:push": "node scripts/push-notifications.test.mjs",
     "test:reference-preview": "node scripts/reference-preview.test.mjs",

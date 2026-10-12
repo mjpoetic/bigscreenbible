@@ -12029,10 +12029,12 @@ select {
   .note-composer {
     top: auto !important;
     right: max(10px, var(--app-safe-area-right, env(safe-area-inset-right, 0px)));
-    bottom: max(10px, var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    bottom: max(calc(10px + var(--note-keyboard-inset, 0px)), var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
     left: max(10px, var(--app-safe-area-left, env(safe-area-inset-left, 0px))) !important;
     width: auto;
-    max-height: calc(100dvh - 20px - var(--app-safe-area-top, env(safe-area-inset-top, 0px)) - var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    max-height: calc(var(--note-viewport-height, 100dvh) - 20px - var(--app-safe-area-top, env(safe-area-inset-top, 0px)) - var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    display: flex;
+    flex-direction: column;
     border-radius: 14px;
   }
 
