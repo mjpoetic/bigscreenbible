@@ -135,3 +135,49 @@ assert.equal(status.textContent, 'Reading line 2 of 4', 'Opening chooses the lin
 assert.equal(surface.scrollTop, 0, 'Opening centers that line without starting playback');
 assert.equal(context.state.autoScrollActive, false);
 console.log('Focus Reading opening: restored viewport, immediate positioning, and paused playback passed.');
+
+context.measureFocusReading();
+for (const scroll of [0, 10, 20, 50]) {
+  surface.scrollTop = scroll;
+  const ruler = context.manualFocusReadingWindowRect(surface);
+  assert.equal((ruler.top + ruler.bottom) / 2 - scroll, surface.clientHeight / 2, 'Manual ruler stays centered while the text moves');
+}
+const manualTop = surface.scrollTop;
+context.manualFocusReadingWindowRect(surface);
+assert.equal(surface.scrollTop, manualTop, 'Manual tracking never fights the user scroll position');
+context.state.mode = 'parallel'; surface.scrollTop = 0; surface.querySelectorAll = () => texts;
+context.measureFocusReading(); context.moveFocusReading(-100);
+const columnRect = context.manualFocusReadingWindowRect(surface);
+assert.equal(columnRect.left, 10, 'Manual scrolling stays in the current side-by-side translation');
+console.log('Focus Reading manual ruler: stationary center, free scrolling, and parallel column ownership passed.');
+vm.runInContext('focusReadingManualScroll = true;', context);
+context.paintFocusReading();
+assert.equal((parseFloat(guide.children[0].style.height) + parseFloat(guide.children[1].style.top)) / 2, surface.clientHeight / 2, 'Painted masks leave the manual window at viewport center');
+vm.runInContext('focusReadingManualScroll = false;', context);
+
+const parallelText = (version, left, tops) => ({
+  ...text(left, tops.map(top => rect(top, left, left + 280))),
+  closest: () => ({ dataset: { version }, getBoundingClientRect: () => ({ left, right: left + 280 }) }),
+});
+vm.runInContext('focusReadingManualScroll = false;', context);
+context.state.mode = 'parallel'; context.state.reference = 'John 3'; context.state.focusReadingLines = 3;
+surface.scrollTop = 0;
+const stackedTexts = [parallelText('BSB', 10, [80, 110]), parallelText('AMP', 10, [140, 170]), parallelText('BSB', 10, [200]), parallelText('AMP', 10, [230])];
+surface.querySelectorAll = () => stackedTexts;
+context.measureFocusReading(); context.moveFocusReading(-100);
+const visited = [];
+for (let i = 0; i < 6; i++) {
+  visited.push(context.focusReadingWindowRect().top);
+  if (i === 0) assert.equal(context.focusReadingWindowRect().bottom, 80, 'Multi-line window stops before the next stacked translation');
+  if (i < 5) context.moveFocusReading(1, { automatic: true });
+}
+assert.deepEqual(visited, [30, 60, 90, 120, 150, 180], 'Stacked playback reads each translation within a verse before advancing to the next verse');
+context.state.autoScrollActive = true; context.advanceFocusReadingAutoScroll(2000);
+assert.equal(context.state.autoScrollActive, false, 'Stacked playback ends after the last translation');
+surface.scrollTop = 0;
+surface.querySelectorAll = () => [parallelText('BSB', 10, [80, 110, 200]), parallelText('AMP', 310, [80, 110, 200])];
+context.measureFocusReading(); context.moveFocusReading(-100);
+const columnTops = [];
+for (let i = 0; i < 6; i++) { columnTops.push(context.focusReadingWindowRect().top); if (i < 5) context.moveFocusReading(1); }
+assert.deepEqual(columnTops, [30, 60, 150, 30, 60, 150], 'After reflow to side-by-side, playback retains column order');
+console.log('Parallel Focus Reading: stacked visual order, translation boundaries, final stop, and side-by-side reflow passed.');

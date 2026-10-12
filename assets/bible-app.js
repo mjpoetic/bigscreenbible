@@ -8379,6 +8379,7 @@ let focusReadingFrame = 0;
 let focusReadingMotionFrame = 0;
 let focusReadingVisualRect = null;
 let focusReadingMoving = false;
+let focusReadingManualScroll = false;
 
 function focusReadingWindowRect() {
   const first = focusReadingRects[focusReadingIndex];
@@ -8392,6 +8393,24 @@ function focusReadingWindowRect() {
   return { top: first.top, bottom: last.bottom, left: first.left, right: first.right };
 }
 
+function manualFocusReadingWindowRect(surface) {
+  const active = focusReadingRects[focusReadingIndex];
+  if (!active) return null;
+  const center = surface.scrollTop + surface.clientHeight / 2;
+  let nearest = focusReadingIndex, distance = Infinity;
+  focusReadingRects.forEach((line, index) => {
+    // Stay in the current side-by-side column. Stacked translations share
+    // horizontal bounds, so manual scrolling can follow their visual order.
+    if (line.left >= active.right || line.right <= active.left) return;
+    const delta = Math.abs((line.top + line.bottom) / 2 - center);
+    if (delta < distance) { nearest = index; distance = delta; }
+  });
+  focusReadingIndex = nearest;
+  const rect = focusReadingWindowRect();
+  const height = rect.bottom - rect.top;
+  return { ...rect, top: center - height / 2, bottom: center + height / 2 };
+}
+
 function cancelFocusReadingMotion() {
   cancelAnimationFrame(focusReadingMotionFrame);
   focusReadingMotionFrame = 0;
@@ -8400,6 +8419,7 @@ function cancelFocusReadingMotion() {
 
 function animateFocusReadingWindow(surface, target, scrollTop, automatic) {
   cancelFocusReadingMotion();
+  focusReadingManualScroll = false;
   const from = focusReadingVisualRect || target;
   const startScroll = surface.scrollTop;
   const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -8496,7 +8516,14 @@ function measureFocusReading() {
     }
   });
   const columns = [...new Set(rects.map(line => line.columnKey))];
-  rects.sort((a, b) => columns.indexOf(a.columnKey) - columns.indexOf(b.columnKey) || a.top - b.top);
+  const columnBounds = columns.map(key => rects.find(line => line.columnKey === key));
+  const stacked = state.mode === "parallel" && columns.length > 1
+    && Math.max(...columnBounds.map(line => line.left)) < Math.min(...columnBounds.map(line => line.right));
+  // Portrait translations occupy the same horizontal lane. Read down the
+  // stacked verse cards; side-by-side layouts keep their column order.
+  rects.sort((a, b) => stacked
+    ? a.top - b.top || columns.indexOf(a.columnKey) - columns.indexOf(b.columnKey)
+    : columns.indexOf(a.columnKey) - columns.indexOf(b.columnKey) || a.top - b.top);
   focusReadingRects = rects;
   if (focusReadingReference !== state.reference) {
     focusReadingReference = state.reference;
@@ -8509,6 +8536,7 @@ function measureFocusReading() {
 function paintFocusReading(rect = null) {
   const surface = document.querySelector(".scripture");
   const guide = document.getElementById("focusReadingGuide");
+  if (focusReadingManualScroll && !focusReadingMoving && surface) rect = rect || manualFocusReadingWindowRect(surface);
   const first = focusReadingRects[focusReadingIndex];
   if (!surface || !guide || !first) { if (guide) guide.hidden = true; return; }
   guide.hidden = false;
@@ -8547,6 +8575,7 @@ function moveFocusReading(direction, { automatic = false } = {}) {
 
 function bindFocusReading() {
   cancelFocusReadingMotion();
+  focusReadingManualScroll = false;
   focusReadingVisualRect = null;
   focusReadingObserver?.disconnect();
   cancelAnimationFrame(focusReadingFrame);
@@ -8554,7 +8583,10 @@ function bindFocusReading() {
   if (!state.focusMode || !state.focusReading) return;
   const surface = document.querySelector(".scripture");
   if (!surface) return;
-  for (const event of ["wheel", "touchstart", "pointerdown"]) surface.addEventListener(event, cancelFocusReadingMotion, { passive: true });
+  for (const event of ["wheel", "touchstart", "pointerdown"]) surface.addEventListener(event, () => {
+    cancelFocusReadingMotion();
+    focusReadingManualScroll = true;
+  }, { passive: true });
   const guide = document.createElement("div");
   guide.id = "focusReadingGuide";
   guide.setAttribute("aria-hidden", "true");
@@ -8569,7 +8601,7 @@ function bindFocusReading() {
   surface.querySelectorAll(".verse-text, .parallel-copy, .verse-of-day-copy").forEach(text => focusReadingObserver.observe(text));
   surface.addEventListener("scroll", () => {
     const active = focusReadingRects[focusReadingIndex];
-    if (!focusReadingMoving && active && (active.bottom < surface.scrollTop || active.top > surface.scrollTop + surface.clientHeight)) {
+    if (!focusReadingManualScroll && !focusReadingMoving && active && (active.bottom < surface.scrollTop || active.top > surface.scrollTop + surface.clientHeight)) {
       const visible = focusReadingRects.findIndex(line => line.bottom >= surface.scrollTop && line.top <= surface.scrollTop + surface.clientHeight);
       if (visible >= 0) focusReadingIndex = visible;
     }
