@@ -30264,11 +30264,11 @@ function handleGlobalShortcuts(event) {
   }
   if (event.key === "ArrowLeft" && state.mode === "big") {
     event.preventDefault();
-    return moveVerse(-1);
+    return moveVerse(-1, { animate: true });
   }
   if (event.key === "ArrowRight" && state.mode === "big") {
     event.preventDefault();
-    return moveVerse(1);
+    return moveVerse(1, { animate: true });
   }
   if (event.key === "ArrowLeft" && canUseReaderKeyboardNavigation()) {
     event.preventDefault();
@@ -30652,6 +30652,14 @@ function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
 }
 
 function moveVerse(direction, options = {}) {
+  const renderMove = () => {
+    if (state.mode === "big" && options.animate) {
+      presentationEnterDirection = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+        ? 0
+        : direction;
+    }
+    render();
+  };
   if (state.mode === "big") {
     const parts = currentPresentationParts();
     const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
@@ -30660,7 +30668,7 @@ function moveVerse(direction, options = {}) {
       if (state.isVerseOfDayActive) {
         state.verse = verseOfDayPresentationPages()[state.presentationPart]?.verse || state.verse;
       }
-      render();
+      renderMove();
       return;
     }
     if (direction > 0 && partIndex < parts.length - 1) {
@@ -30668,7 +30676,7 @@ function moveVerse(direction, options = {}) {
       if (state.isVerseOfDayActive) {
         state.verse = verseOfDayPresentationPages()[state.presentationPart]?.verse || state.verse;
       }
-      render();
+      renderMove();
       return;
     }
     if (state.isVerseOfDayActive) return;
@@ -30690,7 +30698,7 @@ function moveVerse(direction, options = {}) {
   else state.keyboardSelectionAnchor = null;
   recordHistory();
   if (options.followVerse) return renderFollowingSelectedVerse();
-  render();
+  renderMove();
 }
 
 function extendKeyboardVerseSelection(anchorFallback, activeVerse) {
