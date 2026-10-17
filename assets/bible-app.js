@@ -4835,15 +4835,39 @@ function localNativeAppUpdateMessage() {
   return "This local test build uses files installed on this device and cannot receive website updates. Install the live-site build once to receive future website updates without reinstalling the app.";
 }
 
+// Keep release notes with the app bundle so offline and older builds show their own notes.
+// Add an entry here whenever publishing a new app version.
+function appReleaseNotesMarkup(label = "Installed version") {
+  const releases = {
+    "2026.10.17.2": [
+      "Tap the installed version in App updates to see what’s new.",
+      "Larger version text and a more comfortable tap target below the update button.",
+    ],
+    "2026.10.17.1": [
+      "Improved iOS keyboard handling when opening Bible passages from Games.",
+    ],
+  };
+  const notes = releases[appVersion];
+  return `<details class="app-release-notes">
+    <summary class="app-release-notes-trigger">
+      <span class="app-release-notes-label">${escapeHtml(label)}</span>
+      <strong class="app-update-version">${escapeHtml(appVersion)}</strong>
+      <span class="app-release-notes-hint">What’s new <span aria-hidden="true">⌄</span></span>
+    </summary>
+    <div class="app-release-notes-content">
+      <h4>What’s new</h4>
+      ${notes ? `<ul>${notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}</ul>`
+        : `<p>Release notes aren’t available for this version.</p>`}
+    </div>
+  </details>`;
+}
+
 function appUpdateControls(prefix = "") {
   if (isLocalNativeAppBuild()) {
     return `
       <div class="setting-group app-update-settings">
-        <div class="app-update-version-row">
-          <span class="setting-label">${window.bsbOffline?.active ? "Offline edition" : "Local test build"}</span>
-          <span class="app-update-version">${escapeHtml(appVersion)}</span>
-        </div>
         <p class="setting-help" aria-live="polite">${escapeHtml(localNativeAppUpdateMessage())}</p>
+        ${appReleaseNotesMarkup(window.bsbOffline?.active ? "Offline edition" : "Local test build")}
       </div>
     `;
   }
@@ -4856,12 +4880,9 @@ function appUpdateControls(prefix = "") {
   const buttonClass = state.appUpdateAvailable ? "primary-btn" : "ghost-btn";
   return `
     <div class="setting-group app-update-settings ${state.appUpdateAvailable ? "update-available" : ""}">
-      <div class="app-update-version-row">
-        <span class="setting-label">Installed version</span>
-        <span class="app-update-version">${escapeHtml(appVersion)}</span>
-      </div>
       <button class="${buttonClass} app-update-button" id="${buttonId}" type="button" ${state.appUpdateBusy ? "disabled" : ""}>${buttonLabel}</button>
       <p class="setting-help" aria-live="polite">${escapeHtml(state.appUpdateStatus)}</p>
+      ${appReleaseNotesMarkup()}
     </div>
   `;
 }

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
-const names = ['isLocalNativeAppBuild', 'localNativeAppUpdateMessage', 'appUpdateControls',
+const names = ['isLocalNativeAppBuild', 'localNativeAppUpdateMessage', 'appReleaseNotesMarkup', 'appUpdateControls',
   'appUpdateMetadataUrl', 'isPublishedAppVersionNewer', 'checkForAppUpdate', 'applyAppUpdate'];
 const functions = names.map((name) => {
   const start = source.search(new RegExp(`(?:async )?function ${name}\\(`));

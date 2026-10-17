@@ -26177,3 +26177,43 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 
 /* Avoid iPhone focus zoom, including the compact landscape setup. */
 .games-options-drawer #puzzleCustomReferenceInput { font-size: 16px; }
+
+/* Keep version/changelog targets readable in every Settings surface. */
+.app-release-notes {
+  width: 100%;
+  min-width: 0;
+  border-top: 1px solid currentColor;
+  border-top-color: color-mix(in srgb, currentColor 18%, transparent);
+}
+.app-release-notes > .app-release-notes-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 48px;
+  padding: 10px 2px;
+  cursor: pointer;
+  list-style: none;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.app-release-notes-trigger::-webkit-details-marker { display: none; }
+.app-release-notes-label { font-size: 14px; }
+.app-release-notes-trigger .app-update-version {
+  grid-row: span 2;
+  font-size: 16px;
+  line-height: 1.4;
+  letter-spacing: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 18ch;
+}
+.app-release-notes-hint { font-size: 13px; opacity: 0.8; }
+.app-release-notes-hint > span { display: inline-block; }
+.app-release-notes[open] .app-release-notes-hint > span { transform: rotate(180deg); }
+.app-release-notes-trigger:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 6px; }
+.app-release-notes-content { font-size: 14px; line-height: 1.55; padding: 0 2px 10px; }
+.app-release-notes-content h4 { margin: 4px 0 8px; font-size: 15px; color: inherit; }
+.app-release-notes-content ul { margin: 0; padding-left: 20px; }
+.app-release-notes-content li + li { margin-top: 6px; }
+.app-release-notes-content p { margin: 0; }
