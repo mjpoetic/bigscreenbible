@@ -16836,6 +16836,29 @@ function trapPuzzleRestartDialog(event) {
   }
 }
 
+// Fixed game options must follow the visual viewport: iOS does not shrink
+// the layout viewport when its keyboard opens.
+function updateGamesOptionsViewport() {
+  const shell = document.querySelector('[data-games-drawer="options"].open');
+  const viewport = window.visualViewport;
+  if (!shell || !viewport) return;
+  shell.style.setProperty("--games-options-height", `${viewport.height}px`);
+  shell.style.setProperty("--games-options-top", `${viewport.offsetTop}px`);
+  const input = document.getElementById("puzzleCustomReferenceInput");
+  if (document.activeElement !== input || !input) return;
+  requestAnimationFrame(() => {
+    if (document.activeElement !== input || !input.isConnected) return;
+    const scroller = input.closest(".games-drawer-scroll");
+    if (!scroller || getComputedStyle(scroller).overflowY !== "auto") return;
+    const field = input.getBoundingClientRect();
+    const bounds = scroller.getBoundingClientRect();
+    const top = Math.max(bounds.top, viewport.offsetTop) + 12;
+    const bottom = Math.min(bounds.bottom, viewport.offsetTop + viewport.height) - 12;
+    if (field.bottom > bottom) scroller.scrollTop += field.bottom - bottom;
+    else if (field.top < top) scroller.scrollTop += field.top - top;
+  });
+}
+
 function updateGamesPlayViewport() {
   const reader = document.querySelector(".trivia-reader.is-playing");
   const viewport = window.visualViewport;
@@ -22160,6 +22183,7 @@ function bindEvents() {
   });
   const puzzleReferenceInput = document.getElementById("puzzleCustomReferenceInput");
   // Android IME insets can trigger a full viewport refresh while typing.
+  puzzleReferenceInput?.addEventListener("focus", updateGamesOptionsViewport);
   puzzleReferenceInput?.addEventListener("blur", resumeViewportRefreshAfterInput);
   puzzleReferenceInput?.addEventListener("input", (event) => {
     const nextReference = String(event.target.value || "").slice(0, 80);
@@ -32114,6 +32138,7 @@ window.addEventListener("resize", () => {
 });
 window.visualViewport?.addEventListener("resize", () => {
   updateGamesPlayViewport();
+  updateGamesOptionsViewport();
   restoreScriptureSearchWindowScroll();
   if (state.mode === "big") schedulePresentationViewportFit();
   refreshDraggedPopupPositions();
@@ -32123,6 +32148,7 @@ window.visualViewport?.addEventListener("resize", () => {
   positionNoteComposer();
 });
 window.visualViewport?.addEventListener("scroll", updateGamesPlayViewport);
+window.visualViewport?.addEventListener("scroll", updateGamesOptionsViewport);
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
 window.visualViewport?.addEventListener("scroll", positionNoteComposer);

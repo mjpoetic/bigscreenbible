@@ -324,3 +324,45 @@ for (const type of ["trivia", "who-said-it", "reference-rush", "hidden-word", "w
   }
 }
 console.log("Expanded play navigation, live locks, ordering dock and keyboard viewport checks passed");
+
+// iOS keyboard resizing and panning must reveal the passage field inside
+// the options scroller without moving focus or rebuilding the setup.
+{
+  const properties = {};
+  const scroller = {
+    scrollTop: 0,
+    getBoundingClientRect: () => ({ top: 70, bottom: 470 }),
+  };
+  let field = { top: 580, bottom: 624 };
+  const input = {
+    isConnected: true,
+    closest: () => scroller,
+    getBoundingClientRect: () => field,
+  };
+  const viewport = { height: 400, offsetTop: 70 };
+  const document = {
+    activeElement: input,
+    querySelector: () => ({ style: { setProperty: (key, value) => { properties[key] = value; } } }),
+    getElementById: () => input,
+  };
+  const context = vm.createContext({
+    document, window: { visualViewport: viewport },
+    requestAnimationFrame: callback => callback(),
+    getComputedStyle: () => ({ overflowY: "auto" }),
+  });
+  vm.runInContext(extractFunction("updateGamesOptionsViewport"), context);
+  context.updateGamesOptionsViewport();
+  assert.equal(properties["--games-options-height"], "400px");
+  assert.equal(properties["--games-options-top"], "70px");
+  assert.equal(scroller.scrollTop, 166);
+  field = { top: 50, bottom: 94 };
+  context.updateGamesOptionsViewport();
+  assert.equal(scroller.scrollTop, 134);
+  document.activeElement = null;
+  viewport.height = 844;
+  viewport.offsetTop = 0;
+  context.updateGamesOptionsViewport();
+  assert.equal(properties["--games-options-height"], "844px");
+  assert.equal(scroller.scrollTop, 134);
+}
+console.log("Game passage keyboard resize, pan and dismissal checks passed");

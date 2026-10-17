@@ -21868,6 +21868,13 @@ svg {
     animation: gamesDrawerInRight var(--motion-drawer) var(--motion-ease) both;
   }
 
+  .games-options-drawer .games-drawer {
+    top: var(--games-options-top, 0px);
+    bottom: auto;
+    height: var(--games-options-height, 100dvh);
+    box-sizing: border-box;
+  }
+
   .games-drawer-header {
     display: flex;
     align-items: center;
@@ -26167,3 +26174,6 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     width: min(320px, calc(100vw - 24px - var(--app-safe-area-left, 0px) - var(--app-safe-area-right, 0px)));
   }
 }
+
+/* Avoid iPhone focus zoom, including the compact landscape setup. */
+.games-options-drawer #puzzleCustomReferenceInput { font-size: 16px; }
