@@ -26217,3 +26217,44 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .app-release-notes-content ul { margin: 0; padding-left: 20px; }
 .app-release-notes-content li + li { margin-top: 6px; }
 .app-release-notes-content p { margin: 0; }
+
+/* Desktop discovery links: kept together for easy removal. */
+.desktop-about-link,
+.desktop-help-label {
+  display: none;
+}
+
+@media (min-width: 1200px) and (min-height: 601px) {
+  .topbar > .desktop-about-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 10px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+  }
+
+  .topbar > .desktop-about-link:hover,
+  .topbar > .desktop-about-link:focus-visible {
+    color: var(--ink);
+    background: var(--panel);
+  }
+}
+
+@media (min-width: 1800px) and (min-height: 601px) {
+  .topbar #shortcutsButton {
+    width: auto;
+    padding-inline: 10px;
+    gap: 6px;
+  }
+
+  .topbar .desktop-help-label {
+    display: inline;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}

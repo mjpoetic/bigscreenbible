@@ -5817,7 +5817,8 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">${focusLabel}</span></button>
       </nav>
       </div>
-      <button class="icon-btn" id="shortcutsButton" aria-label="Help" data-tooltip="Help">${icons.help}</button>
+      <button class="icon-btn" id="shortcutsButton" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}<span class="desktop-help-label">Help &amp; Tour</span></button>
+      <a class="desktop-about-link" href="./about.html">About</a>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${headerAccountOpen ? "open" : ""}">
         <button class="icon-btn account-quick-button ${state.authUser || headerAccountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountButton.label)}" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
@@ -8134,7 +8135,7 @@ function rail() {
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}
     <div class="portrait-rail-actions">
-      <button id="railHelpButton" type="button" aria-label="Help" data-tooltip="Help">${icons.help}</button>
+      <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
       <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
     </div>
     <button class="rail-position-toggle rail-position-toggle-${nextSide}" type="button" data-side-toolbar-position="${nextSide}" aria-label="${sideToggleLabel}" data-tooltip="${sideToggleLabel}"${sideToggleDisabledAttrs}>${sideToggleIcon}</button>
@@ -21250,6 +21251,7 @@ function tutorialOverlay() {
         <div class="shortcut-eyebrow">Tour ${stepNumber} of ${steps.length}</div>
         <h2 id="tutorialTitle">${step.title}</h2>
         <p>${step.body}</p>
+        ${isLast ? `<p class="tutorial-return-hint">You can restart this anytime from Help &amp; Tour → Take tour.</p>` : ""}
         <div class="tutorial-dots" aria-hidden="true">
           ${steps.map((_, index) => `<span class="${index === state.tutorialStep ? "active" : ""}"></span>`).join("")}
         </div>
