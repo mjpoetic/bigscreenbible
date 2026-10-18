@@ -1844,7 +1844,7 @@ function render() {
   const previousVideo = document.querySelector(".presentation-background-video");
   previousVideo?.remove();
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "classic" ? "classic" : "outline"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
@@ -3064,7 +3064,7 @@ function captureAnnotationOpenState() {
 function loadingScreen() {
   const message = dataError || "Loading full Bible texts...";
   return `
-    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "classic" ? "classic" : "outline"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}">
+    <main class="app-shell focus-shell loading-shell" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}">
       <section class="loading-reader">
         <div class="loading-card">
           <img class="loading-logo-mark" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
@@ -5387,13 +5387,13 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
     </div>
     ` : ""}
     ${options.includeControlFinish ? `
-    <div class="setting-group" data-settings-search-item data-settings-search-text="verse selection outline classic highlight selected appearance">
+    <div class="setting-group" data-settings-search-item data-settings-search-text="verse selection default outline classic highlight selected appearance">
       <span class="setting-label">Verse selection</span>
       <div class="theme-mode-segment control-finish-segment" role="group" aria-label="Verse selection style">
-        <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") !== "classic" ? "active" : ""}" type="button" data-verse-selection-choice="outline" aria-pressed="${localStorage.getItem("lw_verse_selection_style") !== "classic"}">Outline</button>
-        <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") === "classic" ? "active" : ""}" type="button" data-verse-selection-choice="classic" aria-pressed="${localStorage.getItem("lw_verse_selection_style") === "classic"}">Classic</button>
+        <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") !== "outline" ? "active" : ""}" type="button" data-verse-selection-choice="classic" aria-pressed="${localStorage.getItem("lw_verse_selection_style") !== "outline"}">Default</button>
+        <button class="theme-mode-button ${localStorage.getItem("lw_verse_selection_style") === "outline" ? "active" : ""}" type="button" data-verse-selection-choice="outline" aria-pressed="${localStorage.getItem("lw_verse_selection_style") === "outline"}">Outline</button>
       </div>
-      <p class="setting-help">Outline marks selected verses with a border and checkmark. Classic restores the original selection treatment.</p>
+      <p class="setting-help">Default uses the original selection treatment. Outline marks selected verses with a border and checkmark.</p>
     </div>
     ` : ""}
     ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
