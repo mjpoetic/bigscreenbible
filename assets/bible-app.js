@@ -5817,8 +5817,6 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">${focusLabel}</span></button>
       </nav>
       </div>
-      <button class="icon-btn" id="shortcutsButton" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}<span class="desktop-help-label">Help &amp; Tour</span></button>
-      <a class="desktop-about-link" href="./about.html">About</a>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
       <div class="account-menu ${headerAccountOpen ? "open" : ""}">
         <button class="icon-btn account-quick-button ${state.authUser || headerAccountOpen ? "active" : ""}" id="accountQuickButton" aria-label="${escapeHtml(accountButton.label)}" data-tooltip="${escapeHtml(accountButton.label)}">${accountButton.icon}${accountButton.badge}</button>
@@ -20077,10 +20075,6 @@ function strongLookupCard(entry, selectedWord, linkToVerses = false, occurrence 
 }
 
 function bottombar() {
-  const hasPassageSelection = state.selectedVerses.length > 0;
-  const copyActionLabel = hasPassageSelection ? "Copy passage" : "Copy verse";
-  const printActionLabel = hasPassageSelection ? "Print passage" : "Print";
-  const printTooltipLabel = `${printActionLabel} · ${activePrintLayoutName()} layout`;
   const footerVersions = state.mode === "parallel"
     ? activeVersions()
     : [state.versions[0] || activeVersions()[0] || "BSB"];
@@ -20120,13 +20114,9 @@ function bottombar() {
             </div>
           </div>
           <div class="bottom-actions">
-            <button class="ghost-btn bottom-action" id="copyVerse" aria-label="${copyActionLabel}" data-tooltip="${copyActionLabel}" data-selection-action>
-              <span class="bottom-action-icon" aria-hidden="true">${icons.copy}</span>
-              <span class="bottom-action-label">${copyActionLabel}</span>
-            </button>
-            <button class="ghost-btn bottom-action" id="printPage" aria-label="${printTooltipLabel}" data-tooltip="${printTooltipLabel}" data-selection-action>
-              <span class="bottom-action-icon" aria-hidden="true">${icons.print}</span>
-              <span class="bottom-action-label">${printActionLabel}</span>
+            <button class="ghost-btn bottom-action bottom-help-link" id="footerHelpButton" type="button" aria-label="Help &amp; Tour" aria-haspopup="dialog" aria-expanded="${state.shortcutsOpen ? "true" : "false"}" data-tooltip="Help &amp; Tour">
+              <span class="bottom-action-icon" aria-hidden="true">${icons.help}</span>
+              <span class="bottom-action-label">Help &amp; Tour</span>
             </button>
             <button class="ghost-btn bottom-action bottom-about-link" id="aboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About">
               <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
@@ -22083,7 +22073,7 @@ function bindEvents() {
   document.getElementById("mobileDecreaseText")?.addEventListener("click", () => adjustTextScale(-0.1));
   document.getElementById("mobileIncreaseText")?.addEventListener("click", () => adjustTextScale(0.1));
   document.getElementById("mobileResetText")?.addEventListener("click", resetTextScale);
-  document.getElementById("shortcutsButton")?.addEventListener("click", () => toggleShortcuts(true));
+  document.getElementById("footerHelpButton")?.addEventListener("click", () => toggleShortcuts(true));
   ["settingsHelpButton", "mobileSettingsHelpButton"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       state.settingsOpen = false;

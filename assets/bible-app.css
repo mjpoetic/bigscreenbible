@@ -17110,7 +17110,7 @@ svg {
 
     .bottombar {
       display: grid;
-      grid-template-columns: repeat(5, minmax(48px, 1fr));
+      grid-template-columns: repeat(4, minmax(48px, 1fr));
       grid-template-rows: auto auto;
       align-items: center;
       justify-items: center;
@@ -17229,8 +17229,7 @@ svg {
     }
 
     .chapter-nav-prev,
-    #copyVerse,
-    #printPage,
+    #footerHelpButton,
     .chapter-nav-next,
     .bottom-about-link {
       grid-row: 2;
@@ -17242,20 +17241,16 @@ svg {
       grid-column: 1;
     }
 
-    #copyVerse {
+    #footerHelpButton {
       grid-column: 2;
     }
 
-    #printPage {
-      grid-column: 3;
-    }
-
     .chapter-nav-next {
-      grid-column: 5;
+      grid-column: 4;
     }
 
     .bottom-about-link {
-      grid-column: 4;
+      grid-column: 3;
       width: 44px;
       min-width: 44px;
       min-height: 44px;
@@ -26218,43 +26213,23 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .app-release-notes-content li + li { margin-top: 6px; }
 .app-release-notes-content p { margin: 0; }
 
-/* Desktop discovery links: kept together for easy removal. */
-.desktop-about-link,
-.desktop-help-label {
-  display: none;
-}
-
-@media (min-width: 1200px) and (min-height: 601px) {
-  .topbar > .desktop-about-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 0 10px;
-    color: var(--muted);
-    font-size: 13px;
-    font-weight: 600;
-    text-decoration: none;
-    border-radius: 8px;
-  }
-
-  .topbar > .desktop-about-link:hover,
-  .topbar > .desktop-about-link:focus-visible {
-    color: var(--ink);
-    background: var(--panel);
-  }
-}
-
-@media (min-width: 1800px) and (min-height: 601px) {
-  .topbar #shortcutsButton {
+/* Footer discovery actions use labels when the reading workspace has room. */
+@media (min-width: 1100px) and (min-height: 601px) {
+  .bottombar .bottom-action {
     width: auto;
-    padding-inline: 10px;
+    min-width: 44px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0 10px !important;
     gap: 6px;
   }
 
-  .topbar .desktop-help-label {
-    display: inline;
-    font-size: 12px;
+  .bottombar .bottom-action-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
     white-space: nowrap;
   }
 }
