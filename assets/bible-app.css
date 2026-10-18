@@ -23394,7 +23394,7 @@ svg {
 
 @media (max-width: 840px) and (orientation: portrait),
   (max-width: 840px) and (orientation: landscape),
-  (min-width: 841px) and (max-width: 1180px) {
+  (min-width: 841px) and (max-width: 1320px) {
   .app-shell .topbar .portrait-navigation {
     position: relative;
     display: block;
@@ -23502,7 +23502,7 @@ svg {
 .current-mode-label { flex: 1; min-width: 0; text-align: left; }
 
 @media (max-width: 840px) and (orientation: landscape),
-  (min-width: 841px) and (max-width: 1180px) {
+  (min-width: 841px) and (max-width: 1320px) {
   .app-shell .topbar .portrait-navigation {
     flex: 0 0 auto;
     width: 172px;
