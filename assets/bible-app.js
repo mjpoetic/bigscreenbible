@@ -20113,7 +20113,9 @@ function bottombar() {
                 : `<span class="footer-reference-label">${referenceLabel()}</span>`}
             </div>
           </div>
-          <div class="bottom-actions">
+        </div>
+        <div class="footer-end">
+          <div class="bottom-actions" role="group" aria-label="Help and information">
             <button class="ghost-btn bottom-action bottom-help-link" id="footerHelpButton" type="button" aria-label="Help &amp; Tour" aria-haspopup="dialog" aria-expanded="${state.shortcutsOpen ? "true" : "false"}" data-tooltip="Help &amp; Tour">
               <span class="bottom-action-icon" aria-hidden="true">${icons.help}</span>
               <span class="bottom-action-label">Help &amp; Tour</span>
@@ -20122,13 +20124,12 @@ function bottombar() {
               <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
               <span class="bottom-action-label">About</span>
             </button>
-            <span class="footer-copyright">© 2026 Big Screen Bible. All rights reserved.</span>
           </div>
+          <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
+            <span class="chapter-nav-label">Next Chapter</span>
+            <span class="chapter-nav-icon" aria-hidden="true">›</span>
+          </button>
         </div>
-        <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
-          <span class="chapter-nav-label">Next Chapter</span>
-          <span class="chapter-nav-icon" aria-hidden="true">›</span>
-        </button>
       </footer>
       <button class="bar-collapse-toggle footer-collapse-toggle" id="footerCollapseToggle" type="button" aria-label="${state.footerCollapsed ? "Show footer bar" : "Hide footer bar"}" aria-controls="footerBar" aria-expanded="${state.footerCollapsed ? "false" : "true"}" data-tooltip="${state.footerCollapsed ? "Show footer" : "Hide footer"}">
         ${icons.chevron}

@@ -26213,15 +26213,49 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .app-release-notes-content li + li { margin-top: 6px; }
 .app-release-notes-content p { margin: 0; }
 
-/* Footer discovery actions use labels when the reading workspace has room. */
+/* Footer layout: reference in the center, quiet information actions beside navigation. */
+.bottombar .footer-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 16px;
+  min-width: 0;
+}
+
+.bottombar .bottom-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bottombar .bottom-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  gap: 6px;
+}
+
+.bottombar .bottom-action:hover,
+.bottombar .bottom-action:focus-visible {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
 @media (min-width: 1100px) and (min-height: 601px) {
   .bottombar .bottom-action {
     width: auto;
-    min-width: 44px;
-    height: 30px;
-    min-height: 30px;
-    padding: 0 10px !important;
-    gap: 6px;
+    padding: 0 8px !important;
   }
 
   .bottombar .bottom-action-label {
@@ -26231,5 +26265,80 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     overflow: visible;
     clip: auto;
     white-space: nowrap;
+  }
+}
+
+@media (max-width: 840px) {
+  .bottombar .footer-end { display: contents; }
+
+  .bottombar .bottom-action {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .bottombar .bottom-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 840px) and (orientation: portrait) {
+  .footer-region .bottombar {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    grid-template-rows: auto 44px;
+  }
+
+  .bottombar .bottom-actions {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: center;
+    gap: 8px;
+  }
+
+  .bottombar #footerHelpButton,
+  .bottombar #aboutMenuButton {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .bottombar .chapter-nav-prev { grid-column: 1; grid-row: 2; }
+  .bottombar .chapter-nav-next { grid-column: 3; grid-row: 2; }
+}
+
+@media (max-width: 1000px) and (max-height: 600px) and (orientation: landscape) {
+  :root { --reader-chrome-height: calc(45px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); }
+
+  .footer-region .bottombar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
+    grid-template-rows: 44px;
+    height: auto;
+    min-height: 44px;
+    gap: 6px;
+    padding-top: 0;
+    padding-bottom: var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottombar .footer-center,
+  .bottombar .footer-end { display: contents; }
+  .bottombar .chapter-nav-prev { grid-column: 1; grid-row: 1; }
+  .bottombar .fineprint { grid-column: 2; grid-row: 1; min-width: 0; }
+  .bottombar .bottom-actions { grid-column: 3; grid-row: 1; }
+  .bottombar .chapter-nav-next { grid-column: 4; grid-row: 1; }
+  .bottombar .chapter-nav-label { display: none; }
+
+  .bottombar .chapter-nav,
+  .bottombar .bottom-action {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 !important;
   }
 }

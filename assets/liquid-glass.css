@@ -1360,3 +1360,18 @@ html[data-control-material="glass"] .games-social-drawer .friend-action-button.p
     background: var(--glass-solid);
   }
 }
+
+/* Help and About remain quiet beside the chapter navigation. */
+html[data-control-material="glass"] #app #footerBar .bottom-actions .bottom-action {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-control-material="glass"] #app #footerBar .bottom-actions .bottom-action:is(:hover, :active, :focus-visible, [aria-expanded="true"]) {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
