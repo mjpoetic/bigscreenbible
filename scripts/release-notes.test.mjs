@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { checkReleaseNotes, releaseNotesMarkup } from "./release-notes-check.mjs";
+const { version } = JSON.parse(readFileSync(new URL("../app-version.json", import.meta.url)));
+checkReleaseNotes(version);
+const markup = releaseNotesMarkup(version);
+const versions = [...markup.matchAll(/data-release-version="([^"]+)"/g)].map(match => match[1]);
+assert.equal(versions[0], version);
+assert.ok(versions.length >= 5);
+assert.deepEqual(versions, [...versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })));
+assert.match(markup, /Recent updates/);
+assert.match(markup, / · Installed/);
+const missing = releaseNotesMarkup("2099.1.1");
+assert.ok((missing.match(/data-release-version=/g) || []).length >= 5, "Unknown versions retain history");
+assert.doesNotMatch(missing, /aren’t available/);
+assert.throws(() => checkReleaseNotes("2099.1.1"), /Add release notes/);
+assert.doesNotMatch(releaseNotesMarkup("2026.10.18.6"), /data-release-version="2026.10.19.1"/);
+console.log("Release history, missing-version fallback and publishing guard passed");

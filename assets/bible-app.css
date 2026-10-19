@@ -26363,3 +26363,16 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .app-shell .topbar .portrait-navigation { width: 128px; }
   .app-shell .topbar .current-mode-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+.app-release-entry + .app-release-entry {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+.app-release-notes-content .app-release-entry h5 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: inherit;
+  overflow-wrap: anywhere;
+}

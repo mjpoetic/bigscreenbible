@@ -1,3 +1,4 @@
+import { checkReleaseNotes } from "./release-notes-check.mjs";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,8 @@ const version = String(process.argv[2] || "").trim();
 if (!/^[a-z0-9._-]{1,80}$/i.test(version)) {
   throw new Error("Pass a release version containing only letters, numbers, dots, underscores, or hyphens.");
 }
+
+checkReleaseNotes(version);
 
 const versionPath = path.join(rootDir, "app-version.json");
 writeFileSync(versionPath, `${JSON.stringify({ version }, null, 2)}\n`);

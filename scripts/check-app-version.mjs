@@ -1,3 +1,4 @@
+import { checkReleaseNotes } from "./release-notes-check.mjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -38,6 +39,7 @@ function git(args) {
 }
 
 const currentVersion = readVersion(readFileSync(versionPath, "utf8"), "app-version.json");
+checkReleaseNotes(currentVersion);
 const indexHtml = readFileSync(path.join(rootDir, "index.html"), "utf8");
 const metaVersion = indexHtml.match(/<meta name="app-version" content="([^"]*)" \/>/)?.[1] || "";
 if (metaVersion !== currentVersion) {

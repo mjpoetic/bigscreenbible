@@ -4839,6 +4839,26 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.1": [
+      "View a running changelog of recent updates from the installed version row.",
+      "Restored missing release notes and added a publishing check to keep future notes up to date.",
+    ],
+    "2026.10.18.6": [
+      "The view navigation now uses a labeled dropdown instead of icon-only buttons.",
+    ],
+    "2026.10.18.5": [
+      "The header stays more stable when resizing the window or changing screen size.",
+    ],
+    "2026.10.18.4": [
+      "Improved footer spacing and layout across screen sizes.",
+      "Default is now the initial verse selection style.",
+    ],
+    "2026.10.18.1": [
+      "Refined the footer Help and About buttons for clearer navigation.",
+    ],
+    "2026.10.17.3": [
+      "Made About information and the app tour easier to find.",
+    ],
     "2026.10.17.2": [
       "Tap the installed version in App updates to see what’s new.",
       "Larger version text and a more comfortable tap target below the update button.",
@@ -4847,7 +4867,9 @@ function appReleaseNotesMarkup(label = "Installed version") {
       "Improved iOS keyboard handling when opening Bible passages from Games.",
     ],
   };
-  const notes = releases[appVersion];
+  const history = Object.entries(releases)
+    .filter(([version]) => version.localeCompare(appVersion, undefined, { numeric: true }) <= 0)
+    .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }));
   return `<details class="app-release-notes">
     <summary class="app-release-notes-trigger">
       <span class="app-release-notes-label">${escapeHtml(label)}</span>
@@ -4855,9 +4877,12 @@ function appReleaseNotesMarkup(label = "Installed version") {
       <span class="app-release-notes-hint">What’s new <span aria-hidden="true">⌄</span></span>
     </summary>
     <div class="app-release-notes-content">
-      <h4>What’s new</h4>
-      ${notes ? `<ul>${notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}</ul>`
-        : `<p>Release notes aren’t available for this version.</p>`}
+      <h4>Recent updates</h4>
+      ${!releases[appVersion] ? `<p>Showing the latest recorded updates for this installation.</p>` : ""}
+      ${history.map(([version, notes]) => `<section class="app-release-entry" data-release-version="${escapeHtml(version)}">
+        <h5>${escapeHtml(version)}${version === appVersion ? " · Installed" : ""}</h5>
+        <ul>${notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}</ul>
+      </section>`).join("")}
     </div>
   </details>`;
 }
