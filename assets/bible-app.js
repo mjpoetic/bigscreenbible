@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.9": [
+      "The footer Bible version and Scripture reference now share consistent uppercase typography and matching sizes across layouts.",
+    ],
     "2026.10.19.8": [
       "The Bible version selector keeps comfortable proportions in portrait layouts.",
       "The passage picker aligns with the right edge of the search bar in every orientation.",

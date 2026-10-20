@@ -26528,3 +26528,21 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     max-width: 92px;
   }
 }
+
+/* Version and passage form one balanced reference in every footer layout. */
+.bottombar .footer-reference {
+  font-size: var(--interface-text-15, 15px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.bottombar .footer-version-toggle,
+.bottombar .footer-reference-label,
+.bottombar[data-chapter-arrows="false"] .footer-reference-label {
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+}
