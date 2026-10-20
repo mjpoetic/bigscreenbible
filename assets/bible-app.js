@@ -791,6 +791,7 @@ const state = {
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
   portraitSearchCollapsed: localStorage.getItem("lw_portrait_search_collapsed") === "true",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
+  footerChapterArrows: localStorage.getItem("lw_footer_chapter_arrows") !== "false",
   libraryOpen: localStorage.getItem("lw_library_open") === "true",
   activeRail: "Verse",
   selectedStrong: "G2316",
@@ -4267,6 +4268,13 @@ function readingSettings(prefix = "", options = {}) {
   return settingsDisclosure("reading", "Reading & navigation", `
     <div class="setting-group">
       <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("FooterChapterArrowsToggle")}" ${state.footerChapterArrows ? "checked" : ""} />
+        <span>Show chapter arrows in footer</span>
+      </label>
+      <p class="setting-help">Hide Previous and Next to give the Scripture reference more room.</p>
+    </div>
+    <div class="setting-group">
+      <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("EdgeChapterNavigationToggle")}" ${state.edgeChapterNavigationEnabled ? "checked" : ""} />
         <span>Pull or scroll past chapter edges</span>
       </label>
@@ -4839,6 +4847,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.3": [
+      "Optional footer chapter arrows, larger references, and compact book names on phones.",
+      "A slimmer portrait footer keeps more Scripture on screen.",
+    ],
     "2026.10.19.2": [
       "More reading space with compact portrait header and footer controls.",
       "Larger Help and About icons with comfortable touch targets.",
@@ -5576,6 +5588,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "SectionHeadingsToggle", "Section headings", "Scripture & Reading", "scripture display")}
       ${result("reading", "RedLettersToggle", "Words of Jesus in red", "Scripture & Reading", "red letters")}
       ${result("reading", "StrongNumbersToggle", "Strong's number lookups", "Scripture & Reading", "Strong numbers")}
+      ${result("reading", "FooterChapterArrowsToggle", "Show chapter arrows in footer", "Scripture & Reading", "footer arrows previous next hide remove navigation")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
       ${result("reading", "FocusControlsFadeToggle", "Floating reading controls", "Reading & navigation", "focus reader parallel auto-scroll page fade opacity floating buttons hide inactivity delay")}
@@ -12547,6 +12560,7 @@ function captureCloudSnapshot() {
       autoScrollSpeed: state.autoScrollSpeed,
       readerPageScrollSpeed: state.readerPageScrollSpeed,
       edgeChapterNavigationEnabled: state.edgeChapterNavigationEnabled,
+      footerChapterArrows: state.footerChapterArrows,
       paragraphLayout: state.paragraphLayout,
       printLayout: state.printLayout,
       printVerseNumbers: state.printVerseNumbers,
@@ -12794,6 +12808,9 @@ function applyCloudSnapshot(snapshot) {
   state.readerPageScrollSpeed = normalizedReaderPageScrollSpeed(
     settings.readerPageScrollSpeed || localStorage.getItem("lw_page_scroll_speed"),
   );
+  state.footerChapterArrows = typeof settings.footerChapterArrows === "boolean"
+    ? settings.footerChapterArrows
+    : localStorage.getItem("lw_footer_chapter_arrows") !== "false";
   state.edgeChapterNavigationEnabled = typeof settings.edgeChapterNavigationEnabled === "boolean"
     ? settings.edgeChapterNavigationEnabled
     : localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false";
@@ -12913,6 +12930,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
   localStorage.setItem("lw_page_scroll_speed", state.readerPageScrollSpeed);
   localStorage.setItem("lw_edge_chapter_navigation_enabled", String(state.edgeChapterNavigationEnabled));
+  localStorage.setItem("lw_footer_chapter_arrows", String(state.footerChapterArrows));
   localStorage.setItem("lw_paragraph_layout", String(state.paragraphLayout));
   localStorage.setItem("lw_print_layout", state.printLayout);
   localStorage.setItem("lw_print_verse_numbers", String(state.printVerseNumbers));
@@ -20103,6 +20121,18 @@ function strongLookupCard(entry, selectedWord, linkToVerses = false, occurrence 
   `;
 }
 
+function compactFooterReference(label) {
+  const abbreviations = {
+    "Chronicles": "Chr", "Corinthians": "Cor", "Thessalonians": "Thess",
+    "Deuteronomy": "Deut", "Ecclesiastes": "Eccl", "Lamentations": "Lam",
+    "Philippians": "Phil", "Colossians": "Col", "Revelation": "Rev",
+    "Zephaniah": "Zeph", "Zechariah": "Zech", "Leviticus": "Lev",
+    "Galatians": "Gal", "Ephesians": "Eph", "Song of Solomon": "Song",
+  };
+  return String(label).replace(/^(?:([1-3])\s+)?(.+?)(?=\s+\d)/, (match, number, book) =>
+    abbreviations[book] ? `${number ? `${number} ` : ""}${abbreviations[book]}` : match);
+}
+
 function bottombar() {
   const footerVersions = state.mode === "parallel"
     ? activeVersions()
@@ -20119,11 +20149,11 @@ function bottombar() {
     .join("");
   return `
     <div class="footer-region ${state.footerCollapsed ? "collapsed" : ""}">
-      <footer class="bottombar" id="footerBar" ${state.footerCollapsed ? 'inert aria-hidden="true"' : ""}>
-        <button class="nav-button chapter-nav chapter-nav-prev" id="prevChapter" aria-label="Previous chapter">
+      <footer class="bottombar" id="footerBar" data-chapter-arrows="${state.footerChapterArrows}" ${state.footerCollapsed ? 'inert aria-hidden="true"' : ""}>
+        ${state.footerChapterArrows ? `<button class="nav-button chapter-nav chapter-nav-prev" id="prevChapter" aria-label="Previous chapter">
           <span class="chapter-nav-icon" aria-hidden="true">‹</span>
           <span class="chapter-nav-label">Previous Chapter</span>
-        </button>
+        </button>` : ""}
         <div class="footer-center">
           <div class="fineprint">
             <div class="footer-reference">
@@ -20138,7 +20168,7 @@ function bottombar() {
               ${footerSecondaryVersions.length ? `<span class="footer-secondary-versions">/ ${footerSecondaryVersions.map(translationDisplayCode).join(" / ")}</span>` : ""}
               <span class="footer-reference-divider" aria-hidden="true">·</span>
               ${["reader", "parallel"].includes(state.mode)
-                ? `<button class="footer-reference-label footer-inline-picker" id="footerReferencePicker" type="button" aria-label="Choose Bible book or chapter, currently ${escapeHtml(referenceLabel())}" title="Choose book or chapter">${referenceLabel()}</button>`
+                ? `<button class="footer-reference-label footer-inline-picker" id="footerReferencePicker" type="button" aria-label="Choose Bible book or chapter, currently ${escapeHtml(referenceLabel())}" title="Choose book or chapter"><span class="footer-full-reference">${escapeHtml(referenceLabel())}</span><span class="footer-compact-reference" aria-hidden="true">${escapeHtml(compactFooterReference(referenceLabel()))}</span></button>`
                 : `<span class="footer-reference-label">${referenceLabel()}</span>`}
             </div>
           </div>
@@ -20154,10 +20184,10 @@ function bottombar() {
               <span class="bottom-action-label">About</span>
             </button>
           </div>
-          <button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
+          ${state.footerChapterArrows ? `<button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
             <span class="chapter-nav-label">Next Chapter</span>
             <span class="chapter-nav-icon" aria-hidden="true">›</span>
-          </button>
+          </button>` : ""}
         </div>
       </footer>
       <button class="bar-collapse-toggle footer-collapse-toggle" id="footerCollapseToggle" type="button" aria-label="${state.footerCollapsed ? "Show footer bar" : "Hide footer bar"}" aria-controls="footerBar" aria-expanded="${state.footerCollapsed ? "false" : "true"}" data-tooltip="${state.footerCollapsed ? "Show footer" : "Hide footer"}">
@@ -21926,6 +21956,14 @@ function bindEvents() {
   ["autoScrollEnabledToggle", "mobileAutoScrollEnabledToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       setReaderAutoScrollEnabled(event.target.checked);
+    });
+  });
+  ["footerChapterArrowsToggle", "mobileFooterChapterArrowsToggle"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state.footerChapterArrows = event.target.checked;
+      localStorage.setItem("lw_footer_chapter_arrows", String(state.footerChapterArrows));
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
     });
   });
   ["edgeChapterNavigationToggle", "mobileEdgeChapterNavigationToggle"].forEach((id) => {

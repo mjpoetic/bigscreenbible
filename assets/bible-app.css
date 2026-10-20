@@ -26429,3 +26429,39 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-menu { grid-column: 3; grid-row: 1; width: 44px; min-width: 0; }
   .app-shell:not(.focus-shell):not(.trivia-shell).portrait-search-collapsed .topbar { grid-template-rows: 44px; row-gap: 0; }
 }
+
+.footer-compact-reference { display: none; }
+.bottombar .footer-reference-label { font-size: 15px; font-weight: 700; }
+@media (min-width: 841px) {
+  .bottombar .footer-end { grid-column: 3; }
+}
+@media (max-width: 840px) {
+  .bottombar .footer-full-reference { display: none; }
+  .bottombar .footer-compact-reference { display: inline; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  :root { --mobile-portrait-footer-height: 46px; }
+  .footer-region .bottombar {
+    min-height: calc(46px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    padding-top: 0;
+    padding-bottom: calc(1px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    column-gap: 2px;
+  }
+  .bottombar .footer-reference-label {
+    font-size: 15px;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: none;
+    padding-inline: 0;
+  }
+  .bottombar .footer-reference-divider { display: none; }
+  .bottombar[data-chapter-arrows="false"] { grid-template-columns: minmax(0, 1fr) auto; }
+  .bottombar[data-chapter-arrows="false"] .fineprint { grid-column: 1; }
+  .bottombar[data-chapter-arrows="false"] .bottom-actions { grid-column: 2; }
+  .bottombar[data-chapter-arrows="false"] .footer-reference-label { font-size: 17px; }
+}
+@media (max-width: 1000px) and (max-height: 600px) and (orientation: landscape) {
+  .bottombar[data-chapter-arrows="false"] { grid-template-columns: minmax(0, 1fr) auto; }
+  .bottombar[data-chapter-arrows="false"] .fineprint { grid-column: 1; }
+  .bottombar[data-chapter-arrows="false"] .bottom-actions { grid-column: 2; }
+}
