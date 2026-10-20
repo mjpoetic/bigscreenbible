@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.20.2": [
+      "Chapter arrows use slimmer chevrons and smaller, minimal controls without raised circular borders.",
+    ],
     "2026.10.20.1": [
       "The portrait footer removes its remaining extra vertical padding while preserving reference text, button sizes, and the device bottom safe area.",
     ],
@@ -20179,7 +20182,7 @@ function bottombar() {
     <div class="footer-region ${state.footerCollapsed ? "collapsed" : ""}">
       <footer class="bottombar" id="footerBar" data-chapter-arrows="${state.footerChapterArrows}" ${state.footerCollapsed ? 'inert aria-hidden="true"' : ""}>
         ${state.footerChapterArrows ? `<button class="nav-button chapter-nav chapter-nav-prev" id="prevChapter" aria-label="Previous chapter">
-          <span class="chapter-nav-icon" aria-hidden="true">‹</span>
+          <span class="chapter-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6" /></svg></span>
           <span class="chapter-nav-label">Previous Chapter</span>
         </button>` : ""}
         <div class="footer-center">
@@ -20214,7 +20217,7 @@ function bottombar() {
           </div>
           ${state.footerChapterArrows ? `<button class="nav-button chapter-nav chapter-nav-next" id="nextChapter" aria-label="Next chapter">
             <span class="chapter-nav-label">Next Chapter</span>
-            <span class="chapter-nav-icon" aria-hidden="true">›</span>
+            <span class="chapter-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6" /></svg></span>
           </button>` : ""}
         </div>
       </footer>
