@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.5": [
+      "Liquid Glass study tools now share one clean vertical capsule with a subtle selected highlight.",
+    ],
     "2026.10.19.4": [
       "Three-digit reading streaks keep their flame icon and fit comfortably in the phone header.",
       "The Verse Picker matches the other toolbar buttons in phone landscape.",
