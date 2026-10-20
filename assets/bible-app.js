@@ -4847,6 +4847,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.4": [
+      "Three-digit reading streaks keep their flame icon and fit comfortably in the phone header.",
+      "The Verse Picker matches the other toolbar buttons in phone landscape.",
+    ],
     "2026.10.19.3": [
       "Optional footer chapter arrows, larger references, and compact book names on phones.",
       "A slimmer portrait footer keeps more Scripture on screen.",

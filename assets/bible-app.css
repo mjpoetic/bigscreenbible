@@ -26382,7 +26382,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   :root { --mobile-portrait-footer-height: 52px; }
 
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar {
-    grid-template-columns: 44px minmax(0, 1fr) 44px 64px;
+    grid-template-columns: 44px minmax(0, 1fr) 64px 44px;
     grid-template-rows: 44px auto;
     gap: 4px 6px;
     padding: calc(4px + var(--app-safe-area-top, env(safe-area-inset-top, 0px))) 8px 6px;
@@ -26398,7 +26398,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .brand-mark-image { width: 40px; height: 40px; margin: 0; }
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar :is(.brand-copy, .brand-divider) { display: none; }
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .portrait-navigation { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; margin: 0; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-chip { grid-column: 3; grid-row: 1; width: 44px; min-width: 44px; padding-inline: 2px; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-chip { grid-column: 3; grid-row: 1; width: 64px; min-width: 64px; padding-inline: 5px; }
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .account-menu { grid-column: 4; grid-row: 1; width: 44px; justify-self: end; }
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .search { grid-column: 1 / 4; grid-row: 2; }
   .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .versions { grid-column: 4; grid-row: 2; }
@@ -26426,7 +26426,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .bottombar .bottom-action-icon svg { width: 25px; height: 25px; }
 }
 @media (max-width: 840px) and (orientation: portrait) {
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-menu { grid-column: 3; grid-row: 1; width: 44px; min-width: 0; }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-menu { grid-column: 3; grid-row: 1; width: 64px; min-width: 0; }
   .app-shell:not(.focus-shell):not(.trivia-shell).portrait-search-collapsed .topbar { grid-template-rows: 44px; row-gap: 0; }
 }
 
@@ -26464,4 +26464,18 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .bottombar[data-chapter-arrows="false"] { grid-template-columns: minmax(0, 1fr) auto; }
   .bottombar[data-chapter-arrows="false"] .fineprint { grid-column: 1; }
   .bottombar[data-chapter-arrows="false"] .bottom-actions { grid-column: 2; }
+}
+
+/* Keep the streak flame legible when the count needs three digits. */
+.streak-chip svg { flex-shrink: 0; }
+
+/* Phone landscape must not inherit the desktop first-button footer height. */
+@media (orientation: landscape) and (max-width: 1024px) and (max-height: 560px) {
+  .rail > button {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .rail > button:first-child { min-height: 44px; }
 }
