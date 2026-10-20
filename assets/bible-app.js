@@ -8174,10 +8174,10 @@ function rail() {
   const sideToggleIcon = nextSide === "left" ? icons.chevronLeft : icons.chevron;
   const sideToggleEnabled = isSideToolbarToggleEnabled() && (!autoPositioned || Boolean(window.bsbIOSCameraSide));
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
-  return `<aside class="rail">${items.map(([label, icon]) => {
+  return `<aside class="rail"><div class="rail-tools" role="group" aria-label="Study tools">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
-  }).join("")}
+  }).join("")}</div>
     <div class="portrait-rail-actions">
       <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
       <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
