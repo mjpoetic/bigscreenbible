@@ -3442,7 +3442,7 @@ function rememberDisclosureState(details, open = details.open) {
 
 function bindDisclosureAnimation(details) {
   const summary = details.querySelector(":scope > summary");
-  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy, :scope > .help-essentials-grid");
+  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy, :scope > .help-essentials-grid, :scope > .app-release-notes-content");
   if (!summary || !content) return;
 
   summary.addEventListener("click", (event) => {
@@ -4847,6 +4847,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.6": [
+      "Release notes open and close smoothly, with reduced-motion support.",
+      "The changelog shows only the five most recent updates.",
+    ],
     "2026.10.19.5": [
       "Liquid Glass study tools now share one clean vertical capsule with a subtle selected highlight.",
     ],
@@ -4892,7 +4896,8 @@ function appReleaseNotesMarkup(label = "Installed version") {
   };
   const history = Object.entries(releases)
     .filter(([version]) => version.localeCompare(appVersion, undefined, { numeric: true }) <= 0)
-    .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }));
+    .sort(([a], [b]) => b.localeCompare(a, undefined, { numeric: true }))
+    .slice(0, 5);
   return `<details class="app-release-notes">
     <summary class="app-release-notes-trigger">
       <span class="app-release-notes-label">${escapeHtml(label)}</span>
@@ -21680,6 +21685,7 @@ function bindEvents() {
       else checkForAppUpdate({ manual: true });
     });
   });
+  document.querySelectorAll(".app-release-notes").forEach(bindDisclosureAnimation);
   document.querySelectorAll("[data-settings-section]").forEach((section) => {
     section.addEventListener("toggle", () => rememberDisclosureState(section));
     bindDisclosureAnimation(section);
