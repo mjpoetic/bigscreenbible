@@ -26546,3 +26546,16 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   line-height: inherit;
   text-transform: inherit;
 }
+
+/* Let wide headers spend their spare width on search, with a mode-group gutter. */
+@media (min-width: 1321px) {
+  .app-shell .topbar .search {
+    flex: 1 1 240px;
+    width: auto;
+    max-width: none;
+  }
+  .app-shell .topbar .mode-tabs {
+    flex: 0 0 auto;
+    margin-left: clamp(12px, 1.5vw, 28px);
+  }
+}
