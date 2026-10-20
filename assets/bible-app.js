@@ -4847,6 +4847,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.8": [
+      "The Bible version selector keeps comfortable proportions in portrait layouts.",
+      "The passage picker aligns with the right edge of the search bar in every orientation.",
+    ],
     "2026.10.19.7": [
       "The grouped Liquid Glass study toolbar keeps a comfortable gap below the header in wider layouts.",
     ],

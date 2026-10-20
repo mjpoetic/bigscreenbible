@@ -26481,3 +26481,50 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   }
   .rail > button:first-child, .rail-tools > button:first-child { min-height: 44px; }
 }
+
+/* Search tools sit against the trailing edge in every header arrangement. */
+.app-shell .topbar .search:has(.search-field-tool-button) {
+  padding-right: 0;
+  height: 44px;
+  min-height: 44px;
+}
+.app-shell .topbar .search .passage-picker-trigger {
+  flex: 0 0 42px;
+  align-self: center;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  aspect-ratio: 1;
+}
+
+@media (max-width: 840px) and (orientation: portrait) {
+  /* The search row shares the full grid, independently of the icon row. */
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .search {
+    grid-column: 1 / -1;
+    width: calc(100% - 98px);
+  }
+  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .versions {
+    grid-column: 1 / -1;
+    justify-self: end;
+    width: 92px;
+    min-width: 92px;
+    max-width: 92px;
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+}
+
+.app-shell .topbar .versions {
+  height: 44px;
+  min-height: 44px;
+  padding-block: 4px;
+}
+@media (max-width: 840px) and (orientation: landscape) {
+  :is(.app-shell, .app-shell.mobile-controls-open) .topbar .versions {
+    flex: 0 0 92px;
+    width: 92px;
+    max-width: 92px;
+  }
+}
