@@ -7,6 +7,7 @@ for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
   let saved;
   const context = {
     state: { mode, triviaGameType: 'crossword', reference: 'John 3', verse: 16 },
+    URLSearchParams,
     sessionStorage: { setItem: (_, value) => { saved = value; }, getItem: () => saved },
     window: { performance: { getEntriesByType: () => [{ type: 'reload' }] } },
     bibleData: { 'John 3': {} }, currentChapter: () => ({ verses: [{ n: 16 }] }),
@@ -24,6 +25,19 @@ for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
   assert.equal(context.state.verse, 16);
   context.window.performance.getEntriesByType = () => [{ type: 'navigate' }];
   assert.equal(context.refreshModeFromSession(), null);
+  context.window.location = { search: '?ref=Psalm+23%3A1&nativeLink=1' };
+  context.window.performance.getEntriesByType = () => [{ type: 'reload' }];
+  assert.equal(context.refreshModeFromSession(), null, 'Incoming native passage must override a saved session on reload');
+  context.state = { mode: 'big', startupApplied: false };
+  context.setReferenceFromString = ref => { context.state.reference = ref; return true; };
+  context.sharedVersesFromUrl = () => [];
+  context.parsePassageReference = () => ({ verses: [1] });
+  context.applySharedVersionFromUrl = async () => {};
+  await context.applyStartupExperience();
+  assert.equal(context.state.reference, 'Psalm 23:1');
+  assert.equal(context.state.mode, 'reader');
+  assert.deepEqual([...context.state.sharedPassage.verses], [1]);
+  context.window.location.search = '';
   saved = '{bad';
   context.window.performance.getEntriesByType = () => [{ type: 'reload' }];
   assert.equal(context.refreshModeFromSession(), null);

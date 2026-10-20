@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.20.4": [
+      "Passage links opened in the mobile app take priority over restoring the previous reading session.",
+    ],
     "2026.10.20.3": [
       "Floating reading controls stay beneath panels and popups. Help now begins with touch gestures directly after New here?",
     ],
@@ -27354,6 +27357,8 @@ function rememberRefreshMode() {
 }
 
 function refreshModeFromSession() {
+  // A native link can reload the current URL; its passage outranks session recovery.
+  if (new URLSearchParams(window.location?.search || "").has("nativeLink")) return null;
   if (window.performance?.getEntriesByType?.("navigation")?.[0]?.type !== "reload") return null;
   try {
     const saved = JSON.parse(sessionStorage.getItem("lw_refresh_mode") || "null");
@@ -31541,7 +31546,8 @@ async function initializeBibleData() {
         if (offlineRestoreState?.owner !== (accountDataOwner() || guestDataOwner)) offlineRestoreState = null;
       } catch { /* Use ordinary startup if a saved position is invalid. */ }
     }
-    const updateRestoreState = consumeAppUpdateRestoreState() || offlineRestoreState;
+    const savedRestoreState = consumeAppUpdateRestoreState() || offlineRestoreState;
+    const updateRestoreState = new URLSearchParams(window.location.search).has("nativeLink") ? null : savedRestoreState;
     const updateScrollState = applyAppUpdateRestoreState(updateRestoreState);
     stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
     dataLoading = false;
@@ -32522,6 +32528,7 @@ function handleNativeSharedLink(value) {
   if (url.origin !== "https://bigscreenbible.com" || url.username || url.password) return true;
   // Do not wait for Bible downloads: links must also work from a failed startup.
   // Schedule navigation after acknowledging receipt so native retries cannot replay it.
+  url.searchParams.set("nativeLink", "1");
   window.setTimeout(() => window.location.assign(url.href), 0);
   return true;
 }

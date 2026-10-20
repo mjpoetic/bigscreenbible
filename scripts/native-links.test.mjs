@@ -17,7 +17,9 @@ for (const platform of ['ios', 'android', 'web']) {
     assert.equal(context.handleNativeSharedLink(value), platform !== 'web');
     assert.equal(opened.length, 0, 'Acknowledges before navigating');
     pending.splice(0).forEach(callback => callback());
-    assert.deepEqual(opened.splice(0), platform === 'web' ? [] : [new URL(value).href]);
+    const expected = new URL(value);
+    expected.searchParams.set("nativeLink", "1");
+    assert.deepEqual(opened.splice(0), platform === 'web' ? [] : [expected.href]);
   }
   for (const value of ['https://evil.test', 'https://bigscreenbible.com.evil.test',
     'http://bigscreenbible.com', 'https://user@bigscreenbible.com',
