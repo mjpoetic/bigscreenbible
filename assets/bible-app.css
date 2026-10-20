@@ -26600,3 +26600,20 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     padding: 0;
   }
 }
+
+/* Reading chrome stays below drawers (29+) and popup surfaces. Keep popup
+   hosts elevated only while open so their children can clear other controls. */
+#app .app-shell :is(.reader-auto-scroll-button, .reader-page-controls,
+  .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings,
+  .focus-reading-controls) {
+  z-index: 18;
+}
+#app .app-shell .reading-control-mist { z-index: 17; }
+#app .app-shell .mobile-focus-tools-control:not(.expanded),
+#app .app-shell .mobile-focus-passage-control:not(:has(.mobile-focus-passage-popover)) {
+  z-index: 18;
+}
+#app .app-shell .chapter-tools-region:has([aria-expanded="true"], .open),
+#app .app-shell .reader-bookmark-options {
+  z-index: 60;
+}

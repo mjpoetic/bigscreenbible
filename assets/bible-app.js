@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.20.3": [
+      "Floating reading controls stay beneath panels and popups. Help now begins with touch gestures directly after New here?",
+    ],
     "2026.10.20.2": [
       "Chapter arrows use slimmer chevrons and smaller, minimal controls without raised circular borders.",
     ],
@@ -21084,40 +21087,6 @@ function shortcutOverlay() {
           </div>
           <button class="primary-btn" id="startHelpTour" type="button">Take tour</button>
         </div>
-        <details class="help-section" data-help-section="essentials" ${state.helpSectionsOpen.essentials ? "open" : ""}>
-          <summary>Reading essentials</summary>
-          <div class="help-grid help-essentials-grid">
-            <div><strong>Focus Mode</strong><span>Hide the side panels using Focus, the F key, or a double-tap on blank Scripture space. Repeat to bring them back. Floating search, Settings, and Focus tools keep your reading tools close.</span></div>
-            <div><strong>Page up / page down arrows</strong><span>In Reader and Parallel, including Focus Mode, tap or click the floating ↑ / ↓ arrows to move about one screen at a time. Press the same arrow twice quickly to jump to the top or bottom. Adjust Page navigation speed in Settings → Reading &amp; navigation.</span></div>
-            <div><strong>Hands-free auto-scroll</strong><span>In Settings → Reading &amp; navigation, enable auto-scroll controls and choose your speed. Use Play/Pause or A in Reader and Parallel. When auto-scroll is enabled in Settings, two-finger tap starts or pauses it.</span></div>
-            <div><strong>Tap the verse number</strong><span>In paragraph reading, open tools to select, copy, add a note, highlight, or view cross references; press and hold for cross references directly. In verse rows, Parallel, and shared passages, numbers open cross references.</span></div>
-            <div><strong>Choose your Scripture font</strong><span>Open Settings → Scripture font to choose a built-in typeface, or select Custom device or Google font and type the exact font family name. An installed font is used first; otherwise the app tries Google Fonts, which needs an internet connection. See Go deeper below for tips.</span></div>
-            <div><strong>Original-word lookups</strong><span>BSB (Berean Standard Bible), KJV (King James Version), WEB (World English Bible), and ASV (American Standard Version) currently have Strong's word tagging. Coverage varies by passage; support for more translations is planned. See Go deeper below to get started.</span></div>
-          </div>
-        </details>
-        <details class="help-section" data-help-section="install" ${state.helpSectionsOpen.install ? "open" : ""}>
-          <summary>Install on your phone or tablet</summary>
-          <div class="help-feature-copy">
-            <p>Add Big Screen Bible to your Home Screen for convenient access in its own app window.</p>
-            <p><strong>iPhone / iPad:</strong> Open bigscreenbible.com in Safari. Open Share (inside More on some layouts), choose Add to Home Screen, leave Open as Web App on if shown, then tap Add.</p>
-            <p><strong>Android:</strong> Open bigscreenbible.com in Chrome. Open the three-dot menu, choose Add to home screen, then Install, and follow the prompts. Some browsers label this Install app.</p>
-            <p>Launch from the new Bible icon. If the install option is missing in an in-app browser, open the site in Safari or Chrome first.</p>
-            <p class="help-source-links"><a href="https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios" target="_blank" rel="noopener noreferrer">Apple instructions</a> · <a href="https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid&amp;hl=en" target="_blank" rel="noopener noreferrer">Chrome instructions</a></p>
-          </div>
-        </details>
-        <details class="help-section" data-help-section="deeper" ${state.helpSectionsOpen.deeper ? "open" : ""}>
-          <summary>Go deeper · study &amp; sharing tips</summary>
-          <div class="help-feature-copy">
-            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, tap a linked word to open its original-language entry and meaning. Words without tags will remain plain text.</p>
-            <p><strong>Link straight to a passage:</strong> <a href="https://bigscreenbible.com/prov3:5-6/NKJV" target="_blank" rel="noopener noreferrer">bigscreenbible.com/prov3:5-6/NKJV</a> opens only Proverbs 3:5–6 in NKJV. Choose Read full chapter for context, or use the nearby Copy, Share, and Print tools. This passage-only view is separate from Focus Mode.</p>
-            <p>Use a book name or abbreviation, chapter, verse range, and optional translation: <code>/John3:16/KJV</code> or <code>/Proverbs3:5-6</code>. Unknown or unavailable translations fall back to BSB. Select verses and use Share to create a passage link without typing an address.</p>
-            <p><strong>Compare translations:</strong> Open Parallel to read versions side by side. Reorder the version columns to put your preferred one first; the leftmost version becomes your Reader translation.</p>
-            <p><strong>Keep your place:</strong> Use bookmarks, highlights, notes, and history to return to your study. Sign in to sync supported study data and settings across devices. Focus tools provide bookmarks, history, notes, and the verse picker without leaving Focus Mode.</p>
-            <p><strong>Continue into the next chapter:</strong> Enable Pull or scroll past chapter edges in Settings → Reading &amp; navigation. On touch screens, pull past the top or bottom edge and release when the chapter indicator is ready. On desktop, keep scrolling with a wheel or trackpad after reaching the edge.</p>
-            <p><strong>Use your own font:</strong> In Settings → Scripture font, select Custom device or Google font. Enter a family name such as Georgia for a font available on your device, or the exact family name from Google Fonts—not a website address or font-file name. The status below the field tells you whether the font came from your device or Google Fonts. If it cannot load, check the name and connection or choose a built-in font. Device fonts need to be available to the browser on each device you use. In Big Screen, find Scripture font under Settings → Look &amp; Feel.</p>
-            <p><strong>Make popups easier to read:</strong> Adjust popup text size in Settings. Enable popup pinch resizing to resize study text with a pinch on touch devices.</p>
-          </div>
-        </details>
         <section class="gesture-guide" aria-labelledby="gestureGuideTitle">
           <div class="gesture-guide-head">
             <div>
@@ -21222,6 +21191,40 @@ function shortcutOverlay() {
             </figure>
           </div>
         </section>
+        <details class="help-section" data-help-section="essentials" ${state.helpSectionsOpen.essentials ? "open" : ""}>
+          <summary>Reading essentials</summary>
+          <div class="help-grid help-essentials-grid">
+            <div><strong>Focus Mode</strong><span>Hide the side panels using Focus, the F key, or a double-tap on blank Scripture space. Repeat to bring them back. Floating search, Settings, and Focus tools keep your reading tools close.</span></div>
+            <div><strong>Page up / page down arrows</strong><span>In Reader and Parallel, including Focus Mode, tap or click the floating ↑ / ↓ arrows to move about one screen at a time. Press the same arrow twice quickly to jump to the top or bottom. Adjust Page navigation speed in Settings → Reading &amp; navigation.</span></div>
+            <div><strong>Hands-free auto-scroll</strong><span>In Settings → Reading &amp; navigation, enable auto-scroll controls and choose your speed. Use Play/Pause or A in Reader and Parallel. When auto-scroll is enabled in Settings, two-finger tap starts or pauses it.</span></div>
+            <div><strong>Tap the verse number</strong><span>In paragraph reading, open tools to select, copy, add a note, highlight, or view cross references; press and hold for cross references directly. In verse rows, Parallel, and shared passages, numbers open cross references.</span></div>
+            <div><strong>Choose your Scripture font</strong><span>Open Settings → Scripture font to choose a built-in typeface, or select Custom device or Google font and type the exact font family name. An installed font is used first; otherwise the app tries Google Fonts, which needs an internet connection. See Go deeper below for tips.</span></div>
+            <div><strong>Original-word lookups</strong><span>BSB (Berean Standard Bible), KJV (King James Version), WEB (World English Bible), and ASV (American Standard Version) currently have Strong's word tagging. Coverage varies by passage; support for more translations is planned. See Go deeper below to get started.</span></div>
+          </div>
+        </details>
+        <details class="help-section" data-help-section="install" ${state.helpSectionsOpen.install ? "open" : ""}>
+          <summary>Install on your phone or tablet</summary>
+          <div class="help-feature-copy">
+            <p>Add Big Screen Bible to your Home Screen for convenient access in its own app window.</p>
+            <p><strong>iPhone / iPad:</strong> Open bigscreenbible.com in Safari. Open Share (inside More on some layouts), choose Add to Home Screen, leave Open as Web App on if shown, then tap Add.</p>
+            <p><strong>Android:</strong> Open bigscreenbible.com in Chrome. Open the three-dot menu, choose Add to home screen, then Install, and follow the prompts. Some browsers label this Install app.</p>
+            <p>Launch from the new Bible icon. If the install option is missing in an in-app browser, open the site in Safari or Chrome first.</p>
+            <p class="help-source-links"><a href="https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios" target="_blank" rel="noopener noreferrer">Apple instructions</a> · <a href="https://support.google.com/chrome/answer/9658361?co=GENIE.Platform%3DAndroid&amp;hl=en" target="_blank" rel="noopener noreferrer">Chrome instructions</a></p>
+          </div>
+        </details>
+        <details class="help-section" data-help-section="deeper" ${state.helpSectionsOpen.deeper ? "open" : ""}>
+          <summary>Go deeper · study &amp; sharing tips</summary>
+          <div class="help-feature-copy">
+            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, tap a linked word to open its original-language entry and meaning. Words without tags will remain plain text.</p>
+            <p><strong>Link straight to a passage:</strong> <a href="https://bigscreenbible.com/prov3:5-6/NKJV" target="_blank" rel="noopener noreferrer">bigscreenbible.com/prov3:5-6/NKJV</a> opens only Proverbs 3:5–6 in NKJV. Choose Read full chapter for context, or use the nearby Copy, Share, and Print tools. This passage-only view is separate from Focus Mode.</p>
+            <p>Use a book name or abbreviation, chapter, verse range, and optional translation: <code>/John3:16/KJV</code> or <code>/Proverbs3:5-6</code>. Unknown or unavailable translations fall back to BSB. Select verses and use Share to create a passage link without typing an address.</p>
+            <p><strong>Compare translations:</strong> Open Parallel to read versions side by side. Reorder the version columns to put your preferred one first; the leftmost version becomes your Reader translation.</p>
+            <p><strong>Keep your place:</strong> Use bookmarks, highlights, notes, and history to return to your study. Sign in to sync supported study data and settings across devices. Focus tools provide bookmarks, history, notes, and the verse picker without leaving Focus Mode.</p>
+            <p><strong>Continue into the next chapter:</strong> Enable Pull or scroll past chapter edges in Settings → Reading &amp; navigation. On touch screens, pull past the top or bottom edge and release when the chapter indicator is ready. On desktop, keep scrolling with a wheel or trackpad after reaching the edge.</p>
+            <p><strong>Use your own font:</strong> In Settings → Scripture font, select Custom device or Google font. Enter a family name such as Georgia for a font available on your device, or the exact family name from Google Fonts—not a website address or font-file name. The status below the field tells you whether the font came from your device or Google Fonts. If it cannot load, check the name and connection or choose a built-in font. Device fonts need to be available to the browser on each device you use. In Big Screen, find Scripture font under Settings → Look &amp; Feel.</p>
+            <p><strong>Make popups easier to read:</strong> Adjust popup text size in Settings. Enable popup pinch resizing to resize study text with a pinch on touch devices.</p>
+          </div>
+        </details>
         <div class="help-grid">
           <div><strong>Search</strong><span>Find a verse by reference or by remembered words.</span></div>
           <div><strong>Study</strong><span>Use notes, highlights, bookmarks, cross references, and history from the side tools.</span></div>
