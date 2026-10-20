@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.20.1": [
+      "The portrait footer removes its remaining extra vertical padding while preserving reference text, button sizes, and the device bottom safe area.",
+    ],
     "2026.10.19.10": [
       "Wide headers use more of the available space for search while keeping the Bible version selector fixed and the view buttons separated.",
     ],

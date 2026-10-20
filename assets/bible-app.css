@@ -26559,3 +26559,16 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     margin-left: clamp(12px, 1.5vw, 28px);
   }
 }
+
+/* Fit the portrait footer to its existing 44px controls plus the device inset. */
+@media (max-width: 840px) and (orientation: portrait) {
+  :root { --mobile-portrait-footer-height: 45px; }
+  .footer-region .bottombar {
+    grid-template-rows: 44px;
+    min-height: calc(45px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+    padding-top: 0;
+    padding-bottom: var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px));
+    row-gap: 0;
+    align-content: start;
+  }
+}
