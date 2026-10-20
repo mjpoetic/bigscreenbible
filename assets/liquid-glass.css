@@ -1376,6 +1376,12 @@ html[data-control-material="glass"] #app #footerBar .bottom-actions .bottom-acti
   color: var(--ink);
 }
 
+/* The wide layout removes rail padding to align the old standalone buttons.
+   The grouped glass surface needs breathing room below the header instead. */
+@media (min-width: 841px) {
+  html[data-control-material="glass"] .rail { padding-top: 12px; }
+}
+
 /* Study actions share one vertical material surface, like a native toolbar. */
 html[data-control-material="glass"] .rail .rail-tools {
   display: flex;

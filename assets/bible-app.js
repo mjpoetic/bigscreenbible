@@ -4847,6 +4847,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.7": [
+      "The grouped Liquid Glass study toolbar keeps a comfortable gap below the header in wider layouts.",
+    ],
     "2026.10.19.6": [
       "Release notes open and close smoothly, with reduced-motion support.",
       "The changelog shows only the five most recent updates.",
