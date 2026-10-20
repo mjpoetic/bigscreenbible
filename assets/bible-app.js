@@ -4839,6 +4839,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.19.2": [
+      "More reading space with compact portrait header and footer controls.",
+      "Larger Help and About icons with comfortable touch targets.",
+    ],
     "2026.10.19.1": [
       "View a running changelog of recent updates from the installed version row.",
       "Restored missing release notes and added a publishing check to keep future notes up to date.",
