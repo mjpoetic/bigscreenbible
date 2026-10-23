@@ -26680,9 +26680,20 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-word-field input { width: var(--memory-word-width, 8ch); max-width: 100%; min-height: 44px; padding: 6px 9px; border: 1px solid color-mix(in srgb, var(--ink) 40%, var(--panel)); border-bottom: 2px solid var(--teal); border-radius: 8px; background: var(--panel); color: var(--ink); font-family: inherit; font-size: max(16px, .85em); line-height: 1.4; }
 .memory-word-field input::placeholder { color: var(--muted); opacity: 1; }
 .memory-word-field input:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
-.memory-word-field[data-memory-result="correct"] input { border-color: var(--success); }
-.memory-word-field[data-memory-result="retry"] input { border-color: var(--red-letter); }
-.memory-word-result { font: 600 12px/1.6 var(--ui-font, sans-serif); color: var(--ink); }
+/* Result labels and distinct halos keep feedback clear without relying on color alone. */
+.memory-word-field[data-memory-result="correct"] { --memory-result-edge: #079447; --memory-result-text: #086a34; }
+.memory-word-field[data-memory-result="retry"] { --memory-result-edge: #e02e40; --memory-result-text: #b2192c; }
+.memory-word-field[data-memory-result="incomplete"] { --memory-result-edge: #db8a00; --memory-result-text: #855000; }
+[data-theme="dark"] .memory-word-field[data-memory-result="correct"] { --memory-result-edge: #39ed8b; --memory-result-text: #70ffae; }
+[data-theme="dark"] .memory-word-field[data-memory-result="retry"] { --memory-result-edge: #ff6076; --memory-result-text: #ff9baa; }
+[data-theme="dark"] .memory-word-field[data-memory-result="incomplete"] { --memory-result-edge: #ffbd35; --memory-result-text: #ffd475; }
+.memory-word-field[data-memory-result] input {
+  border: 2px solid var(--memory-result-edge);
+  background: color-mix(in srgb, var(--memory-result-edge) 13%, var(--panel));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--memory-result-edge) 30%, transparent), 0 0 16px color-mix(in srgb, var(--memory-result-edge) 25%, transparent);
+}
+.memory-word-field[data-memory-result] input:focus-visible { outline-color: var(--memory-result-edge); outline-offset: 5px; }
+.memory-word-result { font: 700 12px/1.6 var(--ui-font, sans-serif); color: var(--memory-result-text, var(--ink)); margin-top: 4px; }
 .memory-typing-passage { line-height: 2.5; }
 .memorize-shell > .main-grid.memorize-grid { transition: none; }
 .memory-typing-passage input { scroll-margin-block: 24px; }

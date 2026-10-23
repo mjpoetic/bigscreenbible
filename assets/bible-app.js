@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.20": [
+      "Missing-word answers now have vivid green, red, and amber outlines and halos. Empty answers show Incomplete instead of Try again."
+    ],
     "2026.10.23.19": [
       "Memorize has clearer helper text, glass controls, selected practice methods, and answer fields. Hide words now targets meaningful words and phrases while keeping grammatical clues visible."
     ],
@@ -9075,10 +9078,11 @@ function memoryTypingMarkup(words, practice) {
   return `<form data-memory-typing><div class="memory-scripture memory-typing-passage">${words.map((word, index) => {
     if (!memoryWordNeedsAnswer(word, index, practice.stage)) return escapeHtml(word);
     const result = practice.results?.[index];
+    const resultState = result === null ? "incomplete" : result ? "correct" : "retry";
     const hint = practice.stage === "letters" ? Array.from(word).find((letter) => /[\p{L}\p{N}]/u.test(letter)) : "";
-    return `<span class="memory-word-field" ${result === undefined ? "" : `data-memory-result="${result ? "correct" : "retry"}"`}>
+    return `<span class="memory-word-field" ${result === undefined ? "" : `data-memory-result="${resultState}"`}>
       <input type="text" data-memory-input="${index}" value="${escapeHtml(practice.answers?.[index] || "")}" aria-label="Missing word ${index + 1}${hint ? `, starts with ${escapeHtml(hint)}` : ""}" ${result === false ? 'aria-invalid="true"' : ""} ${result === undefined ? "" : `aria-describedby="memoryWordResult${index}"`} placeholder="${hint ? `${escapeHtml(hint)}…` : "…"}" style="--memory-word-width: ${Math.min(16, Math.max(6, Array.from(word).length + 1))}ch" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="${index === lastMissingIndex ? "done" : "next"}">
-      ${result === undefined ? "" : `<span class="memory-word-result" id="memoryWordResult${index}">${result ? "✓ Correct" : "Try again"}</span>`}
+      ${result === undefined ? "" : `<span class="memory-word-result" id="memoryWordResult${index}">${result === null ? "○ Incomplete" : result ? "✓ Correct" : "× Try again"}</span>`}
     </span>`;
   }).join(" ")}</div><button class="primary-btn" type="submit" data-memory-check-typing>Check missing words</button></form>`;
 }
@@ -9091,8 +9095,9 @@ function checkMemoryAnswers() {
   practice.results = {};
   let correct = 0;
   missing.forEach(({ word, index }) => {
-    const matches = normalizeMemoryAnswer(practice.answers?.[index]) === normalizeMemoryAnswer(word);
-    practice.results[index] = matches;
+    const answer = normalizeMemoryAnswer(practice.answers?.[index]);
+    const matches = answer === normalizeMemoryAnswer(word);
+    practice.results[index] = answer ? matches : null;
     if (matches) correct += 1;
   });
   practice.feedback = correct === missing.length

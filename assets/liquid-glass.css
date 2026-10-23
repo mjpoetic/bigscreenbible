@@ -1477,8 +1477,11 @@ html[data-control-material="glass"] .memorize-shell :is(.memory-add input, .memo
   box-shadow: inset 0 1px 0 var(--glass-light);
   color: var(--ink);
 }
-html[data-control-material="glass"] .memorize-shell .memory-word-field[data-memory-result="correct"] input { border-color: var(--success); }
-html[data-control-material="glass"] .memorize-shell .memory-word-field[data-memory-result="retry"] input { border-color: var(--red-letter); }
+html[data-control-material="glass"] .memorize-shell .memory-word-field[data-memory-result] input {
+  border: 2px solid var(--memory-result-edge);
+  background: color-mix(in srgb, var(--memory-result-edge) 13%, var(--panel));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--memory-result-edge) 30%, transparent), 0 0 16px color-mix(in srgb, var(--memory-result-edge) 25%, transparent);
+}
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   html[data-control-material="glass"] .memorize-shell :is(.memory-card, .memory-count, .memory-mark),
   html[data-control-material="glass"] .memorize-shell .memory-workspace :is(.ghost-btn, .primary-btn, .settings-choice-toggle, input, select),

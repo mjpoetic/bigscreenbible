@@ -8,7 +8,7 @@ const chapter = { verses: [{ n: 16, BSB: 'For God so loved the world.', KJV: 'Fo
 const context = {
   localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
   state: { versions: ['BSB'], mode: 'memorize', memoryPractice: null },
-  showToast: text => notices.push(text), render() {}, switchMode() {},
+  escapeHtml: value => String(value), showToast: text => notices.push(text), render() {}, switchMode() {},
   bibleData: { 'John 3': chapter },
   parsePassageReference: reference => reference.startsWith('John 3:') ? { key: 'John 3' } : null,
   formatReferenceLabel: (key, numbers) => `${key}:${numbers.join(',')}`,
@@ -59,7 +59,10 @@ practice.answers = { 1: 'god!', 3: 'wrong' };
 context.checkMemoryAnswers();
 assert.equal(practice.results[1], true);
 assert.equal(practice.results[3], false);
+assert.equal(practice.results[5], null, 'An empty answer is incomplete rather than incorrect');
 assert.match(practice.feedback, /^1 of 6 missing words correct/);
+assert.match(context.memoryTypingMarkup(context.memoryPassages()[0].text.split(/\s+/), practice), /data-memory-result="incomplete"/);
+assert.match(context.memoryTypingMarkup(context.memoryPassages()[0].text.split(/\s+/), practice), /○ Incomplete/);
 assert.equal(practice.answers[3], 'wrong', 'Checking retains drafts for correction');
 const words = context.memoryPassages()[0].text.split(/\s+/);
 words.forEach((word, index) => { if (context.memoryWordNeedsAnswer(word, index, 'hide')) practice.answers[index] = word.toUpperCase(); });
