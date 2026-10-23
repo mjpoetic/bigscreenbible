@@ -743,6 +743,7 @@ const strongs = {
 
 let searchRequestId = 0;
 let activeSearchScopeMenu = null;
+let selectionTooltipCleanup = null;
 let activeSettingsChoiceMenu = null;
 let settingsPageTransition = "";
 let presentationSettingsPageTransition = "";
@@ -4943,6 +4944,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.9": [
+      "The highlighter toolbar keeps its seven passage actions on one row and removes the redundant Close action; tap outside to dismiss it.",
+      "Narrow screens can scroll the action row sideways while retaining comfortable touch targets and the separate remove-highlight control.",
+      "Every highlighter control has a hover and keyboard-focus tooltip that stays visible outside the toolbar’s scrolling edges.",
+    ],
     "2026.10.23.8": [
       "Narrower desktop headers now use the labeled mode dropdown instead of an icon-only mode bar, matching tablets and phones.",
       "Games hides reading Focus controls, while Reader and Parallel keep their Focus controls and saved reading preference.",
@@ -20588,6 +20594,73 @@ function bottombar() {
   `;
 }
 
+function bindSelectionTooltips() {
+  selectionTooltipCleanup?.();
+  selectionTooltipCleanup = null;
+  const bar = document.querySelector(".selection-bar:not(.selection-bar-exiting)");
+  if (!bar) return;
+  const controller = new AbortController();
+  const signal = controller.signal;
+  let timer = 0;
+  let tooltip = null;
+  let target = null;
+  let previousDescription = null;
+  const hide = () => {
+    clearTimeout(timer);
+    tooltip?.remove();
+    tooltip = null;
+    if (target) {
+      if (previousDescription === null) target.removeAttribute("aria-describedby");
+      else target.setAttribute("aria-describedby", previousDescription);
+    }
+    target = null;
+  };
+  const schedule = (element) => {
+    hide();
+    timer = setTimeout(() => {
+      if (!element.isConnected) return;
+      target = element;
+      previousDescription = element.getAttribute("aria-describedby");
+      tooltip = document.createElement("div");
+      tooltip.id = "selectionToolbarTooltip";
+      tooltip.className = "selection-toolbar-tooltip";
+      tooltip.setAttribute("role", "tooltip");
+      tooltip.textContent = element.dataset.tooltip;
+      const styles = getComputedStyle(element);
+      for (const variable of ["--ink", "--paper", "--line", "--shadow"]) tooltip.style.setProperty(variable, styles.getPropertyValue(variable));
+      document.body.append(tooltip);
+      element.setAttribute("aria-describedby", [previousDescription, tooltip.id].filter(Boolean).join(" "));
+      const rect = element.getBoundingClientRect();
+      const bounds = tooltip.getBoundingClientRect();
+      tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - bounds.width - 8, rect.left + (rect.width - bounds.width) / 2))}px`;
+      const above = rect.top - bounds.height - 9;
+      tooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - bounds.height - 8, above >= 8 ? above : rect.bottom + 9))}px`;
+    }, 1000);
+  };
+  bar.querySelectorAll("[data-tooltip]").forEach((element) => {
+    element.addEventListener("mouseenter", () => { if (window.matchMedia("(hover: hover)").matches) schedule(element); }, { signal });
+    element.addEventListener("mouseleave", hide, { signal });
+    element.addEventListener("focusin", (event) => { if (event.target.matches(":focus-visible")) schedule(element); }, { signal });
+    element.addEventListener("focusout", hide, { signal });
+    element.addEventListener("pointerdown", hide, { signal });
+  });
+  bar.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && tooltip) {
+      event.preventDefault();
+      event.stopPropagation();
+      hide();
+    }
+  }, { signal });
+  window.addEventListener("scroll", () => {
+    const hovered = window.matchMedia("(hover: hover)").matches ? bar.querySelector("[data-tooltip]:hover") : null;
+    const focused = bar.querySelector(":focus-visible")?.closest("[data-tooltip]");
+    hide();
+    if (hovered || focused) schedule(hovered || focused);
+  }, { capture: true, passive: true, signal });
+  window.addEventListener("resize", hide, { signal });
+  selectionTooltipCleanup = () => { hide(); controller.abort(); };
+}
+
 function selectionBar() {
   const count = state.selectedVerses.length;
   if (!count) return "";
@@ -20600,11 +20673,11 @@ function selectionBar() {
       <span class="selection-bar-summary">${count} selected · ${label}</span>
       <div class="selection-bar-controls">
         <div class="highlight-palette" aria-label="Highlight selected verses">
-          ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}"></button>`).join("")}
-          <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" title="Custom highlight color">
+          ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
+          <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
             <input id="customHighlightColor" type="color" value="${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color">
           </label>
-          <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight">${icons.clear}</button>
+          <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight" data-tooltip="Remove highlight">${icons.clear}</button>
         </div>
         <div class="selection-bar-actions">
           <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
@@ -20614,7 +20687,7 @@ function selectionBar() {
           <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
           <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
           <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
-          <button class="text-btn selection-action" id="clearSelection" aria-label="Clear selected verses" data-tooltip="Clear"><span class="selection-action-icon">${icons.clear}</span><span class="selection-action-label">Clear</span></button>
+
         </div>
       </div>
     </div>
@@ -21743,6 +21816,7 @@ function bindSettingsScrollContainment() {
 }
 
 function bindEvents() {
+  bindSelectionTooltips();
   document.querySelector("[data-workspace-settings]")?.addEventListener("click", () => {
     closePortraitNavigation();
     openSettingsFromMobileControls();
@@ -23461,7 +23535,6 @@ function bindEvents() {
   });
   document.getElementById("copySelectionLink")?.addEventListener("click", copySelectedPassageLink);
   document.getElementById("printSelection")?.addEventListener("click", printSelectedPassage);
-  document.getElementById("clearSelection")?.addEventListener("click", clearSelection);
   document.querySelectorAll("[data-highlight-color]").forEach((button) => {
     button.addEventListener("click", () => applyHighlight(button.dataset.highlightColor));
   });
