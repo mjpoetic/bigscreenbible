@@ -25391,7 +25391,7 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
     right: auto !important;
     width: auto;
     max-width: 100%;
-    margin: 0 0 16px;
+    margin: 0 auto 16px;
     transform: none;
     animation: none !important;
   }
