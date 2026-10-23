@@ -15,7 +15,7 @@
       a { color: LinkText; }
       code { overflow-wrap: anywhere; }
     </style>
-    <script src="/assets/theme-catalog.js?v=2026.10.23.22"></script>
+    <script src="/assets/theme-catalog.js?v=2026.10.23.23"></script>
     <script>
       try {
         const appearance = window.BigScreenBibleThemeCatalog?.applyStoredTheme({ migrate: false });
@@ -63,7 +63,7 @@
       function areaPathDestination(href) {
         const source = new URL(href);
         const area = source.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-        const mode = area === "games" ? "trivia" : area === "memorization" ? "memorize" : ["reader", "parallel"].includes(area) ? area : "";
+        const mode = ["verseoftheday", "vod"].includes(area) ? "vod" : area === "games" ? "trivia" : area === "memorization" ? "memorize" : ["reader", "parallel"].includes(area) ? area : "";
         if (!mode) return null;
         const destination = new URL("/", source.origin);
         destination.search = source.search;
@@ -86,7 +86,7 @@
     <main>
       <h1>Open Big Screen Bible</h1>
       <p id="passageLinkStatus">That address could not be opened. Try a passage such as <a href="/Pro3:5-6">Pro3:5-6</a> or <a href="/Proverbs3:5-6/KJV">Proverbs3:5-6/KJV</a>.</p>
-      <p>Open <a href="/reader">Reader</a>, <a href="/parallel">Parallel Study</a>, <a href="/games">Games</a> or <a href="/memorization">Memorization</a>, or <a href="/">go to Big Screen Bible</a>.</p>
+      <p>Open <a href="/reader">Reader</a>, <a href="/parallel">Parallel Study</a>, <a href="/games">Games</a> or <a href="/memorization">Memorization</a>, <a href="/verseoftheday">Verse of the Day</a>, or <a href="/">go to Big Screen Bible</a>.</p>
       <noscript><p>Enable JavaScript to open a passage directly.</p></noscript>
     </main>
 

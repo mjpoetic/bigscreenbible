@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.23": [
+      "Direct Reader and Parallel links now bypass the Verse of the Day startup preference. Open /verseoftheday or /vod to go straight to Verse of the Day instead.",
+    ],
     "2026.10.23.22": [
       "Open Reader or Parallel Study directly with /reader or /parallel. Add either mode to passage links, such as /Pro3:5-6/parallel, to open those verses in your chosen view.",
     ],
@@ -28029,6 +28032,25 @@ async function applyStartupExperience({ updateReload = false } = {}) {
   state.startupApplied = true;
   const sharedRef = sharedReferenceFromUrl();
   const requestedMode = requestedModeFromUrl();
+  if (requestedMode === "vod") {
+    state.mode = "reader";
+    state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
+    state.tutorialIntroVisible = false;
+    const verseOfDay = await resolvedVerseOfDay();
+    if (verseOfDay.reference && setReferenceFromString(verseOfDay.reference)) {
+      state.verseOfDayItem = verseOfDay.item;
+      state.isVerseOfDayActive = true;
+    }
+    state.libraryOpen = false;
+    state.pendingVerseFocus = false;
+    return;
+  }
+  if (requestedMode && !sharedRef) {
+    state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
+    state.tutorialIntroVisible = false;
+  }
   const refreshMode = !updateReload && refreshModeFromSession();
   if (refreshMode && (!requestedMode || requestedMode === refreshMode.mode)) {
     state.mode = refreshMode.mode;
@@ -28066,7 +28088,7 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     state.libraryOpen = false;
     return;
   }
-  if (state.startVerseOfDay) {
+  if (state.startVerseOfDay && !requestedMode) {
     const verseOfDay = await resolvedVerseOfDay();
     if (verseOfDay.reference && setReferenceFromString(verseOfDay.reference)) {
       state.verseOfDayItem = verseOfDay.item;
@@ -28228,6 +28250,7 @@ function requestedModeFromUrl() {
   if (["parallel", "study", "parallel-study"].includes(requestedMode)) return "parallel";
   if (["trivia", "games", "game"].includes(requestedMode)) return "trivia";
   if (requestedMode === "memorize") return "memorize";
+  if (["vod", "verseoftheday"].includes(requestedMode)) return "vod";
   return "";
 }
 

@@ -39,7 +39,7 @@ assert.equal(explicit.searchParams.get('version'),'BSB');
 assert.equal(explicit.searchParams.has('verses'),false);
 console.log('Readable passage path tests passed');
 
-for (const [path, mode] of [['reader', 'reader'], ['parallel', 'parallel'], ['Parallel/', 'parallel'], ['games', 'trivia'], ['memorization', 'memorize'], ['games/', 'trivia'], ['Memorization/', 'memorize']]) {
+for (const [path, mode] of [['verseoftheday', 'vod'], ['vod', 'vod'], ['VOD/', 'vod'], ['reader', 'reader'], ['parallel', 'parallel'], ['Parallel/', 'parallel'], ['games', 'trivia'], ['memorization', 'memorize'], ['games/', 'trivia'], ['Memorization/', 'memorize']]) {
   const result = new URL(context.areaPathDestination(`https://bigscreenbible.com/${path}?mode=reader&view=big&ref=John3:16&reference=Psalm23&verses=1&version=KJV#example`));
   assert.equal(result.origin, 'https://bigscreenbible.com');
   assert.equal(result.pathname, '/');

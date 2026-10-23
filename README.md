@@ -244,7 +244,8 @@ Android uses Firebase Cloud Messaging through Capacitor. See [ANDROID-PUSH-SETUP
 ## Direct area and passage links
 
 Open `/reader`, `/parallel`, `/games`, or `/memorization` on
-`https://bigscreenbible.com` to go straight to that area.
+`https://bigscreenbible.com` to go straight to that area, bypassing the Verse of the Day startup preference.
+Use `/verseoftheday` or `/vod` to open Verse of the Day directly.
 Passage links support Reader and Parallel Study, for example
 `/Pro3:5-6/reader` and `/Pro3:5-6/parallel`.
 Mode prefixes also work (`/parallel/Pro3:5-6`), and a translation can be
