@@ -53,3 +53,24 @@ context.centerOpenBibleMenus = undefined;
 vm.runInContext(extract('centerOpenBibleMenus'), context);
 context.centerOpenBibleMenus();
 assert.equal(menu.scrollTop, 378, 'The logo version menu also centers its current selection');
+
+// The library verse trigger is only about 60px wide. The floating menu needs
+// extra room for padding, its label, and the selection checkmark.
+vm.runInContext(extract('positionSettingsChoiceMenu'), context);
+context.window = { innerWidth: 396, innerHeight: 800 };
+const narrowTrigger = {
+  getBoundingClientRect: () => ({ width: 60, left: 311, top: 54, bottom: 90 }),
+  closest: () => null,
+};
+const narrowMenu = {
+  style: {},
+  getBoundingClientRect: () => ({ height: 300 }),
+  classList: { toggle() {} },
+};
+context.positionSettingsChoiceMenu(narrowTrigger, narrowMenu);
+assert.equal(narrowMenu.style.width, '112px', 'Narrow verse dropdowns reserve space for visible numbers');
+assert.equal(narrowMenu.style.left, '276px', 'Expanded dropdown stays inside the viewport');
+context.window.innerWidth = 100;
+context.positionSettingsChoiceMenu(narrowTrigger, narrowMenu);
+assert.equal(narrowMenu.style.width, '84px', 'Minimum width still respects the viewport');
+console.log('Narrow verse dropdown sizing checks passed');

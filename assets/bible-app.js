@@ -3995,7 +3995,7 @@ function positionSettingsChoiceMenu(trigger, menu, wide = false) {
   const bounds = trigger.getBoundingClientRect();
   const preferredWidth = wide ? Math.max(bounds.width, 310)
     : trigger.closest(".focus-reading-controls") ? Math.max(bounds.width, 144)
-      : trigger.closest(".focus-mini-verse-picker") ? Math.max(bounds.width, 112) : bounds.width;
+      : Math.max(bounds.width, 112);
   const width = Math.min(preferredWidth, window.innerWidth - (viewportPadding * 2));
   menu.style.width = `${width}px`;
   menu.style.maxHeight = `${Math.max(120, window.innerHeight - (viewportPadding * 2))}px`;
@@ -4943,6 +4943,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.6": [
+      "Fixed blank verse numbers in Reader’s passage dropdown by giving narrow menus enough room for their labels.",
+    ],
     "2026.10.23.5": [
       "The five view-mode buttons stay in one tidy row on wide screens, including Focus Mode.",
       "Desktop navigation switches to compact glyphs before labels crowd the search and account controls; phone and tablet mode menus keep their labeled rows.",
