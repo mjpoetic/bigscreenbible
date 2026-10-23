@@ -26,7 +26,7 @@ vm.runInContext(`
   globalThis.durationFor = modeTransitionSoundDuration;
 `, durationContext);
 
-for (const mode of ["reader", "parallel", "big", "trivia"]) {
+for (const mode of ["reader", "parallel", "big", "trivia", "memorize"]) {
   const duration = durationContext.durationFor(mode);
   assert.ok(duration > 0 && duration <= 0.3, `${mode} cue must stay at or below 300 ms`);
 }
@@ -110,4 +110,27 @@ assert.match(persistSource, /lw_mode_transition_volume/);
 assert.match(styles, /\.presentation-settings-popover \.presentation-setting-checkbox \{/);
 assert.match(styles, /accent-color: var\(--presentation-accent\)/);
 
+const cues = [];
+const cueContext = {
+  state: { modeTransitionSounds: true, modeTransitionVolume: 50 },
+  modeTransitionSoundDuration: durationContext.durationFor,
+  modeTransitionVolumeScalar: volumeContext.modeVolumeScalar,
+  playModeTone: (context, options) => cues.push(options),
+  playModePaperSweep() {},
+};
+vm.createContext(cueContext);
+vm.runInContext(readySoundSource, cueContext);
+cueContext.playReadyModeTransitionSound({ state: "running", currentTime: 1 }, "memorize");
+assert.equal(cues.length, 3, "Memorize has a distinct three-note cue");
+assert.deepEqual(cues.map(cue => cue.startFrequency), [659.25, 830.61, 987.77]);
+assert.ok(cues.every(cue => cue.type === "sine" && cue.volume === 10));
+assert.ok(cues.at(-1).startAt + cues.at(-1).duration <= 1.006 + durationContext.durationFor("memorize") + 0.001);
+cues.length = 0;
+cueContext.state.modeTransitionSounds = false;
+cueContext.playReadyModeTransitionSound({ state: "running", currentTime: 1 }, "memorize");
+assert.equal(cues.length, 0, "Disabled transition sounds stay silent");
+cueContext.state.modeTransitionSounds = true;
+cueContext.state.modeTransitionVolume = 0;
+cueContext.playReadyModeTransitionSound({ state: "running", currentTime: 1 }, "memorize");
+assert.equal(cues.length, 0, "Muted transition sounds stay silent");
 console.log("Mode transition sound tests passed");

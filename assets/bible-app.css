@@ -26669,3 +26669,14 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .app-shell.memorize-shell .memory-workspace { margin: 0 auto; }
 .memory-word-bank button { max-width: 100%; overflow-wrap: anywhere; }
 .memorize-shell #focusToggle, .memorize-shell .mobile-mode-focus { display: none; }
+
+.memory-word-field { display: inline-flex; flex-direction: column; vertical-align: middle; max-width: 100%; margin: 5px 3px; }
+.memory-word-field input { width: var(--memory-word-width, 8ch); max-width: 100%; min-height: 44px; padding: 6px 9px; border: 1px solid var(--line); border-bottom: 2px solid var(--teal); border-radius: 8px; background: var(--panel); color: var(--ink); font-family: inherit; font-size: max(16px, .85em); line-height: 1.4; }
+.memory-word-field input::placeholder { color: var(--muted); opacity: 1; }
+.memory-word-field input:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.memory-word-field[data-memory-result="correct"] input { border-color: var(--success); }
+.memory-word-field[data-memory-result="retry"] input { border-color: var(--red-letter); }
+.memory-word-result { font: 600 12px/1.6 var(--ui-font, sans-serif); color: var(--ink); }
+.memory-typing-passage { line-height: 2.5; }
+.memorize-shell > .main-grid.memorize-grid { transition: none; }
+.memory-typing-passage input { scroll-margin-block: 24px; }
