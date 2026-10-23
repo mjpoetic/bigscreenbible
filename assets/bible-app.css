@@ -16400,7 +16400,7 @@ svg {
 
   .mode-tabs {
     flex: 0 0 auto;
-    grid-template-columns: 112px 142px 128px 108px;
+    grid-template-columns: repeat(5, max-content);
     margin-left: 0;
   }
 
@@ -17631,7 +17631,7 @@ svg {
     grid-column: 1 / 7;
     width: 100%;
     min-width: 0;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 
   .mode-tabs button {
@@ -26651,7 +26651,22 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-heading small { font-size: .8em; font-weight: normal; }
 @media (max-width: 520px) { .memory-actions > button { flex: 1 1 140px; } .memory-stages > button { flex: 1 1 100px; } }
 
-@media (min-width: 1321px) and (max-width: 1460px) { .topbar .mode-label { display: none; } }
+/* Desktop mode navigation stays on one row, including future mode additions.
+   Compact glyphs leave breathing room for search before labels can fit. */
+@media (min-width: 1321px) {
+  .app-shell .topbar .mode-tabs {
+    display: grid;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    width: max-content;
+  }
+  .app-shell .topbar .mode-tabs button { white-space: nowrap; }
+}
+@media (min-width: 1321px) and (max-width: 1759px) {
+  .app-shell .topbar .mode-tabs { grid-auto-columns: 46px; }
+  .topbar .mode-label { display: none; }
+}
 .memory-eyebrow { display: inline-flex; align-items: center; gap: 10px; color: var(--teal); }
 .memory-mark { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--teal) 10%, var(--panel)); }
 .memory-mark svg { width: 24px; height: 24px; }

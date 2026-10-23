@@ -4943,6 +4943,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.5": [
+      "The five view-mode buttons stay in one tidy row on wide screens, including Focus Mode.",
+      "Desktop navigation switches to compact glyphs before labels crowd the search and account controls; phone and tablet mode menus keep their labeled rows.",
+    ],
     "2026.10.23.4": [
       "Type and check missing words in Memorize’s Hide words and First letters practice, with feedback, corrections, and retained answers when revealing the passage.",
       "Memorize now has a distinct three-note transition sound that follows your existing sound and volume preferences.",
