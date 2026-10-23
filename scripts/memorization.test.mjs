@@ -34,7 +34,12 @@ const id = context.memoryPassages()[0].id;
 context.startMemoryPractice(id, 'order');
 assert.equal(new Set(context.state.memoryPractice.order).size, 13, 'Word bank retains every token including duplicates');
 assert.equal(context.memoryWordHint('world,', 1, 'letters'), 'w＿＿＿＿,');
-assert.equal(context.memoryWordHint('God', 0, 'hide'), 'God');
+assert.equal(context.memoryWordHint('God', 0, 'hide'), '＿＿＿');
+for (const word of ['the', 'of', 'and', 'unto', 'not', 'His']) assert.equal(context.memoryWordNeedsAnswer(word, 1, 'hide'), false);
+for (const word of ['eternal', 'life', 'love', 'faith', 'God', 'shepherd', 'strength']) {
+  assert.equal(context.memoryWordNeedsAnswer(word, 0, 'hide'), true);
+  assert.equal(context.memoryWordNeedsAnswer(word, 1, 'hide'), true);
+}
 assert.equal(context.memoryWordHint('God', 1, 'hide'), '＿＿＿');
 for (let i = 0; i < 8; i++) context.reviewMemoryPassage(id, true);
 assert.equal(context.memoryPassages()[0].interval, 30);

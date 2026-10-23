@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.19": [
+      "Memorize has clearer helper text, glass controls, selected practice methods, and answer fields. Hide words now targets meaningful words and phrases while keeping grammatical clues visible."
+    ],
     "2026.10.23.18": [
       "Open Games directly at bigscreenbible.com/games or Memorization at bigscreenbible.com/memorization.",
     ],
@@ -9049,7 +9052,7 @@ function startMemoryPractice(id, stage = "read") {
 }
 
 function memoryWordHint(word, index, stage) {
-  if (stage === "hide" && index % 2 === 0) return word;
+  if (stage === "hide" && !memoryWordNeedsAnswer(word, index, stage)) return word;
   return word.replace(/[\p{L}\p{N}]+/gu, (part) => stage === "letters" ? Array.from(part)[0] + "＿".repeat(Math.min(Array.from(part).length - 1, 8)) : "＿".repeat(Math.min(Array.from(part).length, 9)));
 }
 
@@ -9058,7 +9061,13 @@ function normalizeMemoryAnswer(value) {
 }
 
 function memoryWordNeedsAnswer(word, index, stage) {
-  return Boolean(normalizeMemoryAnswer(word)) && (stage === "letters" || stage === "hide" && index % 2 !== 0);
+  const normalized = normalizeMemoryAnswer(word);
+  if (!normalized) return false;
+  if (stage === "letters") return true;
+  if (stage !== "hide") return false;
+  // Keep grammatical scaffolding and negation visible; recall the passage's content.
+  const scaffolding = new Set("a an the and or but for nor so yet as at by in into of on onto to from with without through over under above below before after between among about against upon unto out up down off than then that which who whom whose this these those there here it its he him his she her hers they them their theirs we us our ours i me my mine you your yours itself himself herself themselves ourselves yourselves is am are was were be been being do does did have has had having shall should will would can could may might must not no neither never if when while where whether though although because until unless all any each every both either such some even also very again now therefore thus o ye thee thou thy thine hath hast doth dost art shalt wilt unto".split(" "));
+  return !scaffolding.has(normalized);
 }
 
 function memoryTypingMarkup(words, practice) {
@@ -9117,7 +9126,7 @@ function memorizationView() {
     <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
     ${item ? `<article class="memory-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
       <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
-      <p class="memory-help">${practice.stage === "order" ? "Tap the words in order. Tap your last word to undo it." : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Type the missing words, then check your answers. Capitalization and punctuation do not affect your results."}</p>
+      <p class="memory-help">${practice.stage === "order" ? "Tap the words in order. Tap your last word to undo it." : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Type the missing words, then check your answers. Hide words focuses on meaningful words and phrases. Capitalization and punctuation do not affect your results."}</p>
       ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-answer" aria-label="Your word order"><button class="text-btn" data-memory-undo ${!practice.chosen.length ? "disabled" : ""}>${escapeHtml(practice.chosen.map((index) => words[index]).join(" ") || "Your words will appear here")}</button></div><div class="memory-word-bank">${practice.order.filter((index) => !practice.chosen.includes(index)).map((index) => `<button class="ghost-btn" data-memory-word="${index}">${escapeHtml(words[index])}</button>`).join("")}</div><button class="primary-btn" data-memory-check ${practice.chosen.length !== words.length ? "disabled" : ""}>Check word order</button>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
       <p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>
       <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
