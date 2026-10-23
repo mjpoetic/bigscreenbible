@@ -280,3 +280,59 @@ for (const [current, expected] of [["0.25", 0.5], ["0.5", 1], ["1", 1.5], ["1.35
   speedContext.state.autoScrollSpeed = current;
   assert.equal(speedContext.nextSpeed(), expected, `Cycle from ${current}`);
 }
+
+{
+// Holding cycles repeatedly, while release suppresses the native popover click.
+const holdHandlers = new Map();
+const holdTimers = new Map();
+let holdTimerId = 0;
+let advances = 0;
+const holdButton = {
+  isConnected: true,
+  addEventListener(type, handler) { holdHandlers.set(type, handler); },
+};
+const speedHoldContext = {
+  document: { visibilityState: "visible" },
+  setTimeout(callback, delay) { const id = ++holdTimerId; holdTimers.set(id, { callback, delay }); return id; },
+  clearTimeout(id) { holdTimers.delete(id); },
+};
+vm.createContext(speedHoldContext);
+vm.runInContext(`${extractFunction("bindReaderAutoScrollSpeedHold")}\nglobalThis.bind = bindReaderAutoScrollSpeedHold;`, speedHoldContext);
+speedHoldContext.bind(holdButton, () => advances++);
+const fire = (type, extra = {}) => {
+  const event = { prevented: false, preventDefault() { this.prevented = true; }, ...extra };
+  holdHandlers.get(type)(event);
+  return event;
+};
+const tick = (delay) => {
+  const [id, timer] = [...holdTimers].find(([, timer]) => timer.delay === delay);
+  holdTimers.delete(id);
+  timer.callback();
+};
+fire("pointerdown", { button: 0 });
+fire("pointerup");
+assert.equal(advances, 0);
+assert.equal(fire("click").prevented, false, "Quick click opens slider normally");
+fire("pointerdown", { button: 0 });
+tick(500);
+tick(650);
+assert.equal(advances, 2, "Hold keeps advancing");
+assert.equal(fire("contextmenu").prevented, true);
+fire("pointerup");
+assert.equal(holdTimers.size, 0);
+assert.equal(fire("click").prevented, true, "Release does not open slider");
+for (const type of ["pointercancel", "pointerleave", "lostpointercapture", "blur"]) {
+  fire("pointerdown", { button: 0 });
+  fire(type);
+  assert.equal(holdTimers.size, 0, `${type} stops holding`);
+}
+fire("pointerdown", { button: 2 });
+assert.equal(holdTimers.size, 0, "Secondary click never cycles");
+fire("pointerdown", { button: 0 });
+holdButton.isConnected = false;
+tick(500);
+assert.equal(holdTimers.size, 0, "Rerender stops stale timers");
+assert.equal(advances, 2);
+console.log("Speed hold: quick click, repeat, release suppression, cancellation, and rerender passed.");
+
+}

@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.13": [
+      "Hold the auto-scroll speed button to repeatedly cycle through 0.5× intervals without opening the slider; release to keep the speed. A normal click still opens the slider.",
+    ],
     "2026.10.23.12": [
       "Double-click the auto-scroll speed button to cycle through half-speed intervals, wrapping from 3× to 0.5×. Single-click still opens the slider.",
     ],
@@ -9415,18 +9418,54 @@ function nextReaderAutoScrollSpeed() {
   return next > 3 ? 0.5 : next;
 }
 
+function bindReaderAutoScrollSpeedHold(button, advance) {
+  if (!button) return;
+  let timer = null;
+  let consumed = false;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+  };
+  const step = () => {
+    timer = null;
+    if (!button.isConnected || document.visibilityState !== "visible") return;
+    consumed = true;
+    advance();
+    timer = setTimeout(step, 650);
+  };
+  button.addEventListener("pointerdown", (event) => {
+    if (event.isPrimary === false || (event.button !== undefined && event.button !== 0)) return;
+    cancel();
+    consumed = false;
+    timer = setTimeout(step, 500);
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave", "lostpointercapture", "blur"]) {
+    button.addEventListener(type, cancel);
+  }
+  button.addEventListener("contextmenu", (event) => {
+    if (timer !== null || consumed) event.preventDefault();
+  });
+  button.addEventListener("keydown", (event) => {
+    if (["Enter", " "].includes(event.key)) { cancel(); consumed = false; }
+  });
+  button.addEventListener("click", (event) => {
+    cancel();
+    if (consumed) {
+      event.preventDefault();
+      consumed = false;
+    }
+  });
+}
+
 function bindReaderAutoScrollSpeed() {
   const slider = document.getElementById("readerScrollSpeed");
   const popover = document.getElementById("readerScrollSpeedPopover");
   const speedButton = document.querySelector(".scroll-speed-toggle");
-  speedButton?.addEventListener("dblclick", (event) => {
-    event.preventDefault();
+  bindReaderAutoScrollSpeedHold(speedButton, () => {
     const next = nextReaderAutoScrollSpeed();
     setReaderAutoScrollSpeed(String(next), { live: true });
     slider.value = String(next);
     slider.setAttribute("aria-valuetext", readerAutoScrollSpeedLabel());
-    if (popover.matches(":popover-open")) popover.hidePopover();
-    speedButton.focus({ preventScroll: true });
   });
   popover?.addEventListener("toggle", () => {
     if (!popover.matches(":popover-open")) return;

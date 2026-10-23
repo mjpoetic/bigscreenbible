@@ -26823,3 +26823,9 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .app-shell.footer-collapsed .scroll-speed-control.beside-auto-scroll { bottom: calc(14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); }
 }
 @media print { .scroll-speed-control { display: none !important; } }
+.scroll-speed-toggle {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
