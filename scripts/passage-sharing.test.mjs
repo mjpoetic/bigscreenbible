@@ -220,6 +220,19 @@ assert.equal(landing.state.sharedPassage, null);
 assert.equal(landing.state.verse, 16);
 assert.equal(landing.state.pendingVerseFocus, true);
 assert.equal(landing.state.versions[0], 'NASB2020', 'Full context keeps the requested version');
+for (const mode of ['reader', 'parallel']) {
+  landing.state.startupApplied = false;
+  landing.requestedModeFromUrl = () => mode;
+  await landing.applyStartupExperience();
+  assert.equal(landing.state.mode, mode, 'Explicit reading mode is honored for a passage');
+  assert.equal(landing.state.pendingVerseFocus, mode === 'parallel');
+  if (mode === 'parallel') {
+    assert.equal(landing.state.sharedPassage, null, 'Parallel opens the chapter comparison');
+    assert.deepEqual([...landing.state.selectedVerses], [16,17]);
+  } else {
+    assert.deepEqual([...landing.state.sharedPassage.verses], [16,17]);
+  }
+}
 landing.currentChapter = () => ({ verses: [{n:16, BSB:'Fallback'}, {n:17, BSB:'Fallback', NASB2020:'Partial'}] });
 await landing.applySharedVersionFromUrl([16,17]);
 assert.equal(landing.state.versions[0], 'BSB', 'Incomplete provider text must fall back to BSB');

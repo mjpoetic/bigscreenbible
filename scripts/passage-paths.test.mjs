@@ -39,7 +39,7 @@ assert.equal(explicit.searchParams.get('version'),'BSB');
 assert.equal(explicit.searchParams.has('verses'),false);
 console.log('Readable passage path tests passed');
 
-for (const [path, mode] of [['games', 'trivia'], ['memorization', 'memorize'], ['games/', 'trivia'], ['Memorization/', 'memorize']]) {
+for (const [path, mode] of [['reader', 'reader'], ['parallel', 'parallel'], ['Parallel/', 'parallel'], ['games', 'trivia'], ['memorization', 'memorize'], ['games/', 'trivia'], ['Memorization/', 'memorize']]) {
   const result = new URL(context.areaPathDestination(`https://bigscreenbible.com/${path}?mode=reader&view=big&ref=John3:16&reference=Psalm23&verses=1&version=KJV#example`));
   assert.equal(result.origin, 'https://bigscreenbible.com');
   assert.equal(result.pathname, '/');
@@ -56,3 +56,14 @@ for (const path of ['games/missing', 'memorization/missing', 'unknown', 'toStrin
   assert.equal(context.areaPathDestination(`https://bigscreenbible.com/${path}`), null);
 }
 console.log('Direct area path tests passed');
+
+for (const mode of ['reader', 'parallel']) {
+  for (const path of [`Pro3:5-6/${mode}`, `${mode}/Pro3:5-6`, `Pro3:5-6/KJV/${mode}/`, `${mode}/Pro3:5-6/KJV`]) {
+    const result = new URL(context.passagePathDestination(`https://bigscreenbible.com/${path}?mode=big&view=games`));
+    assert.equal(result.searchParams.get('ref'), 'Pro 3:5-6');
+    assert.equal(result.searchParams.get('mode'), mode);
+    assert.equal(result.searchParams.has('view'), false);
+    assert.equal(result.searchParams.get('version'), path.includes('KJV') ? 'KJV' : null);
+  }
+}
+console.log('Reader and parallel passage paths passed');

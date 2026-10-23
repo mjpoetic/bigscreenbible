@@ -240,3 +240,13 @@ then `adb shell pm get-app-links com.bigscreenbible.app`; the domain must report
 ### Native Android push notifications
 
 Android uses Firebase Cloud Messaging through Capacitor. See [ANDROID-PUSH-SETUP.md](ANDROID-PUSH-SETUP.md) for Firebase setup, server deployment, release build requirements, and physical-device verification.
+
+## Direct area and passage links
+
+Open `/reader`, `/parallel`, `/games`, or `/memorization` on
+`https://bigscreenbible.com` to go straight to that area.
+Passage links support Reader and Parallel Study, for example
+`/Pro3:5-6/reader` and `/Pro3:5-6/parallel`.
+Mode prefixes also work (`/parallel/Pro3:5-6`), and a translation can be
+included before the mode suffix (`/Pro3:5-6/KJV/parallel`).
+Links without a mode keep the existing focused Reader passage view.

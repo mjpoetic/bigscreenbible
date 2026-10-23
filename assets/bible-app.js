@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.22": [
+      "Open Reader or Parallel Study directly with /reader or /parallel. Add either mode to passage links, such as /Pro3:5-6/parallel, to open those verses in your chosen view.",
+    ],
     "2026.10.23.21": [
       "Missing words now give live feedback, recognize small spelling slips with a Close cue, offer progressive hints, and size answer fields to fit their text."
     ],
@@ -28056,9 +28059,10 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     const parsed = parsePassageReference(sharedRef);
     const verses = selected.length ? selected : sharedRef.includes(":") ? parsed.verses : currentChapter().verses.map((verse) => verse.n);
     await applySharedVersionFromUrl(verses);
-    state.sharedPassage = { verses };
-    state.mode = "reader";
-    state.pendingVerseFocus = false;
+    state.mode = requestedMode === "parallel" ? "parallel" : "reader";
+    state.sharedPassage = state.mode === "parallel" ? null : { verses };
+    if (state.mode === "parallel") state.selectedVerses = verses;
+    state.pendingVerseFocus = state.mode === "parallel";
     state.libraryOpen = false;
     return;
   }

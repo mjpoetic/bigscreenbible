@@ -35,8 +35,14 @@ for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
   context.applySharedVersionFromUrl = async () => {};
   await context.applyStartupExperience();
   assert.equal(context.state.reference, 'Psalm 23:1');
-  assert.equal(context.state.mode, 'reader');
-  assert.deepEqual([...context.state.sharedPassage.verses], [1]);
+  assert.equal(context.state.mode, mode === 'parallel' ? 'parallel' : 'reader');
+  if (mode === 'parallel') {
+    assert.equal(context.state.sharedPassage, null);
+    assert.deepEqual([...context.state.selectedVerses], [1]);
+    assert.equal(context.state.pendingVerseFocus, true);
+  } else {
+    assert.deepEqual([...context.state.sharedPassage.verses], [1]);
+  }
   context.window.location.search = '';
   saved = '{bad';
   context.window.performance.getEntriesByType = () => [{ type: 'reload' }];

@@ -15,7 +15,7 @@
       a { color: LinkText; }
       code { overflow-wrap: anywhere; }
     </style>
-    <script src="/assets/theme-catalog.js?v=2026.10.23.21"></script>
+    <script src="/assets/theme-catalog.js?v=2026.10.23.22"></script>
     <script>
       try {
         const appearance = window.BigScreenBibleThemeCatalog?.applyStoredTheme({ migrate: false });
@@ -31,7 +31,14 @@
         const source = new URL(href);
         let passage;
         try { passage = decodeURIComponent(source.pathname); } catch { return null; }
-        passage = passage.replace(/^\/+|\/+$/g, "").replace(/\+/g, " ")
+        passage = passage.replace(/^\/+|\/+$/g, "");
+        // Accept both /Pro3:5-6/parallel and /parallel/Pro3:5-6.
+        const modeSuffix = passage.match(/\/(reader|parallel)$/i);
+        const modePrefix = passage.match(/^(reader|parallel)\//i);
+        const mode = (modeSuffix?.[1] || modePrefix?.[1] || "").toLowerCase();
+        if (modeSuffix) passage = passage.slice(0, modeSuffix.index);
+        if (modePrefix) passage = passage.slice(modePrefix[0].length);
+        passage = passage.replace(/\+/g, " ")
           .replace(/[–—]/g, "-").replace(/\s+to\s+/gi, "-")
           .replace(/\s+chapter\s*/gi, " ").trim();
         if (passage.length > 180) return null;
@@ -42,6 +49,10 @@
         // Preserve explicit query options; the path supplies the passage itself.
         destination.search = source.search;
         destination.searchParams.set("ref", reference);
+        if (mode) {
+          destination.searchParams.set("mode", mode);
+          destination.searchParams.delete("view");
+        }
         destination.searchParams.delete("reference");
         destination.searchParams.delete("verses");
         if (match[4] && !destination.searchParams.has("version") && !destination.searchParams.has("translation")) {
@@ -52,7 +63,7 @@
       function areaPathDestination(href) {
         const source = new URL(href);
         const area = source.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-        const mode = area === "games" ? "trivia" : area === "memorization" ? "memorize" : "";
+        const mode = area === "games" ? "trivia" : area === "memorization" ? "memorize" : ["reader", "parallel"].includes(area) ? area : "";
         if (!mode) return null;
         const destination = new URL("/", source.origin);
         destination.search = source.search;
@@ -75,7 +86,7 @@
     <main>
       <h1>Open Big Screen Bible</h1>
       <p id="passageLinkStatus">That address could not be opened. Try a passage such as <a href="/Pro3:5-6">Pro3:5-6</a> or <a href="/Proverbs3:5-6/KJV">Proverbs3:5-6/KJV</a>.</p>
-      <p>Open <a href="/games">Games</a> or <a href="/memorization">Memorization</a>, or <a href="/">go to Big Screen Bible</a>.</p>
+      <p>Open <a href="/reader">Reader</a>, <a href="/parallel">Parallel Study</a>, <a href="/games">Games</a> or <a href="/memorization">Memorization</a>, or <a href="/">go to Big Screen Bible</a>.</p>
       <noscript><p>Enable JavaScript to open a passage directly.</p></noscript>
     </main>
 
