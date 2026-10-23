@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Open a passage · Big Screen Bible</title>
+    <title>Open Big Screen Bible</title>
     <style>
       html { color-scheme: light dark; background: var(--redirect-bg, Canvas); color: CanvasText; }
       html[data-theme="light"] { color-scheme: light; }
@@ -15,7 +15,7 @@
       a { color: LinkText; }
       code { overflow-wrap: anywhere; }
     </style>
-    <script src="/assets/theme-catalog.js?v=2026.10.23.17"></script>
+    <script src="/assets/theme-catalog.js?v=2026.10.23.18"></script>
     <script>
       try {
         const appearance = window.BigScreenBibleThemeCatalog?.applyStoredTheme({ migrate: false });
@@ -25,7 +25,7 @@
         }
       } catch { /* System colors still work when storage is unavailable. */ }
 
-      // GitHub Pages serves this file for direct, human-readable passage paths.
+      // GitHub Pages serves this file for direct area and passage paths.
       // Always redirect to our own root so relative app assets resolve correctly.
       function passagePathDestination(href) {
         const source = new URL(href);
@@ -49,7 +49,22 @@
         }
         return destination.href;
       }
-      const passageDestination = passagePathDestination(window.location.href);
+      function areaPathDestination(href) {
+        const source = new URL(href);
+        const area = source.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
+        const mode = area === "games" ? "trivia" : area === "memorization" ? "memorize" : "";
+        if (!mode) return null;
+        const destination = new URL("/", source.origin);
+        destination.search = source.search;
+        destination.hash = source.hash;
+        destination.searchParams.set("mode", mode);
+        destination.searchParams.delete("view");
+        // Shared-passage parameters otherwise take precedence over the area.
+        for (const key of ["ref", "reference", "verses"]) destination.searchParams.delete(key);
+        return destination.href;
+      }
+      const passageDestination = areaPathDestination(window.location.href)
+        || passagePathDestination(window.location.href);
       if (passageDestination) {
         document.documentElement.classList.add("passage-redirecting");
         window.location.replace(passageDestination);
@@ -58,9 +73,9 @@
   </head>
   <body>
     <main>
-      <h1>Open a Bible passage</h1>
+      <h1>Open Big Screen Bible</h1>
       <p id="passageLinkStatus">That address could not be opened. Try a passage such as <a href="/Pro3:5-6">Pro3:5-6</a> or <a href="/Proverbs3:5-6/KJV">Proverbs3:5-6/KJV</a>.</p>
-      <p><a href="/">Go to Big Screen Bible</a></p>
+      <p>Open <a href="/games">Games</a> or <a href="/memorization">Memorization</a>, or <a href="/">go to Big Screen Bible</a>.</p>
       <noscript><p>Enable JavaScript to open a passage directly.</p></noscript>
     </main>
 

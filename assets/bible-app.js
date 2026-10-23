@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.18": [
+      "Open Games directly at bigscreenbible.com/games or Memorization at bigscreenbible.com/memorization.",
+    ],
     "2026.10.23.17": [
       "Memorize’s next-due review action now sits with the due-for-review count, keeping review status and its action together on every screen size."
     ],

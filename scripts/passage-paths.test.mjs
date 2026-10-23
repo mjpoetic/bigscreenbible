@@ -38,3 +38,21 @@ const explicit = new URL(context.passagePathDestination('https://bigscreenbible.
 assert.equal(explicit.searchParams.get('version'),'BSB');
 assert.equal(explicit.searchParams.has('verses'),false);
 console.log('Readable passage path tests passed');
+
+for (const [path, mode] of [['games', 'trivia'], ['memorization', 'memorize'], ['games/', 'trivia'], ['Memorization/', 'memorize']]) {
+  const result = new URL(context.areaPathDestination(`https://bigscreenbible.com/${path}?mode=reader&view=big&ref=John3:16&reference=Psalm23&verses=1&version=KJV#example`));
+  assert.equal(result.origin, 'https://bigscreenbible.com');
+  assert.equal(result.pathname, '/');
+  assert.equal(result.searchParams.get('mode'), mode);
+  assert.equal(result.searchParams.get('version'), 'KJV');
+  assert.equal(result.hash, '#example');
+  for (const key of ['view', 'ref', 'reference', 'verses']) assert.equal(result.searchParams.has(key), false);
+  context.window.location.href = `https://bigscreenbible.com/${path}`;
+  redirected = null;
+  vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('const passageDestination =', 'var passageDestination ='), vm.createContext({ URL, window: context.window, document: context.document }));
+  assert.equal(new URL(redirected).searchParams.get('mode'), mode);
+}
+for (const path of ['games/missing', 'memorization/missing', 'unknown', 'toString', '__proto__']) {
+  assert.equal(context.areaPathDestination(`https://bigscreenbible.com/${path}`), null);
+}
+console.log('Direct area path tests passed');
