@@ -82,3 +82,11 @@ context.localStorage.setItem = () => { throw new Error('Quota'); };
 assert.equal(context.saveMemoryPassages([]), false);
 assert.match(notices.at(-1), /Could not save/);
 console.log('Memorization passage, translation, hints, review scheduling, and storage tests passed');
+
+assert.equal(context.memoryAnswerResult('wrold', 'world'), 'close');
+assert.equal(context.memoryAnswerResult('belives', 'believes'), 'close');
+assert.equal(context.memoryAnswerResult('word', 'world'), false, 'Short different words are not accepted as typos');
+assert.equal(context.memoryAnswerResult('God', 'Son'), false);
+assert.equal(context.memoryAnswerResult(' ', 'world'), null);
+assert.equal(context.memoryAnswerResult('WORLD!', 'world'), true);
+assert.equal(context.memoryAnswerResult('wrong', 'world'), false);

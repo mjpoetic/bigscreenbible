@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.21": [
+      "Missing words now give live feedback, recognize small spelling slips with a Close cue, offer progressive hints, and size answer fields to fit their text."
+    ],
     "2026.10.23.20": [
       "Missing-word answers now have vivid green, red, and amber outlines and halos. Empty answers show Incomplete instead of Try again."
     ],
@@ -9063,6 +9066,30 @@ function normalizeMemoryAnswer(value) {
   return String(value || "").normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
+// A close spelling is acknowledged separately from exact recall.
+function memoryAnswerResult(answer, expected) {
+  const actual = normalizeMemoryAnswer(answer);
+  const target = normalizeMemoryAnswer(expected);
+  if (!actual) return null;
+  if (actual === target) return true;
+  if (Math.min(actual.length, target.length) < 5 || Math.abs(actual.length - target.length) > 1) return false;
+  if (actual.length === target.length) {
+    const differences = [...target].map((letter, index) => letter !== actual[index] ? index : -1).filter(index => index >= 0);
+    if (differences.length === 1 || differences.length === 2 && differences[1] === differences[0] + 1 && actual[differences[0]] === target[differences[1]] && actual[differences[1]] === target[differences[0]]) return "close";
+    return false;
+  }
+  const longer = actual.length > target.length ? actual : target;
+  const shorter = actual.length > target.length ? target : actual;
+  for (let index = 0; index < longer.length; index += 1) {
+    if (longer.slice(0, index) + longer.slice(index + 1) === shorter) return "close";
+  }
+  return false;
+}
+
+function memoryResultLabel(result, word) {
+  return result === null ? "○ Incomplete" : result === "close" ? `≈ Close · ${word}` : result ? "✓ Correct" : "× Try again";
+}
+
 function memoryWordNeedsAnswer(word, index, stage) {
   const normalized = normalizeMemoryAnswer(word);
   if (!normalized) return false;
@@ -9078,13 +9105,13 @@ function memoryTypingMarkup(words, practice) {
   return `<form data-memory-typing><div class="memory-scripture memory-typing-passage">${words.map((word, index) => {
     if (!memoryWordNeedsAnswer(word, index, practice.stage)) return escapeHtml(word);
     const result = practice.results?.[index];
-    const resultState = result === null ? "incomplete" : result ? "correct" : "retry";
+    const resultState = result === null ? "incomplete" : result === "close" ? "close" : result ? "correct" : "retry";
     const hint = practice.stage === "letters" ? Array.from(word).find((letter) => /[\p{L}\p{N}]/u.test(letter)) : "";
     return `<span class="memory-word-field" ${result === undefined ? "" : `data-memory-result="${resultState}"`}>
       <input type="text" data-memory-input="${index}" value="${escapeHtml(practice.answers?.[index] || "")}" aria-label="Missing word ${index + 1}${hint ? `, starts with ${escapeHtml(hint)}` : ""}" ${result === false ? 'aria-invalid="true"' : ""} ${result === undefined ? "" : `aria-describedby="memoryWordResult${index}"`} placeholder="${hint ? `${escapeHtml(hint)}…` : "…"}" style="--memory-word-width: ${Math.min(16, Math.max(6, Array.from(word).length + 1))}ch" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="${index === lastMissingIndex ? "done" : "next"}">
-      ${result === undefined ? "" : `<span class="memory-word-result" id="memoryWordResult${index}">${result === null ? "○ Incomplete" : result ? "✓ Correct" : "× Try again"}</span>`}
+      ${result === undefined ? "" : `<span class="memory-word-result" id="memoryWordResult${index}">${escapeHtml(memoryResultLabel(result, word))}</span>`}
     </span>`;
-  }).join(" ")}</div><button class="primary-btn" type="submit" data-memory-check-typing>Check missing words</button></form>`;
+  }).join(" ")}</div><div class="memory-actions"><button class="ghost-btn" type="button" data-memory-hint>Hint for next word</button><button class="ghost-btn" type="submit" data-memory-check-typing>Review answers</button></div><p class="memory-help" data-memory-hint-text role="status"></p></form>`;
 }
 
 function checkMemoryAnswers() {
@@ -9095,13 +9122,12 @@ function checkMemoryAnswers() {
   practice.results = {};
   let correct = 0;
   missing.forEach(({ word, index }) => {
-    const answer = normalizeMemoryAnswer(practice.answers?.[index]);
-    const matches = answer === normalizeMemoryAnswer(word);
-    practice.results[index] = answer ? matches : null;
-    if (matches) correct += 1;
+    const result = memoryAnswerResult(practice.answers?.[index], word);
+    practice.results[index] = result;
+    if (result === true || result === "close") correct += 1;
   });
   practice.feedback = correct === missing.length
-    ? `You filled in all ${missing.length} missing words correctly!`
+    ? `You filled in all ${missing.length} missing words correctly!${Object.values(practice.results).includes("close") ? " Review the spelling cues for close answers." : ""}`
     : `${correct} of ${missing.length} missing words correct. Keep trying, or reveal the passage to check.`;
   render();
 }
@@ -9131,7 +9157,7 @@ function memorizationView() {
     <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
     ${item ? `<article class="memory-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
       <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
-      <p class="memory-help">${practice.stage === "order" ? "Tap the words in order. Tap your last word to undo it." : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Type the missing words, then check your answers. Hide words focuses on meaningful words and phrases. Capitalization and punctuation do not affect your results."}</p>
+      <p class="memory-help">${practice.stage === "order" ? "Tap the words in order. Tap your last word to undo it." : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results."}</p>
       ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-answer" aria-label="Your word order"><button class="text-btn" data-memory-undo ${!practice.chosen.length ? "disabled" : ""}>${escapeHtml(practice.chosen.map((index) => words[index]).join(" ") || "Your words will appear here")}</button></div><div class="memory-word-bank">${practice.order.filter((index) => !practice.chosen.includes(index)).map((index) => `<button class="ghost-btn" data-memory-word="${index}">${escapeHtml(words[index])}</button>`).join("")}</div><button class="primary-btn" data-memory-check ${practice.chosen.length !== words.length ? "disabled" : ""}>Check word order</button>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
       <p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>
       <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
@@ -9154,26 +9180,70 @@ function bindMemorization() {
     event.preventDefault();
     checkMemoryAnswers();
   });
+  const practiceWords = memoryPassages().find(item => item.id === state.memoryPractice?.id)?.text.trim().split(/\s+/) || [];
+  const measureContext = document.createElement("canvas").getContext("2d");
+  const sizeAnswer = (input) => {
+    if (!measureContext) return;
+    measureContext.font = getComputedStyle(input).font;
+    const width = Math.max(measureContext.measureText(practiceWords[input.dataset.memoryInput] || "").width, measureContext.measureText(input.value).width, 60) + 32;
+    input.style.width = `${Math.ceil(width)}px`;
+  };
+  const updateAnswer = (input, settled = false) => {
+    const practice = state.memoryPractice;
+    const index = input.dataset.memoryInput;
+    const word = practiceWords[index];
+    const result = memoryAnswerResult(input.value, word);
+    const field = input.closest(".memory-word-field");
+    practice.answers[index] = input.value;
+    delete practice.results[index];
+    field.removeAttribute("data-memory-result");
+    field.querySelector(".memory-word-result")?.remove();
+    input.removeAttribute("aria-invalid");
+    input.removeAttribute("aria-describedby");
+    // Do not flag partially typed words as wrong.
+    if (result === true || settled) {
+      practice.results[index] = result;
+      field.dataset.memoryResult = result === null ? "incomplete" : result === "close" ? "close" : result ? "correct" : "retry";
+      const label = document.createElement("span");
+      label.className = "memory-word-result";
+      label.id = `memoryWordResult${index}`;
+      label.textContent = memoryResultLabel(result, word);
+      field.appendChild(label);
+      input.setAttribute("aria-describedby", label.id);
+      if (result === false) input.setAttribute("aria-invalid", "true");
+    }
+    practice.feedback = "";
+    document.querySelector("[data-memory-feedback]").textContent = "";
+    sizeAnswer(input);
+  };
   document.querySelectorAll("[data-memory-input]").forEach((input) => {
-    input.addEventListener("input", () => {
-      const practice = state.memoryPractice;
-      practice.answers[input.dataset.memoryInput] = input.value;
-      delete practice.results[input.dataset.memoryInput];
-      practice.feedback = "";
-      input.removeAttribute("aria-invalid");
-      input.removeAttribute("aria-describedby");
-      input.closest(".memory-word-field").removeAttribute("data-memory-result");
-      input.closest(".memory-word-field").querySelector(".memory-word-result")?.remove();
-      document.querySelector("[data-memory-feedback]").textContent = "";
-    });
+    sizeAnswer(input);
+    input.addEventListener("input", event => { if (!event.isComposing) updateAnswer(input); });
+    input.addEventListener("compositionend", () => updateAnswer(input));
+    input.addEventListener("blur", () => updateAnswer(input, true));
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" || event.isComposing) return;
       event.preventDefault();
+      updateAnswer(input, true);
       const inputs = Array.from(document.querySelectorAll("[data-memory-input]"));
       const next = inputs[inputs.indexOf(input) + 1];
       if (next) next.focus();
-      else checkMemoryAnswers();
     });
+  });
+  document.querySelector("[data-memory-hint]")?.addEventListener("click", () => {
+    const practice = state.memoryPractice;
+    const next = Array.from(document.querySelectorAll("[data-memory-input]")).find(input => memoryAnswerResult(input.value, practiceWords[input.dataset.memoryInput]) !== true);
+    const message = document.querySelector("[data-memory-hint-text]");
+    if (!next) { message.textContent = "Every word is correct. Well done!"; return; }
+    const index = next.dataset.memoryInput;
+    practice.hints ||= {};
+    const word = practiceWords[index];
+    const letters = Array.from(word);
+    const count = Math.min(letters.length, (practice.hints[index] || 0) + 1);
+    practice.hints[index] = count;
+    message.textContent = `Word ${Number(index) + 1}: ${letters.slice(0, count).join("")}${count < letters.length ? "…" : ""}`;
+    next.focus({ preventScroll: true });
+    next.scrollIntoView({ block: "nearest" });
   });
   document.querySelector("#memorizeSelection")?.addEventListener("click", () => addMemoryPassage(formatReferenceLabel(state.reference, selectedVerseNumbers())));
   document.querySelector("[data-memory-games]")?.addEventListener("click", () => { state.memoryPractice = null; switchMode("memorize"); });

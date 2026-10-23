@@ -26844,3 +26844,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   -webkit-user-select: none;
   user-select: none;
 }
+
+.memory-word-field[data-memory-result="close"] { --memory-result-edge: #1687ce; --memory-result-text: #075f98; }
+[data-theme="dark"] .memory-word-field[data-memory-result="close"] { --memory-result-edge: #49c9ff; --memory-result-text: #8bddff; }
+.memory-word-field { min-width: 0; }
+.memory-word-result { max-width: 100%; overflow-wrap: anywhere; }
