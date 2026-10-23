@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.14": [
+      "The auto-scroll speed button now fades and hides with the other floating reading controls in Reader, Parallel, and Focus Mode.",
+    ],
     "2026.10.23.13": [
       "Hold the auto-scroll speed button to repeatedly cycle through 0.5× intervals without opening the slider; release to keep the speed. A normal click still opens the slider.",
     ],
@@ -7695,7 +7698,7 @@ function scheduleStreakPopupDismiss() {
 
 let readingControlDimmingFrame = 0;
 const readingControlMistLayers = new Map();
-const readingDimmingSurfaceSelector = ".focus-reading-controls, .reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)";
+const readingDimmingSurfaceSelector = ".beside-auto-scroll .scroll-speed-toggle, .focus-reading-controls, .reader-page-button, .reader-auto-scroll-button, .reader-return-button, .reader-selection-tools-button, .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools, .desktop-focus-tools-toggle, .mobile-focus-passage-popover, .mobile-focus-tools-fan, .desktop-focus-tools-fan, .mobile-focus-workspace, .mobile-focus-search-results:not(.presentation-search-results)";
 
 function readingRectsOverlap(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
@@ -7770,8 +7773,8 @@ function floatingControlsFadeEnabled() {
 }
 
 function focusFloatingControls() {
-  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton, .reader-return-button, .scripture-reader-launcher")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher")];
+  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton, .beside-auto-scroll .scroll-speed-toggle, .reader-return-button, .scripture-reader-launcher")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, .beside-auto-scroll .scroll-speed-toggle, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher")];
 }
 
 function focusControlsInUse() {

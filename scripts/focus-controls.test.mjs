@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const functions = source.slice(source.indexOf('function normalizedFocusControlsHideSeconds('), source.indexOf('function resetFocusToolSurfaces('));
 let timers = new Map(), nextId = 0;
-const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls', 'scriptureReaderLauncher', 'readerReturnButton', 'readerForwardButton'].map(id => ({
+const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFocusToolsToggle', 'pageDown', 'focusReadingControls', 'scriptureReaderLauncher', 'readerReturnButton', 'readerForwardButton', 'scrollSpeedToggle'].map(id => ({
   id, focused: false, classes: new Set(),
   classList: { add(...names) { names.forEach(n => this.owner.classes.add(n)); }, remove(...names) { names.forEach(n => this.owner.classes.delete(n)); } },
   matches() { return this.focused; },
@@ -14,7 +14,7 @@ const context = vm.createContext({
   activeSettingsChoiceMenu: null,
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
   document: { querySelector: () => null, querySelectorAll: selector => selector.startsWith(".reader-page-button")
-    ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
+    ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "scrollSpeedToggle" && selector.includes(".beside-auto-scroll .scroll-speed-toggle")) || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
     : selector.startsWith("#mobileFloatingSettings")
       ? controls.filter(b => b.id !== "scriptureReaderLauncher" || selector.includes(".scripture-reader-launcher"))
       : controls, getElementById: id => controls.find(b => b.id === id) },
@@ -93,3 +93,17 @@ for (const mode of ['reader', 'parallel']) {
 context.state.mode = 'big';
 assert.equal(context.floatingControlsFadeEnabled(), false);
 console.log('Focus and reading control inactivity tests passed.');
+
+// The fallback speed button shares the playback button's idle lifecycle.
+context.state.mode = "reader";
+for (const focusMode of [false, true]) {
+  context.state.focusMode = focusMode;
+  context.state.focusControlsFade = true;
+  context.state.focusControlsHide = true;
+  wake(); run(3200);
+  assert.ok(controls.find(b => b.id === 'scrollSpeedToggle').classes.has('focus-control-faded'));
+  run(10000);
+  assert.ok(controls.find(b => b.id === 'scrollSpeedToggle').classes.has('focus-control-hidden'));
+  wake();
+  assert.equal(controls.find(b => b.id === 'scrollSpeedToggle').classes.size, 0);
+}
