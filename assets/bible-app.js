@@ -1785,7 +1785,7 @@ function restoreAccountPanelScroll(scrollState) {
 
 // Animate the occupied space too, so the passage moves with the portrait toolbar.
 function animateSelectionBarReveal(wasVisible) {
-  const bar = document.querySelector(".scripture .selection-bar");
+  const bar = document.querySelector(".scripture .selection-bar:not(.selection-bar-exiting)");
   if (wasVisible || !bar || !bar.getClientRects().length
     || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const style = getComputedStyle(bar);
@@ -1800,12 +1800,52 @@ function animateSelectionBarReveal(wasVisible) {
   ], { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
 }
 
+function captureSelectionBarExit() {
+  const bar = document.querySelector(".scripture .selection-bar");
+  if (!bar?.getClientRects().length || getComputedStyle(bar).position !== "sticky"
+    || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+  const scripture = bar.closest(".scripture");
+  const style = getComputedStyle(bar);
+  return {
+    bar, index: [...scripture.children].indexOf(bar),
+    label: scripture.getAttribute("aria-label"), parallel: scripture.classList.contains("parallel-mode"),
+    frame: { height: `${bar.getBoundingClientRect().height}px`, minHeight: "0px",
+      paddingTop: style.paddingTop, paddingBottom: style.paddingBottom,
+      borderTopWidth: style.borderTopWidth, borderBottomWidth: style.borderBottomWidth,
+      marginBottom: style.marginBottom, opacity: style.opacity },
+    display: style.display,
+  };
+}
+
+function animateSelectionBarExit(snapshot) {
+  const scripture = document.querySelector(".scripture");
+  if (!snapshot || selectionBarIsVisible() || !scripture
+    || scripture.getAttribute("aria-label") !== snapshot.label
+    || scripture.classList.contains("parallel-mode") !== snapshot.parallel) return;
+  const { bar, frame } = snapshot;
+  // Keep a non-interactive copy in flow only until its space has collapsed.
+  scripture.querySelector(".selection-bar")?.remove();
+  bar.classList.add("selection-bar-exiting");
+  bar.inert = true;
+  bar.setAttribute("aria-hidden", "true");
+  bar.removeAttribute("role");
+  bar.querySelectorAll("[id]").forEach(node => node.removeAttribute("id"));
+  bar.style.setProperty("display", snapshot.display, "important");
+  scripture.insertBefore(bar, scripture.children[snapshot.index] || null);
+  const animation = bar.animate([frame,
+    { height: "0px", minHeight: "0px", paddingTop: "0px", paddingBottom: "0px",
+      borderTopWidth: "0px", borderBottomWidth: "0px", marginBottom: "0px", opacity: 0 },
+  ], { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" });
+  animation.onfinish = () => bar.remove();
+}
+
 function selectionBarIsVisible() {
-  return Boolean(document.querySelector(".scripture .selection-bar")?.getClientRects().length);
+  return Boolean(document.querySelector(".scripture .selection-bar:not(.selection-bar-exiting)")?.getClientRects().length);
 }
 
 function render() {
   const selectionBarWasVisible = selectionBarIsVisible();
+  const selectionBarExit = captureSelectionBarExit();
   if (pruneExpiredRemoteVersionData()) {
     activeVersions().filter(isRemoteTranslation).forEach((version) => {
       ensureRemoteBibleVersion(version, state.reference);
@@ -1906,6 +1946,7 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  animateSelectionBarExit(selectionBarExit);
   animateSelectionBarReveal(selectionBarWasVisible);
   window.bsbAmbient?.syncControls();
   if (readingFocusSnapshot && document.activeElement === document.body) {
@@ -4870,6 +4911,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.2": [
+      "The highlighter toolbar now closes smoothly, easing Scripture back into place.",
+    ],
     "2026.10.23.1": [
       "Smoother highlighter reveal: Scripture moves gently as the selection toolbar opens on portrait phones.",
     ],
