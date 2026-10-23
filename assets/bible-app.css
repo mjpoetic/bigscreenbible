@@ -26625,6 +26625,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .memory-heading h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); margin: 8px 0; }
 .memory-heading h2, .memory-heading h3 { margin: 0; }
+.memory-review-summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: 100%; }
+.memory-review-summary > button { padding: 10px 20px; line-height: 1.3; }
 .memory-eyebrow, .memory-count { font-size: .9rem; font-weight: 600; }
 .memory-card { border: 1px solid var(--line); background: var(--panel); border-radius: 20px; padding: clamp(16px, 3vw, 28px); margin: 16px 0; }
 .memory-add { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
