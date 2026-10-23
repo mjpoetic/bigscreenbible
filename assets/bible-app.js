@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.16": [
+      "Memorize’s translation picker now uses the site’s shared Liquid Glass menu, including Bible names, selection feedback, and keyboard navigation. Passage action buttons have consistent padding and wrap without squeezing their labels.",
+    ],
     "2026.10.23.15": [
       "Memorize now uses the shared Liquid Glass finish for practice buttons, saved-passage panels, and controls, with clear selected states and opaque answer fields.",
       "Classic styling and reduced-transparency or higher-contrast preferences remain supported.",
@@ -9113,13 +9116,20 @@ function memorizationView() {
       <p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>
       <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
       <p class="memory-help">Reviews are self-assessed. Successful recall gradually extends the review interval, up to 30 days.</p>${item.copyright ? `<p class="memory-help">${escapeHtml(item.copyright)}</p>` : ""}
-    </article>` : `<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" required placeholder="John 3:16–17" autocomplete="off"></label><label>Translation<select id="memoryVersion">${translations.map((translation) => `<option value="${translation.code}" ${translation.code === state.versions[0] ? "selected" : ""}>${escapeHtml(translationDisplayCode(translation.code))}</option>`).join("")}</select></label><button class="primary-btn" type="submit">Save & practice</button></form>
-    <section class="memory-library" aria-label="Saved memory passages"><div class="memory-heading"><h2>My passages <small>${items.length}</small></h2>${due.length ? '<button class="ghost-btn" data-memory-due>Review next due</button>' : ""}</div>${!items.length ? '<p>Your collection starts with one verse. Try John 3:16 or Psalm 23:1–6.</p>' : [...items].sort((a, b) => (a.due || 0) - (b.due || 0)).map((entry) => `<article class="memory-card memory-saved"><div><h3>${escapeHtml(entry.reference)} · ${escapeHtml(translationDisplayCode(entry.version))}</h3><p>${!entry.due || entry.due <= Date.now() ? "Ready to review" : `Next review ${new Date(entry.due).toLocaleDateString()}`} · ${Number(entry.reviews) || 0} ${(Number(entry.reviews) || 0) === 1 ? "review" : "reviews"}</p></div><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Word order</button><button class="text-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></article>`).join("")}</section>`}
+    </article>` : `<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>
+    <section class="memory-library" aria-label="Saved memory passages"><div class="memory-heading"><h2>My passages <small>${items.length}</small></h2>${due.length ? '<button class="ghost-btn" data-memory-due>Review next due</button>' : ""}</div>${!items.length ? '<p>Your collection starts with one verse. Try John 3:16 or Psalm 23:1–6.</p>' : [...items].sort((a, b) => (a.due || 0) - (b.due || 0)).map((entry) => `<article class="memory-card memory-saved"><div><h3>${escapeHtml(entry.reference)} · ${escapeHtml(translationDisplayCode(entry.version))}</h3><p>${!entry.due || entry.due <= Date.now() ? "Ready to review" : `Next review ${new Date(entry.due).toLocaleDateString()}`} · ${Number(entry.reviews) || 0} ${(Number(entry.reviews) || 0) === 1 ? "review" : "reviews"}</p></div><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Word order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></article>`).join("")}</section>`}
     <p class="memory-help">Passages and progress are saved on this device, in this browser. Each passage keeps the translation you chose.</p>
   </div></section>`;
 }
 
 function bindMemorization() {
+  document.querySelector("#memoryVersion")?.addEventListener("change", (event) => {
+    const translation = translations.find((item) => item.code === event.target.value);
+    const trigger = document.getElementById("memoryVersionToggle");
+    if (!translation || !trigger) return;
+    trigger.querySelector(".settings-choice-selected").innerHTML = settingsChoiceOptionContent({ code: translationDisplayCode(translation.code), label: translation.name }, { compact: true });
+    trigger.setAttribute("aria-label", `Translation, ${translation.name}`);
+  });
   document.querySelector("[data-memory-typing]")?.addEventListener("submit", (event) => {
     event.preventDefault();
     checkMemoryAnswers();
