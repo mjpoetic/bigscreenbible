@@ -8,6 +8,7 @@
     "audio:auditions": "node scripts/generate-game-music-auditions.mjs",
     "audio:game-music": "node scripts/generate-game-music-auditions.mjs --production",
     "audio:ambient": "node scripts/generate-ambient-audio.mjs",
+    "test:memorization": "node scripts/memorization.test.mjs",
     "test:ambient": "node scripts/ambient-audio.test.mjs",
     "build": "node scripts/build-mobile.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",

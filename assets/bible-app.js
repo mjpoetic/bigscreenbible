@@ -748,6 +748,8 @@ let settingsPageTransition = "";
 let presentationSettingsPageTransition = "";
 
 const state = {
+  memoryPractice: null,
+  memoryNotice: "",
   mode: "reader",
   reference: "John 3",
   verse: 16,
@@ -1312,6 +1314,7 @@ function recordReadingStreak(date = new Date()) {
 }
 
 const icons = {
+  memorize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v19l-6-4-6 4V3Z"/><path d="M12 13.5 8.8 10.4a2 2 0 0 1 3.2-2.3 2 2 0 0 1 3.2 2.3L12 13.5Z"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-2.9 2-2.9 4"/><path d="M12 17h.01"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>',
   scriptureReader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h10M3 9h8M3 13h5M3 17h5"/><path d="m12 12 4-3v12l-4-3h-2v-6z"/><path d="M19 12a5 5 0 0 1 0 6M21 9a9 9 0 0 1 0 12"/></svg>',
@@ -1396,7 +1399,7 @@ const tutorialSteps = [
     target: "#portraitNavigationToggle, .mode-tabs, .presentation-bible-toggle",
     spotlightPadding: 5,
     title: "Switch reading spaces",
-    body: "Move between Reader, Parallel Study, Big Screen display, and Games from this mode area. On smaller screens, open the current mode dropdown to see each action with its label.",
+    body: "Move between Reader, Parallel Study, Big Screen display, Memorize, and Games from this mode area. On smaller screens, open the current mode dropdown to see each action with its label.",
   },
   {
     target: "#footerBar",
@@ -1597,6 +1600,7 @@ function activePassageLabel() {
 }
 
 function mainGridClass() {
+  if (state.mode === "memorize") return "main-grid focus-mode memorize-grid";
   if (state.mode === "trivia") return "main-grid focus-mode trivia-grid";
   if (state.focusMode) return "main-grid focus-mode";
   return [
@@ -1844,6 +1848,11 @@ function selectionBarIsVisible() {
 }
 
 function render() {
+  const previousMemorySurface = document.querySelector(".memorize-reader");
+  const memoryViewKey = state.memoryPractice ? `${state.memoryPractice.id}:${state.memoryPractice.stage}` : "library";
+  const memoryScroll = previousMemorySurface?.getAttribute("data-memory-view") === memoryViewKey ? previousMemorySurface.scrollTop : 0;
+  const memoryActive = document.activeElement?.closest(".memory-workspace") ? document.activeElement : null;
+  const memoryFocus = memoryActive ? Array.from(memoryActive.attributes).find((attribute) => attribute.name.startsWith("data-memory-")) : null;
   const selectionBarWasVisible = selectionBarIsVisible();
   const selectionBarExit = captureSelectionBarExit();
   if (pruneExpiredRemoteVersionData()) {
@@ -1907,12 +1916,12 @@ function render() {
   const previousVideo = document.querySelector(".presentation-background-video");
   previousVideo?.remove();
   app.innerHTML = `
-    <main class="app-shell ${state.focusMode && state.mode !== "trivia" ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       <section class="${mainGridClass()}" style="${textFontVars()}">
-        ${state.focusMode || state.mode === "trivia" ? "" : rail()}
-        ${state.focusMode || state.mode === "trivia" || !state.libraryOpen ? "" : library()}
+        ${state.focusMode || ["trivia", "memorize"].includes(state.mode) ? "" : rail()}
+        ${state.focusMode || ["trivia", "memorize"].includes(state.mode) || !state.libraryOpen ? "" : library()}
         ${reader(chapterChange)}
         ${accountSwitchNotification()}
       </section>
@@ -1946,6 +1955,14 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  const memorySurface = document.querySelector(".memorize-reader");
+  if (memorySurface) {
+    memorySurface.scrollTop = memoryScroll;
+    if (memoryFocus) {
+      const target = Array.from(memorySurface.querySelectorAll(`[${memoryFocus.name}]`)).find((element) => element.getAttribute(memoryFocus.name) === memoryFocus.value);
+      (target || memorySurface.querySelector("[data-memory-check]:not(:disabled), [data-memory-undo]:not(:disabled)"))?.focus({ preventScroll: true });
+    }
+  }
   animateSelectionBarExit(selectionBarExit);
   animateSelectionBarReveal(selectionBarWasVisible);
   window.bsbAmbient?.syncControls();
@@ -2585,7 +2602,7 @@ function setModeTransitionVolume(value, options = {}) {
 }
 
 function switchMode(nextMode, options = {}) {
-  if (!["reader", "parallel", "big", "trivia"].includes(nextMode)) return;
+  if (!["reader", "parallel", "big", "trivia", "memorize"].includes(nextMode)) return;
   const openVerseOfDayPassage = ["reader", "parallel"].includes(nextMode)
     && state.isVerseOfDayActive
     && Boolean(state.verseOfDayItem);
@@ -3144,7 +3161,7 @@ function loadingScreen() {
 }
 
 function mobileFocusOverlayControls() {
-  if (state.mode === "big") return "";
+  if (["big", "memorize"].includes(state.mode)) return "";
   const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
   const activeSearchLabel = activeSearchSourceLabel();
@@ -3233,7 +3250,7 @@ function mobileFocusTools() {
 }
 
 function desktopFocusTools() {
-  if (!state.focusMode || state.mode === "big") return "";
+  if (!state.focusMode || ["big", "memorize"].includes(state.mode)) return "";
   return `
     <div class="desktop-focus-tools-control ${state.focusToolsOpen ? "expanded" : ""}">
       <button
@@ -4911,6 +4928,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.3": [
+      "New Memorize mode saves passages in your chosen translation for reading, hidden-word, first-letter, recall, and word-order practice.",
+      "Add selected verses from Reader or enter a reference, then track practice and schedule reviews on this device.",
+      "A distinct bookmark-and-heart icon makes Memorize easy to find across desktop, tablet, and phone layouts.",
+    ],
     "2026.10.23.2": [
       "The highlighter toolbar now closes smoothly, easing Scripture back into place.",
     ],
@@ -5403,7 +5425,7 @@ function applyAppUpdateRestoreState(restoreState) {
     const restoredVerse = Number(restoreState.verse);
     if (verses.some((verse) => verse.n === restoredVerse)) state.verse = restoredVerse;
   }
-  if (["reader", "parallel", "big", "trivia"].includes(restoreState.mode)) state.mode = restoreState.mode;
+  if (["reader", "parallel", "big", "trivia", "memorize"].includes(restoreState.mode)) state.mode = restoreState.mode;
   state.selectedVerses = Array.isArray(restoreState.selectedVerses)
     ? restoreState.selectedVerses.map(Number).filter(Number.isFinite)
     : [];
@@ -5923,6 +5945,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
     ["reader", "Reader", icons.book],
     ["parallel", "Parallel Study", icons.parallel],
     ["big", "Big Screen", icons.screen],
+    ["memorize", "Memorize", icons.memorize],
     ["trivia", "Games", icons.games],
   ];
   const currentModeOption = modeOptions.find(([mode]) => mode === state.mode) || modeOptions[0];
@@ -8870,7 +8893,153 @@ function bindFocusReading() {
   schedule();
 }
 
+// Memorization saves exact translation text locally, independently of reading position.
+function memoryPassages() {
+  try {
+    const items = JSON.parse(localStorage.getItem("lw_memory_passages") || "[]");
+    return Array.isArray(items) ? items.filter((item) => item && typeof item.id === "string" && typeof item.text === "string" && typeof item.reference === "string" && typeof item.version === "string") : [];
+  } catch { return []; }
+}
+
+function saveMemoryPassages(items) {
+  try {
+    localStorage.setItem("lw_memory_passages", JSON.stringify(items));
+    return true;
+  } catch {
+    showToast("Could not save memory passages. Device storage may be full.");
+    return false;
+  }
+}
+
+async function addMemoryPassage(reference, version = state.versions[0] || "BSB") {
+  const parsed = parsePassageReference(reference);
+  if (!parsed || !bibleData[parsed.key] || !/:/.test(reference)) {
+    showToast("Choose a verse or range, such as John 3:16–17.");
+    return;
+  }
+  // Reject partially valid ranges instead of silently saving only available verses.
+  const requested = String(reference).split(":")[1].replace(/[–—]/g, "-");
+  const numbers = [];
+  for (const part of requested.split(",")) {
+    const match = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+    if (!match) return showToast("Enter verses from one chapter, such as Psalm 23:1–6.");
+    const first = Number(match[1]), last = Number(match[2] || match[1]);
+    if (first < 1 || last < first || last - first > 200) return showToast("Please check the verse range.");
+    for (let n = first; n <= last; n++) numbers.push(n);
+  }
+  try {
+    if (isRemoteTranslation(version)) await ensureRemoteBibleVersion(version, parsed.key, { rerender: false });
+    else await loadBibleVersion(version);
+    rebuildBibleData();
+    const verses = [...new Set(numbers)].sort((a, b) => a - b).map((n) => bibleData[parsed.key]?.verses.find((verse) => verse.n === n));
+    if (!verses.length || verses.some((verse) => !verse?.[version])) {
+      showToast(`${translationDisplayCode(version)} could not be loaded for every requested verse. Try again when connected or choose an included Bible.`);
+      return;
+    }
+    const label = formatReferenceLabel(parsed.key, verses.map((verse) => verse.n));
+    const id = `${version}:${label}`;
+    const items = memoryPassages();
+    if (!items.some((item) => item.id === id)) {
+      const payload = remoteVersionData.get(remoteVersionLoadKey(version, parsed.key));
+      items.push({ id, reference: label, chapter: parsed.key, version, text: verses.map((verse) => verse[version]).join(" "), copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 });
+      if (!saveMemoryPassages(items)) return;
+    }
+    startMemoryPractice(id);
+  } catch {
+    showToast("This passage could not be saved. Please try again.");
+  }
+}
+
+function startMemoryPractice(id, stage = "read") {
+  const item = memoryPassages().find((entry) => entry.id === id);
+  if (!item) return;
+  const words = item.text.trim().split(/\s+/);
+  const order = words.map((word, index) => index);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  state.memoryNotice = "";
+  state.memoryPractice = { id, stage, revealed: false, order, chosen: [], feedback: "" };
+  if (state.mode !== "memorize") switchMode("memorize", { immediate: true });
+  else render();
+}
+
+function memoryWordHint(word, index, stage) {
+  if (stage === "hide" && index % 2 === 0) return word;
+  return word.replace(/[\p{L}\p{N}]+/gu, (part) => stage === "letters" ? Array.from(part)[0] + "＿".repeat(Math.min(Array.from(part).length - 1, 8)) : "＿".repeat(Math.min(Array.from(part).length, 9)));
+}
+
+function reviewMemoryPassage(id, recalled) {
+  const items = memoryPassages();
+  const item = items.find((entry) => entry.id === id);
+  if (!item) return;
+  item.reviews = (Number(item.reviews) || 0) + 1;
+  item.interval = recalled ? Math.min(30, Math.max(1, (Number(item.interval) || 0) * 2)) : 1;
+  item.due = Date.now() + item.interval * 86400000;
+  if (!saveMemoryPassages(items)) return;
+  state.memoryPractice = null;
+  state.memoryNotice = `Review saved. ${item.reference} is due in ${item.interval} ${item.interval === 1 ? "day" : "days"}.`;
+  render();
+}
+
+function memorizationView() {
+  const items = memoryPassages();
+  const practice = state.memoryPractice;
+  const item = items.find((entry) => entry.id === practice?.id);
+  const stages = [["read", "Read"], ["hide", "Hide words"], ["letters", "First letters"], ["recall", "Recall"], ["order", "Word order"]];
+  const words = item?.text.trim().split(/\s+/) || [];
+  const due = items.filter((entry) => !entry.due || entry.due <= Date.now());
+  return `<section class="reader memorize-reader" data-memory-view="${item ? escapeHtml(`${item.id}:${practice.stage}`) : "library"}" aria-labelledby="memoryTitle"><div class="memory-workspace">
+    <header class="memory-heading"><div><span class="memory-eyebrow"><span class="memory-mark" aria-hidden="true">${icons.memorize}</span> A little practice, every day</span><h1 id="memoryTitle">Memorize Scripture</h1><p>Keep God’s Word close. Learn a passage, then return to review it.</p></div><span class="memory-count">${due.length} due for review</span></header>
+    <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
+    ${item ? `<article class="memory-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
+      <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
+      <p class="memory-help">${practice.stage === "order" ? "Tap the words in order. Tap your last word to undo it." : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Try to supply the missing words, then reveal the passage to check."}</p>
+      ${practice.stage === "order" && !practice.revealed ? `<div class="memory-answer" aria-label="Your word order"><button class="text-btn" data-memory-undo ${!practice.chosen.length ? "disabled" : ""}>${escapeHtml(practice.chosen.map((index) => words[index]).join(" ") || "Your words will appear here")}</button></div><div class="memory-word-bank">${practice.order.filter((index) => !practice.chosen.includes(index)).map((index) => `<button class="ghost-btn" data-memory-word="${index}">${escapeHtml(words[index])}</button>`).join("")}</div><button class="primary-btn" data-memory-check ${practice.chosen.length !== words.length ? "disabled" : ""}>Check word order</button>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
+      <p role="status">${escapeHtml(practice.feedback)}</p>
+      <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
+      <p class="memory-help">Reviews are self-assessed. Successful recall gradually extends the review interval, up to 30 days.</p>${item.copyright ? `<p class="memory-help">${escapeHtml(item.copyright)}</p>` : ""}
+    </article>` : `<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" required placeholder="John 3:16–17" autocomplete="off"></label><label>Translation<select id="memoryVersion">${translations.map((translation) => `<option value="${translation.code}" ${translation.code === state.versions[0] ? "selected" : ""}>${escapeHtml(translationDisplayCode(translation.code))}</option>`).join("")}</select></label><button class="primary-btn" type="submit">Save & practice</button></form>
+    <section class="memory-library" aria-label="Saved memory passages"><div class="memory-heading"><h2>My passages <small>${items.length}</small></h2>${due.length ? '<button class="ghost-btn" data-memory-due>Review next due</button>' : ""}</div>${!items.length ? '<p>Your collection starts with one verse. Try John 3:16 or Psalm 23:1–6.</p>' : [...items].sort((a, b) => (a.due || 0) - (b.due || 0)).map((entry) => `<article class="memory-card memory-saved"><div><h3>${escapeHtml(entry.reference)} · ${escapeHtml(translationDisplayCode(entry.version))}</h3><p>${!entry.due || entry.due <= Date.now() ? "Ready to review" : `Next review ${new Date(entry.due).toLocaleDateString()}`} · ${Number(entry.reviews) || 0} ${(Number(entry.reviews) || 0) === 1 ? "review" : "reviews"}</p></div><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Word order</button><button class="text-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></article>`).join("")}</section>`}
+    <p class="memory-help">Passages and progress are saved on this device, in this browser. Each passage keeps the translation you chose.</p>
+  </div></section>`;
+}
+
+function bindMemorization() {
+  document.querySelector("#memorizeSelection")?.addEventListener("click", () => addMemoryPassage(formatReferenceLabel(state.reference, selectedVerseNumbers())));
+  document.querySelector("[data-memory-games]")?.addEventListener("click", () => { state.memoryPractice = null; switchMode("memorize"); });
+  document.querySelector("#memoryAddForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector("[type=submit]");
+    button.disabled = true;
+    await addMemoryPassage(document.querySelector("#memoryReference").value.trim(), document.querySelector("#memoryVersion").value);
+    if (button.isConnected) button.disabled = false;
+  });
+  document.querySelector("[data-memory-library]")?.addEventListener("click", () => { state.memoryPractice = null; render(); });
+  document.querySelectorAll("[data-memory-practice], [data-memory-order]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(button.dataset.memoryPractice || button.dataset.memoryOrder, button.hasAttribute("data-memory-order") ? "order" : "read")));
+  document.querySelectorAll("[data-memory-stage]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(state.memoryPractice.id, button.dataset.memoryStage)));
+  document.querySelector("[data-memory-reveal]")?.addEventListener("click", () => { state.memoryPractice.revealed = !state.memoryPractice.revealed; render(); });
+  document.querySelectorAll("[data-memory-review]").forEach((button) => button.addEventListener("click", () => reviewMemoryPassage(state.memoryPractice.id, button.dataset.memoryReview === "recalled")));
+  document.querySelector("[data-memory-due]")?.addEventListener("click", () => { const next = memoryPassages().filter((item) => !item.due || item.due <= Date.now()).sort((a, b) => (a.due || 0) - (b.due || 0))[0]; if (next) startMemoryPractice(next.id); });
+  document.querySelectorAll("[data-memory-delete]").forEach((button) => button.addEventListener("click", () => {
+    const items = memoryPassages();
+    const item = items.find((entry) => entry.id === button.dataset.memoryDelete);
+    if (!item || !window.confirm(`Remove ${item.reference} (${item.version}) and its review progress?`)) return;
+    if (saveMemoryPassages(items.filter((entry) => entry.id !== item.id))) render();
+  }));
+  document.querySelectorAll("[data-memory-word]").forEach((button) => button.addEventListener("click", () => { state.memoryPractice.chosen.push(Number(button.dataset.memoryWord)); state.memoryPractice.feedback = ""; render(); }));
+  document.querySelector("[data-memory-undo]")?.addEventListener("click", () => { state.memoryPractice.chosen.pop(); state.memoryPractice.feedback = ""; render(); });
+  document.querySelector("[data-memory-check]")?.addEventListener("click", () => {
+    const practice = state.memoryPractice;
+    const words = memoryPassages().find((item) => item.id === practice.id).text.trim().split(/\s+/);
+    practice.feedback = practice.chosen.map((index) => words[index]).join(" ") === words.join(" ") ? "You put every word in order!" : "Some words are out of order. Undo words to try again, or reveal the passage.";
+    render();
+  });
+}
+
 function reader(chapterChange = null) {
+  if (state.mode === "memorize") return memorizationView();
   if (state.mode === "trivia") return triviaView();
   const chapter = currentChapter();
   const chapterKeys = currentBookChapterKeys();
@@ -17327,6 +17496,7 @@ function triviaView() {
           <div class="trivia-header-copy">
             <div class="trivia-eyebrow">${activePuzzleTitle ? "Games" : gameTitle}</div>
             <h1>${state.triviaGame && !state.triviaGame.complete ? gameTitle : activePuzzleTitle || "Games"}</h1>
+            ${!state.triviaGame ? '<button class="text-btn" data-memory-games>Practice memory verses →</button>' : ""}
           </div>
           <div class="trivia-header-actions">
             ${state.triviaGame && !state.triviaGame.complete && state.triviaGame.type !== "crossword" ? '<div class="games-play-menu" id="gamesPlayMenu"></div>' : ""}
@@ -20241,6 +20411,20 @@ function compactFooterReference(label) {
 }
 
 function bottombar() {
+  if (state.mode === "memorize") return `
+    <div class="footer-region"><footer class="bottombar memory-footer" id="footerBar"><span class="memory-footer-label">${icons.memorize}<span>Memorize</span></span>
+          <div class="bottom-actions" role="group" aria-label="Help and information">
+            <button class="ghost-btn bottom-action bottom-help-link" id="footerHelpButton" type="button" aria-label="Help &amp; Tour" aria-haspopup="dialog" aria-expanded="${state.shortcutsOpen ? "true" : "false"}" data-tooltip="Help &amp; Tour">
+              <span class="bottom-action-icon" aria-hidden="true">${icons.help}</span>
+              <span class="bottom-action-label">Help &amp; Tour</span>
+            </button>
+            <button class="ghost-btn bottom-action bottom-about-link" id="aboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}" data-tooltip="About">
+              <span class="bottom-action-icon" aria-hidden="true">${icons.info}</span>
+              <span class="bottom-action-label">About</span>
+            </button>
+          </div>
+    </footer></div>`;
+
   const footerVersions = state.mode === "parallel"
     ? activeVersions()
     : [state.versions[0] || activeVersions()[0] || "BSB"];
@@ -20324,6 +20508,7 @@ function selectionBar() {
         </div>
         <div class="selection-bar-actions">
           <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
+          <button class="text-btn selection-action" id="memorizeSelection" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
           <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
           <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
           <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
@@ -21384,7 +21569,7 @@ function tutorialIntro() {
         <img class="tutorial-welcome-logo" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
         <div class="shortcut-eyebrow">First visit</div>
         <h2 id="tutorialWelcomeTitle">Want a quick tour?</h2>
-        <p>Big Screen Bible has a few lovely corners: reading, study tools, display mode, games, themes, sharing, and highlights. The tour takes about a minute.</p>
+        <p>Big Screen Bible has a few lovely corners: reading, study tools, display mode, memorization, games, themes, sharing, and highlights. The tour takes about a minute.</p>
         <div class="tutorial-actions">
           <button class="primary-btn" id="startTutorialPrompt" type="button">Start tour</button>
           <button class="ghost-btn" id="dismissTutorialPrompt" type="button">Maybe later</button>
@@ -21458,6 +21643,7 @@ function bindSettingsScrollContainment() {
 }
 
 function bindEvents() {
+  bindMemorization();
   bindScriptureReadingAccessibility();
   bindFocusReading();
   bindSettingsScrollContainment();
@@ -27432,7 +27618,7 @@ function refreshModeFromSession() {
   if (window.performance?.getEntriesByType?.("navigation")?.[0]?.type !== "reload") return null;
   try {
     const saved = JSON.parse(sessionStorage.getItem("lw_refresh_mode") || "null");
-    return saved && ["reader", "parallel", "big", "trivia"].includes(saved.mode) ? saved : null;
+    return saved && ["reader", "parallel", "big", "trivia", "memorize"].includes(saved.mode) ? saved : null;
   } catch { return null; }
 }
 
@@ -27638,6 +27824,7 @@ function requestedModeFromUrl() {
   if (["reader", "read"].includes(requestedMode)) return "reader";
   if (["parallel", "study", "parallel-study"].includes(requestedMode)) return "parallel";
   if (["trivia", "games", "game"].includes(requestedMode)) return "trivia";
+  if (requestedMode === "memorize") return "memorize";
   return "";
 }
 

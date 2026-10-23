@@ -1749,7 +1749,7 @@ button {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(46px, 1fr));
+  grid-template-columns: repeat(5, minmax(46px, 1fr));
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: visible;
@@ -16477,7 +16477,7 @@ svg {
   }
 
   .mode-tabs {
-    grid-template-columns: repeat(4, minmax(68px, 1fr));
+    grid-template-columns: repeat(5, minmax(46px, 1fr));
   }
 
   .mode-tabs button,
@@ -16519,7 +16519,7 @@ svg {
   }
 
   .mode-tabs {
-    grid-template-columns: 100px 134px 118px 100px;
+    grid-template-columns: repeat(5, 46px);
     margin-left: 0;
   }
 
@@ -16565,7 +16565,7 @@ svg {
   }
 
   .mode-tabs {
-    grid-template-columns: repeat(4, 46px);
+    grid-template-columns: repeat(5, 46px);
   }
 
   .topbar {
@@ -26625,3 +26625,47 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 #app .app-shell .reader-bookmark-options {
   z-index: 60;
 }
+
+/* Scripture memorization workspace */
+.memorize-grid { grid-template-columns: minmax(0, 1fr); }
+.memorize-reader { overflow-y: auto; min-height: 0; padding: clamp(16px, 3vw, 40px); }
+.memory-workspace { width: min(100%, 1000px); margin: auto; padding-bottom: 32px; }
+.memory-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.memory-heading h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); margin: 8px 0; }
+.memory-heading h2, .memory-heading h3 { margin: 0; }
+.memory-eyebrow, .memory-count { font-size: .9rem; font-weight: 600; }
+.memory-card { border: 1px solid var(--line); background: var(--panel); border-radius: 20px; padding: clamp(16px, 3vw, 28px); margin: 16px 0; }
+.memory-add { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+.memory-add h2, .memory-add > p { flex-basis: 100%; margin: 0; }
+.memory-add label { display: grid; gap: 8px; flex: 1 1 180px; }
+.memory-add input, .memory-add select { width: 100%; min-width: 0; min-height: 44px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.memory-stages, .memory-actions, .memory-word-bank { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+.memory-workspace button { min-height: 44px; white-space: normal; }
+.memory-stages .active { outline: 2px solid currentColor; outline-offset: 2px; }
+.memory-scripture, .memory-answer { font-family: var(--scripture-font, Georgia, serif); font-size: clamp(1.25rem, 2.4vw, 1.9rem); line-height: 1.8; overflow-wrap: anywhere; padding: 20px 0; }
+.memory-answer button { font: inherit; text-align: start; }
+.memory-help { opacity: .8; line-height: 1.6; }
+.memory-notice:empty { display: none; }
+.memory-saved { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.memory-saved h3 { margin: 0; }
+.memory-heading small { font-size: .8em; font-weight: normal; }
+@media (max-width: 520px) { .memory-actions > button { flex: 1 1 140px; } .memory-stages > button { flex: 1 1 100px; } }
+
+@media (min-width: 1321px) and (max-width: 1460px) { .topbar .mode-label { display: none; } }
+.memory-eyebrow { display: inline-flex; align-items: center; gap: 10px; color: var(--teal); }
+.memory-mark { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--teal) 10%, var(--panel)); }
+.memory-mark svg { width: 24px; height: 24px; }
+.memory-count { border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; background: var(--panel); }
+.memory-footer { justify-content: space-between; }
+.memory-footer-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; }
+.memory-footer-label svg { width: 20px; height: 20px; }
+.memory-workspace button:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.memory-workspace button:disabled { opacity: .5; }
+/* Keep the workspace bounded between shared header and footer in every orientation. */
+.app-shell.memorize-shell { height: 100dvh; grid-template-rows: var(--topbar-height) minmax(0, 1fr) auto; }
+.app-shell.memorize-shell > .main-grid.memorize-grid { height: 100%; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.app-shell.memorize-shell .memorize-reader { overflow: auto; overscroll-behavior: contain; }
+.app-shell.memorize-shell > .footer-region { display: block; }
+.app-shell.memorize-shell .memory-workspace { margin: 0 auto; }
+.memory-word-bank button { max-width: 100%; overflow-wrap: anywhere; }
+.memorize-shell #focusToggle, .memorize-shell .mobile-mode-focus { display: none; }
