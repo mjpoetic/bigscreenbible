@@ -48,6 +48,7 @@ html[data-control-material="glass"] .presentation:is(
 html[data-control-material="glass"] :is(
   .selection-bar, .focus-reading-controls, .reader-top-button, .reader-auto-scroll-button,
   .reader-selection-tools-button, .reader-return-button,
+  .scroll-speed-toggle, .scroll-speed-popover, .scroll-speed-done,
   .mobile-floating-passage, .mobile-floating-settings, .mobile-floating-focus-tools,
   .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .settings-popover, .mobile-settings-popover, .primary-version-menu,
@@ -1426,4 +1427,18 @@ html[data-control-material="glass"] .rail .rail-tools > button:focus-visible {
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   html[data-control-material="glass"] .rail .rail-tools { background: var(--glass-solid); }
   html[data-control-material="glass"] .rail .rail-tools > button.active { border-color: var(--glass-ink); }
+}
+
+/* Speed controls live both inside and outside the Focus Reading toolbar. */
+html[data-control-material="glass"] .scroll-speed-popover .scroll-speed-done {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--glass-ink);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+html[data-control-material="glass"] :is(.scroll-speed-toggle, .scroll-speed-done):is(:hover, :focus-visible) {
+  border-color: var(--glass-ink);
 }

@@ -382,7 +382,10 @@ function normalizedInterfaceTextSize(size) {
 }
 
 function normalizedAutoScrollSpeed(speed) {
-  return autoScrollSpeedCodes.includes(speed) ? speed : defaultAutoScrollSpeed;
+  if (autoScrollSpeedCodes.includes(speed)) return speed;
+  const value = Number(speed);
+  return speed !== null && speed !== "" && Number.isFinite(value) && value >= 0.25 && value <= 3
+    ? String(Math.round(value * 20) / 20) : defaultAutoScrollSpeed;
 }
 
 function normalizedReaderPageScrollSpeed(speed) {
@@ -4360,7 +4363,7 @@ function displaySettings(prefix = "", options = {}) {
 
 function readingSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
-  const selectedAutoScrollSpeed = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+  const selectedAutoScrollSpeed = activeAutoScrollSpeed();
   const selectedPageScrollSpeed = readerPageScrollSpeeds.find((speed) => speed.code === state.readerPageScrollSpeed) || readerPageScrollSpeeds[1];
   return settingsDisclosure("reading", "Reading & navigation", `
     <div class="setting-group">
@@ -4944,6 +4947,16 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.12": [
+      "Double-click the auto-scroll speed button to cycle through half-speed intervals, wrapping from 3× to 0.5×. Single-click still opens the slider.",
+    ],
+    "2026.10.23.11": [
+      "Auto-scroll speed controls now use Liquid Glass, including Done, with slider ticks at every whole and half speed from 0.5× to 3×.",
+    ],
+    "2026.10.23.10": [
+      "Adjust auto-scroll instantly with a granular speed slider in the Focus Reading toolbar, or beside Play/Pause when the toolbar is closed.",
+      "Auto-scroll tooltips use shorter text and wrap within their bounds.",
+    ],
     "2026.10.23.9": [
       "The highlighter toolbar keeps its seven passage actions on one row and removes the redundant Close action; tap outside to dismiss it.",
       "Narrow screens can scroll the action row sideways while retaining comfortable touch targets and the separate remove-highlight control.",
@@ -7759,7 +7772,7 @@ function focusFloatingControls() {
 }
 
 function focusControlsInUse() {
-  return state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || Boolean(activeSettingsChoiceMenu?.trigger?.closest(".focus-reading-controls"));
+  return Boolean(document.querySelector(".scroll-speed-popover:popover-open")) || state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || Boolean(activeSettingsChoiceMenu?.trigger?.closest(".focus-reading-controls"));
 }
 
 function revealMobileSettingsButton(event) {
@@ -7826,7 +7839,10 @@ function bindMobileSettingsVisibility() {
 }
 
 function activeAutoScrollSpeed() {
-  return autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+  const preset = autoScrollSpeeds.find((speed) => speed.code === state.autoScrollSpeed);
+  if (preset) return preset;
+  const multiplier = Number(normalizedAutoScrollSpeed(state.autoScrollSpeed));
+  return { name: `${multiplier}×`, pixelsPerSecond: multiplier * 24 };
 }
 
 function readerAutoScrollSurface() {
@@ -7842,7 +7858,7 @@ function updateReaderAutoScrollControl() {
   button.classList.toggle("active", state.autoScrollActive);
   button.setAttribute("aria-pressed", state.autoScrollActive ? "true" : "false");
   button.setAttribute("aria-label", `${action} auto-scroll at ${speed.name.toLowerCase()} speed`);
-  button.dataset.tooltip = `${action} auto-scroll (A) · Hold for Focus Reading`;
+  button.dataset.tooltip = `${action} auto-scroll (A)`;
   button.innerHTML = state.autoScrollActive ? icons.pause : icons.play;
 }
 
@@ -7970,13 +7986,18 @@ function toggleReaderAutoScroll({ announce = true } = {}) {
   return startReaderAutoScroll({ announce });
 }
 
-function setReaderAutoScrollSpeed(speed) {
+function setReaderAutoScrollSpeed(speed, { live = false } = {}) {
   const normalized = normalizedAutoScrollSpeed(speed);
   if (normalized === state.autoScrollSpeed) return;
   state.autoScrollSpeed = normalized;
   localStorage.setItem("lw_auto_scroll_speed", state.autoScrollSpeed);
   scheduleCloudSync();
-  renderPreservingReaderScroll();
+  if (live) {
+    updateReaderAutoScrollControl();
+    document.querySelectorAll("[data-scroll-speed-label]").forEach((label) => {
+      label.textContent = readerAutoScrollSpeedLabel();
+    });
+  } else renderPreservingReaderScroll();
 }
 
 function setReaderPageScrollSpeed(speed) {
@@ -8748,6 +8769,7 @@ function focusReadingControls() {
     <button type="button" data-focus-reading-step="1" aria-label="Next reading line">${icons.arrowDown}</button>
     ${settingsChoiceMarkup("focusReadingStyle", state.focusReadingStyle, [{ value: "dim", label: "Dim" }, { value: "blur", label: "Blur" }], { ariaLabel: "Surrounding text" })}
     ${settingsChoiceMarkup("focusReadingLines", state.focusReadingLines, [1,2,3].map(n => ({ value: String(n), label: `${n} ${n === 1 ? "line" : "lines"}` })), { ariaLabel: "Visible lines" })}
+    ${readerAutoScrollSpeedControl(true)}
     <button type="button" data-focus-reading-toggle aria-label="Turn off Focus Reading" data-tooltip="Turn off · Shift+R">×</button>
     <span class="sr-only" id="focusReadingStatus" role="status"></span>
   </div>`;
@@ -9350,7 +9372,7 @@ function bindReaderAutoScrollButton(button) {
 
 function readerAutoScrollButton() {
   if (!state.autoScrollEnabled && !(state.focusMode && state.focusReading)) return "";
-  const speed = autoScrollSpeeds.find((option) => option.code === state.autoScrollSpeed) || autoScrollSpeeds[1];
+  const speed = activeAutoScrollSpeed();
   const active = state.autoScrollActive;
   const action = active ? "Pause" : "Start";
   return `
@@ -9360,11 +9382,64 @@ function readerAutoScrollButton() {
       type="button"
       aria-label="${action} auto-scroll at ${speed.name.toLowerCase()} speed"
       aria-pressed="${active ? "true" : "false"}"
-      data-tooltip="${action} auto-scroll (A) · Hold for Focus Reading"
+      data-tooltip="${action} auto-scroll (A)"
     >
       ${active ? icons.pause : icons.play}
     </button>
+    ${state.focusMode && state.focusReading ? "" : readerAutoScrollSpeedControl(false)}
   `;
+}
+
+function readerAutoScrollSpeedLabel() {
+  return `${Number((activeAutoScrollSpeed().pixelsPerSecond / 24).toFixed(2))}×`;
+}
+
+function readerAutoScrollSpeedControl(inFocus) {
+  return `<div class="scroll-speed-control ${inFocus ? "in-focus" : "beside-auto-scroll"}">
+    <button type="button" class="scroll-speed-toggle" popovertarget="readerScrollSpeedPopover" aria-label="Adjust auto-scroll speed"><span data-scroll-speed-label>${readerAutoScrollSpeedLabel()}</span></button>
+    <div id="readerScrollSpeedPopover" class="scroll-speed-popover" popover="auto" role="dialog" aria-label="Auto-scroll speed">
+      <label for="readerScrollSpeed">Auto-scroll speed <output for="readerScrollSpeed" data-scroll-speed-label>${readerAutoScrollSpeedLabel()}</output></label>
+      <input id="readerScrollSpeed" type="range" list="readerScrollSpeedTicks" min="0.25" max="3" step="0.05" value="${activeAutoScrollSpeed().pixelsPerSecond / 24}" aria-valuetext="${readerAutoScrollSpeedLabel()}" />
+      <datalist id="readerScrollSpeedTicks">
+        ${[0.5, 1, 1.5, 2, 2.5, 3].map(speed => `<option value="${speed}" label="${speed}×"></option>`).join("")}
+      </datalist>
+      <div class="scroll-speed-range-labels"><span>Slower</span><span>Faster</span></div>
+      <button type="button" class="scroll-speed-done" popovertarget="readerScrollSpeedPopover" popovertargetaction="hide">Done</button>
+    </div>
+  </div>`;
+}
+
+function nextReaderAutoScrollSpeed() {
+  const multiplier = activeAutoScrollSpeed().pixelsPerSecond / 24;
+  const next = (Math.floor(Math.round(multiplier * 100) / 50) + 1) / 2;
+  return next > 3 ? 0.5 : next;
+}
+
+function bindReaderAutoScrollSpeed() {
+  const slider = document.getElementById("readerScrollSpeed");
+  const popover = document.getElementById("readerScrollSpeedPopover");
+  const speedButton = document.querySelector(".scroll-speed-toggle");
+  speedButton?.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    const next = nextReaderAutoScrollSpeed();
+    setReaderAutoScrollSpeed(String(next), { live: true });
+    slider.value = String(next);
+    slider.setAttribute("aria-valuetext", readerAutoScrollSpeedLabel());
+    if (popover.matches(":popover-open")) popover.hidePopover();
+    speedButton.focus({ preventScroll: true });
+  });
+  popover?.addEventListener("toggle", () => {
+    if (!popover.matches(":popover-open")) return;
+    const button = document.querySelector(".scroll-speed-toggle");
+    const bounds = button.getBoundingClientRect();
+    popover.style.left = `${Math.max(12, Math.min(bounds.left + bounds.width / 2 - 140, window.innerWidth - 292))}px`;
+    popover.style.top = `${Math.max(12, bounds.top - popover.offsetHeight - 12)}px`;
+    slider.focus({ preventScroll: true });
+  });
+  slider?.addEventListener("input", () => {
+    setReaderAutoScrollSpeed(slider.value, { live: true });
+    slider.setAttribute("aria-valuetext", readerAutoScrollSpeedLabel());
+  });
 }
 
 function readerSelectionToolsButton() {
@@ -23485,6 +23560,7 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("touchcancel", cancelPresentationTouch, { passive: true });
   const scriptureTouchSurface = document.querySelector(".scripture");
   bindReaderAutoScrollButton(document.getElementById("readerAutoScrollButton"));
+  bindReaderAutoScrollSpeed();
   bindReaderVerseHold(scriptureTouchSurface);
   bindReaderChapterEdgeBuffer(scriptureTouchSurface);
   scriptureTouchSurface?.addEventListener("wheel", handleReaderChapterWheel, { passive: false });

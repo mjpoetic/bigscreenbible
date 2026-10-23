@@ -33,6 +33,11 @@ assert.equal(normalizeContext.normalize("normal"), "normal");
 assert.equal(normalizeContext.normalize("fast"), "fast");
 assert.equal(normalizeContext.normalize("unexpected"), "normal");
 assert.equal(normalizeContext.normalize(null), "normal");
+assert.equal(normalizeContext.normalize("0.25"), "0.25");
+assert.equal(normalizeContext.normalize("1.35"), "1.35");
+assert.equal(normalizeContext.normalize("3"), "3");
+assert.equal(normalizeContext.normalize("0"), "normal");
+assert.equal(normalizeContext.normalize("4"), "normal");
 
 const stepContext = {};
 vm.createContext(stepContext);
@@ -252,3 +257,26 @@ rebuiltHold.fire('pointerdown', { button: 2 }); assert.equal(holdTimers.size, 0,
 rebuiltHold.fire('pointerdown'); rebuiltHold.button.isConnected = false; [...holdTimers.values()][0]();
 assert.equal(holdOpened, 1, 'Detached button cannot open Focus Reading');
 console.log('Auto-scroll hold: tap, hold, release suppression, rerender, active mode, and cancellation passed.');
+
+// Custom speeds use the same pacing engine as the legacy presets.
+const speedContext = {
+  state: { autoScrollSpeed: "1.35" },
+  autoScrollSpeeds: [{ code: "slow", name: "Slow", pixelsPerSecond: 10 }, { code: "normal", name: "Normal", pixelsPerSecond: 24 }, { code: "fast", name: "Fast", pixelsPerSecond: 48 }],
+  normalizedAutoScrollSpeed: normalizeContext.normalize,
+};
+vm.createContext(speedContext);
+vm.runInContext(`${extractFunction("activeAutoScrollSpeed")}
+${extractFunction("readerAutoScrollSpeedLabel")}
+globalThis.speed = activeAutoScrollSpeed(); globalThis.label = readerAutoScrollSpeedLabel();`, speedContext);
+assert.equal(speedContext.speed.pixelsPerSecond, 32.400000000000006);
+assert.equal(speedContext.label, "1.35×");
+speedContext.state.autoScrollSpeed = "normal";
+assert.equal(vm.runInContext("readerAutoScrollSpeedLabel()", speedContext), "1×");
+assert.doesNotMatch(extractFunction("readerAutoScrollButton"), /Hold for Focus Reading/);
+
+vm.runInContext(`${extractFunction("nextReaderAutoScrollSpeed")}
+globalThis.nextSpeed = nextReaderAutoScrollSpeed;`, speedContext);
+for (const [current, expected] of [["0.25", 0.5], ["0.5", 1], ["1", 1.5], ["1.35", 1.5], ["1.5", 2], ["2", 2.5], ["2.5", 3], ["3", 0.5], ["slow", 0.5], ["normal", 1.5], ["fast", 2.5]]) {
+  speedContext.state.autoScrollSpeed = current;
+  assert.equal(speedContext.nextSpeed(), expected, `Cycle from ${current}`);
+}

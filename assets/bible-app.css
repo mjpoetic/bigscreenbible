@@ -26772,3 +26772,54 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   text-align: center;
   pointer-events: none;
 }
+
+/* Quick auto-scroll adjustment stays available in either reading layout. */
+.scroll-speed-control.beside-auto-scroll {
+  position: fixed;
+  left: calc(50% + 34px);
+  bottom: calc(var(--reader-chrome-height) + 18px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  z-index: 42;
+}
+.scroll-speed-toggle {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.app-shell.focus-shell .scroll-speed-control.beside-auto-scroll,
+.app-shell.footer-collapsed .scroll-speed-control.beside-auto-scroll {
+  bottom: calc(18px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+.scroll-speed-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.scroll-speed-popover label, .scroll-speed-range-labels { display: flex; justify-content: space-between; gap: 12px; }
+.scroll-speed-popover input { width: 100%; min-height: 44px; accent-color: var(--teal); }
+.scroll-speed-range-labels { font-size: 12px; margin-bottom: 12px; }
+.scroll-speed-popover button { min-height: 40px; padding: 6px 16px; cursor: pointer; }
+.focus-reading-controls { flex-wrap: wrap; justify-content: center; }
+.reader-auto-scroll-button[data-tooltip]::after { width: max-content; max-width: min(180px, calc(100vw - 24px)); white-space: normal; }
+@media (max-width: 840px) and (orientation: portrait) {
+  .scroll-speed-control.beside-auto-scroll { bottom: calc(var(--mobile-portrait-footer-height, 77px) + 14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); }
+  .app-shell.focus-shell .scroll-speed-control.beside-auto-scroll,
+  .app-shell.footer-collapsed .scroll-speed-control.beside-auto-scroll { bottom: calc(14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); }
+}
+@media print { .scroll-speed-control { display: none !important; } }

@@ -13,7 +13,7 @@ controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
   activeSettingsChoiceMenu: null,
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
-  document: { querySelectorAll: selector => selector.startsWith(".reader-page-button")
+  document: { querySelector: () => null, querySelectorAll: selector => selector.startsWith(".reader-page-button")
     ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
     : selector.startsWith("#mobileFloatingSettings")
       ? controls.filter(b => b.id !== "scriptureReaderLauncher" || selector.includes(".scripture-reader-launcher"))
