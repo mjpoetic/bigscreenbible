@@ -23720,18 +23720,6 @@ svg {
 .verse-hold-active .selection-bar { pointer-events: none; }
 
 @media (max-width: 840px) and (orientation: portrait) {
-  /* Games has no side rail; keep its utility buttons beside the logo. */
-  .app-shell.trivia-shell .topbar #shortcutsButton,
-  .app-shell.trivia-shell .topbar #settingsToggle {
-    display: grid;
-    place-items: center;
-    grid-row: 1;
-    min-height: 44px;
-    width: 100%;
-    padding: 0;
-  }
-  .app-shell.trivia-shell .topbar #shortcutsButton { grid-column: 9 / 11; }
-  .app-shell.trivia-shell .topbar #settingsToggle { grid-column: 11 / -1; }
   .app-shell:not(.focus-shell) .topbar .portrait-search-collapse-toggle {
     display: grid;
     left: 50%;
@@ -23858,12 +23846,12 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   padding-bottom: calc(12px + var(--app-safe-area-bottom));
 }
 
-/* On narrow landscape phones Games places its mode picker near the left edge.
-   Open toward the available space instead of extending the menu off-screen. */
+/* Compact workspace menus open inward from the same anchor as reading modes. */
 @media (max-width: 840px) and (orientation: landscape) {
-  .app-shell.trivia-shell .topbar .portrait-navigation .mode-tabs {
-    left: 0;
-    right: auto;
+  .app-shell:is(.trivia-shell, .memorize-shell) .topbar .portrait-navigation { margin-left: auto; }
+  .app-shell:is(.trivia-shell, .memorize-shell) .topbar .portrait-navigation .mode-tabs {
+    left: auto;
+    right: 0;
     max-width: calc(100vw - 110px - var(--app-safe-area-left, env(safe-area-inset-left, 0px)) - var(--app-safe-area-right, env(safe-area-inset-right, 0px)));
   }
 }
@@ -26391,27 +26379,27 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 @media (max-width: 840px) and (orientation: portrait) {
   :root { --mobile-portrait-footer-height: 52px; }
 
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar {
+  .app-shell:not(.focus-shell) .topbar {
     grid-template-columns: 44px minmax(0, 1fr) 64px 44px;
     grid-template-rows: 44px auto;
     gap: 4px 6px;
     padding: calc(4px + var(--app-safe-area-top, env(safe-area-inset-top, 0px))) 8px 6px;
     min-height: 0;
   }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .brand {
+  .app-shell:not(.focus-shell) .topbar .brand {
     grid-column: 1;
     grid-row: 1;
     width: 44px;
     min-width: 0;
     padding: 0;
   }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .brand-mark-image { width: 40px; height: 40px; margin: 0; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar :is(.brand-copy, .brand-divider) { display: none; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .portrait-navigation { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; margin: 0; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-chip { grid-column: 3; grid-row: 1; width: 64px; min-width: 64px; padding-inline: 5px; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .account-menu { grid-column: 4; grid-row: 1; width: 44px; justify-self: end; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .search { grid-column: 1 / 4; grid-row: 2; }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .versions { grid-column: 4; grid-row: 2; }
+  .app-shell:not(.focus-shell) .topbar .brand-mark-image { width: 40px; height: 40px; margin: 0; }
+  .app-shell:not(.focus-shell) .topbar :is(.brand-copy, .brand-divider) { display: none; }
+  .app-shell:not(.focus-shell) .topbar .portrait-navigation { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; margin: 0; }
+  .app-shell:not(.focus-shell) .topbar .streak-chip { grid-column: 3; grid-row: 1; width: 64px; min-width: 64px; padding-inline: 5px; }
+  .app-shell:not(.focus-shell) .topbar .account-menu { grid-column: 4; grid-row: 1; width: 44px; justify-self: end; }
+  .app-shell:not(.focus-shell) .topbar .search { grid-column: 1 / 4; grid-row: 2; }
+  .app-shell:not(.focus-shell) .topbar .versions { grid-column: 4; grid-row: 2; }
 
   .footer-region .bottombar {
     grid-template-columns: 44px minmax(0, 1fr) auto 44px;
@@ -26436,8 +26424,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .bottombar .bottom-action-icon svg { width: 25px; height: 25px; }
 }
 @media (max-width: 840px) and (orientation: portrait) {
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .streak-menu { grid-column: 3; grid-row: 1; width: 64px; min-width: 0; }
-  .app-shell:not(.focus-shell):not(.trivia-shell).portrait-search-collapsed .topbar { grid-template-rows: 44px; row-gap: 0; }
+  .app-shell:not(.focus-shell) .topbar .streak-menu { grid-column: 3; grid-row: 1; width: 64px; min-width: 0; }
+  .app-shell:not(.focus-shell).portrait-search-collapsed .topbar { grid-template-rows: 44px; row-gap: 0; }
 }
 
 .footer-compact-reference { display: none; }
@@ -26509,11 +26497,11 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 
 @media (max-width: 840px) and (orientation: portrait) {
   /* The search row shares the full grid, independently of the icon row. */
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .search {
+  .app-shell:not(.focus-shell) .topbar .search {
     grid-column: 1 / -1;
     width: calc(100% - 98px);
   }
-  .app-shell:not(.focus-shell):not(.trivia-shell) .topbar .versions {
+  .app-shell:not(.focus-shell) .topbar .versions {
     grid-column: 1 / -1;
     justify-self: end;
     width: 92px;
@@ -26695,3 +26683,48 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-typing-passage { line-height: 2.5; }
 .memorize-shell > .main-grid.memorize-grid { transition: none; }
 .memory-typing-passage input { scroll-margin-block: 24px; }
+
+
+/* Shared header slots keep navigation stable when a workspace has no Bible search. */
+.app-shell:is(.memorize-shell, .trivia-shell) .topbar :is(.search, .versions, .portrait-search-collapse-toggle) { display: none; }
+.mode-tabs .mode-workspace-settings { display: none; }
+@media (min-width: 841px) {
+  .app-shell .topbar {
+    display: grid;
+    grid-template-columns: auto auto minmax(120px, 1fr) 92px max-content 40px 40px 40px;
+    grid-template-rows: minmax(0, 1fr);
+    align-content: center;
+  }
+  .app-shell .topbar > .brand { grid-column: 1; grid-row: 1; }
+  .app-shell .topbar > .streak-menu { grid-column: 2; grid-row: 1; }
+  .app-shell .topbar > .search { grid-column: 3; grid-row: 1; min-width: 0; width: 100%; }
+  .app-shell .topbar > .versions { grid-column: 4; grid-row: 1; }
+  .app-shell .topbar .portrait-navigation { grid-column: 5; grid-row: 1; }
+  .app-shell .topbar .mode-tabs { grid-column: 5; grid-row: 1; }
+  .app-shell .topbar > #focusToggle { grid-column: 6; grid-row: 1; }
+  .app-shell .topbar > .account-menu { grid-column: 7; grid-row: 1; }
+  .app-shell .topbar > .settings-menu { grid-column: 8; grid-row: 1; }
+}
+@media (min-width: 841px) and (max-width: 1320px) {
+  .app-shell .topbar { grid-template-columns: 168px 0 minmax(100px, 1fr) 92px 172px 0 40px 40px; }
+  .app-shell .topbar .portrait-navigation .mode-tabs { grid-column: auto; grid-row: auto; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .app-shell:not(.focus-shell).portrait-search-collapsed .topbar,
+  .app-shell:is(.memorize-shell, .trivia-shell) .topbar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 64px 44px;
+    grid-template-rows: 44px;
+    justify-content: stretch;
+    align-content: center;
+  }
+  .app-shell:is(.memorize-shell, .trivia-shell) { --topbar-height: calc(54px + var(--app-safe-area-top, env(safe-area-inset-top, 0px))); }
+  .app-shell:is(.memorize-shell, .trivia-shell) .topbar { height: var(--topbar-height); min-height: 0; }
+  .app-shell:is(.memorize-shell, .trivia-shell) .topbar #settingsToggle { display: none; }
+}
+@media (max-width: 1320px) {
+  .app-shell .topbar .portrait-navigation .mode-tabs .mode-workspace-settings { display: flex; }
+}
+@media (max-width: 840px) and (orientation: landscape) {
+  .app-shell:is(.memorize-shell, .trivia-shell) .topbar .portrait-navigation { margin-left: auto; }
+}

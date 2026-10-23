@@ -4943,6 +4943,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.7": [
+      "Memorize removes the reading search and Bible-version header row; choose passages and translations inside the workspace.",
+      "Games and Memorize keep the logo and mode navigation aligned with reading modes, including collapsed portrait and landscape headers.",
+      "Compact Games and Memorize mode menus include Settings, keeping utilities accessible without extra header rows.",
+    ],
     "2026.10.23.6": [
       "Fixed blank verse numbers in Reader’s passage dropdown by giving narrow menus enough room for their labels.",
     ],
@@ -6013,6 +6018,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       <nav class="mode-tabs" id="headerModeNavigation" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
         <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">${focusLabel}</span></button>
+        ${["memorize", "trivia"].includes(state.mode) ? `<button class="mode-workspace-settings" type="button" data-workspace-settings>${icons.settings}<span class="mode-label">Settings</span></button>` : ""}
       </nav>
       </div>
       <button class="icon-btn focus-toggle ${state.focusMode ? "active" : ""}" id="focusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}</button>
@@ -21733,6 +21739,10 @@ function bindSettingsScrollContainment() {
 }
 
 function bindEvents() {
+  document.querySelector("[data-workspace-settings]")?.addEventListener("click", () => {
+    closePortraitNavigation();
+    openSettingsFromMobileControls();
+  });
   bindMemorization();
   bindScriptureReadingAccessibility();
   bindFocusReading();
