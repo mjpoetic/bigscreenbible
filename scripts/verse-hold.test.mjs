@@ -16,6 +16,7 @@ const context = vm.createContext({ state: { mode: 'reader', reference: 'John 1',
   setTimeout: fn => { timer = fn; return 1; }, clearTimeout: () => { timer = null; }, requestAnimationFrame: () => 1, cancelAnimationFrame() {},
   canUseReaderChapterSwipe: () => true, pauseReaderAutoScroll() {}, cancelReaderChapterSwipe() {}, cancelReaderTouchGesture() {},
   highlightClassForVerse: () => '', selectionBar: () => '<div></div>', playNativeHaptic: kind => haptics.push(kind),
+  selectionBarIsVisible: () => false, animateSelectionBarReveal() {},
   renderPreservingReaderScroll: () => renders++, surface,
 });
 vm.runInContext(`let readerVerseHold = null, suppressReaderVerseClickUntil = 0; ${names.map(extract).join('\n')}`, context);

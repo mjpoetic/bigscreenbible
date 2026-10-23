@@ -25397,6 +25397,14 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
   }
 }
 
+/* Clip toolbar contents while its occupied space expands. */
+@media (max-width: 840px) and (orientation: portrait) {
+  #app .app-shell .reader .scripture .selection-bar {
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+}
+
 /* Focus Reading masks only Scripture; the original text stays selectable and accessible. */
 .focus-reading-guide { position: fixed; z-index: 8; pointer-events: none; overflow: hidden; }
 .focus-reading-guide > div { position: absolute; background: color-mix(in srgb, var(--paper) 88%, transparent); }

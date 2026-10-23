@@ -1783,7 +1783,29 @@ function restoreAccountPanelScroll(scrollState) {
   panel.scrollLeft = scrollState.left;
 }
 
+// Animate the occupied space too, so the passage moves with the portrait toolbar.
+function animateSelectionBarReveal(wasVisible) {
+  const bar = document.querySelector(".scripture .selection-bar");
+  if (wasVisible || !bar || !bar.getClientRects().length
+    || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const style = getComputedStyle(bar);
+  if (style.position !== "sticky") return;
+  const height = bar.getBoundingClientRect().height;
+  bar.animate([
+    { height: "0px", minHeight: "0px", paddingTop: "0px", paddingBottom: "0px",
+      borderTopWidth: "0px", borderBottomWidth: "0px", marginBottom: "0px", opacity: 0 },
+    { height: `${height}px`, minHeight: "0px", paddingTop: style.paddingTop, paddingBottom: style.paddingBottom,
+      borderTopWidth: style.borderTopWidth, borderBottomWidth: style.borderBottomWidth,
+      marginBottom: style.marginBottom, opacity: 1 },
+  ], { duration: 300, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+}
+
+function selectionBarIsVisible() {
+  return Boolean(document.querySelector(".scripture .selection-bar")?.getClientRects().length);
+}
+
 function render() {
+  const selectionBarWasVisible = selectionBarIsVisible();
   if (pruneExpiredRemoteVersionData()) {
     activeVersions().filter(isRemoteTranslation).forEach((version) => {
       ensureRemoteBibleVersion(version, state.reference);
@@ -1884,6 +1906,7 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  animateSelectionBarReveal(selectionBarWasVisible);
   window.bsbAmbient?.syncControls();
   if (readingFocusSnapshot && document.activeElement === document.body) {
     const region = document.getElementById("scriptureReadingRegion");
@@ -4847,6 +4870,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.1": [
+      "Smoother highlighter reveal: Scripture moves gently as the selection toolbar opens on portrait phones.",
+    ],
     "2026.10.20.4": [
       "Passage links opened in the mobile app take priority over restoring the previous reading session.",
     ],
@@ -29983,12 +30009,14 @@ function updateReaderVerseHold(verse) {
     row.classList.toggle("passage-selected", state.selectedVerses.includes(number));
     row.classList.toggle("highlight-selected", Boolean(highlightClassForVerse(number)) && (number === verse || state.selectedVerses.includes(number)));
   });
+  const selectionBarWasVisible = selectionBarIsVisible();
   const shell = gesture.surface.closest(".app-shell");
   shell?.classList.add("has-selection");
   shell?.classList.remove("selection-tools-collapsed");
   const bar = gesture.surface.querySelector(".selection-bar");
   if (bar) bar.outerHTML = selectionBar();
   else gesture.surface.insertAdjacentHTML("afterbegin", selectionBar());
+  animateSelectionBarReveal(selectionBarWasVisible);
   if (previous !== null) playNativeHaptic("tick");
 }
 
