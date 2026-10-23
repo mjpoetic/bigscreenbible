@@ -3176,7 +3176,7 @@ function loadingScreen() {
 }
 
 function mobileFocusOverlayControls() {
-  if (["big", "memorize"].includes(state.mode)) return "";
+  if (["big", "memorize", "trivia"].includes(state.mode)) return "";
   const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
   const activeSearchLabel = activeSearchSourceLabel();
@@ -4943,6 +4943,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.8": [
+      "Narrower desktop headers now use the labeled mode dropdown instead of an icon-only mode bar, matching tablets and phones.",
+      "Games hides reading Focus controls, while Reader and Parallel keep their Focus controls and saved reading preference.",
+    ],
     "2026.10.23.7": [
       "Memorize removes the reading search and Bible-version header row; choose passages and translations inside the workspace.",
       "Games and Memorize keep the logo and mode navigation aligned with reading modes, including collapsed portrait and landscape headers.",

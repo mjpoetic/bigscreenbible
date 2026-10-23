@@ -23396,7 +23396,7 @@ svg {
 
 @media (max-width: 840px) and (orientation: portrait),
   (max-width: 840px) and (orientation: landscape),
-  (min-width: 841px) and (max-width: 1320px) {
+  (min-width: 841px) and (max-width: 1759px) {
   .app-shell .topbar .portrait-navigation {
     position: relative;
     display: block;
@@ -23457,9 +23457,9 @@ svg {
     background: var(--soft);
   }
   .app-shell .topbar .portrait-navigation .mode-label { display: inline; }
-  .app-shell .topbar #focusToggle { display: none; }
 
 }
+@media (max-width: 1320px) { .app-shell .topbar #focusToggle { display: none; } }
 
 @media (max-width: 840px) and (orientation: portrait) {
   .app-shell .topbar .streak-menu {
@@ -23504,7 +23504,7 @@ svg {
 .current-mode-label { flex: 1; min-width: 0; text-align: left; }
 
 @media (max-width: 840px) and (orientation: landscape),
-  (min-width: 841px) and (max-width: 1320px) {
+  (min-width: 841px) and (max-width: 1759px) {
   .app-shell .topbar .portrait-navigation {
     flex: 0 0 auto;
     width: 172px;
@@ -26639,9 +26639,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-heading small { font-size: .8em; font-weight: normal; }
 @media (max-width: 520px) { .memory-actions > button { flex: 1 1 140px; } .memory-stages > button { flex: 1 1 100px; } }
 
-/* Desktop mode navigation stays on one row, including future mode additions.
-   Compact glyphs leave breathing room for search before labels can fit. */
-@media (min-width: 1321px) {
+/* Wide navigation keeps labeled buttons; narrower headers use the same mode dropdown. */
+@media (min-width: 1760px) {
   .app-shell .topbar .mode-tabs {
     display: grid;
     grid-template-columns: none;
@@ -26650,10 +26649,6 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     width: max-content;
   }
   .app-shell .topbar .mode-tabs button { white-space: nowrap; }
-}
-@media (min-width: 1321px) and (max-width: 1759px) {
-  .app-shell .topbar .mode-tabs { grid-auto-columns: 46px; }
-  .topbar .mode-label { display: none; }
 }
 .memory-eyebrow { display: inline-flex; align-items: center; gap: 10px; color: var(--teal); }
 .memory-mark { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--teal) 10%, var(--panel)); }
@@ -26671,7 +26666,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .app-shell.memorize-shell > .footer-region { display: block; }
 .app-shell.memorize-shell .memory-workspace { margin: 0 auto; }
 .memory-word-bank button { max-width: 100%; overflow-wrap: anywhere; }
-.memorize-shell #focusToggle, .memorize-shell .mobile-mode-focus { display: none; }
+.app-shell:is(.memorize-shell, .trivia-shell) :is(#focusToggle, .mobile-mode-focus) { display: none; }
 
 .memory-word-field { display: inline-flex; flex-direction: column; vertical-align: middle; max-width: 100%; margin: 5px 3px; }
 .memory-word-field input { width: var(--memory-word-width, 8ch); max-width: 100%; min-height: 44px; padding: 6px 9px; border: 1px solid var(--line); border-bottom: 2px solid var(--teal); border-radius: 8px; background: var(--panel); color: var(--ink); font-family: inherit; font-size: max(16px, .85em); line-height: 1.4; }
@@ -26707,6 +26702,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 }
 @media (min-width: 841px) and (max-width: 1320px) {
   .app-shell .topbar { grid-template-columns: 168px 0 minmax(100px, 1fr) 92px 172px 0 40px 40px; }
+}
+@media (min-width: 841px) and (max-width: 1759px) {
   .app-shell .topbar .portrait-navigation .mode-tabs { grid-column: auto; grid-row: auto; }
 }
 @media (max-width: 840px) and (orientation: portrait) {
@@ -26722,9 +26719,12 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .app-shell:is(.memorize-shell, .trivia-shell) .topbar { height: var(--topbar-height); min-height: 0; }
   .app-shell:is(.memorize-shell, .trivia-shell) .topbar #settingsToggle { display: none; }
 }
-@media (max-width: 1320px) {
+@media (max-width: 1759px) {
   .app-shell .topbar .portrait-navigation .mode-tabs .mode-workspace-settings { display: flex; }
 }
 @media (max-width: 840px) and (orientation: landscape) {
   .app-shell:is(.memorize-shell, .trivia-shell) .topbar .portrait-navigation { margin-left: auto; }
+}
+@media (min-width: 1321px) {
+  .app-shell .topbar .mode-tabs #mobileFocusToggle { display: none; }
 }
