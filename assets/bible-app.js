@@ -4947,6 +4947,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.15": [
+      "Memorize now uses the shared Liquid Glass finish for practice buttons, saved-passage panels, and controls, with clear selected states and opaque answer fields.",
+      "Classic styling and reduced-transparency or higher-contrast preferences remain supported.",
+    ],
     "2026.10.23.14": [
       "The auto-scroll speed button now fades and hides with the other floating reading controls in Reader, Parallel, and Focus Mode.",
     ],

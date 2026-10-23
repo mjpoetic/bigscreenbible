@@ -1442,3 +1442,53 @@ html[data-control-material="glass"] .scroll-speed-popover .scroll-speed-done {
 html[data-control-material="glass"] :is(.scroll-speed-toggle, .scroll-speed-done):is(:hover, :focus-visible) {
   border-color: var(--glass-ink);
 }
+
+/* Memorize shares the control material while Scripture and answer fields stay opaque. */
+html[data-control-material="glass"] .memorize-shell .memory-card {
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  box-shadow: inset 0 1px 0 var(--glass-light), 0 6px 18px color-mix(in srgb, var(--ink) 5%, transparent);
+}
+html[data-control-material="glass"] .memorize-shell :is(.memory-count, .memory-mark),
+html[data-control-material="glass"] .memorize-shell .memory-workspace :is(.ghost-btn, .primary-btn),
+html[data-control-material="glass"] .memorize-shell .memory-saved .text-btn {
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  color: var(--ink);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+html[data-control-material="glass"] .memorize-shell .memory-mark { border-radius: 12px; color: var(--teal); }
+html[data-control-material="glass"] .memorize-shell .memory-workspace .primary-btn,
+html[data-control-material="glass"] .memorize-shell .memory-stages .active {
+  border-color: var(--teal);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+}
+html[data-control-material="glass"] .memorize-shell .memory-stages .active { outline: none; }
+html[data-control-material="glass"] .memorize-shell .memory-workspace button:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+html[data-control-material="glass"] .memorize-shell .memory-workspace :is(.ghost-btn, .primary-btn):not(:disabled):hover { border-color: var(--ink); }
+html[data-control-material="glass"] .memorize-shell :is(.memory-add input, .memory-add select, .memory-word-field input) {
+  border-color: var(--glass-edge);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: inset 0 1px 0 var(--glass-light);
+  color: var(--ink);
+}
+html[data-control-material="glass"] .memorize-shell .memory-word-field[data-memory-result="correct"] input { border-color: var(--success); }
+html[data-control-material="glass"] .memorize-shell .memory-word-field[data-memory-result="retry"] input { border-color: var(--red-letter); }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  html[data-control-material="glass"] .memorize-shell :is(.memory-card, .memory-count, .memory-mark),
+  html[data-control-material="glass"] .memorize-shell .memory-workspace :is(.ghost-btn, .primary-btn, input, select),
+  html[data-control-material="glass"] .memorize-shell .memory-saved .text-btn {
+    background: var(--panel);
+    color: var(--ink);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  html[data-control-material="glass"] .memorize-shell .memory-workspace .primary-btn,
+  html[data-control-material="glass"] .memorize-shell .memory-stages .active { background: var(--teal); color: var(--accent-ink); }
+}
