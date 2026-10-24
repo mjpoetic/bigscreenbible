@@ -27129,3 +27129,13 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   /* The passage editor already shows validation; avoid a second overlapping warning. */
   .trivia-reader.is-setup:has(.puzzle-passage-popover[open]) .puzzle-start-warning { display: none; }
 }
+
+/* Long Crossword style names remain readable inside the viewport. */
+#crosswordModeSelectMenu .settings-choice-option { white-space: normal; overflow-wrap: anywhere; }
+#crosswordModeSelectMenu .settings-choice-option > :first-child { white-space: normal; overflow: visible; text-overflow: clip; }
+@media (min-width: 960px) and (min-height: 721px), (min-width: 1367px) {
+  .trivia-reader.is-setup .games-options-drawer .puzzle-source-options { border-radius: 8px; min-height: 42px; }
+  .trivia-reader.is-setup .games-options-drawer .puzzle-source-options button { border-radius: 5px; }
+  html[data-control-material="glass"] .trivia-reader.is-setup .games-options-drawer .puzzle-source-options { border-radius: 16px; min-height: 44px; padding: 3px; }
+  html[data-control-material="glass"] .trivia-reader.is-setup .games-options-drawer .puzzle-source-options button { border-radius: 12px; }
+}

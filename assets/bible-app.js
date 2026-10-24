@@ -4949,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.12": [
+      "Puzzle source controls match the neighboring game options, and Crossword style menus show their full labels.",
+    ],
     "2026.10.24.11": [
       "Passage and countdown controls align with the other game options on wider screens. Verse Order places its single round-length control at the left.",
     ],
@@ -18152,7 +18155,7 @@ function triviaView() {
                   </div>` : ""}<p class="games-setup-help">${state.wordSearchCategory === "random" ? "Grid varies by category" : `${wordSearchConfig.size}×${wordSearchConfig.size}`} · ${wordSearchConfig.wordCount} words · ${escapeHtml(wordSearchDifficultyDescription(state.triviaDifficulty).split(" · ").slice(2).join(" · "))}</p>` : ""}` : ""}
                   ${isCrossword ? `<div class="game-option-field">
                     <span>Crossword style</span>
-                    ${settingsChoiceMarkup("crosswordModeSelect", state.crosswordMode, [{ value: "scripture", label: "Scripture · verse clues" }, { value: "trivia", label: "Bible Trivia · traditional clues" }], { ariaLabel: "Crossword style", disabled: waitingForLiveChallenge })}
+                    ${settingsChoiceMarkup("crosswordModeSelect", state.crosswordMode, [{ value: "scripture", label: "Scripture · verse clues" }, { value: "trivia", label: "Bible Trivia · traditional clues" }], { ariaLabel: "Crossword style", disabled: waitingForLiveChallenge, wide: true })}
                     <small>${crosswordDifficultyDescription(state.triviaDifficulty, state.crosswordMode)}</small>
                   </div>` : ""}
                   ${(isWordSearch && !isCategoryWordSearch) || (isCrossword && !isTriviaCrossword) || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
