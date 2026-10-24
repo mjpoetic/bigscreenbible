@@ -4949,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.6": [
+      "Game controls stay steady when toggling music and sound effects, preserving focus and panel position.",
+    ],
     "2026.10.24.5": [
       "Hidden Word now has clearer categories and source passages, centered hints with a game-wide allowance, and a persistent word and letter count.",
     ],
@@ -16536,7 +16539,30 @@ function setWordSearchSounds(enabled, options = {}) {
   localStorage.setItem("lw_word_search_sounds", state.wordSearchSounds ? "true" : "false");
   scheduleCloudSync();
   if (state.wordSearchSounds && options.preview !== false) playWordSearchFeedbackSound("found");
-  renderPreservingReaderScroll();
+  updateGameAudioControls();
+}
+
+// Audio preferences do not change the game layout. Keep the live drawer and
+// focused controls mounted so its entrance animation cannot replay on a toggle.
+function updateGameAudioControls() {
+  for (const [ids, enabled] of [
+    [["gameMusicToggle", "mobileGameMusicToggle", "gameMusicDrawerToggle"], state.gameMusicEnabled],
+    [["wordSearchSoundsToggle", "mobileWordSearchSoundsToggle", "gameFeedbackSoundsToggle"], state.wordSearchSounds],
+  ]) {
+    for (const id of ids) {
+      const control = document.getElementById(id);
+      if (!control) continue;
+      if (control.tagName === "INPUT") control.checked = Boolean(enabled);
+      else {
+        control.setAttribute("aria-pressed", String(Boolean(enabled)));
+        const label = control.querySelector(".book-sprint-sound-state");
+        if (label) label.textContent = enabled ? "On" : "Off";
+      }
+      if (id === "gameMusicDrawerToggle") {
+        control.setAttribute("aria-label", `Turn game music ${enabled ? "off" : "on"}`);
+      }
+    }
+  }
 }
 
 function gameMusicTrackForGame(game = state.triviaGame) {
@@ -16867,7 +16893,8 @@ function setGameMusicEnabled(enabled) {
   state.gameMusicEnabled = Boolean(enabled);
   localStorage.setItem("lw_game_music_enabled", state.gameMusicEnabled ? "true" : "false");
   scheduleCloudSync();
-  renderPreservingReaderScroll();
+  updateGameAudioControls();
+  syncGameMusicPlayback();
 }
 
 function syncActiveGameAudioVolume() {

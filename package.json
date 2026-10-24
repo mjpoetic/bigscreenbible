@@ -23,7 +23,7 @@
     "test:defaults": "node scripts/default-behaviors.test.mjs",
     "test:friends": "node scripts/friendships.test.mjs",
     "test:best-time": "node scripts/best-time-celebration.test.mjs && node scripts/games-round-records.test.mjs",
-    "test:game-music": "node scripts/game-music.test.mjs && node scripts/game-music-loop.test.mjs && node scripts/game-music-pcm.test.mjs && node scripts/game-music-restart.test.cjs && node scripts/game-audio-unlock.test.mjs && node scripts/game-countdown.test.cjs",
+    "test:game-music": "node scripts/game-audio-controls.test.mjs && node scripts/game-music.test.mjs && node scripts/game-music-loop.test.mjs && node scripts/game-music-pcm.test.mjs && node scripts/game-music-restart.test.cjs && node scripts/game-audio-unlock.test.mjs && node scripts/game-countdown.test.cjs",
     "test:focus-reading": "node scripts/focus-reading.test.mjs && node scripts/reader-touch-gestures.test.mjs",
     "test:focus-brand": "node scripts/focus-brand-version-hold.test.mjs",
     "test:focus-layout": "node scripts/focus-mode-layout.test.mjs && node scripts/focus-controls.test.mjs && node scripts/reading-control-dimming.test.mjs && node scripts/focus-search-viewport.test.mjs && node scripts/search-keyboard-layout.test.mjs",
