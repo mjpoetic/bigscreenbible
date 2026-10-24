@@ -4949,8 +4949,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
-    "2026.10.24.8": [
-      "Game options stay visible beside the preview on wider screens, with Start above records. Compact screens keep the options drawer, and extra settings and instructions fold away neatly.",
+    "2026.10.24.10": [
+      "Game setup controls now stay aligned when switching games on wider screens. Compact countdown and passage controls sit beside Start, while passage settings and help open over the preview.",
+    ],
+    "2026.10.24.9": [
+      "Wider Games screens use a compact setup bar beneath the game tabs, with a clear Start action and preview below. Phones retain the options drawer.",
     ],
     "2026.10.24.7": [
       "Word Search now defaults to Bible categories with a random category. Your saved game choices are remembered.",
@@ -14364,6 +14367,9 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
         <button class="${custom ? "active" : ""}" type="button" data-puzzle-passage-source="custom" aria-pressed="${custom}" ${challengeSetupLock}>Choose passage</button>
       </div>
       ${custom ? `
+        <details class="puzzle-passage-popover" open>
+          <summary>Passage settings</summary>
+          <div class="puzzle-passage-popover-body">
         <label class="puzzle-reference-field" for="puzzleCustomReferenceInput">
           <span>Bible passage</span>
           <div>
@@ -14382,6 +14388,8 @@ function puzzleCreatorMarkup(gameType, difficulty, challengeSetupLock = "") {
           <summary id="puzzleWordReviewSummary">${escapeHtml(puzzleCreatorReviewSummary(evaluation, gameType))}</summary>
           <div class="puzzle-word-choices" id="puzzleWordChoices">${puzzleCreatorWordReviewMarkup(evaluation)}</div>
           <p>${gameType === "crossword" ? `Allow at least ${evaluation.required || 0} words. The generator chooses the connected entries that fit best.` : `Choose exactly ${evaluation.required || 0} words. Only words from this passage are available.`}</p>
+        </details>
+          </div>
         </details>
       ` : `
         <p class="puzzle-creator-random-note">${hiddenWord
@@ -18155,10 +18163,11 @@ function triviaView() {
                       </span>
                     </button>
                   ` : ""}
-                  <details class="games-more-options">
-                    <summary>More options &amp; how to play</summary>
-                    <div class="games-more-options-body">
+                  <details class="games-setup-help-menu">
+                    <summary>How to play &amp; more options</summary>
+                    <div>
                       <p class="games-setup-help">${setupHelp}</p>
+                      ${isReferenceRush ? `<p class="setting-help">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))} · ${referenceRushTime} when countdown is on.</p>` : ""}
                       ${isCrossword ? crosswordClueSizeMarkup() : ""}
                   ${isVerseOrder ? `<p class="setting-help">No time limit. Best times count fully correct rounds and pause between verses. Records are saved separately for each translation and verse count.</p>` : ""}
                   ${isHiddenWord ? hiddenWordScoreRules() : ""}
@@ -23115,6 +23124,15 @@ function bindEvents() {
   document.getElementById("closeLibrary")?.addEventListener("click", closeLibrary);
   document.querySelector(".library")?.addEventListener("scroll", () => rememberLibraryScroll(), { passive: true });
   bindGameRecordMotion();
+  document.querySelectorAll(".puzzle-passage-popover, .games-setup-help-menu").forEach((panel) => {
+    panel.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !panel.open) return;
+      event.preventDefault();
+      event.stopPropagation();
+      panel.open = false;
+      panel.querySelector("summary")?.focus({ preventScroll: true });
+    });
+  });
   document.querySelectorAll(".scoreboard-disclosure").forEach((panel) => {
     panel.addEventListener("toggle", () => {
       try { localStorage.setItem("lw_scoreboard_visible", String(panel.open)); } catch {}
