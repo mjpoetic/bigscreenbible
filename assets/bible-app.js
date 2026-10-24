@@ -4949,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.11": [
+      "Passage and countdown controls align with the other game options on wider screens. Verse Order places its single round-length control at the left.",
+    ],
     "2026.10.24.10": [
       "Game setup controls now stay aligned when switching games on wider screens. Compact countdown and passage controls sit beside Start, while passage settings and help open over the preview.",
     ],

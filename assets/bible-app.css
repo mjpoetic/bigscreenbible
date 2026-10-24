@@ -26990,6 +26990,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .trivia-reader.is-setup .game-option-field:has(#triviaDifficultySelectToggle) { grid-column: 1; }
   .trivia-reader.is-setup .game-option-field:has(#triviaCountSelectToggle) { grid-column: 2; }
   .trivia-reader.is-setup .game-option-field:has(#triviaCategorySelectToggle) { grid-column: 1; }
+  .trivia-reader.is-setup .trivia-setup-controls:has(.game-option-field:nth-child(2).is-hidden) .game-option-field:has(#triviaCountSelectToggle) { grid-column: 1; }
   .trivia-reader.is-setup .trivia-setup-controls:has(.game-option-field:first-child:not(.is-hidden)) .game-option-field:has(#triviaDifficultySelectToggle) { grid-column: 2; }
   .trivia-reader.is-setup .trivia-setup-controls:has(.game-option-field:first-child:not(.is-hidden)) .game-option-field:has(#triviaCountSelectToggle) { grid-column: 3; }
   .trivia-reader.is-setup .game-option-field:has(#wordSearchModeSelectToggle),
@@ -27000,8 +27001,10 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .trivia-reader.is-setup .games-drawer-scroll > .game-option-field > small { display: none; }
   .trivia-reader.is-setup .games-options-drawer .puzzle-creator {
     position: relative;
-    grid-column: 4;
+    grid-column: 3 / 5;
     grid-row: 2;
+    width: min(270px, 100%);
+    justify-self: start;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 7px;
@@ -27026,11 +27029,11 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   }
   .trivia-reader.is-setup .puzzle-creator-random-note { display: none; }
   .trivia-reader.is-setup .reference-rush-timer-option {
-    grid-column: 4;
+    grid-column: 3;
     grid-row: 2;
     align-self: start;
     margin-top: 20px;
-    justify-self: end;
+    justify-self: start;
     width: auto;
     min-width: 145px;
     min-height: 40px;
@@ -27071,7 +27074,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     color: var(--ink);
     box-shadow: 0 12px 35px color-mix(in srgb, var(--ink) 22%, transparent);
   }
-  .trivia-reader.is-setup .puzzle-passage-popover { right: 0; }
+  .trivia-reader.is-setup .puzzle-passage-popover { left: 0; right: auto; }
   .trivia-reader.is-setup .puzzle-passage-popover > summary { font-size: 12px; font-weight: 700; }
   .trivia-reader.is-setup .puzzle-passage-popover .game-option-field { grid-row: auto; }
   .trivia-reader.is-setup .trivia-setup-copy {
