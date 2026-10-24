@@ -26830,7 +26830,15 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .scroll-speed-popover input { width: 100%; min-height: 44px; accent-color: var(--teal); }
 .scroll-speed-range-labels { font-size: 12px; margin-bottom: 12px; }
 .scroll-speed-popover button { min-height: 40px; padding: 6px 16px; cursor: pointer; }
-.focus-reading-controls { flex-wrap: wrap; justify-content: center; }
+.focus-reading-controls { width: max-content; flex-wrap: nowrap; justify-content: center; }
+.focus-reading-controls .settings-choice-toggle { white-space: nowrap; }
+.scroll-speed-ticks { position: relative; height: 28px; margin: -8px 8px 0; font-size: 11px; }
+.scroll-speed-ticks span { position: absolute; left: var(--tick-position); transform: translateX(-50%); padding-top: 8px; white-space: nowrap; }
+.scroll-speed-ticks span::before { content: ""; position: absolute; top: 0; left: 50%; height: 6px; border-left: 1px solid currentColor; }
+@media (max-width: 359px) {
+  .focus-reading-controls { gap: 1px; padding: 4px; max-width: calc(100% - 12px); }
+  .focus-reading-controls .settings-choice-toggle { gap: 3px; padding-inline: 4px; }
+}
 .reader-auto-scroll-button[data-tooltip]::after { width: max-content; max-width: min(180px, calc(100vw - 24px)); white-space: normal; }
 @media (max-width: 840px) and (orientation: portrait) {
   .scroll-speed-control.beside-auto-scroll { bottom: calc(var(--mobile-portrait-footer-height, 77px) + 14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))); }

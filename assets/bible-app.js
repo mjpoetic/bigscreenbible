@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.23.24": [
+      "Focus Reading controls fit on one row. Auto-scroll speed sliders show half-step marks and provide gentle haptic ticks in supported native apps as you slide across them.",
+    ],
     "2026.10.23.23": [
       "Direct Reader and Parallel links now bypass the Verse of the Day startup preference. Open /verseoftheday or /vod to go straight to Verse of the Day instead.",
     ],
@@ -9519,6 +9522,9 @@ function readerAutoScrollSpeedControl(inFocus) {
       <datalist id="readerScrollSpeedTicks">
         ${[0.5, 1, 1.5, 2, 2.5, 3].map(speed => `<option value="${speed}" label="${speed}×"></option>`).join("")}
       </datalist>
+      <div class="scroll-speed-ticks" aria-hidden="true">
+        ${[0.5, 1, 1.5, 2, 2.5, 3].map(speed => `<span style="--tick-position: ${(speed - 0.25) / 2.75 * 100}%">${speed}×</span>`).join("")}
+      </div>
       <div class="scroll-speed-range-labels"><span>Slower</span><span>Faster</span></div>
       <button type="button" class="scroll-speed-done" popovertarget="readerScrollSpeedPopover" popovertargetaction="hide">Done</button>
     </div>
@@ -9588,7 +9594,16 @@ function bindReaderAutoScrollSpeed() {
     popover.style.top = `${Math.max(12, bounds.top - popover.offsetHeight - 12)}px`;
     slider.focus({ preventScroll: true });
   });
-  slider?.addEventListener("input", () => {
+  let previousSliderSpeed = Number(slider?.value);
+  slider?.addEventListener("pointerdown", () => { previousSliderSpeed = Number(slider.value); });
+  slider?.addEventListener("input", (event) => {
+    const speed = Number(slider.value);
+    // Detect crossed marks too: fast drags can skip an exact half-step value.
+    if (event.isTrusted && [0.5, 1, 1.5, 2, 2.5, 3].some(tick =>
+      (previousSliderSpeed < tick && speed >= tick) || (previousSliderSpeed > tick && speed <= tick))) {
+      playNativeHaptic("tick");
+    }
+    previousSliderSpeed = speed;
     setReaderAutoScrollSpeed(slider.value, { live: true });
     slider.setAttribute("aria-valuetext", readerAutoScrollSpeedLabel());
   });
