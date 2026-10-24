@@ -945,8 +945,8 @@ const state = {
   bookSprintSound: localStorage.getItem("lw_book_sprint_sound") !== "false",
   referenceRushTimed: localStorage.getItem("lw_reference_rush_timed") !== "false",
   wordSearchSounds: localStorage.getItem("lw_word_search_sounds") !== "false",
-  wordSearchMode: localStorage.getItem("lw_word_search_mode") === "categories" ? "categories" : "scripture",
-  wordSearchCategory: localStorage.getItem("lw_word_search_category") || "prophets",
+  wordSearchMode: localStorage.getItem("lw_word_search_mode") === "scripture" ? "scripture" : "categories",
+  wordSearchCategory: localStorage.getItem("lw_word_search_category") || "random",
   wordSearchTestament: ["ot", "nt"].includes(localStorage.getItem("lw_word_search_testament")) ? localStorage.getItem("lw_word_search_testament") : "all",
   crosswordMode: localStorage.getItem("lw_crossword_mode") === "trivia" ? "trivia" : "scripture",
   crosswordClueSize: Math.max(14, Math.min(24, Number(localStorage.getItem("lw_crossword_clue_size")) || 15)),
@@ -4949,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.7": [
+      "Word Search now defaults to Bible categories with a random category. Your saved game choices are remembered.",
+    ],
     "2026.10.24.6": [
       "Game controls stay steady when toggling music and sound effects, preserving focus and panel position.",
     ],
