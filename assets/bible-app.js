@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.2": [
+      "Brand Preview now supports loading Google Fonts, follows dark mode, and uses clearer local-preview wording.",
+    ],
     "2026.10.24.1": [
       "Added a browser-local Brand Preview for trying branding fonts, sizes, weights, and spacing without changing the published site.",
     ],
