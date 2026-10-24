@@ -4949,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.8": [
+      "Game options stay visible beside the preview on wider screens, with Start above records. Compact screens keep the options drawer, and extra settings and instructions fold away neatly.",
+    ],
     "2026.10.24.7": [
       "Word Search now defaults to Bible categories with a random category. Your saved game choices are remembered.",
     ],
@@ -18112,7 +18115,6 @@ function triviaView() {
                   <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close game options">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
-                  <p class="games-setup-help">${setupHelp}</p>
                   <div class="trivia-setup-controls ${isVerseOrder || isWordSearch || isCrossword ? "single-control" : isHiddenWord || isReferenceRush || isBookSprint || isWhoSaidIt ? "two-controls" : ""}">
                     <div class="game-option-field ${isVerseOrder || isReferenceRush || isBookSprint || isWhoSaidIt || isWordSearch || isCrossword || isHiddenWord ? "is-hidden" : ""}">
                       <span>Category</span>
@@ -18142,7 +18144,6 @@ function triviaView() {
                     ${settingsChoiceMarkup("crosswordModeSelect", state.crosswordMode, [{ value: "scripture", label: "Scripture · verse clues" }, { value: "trivia", label: "Bible Trivia · traditional clues" }], { ariaLabel: "Crossword style", disabled: waitingForLiveChallenge })}
                     <small>${crosswordDifficultyDescription(state.triviaDifficulty, state.crosswordMode)}</small>
                   </div>` : ""}
-                  ${isCrossword ? crosswordClueSizeMarkup() : ""}
                   ${(isWordSearch && !isCategoryWordSearch) || (isCrossword && !isTriviaCrossword) || isHiddenWord ? puzzleCreatorMarkup(state.triviaGameType, state.triviaDifficulty, challengeSetupLock) : ""}
                   ${isReferenceRush ? `<p class="reference-rush-level-note">${escapeHtml(referenceRushDifficultyDescription(state.triviaDifficulty))}</p>` : ""}
                   ${isReferenceRush ? `
@@ -18154,9 +18155,16 @@ function triviaView() {
                       </span>
                     </button>
                   ` : ""}
+                  <details class="games-more-options">
+                    <summary>More options &amp; how to play</summary>
+                    <div class="games-more-options-body">
+                      <p class="games-setup-help">${setupHelp}</p>
+                      ${isCrossword ? crosswordClueSizeMarkup() : ""}
                   ${isVerseOrder ? `<p class="setting-help">No time limit. Best times count fully correct rounds and pause between verses. Records are saved separately for each translation and verse count.</p>` : ""}
                   ${isHiddenWord ? hiddenWordScoreRules() : ""}
                   ${["trivia", "who-said-it"].includes(state.triviaGameType) ? quizScoreRules(state.triviaGameType) : ""}
+                    </div>
+                  </details>
                 </div>
               </aside>
             </div>
@@ -23113,7 +23121,10 @@ function bindEvents() {
     });
   });
   document.getElementById("puzzleStartOptions")?.addEventListener("click", () => {
-    setGamesDrawer("options");
+    const toggle = document.getElementById("gameOptionsToggle");
+    if (toggle && getComputedStyle(toggle).display === "none") {
+      document.getElementById("gamesOptionsDrawer")?.focus();
+    } else setGamesDrawer("options");
   });
   document.querySelectorAll("[data-crossword-clue-size]").forEach((button) => {
     button.addEventListener("click", () => adjustCrosswordClueSize(Number(button.dataset.crosswordClueSize)));

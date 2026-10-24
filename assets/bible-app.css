@@ -26956,3 +26956,44 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .hidden-word-answer-count {
   margin: 0;
 }
+
+/* Accessible Games setup: keep this block together for easy layout rollback. */
+.games-more-options { min-width: 0; border-top: 1px solid var(--line); padding-top: 10px; }
+.games-more-options > summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 650; padding-block: 6px; }
+.games-more-options > summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.games-more-options-body { display: grid; gap: 12px; padding-top: 10px; }
+@media (min-width: 960px) and (min-height: 721px), (min-width: 1367px) {
+  .trivia-reader.is-setup .trivia-mobile-options { display: none; }
+  .trivia-reader.is-setup [data-games-drawer="options"],
+  .trivia-reader.is-setup [data-games-drawer="options"].open {
+    display: block;
+    grid-column: 2;
+    grid-row: 2 / 4;
+    margin: 0;
+    animation: none;
+  }
+  .trivia-reader.is-setup .games-options-drawer {
+    display: block;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--teal) 4%, var(--panel));
+  }
+  .trivia-reader.is-setup .games-options-drawer .games-drawer-header {
+    display: block;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .trivia-reader.is-setup .games-options-drawer .games-drawer-header > div { display: grid; gap: 3px; }
+  .trivia-reader.is-setup .games-options-drawer .games-drawer-header span { color: var(--muted); font-size: 11px; }
+  .trivia-reader.is-setup .games-options-drawer .games-drawer-close,
+  .trivia-reader.is-setup [data-games-drawer="options"] > .games-drawer-backdrop { display: none !important; }
+  .trivia-reader.is-setup .trivia-start-dock { grid-row: 4; border-top: 0; padding-top: 0; }
+  .trivia-reader.is-setup .trivia-setup-main > :is(.games-records, .scoreboard-disclosure, .arcade-scoreboard) {
+    grid-column: 2;
+    grid-row: 5;
+  }
+  .trivia-reader.is-setup .game-preview { grid-row: 3 / 6; }
+  .trivia-reader.is-setup .games-records { background: transparent; }
+}
