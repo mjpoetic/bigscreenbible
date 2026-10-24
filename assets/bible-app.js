@@ -4949,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.5": [
+      "Hidden Word now has clearer categories and source passages, centered hints with a game-wide allowance, and a persistent word and letter count.",
+    ],
     "2026.10.24.4": [
       "Mobile challenge standings collapse to a compact rank strip, leaving room to play. Word Search keeps its grid visible while longer word lists scroll separately.",
     ],
@@ -18747,6 +18750,7 @@ function hiddenWordHintsMarkup(game, round) {
   const options = hiddenWordHintOptions(game);
   return `
     <div class="reference-rush-hints hidden-word-hints">
+      <span class="hidden-word-hint-allowance">${options.length} ${options.length === 1 ? "hint" : "hints"} left this game</span>
       ${round.hintMenuOpen && options.length ? `
         <div class="reference-rush-hint-menu" role="group" aria-label="Choose a Hidden Word hint">
           <div>
@@ -18762,7 +18766,7 @@ function hiddenWordHintsMarkup(game, round) {
           <button class="reference-rush-hint-cancel" id="closeHiddenWordHints" type="button">Cancel</button>
         </div>
       ` : options.length ? `
-        <button class="ghost-btn hidden-word-hint-button" id="hiddenWordHint" type="button">${icons.lightbulb}<span>Choose a hint · ${options.length} left</span></button>
+        <button class="ghost-btn hidden-word-hint-button" id="hiddenWordHint" type="button">${icons.lightbulb}<span>Choose a hint</span></button>
       ` : `
         <div class="reference-rush-hint-result" role="status">
           <strong>All hints used</strong>
@@ -18807,12 +18811,10 @@ function hiddenWordGameView(game) {
       <div class="hidden-word-layout">
         <section class="hidden-word-stage" aria-labelledby="hiddenWordPrompt">
           <div class="hidden-word-source" aria-label="${showReference ? "Puzzle category and source passage" : "Puzzle category"}">
-            <span>Category</span>
-            <strong>${escapeHtml(round.category)}</strong>
+            <div class="hidden-word-category"><span>Category</span><strong>${escapeHtml(round.category)}</strong></div>
             ${showReference ? `
-              <i aria-hidden="true"></i>
-              <span>From</span>
-              <strong>${escapeHtml(round.passageReference)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</strong>
+              <div class="hidden-word-source-passage"><span>Source passage:</span>
+                <strong>${escapeHtml(round.passageReference)}${round.curated ? "" : ` · ${translationDisplayCode(game.version)}`}</strong></div>
             ` : ""}
           </div>
           <div class="hidden-word-attempts">
@@ -18837,6 +18839,7 @@ function hiddenWordGameView(game) {
           <button class="hidden-word-answer" id="hiddenWordAnswer" type="button" aria-label="${answerLetters.length}-letter hidden ${answerKind}. Tap to use the device keyboard." style="--hidden-word-length:${answerLetters.length};--hidden-word-longest-term:${longestTerm};--hidden-word-term-count:${wordCount}" ${round.complete ? "disabled" : ""}>
             ${hiddenWordDisplayMarkup(round)}
           </button>
+          <p class="hidden-word-answer-count">${wordCount} ${wordCount === 1 ? "word" : "words"} · ${answerLetters.length} letters</p>
           <p class="word-search-status hidden-word-status" id="hiddenWordStatus" role="status" aria-live="polite">${escapeHtml(round.lastMessage)}</p>
           ${round.contextRevealed ? `
             <div class="hidden-word-clues" aria-label="Revealed hints">

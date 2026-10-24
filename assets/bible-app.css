@@ -26913,3 +26913,46 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   }
   .is-expanded-play .is-live-challenge .word-search-instructions { display: none; }
 }
+
+/* Keep Hidden Word clues readable across compact and expanded layouts. */
+.hidden-word-stage .hidden-word-source {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+.hidden-word-category,
+.hidden-word-source-passage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px 7px;
+}
+.hidden-word-stage .hidden-word-category > span {
+  font-size: 11px;
+}
+.hidden-word-stage .hidden-word-category > strong {
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.25;
+}
+.hidden-word-stage .hidden-word-source-passage > span,
+.hidden-word-stage .hidden-word-source-passage > strong {
+  font-size: 13px;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.hidden-word-stage .hidden-word-hints {
+  justify-items: center;
+  gap: 4px;
+}
+.hidden-word-hint-allowance,
+.hidden-word-answer-count {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+.hidden-word-answer-count {
+  margin: 0;
+}
