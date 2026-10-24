@@ -195,6 +195,7 @@ assert.match(styles, /\.is-expanded-play \.hidden-word-attempts \{[^}]*grid-temp
 let restoredFocus = 0;
 let roundComplete = false;
 const renderContext = vm.createContext({
+  state: { triviaGame: null },
   document: {
     activeElement: { id: "hiddenWordNativeInput" },
     getElementById: () => ({ focus() { restoredFocus += 1; } }),

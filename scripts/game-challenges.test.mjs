@@ -80,6 +80,7 @@ const pureContext = { state, Date };
 vm.createContext(pureContext);
 vm.runInContext(`
   const escapeHtml = (value) => String(value);
+  ${extractFunction("isTimedGameChallenge")}
   ${extractFunction("normalizedGameChallenge")}
   ${extractFunction("normalizedGameChallengePlayer")}
   ${extractFunction("gameChallengePlayersFor")}
@@ -132,6 +133,7 @@ assert.deepEqual(
     version: "BSB",
     timed: false,
     maxPlayers: 2,
+    puzzle: null,
     seed: 42,
     status: "pending",
     respondedAt: "",

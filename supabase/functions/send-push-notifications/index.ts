@@ -154,6 +154,9 @@ function verseCacheDate(date = new Date()) {
 
 function gameTitle(gameType: string) {
   return ({
+    "word-search": "Word Search",
+    crossword: "Crossword",
+    "hidden-word": "Hidden Word",
     trivia: "Bible Trivia",
     "verse-order": "Verse Order",
     "reference-rush": "Reference Rush",
@@ -191,7 +194,7 @@ function socialPayload(
       kind: event.kind,
     };
   }
-  const rounds = Number(challenge?.round_count || 0);
+  const rounds = ["word-search", "crossword"].includes(challenge?.game_type || "") ? 0 : Number(challenge?.round_count || 0);
   return {
     title: `${name} invited you to a game room`,
     body: rounds ? `${title} · ${rounds} rounds · Join the lobby` : `${title} · Join the lobby`,

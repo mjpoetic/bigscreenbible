@@ -2204,6 +2204,7 @@ function syncAndroidChrome(presentation, color) {
 }
 
 function renderPreservingReaderScroll(options = {}) {
+  if (state.triviaGame?.challengeId) queuePuzzleChallengeProgress();
   const scrollState = captureReaderScroll(options);
   const navigating = Boolean(state.pendingVerseFocus);
   const reference = state.reference;
@@ -4947,6 +4948,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.3": [
+      "Word Search, Crossword, and Hidden Word now support friend challenge rooms with identical puzzles, saved progress, and shared standings.",
+    ],
     "2026.10.24.2": [
       "Brand Preview now supports loading Google Fonts, follows dark mode, and uses clearer local-preview wording.",
     ],
@@ -6812,8 +6816,27 @@ function friendshipProfile(userId) {
   return state.friendshipProfiles[userId] || state.gameChallengeProfiles[userId] || { userId, username: "", displayName: "Profile unavailable", avatarKey: "initials" };
 }
 
+function isPuzzleChallenge(gameType) {
+  return ["word-search", "crossword", "hidden-word"].includes(gameType);
+}
+
+function isTimedGameChallenge(gameType) {
+  return ["book-sprint", "word-search", "crossword"].includes(gameType);
+}
+
+// Store the generated puzzle, not the creator's personal records or timer.
+function puzzleChallengeSnapshot(game) {
+  const keys = ["type", "difficulty", "version", "category", "customPassage", "reference", "referenceLabel", "verses",
+    "wordSearchMode", "wordSearchCategory", "wordSearchTestament", "categoryEntries", "size", "cells", "placements", "words",
+    "crosswordMode", "rows", "columns", "numbers", "entries", "rounds"];
+  return JSON.parse(JSON.stringify(Object.fromEntries(keys.filter((key) => game[key] !== undefined).map((key) => [key, game[key]]))));
+}
+
 function gameChallengeTitle(gameType) {
   return {
+    "word-search": "Word Search",
+    crossword: "Crossword",
+    "hidden-word": "Hidden Word",
     trivia: "Bible Trivia",
     "verse-order": "Verse Order",
     "reference-rush": "Reference Rush",
@@ -6834,6 +6857,7 @@ function normalizedGameChallenge(row = {}) {
     version: String(row.version || "BSB"),
     timed: Boolean(row.timed),
     maxPlayers: Math.min(10, Math.max(2, Number(row.max_players || row.maxPlayers || 2))),
+    puzzle: row.puzzle || null,
     seed: Number(row.seed || 1),
     status: String(row.status || "pending"),
     respondedAt: row.responded_at || row.respondedAt || "",
@@ -6847,6 +6871,7 @@ function normalizedGameChallenge(row = {}) {
 
 function normalizedGameChallengePlayer(row = {}) {
   return {
+    puzzleState: row.puzzle_state || null,
     challengeId: String(row.challenge_id || row.challengeId || ""),
     userId: String(row.user_id || row.userId || ""),
     isHost: Boolean(row.is_host ?? row.isHost),
@@ -6931,8 +6956,12 @@ function gameChallengeSummary(challenge) {
     "reference-rush": "verses",
     "book-sprint": "rounds",
     "who-said-it": "quotes",
+    "word-search": "words",
+    crossword: "clues",
+    "hidden-word": "puzzles",
   }[challenge.gameType] || "questions";
-  parts.push(`${challenge.roundCount} ${roundLabel}`);
+  const count = challenge.puzzle ? triviaRoundLength(challenge.puzzle) : challenge.roundCount;
+  parts.push(`${count} ${roundLabel}`);
   return parts.join(" · ");
 }
 
@@ -10971,7 +11000,7 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
   try {
     const { data: memberships, error: membershipError } = await client
       .from(gameChallengePlayerTable)
-      .select("challenge_id, user_id, is_host, invite_status, responded_at, score, progress, ready, completed_at, elapsed_ms, created_at, updated_at")
+      .select("challenge_id, user_id, is_host, invite_status, responded_at, score, progress, ready, completed_at, elapsed_ms, puzzle_state, created_at, updated_at")
       .eq("user_id", userId)
       .in("invite_status", ["invited", "accepted"])
       .order("updated_at", { ascending: false })
@@ -10987,12 +11016,12 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
       ] = await Promise.all([
         client
           .from(gameChallengeTable)
-          .select("id, challenger_id, challenged_id, game_type, category, difficulty, round_count, version, timed, max_players, seed, status, responded_at, started_at, completed_at, expires_at, created_at, updated_at")
+          .select("id, challenger_id, challenged_id, game_type, category, difficulty, round_count, version, timed, max_players, seed, puzzle, status, responded_at, started_at, completed_at, expires_at, created_at, updated_at")
           .in("id", challengeIds)
           .order("updated_at", { ascending: false }),
         client
           .from(gameChallengePlayerTable)
-          .select("challenge_id, user_id, is_host, invite_status, responded_at, score, progress, ready, completed_at, elapsed_ms, created_at, updated_at")
+          .select("challenge_id, user_id, is_host, invite_status, responded_at, score, progress, ready, completed_at, elapsed_ms, puzzle_state, created_at, updated_at")
           .in("challenge_id", challengeIds),
       ]);
       if (roomsError) throw roomsError;
@@ -11232,7 +11261,23 @@ async function sendGameChallenge(opponentIds = state.challengeOpponentIds) {
     const challengerId = session?.user?.id;
     if (!challengerId) throw new Error("Sign in again before challenging a friend.");
     const config = challengeGameConfigFromState();
-    const { data: roomId, error } = await client.rpc("create_bsb_game_room", {
+    let puzzle = null;
+    if (isPuzzleChallenge(config.game_type)) {
+      const previousGame = state.triviaGame;
+      state.triviaGame = null;
+      try {
+        startTriviaGame({ render: false });
+        if (!state.triviaGame) throw new Error("Review the puzzle options before creating a challenge.");
+        puzzle = puzzleChallengeSnapshot(state.triviaGame);
+        config.version = puzzle.version;
+        config.difficulty = puzzle.difficulty;
+        config.round_count = ["word-search", "crossword"].includes(config.game_type) ? 5 : state.triviaGame.rounds.length;
+      } finally {
+        state.triviaGame = previousGame;
+      }
+    }
+    const { data: roomId, error } = await client.rpc(puzzle ? "create_bsb_puzzle_room" : "create_bsb_game_room", {
+      ...(puzzle ? { room_puzzle: puzzle } : {}),
       invitee_ids: inviteeIds,
       room_game_type: config.game_type,
       room_category: config.category,
@@ -11431,6 +11476,7 @@ function withTriviaRandomSeed(seed, callback) {
 
 function challengeCurrentRoundAnswered(game) {
   if (!game || game.complete) return false;
+  if (game.type === "hidden-word") return Boolean(game.rounds?.[game.index]?.complete);
   if (game.type === "trivia") return game.selectedAnswer !== null;
   if (game.type === "who-said-it") return game.questions?.[game.index]?.selectedAnswer !== null;
   if (game.type === "reference-rush") return game.puzzles?.[game.index]?.selectedReference !== null;
@@ -11441,6 +11487,7 @@ function challengeGameProgress(game = state.triviaGame) {
   if (!game) return 0;
   const roundLength = triviaRoundLength(game);
   if (game.complete) return roundLength;
+  if (["word-search", "crossword"].includes(game.type)) return game.score || 0;
   return Math.min(roundLength, game.index + (challengeCurrentRoundAnswered(game) ? 1 : 0));
 }
 
@@ -11453,6 +11500,28 @@ function challengeGameElapsedMs(game = state.triviaGame) {
   return finishedAt ? Math.max(0, finishedAt - startedAt) : null;
 }
 
+let puzzleChallengeSyncTimer = null;
+let puzzleChallengeSyncChain = Promise.resolve();
+let puzzleChallengeLastSave = "";
+
+function puzzleChallengeProgressState(game) {
+  const keys = ["index", "score", "points", "hintCount", "usedHintTypes", "rounds", "foundWords", "answers", "hintedCellKeys", "completedEntryIds", "activeEntryId", "activeCellKey"];
+  return JSON.parse(JSON.stringify(Object.fromEntries(keys.filter((key) => game[key] !== undefined).map((key) => [key, game[key]]))));
+}
+
+function queuePuzzleChallengeProgress() {
+  const game = state.triviaGame;
+  if (!game?.challengeId || !isPuzzleChallenge(game.type) || game.complete) return;
+  const fingerprint = JSON.stringify([game.challengeId, puzzleChallengeProgressState(game)]);
+  if (fingerprint === puzzleChallengeLastSave) return;
+  clearTimeout(puzzleChallengeSyncTimer);
+  puzzleChallengeSyncTimer = setTimeout(() => {
+    if (state.triviaGame !== game || game.complete) return;
+    puzzleChallengeLastSave = fingerprint;
+    syncActiveChallengeProgress().catch(() => { puzzleChallengeLastSave = ""; });
+  }, 250);
+}
+
 async function syncActiveChallengeProgress({ completed = false } = {}) {
   const game = state.triviaGame;
   const challengeId = game?.challengeId;
@@ -11461,27 +11530,41 @@ async function syncActiveChallengeProgress({ completed = false } = {}) {
   const client = createSupabaseClient();
   if (!client) return;
   const payload = {
-    score: Math.max(0, Number(game.score) || 0),
+    score: Math.max(0, Number(game.type === "hidden-word" ? game.points : game.score) || 0),
     progress: challengeGameProgress(game),
+    ...(isPuzzleChallenge(game.type) ? { puzzle_state: puzzleChallengeProgressState(game) } : {}),
   };
   if (completed || game.complete) {
     payload.completed_at = new Date().toISOString();
     payload.elapsed_ms = challengeGameElapsedMs(game);
   }
-  const { error } = await client
-    .from(gameChallengePlayerTable)
-    .update(payload)
-    .eq("challenge_id", challengeId)
-    .eq("user_id", userId);
-  if (error) {
-    console.warn("Live challenge progress sync failed", error);
-    state.gameChallengeMessage = "Your score could not sync yet.";
-  }
+  const update = async () => {
+    const { error } = await client
+      .from(gameChallengePlayerTable)
+      .update(payload)
+      .eq("challenge_id", challengeId)
+      .eq("user_id", userId);
+    if (error) {
+      console.warn("Live challenge progress sync failed", error);
+      state.gameChallengeMessage = "Your score could not sync yet.";
+      puzzleChallengeLastSave = "";
+    }
+  };
+  puzzleChallengeSyncChain = puzzleChallengeSyncChain.catch(() => {}).then(update);
+  await puzzleChallengeSyncChain;
 }
 
 function restoreChallengeGameProgress(game, player) {
   if (!game || !player) return;
   const roundLength = triviaRoundLength(game);
+  if (isPuzzleChallenge(game.type)) {
+    Object.assign(game, player.puzzleState || {});
+    if (player.completedAt) {
+      game.complete = true;
+      game.finishedAt = Date.parse(player.completedAt);
+    }
+    return;
+  }
   game.score = player.score;
   if (player.completedAt) {
     game.index = Math.max(0, roundLength - 1);
@@ -11502,7 +11585,24 @@ function startLoadedGameChallenge(challenge, { render = true } = {}) {
   state.triviaDifficulty = challenge.difficulty;
   state.triviaCount = challenge.roundCount;
   state.referenceRushTimed = challenge.timed;
-  withTriviaRandomSeed(challenge.seed, () => startTriviaGame({ render: false }));
+  if (isPuzzleChallenge(challenge.gameType)) {
+    if (!challenge.puzzle || challenge.puzzle.type !== challenge.gameType) {
+      showToast("This puzzle challenge is unavailable. Update Big Screen Bible and try again.");
+      return;
+    }
+    state.triviaGame = {
+      ...JSON.parse(JSON.stringify(challenge.puzzle)),
+      index: 0, score: 0, points: 0, hintCount: 0, usedHintTypes: [], complete: false,
+      foundWords: [], keyboardCell: { row: 0, column: 0 }, selectionAnchor: null, selectionPreview: [],
+      answers: {}, hintedCellKeys: [], completedEntryIds: [], errorCellKeys: [],
+      activeEntryId: challenge.puzzle.entries?.[0]?.id,
+      activeCellKey: challenge.puzzle.entries?.[0]?.cells?.[0] ? wordSearchCellKey(challenge.puzzle.entries[0].cells[0]) : "",
+      startedAt: Date.parse(challenge.startedAt), finishedAt: null,
+    };
+    if (state.triviaGame.rounds?.[0]) state.triviaGame.rounds[0].startedAt = Date.parse(challenge.startedAt);
+  } else {
+    withTriviaRandomSeed(challenge.seed, () => startTriviaGame({ render: false }));
+  }
   if (!state.triviaGame) return;
   state.triviaGame.challengeId = challenge.id;
   const startedAt = Date.parse(challenge.startedAt || "");
@@ -17090,7 +17190,10 @@ function updateReferenceRushTimerDisplay() {
 }
 
 function gameChallengePlayerComparison(challenge, first, second) {
-  if (challenge?.gameType === "book-sprint") {
+  if (challenge?.gameType === "hidden-word") {
+    return (second?.puzzleState?.points ?? second?.score ?? 0) - (first?.puzzleState?.points ?? first?.score ?? 0);
+  }
+  if (isTimedGameChallenge(challenge?.gameType)) {
     const firstComplete = Boolean(first?.completedAt);
     const secondComplete = Boolean(second?.completedAt);
     if (firstComplete !== secondComplete) return firstComplete ? -1 : 1;
@@ -17162,7 +17265,7 @@ function liveGameChallengeScoreboard() {
   const players = gameChallengeAcceptedPlayers(challenge.id);
   const rankedPlayers = gameChallengeRankedPlayers(challenge, players);
   const selfPlayer = gameChallengePlayer(challenge.id);
-  const roundCount = challenge.roundCount || 0;
+  const roundCount = challenge.puzzle ? triviaRoundLength(challenge.puzzle) : challenge.roundCount || 0;
   const result = gameChallengeResultLabel(challenge, selfPlayer, players);
   return `
     <section class="live-challenge-scoreboard" aria-label="Live room leaderboard">
@@ -17182,11 +17285,11 @@ function liveGameChallengeScoreboard() {
               <span class="live-challenge-rank">#${rank}</span>
               ${socialProfileAvatarMarkup(profile, "live-challenge-avatar")}
               <span class="live-challenge-name">${escapeHtml(name)}</span>
-              ${challenge.gameType === "book-sprint"
+              ${isTimedGameChallenge(challenge.gameType)
                 ? liveBookSprintPlayerResult(challenge, player)
                 : `
                   <small>${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
-                  <strong>${player.score ?? 0}</strong>
+                  <strong>${challenge.gameType === "hidden-word" ? player.puzzleState?.points ?? player.score ?? 0 : player.score ?? 0}${challenge.gameType === "hidden-word" ? " pts" : ""}</strong>
                 `}
               ${player.userId !== state.authUser?.id ? `<div class="social-player-actions">${friendshipActionButton("report", "Report", {profileId: player.userId})}${friendshipActionButton("block", "Block", {profileId: player.userId, danger: true})}</div>` : ""}
             </li>
@@ -17199,7 +17302,7 @@ function liveGameChallengeScoreboard() {
 }
 
 function updateLiveBookSprintTimes(challenge = activeGameChallenge()) {
-  if (challenge?.gameType !== "book-sprint") return;
+  if (!isTimedGameChallenge(challenge?.gameType)) return;
   const elapsed = formatGameTime(gameChallengeBookSprintElapsedMs(challenge, null));
   document.querySelectorAll("[data-live-book-sprint-running]").forEach((timer) => {
     timer.textContent = elapsed;
@@ -17350,6 +17453,7 @@ function gameChallengeSetupCard() {
       <div>
         <span>Play with friends</span>
         <strong>Invite up to 9 friends to a live room</strong>
+        ${isPuzzleChallenge(state.triviaGameType) ? `<small>${state.triviaGameType === "hidden-word" ? "Same puzzles for everyone. Highest points wins; hints and mistakes reduce points." : "Same puzzle for everyone. Lowest finish time wins; the clock keeps running while you are away. Crossword letter hints are unavailable."}</small>` : ""}
       </div>
       <div class="challenge-friend-picker" role="group" aria-label="Friends to invite">
         ${friends.map(({ userId, profile }) => {
@@ -17662,6 +17766,7 @@ function handleGamesAnswerKeydown(event) {
 }
 
 function crosswordHintsRemaining(game = state.triviaGame) {
+  if (game?.challengeId) return 0;
   return Math.max(0, crosswordHintLimit - (Number(game?.hintCount) || 0));
 }
 
@@ -17805,12 +17910,11 @@ function triviaView() {
         ? `${puzzlePassageLabel(puzzleEvaluation.pack)} ${translationDisplayCode(puzzleEvaluation.version)}`
         : "Choose passage"
       : isCategoryWordSearch ? `${wordSearchCategoryLabel(state.wordSearchCategory)}${state.wordSearchCategory === "books" && state.wordSearchTestament !== "all" ? ` · ${state.wordSearchTestament === "ot" ? "Old" : "New"} Testament` : ""}` : isTriviaCrossword ? "Standalone clues" : isHiddenWord ? "Curated categories" : isWordSearch || isCrossword ? "Surprise passage" : "",
-    isWordSearch || isCrossword || isHiddenWord ? "Solo" : "",
   ].filter(Boolean).join(" · ");
   const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
-  const socialSupported = !isWordSearch && !isCrossword && !isHiddenWord;
+  const socialSupported = true;
   const gamesUseDrawers = isGamesResponsiveScreen();
   const gameHintsAvailable = Boolean(activeGameHintContext());
   const visibleHintsLeft = state.triviaGame?.type === "crossword"
@@ -18317,7 +18421,7 @@ function wordSearchGameView(game) {
           ${!game.complete && foundCount ? `<details class="word-search-found"><summary>${foundCount} found ${foundCount === 1 ? "word" : "words"}</summary><div class="word-search-list">${game.words.filter((word) => foundWords.has(word)).map((word) => `<span class="is-found"><span aria-hidden="true">✓</span><span>${escapeHtml(wordLabel(word))}</span></span>`).join("")}</div></details>` : ""}
           <div class="trivia-actions word-search-actions">
             ${triviaExitControl(game)}
-            <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
+            <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="${game.challengeId && game.complete ? "newTriviaGame" : "restartTriviaGame"}" type="button" ${game.challengeId && !game.complete ? "disabled" : ""}>${game.complete ? "New puzzle" : "Restart"}</button>
           </div>
         </aside>
       </div>
@@ -18554,7 +18658,7 @@ function crosswordGameView(game) {
             </div>
           `}
           <div class="trivia-actions crossword-actions">
-            <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="restartTriviaGame" type="button">${game.complete ? "New puzzle" : "Restart"}</button>
+            <button class="${game.complete ? "primary-btn" : "ghost-btn"}" id="${game.challengeId && game.complete ? "newTriviaGame" : "restartTriviaGame"}" type="button" ${game.challengeId && !game.complete ? "disabled" : ""}>${game.complete ? "New puzzle" : "Restart"}</button>
           </div>
         </aside>
       </div>
@@ -25979,6 +26083,7 @@ function reconcileCrosswordCompletedEntries(game) {
 }
 
 function updateCrosswordDom({ focus = false } = {}) {
+  if (state.triviaGame?.challengeId) queuePuzzleChallengeProgress();
   const game = state.triviaGame;
   if (game?.type !== "crossword" || game.complete) return;
   const activeEntry = crosswordEntryById(game, game.activeEntryId);
@@ -26191,6 +26296,7 @@ function checkCrosswordEntry() {
 
 function revealCrosswordLetterHint() {
   const game = state.triviaGame;
+  if (game?.challengeId) return showToast("Letter hints are unavailable in puzzle challenges");
   if (!game || game.type !== "crossword" || game.complete) return;
   if (!crosswordHintsRemaining(game)) {
     game.hintMenuOpen = false;
@@ -26503,6 +26609,7 @@ function finishHiddenWordRound(game, round, solved) {
 }
 
 function renderHiddenWordGuess() {
+  if (state.triviaGame?.challengeId) queuePuzzleChallengeProgress();
   const usingDeviceKeyboard = document.activeElement?.id === "hiddenWordNativeInput";
   renderPreservingReaderScroll();
   // Restore focus synchronously within the typing event, before viewport
