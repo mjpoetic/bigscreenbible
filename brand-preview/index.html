@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brand Preview · Big Screen Bible</title>
+  <script>
+    const target = new URL(location.href);
+    target.pathname = target.pathname.replace(/brand-preview(?:\/index\.html)?\/?$/, '');
+    target.search = '';
+    target.hash = '';
+    target.searchParams.set('brand-preview', '1');
+    location.replace(target.href);
+  </script>
+</head>
+<body><a href="../?brand-preview=1">Open Brand Preview</a></body>
+</html>

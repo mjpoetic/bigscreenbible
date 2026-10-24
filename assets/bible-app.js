@@ -4947,6 +4947,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.1": [
+      "Added a browser-local Brand Preview for trying branding fonts, sizes, weights, and spacing without changing the published site.",
+    ],
     "2026.10.23.24": [
       "Focus Reading controls fit on one row. Auto-scroll speed sliders show half-step marks and provide gentle haptic ticks in supported native apps as you slide across them.",
     ],

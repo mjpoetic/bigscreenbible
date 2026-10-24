@@ -12,6 +12,7 @@ const entries = [
   "404.html",
   "app-version.json",
   "about.html",
+  "brand-preview",
   "privacy",
   "terms",
   "moderation",
