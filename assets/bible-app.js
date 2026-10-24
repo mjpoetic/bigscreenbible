@@ -1004,6 +1004,7 @@ const state = {
   challengeOpponentIds: [],
   gameRoomOnlineUserIds: [],
   activeGameChallengeId: "",
+  gameStandingsOpen: false,
   passwordChangeOpen: false,
   passwordRecoveryMode: false,
   syncStatus: "local",
@@ -4948,6 +4949,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.4": [
+      "Mobile challenge standings collapse to a compact rank strip, leaving room to play. Word Search keeps its grid visible while longer word lists scroll separately.",
+    ],
     "2026.10.24.3": [
       "Word Search, Crossword, and Hidden Word now support friend challenge rooms with identical puzzles, saved progress, and shared standings.",
     ],
@@ -11290,6 +11294,7 @@ async function sendGameChallenge(opponentIds = state.challengeOpponentIds) {
     queueSocialPushDelivery();
     state.gameChallengeActionBusyId = "";
     await loadGameChallenges({ render: false });
+    state.gameStandingsOpen = false;
     state.activeGameChallengeId = String(roomId || "");
     state.mode = "trivia";
     state.gameChallengeMessage = "Room created. Invitations expire in 24 hours.";
@@ -11374,6 +11379,7 @@ async function updateGameChallengeResponse(challengeId, action) {
 async function joinGameChallenge(challengeId) {
   const challenge = state.gameChallenges.find((item) => item.id === challengeId);
   if (!challenge) return;
+  if (state.activeGameChallengeId !== challengeId) state.gameStandingsOpen = false;
   state.activeGameChallengeId = challengeId;
   state.mode = "trivia";
   state.focusMode = false;
@@ -11577,6 +11583,7 @@ function restoreChallengeGameProgress(game, player) {
 
 function startLoadedGameChallenge(challenge, { render = true } = {}) {
   if (!challenge || !["accepted", "completed"].includes(challenge.status)) return;
+  if (state.activeGameChallengeId !== challenge.id) state.gameStandingsOpen = false;
   state.activeGameChallengeId = challenge.id;
   state.mode = "trivia";
   state.focusMode = false;
@@ -11593,6 +11600,8 @@ function startLoadedGameChallenge(challenge, { render = true } = {}) {
     state.triviaGame = {
       ...JSON.parse(JSON.stringify(challenge.puzzle)),
       index: 0, score: 0, points: 0, hintCount: 0, usedHintTypes: [], complete: false,
+      lastSelectionMessage: "Drag across letters, or choose the first and last letter.",
+      lastMessage: "Choose a clue or cell, then type with your physical or device keyboard.",
       foundWords: [], keyboardCell: { row: 0, column: 0 }, selectionAnchor: null, selectionPreview: [],
       answers: {}, hintedCellKeys: [], completedEntryIds: [], errorCellKeys: [],
       activeEntryId: challenge.puzzle.entries?.[0]?.id,
@@ -17268,7 +17277,13 @@ function liveGameChallengeScoreboard() {
   const roundCount = challenge.puzzle ? triviaRoundLength(challenge.puzzle) : challenge.roundCount || 0;
   const result = gameChallengeResultLabel(challenge, selfPlayer, players);
   return `
-    <section class="live-challenge-scoreboard" aria-label="Live room leaderboard">
+    <section class="live-challenge-scoreboard ${state.gameStandingsOpen ? "is-open" : ""}" aria-label="Live room leaderboard">
+      <button class="live-challenge-toggle" type="button" data-game-standings-toggle aria-expanded="${Boolean(state.gameStandingsOpen)}" aria-controls="gameChallengeStandings">
+        <span><span class="live-status-dot" aria-hidden="true"></span>Standings${selfPlayer ? ` · #${gameChallengePlayerRank(challenge, selfPlayer, players)}` : ""}</span>
+        <small>${players.filter((player) => player.completedAt).length}/${players.length} finished</small>
+        ${icons.chevron}
+      </button>
+      <div class="live-challenge-details" id="gameChallengeStandings">
       <div class="live-challenge-scoreboard-head">
         <span><span class="live-status-dot" aria-hidden="true"></span>${challenge.status === "completed" ? "Final standings" : "Live room"}</span>
         <strong>${escapeHtml(gameChallengeTitle(challenge.gameType))} · ${players.length} players</strong>
@@ -17297,6 +17312,7 @@ function liveGameChallengeScoreboard() {
         }).join("")}
       </ol>
       <p role="status" aria-live="polite">${escapeHtml(result)}</p>
+      </div>
     </section>
   `;
 }
@@ -17309,6 +17325,16 @@ function updateLiveBookSprintTimes(challenge = activeGameChallenge()) {
   });
 }
 
+function bindGameStandingsToggle(root = document) {
+  root.querySelectorAll("[data-game-standings-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.gameStandingsOpen = !state.gameStandingsOpen;
+      button.setAttribute("aria-expanded", String(state.gameStandingsOpen));
+      button.closest(".live-challenge-scoreboard")?.classList.toggle("is-open", state.gameStandingsOpen);
+    });
+  });
+}
+
 function refreshLiveGameChallengeScoreboard() {
   const current = document.querySelector(".live-challenge-scoreboard");
   const markup = liveGameChallengeScoreboard();
@@ -17317,7 +17343,13 @@ function refreshLiveGameChallengeScoreboard() {
   template.innerHTML = markup.trim();
   const replacement = template.content.firstElementChild;
   if (!replacement) return false;
+  const standingsScrollTop = current.querySelector(".live-challenge-details")?.scrollTop || 0;
+  const restoreToggleFocus = current.querySelector("[data-game-standings-toggle]") === document.activeElement;
   current.replaceWith(replacement);
+  bindGameStandingsToggle(replacement);
+  const details = replacement.querySelector(".live-challenge-details");
+  if (details) details.scrollTop = standingsScrollTop;
+  if (restoreToggleFocus) replacement.querySelector("[data-game-standings-toggle]")?.focus({ preventScroll: true });
   replacement.querySelectorAll("[data-friend-action]").forEach(button => button.addEventListener("click", () => handleFriendAction(button)));
   updateLiveBookSprintTimes();
   return true;
@@ -22641,6 +22673,7 @@ function bindEvents() {
       document.getElementById(`${selectId}Toggle`)?.focus({ preventScroll: true });
     });
   });
+  bindGameStandingsToggle();
   document.querySelectorAll("[data-open-find-people]").forEach((button) => {
     button.addEventListener("click", openFindPeopleFromGame);
   });

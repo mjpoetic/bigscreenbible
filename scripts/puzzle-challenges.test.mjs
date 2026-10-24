@@ -51,3 +51,29 @@ assert.equal(ctx.challengeGameProgress({type:'word-search',words:['A','B'],found
 assert.equal(ctx.challengeGameProgress({type:'hidden-word',index:0,rounds:[{complete:true},{}]}),1);
 assert.ok(ctx.gameChallengePlayerComparison({gameType:'hidden-word'},{puzzleState:{points:-100}},{puzzleState:{points:-500}})<0);
 console.log('Puzzle challenge identity, resume, completion, progress and time-ranking tests passed');
+
+// Standings disclosure updates in place so a live puzzle never gets rebuilt.
+let click;
+const attributes={};
+let expanded=false;
+const gameBefore=state.triviaGame;
+const button={
+ addEventListener(event, handler) { assert.equal(event,'click'); click=handler; },
+ setAttribute(key,value) { attributes[key]=value; },
+ closest() { return {classList:{toggle(name,value) { assert.equal(name,'is-open'); expanded=value; }}}; },
+};
+vm.runInContext(extract('bindGameStandingsToggle'),ctx);
+ctx.bindGameStandingsToggle({querySelectorAll:()=>[button]});
+state.gameStandingsOpen=false;
+click();
+assert.equal(expanded,true);
+assert.equal(attributes['aria-expanded'],'true');
+click();
+assert.equal(expanded,false);
+assert.equal(attributes['aria-expanded'],'false');
+assert.equal(state.triviaGame,gameBefore);
+const styles=readFileSync(new URL('../assets/bible-app.css',import.meta.url),'utf8');
+assert.match(styles,/\.is-expanded-play \.live-challenge-scoreboard:not\(\.is-open\) \.live-challenge-details \{ display: none; \}/);
+assert.match(styles,/\.is-expanded-play \.is-live-challenge \.word-search-sidebar \{[^}]*overflow-y: auto;/);
+assert.match(extract('refreshLiveGameChallengeScoreboard'),/bindGameStandingsToggle\(replacement\)/);
+console.log('Compact standings toggle, stable puzzle and mobile word-bank checks passed');

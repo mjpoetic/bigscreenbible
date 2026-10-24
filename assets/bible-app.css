@@ -7470,7 +7470,7 @@ select {
   text-align: right;
 }
 
-.live-challenge-scoreboard > p {
+.live-challenge-details > p {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
@@ -26857,3 +26857,59 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 [data-theme="dark"] .memory-word-field[data-memory-result="close"] { --memory-result-edge: #49c9ff; --memory-result-text: #8bddff; }
 .memory-word-field { min-width: 0; }
 .memory-word-result { max-width: 100%; overflow-wrap: anywhere; }
+
+/* During mobile play, standings should not displace the puzzle. */
+.live-challenge-toggle { display: none; }
+.live-challenge-details { display: grid; gap: 12px; min-width: 0; }
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .live-challenge-scoreboard {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
+    gap: 0;
+    min-height: 44px;
+    overflow: hidden;
+  }
+  .is-expanded-play .live-challenge-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .live-challenge-toggle > span { display: flex; align-items: center; gap: 6px; }
+  .live-challenge-toggle > small { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .live-challenge-toggle > svg { flex: 0 0 16px; width: 16px; height: 16px; }
+  .live-challenge-toggle[aria-expanded="true"] > svg { transform: rotate(90deg); }
+  .is-expanded-play .live-challenge-scoreboard:not(.is-open) .live-challenge-details { display: none; }
+  .is-expanded-play .live-challenge-details {
+    max-height: 34dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 12px 12px;
+  }
+  .is-expanded-play .live-challenge-scoreboard-head { display: none; }
+  .is-expanded-play .is-live-challenge .trivia-live-lock { display: none; }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .is-expanded-play .is-live-challenge .word-search-game { overflow: hidden; }
+  .is-expanded-play .is-live-challenge .word-search-layout { flex: 1 1 0; min-height: 0; }
+  .is-expanded-play .is-live-challenge .word-search-grid {
+    width: min(100%, max(200px, calc(var(--games-viewport-height, 100dvh) - 350px)), 560px);
+  }
+  .is-expanded-play .is-live-challenge .word-search-sidebar {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    align-content: start;
+  }
+  .is-expanded-play .is-live-challenge .word-search-instructions { display: none; }
+}
