@@ -4050,6 +4050,9 @@ function openSettingsChoiceMenu(trigger) {
   if (trigger.closest(".focus-reading-controls") && state.autoScrollActive) pauseReaderAutoScroll();
   const menu = document.createElement("div");
   menu.className = "settings-choice-menu";
+  if (trigger.closest(".trivia-reader.is-setup") && trigger.matches(".trivia-setup-controls .settings-choice-toggle, .games-drawer-scroll > .game-option-field .settings-choice-toggle")) {
+    menu.classList.add("games-setup-choice-menu");
+  }
   if (trigger.closest(".focus-mini-verse-picker") || /version/i.test(select.id)) {
     menu.classList.add("bible-picker-choice-menu");
   }
@@ -4949,6 +4952,15 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.15": [
+      "Opened game option menus now match the compact text size of their selected values and passage buttons on wider screens.",
+    ],
+    "2026.10.24.14": [
+      "Selected game option labels now inherit the compact passage-button font size on wider screens.",
+    ],
+    "2026.10.24.13": [
+      "Wide-screen game option text now matches the smaller passage-choice buttons for a more consistent setup row.",
+    ],
     "2026.10.24.12": [
       "Puzzle source controls match the neighboring game options, and Crossword style menus show their full labels.",
     ],

@@ -27139,3 +27139,20 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   html[data-control-material="glass"] .trivia-reader.is-setup .games-options-drawer .puzzle-source-options { border-radius: 16px; min-height: 44px; padding: 3px; }
   html[data-control-material="glass"] .trivia-reader.is-setup .games-options-drawer .puzzle-source-options button { border-radius: 12px; }
 }
+
+/* Match the setup option text to the compact passage choices. */
+@media (min-width: 960px) and (min-height: 721px), (min-width: 1367px) {
+  .trivia-reader.is-setup .games-options-drawer .trivia-setup-controls .settings-choice-toggle,
+  .trivia-reader.is-setup .games-options-drawer .games-drawer-scroll > .game-option-field .settings-choice-toggle,
+  .trivia-reader.is-setup .reference-rush-timer-option strong { font-size: 11px; }
+}
+@media (min-width: 960px) and (min-height: 721px), (min-width: 1367px) {
+  .trivia-reader.is-setup .trivia-setup-controls .settings-choice-toggle .settings-choice-option-label,
+  .trivia-reader.is-setup .games-drawer-scroll > .game-option-field .settings-choice-toggle .settings-choice-option-label { font-size: inherit; }
+}
+
+@media (min-width: 960px) and (min-height: 721px), (min-width: 1367px) {
+  .games-setup-choice-menu .settings-choice-option,
+  .games-setup-choice-menu .settings-choice-option-label,
+  .games-setup-choice-menu .settings-choice-option-detail { font-size: 11px; }
+}
