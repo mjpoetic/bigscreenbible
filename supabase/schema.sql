@@ -2280,7 +2280,7 @@ begin
 end;
 $$;
 
--- Puzzle game challenges 20261024160320
+-- Puzzle game challenges 20261024161817
 -- Identical generated puzzles and resumable player state for the three puzzle games.
 alter table public.bsb_game_challenges
   drop constraint bsb_game_challenges_game_type_check;

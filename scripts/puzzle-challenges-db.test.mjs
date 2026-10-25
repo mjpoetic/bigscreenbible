@@ -28,7 +28,7 @@ try {
  schema=schema.slice(0,schema.indexOf('create extension if not exists vector'))+schema.slice(schema.indexOf('create table if not exists public.bsb_push_subscriptions'));
  await db.exec(schema);
  await db.exec(safety);
- await db.exec(read("supabase/migrations/20261024160320_puzzle_game_challenges.sql"));
+ await db.exec(read("supabase/migrations/20261024161817_puzzle_game_challenges.sql"));
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
