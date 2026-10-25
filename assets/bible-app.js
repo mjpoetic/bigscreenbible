@@ -4957,6 +4957,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.25.1": [
+      "The Accessibility Scripture reader now offers a System page color that follows OS light and dark appearance, including changes while the reader is open. New and reset preferences use System; saved page colors remain available.",
+    ],
     "2026.10.24.16": [
       "Shortened the Word Search category label to Opponents & Betrayers so it fits more comfortably in the existing dropdown.",
     ],
