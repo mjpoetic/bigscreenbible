@@ -4474,7 +4474,7 @@ function normalizedScriptureReaderPreferences(value = {}) {
   return {
     size: number("size", 18, 48, 26),
     font: choice("font", ["sans", "serif", "mono"], "sans"),
-    theme: choice("theme", ["light", "sepia", "dark"], "light"),
+    theme: choice("theme", ["system", "light", "sepia", "dark"], "system"),
     spacing: choice("spacing", ["normal", "wide"], "normal"),
     width: choice("width", ["narrow", "comfortable", "wide"], "comfortable"),
     focus: choice("focus", ["off", "one", "three"], "off"),
@@ -4496,7 +4496,7 @@ function scriptureReaderControls(preferences) {
     <details class="immersive-reader-preferences"><summary>Text preferences</summary><div class="immersive-reader-options">
       <label>Text size <output data-reading-size-value>${preferences.size}px</output><input aria-label="Reading text size" type="range" min="18" max="48" step="1" value="${preferences.size}" data-reading-preference="size" /></label>
       ${select("font", "Font", [["sans", "Sans serif"], ["serif", "Serif"], ["mono", "Monospace"]])}
-      ${select("theme", "Page color", [["light", "Light"], ["sepia", "Sepia"], ["dark", "Dark"]])}
+      ${select("theme", "Page color", [["system", "System"], ["light", "Light"], ["sepia", "Sepia"], ["dark", "Dark"]])}
       ${select("spacing", "Text spacing", [["normal", "Standard"], ["wide", "Extra spacing"]])}
       ${select("width", "Column width", [["narrow", "Narrow"], ["comfortable", "Comfortable"], ["wide", "Wide"]])}
       ${select("focus", "Passage focus", [["off", "Off"], ["one", "One passage"], ["three", "Three passages"]])}
@@ -4583,9 +4583,11 @@ function bindImmersiveScriptureReader(dialog, preferences, restrictedVersions = 
   let closed = false;
   let voices = [];
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
   const save = () => localStorage.setItem("lw_scripture_reader_preferences", JSON.stringify(preferences));
   const apply = () => {
     for (const key of ["font", "theme", "spacing", "width", "focus"]) dialog.dataset[key] = preferences[key];
+    dialog.dataset.theme = preferences.theme === "system" ? (systemTheme?.matches ? "dark" : "light") : preferences.theme;
     dialog.style.setProperty("--reading-size", `${preferences.size}px`);
     dialog.querySelector("[data-reading-size-value]").textContent = `${preferences.size}px`;
   };
@@ -4714,6 +4716,8 @@ function bindImmersiveScriptureReader(dialog, preferences, restrictedVersions = 
   dialog.addEventListener("keydown", (event) => { handleScriptureReaderShortcut(event); event.stopPropagation(); });
   const suspend = () => { if (document.hidden) stop(); };
   const pageHide = () => stop();
+  const updateSystemTheme = () => { if (preferences.theme === "system") apply(); };
+  systemTheme?.addEventListener("change", updateSystemTheme);
   document.addEventListener("visibilitychange", suspend);
   window.addEventListener("pagehide", pageHide);
   synth?.addEventListener?.("voiceschanged", populateVoices);
@@ -4721,6 +4725,7 @@ function bindImmersiveScriptureReader(dialog, preferences, restrictedVersions = 
     closed = true; stop();
     document.removeEventListener("visibilitychange", suspend);
     window.removeEventListener("pagehide", pageHide);
+    systemTheme?.removeEventListener("change", updateSystemTheme);
     synth?.removeEventListener?.("voiceschanged", populateVoices);
     speech?.dispose?.();
   }, { once: true });
