@@ -4952,6 +4952,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.24.16": [
+      "Shortened the Word Search category label to Opponents & Betrayers so it fits more comfortably in the existing dropdown.",
+    ],
     "2026.10.24.15": [
       "Opened game option menus now match the compact text size of their selected values and passage buttons on wider screens.",
     ],
@@ -15963,7 +15966,7 @@ const wordSearchCategoryCatalog = [
   },
   {
     "id": "opponents",
-    "label": "Opponents and Betrayers",
+    "label": "Opponents & Betrayers",
     "entries": [
       {
         "label": "Cain",
