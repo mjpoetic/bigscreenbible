@@ -2009,6 +2009,7 @@ function render() {
     }
     if (pendingNoteComposerFocus) {
       pendingNoteComposerFocus = false;
+      animateNoteComposerFromAnchor();
       const textarea = document.getElementById("noteComposerTextarea");
       textarea?.focus({ preventScroll: true });
       textarea?.setSelectionRange(textarea.value.length, textarea.value.length);
@@ -8672,6 +8673,28 @@ function noteComposerAnchor(element) {
     right: rect.right,
     bottom: rect.bottom,
     left: rect.left,
+    inlineNote: element.matches(".verse-note-indicator"),
+  };
+}
+
+function animateNoteComposerFromAnchor() {
+  const composer = document.getElementById("noteComposer");
+  const anchor = state.noteComposerAnchor;
+  if (!composer || !anchor?.inlineNote || typeof composer.animate !== "function"
+    || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  // Measure the final layout, free of the generic surface entrance transform.
+  composer.style.animation = "none";
+  const rect = composer.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const originX = (anchor.left + anchor.right) / 2 - rect.left;
+  const originY = (anchor.top + anchor.bottom) / 2 - rect.top;
+  composer.style.transformOrigin = `${originX}px ${originY}px`;
+  const animation = composer.animate([
+    { transform: "scale(0.08)", opacity: 0 },
+    { transform: "scale(1)", opacity: 1 },
+  ], { duration: 340, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+  animation.onfinish = animation.oncancel = () => {
+    composer.style.removeProperty("transform-origin");
   };
 }
 
