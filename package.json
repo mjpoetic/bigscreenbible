@@ -11,6 +11,8 @@
     "test:memorization": "node scripts/memorization.test.mjs",
     "test:ambient": "node scripts/ambient-audio.test.mjs",
     "build": "node scripts/build-mobile.mjs",
+    "build:widgets": "node scripts/build-widget-catalog.mjs",
+    "test:widgets": "node scripts/native-widgets.test.mjs",
     "build:mobile": "node scripts/build-mobile.mjs",
     "test:accounts": "node scripts/account-switching.test.mjs && node scripts/game-record-sync.test.mjs",
     "test:account-deletion": "deno test --allow-env --node-modules-dir=auto supabase/functions/delete-account/index.test.ts",

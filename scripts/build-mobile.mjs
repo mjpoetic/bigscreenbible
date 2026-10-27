@@ -1,3 +1,5 @@
+import "./build-widget-catalog.mjs";
+
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";

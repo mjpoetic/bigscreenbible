@@ -29,6 +29,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         for context in connectionOptions.urlContexts {
+            _ = queueSharedURL(context.url)
             _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
         }
 
@@ -40,6 +41,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         for context in URLContexts {
+            _ = queueSharedURL(context.url)
             _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
         }
     }
@@ -61,12 +63,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneWillResignActive(_ scene: UIScene) {
         quickActionRetry?.cancel()
+        (window?.rootViewController as? BSBBridgeViewController)?.captureWidgetProgress()
     }
 
     private func queueUniversalLink(_ activity: NSUserActivity) -> Bool {
         guard activity.activityType == NSUserActivityTypeBrowsingWeb,
-              let url = activity.webpageURL, url.scheme == "https",
-              url.host == "bigscreenbible.com", url.user == nil, url.password == nil,
+              let url = activity.webpageURL else { return false }
+        return queueSharedURL(url)
+    }
+
+    // WidgetKit delivers widgetURL through openURLContexts, including cold launches.
+    private func queueSharedURL(_ url: URL) -> Bool {
+        guard url.scheme == "https", url.host == "bigscreenbible.com",
+              url.user == nil, url.password == nil,
               url.port == nil || url.port == 443 else { return false }
         pendingQuickAction = url.absoluteString
         quickActionAttempts = 0
@@ -125,6 +134,18 @@ class BSBBridgeViewController: CAPBridgeViewController {
     private let offlineStore = BSBOfflineStore()
     private var toolbarOrientationScript: WKUserScript?
 
+    // Installed beta shells also work with the currently deployed web release.
+    func captureWidgetProgress() {
+        guard let host = webView?.url?.host, ["bigscreenbible.com", "localhost"].contains(host) else { return }
+        webView?.evaluateJavaScript("localStorage.getItem('lw_reading_streak')") { result, _ in
+            guard let raw = result as? String, let data = raw.data(using: .utf8),
+                  let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            let snapshot = WidgetSnapshot(current: max(0, min(value["current"] as? Int ?? 0, 100000)),
+                lastVisit: value["lastVisit"] as? String ?? "", days: Array((value["days"] as? [String] ?? []).suffix(400)))
+            BSBWidgetPlugin.store(snapshot)
+        }
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         publishToolbarOrientation()
@@ -176,6 +197,7 @@ class BSBBridgeViewController: CAPBridgeViewController {
     }
 
     override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(BSBWidgetPlugin())
         bridge?.registerPluginInstance(BSBPrintPlugin())
         bridge?.registerPluginInstance(BSBBrowserPlugin())
         bridge?.registerPluginInstance(BSBAuthPlugin())

@@ -80,9 +80,35 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onPause() {
+        captureWidgetProgress();
         shortcutResumed = false;
         shortcutHandler.removeCallbacks(shortcutDelivery);
         super.onPause();
+    }
+
+    // Capture on backgrounding even when the live site predates the widget bridge.
+    private void captureWidgetProgress() {
+        if (getBridge() == null || getBridge().getWebView() == null) return;
+        String value = getBridge().getWebView().getUrl();
+        if (value == null) return;
+        String host = Uri.parse(value).getHost();
+        if (!"bigscreenbible.com".equals(host) && !"localhost".equals(host)) return;
+        getBridge().getWebView().evaluateJavascript("localStorage.getItem('lw_reading_streak')", result -> {
+            try {
+                String raw = new org.json.JSONArray("[" + result + "]").optString(0, "{}");
+                org.json.JSONObject saved = new org.json.JSONObject(raw);
+                org.json.JSONArray input = saved.optJSONArray("days"), days = new org.json.JSONArray();
+                if (input != null) for (int i = Math.max(0, input.length() - 400); i < input.length(); i++) days.put(input.getString(i));
+                org.json.JSONObject snapshot = new org.json.JSONObject()
+                    .put("current", Math.max(0, Math.min(saved.optInt("current", 0), 100000)))
+                    .put("lastVisit", saved.optString("lastVisit", "")).put("days", days);
+                android.content.SharedPreferences prefs = ScriptureWidgetProvider.prefs(this);
+                if (!snapshot.toString().equals(prefs.getString("snapshot", ""))) {
+                    prefs.edit().putString("snapshot", snapshot.toString()).apply();
+                    ScriptureWidgetProvider.updateAll(this);
+                }
+            } catch (Exception ignored) { /* An uninitialized page has no check-in yet. */ }
+        });
     }
 
     @Override
@@ -167,6 +193,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(BSBWidgetPlugin.class);
         registerPlugin(BSBChromePlugin.class);
         registerPlugin(BSBPrintPlugin.class);
         registerPlugin(BSBSpeechPlugin.class);

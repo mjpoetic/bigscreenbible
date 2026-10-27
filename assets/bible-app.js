@@ -1300,6 +1300,29 @@ function daysBetweenDateKeys(fromKey, toKey) {
   return Math.round((to - from) / 86400000);
 }
 
+// Widgets share only check-in data, never account credentials or private notes.
+let nativeWidgetSyncTimer = 0;
+let nativeWidgetSnapshotKey = "";
+function scheduleNativeWidgetSync() {
+  const capacitor = window.Capacitor;
+  if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
+  clearTimeout(nativeWidgetSyncTimer);
+  nativeWidgetSyncTimer = setTimeout(syncNativeWidgetSnapshot, 200);
+}
+async function syncNativeWidgetSnapshot() {
+  const capacitor = window.Capacitor;
+  if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
+  const streak = normalizeReadingStreak(state.streak);
+  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400) };
+  const key = JSON.stringify(payload);
+  if (key === nativeWidgetSnapshotKey) return;
+  try {
+    const plugin = capacitor.Plugins?.BSBWidget || capacitor.registerPlugin("BSBWidget");
+    await plugin.sync(payload);
+    nativeWidgetSnapshotKey = key;
+  } catch (error) { console.warn("[Widget] Check-in sync will retry", error); }
+}
+
 function recordReadingStreak(date = new Date()) {
   const today = localDateKey(date);
   const streak = normalizeReadingStreak(state.streak);
@@ -1853,6 +1876,7 @@ function selectionBarIsVisible() {
 }
 
 function render() {
+  scheduleNativeWidgetSync();
   const previousMemorySurface = document.querySelector(".memorize-reader");
   const memoryViewKey = state.memoryPractice ? `${state.memoryPractice.id}:${state.memoryPractice.stage}` : "library";
   const memoryScroll = previousMemorySurface?.getAttribute("data-memory-view") === memoryViewKey ? previousMemorySurface.scrollTop : 0;
@@ -33295,6 +33319,7 @@ window.setInterval(() => {
   }
 }, 60 * 1000);
 document.addEventListener("visibilitychange", () => {
+  syncNativeWidgetSnapshot();
   if (pruneExpiredRemoteVersionData()) {
     closeStudyPopup(true);
     activeVersions().filter(isRemoteTranslation).forEach((version) => {
@@ -33364,6 +33389,7 @@ window.setInterval(() => {
   maybeCheckForAppUpdate();
 }, appUpdateCheckIntervalMs);
 const streakUpdatedToday = recordReadingStreak();
+scheduleNativeWidgetSync();
 state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
 const startupLoaderPreview = new URLSearchParams(window.location.search).has("loaderPreview");
