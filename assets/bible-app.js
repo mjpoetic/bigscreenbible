@@ -1353,6 +1353,7 @@ function recordReadingStreak(date = new Date()) {
 }
 
 const icons = {
+  done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
   memorize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v19l-6-4-6 4V3Z"/><path d="M12 13.5 8.8 10.4a2 2 0 0 1 3.2-2.3 2 2 0 0 1 3.2 2.3L12 13.5Z"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-2.9 2-2.9 4"/><path d="M12 17h.01"/></svg>',
   book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>',
@@ -3260,7 +3261,7 @@ function mobileFocusOverlayControls() {
               spellcheck="false"
               enterkeyhint="go"
             />
-            ${activeInlineSearchQuery() ? `<button class="mobile-focus-inline-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" title="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
+            ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
             <button class="mobile-focus-search-scope" id="mobileFocusSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose Focus search source, current ${escapeHtml(activeSearchLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search in: ${escapeHtml(activeSearchLabel)}">
               <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
@@ -3423,9 +3424,10 @@ function mobileFocusSearchResults() {
           <span>Search results</span>
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
-        <button class="glass-close-control" id="mobileFocusSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
+        <button class="glass-close-control" id="mobileFocusSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results">${icons.done}</button>
       </header>
       <div class="mobile-focus-search-results-body">
+        ${searchScopeControls()}
         <div class="search-results">
           ${searchResultsMarkup()}
         </div>
@@ -3443,9 +3445,10 @@ function presentationSearchResults() {
           <span>Search results</span>
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
-        <button class="glass-close-control" id="presentationSearchResultsClose" type="button" aria-label="Close search results">${icons.clear}</button>
+        <button class="glass-close-control" id="presentationSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results">${icons.done}</button>
       </header>
       <div class="mobile-focus-search-results-body">
+        ${searchScopeControls()}
         <div class="search-results">
           ${searchResultsMarkup()}
         </div>
@@ -4994,6 +4997,15 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.28.5": [
+      "Opening Search now automatically focuses the unified search field on phones, tablets, and desktop so you can start typing immediately.",
+    ],
+    "2026.10.28.4": [
+      "Search icons return to a clean icon-only appearance, with accessible names and tooltips retained.",
+    ],
+    "2026.10.28.3": [
+      "Reader uses one header search field with separate scope filters. A Done checkmark closes results while preserving your search, and the small in-field X clears it. Lighter results are grouped into phrase matches, word matches, and related passages.",
+    ],
     "2026.10.28.2": [
       "Big Screen keeps Back to Bible compact on narrow portrait screens. The first-use spotlight explains the book button; landscape and wider screens retain the text label.",
     ],
@@ -6180,9 +6192,8 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
         </button>
-        <label class="topbar-search-label" for="referenceInput">Search</label>
-        <input id="referenceInput" value="${escapeHtml((notesSearchSource || strongSearchSource) ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
-        ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
+        <input id="referenceInput" value="${escapeHtml(state.searchQuery || ((state.libraryOpen && state.activeRail === "Search" || state.focusSearchResultsOpen) ? state.searchResultsQuery : state.searchReturnAvailable ? referenceLabel() : ""))}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "Search reference, words, or topic"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+        ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
         ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
         ${desktopFocusTools()}
       </div>
@@ -8542,7 +8553,7 @@ function rail() {
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail"><div class="rail-tools" role="group" aria-label="Study tools">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
-    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}${label === "Search" ? '<span class="rail-search-label">Search</span>' : ""}</button>`;
+    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}</div>
     <div class="portrait-rail-actions">
       <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
@@ -8563,13 +8574,13 @@ function library() {
     Search: "Search",
   };
   const title = titleMap[state.activeRail] || "Verse";
-  const closeLabel = state.activeRail === "Search" ? "Return to reading; keep search results" : `Hide ${title.toLowerCase()}`;
+  const closeLabel = state.activeRail === "Search" ? "Done—return to reading; keep search results" : `Hide ${title.toLowerCase()}`;
   return `
     <div class="library-drawer ${pendingLibraryEnter ? "drawer-enter" : ""}">
       <aside class="library">
         <div class="panel-minihead">
           <span>${title}</span>
-          <button class="icon-btn glass-close-control" id="closeLibrary" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">${icons.clear}</button>
+          <button class="icon-btn glass-close-control" id="closeLibrary" data-search-done="${state.activeRail === "Search"}" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">${state.activeRail === "Search" ? icons.done : icons.clear}</button>
         </div>
         ${libraryContent()}
       </aside>
@@ -8629,38 +8640,19 @@ function crossReferencesPanel() {
   `;
 }
 
+function searchScopeControls() {
+  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button></div>`;
+}
+
+function searchClearControl(value = "") {
+  return `<button class="unified-search-clear" type="button" data-clear-search aria-label="Clear search" data-tooltip="Clear search" ${value ? "" : "hidden"}>${icons.clear}</button>`;
+}
+
 function searchPanel() {
-  const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
-  const notesSource = normalizedSearchSource(state.searchSource) === "notes";
-  const searchInputValue = state.searchQuery || state.searchResultsQuery;
-  const inlineSearchActive = Boolean(activeInlineSearchQuery());
-  const canClearResults = inlineSearchActive || state.searchResultsQuery || state.searchResults.length;
-  const scope = normalizedSearchScope(state.searchScope);
-  const scopeLabel = activeSearchSourceLabel();
-  return `
-    <section class="study-section panel-section" id="searchSection">
-      <form class="study-search ${canClearResults ? "has-clear" : ""} ${inlineSearchActive ? "has-inline-clear" : ""}" id="studySearchForm">
-        <input id="studySearchInput" value="${escapeHtml(searchInputValue)}" placeholder="${strongSearchSource ? "Word, transliteration, or G26 / H430" : notesSource ? "Search your saved notes" : "Search words, phrases, or questions"}" aria-label="${strongSearchSource ? "Word, transliteration, or G26 / H430" : notesSource ? "Search your saved notes" : "Search Bible words, phrases, or questions"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
-        <div class="search-submit-control">
-          <button class="ghost-btn search-submit-button" id="studySearchButton" type="submit" aria-label="Search ${escapeHtml(scopeLabel)}">
-            <span>Search</span>
-            <span class="search-button-scope" id="studySearchButtonScope" data-search-scope-short>${escapeHtml(activeSearchSourceShortLabel())}</span>
-          </button>
-          <button class="search-scope-menu" id="studySearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${scope}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(scopeLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search in: ${escapeHtml(scopeLabel)}">
-            <span class="sr-only">Search source</span>
-            <span class="search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
-          </button>
-        </div>
-        ${canClearResults ? inlineSearchActive
-          ? `<button class="icon-btn search-clear inline-search-clear-control" id="clearSearchResults" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>`
-          : `<button class="icon-btn search-clear" id="clearSearchResults" type="button" data-clear-search aria-label="Clear search results" data-tooltip="Clear results">${icons.clear}</button>`
-        : ""}
-      </form>
-      <div class="search-results">
-        ${searchResultsMarkup()}
-      </div>
-    </section>
-  `;
+  return `<section class="study-section panel-section" id="searchSection">
+    ${searchScopeControls()}
+    <div class="search-results" aria-live="polite">${searchResultsMarkup()}</div>
+  </section>`;
 }
 
 function notesPanel() {
@@ -20809,7 +20801,12 @@ function searchResultsMarkup() {
       </button>
     </article>
   ` : "";
-  const passageMarkup = state.searchResults.map((result) => {
+  const resultGroups = [
+    ["Phrase matches", state.searchResults.filter((result) => result.matchType === "Phrase")],
+    ["Word matches", state.searchResults.filter((result) => result.matchType === "Words")],
+    ["Related passages", state.searchResults.filter((result) => !["Phrase", "Words"].includes(result.matchType))],
+  ];
+  const passageMarkup = resultGroups.filter(([, results]) => results.length).map(([label, results]) => `<div class="search-passages-label">${label} (${results.length})</div>` + results.map((result) => {
     const versions = result.matches || [result];
     const resultButton = (match) => `
       <button type="button" class="search-result" data-goto="${escapeHtml(match.goto || match.ref)}" data-search-result="true">
@@ -20823,11 +20820,10 @@ function searchResultsMarkup() {
         <div class="search-version-matches">${versions.slice(1).map(resultButton).join("")}</div>
       </details>` : ""}
     </article>`;
-  }).join("");
+  }).join("")).join("");
   return `
     ${strongLookup}
     ${answerMarkup}
-    ${verifiedAnswer && passageMarkup ? `<div class="search-passages-label">Related passages</div>` : ""}
     ${passageMarkup}
     ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages in ${escapeHtml(scopeLabel)}…</div>` : ""}
   `;
@@ -21882,6 +21878,7 @@ function presentation(accountPanelRerender = false) {
             <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
             <div class="presentation-search-field">
             <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+            ${searchClearControl(state.searchQuery)}
             ${presentationVersionPicker("search", version)}
             </div>
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
@@ -22707,6 +22704,8 @@ function bindEvents() {
     gotoReference(`${picker.chapterKey}:${picker.verse}`);
   });
   document.getElementById("mobileFocusSearchResultsClose")?.addEventListener("click", () => {
+    state.searchReturnAvailable = Boolean(state.searchResultsQuery);
+    state.searchReturnScroll = document.getElementById("mobileFocusSearchResultsClose")?.closest(".mobile-focus-search-results")?.querySelector(".mobile-focus-search-results-body")?.scrollTop || 0;
     state.focusSearchResultsOpen = false;
     renderPreservingReaderScroll();
   });
@@ -23862,23 +23861,20 @@ function bindEvents() {
       openSearchScopeMenu(event.currentTarget, { focusLast: event.key === "ArrowUp" });
     });
   });
-  document.getElementById("studySearchForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    runReferenceOrPhraseSearch(document.getElementById("studySearchInput")?.value || "", {
-      scope: state.searchScope,
-      sourceInputId: "studySearchInput",
-    });
-  });
-  document.getElementById("studySearchInput")?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    runReferenceOrPhraseSearch(event.currentTarget.value, {
-      scope: state.searchScope,
-      sourceInputId: "studySearchInput",
+  document.querySelectorAll("#referenceInput, #mobileFocusPassageInput, #presentationSearchInput").forEach((input) => {
+    input.addEventListener("input", () => {
+      state.searchQuery = input.value;
+      const clear = input.parentElement.querySelector(".unified-search-clear");
+      if (clear) clear.hidden = !input.value;
     });
   });
   document.querySelectorAll("[data-clear-search]").forEach((button) => {
-    button.addEventListener("click", clearSearchResults);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const inputId = button.parentElement.querySelector("input")?.id || "referenceInput";
+      clearSearchResults();
+      requestAnimationFrame(() => document.getElementById(inputId)?.focus({ preventScroll: true }));
+    });
   });
   document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
   document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
@@ -24078,6 +24074,8 @@ function bindEvents() {
     if (state.presentationSearchOpen) requestAnimationFrame(() => document.getElementById("presentationSearchInput")?.focus());
   });
   document.getElementById("presentationSearchResultsClose")?.addEventListener("click", () => {
+    state.searchReturnAvailable = Boolean(state.searchResultsQuery);
+    state.searchReturnScroll = document.getElementById("presentationSearchResultsClose")?.closest(".mobile-focus-search-results")?.querySelector(".mobile-focus-search-results-body")?.scrollTop || 0;
     state.presentationSearchResultsOpen = false;
     render();
   });
@@ -25537,6 +25535,7 @@ function updateSearchSourceControls() {
     trigger.dataset.searchSource = source;
     trigger.setAttribute("aria-label", searchScopeTriggerLabel(trigger, scopeLabel));
   });
+  document.querySelectorAll("[data-search-scope-label]").forEach((label) => { label.textContent = scopeLabel; });
   document.querySelectorAll("[data-search-scope-short]").forEach((label) => {
     label.textContent = shortLabel;
   });
@@ -27883,7 +27882,7 @@ function resolveInlineSearchInputId(preferredInputId = "") {
   const activeInputId = document.activeElement?.id || "";
   if (inputIds.includes(activeInputId)) return activeInputId;
   if (state.focusMode && state.mode !== "big") return "mobileFocusPassageInput";
-  if (state.libraryOpen && state.activeRail === "Search") return "studySearchInput";
+  if (state.libraryOpen && state.activeRail === "Search") return "referenceInput";
   return "referenceInput";
 }
 
@@ -28026,8 +28025,6 @@ function clearSearchResults() {
   state.searchResultsChapter = normalizedSearchChapter(state.reference);
   state.searchResults = [];
   state.searchPending = false;
-  state.focusSearchResultsOpen = false;
-  state.presentationSearchResultsOpen = false;
   render();
 }
 
@@ -29088,6 +29085,10 @@ function recordHistory(ref = referenceLabel()) {
 }
 
 function activateWorkspace(target) {
+  if (target === "Search") {
+    state.portraitSearchCollapsed = false;
+    state.searchQuery = state.searchQuery || state.searchResultsQuery;
+  }
   if (state.libraryOpen && libraryStateKey(target) !== libraryStateKey(state.activeRail)) {
     rememberOpenLibraryState();
     persistLibraryScrollByRail();
@@ -29097,9 +29098,11 @@ function activateWorkspace(target) {
   state.libraryOpen = true;
   localStorage.setItem("lw_library_open", "true");
   scheduleCloudSync();
-  state.pendingPanelFocus = isCompactScreen() || isShortLandscapeScreen() ? null : target;
+  state.pendingPanelFocus = target === "Search" || isCompactScreen() || isShortLandscapeScreen() ? null : target;
   state.pendingLibraryScrollRestore = Boolean(savedLibraryScroll(target));
   renderPreservingReaderScroll();
+  // Keep search focus inside the click gesture so mobile browsers can open the keyboard.
+  if (target === "Search") focusWorkspaceTarget("Search");
 }
 
 function dismissLibraryForFooterMenu() {
@@ -29114,6 +29117,14 @@ function dismissLibraryForFooterMenu() {
 }
 
 function closeLibrary() {
+  if (state.activeRail === "Search") {
+    state.searchReturnAvailable = Boolean(state.searchResultsQuery);
+    state.searchReturnScroll = captureLibraryScroll()?.top || 0;
+    state.libraryOpen = false;
+    localStorage.setItem("lw_library_open", "false");
+    renderPreservingReaderScroll();
+    return;
+  }
   rememberOpenLibraryState();
   persistLibraryScrollByRail();
   const drawer = document.querySelector(".library-drawer");
@@ -31679,7 +31690,7 @@ function clamp(value, min, max) {
 function focusWorkspaceTarget(target) {
   const focusMap = {
     Verse: "#chapterSelectToggle",
-    Search: "#studySearchInput",
+    Search: "#referenceInput",
     Notes: "#notesSection",
     Annotations: "#notesSection",
     Bookmarks: "#bookmarksSection",

@@ -232,7 +232,8 @@ const searchBible = extractFunction("searchBible");
 const searchVersion = extractFunction("searchVersion");
 const searchRemoteVersion = extractFunction("searchRemoteVersion");
 const searchSemanticBible = extractFunction("searchSemanticBible");
-assert.match(source, /id="studySearchScope" type="button" data-search-scope-trigger/);
+assert.match(extractFunction("searchScopeControls"), /data-search-scope-trigger/);
+assert.doesNotMatch(extractFunction("searchPanel"), /<input|studySearchForm/);
 assert.match(source, /id="topbarSearchScope" type="button" data-search-scope-trigger/);
 assert.match(source, /id="mobileFocusSearchScope" type="button" data-search-scope-trigger/);
 assert.match(source, /class="topbar-search-scope-code" data-search-scope-short/);
@@ -262,13 +263,12 @@ assert.match(extractFunction("presentation"), /presentationSearchResults\(\)/);
 assert.match(extractFunction("presentationSearchResults"), /aria-label="Big Screen search results"/);
 assert.match(extractFunction("gotoReference"), /presentationSearchResultsOpen = false/);
 assert.match(extractFunction("advanceInlineChapterSearch"), /No more matches in \$\{searchChapter\}/);
-assert.match(source, /class="topbar-search-clear [^"]*"[^>]*data-clear-search/);
-assert.match(source, /class="mobile-focus-inline-search-clear [^"]*"[^>]*data-clear-search/);
-assert.match(source, /id="clearSearchResults"[^>]*data-clear-search/);
+assert.match(extractFunction("searchClearControl"), /data-clear-search/);
+assert.match(extractFunction("topbar"), /searchClearControl/);
 assert.match(extractFunction("runInlineChapterSearch"), /pendingInlineSearchInputFocus = resolveInlineSearchInputId/);
 assert.match(extractFunction("runInlineChapterSearch"), /inlineSearchMatchCount = countInlineSearchMatches/);
 assert.match(extractFunction("render"), /restoreInlineSearchInputFocus\(inputId\)/);
-assert.match(extractFunction("bindEvents"), /studySearchInput[\s\S]*?addEventListener\("keydown"[\s\S]*?sourceInputId: "studySearchInput"/);
+assert.match(extractFunction("bindEvents"), /referenceInput[\s\S]*?addEventListener\("keydown"[\s\S]*?sourceInputId: "referenceInput"/);
 assert.match(searchBible, /searchVersion\(version, criteria, scope, searchChapter\)/);
 assert.match(searchBible, /searchRemoteVersions\(query, criteria, scope, searchChapter\)/);
 assert.match(searchBible, /searchSemanticBible\(query, criteria, scope, searchChapter\)/);
@@ -431,3 +431,22 @@ for (const mode of ["reader", "parallel", "big", "focus"]) {
   assert.equal(navigation.state.mode, mode === "focus" ? "reader" : mode);
 }
 console.log("Version-and-passage navigation passed across all reading modes");
+
+// Opening Search must focus synchronously after rendering, including compact screens.
+for (const compact of [false, true]) {
+  const calls = [];
+  const workspace = vm.createContext({
+    state: { libraryOpen: false, searchQuery: "", searchResultsQuery: "love" },
+    isCompactScreen: () => compact, isShortLandscapeScreen: () => compact,
+    savedLibraryScroll: () => null, localStorage: { setItem() {} },
+    scheduleCloudSync() {}, renderPreservingReaderScroll() { calls.push("render"); },
+    focusWorkspaceTarget(target) { calls.push(`focus:${target}`); },
+  });
+  vm.runInContext(extractFunction("activateWorkspace"), workspace);
+  workspace.activateWorkspace("Search");
+  assert.deepEqual(calls, ["render", "focus:Search"]);
+  assert.equal(workspace.state.pendingPanelFocus, null);
+  assert.equal(workspace.state.portraitSearchCollapsed, false);
+  assert.equal(workspace.state.searchQuery, "love");
+}
+console.log("Search button focuses the field synchronously across screen sizes");
