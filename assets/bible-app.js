@@ -4997,6 +4997,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.28.6": [
+      "Narrow portrait screens use the shorter Search the Bible prompt. Wider screens retain the full search hint, and the empty results panel explains what you can search for.",
+    ],
     "2026.10.28.5": [
       "Opening Search now automatically focuses the unified search field on phones, tablets, and desktop so you can start typing immediately.",
     ],
@@ -6192,7 +6195,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
         </button>
-        <input id="referenceInput" value="${escapeHtml(state.searchQuery || ((state.libraryOpen && state.activeRail === "Search" || state.focusSearchResultsOpen) ? state.searchResultsQuery : state.searchReturnAvailable ? referenceLabel() : ""))}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "Search reference, words, or topic"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+        <input id="referenceInput" value="${escapeHtml(state.searchQuery || ((state.libraryOpen && state.activeRail === "Search" || state.focusSearchResultsOpen) ? state.searchResultsQuery : state.searchReturnAvailable ? referenceLabel() : ""))}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : window.matchMedia("(max-width: 699px) and (orientation: portrait)").matches ? "Search the Bible" : "Search reference, words, or topic"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
         ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
         ${desktopFocusTools()}
@@ -20780,7 +20783,7 @@ function searchResultsMarkup() {
   const searchChapter = state.searchResultsChapter || state.reference;
   const scopeLabel = searchScopeLabel(scope, searchChapter);
   if (!query) {
-    return `<div class="empty-state">Search by phrase, word, question, or reference. Try “love one another” or “Who built the ark?”</div>`;
+    return `<div class="empty-state">Try John 3:16, remembered words, or a topic. You can also ask a question such as “Who built the ark?”</div>`;
   }
   const eligibleQuestions = (window.bibleTriviaQuestions || []).filter((question) => (
     referenceMatchesSearchScope(question?.reference, scope, searchChapter)
