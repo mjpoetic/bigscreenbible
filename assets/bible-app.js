@@ -895,6 +895,8 @@ const state = {
   tutorialMode: "app",
   tutorialRestoreState: null,
   searchQuery: "",
+  searchReturnAvailable: false,
+  searchReturnScroll: null,
   searchResultsQuery: "",
   searchSource: "scripture",
   searchResultsSource: "scripture",
@@ -1965,6 +1967,7 @@ function render() {
       </section>
       ${gameChallengePopup()}
       ${bottombar()}
+      ${state.mode === "big" ? "" : searchReturnAction()}
       ${mobileFocusOverlayControls()}
       ${mobileSettingsPanel(settingsPanelRerender)}
       ${presentation(accountPanelRerender)}
@@ -4991,6 +4994,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.28.2": [
+      "Big Screen keeps Back to Bible compact on narrow portrait screens. The first-use spotlight explains the book button; landscape and wider screens retain the text label.",
+    ],
+    "2026.10.28.1": [
+      "Search and reading controls have clearer labels. Open a search result to read, then use Back to search results to return to your saved query and position. Big Screen now labels Back to Bible and offers a dismissible first-use hint outside the tour.",
+    ],
     "2026.10.27.1": [
       "Home Screen widgets can show longer passages when enlarged: Android uses the resized space, and iOS adds Large and Extra Large sizes where supported. Native app appearance settings now offer app theme, device light/dark, or a custom widget background with contrasting text.",
     ],
@@ -6171,6 +6180,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           <span class="topbar-search-icon" aria-hidden="true">${icons.search}</span>
           <span class="topbar-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
         </button>
+        <label class="topbar-search-label" for="referenceInput">Search</label>
         <input id="referenceInput" value="${escapeHtml((notesSearchSource || strongSearchSource) ? state.searchQuery : state.searchQuery || referenceLabel())}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : "John 3:16 or love one another"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${activeInlineSearchQuery() ? `<button class="topbar-search-clear inline-search-clear-control" type="button" data-clear-search aria-label="${escapeHtml(inlineSearchClearAriaLabel())}" data-tooltip="${escapeHtml(inlineSearchClearTitle())}"><span data-inline-search-progress aria-hidden="true">${escapeHtml(inlineSearchProgressText())}</span>${icons.clear}</button>` : ""}
         ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
@@ -8532,7 +8542,7 @@ function rail() {
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail"><div class="rail-tools" role="group" aria-label="Study tools">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
-    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
+    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}${label === "Search" ? '<span class="rail-search-label">Search</span>' : ""}</button>`;
   }).join("")}</div>
     <div class="portrait-rail-actions">
       <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
@@ -8553,7 +8563,7 @@ function library() {
     Search: "Search",
   };
   const title = titleMap[state.activeRail] || "Verse";
-  const closeLabel = `Hide ${title.toLowerCase()}`;
+  const closeLabel = state.activeRail === "Search" ? "Return to reading; keep search results" : `Hide ${title.toLowerCase()}`;
   return `
     <div class="library-drawer ${pendingLibraryEnter ? "drawer-enter" : ""}">
       <aside class="library">
@@ -21752,6 +21762,43 @@ function sharedVersionReturnButton(surface) {
   `;
 }
 
+function showBibleReturnHint() {
+  return state.mode === "big" && !state.tutorialActive && !state.tutorialIntroVisible
+    && !state.presentationNoButtons && localStorage.getItem("lw_bible_return_learned") !== "true";
+}
+
+function dismissBibleReturnHint() {
+  localStorage.setItem("lw_bible_return_learned", "true");
+  renderPreservingReaderScroll();
+}
+
+function searchReturnAction() {
+  if (!state.searchReturnAvailable || !state.searchResultsQuery) return "";
+  if (!["reader", "parallel", "big"].includes(state.mode)) return "";
+  if (state.libraryOpen && state.activeRail === "Search" && !state.focusMode && state.mode !== "big") return "";
+  if (state.focusSearchResultsOpen || state.presentationSearchResultsOpen) return "";
+  return `<button type="button" class="search-return-action" data-search-return>${icons.arrowLeft}<span>Back to search results</span></button>`;
+}
+
+function returnToSearchResults() {
+  state.searchQuery = state.searchResultsQuery;
+  if (state.mode === "big") {
+    state.presentationSearchResultsOpen = true;
+    state.presentationControlsVisible = true;
+  } else if (state.focusMode) {
+    state.focusSearchResultsOpen = true;
+  } else {
+    state.activeRail = "Search";
+    state.libraryOpen = true;
+    localStorage.setItem("lw_library_open", "true");
+  }
+  renderPreservingReaderScroll();
+  requestAnimationFrame(() => {
+    const body = document.querySelector(".presentation-search-results .mobile-focus-search-results-body, #mobileFocusSearchResults .mobile-focus-search-results-body, .library");
+    if (body) body.scrollTop = state.searchReturnScroll || 0;
+  });
+}
+
 function presentation(accountPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
@@ -21827,7 +21874,7 @@ function presentation(accountPanelRerender = false) {
     </div>
   `;
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${showBibleReturnHint() || state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
       ${presentationBackgroundMotionMarkup()}
       <div class="presentation-top">
         <div class="presentation-search-slot">
@@ -21869,10 +21916,14 @@ function presentation(accountPanelRerender = false) {
               </div>
             ` : ""}
           </div>
-          <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" data-tooltip="Back to Bible">${icons.book}</button>
+          <div class="bible-return-guide ${showBibleReturnHint() ? "has-hint" : ""}">
+            <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" ${showBibleReturnHint() ? 'aria-describedby="bibleReturnHint"' : ""}>${icons.book}<span>Back to Bible</span></button>
+            ${showBibleReturnHint() ? `<div class="bible-return-hint" id="bibleReturnHint"><p>Back to Bible: use this book button to return to Reader.</p><button type="button" id="dismissBibleReturnHint">Got it</button></div>` : ""}
+          </div>
         </div>
       </div>
       ${presentationSearchResults()}
+      ${searchReturnAction()}
       <div class="presentation-text">
         ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
@@ -23727,6 +23778,11 @@ function bindEvents() {
   });
   document.querySelectorAll("[data-goto]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.dataset.searchResult === "true") {
+        state.searchReturnAvailable = true;
+        state.searchReturnScroll = button.closest(".mobile-focus-search-results-body, .library")?.scrollTop || 0;
+        document.activeElement?.blur();
+      }
       const fromFocusWorkspace = Boolean(button.closest(".mobile-focus-workspace"));
       if (fromFocusWorkspace) resetFocusToolSurfaces();
       const closeLibraryAfterNavigation = !fromFocusWorkspace && button.dataset.keepLibraryOpen !== "true";
@@ -24111,6 +24167,8 @@ function bindEvents() {
     if (color) applyHighlight(color);
   });
   document.getElementById("printPage")?.addEventListener("click", printSelectedPassage);
+  document.getElementById("dismissBibleReturnHint")?.addEventListener("click", dismissBibleReturnHint);
+  document.querySelectorAll("[data-search-return]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); returnToSearchResults(); }));
   document.getElementById("closePresentation")?.addEventListener("click", () => {
     returnFromPresentationToBible();
   });
@@ -24119,6 +24177,7 @@ function bindEvents() {
 }
 
 function returnFromPresentationToBible() {
+  localStorage.setItem("lw_bible_return_learned", "true");
   return switchMode("reader");
 }
 
@@ -27955,6 +28014,8 @@ function advanceInlineChapterSearch(query, searchChapter = state.reference) {
 }
 
 function clearSearchResults() {
+  state.searchReturnAvailable = false;
+  state.searchReturnScroll = null;
   state.strongSearchReturn = null;
   searchRequestId += 1;
   clearInlineChapterSearchState();
@@ -29936,7 +29997,7 @@ function revealPresentationControls(duration = 3200) {
     document.getElementById("presentation")?.classList.add("controls-visible");
   }
   presentationControlsTimer = setTimeout(() => {
-    if (state.mode !== "big" || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen || state.presentationVersionMenuOpen || state.presentationReferenceMenuOpen) return;
+    if (state.mode !== "big" || showBibleReturnHint() || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen || state.presentationVersionMenuOpen || state.presentationReferenceMenuOpen) return;
     state.presentationControlsVisible = false;
     document.getElementById("presentation")?.classList.remove("controls-visible");
   }, duration);
