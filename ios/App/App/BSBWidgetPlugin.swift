@@ -8,7 +8,7 @@ public class BSBWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise)]
     @objc func sync(_ call: CAPPluginCall) {
         let snapshot = WidgetSnapshot(current: max(0, min(call.getInt("current") ?? 0, 100000)),
-            lastVisit: call.getString("lastVisit") ?? "", days: Array((call.getArray("days", String.self) ?? []).suffix(400)))
+            lastVisit: call.getString("lastVisit") ?? "", days: Array((call.getArray("days", String.self) ?? []).suffix(400)), background: call.getString("background"))
         Self.store(snapshot)
         call.resolve()
     }

@@ -93,7 +93,7 @@ public class MainActivity extends BridgeActivity {
         if (value == null) return;
         String host = Uri.parse(value).getHost();
         if (!"bigscreenbible.com".equals(host) && !"localhost".equals(host)) return;
-        getBridge().getWebView().evaluateJavascript("localStorage.getItem('lw_reading_streak')", result -> {
+        getBridge().getWebView().evaluateJavascript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), background: localStorage.getItem('lw_widget_background') || null})", result -> {
             try {
                 String raw = new org.json.JSONArray("[" + result + "]").optString(0, "{}");
                 org.json.JSONObject saved = new org.json.JSONObject(raw);
@@ -102,6 +102,8 @@ public class MainActivity extends BridgeActivity {
                 org.json.JSONObject snapshot = new org.json.JSONObject()
                     .put("current", Math.max(0, Math.min(saved.optInt("current", 0), 100000)))
                     .put("lastVisit", saved.optString("lastVisit", "")).put("days", days);
+                String background = saved.optString("background", "");
+                if (background.matches("#[0-9a-fA-F]{6}")) snapshot.put("background", background);
                 android.content.SharedPreferences prefs = ScriptureWidgetProvider.prefs(this);
                 if (!snapshot.toString().equals(prefs.getString("snapshot", ""))) {
                     prefs.edit().putString("snapshot", snapshot.toString()).apply();

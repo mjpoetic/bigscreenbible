@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/widget_color_background" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" android:importantForAccessibility="no" android:visibility="gone" />
+<LinearLayout
     android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical" android:padding="16dp" android:background="@drawable/widget_background">
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+    <TextView android:id="@+id/widget_heading" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="@string/widget_heading" android:textSize="10sp" android:letterSpacing="0.10"
         android:textColor="@color/widget_secondary" android:drawableStart="@drawable/widget_book"
         android:drawablePadding="8dp" android:gravity="center_vertical" android:maxLines="1" />
@@ -14,7 +18,7 @@
         android:text="@string/widget_preview_reference" android:textSize="11sp" android:textColor="@color/widget_secondary"
         android:maxLines="1" android:ellipsize="end" />
     <!-- RemoteViews rejects plain View elements, including decorative dividers. -->
-    <TextView android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/widget_divider"
+    <TextView android:id="@+id/widget_divider" android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/widget_divider"
         android:importantForAccessibility="no"
         android:layout_marginTop="9dp" android:layout_marginBottom="9dp" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
@@ -28,3 +32,4 @@
             android:text="@string/widget_open" android:textSize="11sp" android:textColor="@color/widget_accent" />
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>

@@ -24,6 +24,12 @@ struct WidgetDataTests {
         precondition(params.first(where: {$0.name == "version"})?.value == "KJV")
         let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(checked))
         precondition(decoded.checked(today) && decoded.current == 13)
+        let legacy = try JSONDecoder().decode(WidgetSnapshot.self, from: Data("{\"current\":3,\"lastVisit\":\"\",\"days\":[]}".utf8))
+        precondition(legacy.background == nil, "Older caches retain system appearance")
+        var colored = checked
+        colored.background = "#123456"
+        let roundTrip = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(colored))
+        precondition(roundTrip.background == "#123456")
         print("Widget data: local dates, check-ins, streak expiry, Codable snapshot and passage links passed.")
     }
 }

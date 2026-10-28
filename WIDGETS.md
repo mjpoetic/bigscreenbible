@@ -1,11 +1,11 @@
 # Scripture + Streak widgets
 
-The first native widget combines a daily verse, the current reading streak, and today's check-in. Tap anywhere to open the displayed passage in Reader. Light/dark appearance follows the device. No notification permission or account is required.
+The first native widget combines a daily verse, the current reading streak, and today's check-in. Tap anywhere to open the displayed passage in Reader. Home Screen appearance is configurable in the app. No notification permission or account is required.
 
 ## Available sizes
 
-- iOS 16+: small and medium Home Screen widgets and a rectangular Lock Screen accessory.
-- Android 7+: a resizable Home Screen widget; the default is four columns by two rows. Compact widths hide weekly dots and reduce the verse font. The launcher controls exact sizing.
+- iOS 16+: small, medium, large, and extra-large Home Screen families where supported by the device and a rectangular Lock Screen accessory.
+- Android 7+: a resizable Home Screen widget; the default is four columns by two rows. Compact widths hide weekly dots and reduce the verse font. The verse area grows with the widget instead of retaining a fixed line cap. The launcher controls exact sizing.
 
 After installing a native build containing these changes, open Big Screen Bible once. Add **Scripture + Streak** from the system widget gallery. On iOS, long-press the Home Screen, choose Edit > Add Widget, and search for Big Screen Bible. On Android, long-press the Home Screen, choose Widgets, and expand Big Screen Bible. Updating only the website cannot install a native widget extension.
 
@@ -15,7 +15,7 @@ The widget independently requests the existing public `verse-of-the-day` endpoin
 
 Each platform caches the successful verse for the local date. iOS requests an hourly refresh and includes seven future local-midnight fallback entries. Android requests hourly host updates and refreshes local content on date, time, timezone, and locale changes. The OS controls scheduling; refreshes are not guaranteed at an exact minute. No continuous background service or exact alarm is used.
 
-The Capacitor `BSBWidget.sync` bridge publishes only the current streak count, last check-in date, and up to 400 recent check-in dates. It coalesces app renders, skips unchanged snapshots, and retries after a bridge failure. Account tokens, names, notes, and highlights never enter the widget cache. Progress on other devices appears after the app syncs and publishes it locally. Widgets do not independently sign into an account.
+The Capacitor `BSBWidget.sync` bridge publishes only the current streak count, last check-in date, up to 400 recent check-in dates, and an optional background hex color. It coalesces app renders, skips unchanged snapshots, and retries after a bridge failure. Account tokens, names, notes, and highlights never enter the widget cache. Progress on other devices appears after the app syncs and publishes it locally. Widgets do not independently sign into an account.
 
 The streak remains available on the day after a check-in and displays zero after a missed day, even while the app is closed. Merely viewing a widget does not count as opening the Bible.
 
@@ -23,7 +23,7 @@ The streak remains available on the day after a check-in and displays zero after
 
 Both iOS targets use the App Group `group.com.bigscreenbible.app`. Enable/register that group for the main app and the `com.bigscreenbible.app.ScriptureWidget` extension in the Apple developer account when provisioning a device or store build. Xcode automatic signing may handle registration with the appropriate account permissions. The extension is a dependency of the App target and is embedded in its PlugIns directory. Keep its marketing/build versions aligned with the containing app when preparing a store archive. Shared UserDefaults access is declared in the privacy manifest.
 
-Android uses AppWidgetProvider and RemoteViews with system light/dark resources. No additional runtime library or permission is needed.
+Android uses AppWidgetProvider and RemoteViews with system light/dark resources or a rounded bitmap background for custom colors. No additional runtime library or permission is needed.
 
 Regenerate public offline data after changing curated references, KJV content, or the public endpoint configuration:
 
@@ -63,3 +63,11 @@ The web/mobile build regenerates both native catalogs automatically. The images 
 - Signed iOS App Group provisioning, actual widget gallery/tap interactions, and physical-device behavior remain to be verified before release.
 
 The native shells also capture the existing `lw_reading_streak` local-storage value when backgrounding, restricted to the app's own live/local origins. This lets the installed beta update its widget even before the web bridge is deployed.
+
+### Expanded widgets and appearance (2026-10-27)
+
+Native Appearance & Text settings now include **Widget appearance**, shared by all Home Screen widgets on that device: **Follow app theme** (default), **Device light/dark**, or **Custom color**. App theme uses the solid chrome color of the selected palette, without gradients/motion. A custom background selects black or white text using relative luminance. Device mode uses the original automatic light/dark palette. Theme changes publish when the app opens or its appearance changes; the closed app cannot continuously publish app-theme updates. Lock Screen and system-tinted widgets retain OS styling.
+
+These controls require the updated website and native bridge; older native builds ignore the extra color field. Older caches retain device appearance until the app publishes a color. Streak and appearance stay local to the device.
+
+Validation: Android emulator instrumentation passed both tests, including 24 light/dark custom-color render combinations at widths 150/180/330 dp and heights 150/180/360/500 dp. Both platform builds passed. Swift legacy-cache/color round-trip and streak/link tests passed. Standalone SwiftUI large/extra-large renders and an Android tall render were inspected. Actual installed iOS gallery behavior and physical-device appearance changes remain beta QA; no new beta has been uploaded for this change.

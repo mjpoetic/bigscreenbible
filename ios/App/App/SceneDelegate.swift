@@ -137,11 +137,11 @@ class BSBBridgeViewController: CAPBridgeViewController {
     // Installed beta shells also work with the currently deployed web release.
     func captureWidgetProgress() {
         guard let host = webView?.url?.host, ["bigscreenbible.com", "localhost"].contains(host) else { return }
-        webView?.evaluateJavaScript("localStorage.getItem('lw_reading_streak')") { result, _ in
+        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), background: localStorage.getItem('lw_widget_background') || null})") { result, _ in
             guard let raw = result as? String, let data = raw.data(using: .utf8),
                   let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             let snapshot = WidgetSnapshot(current: max(0, min(value["current"] as? Int ?? 0, 100000)),
-                lastVisit: value["lastVisit"] as? String ?? "", days: Array((value["days"] as? [String] ?? []).suffix(400)))
+                lastVisit: value["lastVisit"] as? String ?? "", days: Array((value["days"] as? [String] ?? []).suffix(400)), background: value["background"] as? String)
             BSBWidgetPlugin.store(snapshot)
         }
     }

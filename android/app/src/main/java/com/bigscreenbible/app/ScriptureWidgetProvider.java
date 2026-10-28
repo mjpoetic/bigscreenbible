@@ -82,6 +82,8 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
             Bundle options = manager.getAppWidgetOptions(id);
             boolean compact = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250) < 220;
             RemoteViews views = render(context, verse, snapshot, compact);
+            applyAppearance(views, snapshot, options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 330),
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180));
             Uri url = Uri.parse("https://bigscreenbible.com/").buildUpon()
                 .appendQueryParameter("ref", verse.getString("reference"))
                 .appendQueryParameter("mode", "reader")
@@ -96,7 +98,9 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.scripture_widget);
         views.setTextViewText(R.id.widget_verse, verse.getString("text"));
         views.setTextViewTextSize(R.id.widget_verse, TypedValue.COMPLEX_UNIT_SP, compact ? 17 : 21);
-        views.setInt(R.id.widget_verse, "setMaxLines", compact ? 4 : 3);
+        // The weighted verse area grows with the host's actual size. Let its
+        // measured height, rather than a fixed line cap, determine how much fits.
+        views.setInt(R.id.widget_verse, "setMaxLines", Integer.MAX_VALUE);
         views.setTextViewText(R.id.widget_reference, verse.getString("reference") + " · " + verse.getString("source"));
         views.setTextViewText(R.id.widget_streak, context.getString(R.string.widget_streak_format, streak(snapshot)));
         boolean today = checked(snapshot, day(new Date()));
@@ -113,6 +117,30 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         views.setTextViewText(R.id.widget_week, week.toString().trim());
         views.setContentDescription(R.id.widget_root, "Verse of the Day. " + verse.getString("text") + ". " + verse.getString("reference") + ". " + streak(snapshot) + " day streak. " + (today ? "Checked in today." : "Open Bible."));
         return views;
+    }
+    static void applyAppearance(RemoteViews views, JSONObject snapshot, int width, int height) {
+        String hex = snapshot.optString("background", "");
+        if (!hex.matches("#[0-9a-fA-F]{6}")) return;
+        int color = android.graphics.Color.parseColor(hex);
+        double luminance = 0;
+        double[] weights = {0.2126, 0.7152, 0.0722};
+        int[] channels = {android.graphics.Color.red(color), android.graphics.Color.green(color), android.graphics.Color.blue(color)};
+        for (int i = 0; i < 3; i++) {
+            double c = channels[i] / 255.0;
+            luminance += weights[i] * (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+        }
+        int ink = luminance < 0.179 ? android.graphics.Color.WHITE : android.graphics.Color.BLACK;
+        // A bitmap background preserves rounded corners on older launchers too.
+        int w = Math.max(150, Math.min(width, 800)), h = Math.max(150, Math.min(height, 800));
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(color);
+        new android.graphics.Canvas(bitmap).drawRoundRect(0, 0, w, h, 24, 24, paint);
+        views.setImageViewBitmap(R.id.widget_color_background, bitmap);
+        views.setViewVisibility(R.id.widget_color_background, View.VISIBLE);
+        views.setInt(R.id.widget_root, "setBackgroundColor", android.graphics.Color.TRANSPARENT);
+        for (int id : new int[]{R.id.widget_heading, R.id.widget_verse, R.id.widget_reference, R.id.widget_streak, R.id.widget_week, R.id.widget_today}) views.setTextColor(id, ink);
+        views.setInt(R.id.widget_divider, "setBackgroundColor", (ink & 0x00ffffff) | 0x33000000);
     }
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) update(context, manager, id);

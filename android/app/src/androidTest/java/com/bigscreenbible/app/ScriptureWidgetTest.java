@@ -39,7 +39,7 @@ public class ScriptureWidgetTest {
     @Test public void nativeLayoutsRenderAtCompactAndMediumSizes() {
         Context base = InstrumentationRegistry.getInstrumentation().getTargetContext();
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            for (boolean dark : new boolean[]{false, true}) for (int width : new int[]{150, 180, 330}) for (int height : new int[]{150, 180}) {
+            for (boolean dark : new boolean[]{false, true}) for (int width : new int[]{150, 180, 330}) for (int height : new int[]{150, 180, 360, 500}) {
                 Configuration config = new Configuration(base.getResources().getConfiguration());
                 config.uiMode = (config.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | (dark ? Configuration.UI_MODE_NIGHT_YES : Configuration.UI_MODE_NIGHT_NO);
                 Context context = base.createConfigurationContext(config);
@@ -48,6 +48,7 @@ public class ScriptureWidgetTest {
                     JSONObject verse = ScriptureWidgetProvider.verse("2 Timothy 3:16-17", "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness, so that the servant of God may be thoroughly equipped for every good work.", "Heartlight");
                     JSONObject snapshot = new JSONObject().put("current", 12).put("lastVisit", ScriptureWidgetProvider.day(new Date()));
                     remote = ScriptureWidgetProvider.render(context, verse, snapshot, width < 220);
+                    ScriptureWidgetProvider.applyAppearance(remote, snapshot.put("background", dark ? "#102030" : "#ffefcc"), width, height);
                 } catch (Exception error) { throw new AssertionError(error); }
                 View view = remote.apply(context, null);
                 float density = context.getResources().getDisplayMetrics().density;
@@ -56,10 +57,12 @@ public class ScriptureWidgetTest {
                 view.layout(0, 0, pxWidth, pxHeight);
                 TextView verse = view.findViewById(R.id.widget_verse);
                 TextView ref = view.findViewById(R.id.widget_reference);
+                assertEquals("Resizing must not retain a fixed verse line cap", Integer.MAX_VALUE, verse.getMaxLines());
+                if (height >= 360) assertTrue("Tall widgets reveal more than four lines", verse.getHeight() / verse.getLineHeight() > 4);
                 assertTrue("Verse has usable height", verse.getHeight() > 0);
                 assertTrue("Verse cannot overlap reference", verse.getBottom() <= ref.getTop());
                 assertTrue("Footer stays within widget", view.findViewById(R.id.widget_today).getHeight() > 0);
-                android.view.ViewGroup root = (android.view.ViewGroup) view;
+                android.view.ViewGroup root = view.findViewById(R.id.widget_root);
                 View footer = root.getChildAt(root.getChildCount() - 1);
                 assertTrue("Footer does not overflow minimum height", footer.getBottom() <= pxHeight - view.getPaddingBottom());
                 Bitmap bitmap = Bitmap.createBitmap(pxWidth, pxHeight, Bitmap.Config.ARGB_8888);

@@ -24,9 +24,24 @@ struct ScriptureView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var scheme
     let entry: ScriptureEntry
-    private var background: Color { scheme == .dark ? Color(red: 0.067, green: 0.114, blue: 0.216) : Color(red: 0.98, green: 0.965, blue: 0.935) }
-    private var ink: Color { scheme == .dark ? .white : Color(red: 0.067, green: 0.114, blue: 0.216) }
-    private var accent: Color { scheme == .dark ? Color(red: 0.44, green: 0.83, blue: 0.8) : Color(red: 0.04, green: 0.40, blue: 0.40) }
+    private var customRGB: UInt64? {
+        guard let hex = entry.streak.background, hex.count == 7, hex.first == "#" else { return nil }
+        return UInt64(hex.dropFirst(), radix: 16)
+    }
+    private var darkBackground: Bool {
+        guard let rgb = customRGB else { return scheme == .dark }
+        func linear(_ channel: UInt64) -> Double {
+            let c = Double(channel) / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear((rgb >> 16) & 255) + 0.7152 * linear((rgb >> 8) & 255) + 0.0722 * linear(rgb & 255) < 0.179
+    }
+    private var background: Color {
+        if let rgb = customRGB { return Color(red: Double((rgb >> 16) & 255) / 255, green: Double((rgb >> 8) & 255) / 255, blue: Double(rgb & 255) / 255) }
+        return scheme == .dark ? Color(red: 0.067, green: 0.114, blue: 0.216) : Color(red: 0.98, green: 0.965, blue: 0.935)
+    }
+    private var ink: Color { customRGB != nil ? (darkBackground ? .white : .black) : (scheme == .dark ? .white : Color(red: 0.067, green: 0.114, blue: 0.216)) }
+    private var accent: Color { customRGB != nil ? ink : (scheme == .dark ? Color(red: 0.44, green: 0.83, blue: 0.8) : Color(red: 0.04, green: 0.40, blue: 0.40)) }
     var body: some View {
         Group {
             if family == .accessoryRectangular {
@@ -40,8 +55,8 @@ struct ScriptureView: View {
                     Label("VERSE OF THE DAY", systemImage: "book")
                         .font(.system(size: 10, weight: .medium)).tracking(1).foregroundStyle(ink.opacity(0.7))
                     Text(entry.verse.text)
-                        .font(.system(size: family == .systemSmall ? 18 : 22, design: .serif))
-                        .minimumScaleFactor(0.8).lineLimit(family == .systemSmall ? 4 : 3)
+                        .font(.system(size: family == .systemSmall ? 18 : family == .systemExtraLarge ? 26 : 22, design: .serif))
+                        .minimumScaleFactor(0.8).lineLimit(family == .systemSmall ? 4 : family == .systemMedium ? 3 : nil)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     Text("\(entry.verse.reference) · \(entry.verse.source)")
                         .font(.system(size: 11)).foregroundStyle(ink.opacity(0.75)).lineLimit(1).minimumScaleFactor(0.75)
@@ -85,6 +100,6 @@ struct ScriptureWidget: Widget {
         StaticConfiguration(kind: WidgetStore.kind, provider: ScriptureProvider()) { ScriptureView(entry: $0) }
             .configurationDisplayName("Scripture + Streak")
             .description("A daily verse and a little encouragement to keep opening your Bible.")
-            .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular])
     }
 }

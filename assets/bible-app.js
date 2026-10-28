@@ -1300,10 +1300,19 @@ function daysBetweenDateKeys(fromKey, toKey) {
   return Math.round((to - from) / 86400000);
 }
 
-// Widgets share only check-in data, never account credentials or private notes.
+// Widgets share check-in data and a background color, never credentials or notes.
+function nativeWidgetBackground() {
+  const mode = localStorage.getItem("lw_widget_appearance") || "app";
+  if (mode === "system") return null;
+  const custom = localStorage.getItem("lw_widget_color");
+  const color = mode === "custom" && /^#[0-9a-f]{6}$/i.test(custom || "")
+    ? custom : themeChromeColor(state.themePreset, state.theme);
+  return /^#[0-9a-f]{6}$/i.test(color || "") ? color : null;
+}
 let nativeWidgetSyncTimer = 0;
 let nativeWidgetSnapshotKey = "";
 function scheduleNativeWidgetSync() {
+  localStorage.setItem("lw_widget_background", nativeWidgetBackground() || "");
   const capacitor = window.Capacitor;
   if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
   clearTimeout(nativeWidgetSyncTimer);
@@ -1313,7 +1322,7 @@ async function syncNativeWidgetSnapshot() {
   const capacitor = window.Capacitor;
   if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
   const streak = normalizeReadingStreak(state.streak);
-  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400) };
+  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground() };
   const key = JSON.stringify(payload);
   if (key === nativeWidgetSnapshotKey) return;
   try {
@@ -4982,6 +4991,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.27.1": [
+      "Home Screen widgets can show longer passages when enlarged: Android uses the resized space, and iOS adds Large and Extra Large sizes where supported. Native app appearance settings now offer app theme, device light/dark, or a custom widget background with contrasting text.",
+    ],
     "2026.10.25.1": [
       "The Accessibility Scripture reader now offers a System page color that follows OS light and dark appearance, including changes while the reader is open. New and reset preferences use System; saved page colors remain available.",
     ],
@@ -5720,6 +5732,16 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
       })}
     </div>
     `}
+    ${window.Capacitor?.isNativePlatform?.() ? `
+    <div class="setting-group" data-settings-search-item data-settings-search-text="widget background color appearance custom">
+      <label class="setting-label" for="${prefix}WidgetAppearance">Widget appearance</label>
+      ${settingsChoiceMarkup(`${prefix}WidgetAppearance`, localStorage.getItem("lw_widget_appearance") || "app",
+        [["app", "Follow app theme"], ["system", "Device light/dark"], ["custom", "Custom color"]].map(([value, label]) => ({value, label})),
+        {label: "Widget appearance"})}
+      ${localStorage.getItem("lw_widget_appearance") === "custom" ? `<label>Widget background <input type="color" data-widget-color aria-label="Widget background color" value="${/^#[0-9a-f]{6}$/i.test(localStorage.getItem("lw_widget_color") || "") ? localStorage.getItem("lw_widget_color") : "#f8f7f3"}"></label>` : ""}
+      <p class="setting-help">Applies to all Home Screen widgets on this device after opening the app. Text contrasts automatically. Lock Screen and tinted widgets follow system styling.</p>
+    </div>
+    ` : ""}
     ${options.includeControlFinish ? `
     <div class="setting-group" id="${settingsControlId(prefix, "ControlFinishGroup")}" data-settings-search-item data-settings-search-text="liquid glass classic control finish transparency appearance">
       <span class="setting-label">Control finish</span>
@@ -22872,6 +22894,20 @@ function bindEvents() {
   });
   document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
+  });
+  document.querySelectorAll('select[id$="WidgetAppearance"]').forEach((select) => {
+    select.addEventListener("change", () => {
+      localStorage.setItem("lw_widget_appearance", select.value);
+      scheduleNativeWidgetSync();
+      renderPreservingReaderScroll();
+    });
+  });
+  document.querySelectorAll("[data-widget-color]").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!/^#[0-9a-f]{6}$/i.test(input.value)) return;
+      localStorage.setItem("lw_widget_color", input.value);
+      scheduleNativeWidgetSync();
+    });
   });
   document.getElementById("mobileThemePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);

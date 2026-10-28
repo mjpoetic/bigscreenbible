@@ -63,6 +63,7 @@ struct WidgetSnapshot: Codable {
     var current: Int = 0
     var lastVisit: String = ""
     var days: [String] = []
+    var background: String? = nil
     func checked(_ date: Date) -> Bool { lastVisit == WidgetStore.dayKey(date) || days.contains(WidgetStore.dayKey(date)) }
     func streak(_ date: Date) -> Int {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date)!
