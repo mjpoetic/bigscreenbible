@@ -2,19 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>ITSAppUsesNonExemptEncryption</key>
-    <false/>
-    <key>CAPACITOR_DEBUG</key>
+	<key>BSBNativePushAvailable</key>
+	<string>$(BSB_NATIVE_PUSH_AVAILABLE)</string>
+	<key>BSBPushEnvironment</key>
+	<string>$(APS_ENVIRONMENT)</string>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
-	<key>CFBundleURLTypes</key>
-	<array><dict>
-		<key>CFBundleURLSchemes</key>
-		<array><string>com.bigscreenbible.app</string></array>
-	</dict></array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Big Screen Bible</string>
+	<string>Big Screen Bible</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,53 +24,21 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>BSBNativePushAvailable</key>
-	<string>$(BSB_NATIVE_PUSH_AVAILABLE)</string>
-	<key>BSBPushEnvironment</key>
-	<string>$(APS_ENVIRONMENT)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UIApplicationShortcutItems</key>
+	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.bigscreenbible.app.reader</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Reader Mode</string>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>QuickActionReader</string>
-		</dict>
-		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.bigscreenbible.app.parallel</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Parallel Mode</string>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>QuickActionParallel</string>
-		</dict>
-		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.bigscreenbible.app.games</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Games</string>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>QuickActionGames</string>
-		</dict>
-		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.bigscreenbible.app.search</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Search</string>
-			<key>UIApplicationShortcutItemIconFile</key>
-			<string>QuickActionSearch</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.bigscreenbible.app</string>
+			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -91,6 +56,45 @@
 			</array>
 		</dict>
 	</dict>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionReader</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Reader Mode</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.reader</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionParallel</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Parallel Mode</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.parallel</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionGames</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Games</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.games</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconFile</key>
+			<string>QuickActionSearch</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Search</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.bigscreenbible.app.search</string>
+		</dict>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
