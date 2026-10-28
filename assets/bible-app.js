@@ -803,6 +803,8 @@ const state = {
   selectedStrong: "G2316",
   selectedStrongWord: "God",
   mobileControlsOpen: false,
+  bibleReturnPreview: new URLSearchParams(window.location.search).get("preview") === "bible-return",
+  bibleReturnPreviewDismissed: false,
   presentationNoButtons: false,
   presentationSearchOpen: false,
   presentationSearchResultsOpen: false,
@@ -4997,6 +4999,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.28.7": [
+      "Big Screen’s Back to Bible hint has a soft animated halo and a refined explanation. Add preview=bible-return to a Big Screen URL to replay the guidance without changing its saved dismissal preference.",
+    ],
     "2026.10.28.6": [
       "Narrow portrait screens use the shorter Search the Bible prompt. Wider screens retain the full search hint, and the empty results panel explains what you can search for.",
     ],
@@ -21762,12 +21767,15 @@ function sharedVersionReturnButton(surface) {
 }
 
 function showBibleReturnHint() {
-  return state.mode === "big" && !state.tutorialActive && !state.tutorialIntroVisible
-    && !state.presentationNoButtons && localStorage.getItem("lw_bible_return_learned") !== "true";
+  return state.mode === "big" && !state.tutorialActive
+    && (!state.tutorialIntroVisible || state.bibleReturnPreview)
+    && !state.presentationNoButtons
+    && (state.bibleReturnPreview ? !state.bibleReturnPreviewDismissed : localStorage.getItem("lw_bible_return_learned") !== "true");
 }
 
 function dismissBibleReturnHint() {
-  localStorage.setItem("lw_bible_return_learned", "true");
+  if (state.bibleReturnPreview) state.bibleReturnPreviewDismissed = true;
+  else localStorage.setItem("lw_bible_return_learned", "true");
   renderPreservingReaderScroll();
 }
 
@@ -21918,7 +21926,7 @@ function presentation(accountPanelRerender = false) {
           </div>
           <div class="bible-return-guide ${showBibleReturnHint() ? "has-hint" : ""}">
             <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" ${showBibleReturnHint() ? 'aria-describedby="bibleReturnHint"' : ""}>${icons.book}<span>Back to Bible</span></button>
-            ${showBibleReturnHint() ? `<div class="bible-return-hint" id="bibleReturnHint"><p>Back to Bible: use this book button to return to Reader.</p><button type="button" id="dismissBibleReturnHint">Got it</button></div>` : ""}
+            ${showBibleReturnHint() ? `<div class="bible-return-hint" id="bibleReturnHint"><span class="bible-return-hint-eyebrow">Back to Bible</span><p>Tap the book to leave Big Screen and return to reading.</p><button type="button" id="dismissBibleReturnHint">Got it</button></div>` : ""}
           </div>
         </div>
       </div>
@@ -22318,6 +22326,7 @@ function pushConsentPrompt() {
 }
 
 function tutorialIntro() {
+  if (state.bibleReturnPreview && state.mode === "big") return "";
   if (state.sharedPassage || sharedReferenceFromUrl() && !state.startupApplied || !state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen || state.aboutMenuOpen) return "";
   return `
     <section class="tutorial-welcome-overlay open" role="dialog" aria-modal="true" aria-labelledby="tutorialWelcomeTitle">
@@ -24178,7 +24187,8 @@ function bindEvents() {
 }
 
 function returnFromPresentationToBible() {
-  localStorage.setItem("lw_bible_return_learned", "true");
+  if (state.bibleReturnPreview) state.bibleReturnPreviewDismissed = true;
+  else localStorage.setItem("lw_bible_return_learned", "true");
   return switchMode("reader");
 }
 

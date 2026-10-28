@@ -30,3 +30,19 @@ for (const [mode, focusMode] of [['big', false], ['reader', true], ['reader', fa
 }
 assert.match(source, /event\.stopPropagation\(\); returnToSearchResults\(\)/);
 console.log('Reading discovery: tour exclusion, learned hint, and search return across modes passed.');
+
+// Preview replays a previously dismissed hint and dismisses only for this page load.
+state.mode = 'big';
+state.tutorialIntroVisible = true;
+state.bibleReturnPreview = true;
+assert.equal(context.showBibleReturnHint(), true);
+state.tutorialActive = true;
+assert.equal(context.showBibleReturnHint(), false);
+state.tutorialActive = false;
+storage.delete('lw_bible_return_learned');
+context.dismissBibleReturnHint();
+assert.equal(context.showBibleReturnHint(), false);
+assert.equal(storage.has('lw_bible_return_learned'), false);
+state.bibleReturnPreviewDismissed = false;
+assert.equal(context.showBibleReturnHint(), true);
+console.log('Bible return preview replays without changing saved dismissal preferences.');

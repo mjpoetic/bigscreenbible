@@ -251,3 +251,7 @@ Passage links support Reader and Parallel Study, for example
 Mode prefixes also work (`/parallel/Pro3:5-6`), and a translation can be
 included before the mode suffix (`/Pro3:5-6/KJV/parallel`).
 Links without a mode keep the existing focused Reader passage view.
+
+### Preview the Back to Bible guidance
+
+Open `https://bigscreenbible.com/?mode=big&preview=bible-return` to replay the Big Screen return hint and animated halo, including on devices that have dismissed it. Reload the URL to replay it again. Preview dismissal lasts for that page load and does not change the normal saved dismissal preference. Active tours still take priority, and reduced-motion settings show a static halo.
