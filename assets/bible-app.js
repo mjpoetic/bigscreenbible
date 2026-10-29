@@ -31812,13 +31812,14 @@ function spotlightReaderPassage(scripture, selected, verses = null) {
   const focused = [...scripture.querySelectorAll("[data-verse]")]
     .filter((row) => passage.includes(Number(row.dataset.verse)));
   if (!focused.length) focused.push(selected);
-  const root = document.getElementById("app");
   const dimmed = new Set();
-  // Dim sibling branches, never a parent of the focused text. This also
-  // handles inline paragraph verses, Parallel columns, and surrounding chrome.
+  // Keep opacity animations inside Scripture. Dimming surrounding interface
+  // branches creates stacking/backdrop roots for glass panels and dropdowns,
+  // making restored controls flash or change layers until cleanup.
+  // Walk sibling branches so paragraph verses and Parallel columns still work.
   for (const row of focused) {
     row.classList.add("verse-arrival-halo");
-    for (let node = row; node && node !== root; node = node.parentElement) {
+    for (let node = row; node && node !== scripture; node = node.parentElement) {
       for (const sibling of node.parentElement?.children || []) {
         if (sibling === node || focused.some((verse) => sibling === verse || sibling.contains(verse))) continue;
         dimmed.add(sibling);

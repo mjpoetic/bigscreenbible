@@ -159,10 +159,15 @@ function appendSpotlight(parent, ...children) {
 }
 const root = spotlightElement();
 const chrome = spotlightElement();
+const workspace = spotlightElement();
+const panel = spotlightElement();
+const dropdown = spotlightElement();
 const scripture = spotlightElement();
 const paragraph = spotlightElement();
 const rows = [15, 16, 17, 18].map(spotlightElement);
-appendSpotlight(root, chrome, scripture);
+appendSpotlight(root, chrome, workspace);
+appendSpotlight(chrome, dropdown);
+appendSpotlight(workspace, panel, scripture);
 appendSpotlight(scripture, paragraph);
 appendSpotlight(paragraph, ...rows);
 scripture.querySelectorAll = () => rows;
@@ -177,9 +182,10 @@ const spotlightContext = {
 vm.createContext(spotlightContext);
 vm.runInContext(`${extractFunction("spotlightReaderPassage")}; globalThis.spotlight = spotlightReaderPassage;`, spotlightContext);
 spotlightContext.spotlight(scripture, rows[1]);
-assert.equal(chrome.style.properties["--arrival-base-opacity"], "0", "Hidden feedback keeps its zero opacity during spotlight");
-for (const element of [chrome, rows[0], rows[3]]) assert.ok(element.classes.has("verse-arrival-dimmed"));
-for (const element of [scripture, paragraph, rows[1], rows[2]]) assert.ok(!element.classes.has("verse-arrival-dimmed"));
+assert.deepEqual(chrome.style.properties, {}, "Surrounding panels keep their original opacity");
+assert.equal(chrome.classes.size, 0, "Spotlight never animates the interface containing panels and dropdowns");
+for (const element of [rows[0], rows[3]]) assert.ok(element.classes.has("verse-arrival-dimmed"));
+for (const element of [root, chrome, workspace, panel, dropdown, scripture, paragraph, rows[1], rows[2]]) assert.ok(!element.classes.has("verse-arrival-dimmed"));
 for (const row of [rows[1], rows[2]]) assert.ok(row.classes.has("verse-arrival-halo"));
 spotlightCleanup();
 for (const element of [chrome, ...rows]) assert.equal(element.classes.size, 0, "Spotlight restores every affected element");
