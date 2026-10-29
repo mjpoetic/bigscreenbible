@@ -27157,12 +27157,6 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .games-setup-choice-menu .settings-choice-option-detail { font-size: 11px; }
 }
 
-/* Keep the essential reading paths discoverable at compact widths. */
-.app-shell .mode-tabs button[data-mode="reader"] .mode-label,
-.app-shell .mode-tabs button[data-mode="big"] .mode-label { display: inline; }
-@media (min-width: 761px) and (max-width: 1320px) {
-  .app-shell .mode-tabs button:is([data-mode="reader"], [data-mode="big"]) { flex-direction: column; gap: 2px; font-size: 9px; }
-}
 .presentation .presentation-bible-toggle { width: auto; min-width: 44px; padding-inline: 10px; gap: 6px; white-space: nowrap; font-size: 12px; }
 .bible-return-guide { position: relative; }
 .bible-return-guide.has-hint .presentation-bible-toggle {
