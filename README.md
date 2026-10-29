@@ -254,4 +254,4 @@ Links without a mode keep the existing focused Reader passage view.
 
 ### Preview the Back to Bible guidance
 
-Open `https://bigscreenbible.com/?mode=big&preview=bible-return` to replay the Big Screen return hint and animated halo, including on devices that have dismissed it. Reload the URL to replay it again. Preview dismissal lasts for that page load and does not change the normal saved dismissal preference. Active tours still take priority, and reduced-motion settings show a static halo.
+Open `https://bigscreenbible.com/?mode=big&preview=bible-return` to replay the Big Screen return hint and animated halo, including on devices that have dismissed it. Reload the URL to replay it again. Preview dismissal lasts for that page load and does not change the normal saved dismissal preference. The guidance waits until the tour is finished or dismissed. Its message fades after five seconds while the halo remains until the user dismisses it or returns to Reader. Reduced-motion settings show a static halo.

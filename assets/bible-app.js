@@ -805,6 +805,8 @@ const state = {
   mobileControlsOpen: false,
   bibleReturnPreview: new URLSearchParams(window.location.search).get("preview") === "bible-return",
   bibleReturnPreviewDismissed: false,
+  bibleReturnMessageStartedAt: null,
+  bibleReturnMessageHidden: false,
   presentationNoButtons: false,
   presentationSearchOpen: false,
   presentationSearchResultsOpen: false,
@@ -1999,6 +2001,7 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  syncBibleReturnMessage();
   const memorySurface = document.querySelector(".memorize-reader");
   if (memorySurface) {
     memorySurface.scrollTop = memoryScroll;
@@ -4999,6 +5002,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.29.1": [
+      "The Back to Bible message now fades away gently over 650 milliseconds while its halo stays visible.",
+    ],
+    "2026.10.28.8": [
+      "Back to Bible guidance waits until the tour is closed. Its frosted-glass message fades after five seconds while the glowing halo remains until dismissed or used.",
+    ],
     "2026.10.28.7": [
       "Big Screen’s Back to Bible hint has a soft animated halo and a refined explanation. Add preview=bible-return to a Big Screen URL to replay the guidance without changing its saved dismissal preference.",
     ],
@@ -21768,9 +21777,31 @@ function sharedVersionReturnButton(surface) {
 
 function showBibleReturnHint() {
   return state.mode === "big" && !state.tutorialActive
-    && (!state.tutorialIntroVisible || state.bibleReturnPreview)
+    && !state.tutorialIntroVisible
     && !state.presentationNoButtons
     && (state.bibleReturnPreview ? !state.bibleReturnPreviewDismissed : localStorage.getItem("lw_bible_return_learned") !== "true");
+}
+
+let bibleReturnMessageTimer;
+
+function syncBibleReturnMessage() {
+  clearTimeout(bibleReturnMessageTimer);
+  if (state.tutorialActive || state.tutorialIntroVisible) {
+    state.bibleReturnMessageStartedAt = null;
+    state.bibleReturnMessageHidden = false;
+    return;
+  }
+  if (!showBibleReturnHint() || state.bibleReturnMessageHidden) return;
+  if (state.bibleReturnMessageStartedAt == null) state.bibleReturnMessageStartedAt = Date.now();
+  const remaining = Math.max(0, 5000 - (Date.now() - state.bibleReturnMessageStartedAt));
+  bibleReturnMessageTimer = setTimeout(() => {
+    state.bibleReturnMessageHidden = true;
+    const message = document.getElementById("bibleReturnHint");
+    message?.classList.add("is-leaving");
+    message?.setAttribute("aria-hidden", "true");
+    document.getElementById("closePresentation")?.removeAttribute("aria-describedby");
+    bibleReturnMessageTimer = setTimeout(() => message?.remove(), 700);
+  }, remaining);
 }
 
 function dismissBibleReturnHint() {
@@ -21925,8 +21956,8 @@ function presentation(accountPanelRerender = false) {
             ` : ""}
           </div>
           <div class="bible-return-guide ${showBibleReturnHint() ? "has-hint" : ""}">
-            <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" ${showBibleReturnHint() ? 'aria-describedby="bibleReturnHint"' : ""}>${icons.book}<span>Back to Bible</span></button>
-            ${showBibleReturnHint() ? `<div class="bible-return-hint" id="bibleReturnHint"><span class="bible-return-hint-eyebrow">Back to Bible</span><p>Tap the book to leave Big Screen and return to reading.</p><button type="button" id="dismissBibleReturnHint">Got it</button></div>` : ""}
+            <button class="ghost-btn presentation-bible-toggle" id="closePresentation" aria-label="Back to Bible" ${showBibleReturnHint() && !state.bibleReturnMessageHidden ? 'aria-describedby="bibleReturnHint"' : ""}>${icons.book}<span>Back to Bible</span></button>
+            ${showBibleReturnHint() && !state.bibleReturnMessageHidden ? `<div class="bible-return-hint" id="bibleReturnHint"><span class="bible-return-hint-eyebrow">Back to Bible</span><p>Tap the book to leave Big Screen and return to reading.</p><button type="button" id="dismissBibleReturnHint">Got it</button></div>` : ""}
           </div>
         </div>
       </div>
@@ -22326,7 +22357,6 @@ function pushConsentPrompt() {
 }
 
 function tutorialIntro() {
-  if (state.bibleReturnPreview && state.mode === "big") return "";
   if (state.sharedPassage || sharedReferenceFromUrl() && !state.startupApplied || !state.tutorialIntroVisible || state.tutorialActive || state.shortcutsOpen || state.aboutMenuOpen) return "";
   return `
     <section class="tutorial-welcome-overlay open" role="dialog" aria-modal="true" aria-labelledby="tutorialWelcomeTitle">
