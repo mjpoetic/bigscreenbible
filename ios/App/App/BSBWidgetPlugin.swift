@@ -7,8 +7,10 @@ public class BSBWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "BSBWidget"
     public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise)]
     @objc func sync(_ call: CAPPluginCall) {
-        let snapshot = WidgetSnapshot(current: max(0, min(call.getInt("current") ?? 0, 100000)),
+        var snapshot = WidgetSnapshot(current: max(0, min(call.getInt("current") ?? 0, 100000)),
             lastVisit: call.getString("lastVisit") ?? "", days: Array((call.getArray("days", String.self) ?? []).suffix(400)), background: call.getString("background"))
+        if let item = call.getObject("favorite"), let data = try? JSONSerialization.data(withJSONObject: item),
+           let favorite = try? JSONDecoder().decode(WidgetVerse.self, from: data), favorite.isValidFavorite { snapshot.favorite = favorite }
         Self.store(snapshot)
         call.resolve()
     }
@@ -18,6 +20,6 @@ public class BSBWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let data = try? encoder.encode(snapshot), let defaults = WidgetStore.defaults else { return }
         let changed = data != defaults.data(forKey: "snapshot")
         defaults.set(data, forKey: "snapshot")
-        if changed { WidgetCenter.shared.reloadTimelines(ofKind: WidgetStore.kind) }
+        if changed { WidgetCenter.shared.reloadAllTimelines() }
     }
 }

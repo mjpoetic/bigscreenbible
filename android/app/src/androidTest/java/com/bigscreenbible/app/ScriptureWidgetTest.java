@@ -35,11 +35,18 @@ public class ScriptureWidgetTest {
         assertFalse(verse.getString("text").isEmpty());
         assertFalse(verse.getString("reference").isEmpty());
         assertEquals(ScriptureWidgetProvider.day(new Date()), verse.getString("day"));
+        JSONObject favorite = ScriptureWidgetProvider.verse("John 3:16", "Favorite wording", "KJV");
+        favorite.put("day", "2000-01-01");
+        snapshot.put("favorite", favorite);
+        assertEquals("Favorite wording", ScriptureWidgetProvider.displayVerse(verse, snapshot, false).getString("text"));
+        assertEquals(verse, ScriptureWidgetProvider.displayVerse(verse, snapshot, true));
+        snapshot.put("favorite", new JSONObject().put("text", ""));
+        assertEquals(verse, ScriptureWidgetProvider.displayVerse(verse, snapshot, false));
     }
     @Test public void nativeLayoutsRenderAtCompactAndMediumSizes() {
         Context base = InstrumentationRegistry.getInstrumentation().getTargetContext();
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            for (boolean dark : new boolean[]{false, true}) for (int width : new int[]{150, 180, 330}) for (int height : new int[]{150, 180, 360, 500}) {
+            for (boolean streakOnly : new boolean[]{false, true}) for (boolean dark : new boolean[]{false, true}) for (int width : new int[]{150, 180, 330}) for (int height : new int[]{150, 180, 360, 500}) {
                 Configuration config = new Configuration(base.getResources().getConfiguration());
                 config.uiMode = (config.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | (dark ? Configuration.UI_MODE_NIGHT_YES : Configuration.UI_MODE_NIGHT_NO);
                 Context context = base.createConfigurationContext(config);
@@ -47,7 +54,7 @@ public class ScriptureWidgetTest {
                 try {
                     JSONObject verse = ScriptureWidgetProvider.verse("2 Timothy 3:16-17", "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness, so that the servant of God may be thoroughly equipped for every good work.", "Heartlight");
                     JSONObject snapshot = new JSONObject().put("current", 12).put("lastVisit", ScriptureWidgetProvider.day(new Date()));
-                    remote = ScriptureWidgetProvider.render(context, verse, snapshot, width < 220);
+                    remote = streakOnly ? ScriptureWidgetProvider.renderStreak(context, verse, snapshot, width < 220) : ScriptureWidgetProvider.render(context, verse, snapshot, width < 220);
                     ScriptureWidgetProvider.applyAppearance(remote, snapshot.put("background", dark ? "#102030" : "#ffefcc"), width, height);
                 } catch (Exception error) { throw new AssertionError(error); }
                 View view = remote.apply(context, null);
@@ -57,6 +64,8 @@ public class ScriptureWidgetTest {
                 view.layout(0, 0, pxWidth, pxHeight);
                 TextView verse = view.findViewById(R.id.widget_verse);
                 TextView ref = view.findViewById(R.id.widget_reference);
+                assertFalse("Feed credit is shown inside the app", ref.getText().toString().contains("Heartlight"));
+                assertEquals("BIG SCREEN BIBLE", ((TextView)view.findViewById(R.id.widget_heading)).getText().toString());
                 assertEquals("Resizing must not retain a fixed verse line cap", Integer.MAX_VALUE, verse.getMaxLines());
                 if (height >= 360) assertTrue("Tall widgets reveal more than four lines", verse.getHeight() / verse.getLineHeight() > 4);
                 assertTrue("Verse has usable height", verse.getHeight() > 0);
@@ -67,7 +76,7 @@ public class ScriptureWidgetTest {
                 assertTrue("Footer does not overflow minimum height", footer.getBottom() <= pxHeight - view.getPaddingBottom());
                 Bitmap bitmap = Bitmap.createBitmap(pxWidth, pxHeight, Bitmap.Config.ARGB_8888);
                 view.draw(new Canvas(bitmap));
-                File output = new File(base.getCacheDir(), "widget-" + width + "x" + height + (dark ? "-dark" : "-light") + ".png");
+                File output = new File(base.getCacheDir(), (streakOnly ? "streak-" : "widget-") + width + "x" + height + (dark ? "-dark" : "-light") + ".png");
                 try (FileOutputStream stream = new FileOutputStream(output)) { bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream); }
                 catch (Exception error) { throw new AssertionError(error); }
                 bitmap.recycle();

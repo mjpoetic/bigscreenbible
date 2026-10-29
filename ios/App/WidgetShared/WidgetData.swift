@@ -53,9 +53,15 @@ struct WidgetVerse: Codable {
     var text: String
     var source: String
     var day: String
+    var version: String? = nil
+    var verses: String? = nil
+    var linkReference: String? = nil
+    var isValidFavorite: Bool { !reference.isEmpty && reference.count <= 100 && !text.isEmpty && text.count <= 2000 && source.count <= 40 }
+    var widgetCitation: String { source == "Heartlight" ? reference : "\(reference) · \(source)" }
     var url: URL {
         var parts = URLComponents(string: "https://bigscreenbible.com/")!
-        parts.queryItems = [URLQueryItem(name: "ref", value: reference), URLQueryItem(name: "mode", value: "reader"), URLQueryItem(name: "version", value: source == "KJV" ? "KJV" : "BSB")]
+        parts.queryItems = [URLQueryItem(name: "ref", value: linkReference ?? reference), URLQueryItem(name: "mode", value: "reader"), URLQueryItem(name: "version", value: version ?? (source == "KJV" ? "KJV" : "BSB"))]
+        if let verses { parts.queryItems?.append(URLQueryItem(name: "verses", value: verses)) }
         return parts.url!
     }
 }
@@ -64,6 +70,7 @@ struct WidgetSnapshot: Codable {
     var lastVisit: String = ""
     var days: [String] = []
     var background: String? = nil
+    var favorite: WidgetVerse? = nil
     func checked(_ date: Date) -> Bool { lastVisit == WidgetStore.dayKey(date) || days.contains(WidgetStore.dayKey(date)) }
     func streak(_ date: Date) -> Int {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date)!

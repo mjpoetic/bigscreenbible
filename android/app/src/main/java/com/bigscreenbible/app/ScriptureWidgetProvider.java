@@ -59,6 +59,14 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         }
         return verse(selected.getString("reference"), selected.getString("text"), "KJV");
     }
+    static boolean validFavorite(JSONObject item) {
+        return item != null && !item.optString("reference").trim().isEmpty() && item.optString("reference").length() <= 100
+            && !item.optString("text").trim().isEmpty() && item.optString("text").length() <= 2000 && item.optString("source").length() <= 40;
+    }
+    static JSONObject displayVerse(JSONObject daily, JSONObject snapshot, boolean lockScreen) {
+        JSONObject favorite = snapshot.optJSONObject("favorite");
+        return !lockScreen && validFavorite(favorite) ? favorite : daily;
+    }
     static boolean checked(JSONObject snapshot, String date) {
         if (date.equals(snapshot.optString("lastVisit"))) return true;
         JSONArray days = snapshot.optJSONArray("days");
@@ -72,22 +80,31 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
     }
     static void updateAll(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        int[] ids = manager.getAppWidgetIds(new ComponentName(context, ScriptureWidgetProvider.class));
-        for (int id : ids) update(context, manager, id);
+        for (Class<?> provider : new Class<?>[]{ScriptureWidgetProvider.class, ReadingStreakWidgetProvider.class}) {
+            int[] ids = manager.getAppWidgetIds(new ComponentName(context, provider));
+            for (int id : ids) update(context, manager, id);
+        }
     }
     private static void update(Context context, AppWidgetManager manager, int id) {
         try {
             JSONObject verse = selectedVerse(context);
             JSONObject snapshot = new JSONObject(prefs(context).getString("snapshot", "{}"));
             Bundle options = manager.getAppWidgetOptions(id);
+            boolean lockScreen = options.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, 1) == 2;
+            verse = displayVerse(verse, snapshot, lockScreen);
+            android.appwidget.AppWidgetProviderInfo info = manager.getAppWidgetInfo(id);
+            boolean streakOnly = info != null && info.provider.getClassName().equals(ReadingStreakWidgetProvider.class.getName());
             boolean compact = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250) < 220;
             RemoteViews views = render(context, verse, snapshot, compact);
+            if (streakOnly) views = renderStreak(context, verse, snapshot, compact);
+
             applyAppearance(views, snapshot, options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 330),
                 options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180));
             Uri url = Uri.parse("https://bigscreenbible.com/").buildUpon()
-                .appendQueryParameter("ref", verse.getString("reference"))
+                .appendQueryParameter("ref", verse.optString("linkReference", verse.getString("reference")))
                 .appendQueryParameter("mode", "reader")
-                .appendQueryParameter("version", "KJV".equals(verse.optString("source")) ? "KJV" : "BSB").build();
+                .appendQueryParameter("version", verse.optString("version", "KJV".equals(verse.optString("source")) ? "KJV" : "BSB"))
+                .appendQueryParameter("verses", verse.optString("verses", "")).build();
             Intent intent = new Intent(Intent.ACTION_VIEW, url, context, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
@@ -101,7 +118,7 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         // The weighted verse area grows with the host's actual size. Let its
         // measured height, rather than a fixed line cap, determine how much fits.
         views.setInt(R.id.widget_verse, "setMaxLines", Integer.MAX_VALUE);
-        views.setTextViewText(R.id.widget_reference, verse.getString("reference") + " · " + verse.getString("source"));
+        views.setTextViewText(R.id.widget_reference, verse.getString("reference") + ("Heartlight".equals(verse.optString("source")) ? "" : " · " + verse.getString("source")));
         views.setTextViewText(R.id.widget_streak, context.getString(R.string.widget_streak_format, streak(snapshot)));
         boolean today = checked(snapshot, day(new Date()));
         views.setTextViewText(R.id.widget_today, context.getString(today ? R.string.widget_checked : R.string.widget_open));
@@ -116,6 +133,16 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         }
         views.setTextViewText(R.id.widget_week, week.toString().trim());
         views.setContentDescription(R.id.widget_root, "Verse of the Day. " + verse.getString("text") + ". " + verse.getString("reference") + ". " + streak(snapshot) + " day streak. " + (today ? "Checked in today." : "Open Bible."));
+        return views;
+    }
+    static RemoteViews renderStreak(Context context, JSONObject verse, JSONObject snapshot, boolean compact) throws Exception {
+        RemoteViews views = render(context, verse, snapshot, compact);
+        views.setTextViewText(R.id.widget_heading, "BIG SCREEN BIBLE");
+        views.setTextViewText(R.id.widget_streak, "Open Bible");
+        views.setTextViewText(R.id.widget_today, "›");
+        views.setTextViewText(R.id.widget_verse, context.getString(R.string.widget_streak_format, streak(snapshot)));
+        views.setTextViewText(R.id.widget_reference, checked(snapshot, day(new Date())) ? "Read today ✓" : "A moment in Scripture");
+        views.setContentDescription(R.id.widget_root, streak(snapshot) + " day reading streak. " + (checked(snapshot, day(new Date())) ? "Read today." : "Open your Bible."));
         return views;
     }
     static void applyAppearance(RemoteViews views, JSONObject snapshot, int width, int height) {

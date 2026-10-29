@@ -1315,6 +1315,32 @@ function nativeWidgetBackground() {
     ? custom : themeChromeColor(state.themePreset, state.theme);
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : null;
 }
+function nativeWidgetFavorite(activeOnly = true) {
+  if (activeOnly && localStorage.getItem("lw_widget_content") !== "favorite") return null;
+  try {
+    const item = JSON.parse(localStorage.getItem("lw_widget_favorite") || "null");
+    if (!item || typeof item.reference !== "string" || !item.reference.trim() || item.reference.length > 100
+      || typeof item.text !== "string" || !item.text.trim() || item.text.length > 2000
+      || typeof item.source !== "string" || item.source.length > 40) return null;
+    return {reference: item.reference, text: item.text, source: item.source, day: "",
+      version: typeof item.version === "string" ? item.version.slice(0, 40) : "BSB",
+      verses: typeof item.verses === "string" ? item.verses.slice(0, 200) : null,
+      linkReference: typeof item.linkReference === "string" ? item.linkReference.slice(0, 100) : item.reference};
+  } catch { return null; }
+}
+function useSelectedPassageInWidget() {
+  const numbers = selectedVerseNumbers();
+  const text = passageLines(numbers).map(line => String(line.text || "").trim()).filter(Boolean).join(" ");
+  if (!text || text.length > 2000) { showToast("Choose a shorter passage for your widget"); return; }
+  const url = new URL(passageShareUrl(numbers));
+  const favorite = { reference: state.isVerseOfDayActive && state.verseOfDayItem ? state.verseOfDayItem.reference
+    : formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, numbers, state.versions[0])),
+    text, source: state.isVerseOfDayActive && state.verseOfDayItem ? "Heartlight" : passageVersion(), version: state.isVerseOfDayActive && state.verseOfDayItem ? "BSB" : state.versions[0], verses: url.searchParams.get("verses"), linkReference: url.searchParams.get("ref"), day: "" };
+  localStorage.setItem("lw_widget_favorite", JSON.stringify(favorite));
+  localStorage.setItem("lw_widget_content", "favorite");
+  scheduleNativeWidgetSync();
+  showToast("Passage saved for your Home Screen widgets");
+}
 let nativeWidgetSyncTimer = 0;
 let nativeWidgetSnapshotKey = "";
 function scheduleNativeWidgetSync() {
@@ -1328,7 +1354,7 @@ async function syncNativeWidgetSnapshot() {
   const capacitor = window.Capacitor;
   if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
   const streak = normalizeReadingStreak(state.streak);
-  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground() };
+  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground(), favorite: nativeWidgetFavorite() };
   const key = JSON.stringify(payload);
   if (key === nativeWidgetSnapshotKey) return;
   try {
@@ -5007,6 +5033,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.29.2": [
+      "Native widget headers now show Big Screen Bible branding, with daily-feed credit available inside the app. Native widgets add Daily Scripture + Check-in and Reading Streak Lock Screen options where supported. Select verses and choose Use in widget to save a favorite passage for Home Screen widgets, or switch back to Verse of the Day in Appearance & Text settings.",
+    ],
     "2026.10.29.1": [
       "The Back to Bible message now fades away gently over 650 milliseconds while its halo stays visible.",
     ],
@@ -5777,6 +5806,10 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
     `}
     ${window.Capacitor?.isNativePlatform?.() ? `
     <div class="setting-group" data-settings-search-item data-settings-search-text="widget background color appearance custom">
+      <span class="setting-label">Home Screen widget content</span>
+      ${settingsChoiceMarkup(`${prefix}WidgetContent`, localStorage.getItem("lw_widget_content") || "daily",
+        [{value: "daily", label: "Verse of the Day"}, {value: "favorite", label: "My favorite passage"}], {label: "Home Screen widget content"})}
+      <p class="setting-help">${nativeWidgetFavorite(false) ? `Saved: ${escapeHtml(nativeWidgetFavorite(false).reference)} (${escapeHtml(nativeWidgetFavorite(false).source)})` : "Select verses in Reader, then choose Use in widget to save a favorite passage. Until then, Verse of the Day is shown."} Lock Screen Scripture stays on the daily verse.</p>
       <label class="setting-label" for="${prefix}WidgetAppearance">Widget appearance</label>
       ${settingsChoiceMarkup(`${prefix}WidgetAppearance`, localStorage.getItem("lw_widget_appearance") || "app",
         [["app", "Follow app theme"], ["system", "Device light/dark"], ["custom", "Custom color"]].map(([value, label]) => ({value, label})),
@@ -21242,6 +21275,7 @@ function selectionBar() {
         <div class="selection-bar-actions">
           <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
           <button class="text-btn selection-action" id="memorizeSelection" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
+          ${window.Capacitor?.isNativePlatform?.() ? `<button class="text-btn selection-action" id="useSelectionInWidget" aria-label="Use selected passage in Home Screen widget" data-tooltip="Use in widget"><span class="selection-action-icon">${icons.book}</span><span class="selection-action-label">Use in widget</span></button>` : ""}
           <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
           <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
           <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
@@ -22992,6 +23026,14 @@ function bindEvents() {
   document.getElementById("themePresetSelect")?.addEventListener("change", (event) => {
     setThemePreset(event.target.value);
   });
+  document.querySelectorAll('select[id$="WidgetContent"]').forEach((select) => {
+    select.addEventListener("change", () => {
+      localStorage.setItem("lw_widget_content", select.value);
+      scheduleNativeWidgetSync();
+      renderPreservingReaderScroll();
+    });
+  });
+  document.getElementById("useSelectionInWidget")?.addEventListener("click", useSelectedPassageInWidget);
   document.querySelectorAll('select[id$="WidgetAppearance"]').forEach((select) => {
     select.addEventListener("change", () => {
       localStorage.setItem("lw_widget_appearance", select.value);

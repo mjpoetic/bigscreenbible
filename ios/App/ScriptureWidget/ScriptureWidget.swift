@@ -24,6 +24,7 @@ struct ScriptureView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var scheme
     let entry: ScriptureEntry
+    private var displayedVerse: WidgetVerse { family == .accessoryRectangular ? entry.verse : (entry.streak.favorite.flatMap { $0.isValidFavorite ? $0 : nil } ?? entry.verse) }
     private var customRGB: UInt64? {
         guard let hex = entry.streak.background, hex.count == 7, hex.first == "#" else { return nil }
         return UInt64(hex.dropFirst(), radix: 16)
@@ -46,19 +47,19 @@ struct ScriptureView: View {
         Group {
             if family == .accessoryRectangular {
                 VStack(alignment: .leading, spacing: 3) {
-                    Label(entry.verse.reference, systemImage: "book") .font(.headline)
-                    Text(entry.streak.checked(entry.date) ? "Checked in today" : "A moment in Scripture") .font(.caption)
-                    Text("\(entry.streak.streak(entry.date)) day streak").font(.caption2)
+                    Label(displayedVerse.reference, systemImage: "book").font(.caption.bold()).lineLimit(1)
+                    Text(displayedVerse.text).font(.caption2).lineLimit(2)
+                    Text(entry.streak.checked(entry.date) ? "Read today ✓" : "A moment in Scripture").font(.caption2)
                 }
             } else {
                 VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 9) {
-                    Label("VERSE OF THE DAY", systemImage: "book")
+                    Label("BIG SCREEN BIBLE", systemImage: "book")
                         .font(.system(size: 10, weight: .medium)).tracking(1).foregroundStyle(ink.opacity(0.7))
-                    Text(entry.verse.text)
+                    Text(displayedVerse.text)
                         .font(.system(size: family == .systemSmall ? 18 : family == .systemExtraLarge ? 26 : 22, design: .serif))
                         .minimumScaleFactor(0.8).lineLimit(family == .systemSmall ? 4 : family == .systemMedium ? 3 : nil)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    Text("\(entry.verse.reference) · \(entry.verse.source)")
+                    Text(displayedVerse.widgetCitation)
                         .font(.system(size: 11)).foregroundStyle(ink.opacity(0.75)).lineLimit(1).minimumScaleFactor(0.75)
                     Divider().overlay(ink.opacity(0.12))
                     HStack(spacing: 4) {
@@ -71,8 +72,8 @@ struct ScriptureView: View {
                     }.font(.system(size: 11, weight: .medium))
                 }.foregroundStyle(ink)
             }
-        }.widgetURL(entry.verse.url)
-        .modifier(WidgetBackground(color: background))
+        }.widgetURL(displayedVerse.url)
+        .modifier(WidgetBackground(color: background, accessory: family == .accessoryRectangular))
     }
     private var week: some View {
         HStack(spacing: 4) {
@@ -89,12 +90,13 @@ struct ScriptureView: View {
 }
 private struct WidgetBackground: ViewModifier {
     var color: Color
+    var accessory: Bool = false
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) { content.containerBackground(color, for: .widget) }
+        else if accessory { content }
         else { content.padding(14).background(color) }
     }
 }
-@main
 struct ScriptureWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WidgetStore.kind, provider: ScriptureProvider()) { ScriptureView(entry: $0) }
@@ -102,4 +104,36 @@ struct ScriptureWidget: Widget {
             .description("A daily verse and a little encouragement to keep opening your Bible.")
             .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge, .accessoryRectangular])
     }
+}
+
+struct ReadingStreakView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: ScriptureEntry
+    var body: some View {
+        Group {
+            if family == .accessoryCircular {
+                VStack(spacing: 1) {
+                    Image(systemName: entry.streak.checked(entry.date) ? "checkmark.circle.fill" : "flame.fill").font(.caption)
+                    Text("\(entry.streak.streak(entry.date))").font(.title3.bold())
+                }.accessibilityLabel("\(entry.streak.streak(entry.date)) day reading streak. \(entry.streak.checked(entry.date) ? "Read today" : "Open your Bible")")
+            } else {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("\(entry.streak.streak(entry.date)) day streak", systemImage: "book").font(.headline)
+                    Text(entry.streak.checked(entry.date) ? "Read today ✓" : "A moment in Scripture").font(.caption)
+                }
+            }
+        }.widgetURL(entry.verse.url).modifier(WidgetBackground(color: .clear, accessory: true))
+    }
+}
+struct ReadingStreakWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "ReadingStreak", provider: ScriptureProvider()) { ReadingStreakView(entry: $0) }
+            .configurationDisplayName("Reading Streak")
+            .description("Your reading streak and today's check-in at a glance.")
+            .supportedFamilies([.accessoryCircular, .accessoryRectangular])
+    }
+}
+@main
+struct BibleWidgets: WidgetBundle {
+    var body: some Widget { ScriptureWidget(); ReadingStreakWidget() }
 }

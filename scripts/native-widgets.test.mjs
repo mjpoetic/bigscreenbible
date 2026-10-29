@@ -26,13 +26,13 @@ vm.runInContext(sync, context);
 context.scheduleNativeWidgetSync(); context.scheduleNativeWidgetSync();
 assert.equal(timers.size, 1, 'renders coalesce into one update');
 await [...timers.values()][0](); timers.clear();
-assert.deepEqual(calls, [{ current: 12, lastVisit: '2026-10-26', days: ['2026-10-25', '2026-10-26'], background: '#f8f7f3' }]);
+assert.deepEqual(calls, [{ current: 12, lastVisit: '2026-10-26', days: ['2026-10-25', '2026-10-26'], background: '#f8f7f3', favorite: null }]);
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 1, 'unchanged snapshots do not reload widgets');
 state.streak.current = 13; fail = true;
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 1);
 fail = false; await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 2, 'failed updates retry');
 state.streak = { current: 0, lastVisit: '', days: [] };
-await context.syncNativeWidgetSnapshot(); assert.deepEqual(calls.at(-1), { current: 0, lastVisit: '', days: [], background: '#f8f7f3' }, 'account changes clear old progress');
+await context.syncNativeWidgetSnapshot(); assert.deepEqual(calls.at(-1), { current: 0, lastVisit: '', days: [], background: '#f8f7f3', favorite: null }, 'account changes clear old progress');
 settings.set('lw_widget_appearance', 'system');
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.at(-1).background, null, 'device appearance clears the shared color');
 settings.set('lw_widget_appearance', 'custom'); settings.set('lw_widget_color', '#123456');
@@ -79,3 +79,25 @@ console.log('Native widgets: bridge sync, deduplication, retries, account change
 assert.match(scene, /captureWidgetProgress\(\)/, 'iOS captures progress from the deployed live site');
 const activity = readFileSync('android/app/src/main/java/com/bigscreenbible/app/MainActivity.java', 'utf8');
 assert.match(activity, /public void onPause\(\) \{\s*captureWidgetProgress\(\)/, 'Android captures progress before backgrounding');
+
+settings.set('lw_widget_content', 'favorite');
+settings.set('lw_widget_favorite', JSON.stringify({reference: 'John 3:16', text: 'For God so loved the world', source: 'KJV', version: 'KJV', secret: 'never-share'}));
+assert.equal(context.nativeWidgetFavorite().text, 'For God so loved the world');
+assert.equal(context.nativeWidgetFavorite().version, 'KJV');
+assert.equal(context.nativeWidgetFavorite().secret, undefined);
+settings.set('lw_widget_content', 'daily');
+assert.equal(context.nativeWidgetFavorite(), null, 'switching to daily clears active favorite');
+settings.set('lw_widget_content', 'favorite'); settings.set('lw_widget_favorite', '{broken');
+assert.equal(context.nativeWidgetFavorite(), null, 'corrupt preferences fall back to daily');
+settings.set('lw_widget_favorite', JSON.stringify({reference: 'John 3:16', text: 'x'.repeat(2001), source: 'KJV'}));
+assert.equal(context.nativeWidgetFavorite(), null, 'oversize passages are rejected');
+
+Object.assign(context, {URL, selectedVerseNumbers: () => [16, 18], passageLines: () => [{text: 'First verse'}, {text: 'Another verse'}],
+  passageShareUrl: () => 'https://bigscreenbible.com/?ref=John+3%3A16&verses=16%2C18',
+  formatReferenceLabel: () => 'John 3:16,18', expandedVersionVerseNumbers: (r, n) => n, passageVersion: () => 'KJV', showToast: () => {}});
+context.state.versions = ['KJV']; context.state.reference = 'John 3';
+context.useSelectedPassageInWidget();
+assert.equal(settings.get('lw_widget_content'), 'favorite');
+assert.equal(context.nativeWidgetFavorite().text, 'First verse Another verse');
+assert.equal(context.nativeWidgetFavorite().linkReference, 'John 3:16');
+assert.equal(context.nativeWidgetFavorite().verses, '16,18');

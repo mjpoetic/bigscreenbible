@@ -19,6 +19,8 @@ public class BSBWidgetPlugin extends Plugin {
             JSONArray days = new JSONArray();
             for (int i = Math.max(0, input.length() - 400); i < input.length(); i++) days.put(input.getString(i));
             snapshot.put("days", days);
+            JSONObject favorite = call.getObject("favorite");
+            if (ScriptureWidgetProvider.validFavorite(favorite)) snapshot.put("favorite", favorite);
             String background = call.getString("background", "");
             if (background.matches("#[0-9a-fA-F]{6}")) snapshot.put("background", background);
             android.content.SharedPreferences prefs = ScriptureWidgetProvider.prefs(getContext());

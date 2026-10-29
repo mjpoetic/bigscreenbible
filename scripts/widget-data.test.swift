@@ -30,6 +30,17 @@ struct WidgetDataTests {
         colored.background = "#123456"
         let roundTrip = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(colored))
         precondition(roundTrip.background == "#123456")
+        let favorite = WidgetVerse(reference: "John 3:16,18", text: "Favorite wording", source: "KJV", day: "", version: "KJV", verses: "16,18", linkReference: "John 3:16")
+        precondition(favorite.isValidFavorite)
+        precondition(favorite.widgetCitation == "John 3:16,18 · KJV")
+        precondition(WidgetVerse(reference: "John 3:16", text: "Text", source: "Heartlight", day: "").widgetCitation == "John 3:16")
+        let favoriteURL = URLComponents(url: favorite.url, resolvingAgainstBaseURL: false)!.queryItems!
+        precondition(favoriteURL.first(where: {$0.name == "ref"})?.value == "John 3:16")
+        precondition(favoriteURL.first(where: {$0.name == "verses"})?.value == "16,18")
+        colored.favorite = favorite
+        let savedFavorite = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(colored))
+        precondition(savedFavorite.favorite?.text == "Favorite wording")
+        precondition(legacy.favorite == nil)
         print("Widget data: local dates, check-ins, streak expiry, Codable snapshot and passage links passed.")
     }
 }

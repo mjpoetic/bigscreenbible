@@ -4,7 +4,7 @@ The first native widget combines a daily verse, the current reading streak, and 
 
 ## Available sizes
 
-- iOS 16+: small, medium, large, and extra-large Home Screen families where supported by the device and a rectangular Lock Screen accessory.
+- iOS 16+: small, medium, large, and extra-large Home Screen families where supported by the device, a daily Scripture + check-in rectangular Lock Screen accessory, and a separate Reading Streak widget in circular/rectangular Lock Screen sizes.
 - Android 7+: a resizable Home Screen widget; the default is four columns by two rows. Compact widths hide weekly dots and reduce the verse font. The verse area grows with the widget instead of retaining a fixed line cap. The launcher controls exact sizing.
 
 After installing a native build containing these changes, open Big Screen Bible once. Add **Scripture + Streak** from the system widget gallery. On iOS, long-press the Home Screen, choose Edit > Add Widget, and search for Big Screen Bible. On Android, long-press the Home Screen, choose Widgets, and expand Big Screen Bible. Updating only the website cannot install a native widget extension.
@@ -71,3 +71,18 @@ Native Appearance & Text settings now include **Widget appearance**, shared by a
 These controls require the updated website and native bridge; older native builds ignore the extra color field. Older caches retain device appearance until the app publishes a color. Streak and appearance stay local to the device.
 
 Validation: Android emulator instrumentation passed both tests, including 24 light/dark custom-color render combinations at widths 150/180/330 dp and heights 150/180/360/500 dp. Both platform builds passed. Swift legacy-cache/color round-trip and streak/link tests passed. Standalone SwiftUI large/extra-large renders and an Android tall render were inspected. Actual installed iOS gallery behavior and physical-device appearance changes remain beta QA; no new beta has been uploaded for this change.
+
+### Lock Screen options and favorite passages (2026-10-29)
+
+- iOS keeps the existing DailyScripture widget kind and adds a ReadingStreak kind through a WidgetBundle. The Scripture Lock Screen rectangle shows a short daily excerpt, reference, and check-in state. Reading Streak offers circular and rectangular accessories. iOS 16 accessories avoid the Home Screen padding. Changes reload both widget timelines.
+- Android registers a separate Reading Streak provider and marks both providers for home_screen and keyguard placement. Both refresh from the same local snapshot. This enables compatible hosts; it does not grant access to Samsung's restricted Lock Screen picker. Samsung A16/One UI placement remains unverified. No notification workaround, extra permission, or Live Update was added. On hosts reporting keyguard category, Scripture always uses the daily verse; hosts that report home-screen category retain Home Screen content behavior.
+- Select verses in the native Reader selection toolbar and choose **Use in widget**. The exact displayed text, translation, reference, and selected verse range are stored locally. All Home Screen Scripture widgets on this device share the active favorite. **Home Screen widget content** in native settings switches between **Verse of the Day** and **My favorite passage** without deleting the saved favorite. No favorite uses the daily fallback. Long selections above 2,000 characters are rejected with a message. Streak widgets remain focused on check-ins.
+- Favorite content is included in the bounded native snapshot and captured on backgrounding; older native builds ignore it. It remains fixed across midnight/offline refreshes. Source/version and multi-verse deep links are preserved. The daily feed's source metadata and in-app credit are retained; the visible Home Screen header uses Big Screen Bible and the citation omits the Heartlight label. Translation names such as KJV remain visible.
+
+Validation: both native builds, Swift legacy/favorite cache and deep-link tests, JavaScript favorite selection/privacy/fallback tests, settings and native-link checks passed. Android emulator instrumentation passed both tests covering daily/favorite/Lock Screen selection and 48 Scripture/streak layout combinations. A native-mode browser preview verified selecting John 3:16, saving it, switching daily/favorite, and persistence after reload at desktop and 390px phone widths. This preview mocks the native shell; physical Samsung A16 placement and installed iOS Lock Screen rendering still require device testing. No new store uploads were performed.
+
+### Branded release preparation (2026-10-29)
+
+Home Screen Scripture headers now read **BIG SCREEN BIBLE**. Feed verses show the Scripture reference without the visible Heartlight label; translation labels remain on translated/favorite passages. The underlying `source` value remains unchanged for provenance and passage-link handling, and the in-app Heartlight credit/link remains. No publisher text or in-app attribution was removed.
+
+Prepared native versions: iOS **1.0 (4)** for app and extension; Android **1.0 (5)**. The new Lock Screen/favorite changes and branding require updated native beta builds. See `docs/widget-build-preparation-2026-10-29.md` for artifact readiness.
