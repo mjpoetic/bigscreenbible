@@ -16,7 +16,7 @@ const state = { streak: { current: 12, lastVisit: '2026-10-26', days: ['2026-10-
 const settings = new Map();
 const context = vm.createContext({
   localStorage: { getItem: key => settings.get(key) ?? null, setItem: (key, value) => settings.set(key, value) },
-  themeChromeColor: () => '#f8f7f3',
+  themeChromeColor: () => '#f8f7f3', scriptureFonts: [{code: 'literata', name: 'Literata'}],
   state, normalizeReadingStreak: x => x, console: { warn() {} },
   setTimeout: fn => { const id = ++nextTimer; timers.set(id, fn); return id; }, clearTimeout: id => timers.delete(id),
   window: { Capacitor: { isNativePlatform: () => native, isPluginAvailable: () => available,
@@ -26,13 +26,13 @@ vm.runInContext(sync, context);
 context.scheduleNativeWidgetSync(); context.scheduleNativeWidgetSync();
 assert.equal(timers.size, 1, 'renders coalesce into one update');
 await [...timers.values()][0](); timers.clear();
-assert.deepEqual(calls, [{ current: 12, lastVisit: '2026-10-26', days: ['2026-10-25', '2026-10-26'], background: '#f8f7f3', favorite: null }]);
+assert.deepEqual(calls, [{ current: 12, lastVisit: '2026-10-26', days: ['2026-10-25', '2026-10-26'], background: '#f8f7f3', favorite: null, fontFamily: 'Literata' }]);
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 1, 'unchanged snapshots do not reload widgets');
 state.streak.current = 13; fail = true;
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 1);
 fail = false; await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 2, 'failed updates retry');
 state.streak = { current: 0, lastVisit: '', days: [] };
-await context.syncNativeWidgetSnapshot(); assert.deepEqual(calls.at(-1), { current: 0, lastVisit: '', days: [], background: '#f8f7f3', favorite: null }, 'account changes clear old progress');
+await context.syncNativeWidgetSnapshot(); assert.deepEqual(calls.at(-1), { current: 0, lastVisit: '', days: [], background: '#f8f7f3', favorite: null, fontFamily: 'Literata' }, 'account changes clear old progress');
 settings.set('lw_widget_appearance', 'system');
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.at(-1).background, null, 'device appearance clears the shared color');
 settings.set('lw_widget_appearance', 'custom'); settings.set('lw_widget_color', '#123456');
@@ -101,3 +101,8 @@ assert.equal(settings.get('lw_widget_content'), 'favorite');
 assert.equal(context.nativeWidgetFavorite().text, 'First verse Another verse');
 assert.equal(context.nativeWidgetFavorite().linkReference, 'John 3:16');
 assert.equal(context.nativeWidgetFavorite().verses, '16,18');
+
+context.state.scriptureFont = 'custom'; context.state.customScriptureFont = 'Lora, Georgia';
+assert.equal(context.nativeWidgetFontFamily(), 'Lora');
+context.state.scriptureFont = 'literata';
+assert.equal(context.nativeWidgetFontFamily(), 'Literata');

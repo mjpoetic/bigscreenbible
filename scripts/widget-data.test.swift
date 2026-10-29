@@ -41,6 +41,12 @@ struct WidgetDataTests {
         let savedFavorite = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(colored))
         precondition(savedFavorite.favorite?.text == "Favorite wording")
         precondition(legacy.favorite == nil)
+        precondition(legacy.fontFamily == nil)
+        precondition(WidgetFontCache.fileName("../Lora").count == 68)
+        precondition(!WidgetFontCache.fileName("../Lora").contains("/"))
+        precondition(WidgetFontCache.downloadURL("url(https://fonts.gstatic.com/s/lora/v1/font.ttf)")?.host == "fonts.gstatic.com")
+        precondition(WidgetFontCache.downloadURL("url(https://other.example/font.ttf)") == nil)
+        precondition(WidgetFontCache.downloadURL("url(https://fonts.gstatic.com/font.woff2)") == nil)
         print("Widget data: local dates, check-ins, streak expiry, Codable snapshot and passage links passed.")
     }
 }

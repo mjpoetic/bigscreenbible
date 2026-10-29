@@ -137,13 +137,14 @@ class BSBBridgeViewController: CAPBridgeViewController {
     // Installed beta shells also work with the currently deployed web release.
     func captureWidgetProgress() {
         guard let host = webView?.url?.host, ["bigscreenbible.com", "localhost"].contains(host) else { return }
-        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), background: localStorage.getItem('lw_widget_background') || null, favorite: localStorage.getItem('lw_widget_content') === 'favorite' ? JSON.parse(localStorage.getItem('lw_widget_favorite') || 'null') : null})") { result, _ in
+        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), background: localStorage.getItem('lw_widget_background') || null, fontFamily: localStorage.getItem('lw_widget_font'), favorite: localStorage.getItem('lw_widget_content') === 'favorite' ? JSON.parse(localStorage.getItem('lw_widget_favorite') || 'null') : null})") { result, _ in
             guard let raw = result as? String, let data = raw.data(using: .utf8),
                   let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             var snapshot = WidgetSnapshot(current: max(0, min(value["current"] as? Int ?? 0, 100000)),
                 lastVisit: value["lastVisit"] as? String ?? "", days: Array((value["days"] as? [String] ?? []).suffix(400)), background: value["background"] as? String)
             if let item = value["favorite"] as? [String: Any], let data = try? JSONSerialization.data(withJSONObject: item),
                let favorite = try? JSONDecoder().decode(WidgetVerse.self, from: data), favorite.isValidFavorite { snapshot.favorite = favorite }
+            snapshot.fontFamily = (value["fontFamily"] as? String).map { String($0.prefix(100)) }
             BSBWidgetPlugin.store(snapshot)
         }
     }

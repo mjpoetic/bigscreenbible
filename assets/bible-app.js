@@ -1315,6 +1315,11 @@ function nativeWidgetBackground() {
     ? custom : themeChromeColor(state.themePreset, state.theme);
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : null;
 }
+function nativeWidgetFontFamily() {
+  return state.scriptureFont === "custom"
+    ? (String(state.customScriptureFont || "").split(",")[0].trim().replace(/^['"]|['"]$/g, "").slice(0, 100) || "Literata")
+    : (scriptureFonts.find(font => font.code === state.scriptureFont)?.name || "Literata");
+}
 function nativeWidgetFavorite(activeOnly = true) {
   if (activeOnly && localStorage.getItem("lw_widget_content") !== "favorite") return null;
   try {
@@ -1345,6 +1350,7 @@ let nativeWidgetSyncTimer = 0;
 let nativeWidgetSnapshotKey = "";
 function scheduleNativeWidgetSync() {
   localStorage.setItem("lw_widget_background", nativeWidgetBackground() || "");
+  localStorage.setItem("lw_widget_font", nativeWidgetFontFamily());
   const capacitor = window.Capacitor;
   if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
   clearTimeout(nativeWidgetSyncTimer);
@@ -1354,7 +1360,7 @@ async function syncNativeWidgetSnapshot() {
   const capacitor = window.Capacitor;
   if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
   const streak = normalizeReadingStreak(state.streak);
-  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground(), favorite: nativeWidgetFavorite() };
+  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground(), favorite: nativeWidgetFavorite(), fontFamily: nativeWidgetFontFamily() };
   const key = JSON.stringify(payload);
   if (key === nativeWidgetSnapshotKey) return;
   try {
@@ -5033,6 +5039,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.29.4": [
+      "Small and medium iOS widgets shrink longer passages before adding an ellipsis. iOS Home Screen widgets also follow the Reader Scripture font, with cached Google Fonts and a readable fallback when unavailable.",
+    ],
     "2026.10.29.3": [
       "Widget content and appearance controls now live in their own Widgets settings submenu, keeping the main settings panel shorter.",
     ],
@@ -5796,6 +5805,7 @@ function widgetSettingsMarkup(prefix = "") {
         {label: "Widget appearance"})}
       ${localStorage.getItem("lw_widget_appearance") === "custom" ? `<label>Widget background <input type="color" data-widget-color aria-label="Widget background color" value="${/^#[0-9a-f]{6}$/i.test(localStorage.getItem("lw_widget_color") || "") ? localStorage.getItem("lw_widget_color") : "#f8f7f3"}"></label>` : ""}
       <p class="setting-help">Applies to all Home Screen widgets on this device after opening the app. Text contrasts automatically. Lock Screen and tinted widgets follow system styling.</p>
+      ${window.Capacitor?.getPlatform?.() === "ios" ? '<p class="setting-help">iOS Home Screen widgets follow your Reader Scripture font. Google fonts need an initial internet connection and are cached; unavailable fonts use a readable fallback.</p>' : ""}
     </div>
     ` : ""}
   `;

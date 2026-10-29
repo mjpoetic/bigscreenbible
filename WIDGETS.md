@@ -2,6 +2,10 @@
 
 The first native widget combines a daily verse, the current reading streak, and today's check-in. Tap anywhere to open the displayed passage in Reader. Home Screen appearance is configurable in the app. No notification permission or account is required.
 
+iOS Home Screen Scripture widgets follow the Reader Scripture font. Literata uses the containing app's bundled font; other Google Font families download as native font files on the first online timeline refresh and remain cached in the App Group for offline use. Installed fonts resolve locally. Unavailable fonts fall back to Georgia. Lock Screen accessories retain their compact system typography. This requires an updated native iOS build as well as the web bridge update.
+
+Small and medium iOS Scripture text tries progressively smaller sizes in half-point steps, down to 11pt and 12pt respectively, before truncating with an ellipsis. Short passages retain the larger size. Standalone native renders cover short, supplied, and extreme passages, including downloaded Lora; installed WidgetKit layouts and Google Font downloads still need physical-device QA.
+
 ## Available sizes
 
 - iOS 16+: small, medium, large, and extra-large Home Screen families where supported by the device, a daily Scripture + check-in rectangular Lock Screen accessory, and a separate Reading Streak widget in circular/rectangular Lock Screen sizes.

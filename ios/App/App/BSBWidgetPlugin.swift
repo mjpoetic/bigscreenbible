@@ -11,6 +11,7 @@ public class BSBWidgetPlugin: CAPPlugin, CAPBridgedPlugin {
             lastVisit: call.getString("lastVisit") ?? "", days: Array((call.getArray("days", String.self) ?? []).suffix(400)), background: call.getString("background"))
         if let item = call.getObject("favorite"), let data = try? JSONSerialization.data(withJSONObject: item),
            let favorite = try? JSONDecoder().decode(WidgetVerse.self, from: data), favorite.isValidFavorite { snapshot.favorite = favorite }
+        snapshot.fontFamily = String((call.getString("fontFamily") ?? "").prefix(100))
         Self.store(snapshot)
         call.resolve()
     }

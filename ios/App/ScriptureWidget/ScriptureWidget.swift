@@ -11,12 +11,14 @@ struct ScriptureProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (ScriptureEntry) -> Void) { completion(entry(Date())) }
     func entry(_ date: Date) -> ScriptureEntry { ScriptureEntry(date: date, verse: WidgetStore.verse(for: date), streak: WidgetStore.snapshot()) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<ScriptureEntry>) -> Void) {
-        WidgetStore.refreshVerse {
-            let now = Date()
-            // Include local midnights even when the system delays the next reload.
-            let midnight = Calendar.current.startOfDay(for: now)
-            let dates = [now] + (1...7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: midnight) }
-            completion(Timeline(entries: dates.map { entry($0) }, policy: .after(now.addingTimeInterval(3600))))
+        WidgetFontCache.refresh(WidgetStore.snapshot().fontFamily) {
+            WidgetStore.refreshVerse {
+                let now = Date()
+                // Include local midnights even when the system delays the next reload.
+                let midnight = Calendar.current.startOfDay(for: now)
+                let dates = [now] + (1...7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: midnight) }
+                completion(Timeline(entries: dates.map { entry($0) }, policy: .after(now.addingTimeInterval(3600))))
+            }
         }
     }
 }
@@ -54,11 +56,16 @@ struct ScriptureView: View {
             } else {
                 VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 9) {
                     Label("BIG SCREEN BIBLE", systemImage: "book")
-                        .font(.system(size: 10, weight: .medium)).tracking(1).foregroundStyle(ink.opacity(0.7))
-                    Text(displayedVerse.text)
-                        .font(.system(size: family == .systemSmall ? 18 : family == .systemExtraLarge ? 26 : 22, design: .serif))
-                        .minimumScaleFactor(0.8).lineLimit(family == .systemSmall ? 4 : family == .systemMedium ? 3 : nil)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .font(.system(size: 10, weight: .medium)).tracking(family == .systemSmall ? 0.5 : 1).foregroundStyle(ink.opacity(0.7)).lineLimit(1).minimumScaleFactor(0.75)
+                    if family == .systemSmall || family == .systemMedium {
+                        FittingWidgetVerse(text: displayedVerse.text, maximumSize: family == .systemSmall ? 18 : 22,
+                            minimumSize: family == .systemSmall ? 11 : 12, fontName: WidgetFontCache.fontName(entry.streak.fontFamily))
+                    } else {
+                        Text(displayedVerse.text)
+                            .font(.custom(WidgetFontCache.fontName(entry.streak.fontFamily), fixedSize: family == .systemExtraLarge ? 26 : 22))
+                            .minimumScaleFactor(0.8).lineLimit(nil).truncationMode(.tail)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    }
                     Text(displayedVerse.widgetCitation)
                         .font(.system(size: 11)).foregroundStyle(ink.opacity(0.75)).lineLimit(1).minimumScaleFactor(0.75)
                     Divider().overlay(ink.opacity(0.12))
@@ -86,6 +93,32 @@ struct ScriptureView: View {
                     .accessibilityLabel("\(date.formatted(date: .abbreviated, time: .omitted)): \(entry.streak.checked(date) ? "checked in" : "no check-in")")
             }
         }.padding(.horizontal, 6)
+    }
+}
+// Measure the complete passage at each size before allowing truncation. Keeping
+// the candidates vertically fixed prevents a truncated candidate from "fitting".
+private struct FittingWidgetVerse: View {
+    let text: String
+    let maximumSize: CGFloat
+    let minimumSize: CGFloat
+    let fontName: String
+    private var sizes: [CGFloat] { Array(stride(from: maximumSize, through: minimumSize, by: -0.5)) }
+    var body: some View {
+        GeometryReader { geometry in
+            ViewThatFits(in: .vertical) {
+                ForEach(sizes, id: \.self) { size in
+                    Text(text).font(.custom(fontName, fixedSize: size))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // At the legibility floor, use every available line and let
+                // SwiftUI append an ellipsis only if the passage still exceeds it.
+                Text(text).font(.custom(fontName, fixedSize: minimumSize))
+                    .lineLimit(nil).truncationMode(.tail)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 private struct WidgetBackground: ViewModifier {
