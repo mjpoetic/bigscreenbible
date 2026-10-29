@@ -2702,6 +2702,11 @@ function switchMode(nextMode, options = {}) {
       state.pendingVerseFocus = true;
       state.pendingVerseHalo = true;
     }
+    if (revealPresentationVerse || openVerseOfDayPassage) {
+      // Dismiss the drawer before rendering and measuring the arrival passage.
+      dismissLibraryForFooterMenu();
+      pendingLibraryEnter = false;
+    }
     if (audible) playModeTransitionSound(nextMode);
     if (nextMode !== "trivia") state.gamesDrawerOpen = "";
     state.headerVersionMenuOpen = false;

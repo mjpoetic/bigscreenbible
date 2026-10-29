@@ -84,6 +84,8 @@ const switchModeContext = {
     switchModeContext.state.verse = 1;
     switchModeContext.state.selectedVerses = [1, 2];
   },
+  dismissLibraryForFooterMenu() { switchModeContext.state.libraryOpen = false; },
+  pendingLibraryEnter: false,
   resetFocusToolSurfaces() {},
   clearTimeout() {},
   presentationControlsTimer: 0,
@@ -126,7 +128,11 @@ for (const mode of ["reader", "parallel"]) {
   switchModeContext.state.mode = "big";
   switchModeContext.state.isVerseOfDayActive = false;
   switchModeContext.state.verse = 16;
+  switchModeContext.state.libraryOpen = true;
+  switchModeContext.pendingLibraryEnter = true;
   switchModeContext.changeMode(mode);
+  assert.equal(switchModeContext.state.libraryOpen, false, "The previous Reader panel cannot cover the arrival passage");
+  assert.equal(switchModeContext.pendingLibraryEnter, false, "The hidden panel cannot replay its entrance animation");
   assert.equal(switchModeContext.state.pendingVerseFocus, true, "Every Bible exit centers the displayed verse");
   assert.equal(switchModeContext.state.pendingVerseHalo, true, "Every Bible exit requests a temporary halo");
   assert.equal(switchModeContext.restoredScrollState, null, "Old Reader position cannot override Big Screen verse");
