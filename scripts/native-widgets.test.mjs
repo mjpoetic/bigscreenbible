@@ -46,13 +46,13 @@ Object.assign(context, {
   themePresetSettingsChoices: () => [], currentThemeColorTooltip: () => '',
   icons: {sun: '', moon: ''},
 });
-vm.runInContext(source.slice(source.indexOf('function settingsAppearanceMarkup('), source.indexOf('function settingsDestinationGlyphs(')), context);
+vm.runInContext(source.slice(source.indexOf('function widgetSettingsMarkup('), source.indexOf('function settingsDestinationGlyphs(')), context);
 settings.set('lw_widget_color', '#123456');
-assert.match(context.settingsAppearanceMarkup('mobile'), /id="mobileWidgetAppearance"/);
-assert.match(context.settingsAppearanceMarkup('mobile'), /value="custom" selected/);
-assert.match(context.settingsAppearanceMarkup('mobile'), /aria-label="Widget background color" value="#123456"/);
+assert.match(context.widgetSettingsMarkup('mobile'), /id="mobileWidgetAppearance"/);
+assert.match(context.widgetSettingsMarkup('mobile'), /value="custom" selected/);
+assert.match(context.widgetSettingsMarkup('mobile'), /aria-label="Widget background color" value="#123456"/);
 native = false;
-assert.doesNotMatch(context.settingsAppearanceMarkup(), /Widget appearance/, 'web settings do not advertise native widgets');
+assert.doesNotMatch(context.widgetSettingsMarkup(), /Widget appearance/, 'web settings do not advertise native widgets');
 native = true;
 native = false; context.scheduleNativeWidgetSync(); await context.syncNativeWidgetSnapshot(); assert.equal(timers.size, 0);
 native = true; available = false; context.scheduleNativeWidgetSync(); assert.equal(timers.size, 0, 'older native builds and browsers remain compatible');

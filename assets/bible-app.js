@@ -5033,6 +5033,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.29.3": [
+      "Widget content and appearance controls now live in their own Widgets settings submenu, keeping the main settings panel shorter.",
+    ],
     "2026.10.29.2": [
       "Native widget headers now show Big Screen Bible branding, with daily-feed credit available inside the app. Native widgets add Daily Scripture + Check-in and Reading Streak Lock Screen options where supported. Select verses and choose Use in widget to save a favorite passage for Home Screen widgets, or switch back to Verse of the Day in Appearance & Text settings.",
     ],
@@ -5725,6 +5728,7 @@ function stageAppUpdatePositionRestore(scrollState, restoredVersion) {
 const settingsPages = Object.freeze({
   accessibility: "Accessibility",
   appearance: "Appearance & Text",
+  widgets: "Widgets",
   reading: "Scripture & Reading",
   sounds: "Sounds",
   sharing: "Sharing & Printing",
@@ -5778,6 +5782,25 @@ function settingsScriptureFontMarkup(prefix = "", options = {}) {
   `;
 }
 
+function widgetSettingsMarkup(prefix = "") {
+  return `
+    ${window.Capacitor?.isNativePlatform?.() ? `
+    <div class="setting-group" data-settings-search-item data-settings-search-text="widget background color appearance custom">
+      <span class="setting-label">Home Screen widget content</span>
+      ${settingsChoiceMarkup(`${prefix}WidgetContent`, localStorage.getItem("lw_widget_content") || "daily",
+        [{value: "daily", label: "Verse of the Day"}, {value: "favorite", label: "My favorite passage"}], {label: "Home Screen widget content"})}
+      <p class="setting-help">${nativeWidgetFavorite(false) ? `Saved: ${escapeHtml(nativeWidgetFavorite(false).reference)} (${escapeHtml(nativeWidgetFavorite(false).source)})` : "Select verses in Reader, then choose Use in widget to save a favorite passage. Until then, Verse of the Day is shown."} Lock Screen Scripture stays on the daily verse.</p>
+      <label class="setting-label" for="${prefix}WidgetAppearance">Widget appearance</label>
+      ${settingsChoiceMarkup(`${prefix}WidgetAppearance`, localStorage.getItem("lw_widget_appearance") || "app",
+        [["app", "Follow app theme"], ["system", "Device light/dark"], ["custom", "Custom color"]].map(([value, label]) => ({value, label})),
+        {label: "Widget appearance"})}
+      ${localStorage.getItem("lw_widget_appearance") === "custom" ? `<label>Widget background <input type="color" data-widget-color aria-label="Widget background color" value="${/^#[0-9a-f]{6}$/i.test(localStorage.getItem("lw_widget_color") || "") ? localStorage.getItem("lw_widget_color") : "#f8f7f3"}"></label>` : ""}
+      <p class="setting-help">Applies to all Home Screen widgets on this device after opening the app. Text contrasts automatically. Lock Screen and tinted widgets follow system styling.</p>
+    </div>
+    ` : ""}
+  `;
+}
+
 function settingsAppearanceMarkup(prefix = "", options = {}) {
   const followsSystemTheme = !localStorage.getItem("lw_theme");
   const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
@@ -5804,20 +5827,6 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
       })}
     </div>
     `}
-    ${window.Capacitor?.isNativePlatform?.() ? `
-    <div class="setting-group" data-settings-search-item data-settings-search-text="widget background color appearance custom">
-      <span class="setting-label">Home Screen widget content</span>
-      ${settingsChoiceMarkup(`${prefix}WidgetContent`, localStorage.getItem("lw_widget_content") || "daily",
-        [{value: "daily", label: "Verse of the Day"}, {value: "favorite", label: "My favorite passage"}], {label: "Home Screen widget content"})}
-      <p class="setting-help">${nativeWidgetFavorite(false) ? `Saved: ${escapeHtml(nativeWidgetFavorite(false).reference)} (${escapeHtml(nativeWidgetFavorite(false).source)})` : "Select verses in Reader, then choose Use in widget to save a favorite passage. Until then, Verse of the Day is shown."} Lock Screen Scripture stays on the daily verse.</p>
-      <label class="setting-label" for="${prefix}WidgetAppearance">Widget appearance</label>
-      ${settingsChoiceMarkup(`${prefix}WidgetAppearance`, localStorage.getItem("lw_widget_appearance") || "app",
-        [["app", "Follow app theme"], ["system", "Device light/dark"], ["custom", "Custom color"]].map(([value, label]) => ({value, label})),
-        {label: "Widget appearance"})}
-      ${localStorage.getItem("lw_widget_appearance") === "custom" ? `<label>Widget background <input type="color" data-widget-color aria-label="Widget background color" value="${/^#[0-9a-f]{6}$/i.test(localStorage.getItem("lw_widget_color") || "") ? localStorage.getItem("lw_widget_color") : "#f8f7f3"}"></label>` : ""}
-      <p class="setting-help">Applies to all Home Screen widgets on this device after opening the app. Text contrasts automatically. Lock Screen and tinted widgets follow system styling.</p>
-    </div>
-    ` : ""}
     ${options.includeControlFinish ? `
     <div class="setting-group" id="${settingsControlId(prefix, "ControlFinishGroup")}" data-settings-search-item data-settings-search-text="liquid glass classic control finish transparency appearance">
       <span class="setting-label">Control finish</span>
@@ -5854,6 +5863,7 @@ function settingsDestinationGlyphs() {
   return {
     accessibility: icons.info,
     appearance: icons.highlighter,
+    widgets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><rect x="6" y="6" width="12" height="5" rx="1"/><rect x="6" y="14" width="5" height="4" rx="1"/><path d="M14 15h4M14 18h3"/></svg>',
     reading: icons.book,
     sounds: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4 6 8H3v8h3l5 4zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>',
     sharing: icons.share,
@@ -6055,6 +6065,7 @@ function mainSettingsRootMarkup(prefix = "") {
     </div>
     <nav class="settings-destinations" aria-label="More settings" data-settings-search-group data-settings-browse-only>
       ${settingsDestinationRow("appearance", "Appearance & Text", `${state.theme === "dark" ? "Dark" : "Light"} · ${selectedColor}`, "appearance theme family color palette light dark system interface text accessibility liquid glass classic control finish")}
+      ${window.Capacitor?.isNativePlatform?.() ? settingsDestinationRow("widgets", "Widgets", "Content · Appearance", "widgets home screen lock screen favorite passage daily verse content appearance custom background color") : ""}
       ${settingsDestinationRow("accessibility", "Accessibility", `Screen reading ${state.scriptureScreenReading ? "on" : "off"}`, "accessibility screen reading screen reader Siri Speak Screen VoiceOver selection interface text popup size")}
       ${settingsDestinationRow("reading", "Scripture & Reading", `${Math.round(state.textScale * 100)}% · ${state.paragraphLayout ? "Paragraph" : "Verse-by-verse"}`, "scripture display reading paragraph headings red letters words of Jesus Strong numbers chapter navigation page speed auto scroll landscape toolbar")}
       ${settingsDestinationRow("sounds", "Sounds", `Transitions ${state.modeTransitionSounds ? "on" : "off"} · Games ${state.gameVolume}%`, "sounds ambient rain ocean white pink brown noise peaceful piano hymn lo-fi sleep timer audio volume transition game music result feedback word search")}
@@ -6078,6 +6089,9 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
         </div>
       </section>
     `;
+  }
+  if (page === "widgets" && window.Capacitor?.isNativePlatform?.()) {
+    return `<section class="settings-page-section"><h3>Widget content & appearance</h3><div class="settings-page-section-content">${widgetSettingsMarkup(prefix)}</div></section>`;
   }
   if (page === "accessibility") return accessibilitySettings(prefix, drilldown);
   if (page === "reading") return `${displaySettings(prefix, drilldown)}${readingSettings(prefix, drilldown)}`;

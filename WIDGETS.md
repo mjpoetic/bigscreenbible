@@ -66,7 +66,7 @@ The native shells also capture the existing `lw_reading_streak` local-storage va
 
 ### Expanded widgets and appearance (2026-10-27)
 
-Native Appearance & Text settings now include **Widget appearance**, shared by all Home Screen widgets on that device: **Follow app theme** (default), **Device light/dark**, or **Custom color**. App theme uses the solid chrome color of the selected palette, without gradients/motion. A custom background selects black or white text using relative luminance. Device mode uses the original automatic light/dark palette. Theme changes publish when the app opens or its appearance changes; the closed app cannot continuously publish app-theme updates. Lock Screen and system-tinted widgets retain OS styling.
+Native Widgets settings include **Widget appearance**, shared by all Home Screen widgets on that device: **Follow app theme** (default), **Device light/dark**, or **Custom color**. App theme uses the solid chrome color of the selected palette, without gradients/motion. A custom background selects black or white text using relative luminance. Device mode uses the original automatic light/dark palette. Theme changes publish when the app opens or its appearance changes; the closed app cannot continuously publish app-theme updates. Lock Screen and system-tinted widgets retain OS styling.
 
 These controls require the updated website and native bridge; older native builds ignore the extra color field. Older caches retain device appearance until the app publishes a color. Streak and appearance stay local to the device.
 
@@ -86,3 +86,7 @@ Validation: both native builds, Swift legacy/favorite cache and deep-link tests,
 Home Screen Scripture headers now read **BIG SCREEN BIBLE**. Feed verses show the Scripture reference without the visible Heartlight label; translation labels remain on translated/favorite passages. The underlying `source` value remains unchanged for provenance and passage-link handling, and the in-app Heartlight credit/link remains. No publisher text or in-app attribution was removed.
 
 Prepared native versions: iOS **1.0 (4)** for app and extension; Android **1.0 (5)**. The new Lock Screen/favorite changes and branding require updated native beta builds. See `docs/widget-build-preparation-2026-10-29.md` for artifact readiness.
+
+### Dedicated widget settings (2026-10-29)
+
+Widget content, saved-passage summary, appearance mode, and custom background color now live under **Settings → Widgets**, with a widget glyph and standard back navigation. Quick settings and Appearance & Text no longer repeat these controls. The row remains native-only; saved preferences and the bridge are unchanged. This web UI reorganization needs a site deployment/refresh, not a new native binary. Bundled offline copies keep the old layout until a future native rebuild.
