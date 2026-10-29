@@ -4255,6 +4255,14 @@ label.social-terms-consent {
   max-height: min(62dvh, 560px);
 }
 
+/* Search panels use the interface palette, independently of the projection
+   theme's blanket button color. Keep text paired with its panel background. */
+#presentation .presentation-search-results .ghost-btn {
+  color: var(--ink);
+  background: var(--panel);
+  border-color: var(--line);
+}
+
 @media (min-width: 841px) {
   .app-shell .search:has(.search-field-tool-button) {
     padding-right: 0;
