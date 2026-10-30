@@ -27229,3 +27229,37 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 
 .bible-return-hint.is-leaving { animation: none; opacity: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .bible-return-hint.is-leaving { transition: none; transform: none; } }
+
+/* Optional Big Screen layouts; absent preferences retain the original layout. */
+#app .presentation[data-text-alignment="left"] .presentation-text {
+  text-align: left;
+}
+#app .presentation[data-text-alignment="left"] .presentation-passage {
+  width: 100%;
+  align-items: flex-start;
+}
+#app .presentation[data-text-alignment="left"] .presentation-ref {
+  align-items: flex-start;
+  text-align: left;
+}
+#app .presentation[data-reference-position="below"] .presentation-top > .presentation-actions {
+  grid-column: -2 / -1;
+}
+#app .presentation[data-reference-position="below"] .presentation-passage > .presentation-ref {
+  flex: 0 0 auto;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: clamp(18px, 3vh, 36px) 0 0;
+  font-size: clamp(14px, 2vw, 24px);
+}
+#app .presentation[data-reference-position="below"] .presentation-ref .presentation-reference-menu,
+#app .presentation[data-reference-position="below"] .presentation-ref .presentation-version-menu {
+  top: auto;
+  bottom: calc(100% + 9px);
+}
+#app .presentation[data-text-alignment="left"] .presentation-ref :is(.presentation-reference-menu, .presentation-version-menu) {
+  left: 0;
+  right: auto;
+  transform: none;
+}

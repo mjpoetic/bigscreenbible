@@ -821,6 +821,8 @@ const state = {
   presentationVideoBlur: normalizePresentationVideoBlur(localStorage.getItem("lw_presentation_video_blur")),
   presentationStarCount: normalizePresentationStarCount(localStorage.getItem("lw_presentation_star_count")),
   presentationMotionIntensity: normalizePresentationMotionIntensity(localStorage.getItem("lw_presentation_motion_intensity")),
+  presentationTextAlignment: localStorage.getItem("lw_presentation_text_alignment") === "left" ? "left" : "center",
+  presentationReferencePosition: localStorage.getItem("lw_presentation_reference_position") === "below" ? "below" : "above",
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
   startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
@@ -13511,6 +13513,8 @@ function captureCloudSnapshot() {
       presentationVideoBlur: state.presentationVideoBlur,
       presentationStarCount: state.presentationStarCount,
       presentationMotionIntensity: state.presentationMotionIntensity,
+      presentationTextAlignment: state.presentationTextAlignment,
+      presentationReferencePosition: state.presentationReferencePosition,
       presentationTextScale: state.presentationTextScale,
       startBigScreen: state.startBigScreen,
       startVerseOfDay: state.startVerseOfDay,
@@ -13772,6 +13776,8 @@ function applyCloudSnapshot(snapshot) {
   state.presentationVideoBlur = normalizePresentationVideoBlur(settings.presentationVideoBlur ?? localStorage.getItem("lw_presentation_video_blur"));
   state.presentationStarCount = normalizePresentationStarCount(settings.presentationStarCount ?? localStorage.getItem("lw_presentation_star_count"));
   state.presentationMotionIntensity = normalizePresentationMotionIntensity(settings.presentationMotionIntensity ?? localStorage.getItem("lw_presentation_motion_intensity"));
+  state.presentationTextAlignment = (settings.presentationTextAlignment ?? localStorage.getItem("lw_presentation_text_alignment")) === "left" ? "left" : "center";
+  state.presentationReferencePosition = (settings.presentationReferencePosition ?? localStorage.getItem("lw_presentation_reference_position")) === "below" ? "below" : "above";
   state.presentationTextScale = clampPresentationTextScale(
     Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
   );
@@ -13878,6 +13884,8 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_focus_controls_hide", String(state.focusControlsHide));
   localStorage.setItem("lw_focus_controls_hide_seconds", String(state.focusControlsHideSeconds));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
+  localStorage.setItem("lw_presentation_text_alignment", state.presentationTextAlignment);
+  localStorage.setItem("lw_presentation_reference_position", state.presentationReferencePosition);
   localStorage.setItem("lw_presentation_theme", state.presentationTheme);
   localStorage.setItem("lw_presentation_background_motion", state.presentationBackgroundMotion);
   localStorage.setItem("lw_presentation_video_url", String(state.presentationVideoUrl));
@@ -21716,6 +21724,18 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
     content = offlineBibleSettings("presentation");
   } else if (page === "look") {
     content = `
+      <div class="presentation-settings-choice-field">
+        <span>Text alignment</span>
+        ${settingsChoiceMarkup("presentationTextAlignmentSelect", state.presentationTextAlignment, [
+          { value: "center", label: "Center (default)" }, { value: "left", label: "Left" },
+        ], { label: "Text alignment", ariaLabel: "Big Screen text alignment", selectClass: "presentation-theme-select" })}
+      </div>
+      <div class="presentation-settings-choice-field">
+        <span>Reference position</span>
+        ${settingsChoiceMarkup("presentationReferencePositionSelect", state.presentationReferencePosition, [
+          { value: "above", label: "Above Scripture (default)" }, { value: "below", label: "Below Scripture" },
+        ], { label: "Reference position", ariaLabel: "Big Screen reference position", selectClass: "presentation-theme-select" })}
+      </div>
       <div class="presentation-settings-choice-field setting-tooltip-area" data-tooltip="${escapeHtml(themeFamilySettingsTooltip("Big Screen"))}">
         <span>Theme family</span>
         ${settingsChoiceMarkup("presentationThemeFamilySelect", hasAppearanceOverrides(state.appearance) ? "" : state.appearance.themeFamily, themeFamilySettingsChoices(), {
@@ -21964,31 +21984,7 @@ function presentation(accountPanelRerender = false) {
     ? customScriptureFontField("presentationCustomScriptureFontInput")
     : "";
   const accountButton = accountQuickButtonContent();
-  const settingsMenu = `
-    <div class="presentation-settings-menu presentation-bottom-settings-menu">
-      ${scriptureReaderQuickButton("ghost-btn")}
-      <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
-      <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
-        <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
-        ${presentationSettingsPanelMarkup(version, customFontField)}
-      </div>
-    </div>
-  `;
-  return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${showBibleReturnHint() || state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" style="--presentation-text-scale: ${state.presentationTextScale}">
-      ${presentationBackgroundMotionMarkup()}
-      <div class="presentation-top">
-        <div class="presentation-search-slot">
-          <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
-            <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
-            <div class="presentation-search-field">
-            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
-            ${searchClearControl(state.searchQuery)}
-            ${presentationVersionPicker("search", version)}
-            </div>
-            <button class="ghost-btn presentation-search-go" type="submit">Go</button>
-          </form>
-        </div>
+  const referenceMarkup = `
         <div class="presentation-ref ${paginated ? "paginated" : ""}">
           ${state.presentationNoButtons ? `<span class="presentation-reference-row"><span class="presentation-reference-label">${escapeHtml(presentationReferenceBase)}</span>${presentationProgress}</span><span class="presentation-version-label">${escapeHtml(translationDisplayCode(version))}</span>` : `
           <div class="presentation-reference-controls" aria-label="Current passage ${escapeHtml(presentationReference)}">
@@ -22007,6 +22003,33 @@ function presentation(accountPanelRerender = false) {
           </div>
           ${sharedVersionReturnButton("presentation")}
         </div>
+  `;
+  const settingsMenu = `
+    <div class="presentation-settings-menu presentation-bottom-settings-menu">
+      ${scriptureReaderQuickButton("ghost-btn")}
+      <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
+      <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
+        <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
+        ${presentationSettingsPanelMarkup(version, customFontField)}
+      </div>
+    </div>
+  `;
+  return `
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${showBibleReturnHint() || state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" data-text-alignment="${state.presentationTextAlignment}" data-reference-position="${state.presentationReferencePosition}" style="--presentation-text-scale: ${state.presentationTextScale}">
+      ${presentationBackgroundMotionMarkup()}
+      <div class="presentation-top">
+        <div class="presentation-search-slot">
+          <form class="presentation-search ${state.presentationSearchOpen ? "search-open" : ""}" id="presentationSearchForm">
+            <button class="ghost-btn presentation-search-toggle" type="button" id="presentationSearchToggle" aria-label="Search passage" data-tooltip="Search passage">${icons.search}</button>
+            <div class="presentation-search-field">
+            <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+            ${searchClearControl(state.searchQuery)}
+            ${presentationVersionPicker("search", version)}
+            </div>
+            <button class="ghost-btn presentation-search-go" type="submit">Go</button>
+          </form>
+        </div>
+        ${state.presentationReferencePosition === "below" ? "" : referenceMarkup}
         <div class="presentation-actions">
           ${showsBrowserFullscreenControls() ? `<button class="ghost-btn presentation-fullscreen-toggle" id="presentationFullscreenQuick" type="button" aria-label="${fullscreenLabel}" data-tooltip="${fullscreenLabel}">${fullscreenIcon}</button>` : ""}
           <div class="presentation-account-menu ${state.accountOpen ? "open" : ""}">
@@ -22030,6 +22053,7 @@ function presentation(accountPanelRerender = false) {
         ${previousPreview ? `<div class="presentation-swipe-preview presentation-swipe-preview-previous" aria-hidden="true"><span>Previous</span><strong>${escapeHtml(previousPreview.reference)}</strong><p>${escapeHtml(previousPreview.text)}</p></div>` : ""}
         <div class="presentation-passage">
           <span class="presentation-copy">${textMarkup}</span>
+          ${state.presentationReferencePosition === "below" ? referenceMarkup : ""}
           ${state.isVerseOfDayActive ? `<span class="presentation-verse-of-day-label">Verse of the Day</span>` : ""}
           ${state.isVerseOfDayActive ? verseOfDayAttributionMarkup("presentation-attribution") : ""}
           ${apiBibleAttributionMarkup([version], "presentation-attribution")}
@@ -24131,6 +24155,18 @@ function bindEvents() {
     scheduleCloudSync();
   });
   document.getElementById("presentationVideoPlay")?.addEventListener("click", () => syncPresentationVideo(document.querySelector(".presentation-background-video")));
+  document.getElementById("presentationTextAlignmentSelect")?.addEventListener("change", (event) => {
+    state.presentationTextAlignment = event.target.value === "left" ? "left" : "center";
+    localStorage.setItem("lw_presentation_text_alignment", state.presentationTextAlignment);
+    scheduleCloudSync();
+    render();
+  });
+  document.getElementById("presentationReferencePositionSelect")?.addEventListener("change", (event) => {
+    state.presentationReferencePosition = event.target.value === "below" ? "below" : "above";
+    localStorage.setItem("lw_presentation_reference_position", state.presentationReferencePosition);
+    scheduleCloudSync();
+    render();
+  });
   document.getElementById("presentationThemeSelect")?.addEventListener("change", (event) => {
     setPresentationTheme(event.target.value);
   });
