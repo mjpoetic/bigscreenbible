@@ -5049,6 +5049,10 @@ label.social-terms-consent {
   }
 }
 
+.settings-support-link {
+  text-decoration: none;
+}
+
 .settings-page-actions .ghost-btn {
   justify-content: center;
   gap: 8px;

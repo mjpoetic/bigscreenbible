@@ -1393,6 +1393,7 @@ function recordReadingStreak(date = new Date()) {
 }
 
 const icons = {
+  email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></svg>',
   done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
   memorize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v19l-6-4-6 4V3Z"/><path d="M12 13.5 8.8 10.4a2 2 0 0 1 3.2-2.3 2 2 0 0 1 3.2 2.3L12 13.5Z"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-2.9 2-2.9 4"/><path d="M12 17h.01"/></svg>',
@@ -6377,6 +6378,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("app", "AppUpdateButton", "Check for app updates", "App, Help & Legal", "refresh installed version")}
       ${result("app", "SettingsHelpButton", "Help & Tour", "App, Help & Legal", "keyboard shortcuts guidance")}
       ${result("app", "SettingsAboutButton", "About Big Screen Bible", "App, Help & Legal", "information")}
+      ${result("app", "SettingsSupportLink", "Email Support", "App, Help & Legal", "contact email help support@bigscreenbible.com")}
       ${result("app", "SettingsPrivacyLink", "Privacy Policy", "App, Help & Legal", "legal")}
       ${result("app", "SettingsTermsLink", "Terms of Service", "App, Help & Legal", "legal")}
     </nav>
@@ -6419,7 +6421,7 @@ function mainSettingsRootMarkup(prefix = "") {
       ${settingsDestinationRow("sharing", "Sharing & Printing", `${selectedShareFormat} · ${selectedPrintLayout}`, "copy sharing share format printing print layout verse numbers version name")}
       ${settingsDestinationRow("startup", "Startup & Notifications", startupSummary, "startup reminders notifications morning evening friend requests game challenges streak quiet mode verse of the day")}
       ${window.bsbOffline ? settingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone", "offline download downloaded internet storage airplane BSB KJV WEB ASV BBE YLT") : ""}
-      ${settingsDestinationRow("app", "App, Help & Legal", `Version ${appVersion}`, "app updates check refresh help tour keyboard shortcuts about legal privacy terms")}
+      ${settingsDestinationRow("app", "App, Help & Legal", `Version ${appVersion}`, "app updates check refresh help tour keyboard shortcuts about support contact email legal privacy terms")}
     </nav>
     ${settingsDeepSearchResultsMarkup(prefix)}
   `;
@@ -6449,6 +6451,7 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
   if (page === "app") {
     const helpId = prefix ? `${prefix}SettingsHelpButton` : "settingsHelpButton";
     const aboutId = prefix ? `${prefix}SettingsAboutButton` : "settingsAboutButton";
+    const supportId = prefix ? `${prefix}SettingsSupportLink` : "settingsSupportLink";
     const privacyId = prefix ? `${prefix}SettingsPrivacyLink` : "settingsPrivacyLink";
     const termsId = prefix ? `${prefix}SettingsTermsLink` : "settingsTermsLink";
     return `
@@ -6458,6 +6461,7 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
         <div class="settings-page-actions">
           <button class="ghost-btn" id="${helpId}" type="button">?<span>Help & Tour</span></button>
           <button class="ghost-btn" id="${aboutId}" type="button">${icons.info}<span>About Big Screen Bible</span></button>
+          <a class="ghost-btn settings-support-link" id="${supportId}" href="mailto:support@bigscreenbible.com">${icons.email}<span>Email Support</span></a>
         </div>
         <nav class="settings-legal-links" aria-label="Legal information">
           <a id="${privacyId}" href="./privacy/">Privacy Policy</a>
@@ -22181,6 +22185,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
         </div>
       </section>
       <button class="ghost-btn presentation-about-settings-btn" id="presentationAboutMenuButton" type="button" aria-label="About and legal information" aria-haspopup="dialog" aria-expanded="${state.aboutMenuOpen ? "true" : "false"}">${icons.info}<span>About & Legal</span></button>
+      <a class="ghost-btn presentation-about-settings-btn settings-support-link" href="mailto:support@bigscreenbible.com">${icons.email}<span>Email Support</span></a>
     `;
   }
 
