@@ -27308,7 +27308,9 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   position: fixed;
   inset: 0;
   z-index: 130;
-  background: rgb(0 0 0 / 20%);
+  background: rgb(0 0 0 / 48%);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   animation: focusPickerDimIn 240ms ease-out both;
 }
 .app-shell:has(.focus-picker-backdrop) .focus-passage-notch { z-index: 141; }
@@ -27322,7 +27324,6 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .focus-passage-notch[aria-expanded="true"] .focus-passage-notch-arrow { transform: rotate(270deg); }
 @starting-style {
   .focus-passage-notch[aria-expanded="true"] .focus-passage-notch-arrow { transform: rotate(90deg); }
-  .focus-passage-notch[aria-expanded="false"] .focus-passage-notch-arrow { transform: rotate(270deg); }
 }
 .app-shell.focus-shell .passage-picker-workspace {
   transform-origin: top center;
@@ -27332,7 +27333,18 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   from { opacity: 0; transform: translateY(-8px) scale(.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes focusPickerDimIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes focusPickerDimIn {
+  from { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
+  to { opacity: 1; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+}
+.app-shell .focus-picker-settled { animation: none; }
+.app-shell .focus-picker-exiting { pointer-events: none; }
+.app-shell .passage-picker-workspace.focus-picker-exiting {
+  animation: focusPickerIn 240ms cubic-bezier(.2, .7, .2, 1) reverse both;
+}
+.app-shell .focus-picker-backdrop.focus-picker-exiting {
+  animation: focusPickerDimIn 260ms ease-in-out reverse both;
+}
 @media (prefers-reduced-motion: reduce) {
   .app-shell.focus-shell .passage-picker-workspace,
   .focus-picker-backdrop { animation: none; }
@@ -27341,4 +27353,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell .focus-passage-notch { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .focus-picker-exiting { animation: none; visibility: hidden; }
 }

@@ -1926,6 +1926,7 @@ function selectionBarIsVisible() {
 }
 
 function render() {
+  const focusPickerMotion = captureFocusPickerMotion();
   scheduleNativeWidgetSync();
   const previousMemorySurface = document.querySelector(".memorize-reader");
   const memoryViewKey = state.memoryPractice ? `${state.memoryPractice.id}:${state.memoryPractice.stage}` : "library";
@@ -2027,6 +2028,7 @@ function render() {
       <div class="status-toast" id="toast"></div>
     </main>
   `;
+  restoreFocusPickerMotion(focusPickerMotion);
   settingsPageTransition = "";
   syncPresentationVideo(previousVideo);
   presentationSettingsPageTransition = "";
@@ -3265,6 +3267,51 @@ function loadingScreen() {
       </section>
     </main>
   `;
+}
+
+// Retain the arrow across full renders so its rotation can reverse naturally.
+function captureFocusPickerMotion() {
+  const backdrop = document.querySelector(".focus-picker-backdrop:not(.focus-picker-exiting)");
+  const arrow = document.querySelector(".focus-passage-notch-arrow");
+  return {
+    arrow,
+    arrowTransform: arrow ? getComputedStyle(arrow).transform : null,
+    backdrop,
+    panel: backdrop ? document.getElementById("mobileFocusWorkspace") : null,
+  };
+}
+
+function restoreFocusPickerMotion(previous) {
+  const arrow = document.querySelector(".focus-passage-notch-arrow");
+  if (arrow && previous.arrow) {
+    arrow.replaceWith(previous.arrow);
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const expanded = previous.arrow.closest("button").getAttribute("aria-expanded") === "true";
+      previous.arrow.getAnimations().forEach(animation => animation.cancel());
+      previous.arrow.animate([
+        { transform: previous.arrowTransform },
+        { transform: `rotate(${expanded ? 270 : 90}deg)` },
+      ], { duration: 260, easing: "cubic-bezier(.2, .7, .2, 1)" });
+    }
+  }
+  const backdrop = document.querySelector(".focus-picker-backdrop");
+  if (backdrop && previous.backdrop) {
+    backdrop.classList.add("focus-picker-settled");
+    document.getElementById("mobileFocusWorkspace")?.classList.add("focus-picker-settled");
+  }
+  if (!backdrop && previous.backdrop && previous.panel) {
+    const shell = document.querySelector(".app-shell");
+    for (const element of [previous.backdrop, previous.panel]) {
+      element.removeAttribute("id");
+      element.querySelectorAll("[id]").forEach(child => child.removeAttribute("id"));
+      element.inert = true;
+      element.setAttribute("aria-hidden", "true");
+      element.classList.add("focus-picker-exiting");
+      shell?.append(element);
+      element.addEventListener("animationend", () => element.remove(), { once: true });
+      setTimeout(() => element.remove(), 320);
+    }
+  }
 }
 
 function focusPassageNotch() {
@@ -5120,6 +5167,15 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.5": [
+      "Tap the Focus passage notch again to close the verse picker, with smooth dialog dismissal, backdrop dimming and blur, and arrow rotation in both directions.",
+    ],
+    "2026.10.31.4": [
+      "A subtle background blur adds separation behind the Focus verse picker.",
+    ],
+    "2026.10.31.3": [
+      "A darker backdrop makes the Focus verse picker stand out more clearly from the surrounding screen.",
+    ],
     "2026.10.31.2": [
       "The Focus passage notch now fades and slides into view in step with scrolling, gently receding as you return to the top of the chapter.",
     ],
@@ -22880,6 +22936,12 @@ function bindEvents() {
   document.querySelectorAll("[data-passage-picker]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (button.id === "focusPassageNotch" && state.focusWorkspacePanel === "Verse") {
+        state.focusWorkspacePanel = "";
+        renderPreservingReaderScroll();
+        document.getElementById("focusPassageNotch")?.focus({ preventScroll: true });
+        return;
+      }
       initializeFocusVersePickerDraft();
       state.focusVersePickerAnchor = button.closest(".topbar")
         ? ".topbar [data-passage-picker]"
