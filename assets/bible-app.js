@@ -779,7 +779,7 @@ const state = {
   autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
   readerPageScrollSpeed: normalizedReaderPageScrollSpeed(localStorage.getItem("lw_page_scroll_speed")),
-  edgeChapterNavigationEnabled: localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false",
+  edgeChapterNavigationEnabled: localStorage.getItem("lw_edge_chapter_navigation_enabled") === "true",
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
   printVerseNumbers: localStorage.getItem("lw_print_verse_numbers") !== "false",
@@ -13928,7 +13928,7 @@ function applyCloudSnapshot(snapshot) {
     : localStorage.getItem("lw_footer_chapter_arrows") !== "false";
   state.edgeChapterNavigationEnabled = typeof settings.edgeChapterNavigationEnabled === "boolean"
     ? settings.edgeChapterNavigationEnabled
-    : localStorage.getItem("lw_edge_chapter_navigation_enabled") !== "false";
+    : localStorage.getItem("lw_edge_chapter_navigation_enabled") === "true";
   state.paragraphLayout = typeof settings.paragraphLayout === "boolean"
     ? settings.paragraphLayout
     : savedParagraphLayout();
