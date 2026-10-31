@@ -1,5 +1,7 @@
 @font-face {
   font-family: "OpenDyslexic";
+  /* Normalize the larger glyphs before applying user text-size controls. */
+  size-adjust: 80%;
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -8,6 +10,8 @@
 
 @font-face {
   font-family: "OpenDyslexic";
+  /* Normalize the larger glyphs before applying user text-size controls. */
+  size-adjust: 80%;
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -16,6 +20,8 @@
 
 @font-face {
   font-family: "OpenDyslexic";
+  /* Normalize the larger glyphs before applying user text-size controls. */
+  size-adjust: 80%;
   font-style: italic;
   font-weight: 400;
   font-display: swap;
@@ -24,6 +30,8 @@
 
 @font-face {
   font-family: "OpenDyslexic";
+  /* Normalize the larger glyphs before applying user text-size controls. */
+  size-adjust: 80%;
   font-style: italic;
   font-weight: 700;
   font-display: swap;
@@ -134,46 +142,57 @@ html {
 }
 
 [data-scripture-font="lora"] {
+  --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: "Lora", Georgia, serif;
 }
 
 [data-scripture-font="libre"] {
+  --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: "Libre Baskerville", Georgia, serif;
 }
 
 [data-scripture-font="literata"] {
+  --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: "Literata", Georgia, serif;
 }
 
 [data-scripture-font="crimson"] {
+  --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: "Crimson Text", Georgia, serif;
 }
 
 [data-scripture-font="noto-sans"] {
+  --scripture-heading-font: var(--scripture-font);
   --scripture-font: "Noto Sans", Arial, sans-serif;
 }
 
 [data-scripture-font="figtree"] {
+  --scripture-heading-font: var(--scripture-font);
   --scripture-font: "Figtree", Arial, sans-serif;
 }
 
 [data-scripture-font="source-sans"] {
+  --scripture-heading-font: var(--scripture-font);
   --scripture-font: "Source Sans 3", Arial, sans-serif;
 }
 
 [data-scripture-font="manrope"] {
+  --scripture-heading-font: var(--scripture-font);
   --scripture-font: "Manrope", Arial, sans-serif;
 }
 
 [data-scripture-font="opendyslexic"] {
+  --scripture-heading-font: var(--scripture-font);
   --scripture-font: "OpenDyslexic", Arial, sans-serif;
 }
 
 [data-scripture-font="lexend"] {
+  --scripture-heading-font: var(--scripture-font);
   --scripture-font: "Lexend", Arial, sans-serif;
 }
 
 [data-scripture-font="custom"] {
+  --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: var(--custom-scripture-font, Georgia, serif);
 }
 
@@ -9522,7 +9541,7 @@ select {
 }
 
 .section-title {
-  font: italic 25px/1.35 "Libre Baskerville", Georgia, serif;
+  font: italic 25px/1.35 var(--scripture-heading-font, "Libre Baskerville", Georgia, serif);
   margin-bottom: 18px;
 }
 

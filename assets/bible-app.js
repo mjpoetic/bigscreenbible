@@ -166,8 +166,8 @@ const scriptureFonts = [
   { code: "figtree", name: "Figtree" },
   { code: "source-sans", name: "Source Sans 3" },
   { code: "manrope", name: "Manrope" },
-  { code: "opendyslexic", name: "OpenDyslexic" },
   { code: "lexend", name: "Lexend" },
+  { code: "opendyslexic", name: "OpenDyslexic" },
   { code: "custom", name: "Custom device or Google font" },
 ];
 const scriptureFontCodes = scriptureFonts.map((font) => font.code);
@@ -5176,6 +5176,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.13": [
+      "Lexend appears above OpenDyslexic in font choices. OpenDyslexic has a smaller baseline size for a closer match to the other fonts, and Scripture reference headings follow built-in sans-serif font choices. Custom fonts retain the existing heading style.",
+    ],
     "2026.10.31.12": [
       "OpenDyslexic replaces Atkinson Hyperlegible in the font choices, and Lexend is now available for Reader and Big Screen Scripture. Existing Atkinson selections switch to OpenDyslexic.",
     ],
