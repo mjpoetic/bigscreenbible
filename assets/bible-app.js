@@ -4221,24 +4221,31 @@ function positionPresentationBibleMenus() {
     const viewport = window.visualViewport;
     const padding = 8;
     const gap = 8;
-    const viewportLeft = viewport?.offsetLeft || 0;
-    const viewportTop = viewport?.offsetTop || 0;
-    const viewportWidth = viewport?.width || window.innerWidth;
-    const viewportHeight = viewport?.height || window.innerHeight;
+    const safeStyle = getComputedStyle(document.documentElement);
+    const safe = (edge) => Math.max(0, parseFloat(safeStyle.getPropertyValue(`--app-safe-area-${edge}`)) || 0,
+      parseFloat(safeStyle.getPropertyValue(`--android-safe-${edge}`)) || 0);
+    const viewportLeft = (viewport?.offsetLeft || 0) + safe("left");
+    const viewportTop = (viewport?.offsetTop || 0) + safe("top");
+    const viewportWidth = Math.max(0, (viewport?.width || window.innerWidth) - safe("left") - safe("right"));
+    const viewportHeight = Math.max(0, (viewport?.height || window.innerHeight) - safe("top") - safe("bottom"));
     const bounds = trigger.getBoundingClientRect();
-    const width = Math.min(menu.classList.contains("presentation-version-menu") ? 330 : Math.max(168, bounds.width), viewportWidth - padding * 2);
-    menu.style.width = `${width}px`;
-    menu.style.maxHeight = `${Math.max(0, viewportHeight - padding * 2)}px`;
-    const height = menu.getBoundingClientRect().height;
+    const width = Math.max(0, Math.min(menu.classList.contains("presentation-version-menu") ? 330 : Math.max(168, bounds.width), viewportWidth - padding * 2));
     const above = Math.max(0, bounds.top - viewportTop - gap - padding);
     const below = Math.max(0, viewportTop + viewportHeight - bounds.bottom - gap - padding);
-    const openAbove = below < height && above > below;
-    const availableHeight = Math.min(viewportHeight - padding * 2, openAbove ? above : below);
-    menu.style.maxHeight = `${Math.max(0, availableHeight)}px`;
+    // Lower references consistently open upward; header/search pickers open down.
+    // Flip only when that side cannot provide a useful list.
+    const preferAbove = Boolean(trigger.closest(".presentation-passage"));
+    const preferredSpace = preferAbove ? above : below;
+    const otherSpace = preferAbove ? below : above;
+    const openAbove = preferredSpace < 120 && otherSpace > preferredSpace ? !preferAbove : preferAbove;
+    const availableHeight = Math.max(0, Math.min(420, viewportHeight * 0.6, viewportHeight - padding * 2, openAbove ? above : below));
+    menu.style.width = `${width}px`;
+    menu.style.maxHeight = `${availableHeight}px`;
+    const height = menu.getBoundingClientRect().height;
     const left = Math.max(viewportLeft + padding, Math.min(bounds.left, viewportLeft + viewportWidth - width - padding));
-    const top = openAbove ? bounds.top - gap - Math.min(height, availableHeight) : bounds.bottom + gap;
+    const top = openAbove ? bounds.top - gap - height : bounds.bottom + gap;
     menu.style.left = `${left}px`;
-    menu.style.top = `${Math.max(viewportTop + padding, Math.min(top, viewportTop + viewportHeight - padding - Math.min(height, availableHeight)))}px`;
+    menu.style.top = `${Math.max(viewportTop + padding, Math.min(top, viewportTop + viewportHeight - padding - height))}px`;
   });
 }
 
@@ -5167,6 +5174,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.7": [
+      "Big Screen left-aligned passages now keep the reference and page label aligned with Scripture, with more room for text in phone landscape.",
+      "Book, chapter, verse, and version menus use consistent opening directions, shorter scrolling lists, and safe-area spacing. Rotation keeps Scripture visible and loaded fonts trigger a fresh text fit.",
+    ],
     "2026.10.31.6": [
       "The Focus verse picker now fades out in sync with its backdrop and arrow on iPhone and iPad, in portrait and landscape.",
     ],
@@ -29481,6 +29492,7 @@ function applyPresentationTextScale() {
   const resetLabel = document.querySelector("#presentationResetText strong");
   if (resetLabel) resetLabel.textContent = `${Math.round(state.presentationTextScale * 100)}%`;
   fitPresentationText();
+  positionPresentationBibleMenus();
 }
 
 function persistPresentationTextScale() {
@@ -32764,7 +32776,7 @@ function fitPresentationText() {
   const viewportStyle = getComputedStyle(viewport);
   const availableHeight = Math.max(0, viewport.clientHeight - parseFloat(viewportStyle.paddingTop) - parseFloat(viewportStyle.paddingBottom));
   const availableWidth = Math.max(0, viewport.clientWidth - parseFloat(viewportStyle.paddingLeft) - parseFloat(viewportStyle.paddingRight));
-  const fits = () => passage.scrollHeight <= availableHeight * 0.92 && passage.scrollWidth <= Math.ceil(availableWidth);
+  const fits = () => passage.scrollHeight <= availableHeight * 0.92 + 1 && passage.scrollWidth <= Math.ceil(availableWidth) + 1;
   if (fits()) return;
 
   let low = readableMinimum;
@@ -32780,23 +32792,25 @@ function fitPresentationText() {
   if (!fits()) presentation.classList.add("presentation-overflow");
 }
 
-function schedulePresentationViewportFit(rotating = false) {
+function schedulePresentationViewportFit() {
   if (state.mode !== "big" || document.visibilityState === "hidden") return;
   // Keyboard resize/inset events must not detach the active input.
   if (deferViewportRefreshForActiveInput()) return;
   const root = document.documentElement;
-  // Android can announce orientation before resizing its WebView. Do not
-  // paint the old portrait fit into the intermediate landscape viewport.
-  if (rotating) root.dataset.presentationRotating = "true";
+  // Keep Scripture visible while native viewport and inset events settle.
+  // Hiding it here left a blank stage during Android rotation event bursts.
+  delete root.dataset.presentationRotating;
   clearTimeout(presentationResizeTimer);
   // Fit the existing passage immediately, without replacing the whole screen.
   fitPresentationText();
+  positionPresentationBibleMenus();
   presentationResizeTimer = setTimeout(() => {
     if (state.mode === "big" && document.visibilityState !== "hidden") {
       if (deferViewportRefreshForActiveInput()) return;
       // Rebuild viewport-dependent pagination only once, then fit before paint.
       render();
       fitPresentationText();
+      centerOpenBibleMenus();
     }
     delete root.dataset.presentationRotating;
   }, 120);
@@ -32815,6 +32829,11 @@ window.addEventListener("resize", () => {
     }
   }
 });
+document.fonts?.addEventListener("loadingdone", () => {
+  if (state.mode !== "big") return;
+  fitPresentationText();
+  centerOpenBibleMenus();
+});
 window.addEventListener("bsb-insets-change", renderAfterViewportChangePreservingReaderScroll);
 window.addEventListener("bsb-ios-orientation-change", () => {
   iosToolbarManualCameraSide = null;
@@ -32822,7 +32841,7 @@ window.addEventListener("bsb-ios-orientation-change", () => {
 });
 window.addEventListener("orientationchange", () => {
   if (state.mode === "big") {
-    schedulePresentationViewportFit(true);
+    schedulePresentationViewportFit();
     return;
   }
   renderAfterViewportChangePreservingReaderScroll();
@@ -33670,6 +33689,7 @@ window.visualViewport?.addEventListener("scroll", updateGamesPlayViewport);
 window.visualViewport?.addEventListener("scroll", updateGamesOptionsViewport);
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
+window.visualViewport?.addEventListener("scroll", positionPresentationBibleMenus);
 window.visualViewport?.addEventListener("scroll", positionNoteComposer);
 window.visualViewport?.addEventListener("scroll", restoreScriptureSearchWindowScroll);
 window.addEventListener("scroll", restoreScriptureSearchWindowScroll, { passive: true });

@@ -23803,10 +23803,6 @@ svg {
   }
 }
 
-/* Retain layout measurements while Android settles its rotation dimensions. */
-html[data-presentation-rotating="true"] .presentation-passage {
-  visibility: hidden;
-}
 
 /* Native Android paints the full window; inset controls, not the WebView.
    Scrolling surfaces reach the navigation bar and keep end content reachable. */
@@ -27383,4 +27379,72 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   #app .app-shell .passage-picker-workspace,
   #app .app-shell .focus-picker-backdrop { animation: none; }
   #app .app-shell .focus-picker-exiting { visibility: hidden; }
+}
+
+/* Left alignment applies to the complete reference, including wrapped progress. */
+#app .presentation[data-text-alignment="left"] .presentation-reference-controls {
+  justify-content: flex-start;
+}
+#app .presentation[data-text-alignment="left"] .presentation-part-position {
+  text-align: left;
+}
+#app .presentation[data-text-alignment="left"] .presentation-title-version-control .presentation-version-picker-toggle {
+  padding-inline: 0;
+  justify-content: flex-start;
+}
+#app .presentation[data-text-alignment="left"] .presentation-top {
+  padding-left: max(var(--presentation-stage-pad-x), var(--presentation-safe-left));
+}
+#app .presentation[data-text-alignment="left"] .presentation-top > .presentation-ref {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 8px;
+}
+#app .presentation[data-text-alignment="left"] .presentation-top > .presentation-actions {
+  grid-column: -2 / -1;
+  grid-row: 1;
+}
+#app .presentation[data-text-alignment="left"] .presentation-copy {
+  width: 100%;
+  min-width: 0;
+}
+#app .presentation .presentation-passage {
+  min-width: 0;
+  flex-shrink: 0;
+}
+/* Safe areas belong to the outer chrome; do not reserve them again in the stage. */
+#app .presentation .presentation-text {
+  padding-top: var(--presentation-stage-pad-y);
+  padding-bottom: var(--presentation-stage-pad-y);
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  #app .presentation { --presentation-stage-pad-x: 24px; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  #app .presentation {
+    --presentation-stage-pad-x: 14px;
+    --presentation-stage-pad-y: 8px;
+  }
+  #app .presentation.open {
+    grid-template-rows:
+      minmax(calc(48px + var(--app-safe-area-top, env(safe-area-inset-top, 0px))), auto)
+      minmax(0, 1fr)
+      minmax(calc(48px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))), auto);
+  }
+  #app .presentation.open.no-buttons {
+    grid-template-rows: minmax(calc(36px + var(--app-safe-area-top, env(safe-area-inset-top, 0px))), auto) minmax(0, 1fr);
+  }
+  #app .presentation .presentation-top {
+    padding-top: max(6px, var(--app-safe-area-top, env(safe-area-inset-top, 0px)));
+  }
+  #app .presentation .presentation-bottom { min-height: 48px; }
+  #app .presentation[data-reference-position="below"] .presentation-passage > .presentation-ref {
+    margin-top: 10px;
+    gap: 3px;
+    font-size: 14px;
+  }
+  #app .presentation .presentation-attribution { margin-top: 6px; }
 }

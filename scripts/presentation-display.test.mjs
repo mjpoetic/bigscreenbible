@@ -220,7 +220,7 @@ for (const height of [220, 500]) {
     clamp: (value, low, high) => Math.min(high, Math.max(low, value)),
   };
   vm.runInNewContext(`${extractFunction("fitPresentationText")}\nfitPresentationText();`, context);
-  assert.ok(passage.scrollHeight <= (height - 48) * 0.92, "Text fits inside the padded stage");
+  assert.ok(passage.scrollHeight <= (height - 48) * 0.92 + 1, "Text fits inside the padded stage");
   assert.equal(classes.has("presentation-overflow"), false, "Full content width does not force false overflow");
 }
 
@@ -391,7 +391,7 @@ console.log("No buttons keyboard tests passed");
 
 // The lower reference lives inside a clipped, transformed Scripture stage.
 // Floating lists must use the top layer and fit the visual viewport on phones.
-const menuPlacementContext = { window: {}, document: {} };
+const menuPlacementContext = { window: {}, document: {}, getComputedStyle: () => ({ getPropertyValue: () => "0" }) };
 vm.createContext(menuPlacementContext);
 vm.runInContext(`${extractFunction("positionPresentationBibleMenus")}; globalThis.positionMenus = positionPresentationBibleMenus;`, menuPlacementContext);
 for (const sample of [
@@ -399,11 +399,13 @@ for (const sample of [
   { width: 390, height: 844, left: 24, top: 470, bottom: 498, version: false },
   { width: 844, height: 390, left: 800, top: 240, bottom: 268, version: true },
   { width: 320, height: 480, left: 280, top: 18, bottom: 46, version: false },
+  { width: 440, height: 956, left: 24, top: 650, bottom: 678, version: false, safeTop: 62, safeBottom: 34 },
+  { width: 854, height: 384, left: 14, top: 72, bottom: 100, version: true, safeLeft: 32, safeRight: 24 },
 ]) {
   let shown = false;
   const attributes = {};
   const style = {};
-  const trigger = { getBoundingClientRect: () => sample };
+  const trigger = { getBoundingClientRect: () => sample, closest: () => sample.top > 100 };
   const menu = {
     style,
     parentElement: { querySelector: () => trigger },
@@ -414,7 +416,13 @@ for (const sample of [
     getBoundingClientRect: () => ({ height: Math.min(650, parseFloat(style.maxHeight)) }),
   };
   menuPlacementContext.window = { innerWidth: sample.width, innerHeight: sample.height };
-  menuPlacementContext.document = { querySelectorAll: () => [menu] };
+  menuPlacementContext.document = { documentElement: {}, querySelectorAll: () => [menu] };
+  menuPlacementContext.getComputedStyle = () => ({ getPropertyValue: key => ({
+    "--app-safe-area-top": sample.safeTop || 0,
+    "--app-safe-area-bottom": sample.safeBottom || 0,
+    "--app-safe-area-left": sample.safeLeft || 0,
+    "--app-safe-area-right": sample.safeRight || 0,
+  })[key] || "0" });
   menuPlacementContext.positionMenus();
   assert.equal(attributes.popover, "manual");
   assert.equal(shown, true);
@@ -422,5 +430,14 @@ for (const sample of [
   assert.ok(parseFloat(style.left) + parseFloat(style.width) <= sample.width - 8);
   assert.ok(parseFloat(style.top) >= 8);
   assert.ok(parseFloat(style.top) + Math.min(650, parseFloat(style.maxHeight)) <= sample.height - 8);
+  assert.ok(parseFloat(style.top) >= (sample.safeTop || 0) + 8);
+  assert.ok(parseFloat(style.left) >= (sample.safeLeft || 0) + 8);
+  assert.ok(parseFloat(style.maxHeight) <= 420, "Long lists remain manageable");
+  const firstPlacement = { ...style };
+  menuPlacementContext.positionMenus();
+  assert.deepEqual(style, firstPlacement, "Repeated fitting keeps menu direction and placement stable");
 }
 console.log("Big Screen floating menu viewport checks passed");
+
+assert.doesNotMatch(extractFunction("schedulePresentationViewportFit"), /presentationRotating = "true"/, "Rotation must not hide the Scripture stage");
+assert.match(source, /document\.fonts\?\.addEventListener\("loadingdone"/, "Refit when actual font metrics become available");
