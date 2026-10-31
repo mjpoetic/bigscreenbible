@@ -20,3 +20,13 @@ unmodified. Each family's SIL Open Font License is included alongside it.
 - Literata: https://github.com/google/fonts/tree/main/ofl/literata
 
 `offline.css` is included only in the generated native `offline.html` page.
+
+## OpenDyslexic
+
+Regular, bold, italic, and bold italic WOFF2 files are bundled for the website
+and offline reader. Downloaded unmodified from the official repository on
+2026-10-31; the SIL Open Font License is included as `opendyslexic-OFL.txt`.
+
+- https://github.com/antijingoist/opendyslexic
+
+Lexend is loaded through Google Fonts on the website.

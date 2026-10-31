@@ -296,7 +296,7 @@ assert.match(extractFunction("applyCloudSnapshot"), /state\.wordSearchSounds = s
 
 assert.match(styles, /\.game-new-badge \{/);
 assert.match(styles, /\.word-search-grid \{[\s\S]*?touch-action: none;/);
-assert.match(styles, /\.word-search-cell \{[\s\S]*?font-family: "Atkinson Hyperlegible Next"/);
+assert.match(styles, /\.word-search-cell \{[\s\S]*?font-family: "OpenDyslexic"/);
 assert.match(styles, /\.word-search-found-outlines \{[\s\S]*?pointer-events: none;/);
 assert.match(styles, /\.word-search-found-outline \{[\s\S]*?vector-effect: non-scaling-stroke;/);
 assert.match(styles, /\.word-search-timer strong\.is-urgent/);

@@ -185,7 +185,7 @@ assert.match(topbarSource, /mainSettingsPanelMarkup\(\)/);
 assert.match(presentationSource, /presentationSettingsPanelMarkup\(version, customFontField\)/);
 assert.match(styles, /\.settings-choice-option-content\[data-font-preview\] \.settings-choice-option-label \{[\s\S]*?font-family:\s*var\(--settings-choice-preview-font\)/);
 assert.match(styles, /\.presentation-settings-popover \.settings-choice-option-content\[data-font-preview\] \.settings-choice-option-label \{\s*font-size:\s*12px/);
-for (const font of ["literata", "libre", "lora", "crimson", "noto-sans", "figtree", "source-sans", "manrope", "atkinson-hyperlegible-next", "custom"]) {
+for (const font of ["literata", "libre", "lora", "crimson", "noto-sans", "figtree", "source-sans", "manrope", "opendyslexic", "lexend", "custom"]) {
   assert.ok(styles.includes(`data-font-preview="${font}"`), `Missing ${font} settings preview font`);
 }
 assert.match(styles, /\.settings-color-preview \{[\s\S]*?border-radius:\s*7px;[\s\S]*?overflow:\s*hidden/);

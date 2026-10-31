@@ -126,6 +126,8 @@ const viewportContext = vm.createContext({
   render: () => { renders++; },
   renderPreservingReaderScroll: () => { renders++; },
   fitPresentationText: () => { fits++; },
+  positionPresentationBibleMenus() {},
+  centerOpenBibleMenus() {},
   queueCustomScriptureFont() {},
   commitCustomScriptureFont: (value) => { assert.equal(value, fontInput.value); },
 });

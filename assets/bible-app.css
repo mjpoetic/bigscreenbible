@@ -1,3 +1,35 @@
+@font-face {
+  font-family: "OpenDyslexic";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/opendyslexic-regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "OpenDyslexic";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/opendyslexic-bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "OpenDyslexic";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/opendyslexic-italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "OpenDyslexic";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/opendyslexic-bold-italic.woff2") format("woff2");
+}
+
 /* Bundled branding font shared by the website and native offline reader. */
 @font-face {
   font-family: "Cinzel";
@@ -133,8 +165,12 @@ html {
   --scripture-font: "Manrope", Arial, sans-serif;
 }
 
-[data-scripture-font="atkinson-hyperlegible-next"] {
-  --scripture-font: "Atkinson Hyperlegible Next", Arial, sans-serif;
+[data-scripture-font="opendyslexic"] {
+  --scripture-font: "OpenDyslexic", Arial, sans-serif;
+}
+
+[data-scripture-font="lexend"] {
+  --scripture-font: "Lexend", Arial, sans-serif;
 }
 
 [data-scripture-font="custom"] {
@@ -2184,8 +2220,12 @@ button {
   --settings-choice-preview-font: "Manrope", Arial, sans-serif;
 }
 
-.settings-choice-option-content[data-font-preview="atkinson-hyperlegible-next"] {
-  --settings-choice-preview-font: "Atkinson Hyperlegible Next", Arial, sans-serif;
+.settings-choice-option-content[data-font-preview="opendyslexic"] {
+  --settings-choice-preview-font: "OpenDyslexic", Arial, sans-serif;
+}
+
+.settings-choice-option-content[data-font-preview="lexend"] {
+  --settings-choice-preview-font: "Lexend", Arial, sans-serif;
 }
 
 .settings-choice-option-content[data-font-preview="custom"] {
@@ -7867,7 +7907,7 @@ select {
   background: var(--paper);
   color: var(--ink);
   padding: 0;
-  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
+  font-family: "OpenDyslexic", "Inter", sans-serif;
   font-size: clamp(17px, 2.3vw, 32px);
   font-weight: 850;
   line-height: 1;
@@ -8216,7 +8256,7 @@ select {
   background: var(--paper);
   color: var(--ink);
   padding: 0;
-  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
+  font-family: "OpenDyslexic", "Inter", sans-serif;
   font-size: clamp(15px, 2vw, 24px);
   font-weight: 900;
   line-height: 1;
@@ -8623,7 +8663,7 @@ select {
 }
 
 .hidden-word-scroll-paper > strong {
-  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
+  font-family: "OpenDyslexic", "Inter", sans-serif;
   font-size: clamp(19px, 2.6vw, 28px);
 }
 
@@ -8678,7 +8718,7 @@ select {
   min-height: clamp(72px, 8vw, 98px);
   border-bottom: 6px solid color-mix(in srgb, var(--teal) 72%, var(--line));
   color: var(--ink);
-  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
+  font-family: "OpenDyslexic", "Inter", sans-serif;
   font-size: clamp(44px, 5.6vw, 70px);
   font-weight: 950;
   line-height: 1;
@@ -8691,7 +8731,7 @@ select {
   min-height: clamp(72px, 8vw, 98px);
   padding-bottom: 7px;
   color: var(--muted);
-  font-family: "Atkinson Hyperlegible Next", "Inter", sans-serif;
+  font-family: "OpenDyslexic", "Inter", sans-serif;
   font-size: clamp(34px, 4vw, 54px);
   font-weight: 900;
   line-height: 1;

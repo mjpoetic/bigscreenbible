@@ -166,7 +166,8 @@ const scriptureFonts = [
   { code: "figtree", name: "Figtree" },
   { code: "source-sans", name: "Source Sans 3" },
   { code: "manrope", name: "Manrope" },
-  { code: "atkinson-hyperlegible-next", name: "Atkinson Hyperlegible Next" },
+  { code: "opendyslexic", name: "OpenDyslexic" },
+  { code: "lexend", name: "Lexend" },
   { code: "custom", name: "Custom device or Google font" },
 ];
 const scriptureFontCodes = scriptureFonts.map((font) => font.code);
@@ -270,6 +271,7 @@ document.addEventListener("focusout", (event) => {
 });
 const scriptureFontLoaders = [createCustomFontLoader(false), createCustomFontLoader(true)];
 const legacyScriptureFontCodes = {
+  "atkinson-hyperlegible-next": "opendyslexic",
   merriweather: "literata",
   "ibm-plex-sans": "manrope",
 };
@@ -5174,6 +5176,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.12": [
+      "OpenDyslexic replaces Atkinson Hyperlegible in the font choices, and Lexend is now available for Reader and Big Screen Scripture. Existing Atkinson selections switch to OpenDyslexic.",
+    ],
     "2026.10.31.11": [
       "Meet the Creator now features Dane’s worship photo, cropped to preserve his raised hands and sized to fit within the About page panel.",
     ],
