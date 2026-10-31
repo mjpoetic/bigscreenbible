@@ -2123,7 +2123,10 @@ function render() {
     state.pendingLibraryScrollRestore = false;
     requestAnimationFrame(() => requestAnimationFrame(() => restoreSavedLibraryScroll()));
   }
-  requestAnimationFrame(fitPresentationText);
+  requestAnimationFrame(() => {
+    fitPresentationText();
+    centerOpenBibleMenus();
+  });
   requestAnimationFrame(applyTextScaleVars);
   requestAnimationFrame(bindMobileSettingsVisibility);
   requestAnimationFrame(positionMobileFocusSearch);
@@ -4117,7 +4120,42 @@ function centerSelectedMenuOption(menu) {
     - (menu.clientHeight - optionBounds.height) / 2;
 }
 
+function positionPresentationBibleMenus() {
+  document.querySelectorAll(".presentation .open > .presentation-reference-menu, .presentation .open > .presentation-version-menu").forEach((menu) => {
+    const trigger = menu.parentElement.querySelector("[aria-controls]");
+    if (!trigger) return;
+    // The top layer escapes the passage's clipping and transformed swipe stage,
+    // while preserving the menu's theme, event handlers, and picker ancestry.
+    if (typeof menu.showPopover === "function") {
+      menu.setAttribute("popover", "manual");
+      if (!menu.matches(":popover-open")) menu.showPopover();
+    }
+    const viewport = window.visualViewport;
+    const padding = 8;
+    const gap = 8;
+    const viewportLeft = viewport?.offsetLeft || 0;
+    const viewportTop = viewport?.offsetTop || 0;
+    const viewportWidth = viewport?.width || window.innerWidth;
+    const viewportHeight = viewport?.height || window.innerHeight;
+    const bounds = trigger.getBoundingClientRect();
+    const width = Math.min(menu.classList.contains("presentation-version-menu") ? 330 : Math.max(168, bounds.width), viewportWidth - padding * 2);
+    menu.style.width = `${width}px`;
+    menu.style.maxHeight = `${Math.max(0, viewportHeight - padding * 2)}px`;
+    const height = menu.getBoundingClientRect().height;
+    const above = Math.max(0, bounds.top - viewportTop - gap - padding);
+    const below = Math.max(0, viewportTop + viewportHeight - bounds.bottom - gap - padding);
+    const openAbove = below < height && above > below;
+    const availableHeight = Math.min(viewportHeight - padding * 2, openAbove ? above : below);
+    menu.style.maxHeight = `${Math.max(0, availableHeight)}px`;
+    const left = Math.max(viewportLeft + padding, Math.min(bounds.left, viewportLeft + viewportWidth - width - padding));
+    const top = openAbove ? bounds.top - gap - Math.min(height, availableHeight) : bounds.bottom + gap;
+    menu.style.left = `${left}px`;
+    menu.style.top = `${Math.max(viewportTop + padding, Math.min(top, viewportTop + viewportHeight - padding - Math.min(height, availableHeight)))}px`;
+  });
+}
+
 function centerOpenBibleMenus() {
+  positionPresentationBibleMenus();
   document.querySelectorAll(".open > .primary-version-menu, .focus-brand-version-menu, .parallel-version-menu, .open > .presentation-reference-menu")
     .forEach(centerSelectedMenuOption);
 }

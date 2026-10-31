@@ -388,3 +388,39 @@ shortcutContext.handleGlobalShortcuts(keyEvent("Escape"));
 assert.equal(shortcutContext.state.presentationNoButtons, false, "Escape restores controls and stays in Big Screen");
 assert.equal(shortcutContext.state.mode, "big");
 console.log("No buttons keyboard tests passed");
+
+// The lower reference lives inside a clipped, transformed Scripture stage.
+// Floating lists must use the top layer and fit the visual viewport on phones.
+const menuPlacementContext = { window: {}, document: {} };
+vm.createContext(menuPlacementContext);
+vm.runInContext(`${extractFunction("positionPresentationBibleMenus")}; globalThis.positionMenus = positionPresentationBibleMenus;`, menuPlacementContext);
+for (const sample of [
+  { width: 1280, height: 720, left: 14, top: 490, bottom: 518, version: true },
+  { width: 390, height: 844, left: 24, top: 470, bottom: 498, version: false },
+  { width: 844, height: 390, left: 800, top: 240, bottom: 268, version: true },
+  { width: 320, height: 480, left: 280, top: 18, bottom: 46, version: false },
+]) {
+  let shown = false;
+  const attributes = {};
+  const style = {};
+  const trigger = { getBoundingClientRect: () => sample };
+  const menu = {
+    style,
+    parentElement: { querySelector: () => trigger },
+    classList: { contains: () => sample.version },
+    setAttribute: (name, value) => { attributes[name] = value; },
+    matches: () => shown,
+    showPopover: () => { shown = true; },
+    getBoundingClientRect: () => ({ height: Math.min(650, parseFloat(style.maxHeight)) }),
+  };
+  menuPlacementContext.window = { innerWidth: sample.width, innerHeight: sample.height };
+  menuPlacementContext.document = { querySelectorAll: () => [menu] };
+  menuPlacementContext.positionMenus();
+  assert.equal(attributes.popover, "manual");
+  assert.equal(shown, true);
+  assert.ok(parseFloat(style.left) >= 8);
+  assert.ok(parseFloat(style.left) + parseFloat(style.width) <= sample.width - 8);
+  assert.ok(parseFloat(style.top) >= 8);
+  assert.ok(parseFloat(style.top) + Math.min(650, parseFloat(style.maxHeight)) <= sample.height - 8);
+}
+console.log("Big Screen floating menu viewport checks passed");
