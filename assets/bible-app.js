@@ -5176,6 +5176,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.18": [
+      "Search now offers clickable question examples and meaning matches for topics and everyday requests.",
+      "Answer from Scripture cards use a dedicated answer library with new faith, anxiety, forgiveness, and event answers.",
+      "Question matching distinguishes who, where, how, and why to keep answers relevant.",
+    ],
     "2026.10.31.17": [
       "Bible search now includes NIV, NIrV, NASB, and AMP, including phrases such as alive and active.",
     ],
@@ -21048,6 +21053,13 @@ function closeStudyPopup(immediate = false, restoreFocus = false) {
   animateBeforeRemoval("#studyPopup", () => popup.remove(), { duration: 180 });
 }
 
+function searchGuidanceMarkup() {
+  const examples = ["Who built the ark?", "What is faith?", "What does the Bible say about anxiety?"];
+  return `<div class="search-guidance"><p>Ask a Bible question, enter a topic, or search remembered words.</p>
+    <div class="search-examples">${examples.map((query) => `<button type="button" class="ghost-btn" data-search-example="${escapeHtml(query)}">${escapeHtml(query)}</button>`).join("")}</div>
+    <p class="muted">Some questions have an Answer from Scripture with a supporting passage. Other questions and topics return related passages. Meaning matches need an internet connection. Use quotation marks for an exact phrase.</p></div>`;
+}
+
 function searchResultsMarkup() {
   const query = state.searchResultsQuery;
   if (normalizedSearchSource(state.searchResultsSource) === "strongs") {
@@ -21062,19 +21074,20 @@ function searchResultsMarkup() {
   const searchChapter = state.searchResultsChapter || state.reference;
   const scopeLabel = searchScopeLabel(scope, searchChapter);
   if (!query) {
-    return `<div class="empty-state">Try John 3:16, remembered words, or a topic. You can also ask a question such as “Who built the ark?”</div>`;
+    return searchGuidanceMarkup();
   }
-  const eligibleQuestions = (window.bibleTriviaQuestions || []).filter((question) => (
+  const eligibleQuestions = (window.bibleSearchAnswers || []).filter((question) => (
     referenceMatchesSearchScope(question?.reference, scope, searchChapter)
   ));
-  const verifiedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, eligibleQuestions);
+  const matchedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, eligibleQuestions);
+  const verifiedAnswer = matchedAnswer && referenceMatchesSearchScope(matchedAnswer.reference, scope, searchChapter) ? matchedAnswer : null;
   const strongLookup = strongSearchShortcutMarkup(query);
   if (!state.searchResults.length && !verifiedAnswer && !state.searchPending) {
-    return `${strongLookup}<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>`;
+    return `${strongLookup}<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>${searchGuidanceMarkup()}`;
   }
   const answerMarkup = verifiedAnswer ? `
-    <article class="verified-answer" aria-label="Verified answer">
-      <div class="verified-answer-label">Verified answer</div>
+    <article class="verified-answer" aria-label="Answer from Scripture">
+      <div class="verified-answer-label">Answer from Scripture</div>
       <strong class="verified-answer-text">${escapeHtml(verifiedAnswer.answer)}</strong>
       ${verifiedAnswer.explanation ? `<p>${escapeHtml(verifiedAnswer.explanation)}</p>` : ""}
       <button class="verified-answer-reference" type="button" data-goto="${escapeHtml(verifiedAnswer.reference)}" data-search-result="true">
@@ -21106,6 +21119,7 @@ function searchResultsMarkup() {
   return `
     ${strongLookup}
     ${answerMarkup}
+    <details class="search-guidance-disclosure"><summary>Tips for questions and topics</summary>${searchGuidanceMarkup()}</details>
     ${passageMarkup}
     ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages in ${escapeHtml(scopeLabel)}…</div>` : ""}
   `;
@@ -24194,6 +24208,11 @@ function bindEvents() {
       event.preventDefault();
       runReferenceOrPhraseSearch(event.currentTarget.value, { sourceInputId: "referenceInput" });
     }
+  });
+  document.querySelectorAll("[data-search-example]").forEach((button) => {
+    button.addEventListener("click", () => runReferenceOrPhraseSearch(button.dataset.searchExample, {
+      source: "scripture",
+    }));
   });
   document.querySelectorAll("[data-search-scope-trigger]").forEach((trigger) => {
     trigger.addEventListener("click", (event) => {
@@ -28579,7 +28598,7 @@ async function searchRemoteVersions(query, criteria, scope = "all", currentChapt
 
 async function searchSemanticBible(query, criteria, scope = "all", currentChapter = "") {
   if (window.bsbOffline?.active) return [];
-  if (!criteria.questionAnalysis?.isQuestion) return [];
+  if (criteria.exactRequested || !String(query).trim() || String(query).length > 160) return [];
   const config = window.BigScreenBibleSupabase || {};
   const url = supabaseFunctionUrl("semantic-bible-search");
   if (!url || !config.anonKey) return [];

@@ -69,3 +69,41 @@ assert.equal(liveArkAnswer.reference, "Genesis 6:13-22");
 assert.equal(search.matchVerifiedAnswer("Who defeated Goliath?", context.window.bibleTriviaQuestions).answer, "David");
 
 console.log("Question-aware search tests passed");
+
+vm.runInContext(readFileSync(new URL("../assets/search-answers.js", import.meta.url), "utf8"), context);
+const answers = context.window.bibleSearchAnswers;
+assert.equal(search.matchVerifiedAnswer("Tell me who built the ark", answers).answer, "Noah");
+assert.equal(search.matchVerifiedAnswer("Please help me find where Jesus was born", answers).answer, "Bethlehem");
+assert.match(search.matchVerifiedAnswer("How did David defeat Goliath?", answers).answer, /sling/);
+assert.match(search.matchVerifiedAnswer("Why did Noah build the ark?", answers).answer, /commanded/);
+assert.equal(search.matchVerifiedAnswer("Where built the ark?", answers), null);
+assert.equal(search.matchVerifiedAnswer("Who built the ark of the covenant?", answers), null);
+assert.equal(search.matchVerifiedAnswer("Why is faith?", answers), null);
+assert.equal(search.matchVerifiedAnswer("What is faith?", answers).reference, "Hebrews 11:1");
+assert.equal(search.matchVerifiedAnswer("What does the Bible say about anxiety?", answers).reference, "Philippians 4:6-7");
+assert.equal(search.matchVerifiedAnswer("Who constructed the boat?", answers).answer, "Noah");
+assert.equal(search.matchVerifiedAnswer("Who won the World Series?", answers), null);
+for (const entry of answers) {
+  assert.ok(entry.question && entry.answer && entry.reference);
+}
+console.log("Independent Scripture answer library and intent checks passed");
+
+const appSource = readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
+const semanticStart = appSource.indexOf("async function searchSemanticBible(");
+const semanticEnd = appSource.indexOf("\nasync function searchRemoteVersion(", semanticStart);
+let requests = 0;
+const semanticContext = vm.createContext({
+  window: { BigScreenBibleSupabase: { anonKey: "test-public-key" } },
+  supabaseFunctionUrl: () => "https://example.test/semantic-bible-search",
+  AbortController, setTimeout, clearTimeout,
+  referenceMatchesSearchScope: () => true,
+  fetch: async () => { requests++; return { ok: true, json: async () => ({ results: [{ ref: "Philippians 4:6-7", text: "Do not be anxious", score: 0.8 }] }) }; },
+});
+vm.runInContext(appSource.slice(semanticStart, semanticEnd), semanticContext);
+assert.equal((await semanticContext.searchSemanticBible("anxiety", {})).length, 1);
+assert.equal((await semanticContext.searchSemanticBible("Tell me about faith", {})).length, 1);
+assert.equal((await semanticContext.searchSemanticBible('"love one another"', { exactRequested: true })).length, 0);
+semanticContext.window.bsbOffline = { active: true };
+assert.equal((await semanticContext.searchSemanticBible("anxiety", {})).length, 0);
+assert.equal(requests, 2);
+console.log("Topic retrieval, exact phrase, and offline checks passed");

@@ -27598,3 +27598,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   min-height: 24px;
   padding-block: 0;
 }
+
+.search-guidance { padding: 0.5rem 0; }
+.search-guidance p { line-height: 1.5; }
+.search-examples { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.search-examples button { white-space: normal; text-align: start; }

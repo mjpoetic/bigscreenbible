@@ -14,6 +14,7 @@ const releaseManagedFiles = [
   "assets/bible-app.js",
   "assets/crossrefs.js",
   "assets/search-query.js",
+  "assets/search-answers.js",
   "assets/hebrew-occurrences.js",
   "assets/supabase-config.js",
   "assets/theme-catalog.js",

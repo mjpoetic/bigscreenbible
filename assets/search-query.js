@@ -61,8 +61,18 @@
       .trim();
   }
 
+  function questionText(value) {
+    return String(value || "").trim().replace(/[’']/g, "")
+      .replace(/^(?:please\s+)?(?:tell me|show me|help me (?:find|understand)|explain)(?:\s+about)?\s+/i, "");
+  }
+
+  function questionIntent(value) {
+    const text = questionText(value).toLowerCase();
+    return text.match(/^(who|whom|whose|what|where|when|why|how|which)\b/)?.[1] || "";
+  }
+
   function naturalQuestion(value) {
-    const text = String(value || "").trim().replace(/[’']/g, "");
+    const text = questionText(value);
     return /\?$/.test(text) || questionStarts.test(text) || questionFrames.test(text);
   }
 
@@ -71,7 +81,7 @@
   }
 
   function analyze(value) {
-    const normalized = normalize(value);
+    const normalized = normalize(questionText(value));
     const isQuestion = naturalQuestion(value);
     const allTokens = normalized.split(" ").filter((token) => token.length > 1);
     if (!isQuestion) {
@@ -87,7 +97,7 @@
       seenFamilies.add(key);
       return unique(family || [token]);
     }).filter(Boolean);
-    return { isQuestion: true, normalized, coreTokens: effectiveTokens, concepts };
+    return { isQuestion: true, intent: questionIntent(value), normalized, coreTokens: effectiveTokens, concepts };
   }
 
   function levenshtein(a, b, limit = 2) {
@@ -148,6 +158,7 @@
 
   function answerSimilarity(queryAnalysis, candidateAnalysis) {
     if (!queryAnalysis?.isQuestion || !candidateAnalysis?.isQuestion) return 0;
+    if (queryAnalysis.intent && candidateAnalysis.intent && queryAnalysis.intent !== candidateAnalysis.intent) return 0;
     if (queryAnalysis.normalized === candidateAnalysis.normalized) return 1;
     if (queryAnalysis.concepts.length < 2 || candidateAnalysis.concepts.length < 2) return 0;
     const matchedQuery = queryAnalysis.concepts.filter((queryConcept) => (
@@ -183,7 +194,7 @@
         return {
           category: item.category,
           question: item.question,
-          variants: override.variants || [],
+          variants: override.variants || item.variants || [],
           answer: override.answer || item.answer,
           reference: override.reference || item.reference,
           explanation: override.explanation || item.explanation || "",

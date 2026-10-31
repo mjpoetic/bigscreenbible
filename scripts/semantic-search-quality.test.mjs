@@ -6,7 +6,7 @@ assert.ok(Array.isArray(fixtures));
 assert.ok(fixtures.length >= 20);
 assert.equal(new Set(fixtures.map((fixture) => fixture.query.toLowerCase())).size, fixtures.length);
 fixtures.forEach((fixture) => {
-  assert.ok(typeof fixture.query === "string" && fixture.query.endsWith("?"));
+  assert.ok(typeof fixture.query === "string" && fixture.query.trim().length > 0);
   assert.ok(Array.isArray(fixture.expected) && fixture.expected.length >= 1);
   fixture.expected.forEach((reference) => assert.match(reference, /^(?:[1-3]\s)?[A-Za-z]+(?: [A-Za-z]+)* \d+:\d/));
 });
