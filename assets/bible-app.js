@@ -5114,6 +5114,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.1": [
+      "Focus Mode now shows a liquid-glass passage notch as you scroll, with the current book, chapter, and visible verse and one-tap access to the verse picker.",
+      "The Focus verse picker centers below the notch in every orientation, with a rotating arrow, smooth opening animation, and gently dimmed surroundings.",
+    ],
     "2026.10.29.4": [
       "Small and medium iOS widgets shrink longer passages before adding an ellipsis. iOS Home Screen widgets also follow the Reader Scripture font, with cached Google Fonts and a readable fallback when unavailable.",
     ],
