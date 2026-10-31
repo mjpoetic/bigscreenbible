@@ -5174,6 +5174,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.10": [
+      "The Bible version sits closer beneath the reference in left-aligned Big Screen layouts, while the inline share button retains its larger touch target.",
+    ],
     "2026.10.31.9": [
       "Left-aligned Big Screen layouts keep the passage reference, part count, and share button on one line on phones, tablets, and desktop. The Bible version stays on the second line.",
     ],

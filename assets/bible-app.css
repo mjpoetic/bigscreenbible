@@ -27504,3 +27504,19 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 #app .presentation[data-text-alignment="left"] .presentation-reference-mobile-share {
   display: none;
 }
+
+/* Keep the version close to the text baseline, without letting the share
+   button's larger touch target add an empty-looking line between rows. */
+#app .presentation[data-text-alignment="left"] .presentation-ref {
+  gap: 2px;
+}
+#app .presentation[data-text-alignment="left"] .presentation-reference-controls {
+  min-height: 24px;
+}
+#app .presentation[data-text-alignment="left"] .presentation-reference-share-inline {
+  margin-block: -10px;
+}
+#app .presentation[data-text-alignment="left"] .presentation-title-version-control .presentation-version-picker-toggle {
+  min-height: 24px;
+  padding-block: 0;
+}
