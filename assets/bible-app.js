@@ -3533,18 +3533,18 @@ function focusVersePickerPanel() {
       <div class="focus-mini-verse-picker-grid">
         <div class="focus-picker-field">
           <span>Book</span>
-          ${settingsChoiceMarkup("focusMiniBookSelect", picker.book, picker.availableBooks.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Book" })}
+          ${settingsChoiceMarkup("focusMiniBookSelect", picker.book, picker.availableBooks.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Book", editable: true })}
         </div>
         <div class="focus-picker-field">
           <span>Chapter</span>
-          ${settingsChoiceMarkup("focusMiniChapterSelect", picker.chapter, picker.chapters.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Chapter" })}
+          ${settingsChoiceMarkup("focusMiniChapterSelect", picker.chapter, picker.chapters.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Chapter", editable: true })}
         </div>
         <div class="focus-picker-field">
           <span>Verse</span>
-          ${settingsChoiceMarkup("focusMiniVerseSelect", picker.verse, picker.verses.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Verse" })}
+          ${settingsChoiceMarkup("focusMiniVerseSelect", picker.verse, picker.verses.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Verse", editable: true })}
         </div>
       </div>
-      <button type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
+      <button id="focusMiniPickerGo" type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
     </form>
   `;
 }
@@ -4016,10 +4016,16 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
             ${choice.previewColors?.length ? `data-preview-colors="${escapeHtml(choice.previewColors.join(","))}"` : ""}>${escapeHtml(choice.nativeLabel || choice.label)}</option>
         `).join("")}
       </select>
+      ${config.editable ? `
+      <div class="settings-choice-toggle passage-combobox">
+        <input id="${id}Input" data-passage-combobox role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${menuId}" aria-label="${escapeHtml(config.ariaLabel)}" value="${escapeHtml(normalizedValue)}" autocomplete="off" spellcheck="false" ${config.ariaLabel !== "Book" ? 'inputmode="numeric"' : ''}>
+        <button type="button" class="passage-combobox-arrow" data-passage-arrow aria-label="Show all ${config.ariaLabel.toLowerCase()} choices" tabindex="-1"><span class="settings-choice-chevron" aria-hidden="true"></span></button>
+      </div>` : `
       <button class="settings-choice-toggle" id="${id}Toggle" type="button" ${config.disabled ? 'disabled aria-disabled="true"' : ""} data-settings-choice-toggle aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}, ${escapeHtml(selectedChoice?.nativeLabel || selectedChoice?.label || "")}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}">
         <span class="settings-choice-selected">${settingsChoiceOptionContent(selectedChoice || { label: "" }, { compact: true })}</span>
         <span class="settings-choice-chevron" aria-hidden="true"></span>
       </button>
+      `}
     </div>
   `;
 }
@@ -4146,6 +4152,8 @@ function closeSettingsChoiceMenu(options = {}) {
   if (!activeSettingsChoiceMenu) return;
   const { menu, trigger } = activeSettingsChoiceMenu;
   menu.remove();
+  activeSettingsChoiceMenu.cleanup?.();
+  trigger?.removeAttribute("aria-activedescendant");
   trigger?.setAttribute("aria-expanded", "false");
   document.removeEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
   window.removeEventListener("resize", closeSettingsChoiceMenu);
@@ -4362,7 +4370,129 @@ function openSettingsChoiceMenu(trigger) {
   });
 }
 
+function passageChoiceMatches(options, query) {
+  const normalized = String(query).toLowerCase().replace(/\s+/g, "");
+  return Array.from(options).filter((option) => !option.disabled
+    && option.label.toLowerCase().replace(/\s+/g, "").startsWith(normalized));
+}
+
+function bindPassageComboboxes() {
+  document.querySelectorAll("[data-passage-combobox]").forEach((input) => {
+    const root = input.closest("[data-settings-choice]");
+    const select = root.querySelector("select");
+    const arrow = root.querySelector("[data-passage-arrow]");
+    let activeIndex = -1;
+    let visible = [];
+    const commit = (value, focusId = input.id) => {
+      closeSettingsChoiceMenu();
+      input.value = value;
+      input.setCustomValidity("");
+      if (select.value === value) return;
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      document.getElementById(focusId)?.focus({ preventScroll: true });
+    };
+    const show = (all = false) => {
+      closeSettingsChoiceMenu();
+      visible = passageChoiceMatches(select.options, all ? "" : input.value);
+      activeIndex = -1;
+      const menu = document.createElement("div");
+      menu.id = input.getAttribute("aria-controls");
+      menu.className = "settings-choice-menu bible-picker-choice-menu";
+      menu.setAttribute("role", "listbox");
+      menu.setAttribute("aria-label", input.getAttribute("aria-label"));
+      visible.forEach((option, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "settings-choice-option";
+        button.id = `${menu.id}Option${index}`;
+        button.tabIndex = -1;
+        button.setAttribute("role", "option");
+        button.setAttribute("aria-selected", "false");
+        button.textContent = option.label;
+        button.addEventListener("pointerdown", (event) => event.preventDefault());
+        button.addEventListener("click", () => commit(option.value));
+        menu.appendChild(button);
+      });
+      if (!visible.length) {
+        const empty = document.createElement("div");
+        empty.className = "passage-combobox-empty";
+        empty.setAttribute("role", "status");
+        empty.textContent = "No matches";
+        menu.appendChild(empty);
+      }
+      document.body.appendChild(menu);
+      input.setAttribute("aria-expanded", "true");
+      const reposition = () => positionSettingsChoiceMenu(root, menu);
+      activeSettingsChoiceMenu = { menu, trigger: root, select, cleanup: () => {
+        input.setAttribute("aria-expanded", "false");
+        input.removeAttribute("aria-activedescendant");
+        window.visualViewport?.removeEventListener("resize", reposition);
+        window.removeEventListener("resize", reposition);
+      } };
+      document.addEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
+      window.addEventListener("resize", reposition);
+      window.visualViewport?.addEventListener("resize", reposition);
+      reposition();
+    };
+    input.addEventListener("focus", () => { input.select(); });
+    input.addEventListener("click", () => show(input.value === select.value));
+    input.addEventListener("input", () => { input.setCustomValidity(""); show(); });
+    arrow.addEventListener("pointerdown", (event) => event.preventDefault());
+    arrow.addEventListener("click", () => {
+      if (activeSettingsChoiceMenu?.trigger === root) closeSettingsChoiceMenu();
+      else { input.focus({ preventScroll: true }); show(true); }
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.isComposing) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        input.value = select.value;
+        input.setCustomValidity("");
+        closeSettingsChoiceMenu();
+      } else if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        if (activeSettingsChoiceMenu?.trigger !== root) show(input.value === select.value);
+        activeIndex = Math.max(0, Math.min(visible.length - 1,
+          activeIndex < 0 ? (event.key === "ArrowDown" ? 0 : visible.length - 1) : activeIndex + (event.key === "ArrowDown" ? 1 : -1)));
+        const buttons = activeSettingsChoiceMenu.menu.querySelectorAll('[role="option"]');
+        buttons.forEach((button, index) => {
+          button.setAttribute("aria-selected", String(index === activeIndex));
+          button.classList.toggle("active", index === activeIndex);
+        });
+        const active = buttons[activeIndex];
+        if (active) {
+          input.setAttribute("aria-activedescendant", active.id);
+          active.scrollIntoView({ block: "nearest" });
+        }
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const matches = passageChoiceMatches(select.options, input.value);
+        const choice = activeSettingsChoiceMenu?.trigger === root && activeIndex >= 0
+          ? visible[activeIndex] : matches.find((option) => option.value.toLowerCase() === input.value.trim().toLowerCase()) || (matches.length === 1 ? matches[0] : null);
+        if (choice) commit(choice.value);
+        else show();
+      }
+    });
+    input.addEventListener("blur", (event) => {
+      const matches = passageChoiceMatches(select.options, input.value);
+      const choice = matches.find((option) => option.value.toLowerCase() === input.value.trim().toLowerCase()) || (matches.length === 1 ? matches[0] : null);
+      closeSettingsChoiceMenu();
+      if (choice) commit(choice.value, event.relatedTarget?.id || "");
+      else input.value = select.value;
+      input.setCustomValidity("");
+    });
+  });
+  document.getElementById("focusMiniPickerGo")?.addEventListener("pointerdown", (event) => {
+    // Keep the submit button connected until its click submits the typed value.
+    if (!document.activeElement?.matches("[data-passage-combobox]")) return;
+    event.preventDefault();
+  });
+}
+
 function bindSettingsChoiceMenus() {
+  bindPassageComboboxes();
   document.querySelectorAll("[data-settings-choice-toggle]").forEach((trigger) => {
     trigger.addEventListener("click", () => openSettingsChoiceMenu(trigger));
     trigger.addEventListener("keydown", (event) => {
@@ -23047,6 +23177,17 @@ function bindEvents() {
   });
   document.getElementById("focusMiniVersePickerForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
+    const typing = document.activeElement;
+    if (typing?.matches("[data-passage-combobox]")) {
+      const select = typing.closest("[data-settings-choice]").querySelector("select");
+      const matches = passageChoiceMatches(select.options, typing.value);
+      if (!matches.some((option) => option.value.toLowerCase() === typing.value.trim().toLowerCase()) && matches.length !== 1) {
+        typing.setCustomValidity(matches.length ? "Choose one of the matching options." : "Choose an available option.");
+        typing.reportValidity();
+        return;
+      }
+      typing.blur();
+    }
     const picker = focusVersePickerData();
     resetFocusToolSurfaces();
     gotoReference(`${picker.chapterKey}:${picker.verse}`);

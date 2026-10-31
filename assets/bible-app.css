@@ -27603,3 +27603,36 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .search-guidance p { line-height: 1.5; }
 .search-examples { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .search-examples button { white-space: normal; text-align: start; }
+
+/* Editable passage choices retain the existing picker surface and arrow. */
+.focus-mini-verse-picker .passage-combobox {
+  grid-template-columns: minmax(0, 1fr) 32px;
+  cursor: text;
+}
+.passage-combobox input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+.passage-combobox:focus-within {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.passage-combobox-arrow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  min-height: 36px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.passage-combobox-empty { padding: 12px; color: var(--muted); }

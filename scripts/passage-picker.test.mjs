@@ -49,6 +49,7 @@ context.document = { querySelectorAll: selector => {
   return [menu];
 } };
 menu.clientHeight = 240;
+context.positionPresentationBibleMenus = () => {};
 context.centerOpenBibleMenus = undefined;
 vm.runInContext(extract('centerOpenBibleMenus'), context);
 context.centerOpenBibleMenus();
@@ -74,3 +75,15 @@ context.window.innerWidth = 100;
 context.positionSettingsChoiceMenu(narrowTrigger, narrowMenu);
 assert.equal(narrowMenu.style.width, '84px', 'Minimum width still respects the viewport');
 console.log('Narrow verse dropdown sizing checks passed');
+
+vm.runInContext(extract('passageChoiceMatches'), context);
+const choices = ['Job', 'Joel', 'John', 'Jonah', 'Jeremiah', '1 John', '2 John'].map(label => ({ label, value: label }));
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'jo'), o => o.value), ['Job', 'Joel', 'John', 'Jonah']);
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, ' JE '), o => o.value), ['Jeremiah']);
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, '1j'), o => o.value), ['1 John']);
+assert.equal(context.passageChoiceMatches(choices, 'xyz').length, 0);
+assert.equal(context.passageChoiceMatches(choices, '').length, choices.length);
+const numbers = ['1', '2', '10', '11', '12'].map(label => ({ label, value: label }));
+assert.deepEqual(Array.from(context.passageChoiceMatches(numbers, '1'), o => o.value), ['1', '10', '11', '12']);
+assert.equal(context.passageChoiceMatches(numbers, '99').length, 0);
+console.log('Editable passage choice filtering checks passed');
