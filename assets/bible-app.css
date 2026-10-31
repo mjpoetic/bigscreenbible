@@ -27275,7 +27275,9 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   position: fixed;
   z-index: 45;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, var(--notch-offset, -12px));
+  /* Filter opacity composes scroll progress with the controls’ idle opacity. */
+  filter: opacity(var(--notch-reveal, 0));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -27335,4 +27337,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .app-shell.focus-shell .passage-picker-workspace,
   .focus-picker-backdrop { animation: none; }
   .focus-passage-notch .focus-passage-notch-arrow { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .focus-passage-notch { transform: translateX(-50%); }
 }

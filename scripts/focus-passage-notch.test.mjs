@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const label = {};
-const notch = { style: {}, offsetHeight: 44, querySelector: () => label, setAttribute(key, value) { this[key] = value; } };
+const notch = { style: { setProperty(key, value) { this[key] = value; } }, offsetHeight: 44, querySelector: () => label, setAttribute(key, value) { this[key] = value; } };
 const scripture = { scrollTop: 0, getBoundingClientRect: () => ({ top: 72 }), querySelectorAll: () => [
   { dataset: { verse: '1' }, getBoundingClientRect: () => ({ bottom: 90 }) },
   { dataset: { verse: '2' }, getBoundingClientRect: () => ({ bottom: 180 }) },
@@ -16,6 +16,12 @@ const context = vm.createContext({
 vm.runInContext(`let focusPassageNotchFrame = 0; ${source.slice(source.indexOf('function updateFocusPassageNotch()'), source.indexOf('function scheduleFocusPassageNotch()'))}`, context);
 context.updateFocusPassageNotch();
 assert.equal(notch.hidden, true, 'The chapter top needs no floating notch');
+assert.equal(notch.inert, true, 'An invisible notch cannot receive focus or taps');
+for (const [scroll, expected] of [[30, 0.15625], [60, 0.5], [90, 0.84375], [120, 1], [60, 0.5], [0, 0]]) {
+  scripture.scrollTop = scroll;
+  context.updateFocusPassageNotch();
+  assert.equal(Number(notch.style['--notch-reveal']), expected, 'Reveal tracks scroll in both directions');
+}
 scripture.scrollTop = 100;
 context.updateFocusPassageNotch();
 assert.equal(notch.hidden, false);
@@ -26,6 +32,7 @@ scripture.scrollTop = 0;
 context.state.focusWorkspacePanel = 'Verse';
 context.updateFocusPassageNotch();
 assert.equal(notch.hidden, false, 'An open picker keeps its anchor visible');
+assert.equal(notch.style['--notch-reveal'], '1', 'An open picker fully reveals the anchor even at the top');
 console.log('Focus passage notch visibility, placement, and reference checks passed.');
 
 // Keep the notch-centered picker below its anchor even on short landscape screens.

@@ -3284,7 +3284,13 @@ function updateFocusPassageNotch() {
   const header = document.querySelector(".topbar");
   if (!notch || !scripture || !header) return;
   notch.style.top = `${header.getBoundingClientRect().bottom}px`;
-  notch.hidden = scripture.scrollTop <= 24 && state.focusWorkspacePanel !== "Verse";
+  // Scrub the reveal with the gesture instead of toggling at a scroll threshold.
+  const distance = Math.min(1, Math.max(0, scripture.scrollTop / 120));
+  const progress = state.focusWorkspacePanel === "Verse" ? 1 : distance * distance * (3 - 2 * distance);
+  notch.style.setProperty("--notch-reveal", String(progress));
+  notch.style.setProperty("--notch-offset", `${(1 - progress) * -12}px`);
+  notch.hidden = progress === 0;
+  notch.inert = progress < 0.15;
   if (notch.hidden) return;
   const top = Math.max(scripture.getBoundingClientRect().top, header.getBoundingClientRect().bottom + notch.offsetHeight);
   const verse = [...scripture.querySelectorAll("[data-verse]")].find(row => row.getBoundingClientRect().bottom > top + 4)?.dataset.verse;
@@ -5114,6 +5120,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.2": [
+      "The Focus passage notch now fades and slides into view in step with scrolling, gently receding as you return to the top of the chapter.",
+    ],
     "2026.10.31.1": [
       "Focus Mode now shows a liquid-glass passage notch as you scroll, with the current book, chapter, and visible verse and one-tap access to the verse picker.",
       "The Focus verse picker centers below the notch in every orientation, with a rotating arrow, smooth opening animation, and gently dimmed surroundings.",
