@@ -107,3 +107,37 @@ semanticContext.window.bsbOffline = { active: true };
 assert.equal((await semanticContext.searchSemanticBible("anxiety", {})).length, 0);
 assert.equal(requests, 2);
 console.log("Topic retrieval, exact phrase, and offline checks passed");
+
+const wisdom = search.analyze("What does the Bible say about wisdom?");
+assert.equal(wisdom.isTopical, true);
+assert.deepEqual([...wisdom.coreTokens], ["wisdom"]);
+assert.ok(search.scoreText("The LORD gives wisdom and understanding.", wisdom));
+assert.equal(search.analyze("Who built the ark?").isTopical, false);
+assert.deepEqual([...search.analyze("What did Jesus say on the cross?").coreTokens], ["jesus", "say", "cross"]);
+assert.equal(search.analyze("Tell me about wisdom").isTopical, true);
+assert.equal(search.analyze("What does Scripture teach about forgiveness?").isTopical, true);
+const rankingStart = appSource.indexOf("function compareSearchResults(");
+const rankingEnd = appSource.indexOf("\nfunction searchVersion(", rankingStart);
+const rankingContext = vm.createContext({
+  state: { versions: ["BSB"] }, translationCodes: ["BSB", "WEB"],
+  uniqueList: (items) => [...new Set(items)],
+});
+vm.runInContext(appSource.slice(rankingStart, rankingEnd), rankingContext);
+const keyword = { ref: "Proverbs 2:5-7", version: "BSB", score: 210, matchType: "Question match" };
+const meaning = { ref: "Proverbs 2:6", version: "WEB", score: 186, matchType: "Meaning match" };
+const criteria = { questionAnalysis: wisdom };
+const rank = (items, c = criteria) => [...items].sort((a, b) => rankingContext.compareSearchResults(a, b, c));
+assert.equal(rank([keyword, meaning])[0], meaning);
+assert.equal(rank([keyword, meaning], { questionAnalysis: search.analyze("Who built the ark?") })[0], keyword);
+assert.equal(rank([keyword, meaning], { exactRequested: true, questionAnalysis: wisdom })[0], keyword);
+assert.equal(rankingContext.removeRedundantSemanticResults(rank([keyword, meaning])).length, 2);
+const sameVersionKeyword = { ...keyword, version: "WEB" };
+const deduped = rankingContext.removeRedundantSemanticResults(rank([sameVersionKeyword, meaning]));
+assert.equal(deduped.length, 1);
+assert.equal(deduped[0], meaning);
+const grouped = rankingContext.groupSearchResults([keyword, { ...meaning, ref: keyword.ref }], "BSB");
+assert.equal(grouped[0].version, "BSB");
+assert.equal(grouped[0].hasMeaningMatch, true);
+assert.equal(grouped[0].matches.length, 2);
+assert.equal(rank([keyword, grouped[0]])[0], grouped[0]);
+console.log("Topical wisdom ranking, factual fallback, exact phrases, overlap, and translation grouping passed");

@@ -83,9 +83,13 @@
   function analyze(value) {
     const normalized = normalize(questionText(value));
     const isQuestion = naturalQuestion(value);
-    const allTokens = normalized.split(" ").filter((token) => token.length > 1);
+    // Remove the request frame, not meaningful verbs elsewhere in the question.
+    const topicMatch = normalized.match(/^(?:what (?:does|do) (?:the bible|scripture|god|jesus) (?:say|teach) about|(?:tell|show) me about|(?:bible|scripture) (?:verses|passages) (?:about|on)) (.+)$/);
+    const topicText = topicMatch?.[1] || normalized;
+    const isTopical = Boolean(topicMatch) || /^(?:please\s+)?(?:tell me about|show me (?:verses|passages) (?:about|on)|help me (?:find|understand))\b/i.test(String(value).trim());
+    const allTokens = topicText.split(" ").filter((token) => token.length > 1);
     if (!isQuestion) {
-      return { isQuestion: false, normalized, coreTokens: allTokens, concepts: [] };
+      return { isQuestion: false, isTopical, normalized, coreTokens: allTokens, concepts: [] };
     }
     const coreTokens = allTokens.filter((token) => !stopWords.has(token));
     const effectiveTokens = coreTokens.length ? coreTokens : allTokens;
@@ -97,7 +101,7 @@
       seenFamilies.add(key);
       return unique(family || [token]);
     }).filter(Boolean);
-    return { isQuestion: true, intent: questionIntent(value), normalized, coreTokens: effectiveTokens, concepts };
+    return { isQuestion: true, isTopical, intent: questionIntent(value), normalized, coreTokens: effectiveTokens, concepts };
   }
 
   function levenshtein(a, b, limit = 2) {

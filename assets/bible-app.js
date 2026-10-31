@@ -5176,6 +5176,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.19": [
+      "Topical Bible questions prioritize meaning matches and ignore introductory wording when matching keywords.",
+      "Overlapping search results retain the higher-ranked passage while preserving evidence from other translations.",
+    ],
     "2026.10.31.18": [
       "Search now offers clickable question examples and meaning matches for topics and everyday requests.",
       "Answer from Scripture cards use a dedicated answer library with new faith, anxiety, forgiveness, and event answers.",
@@ -28429,7 +28433,7 @@ async function searchBible(query, requestedScope = state.searchScope, requestedC
   const results = [...localResults, ...remoteResults, ...semanticResults];
   const seen = new Set();
   const ranked = results
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => compareSearchResults(a, b, criteria))
     .filter((result) => {
       if (!referenceMatchesSearchScope(result.goto || result.ref, scope, searchChapter)) return false;
       const key = `${result.ref}-${result.version}`;
@@ -28437,7 +28441,20 @@ async function searchBible(query, requestedScope = state.searchScope, requestedC
       seen.add(key);
       return true;
     });
-  return groupSearchResults(removeRedundantSemanticResults(ranked), primaryVersion).slice(0, 40);
+  return groupSearchResults(removeRedundantSemanticResults(ranked), primaryVersion)
+    .sort((a, b) => compareSearchResults(a, b, criteria)).slice(0, 40);
+}
+
+// Topic requests benefit from semantic relevance; factual questions retain keyword evidence.
+function compareSearchResults(left, right, criteria) {
+  if (!criteria.exactRequested && criteria.questionAnalysis?.isTopical) {
+    const meaningPriority = Number(right.hasMeaningMatch || right.matchType === "Meaning match") - Number(left.hasMeaningMatch || left.matchType === "Meaning match");
+    if (meaningPriority) return meaningPriority;
+    if ((left.hasMeaningMatch || left.matchType === "Meaning match") && (right.hasMeaningMatch || right.matchType === "Meaning match")) {
+      return (right.meaningScore ?? right.score ?? 0) - (left.meaningScore ?? left.score ?? 0);
+    }
+  }
+  return (right.groupScore ?? right.score ?? 0) - (left.groupScore ?? left.score ?? 0);
 }
 
 // Keep every matching translation together before applying the visible-result limit.
@@ -28461,7 +28478,7 @@ function groupSearchResults(results, primaryVersion) {
       return preferred || (b.score || 0) - (a.score || 0)
         || versionOrder.indexOf(a.version) - versionOrder.indexOf(b.version);
     });
-    return { ...matches[0], matches, groupScore: Math.max(...matches.map((match) => match.score || 0)) };
+    return { ...matches[0], matches, hasMeaningMatch: matches.some((match) => match.matchType === "Meaning match"), meaningScore: Math.max(0, ...matches.filter((match) => match.matchType === "Meaning match").map((match) => match.score || 0)), groupScore: Math.max(...matches.map((match) => match.score || 0)) };
   }).sort((a, b) => b.groupScore - a.groupScore);
 }
 
@@ -28485,8 +28502,12 @@ function searchReferencesOverlap(left, right) {
 function removeRedundantSemanticResults(results) {
   const kept = [];
   results.forEach((result) => {
-    const duplicatesEvidence = result.matchType === "Meaning match" && kept.some((candidate) => (
-      candidate.matchType !== "Meaning match" && searchReferencesOverlap(candidate.ref, result.ref)
+    // Results already have relevance order. Keep the first overlapping result
+    // within a translation, preserving other translations as additional evidence.
+    const duplicatesEvidence = kept.some((candidate) => (
+      candidate.version === result.version
+      && (candidate.matchType === "Meaning match") !== (result.matchType === "Meaning match")
+      && searchReferencesOverlap(candidate.ref, result.ref)
     ));
     if (!duplicatesEvidence) kept.push(result);
   });

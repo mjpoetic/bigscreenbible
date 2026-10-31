@@ -185,5 +185,15 @@
     "expected": [
       "Genesis 6:13-22"
     ]
+  },
+  {
+    "query": "What does the Bible say about wisdom?",
+    "expected": [
+      "Proverbs 2:6",
+      "Proverbs 4:7",
+      "Proverbs 9:10",
+      "James 1:5",
+      "James 3:13-17"
+    ]
   }
 ]
