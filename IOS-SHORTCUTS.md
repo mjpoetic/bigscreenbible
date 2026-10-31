@@ -1,34 +1,32 @@
 # Siri and Apple Shortcuts
 
-Requires an iOS app build containing `BSBAppShortcuts.swift` and iOS 16 or later.
-The app's existing iOS 15 support remains available without these actions.
+Build 8 adds interactive Scripture cards on iOS 26 and later, including iOS 27.
 
-Three actions appear under Big Screen Bible in Apple Shortcuts:
+## Compact card actions
 
-- **Open Bible Passage** accepts a Passage text parameter (for example, `John 3:16` or `Psalm 23`). Use a fixed reference, Ask Each Time, or text from an earlier action. Siri asks for the passage when it isn't provided.
-- **Show Verse of the Day** opens today's verse using the existing daily-verse route.
-- **Continue Bible Reading** opens the reader at the saved local reading position. If no valid position exists, it opens the current reader passage.
+- **Show Bible Passage** displays bundled KJV Scripture without opening the full app. Enter a full book name and chapter, or a verse/range within one chapter: `John 3:16`, `Psalm 23`, or `1 Corinthians 13:4–7`. Cards support up to 40 verses and return text for later Shortcuts steps. Invalid references show an error rather than opening an unrelated passage.
+- **Show Verse of the Day** retrieves the existing daily verse. If the service cannot be reached, a cached verse for today or a clearly labeled bundled offline selection is used. The service request has an eight-second timeout.
+- Both cards include **Open in Big Screen Bible**, which opens that specific passage and translation in the reader.
 
-Example Siri phrases:
+Try “Siri, show a passage in Big Screen Bible” (then provide a reference), or “Siri, show today's verse in Big Screen Bible.”
 
-- “Open a passage in Big Screen Bible.”
-- “Show today's verse in Big Screen Bible.”
-- “Continue reading in Big Screen Bible.”
+Siri AI controls its presentation and may show its own text response instead of the custom card. The actions return both Scripture text and a dialog for that case. Card appearance and Siri recognition still require physical-device verification.
 
-All actions open the app; they do not return Scripture text or speak it in the background. The daily verse may need a network connection. These are native App Intents; no Siri permission prompt or SiriKit extension is needed.
+## Existing foreground actions
 
-## Release and device verification
+**Open Bible Passage**, **Open Verse of the Day**, and **Continue Bible Reading** still open the full app. The existing daily action's identifier is retained, so saved shortcuts continue to work. These actions remain available from iOS 16; automatic phrase registration requires iOS 17.4 or later. Continue Reading uses the existing saved local chapter and scroll position.
 
-Publish the web change along with the native release: Continue Reading needs the updated `bsbHandleQuickAction` handler. Rebuild and sync bundled web assets before archiving so the offline reader also receives the handler.
+The app refreshes App Shortcut registration on launch. This is not a verified fix for the reported Siri AI phrase recognition failure.
 
-On a physical iPhone with the new build:
+## Device verification
 
-1. Open the app once, then find Big Screen Bible in Shortcuts and confirm all three actions appear.
-2. Run each action with the app active, in the background, and after force quitting.
-3. Ask Siri to open a passage; answer `John 3:16`. Repeat with `Psalm 23` and a numbered book such as `1 Corinthians 13:4–7`.
-4. Run Open Bible Passage with a fixed reference and with text passed from an earlier shortcut step. Check blank input prompts for a reference.
-5. Scroll a chapter, leave the app, then use Continue Reading. Repeat from Verse of the Day, a shared passage, Parallel, and Games. Verify the saved chapter and scroll position return.
-6. Show Verse of the Day with the app's startup preference both enabled and disabled.
-7. Try Continue Reading without a saved position, and with connectivity disabled after the bundled offline reader is available.
+Install build 8 and open the app once. In Shortcuts, add the new **Show** action rather than an existing **Open** action.
 
-Automated navigation regression checks: `npm run test:ios-quick-actions` and `npm run test:native-links`.
+1. Run each Show action with the app closed and confirm the full app stays closed.
+2. Check verse text, reference, translation, and the open-in-app button. Tap the button and verify the same passage opens.
+3. Test John 3:16, Psalm 23, 1 Corinthians 13:4–7, and invalid references. Test a text variable from an earlier shortcut step.
+4. Try Siri's exact Show phrases. If direct phrases fail, save a shortcut named “Daily Scripture,” run it by tapping, then invoke that name through Siri. Record whether recognition or action execution fails.
+5. Disable connectivity and verify the daily fallback label and offline KJV passage card.
+6. Confirm the existing Open and Continue actions still work.
+
+Automated checks: compile and run `scripts/shortcut-scripture.test.swift` with `ios/App/App/ShortcutScripture.swift`, plus `npm run test:ios-quick-actions` and `npm run test:native-links`.
