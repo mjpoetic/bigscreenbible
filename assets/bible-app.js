@@ -73,7 +73,7 @@ const bibleProviders = {
   youVersion: {
     type: "remote",
     edgeFunction: "youversion-passage",
-    supportsSearch: false,
+    supportsSearch: true,
     showsAttribution: true,
   },
 };
@@ -5176,6 +5176,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.17": [
+      "Bible search now includes NIV, NIrV, NASB, and AMP, including phrases such as alive and active.",
+    ],
     "2026.10.31.16": [
       "Double-tap or double-click the logo in Reader or Parallel to open Big Screen with your selected verse, including in Focus Mode. A single tap still opens Verse of the Day, and a hold opens Bible versions.",
     ],
@@ -28622,7 +28625,7 @@ async function searchRemoteVersion(version, query, criteria, scope = "all", curr
   if (window.bsbOffline?.active) return [];
   const provider = translationProvider(version);
   const config = window.BigScreenBibleSupabase || {};
-  const params = provider === bibleProviders.apiBible
+  const params = provider === bibleProviders.apiBible || provider === bibleProviders.youVersion
     ? { action: "search", version, query, exact: criteria.exactRequested ? "true" : "false" }
     : { action: "search", query, exact: criteria.exactRequested ? "true" : "false" };
   const url = supabaseFunctionUrl(provider.edgeFunction, params);
@@ -33152,7 +33155,7 @@ async function fetchVerseOfDayItem() {
 function remoteFunctionUrl(version, chapterKey) {
   const provider = translationProvider(version);
   if (!provider.edgeFunction) return "";
-  const params = provider === bibleProviders.apiBible || provider === bibleProviders.youVersion
+  const params = provider === bibleProviders.apiBible || provider === bibleProviders.youVersion || provider === bibleProviders.youVersion
     ? { version, ref: chapterKey }
     : { ref: chapterKey };
   return supabaseFunctionUrl(provider.edgeFunction, params);

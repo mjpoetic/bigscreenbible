@@ -11,7 +11,7 @@ vm.runInContext(source.slice(start, end), context);
 const evaluate = (expression) => vm.runInContext(expression, context);
 for (const version of ['NIV', 'NASB2020']) {
   assert.equal(evaluate(`translationProvider('${version}').edgeFunction`), 'youversion-passage');
-  assert.equal(evaluate(`translationProvider('${version}').supportsSearch`), false);
+  assert.equal(evaluate(`translationProvider('${version}').supportsSearch`), true);
   assert.equal(evaluate(`translationProvider('${version}').tracksFums`), undefined);
   // Exercise the documented rollback without changing stored translation codes.
   evaluate(`translationLookup['${version}'].provider = 'apiBible'`);
@@ -154,3 +154,28 @@ pendingFetches[3].resolve({ok:true,json: async () => ({verses:[{n:1,text:'Fresh 
 await reload;
 assert.equal(cacheEval("bibleData['John 3'].verses[0].NLT"), 'Fresh text');
 console.log('Concurrent remote loads, active-chapter retention, and expired refetch passed');
+
+// Exercise the actual browser request path: all four YouVersion translations
+// must be searched even when the reader currently displays a bundled Bible.
+const searchContext = vm.createContext({
+  window: {BigScreenBibleSupabase: {anonKey: 'test'}},
+  state: {versions: ['BSB']},
+  remoteSearchErrors: new Map(),
+  uniqueList: values => [...new Set(values)],
+  referenceMatchesSearchScope: () => true,
+  scoreSearchText: text => text.includes('alive and active') ? {score: 100, matchType: 'Phrase'} : null,
+  supabaseFunctionUrl: (name, params) => ({name, params}),
+  fetch: async ({name, params}) => {
+    assert.equal(name, 'youversion-passage');
+    assert.ok(['NIV', 'NIRV', 'NASB2020', 'AMP'].includes(params.version));
+    assert.equal(params.query, 'alive and active');
+    return {ok: true, json: async () => ({results: [{ref: 'Hebrews 4:12', text: 'The word of God is alive and active.'}]})};
+  },
+});
+vm.runInContext(source.slice(start, end), searchContext);
+vm.runInContext("translationCodes.splice(0, translationCodes.length, 'BSB', 'NIV', 'NIRV', 'NASB2020', 'AMP')", searchContext);
+vm.runInContext(['searchRemoteVersions', 'searchRemoteVersion'].map(name => 'async ' + extractProviderFunction(name)).join('\n'), searchContext);
+const searchResults = await vm.runInContext("searchRemoteVersions('alive and active', {exactRequested: false})", searchContext);
+assert.deepEqual(Array.from(searchResults, result => result.version).sort(), ['AMP', 'NASB2020', 'NIRV', 'NIV']);
+assert.ok(searchResults.every(result => result.ref === 'Hebrews 4:12'));
+console.log('All-version remote search and YouVersion request routing passed');

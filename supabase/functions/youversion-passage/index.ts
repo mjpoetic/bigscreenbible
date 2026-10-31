@@ -1,3 +1,4 @@
+import { searchYouVersion } from "./search.ts";
 import {
   cleanPlainText,
   cleanQuotedProviderText,
@@ -21,7 +22,7 @@ const corsHeaders = {
 const youVersionBaseUrl = "https://api.youversion.com";
 const authorizedBibleCacheTtlMs = 24 * 60 * 60 * 1000;
 const maximumPassageVerses = 200;
-const maximumSearchQueryLength = 120;
+const maximumSearchQueryLength = 100;
 const maximumSearchResults = 20;
 const parserVersion = "2026-10-08-publisher-footnotes";
 
@@ -443,9 +444,9 @@ Deno.serve(async (request) => {
         bibleName: bible.name,
         abbreviation: bible.abbreviation,
         copyright: bible.copyright,
-        results: [] as unknown[],
+        results: await searchYouVersion(bible.id, searchQuery, (path) => youVersionRequest(path, appKey), maximumSearchResults),
         resultLimit: maximumSearchResults,
-        searchSupported: false,
+        searchSupported: true,
       });
     }
 
