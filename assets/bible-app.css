@@ -27340,10 +27340,10 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .app-shell .focus-picker-settled { animation: none; }
 .app-shell .focus-picker-exiting { pointer-events: none; }
 .app-shell .passage-picker-workspace.focus-picker-exiting {
-  animation: focusPickerIn 240ms cubic-bezier(.2, .7, .2, 1) reverse both;
+  animation: focusPickerOut 260ms cubic-bezier(.2, .7, .2, 1) both;
 }
 .app-shell .focus-picker-backdrop.focus-picker-exiting {
-  animation: focusPickerDimIn 260ms ease-in-out reverse both;
+  animation: focusPickerDimOut 260ms cubic-bezier(.2, .7, .2, 1) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .app-shell.focus-shell .passage-picker-workspace,
@@ -27357,4 +27357,30 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell .focus-picker-exiting { animation: none; visibility: hidden; }
+}
+
+@keyframes focusPickerOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-8px) scale(.97); }
+}
+@keyframes focusPickerDimOut {
+  from { opacity: 1; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  to { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
+}
+/* Preserve the iOS opaque-panel workaround, while allowing an opacity-only
+   fade. Match its ID specificity so the earlier animation:none cannot win. */
+@supports (-webkit-touch-callout: none) {
+  #app .app-shell .passage-picker-workspace:not(.focus-picker-settled) {
+    animation: focusPickerOpacityIn 280ms cubic-bezier(.2, .7, .2, 1) both;
+  }
+  #app .app-shell .passage-picker-workspace.focus-picker-exiting {
+    animation: focusPickerOpacityOut 260ms cubic-bezier(.2, .7, .2, 1) both;
+  }
+}
+@keyframes focusPickerOpacityIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes focusPickerOpacityOut { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  #app .app-shell .passage-picker-workspace,
+  #app .app-shell .focus-picker-backdrop { animation: none; }
+  #app .app-shell .focus-picker-exiting { visibility: hidden; }
 }

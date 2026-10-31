@@ -5167,6 +5167,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.6": [
+      "The Focus verse picker now fades out in sync with its backdrop and arrow on iPhone and iPad, in portrait and landscape.",
+    ],
     "2026.10.31.5": [
       "Tap the Focus passage notch again to close the verse picker, with smooth dialog dismissal, backdrop dimming and blur, and arrow rotation in both directions.",
     ],
