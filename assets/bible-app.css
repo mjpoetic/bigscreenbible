@@ -12792,6 +12792,29 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   backdrop-filter: blur(16px);
 }
 
+.presentation-settings-popover .push-reminder-settings {
+  --ink: #fff;
+  --muted: rgba(255, 255, 255, 0.72);
+  --line: rgba(255, 255, 255, 0.2);
+  --panel: #182321;
+  gap: 10px;
+}
+
+.presentation-settings-popover .push-reminder-settings .setting-checkbox {
+  display: flex;
+  align-items: center;
+  color: var(--ink);
+}
+
+.presentation-settings-popover .push-reminder-settings .setting-label {
+  color: var(--muted);
+}
+
+.presentation-settings-popover .push-reminder-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
 .presentation-settings-popover.open {
   display: grid;
   gap: 12px;

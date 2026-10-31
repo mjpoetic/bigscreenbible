@@ -5306,6 +5306,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.20": [
+      "Big Screen settings now include Notifications, where you can change morning and evening push reminder times and notification choices.",
+    ],
     "2026.10.31.19": [
       "Topical Bible questions prioritize meaning matches and ignore introductory wording when matching keywords.",
       "Overlapping search results retain the higher-ranked passage while preserving evidence from other translations.",
@@ -21901,6 +21904,7 @@ function presentationSettingsDisclosure(key, label, content) {
 const presentationSettingsPages = Object.freeze({
   accessibility: "Accessibility",
   sounds: "Sounds",
+  notifications: "Notifications",
   look: "Look & Feel",
   presenting: "Presenting",
   offline: "Offline Bibles",
@@ -21913,11 +21917,12 @@ function presentationSettingsDestinationRow(page, title, summary) {
     accessibility: "screen reading screen reader selection speak VoiceOver native speech",
     presenting: "no buttons interface copy sharing Bible text format sound mode transition volume haptics vibration",
     sounds: "ambient rain white pink brown noise sleep timer volume",
+    notifications: "push notifications daily reminders morning reading evening nudge time schedule friend requests game challenges",
     offline: "download included Bibles storage translations",
     app: "help tour about update version keyboard shortcuts",
   };
   const glyphs = settingsDestinationGlyphs();
-  const glyph = page === "look" ? glyphs.appearance : page === "presenting" ? icons.screen : page === "offline" ? icons.book : glyphs[page];
+  const glyph = page === "look" ? glyphs.appearance : page === "presenting" ? icons.screen : page === "offline" ? icons.book : page === "notifications" ? glyphs.startup : glyphs[page];
   return `
     <button class="presentation-settings-destination" type="button" data-presentation-settings-page="${page}" data-settings-search-item data-settings-search-text="${escapeHtml(`${title} ${summary} ${searchTerms[page] || ""}`)}">
       <span class="presentation-settings-destination-icon" aria-hidden="true">${glyph || icons.settings}</span>
@@ -22051,6 +22056,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           ${presentationSettingsDestinationRow("accessibility", "Accessibility", `Screen reading ${state.scriptureScreenReading ? "on" : "off"}`)}
           ${presentationSettingsDestinationRow("presenting", "Presenting", `Sharing · Sound ${state.modeTransitionSounds ? "on" : "off"}`)}
           ${presentationSettingsDestinationRow("sounds", "Sounds", "Ambient sounds · Sleep timer")}
+          ${presentationSettingsDestinationRow("notifications", "Notifications", "Push notifications · Reminder times")}
           ${window.bsbOffline ? presentationSettingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone") : ""}
           ${presentationSettingsDestinationRow("app", "Help & App", `Version ${appVersion}`)}
         </nav>
@@ -22063,6 +22069,8 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
     content = scriptureScreenReadingSettings("presentation");
   } else if (page === "sounds") {
     content = ambientSoundsMarkup("presentation");
+  } else if (page === "notifications") {
+    content = pushReminderSettings("presentation");
   } else if (page === "offline") {
     content = offlineBibleSettings("presentation");
   } else if (page === "look") {
@@ -23647,27 +23655,27 @@ function bindEvents() {
       renderPreservingReaderScroll();
     });
   });
-  ["PushNotificationsToggle", "mobilePushNotificationsToggle"].forEach((id) => {
+  ["PushNotificationsToggle", "mobilePushNotificationsToggle", "presentationPushNotificationsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       if (event.target.checked) enablePushNotifications();
       else disablePushNotifications();
     });
   });
-  ["PushMorningTime", "mobilePushMorningTime"].forEach((id) => {
+  ["PushMorningTime", "mobilePushMorningTime", "presentationPushMorningTime"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       if (!validPushTime(event.target.value)) return;
       state.pushMorningTime = event.target.value;
       savePushPreferences();
     });
   });
-  ["PushEveningToggle", "mobilePushEveningToggle"].forEach((id) => {
+  ["PushEveningToggle", "mobilePushEveningToggle", "presentationPushEveningToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state.pushEveningEnabled = event.target.checked;
       savePushPreferences();
       renderPreservingReaderScroll();
     });
   });
-  ["PushEveningTime", "mobilePushEveningTime"].forEach((id) => {
+  ["PushEveningTime", "mobilePushEveningTime", "presentationPushEveningTime"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       if (!validPushTime(event.target.value)) return;
       state.pushEveningTime = event.target.value;
@@ -23677,10 +23685,13 @@ function bindEvents() {
   [
     ["PushFriendRequestToggle", "pushFriendRequestNotifications"],
     ["mobilePushFriendRequestToggle", "pushFriendRequestNotifications"],
+    ["presentationPushFriendRequestToggle", "pushFriendRequestNotifications"],
     ["PushGameChallengeToggle", "pushGameChallengeNotifications"],
     ["mobilePushGameChallengeToggle", "pushGameChallengeNotifications"],
+    ["presentationPushGameChallengeToggle", "pushGameChallengeNotifications"],
     ["PushChallengeAcceptedToggle", "pushChallengeAcceptedNotifications"],
     ["mobilePushChallengeAcceptedToggle", "pushChallengeAcceptedNotifications"],
+    ["presentationPushChallengeAcceptedToggle", "pushChallengeAcceptedNotifications"],
   ].forEach(([id, stateKey]) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       state[stateKey] = event.target.checked;
