@@ -473,6 +473,7 @@ let suppressMobileControlsClickUntil = 0;
 let focusBrandVersionHoldTimer = 0;
 let focusBrandVersionHoldGesture = null;
 let suppressFocusBrandClickUntil = 0;
+let brandVerseOfDayClickTimer = 0;
 const mobileControlsHoldMs = 350;
 const mobileControlsHoldMoveTolerancePx = 12;
 let crossReferenceHoldTimer = 0;
@@ -1464,7 +1465,7 @@ const tutorialSteps = [
     spotlightGroup: true,
     spotlightPadding: 5,
     title: "Start with the logo",
-    body: "Tap the Big Screen Bible logo any time you want to return to the verse of the day.",
+    body: "Tap the Big Screen Bible logo to return to the verse of the day. In Reader or Parallel, double-tap or double-click the logo to show your selected verse in Big Screen. Press and hold to choose Bible versions.",
   },
   {
     target: ".search, [data-rail=Search], #presentationSearchToggle",
@@ -5175,6 +5176,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.16": [
+      "Double-tap or double-click the logo in Reader or Parallel to open Big Screen with your selected verse, including in Focus Mode. A single tap still opens Verse of the Day, and a hold opens Bible versions.",
+    ],
     "2026.10.31.15": [
       "iOS widgets offer four bundled fonts: Literata, Lora, Inter, and Source Sans 3. Choose a widget font separately from Reader; all four work offline with no font downloads. Requires iOS build 6 or later.",
     ],
@@ -6439,7 +6443,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const activeSearchLabel = activeSearchSourceLabel();
   return `
     <header class="topbar">
-      <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day${focusBrandVersionHoldEnabled() ? ". Press and hold to choose Bible versions" : ""}">
+      <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day${focusBrandVersionHoldEnabled() ? ". Double-tap or double-click for Big Screen with the selected verse. Press and hold to choose Bible versions" : ""}">
         <img class="brand-mark-image" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
         <div class="brand-copy">
@@ -29697,6 +29701,26 @@ function handleBrandVerseOfDayClick(event) {
     event.stopPropagation();
     return;
   }
+  if (focusBrandVersionHoldEnabled() && event.detail !== 0) {
+    event.preventDefault();
+    if (brandVerseOfDayClickTimer) {
+      clearTimeout(brandVerseOfDayClickTimer);
+      brandVerseOfDayClickTimer = 0;
+      switchMode("big", { audible: true });
+      return;
+    }
+    // Wait for a second click/tap before allowing Verse of the Day to
+    // replace the selected passage. Click events also cover touch devices.
+    const button = event.currentTarget;
+    const mode = state.mode;
+    brandVerseOfDayClickTimer = setTimeout(() => {
+      brandVerseOfDayClickTimer = 0;
+      if (state.mode !== mode || button?.isConnected === false) return;
+      state.headerVersionMenuOpen = false;
+      openVerseOfDay();
+    }, 350);
+    return;
+  }
   state.headerVersionMenuOpen = false;
   openVerseOfDay();
 }
@@ -29722,6 +29746,8 @@ function beginFocusBrandVersionHold(event) {
     focusBrandVersionHoldGesture = null;
     gesture?.button.classList.remove("version-hold-pending");
     if (!gesture || gesture.button.isConnected === false) return;
+    clearTimeout(brandVerseOfDayClickTimer);
+    brandVerseOfDayClickTimer = 0;
     suppressFocusBrandClickUntil = Date.now() + 800;
     playControlHaptic();
     openFocusBrandVersionMenu();
