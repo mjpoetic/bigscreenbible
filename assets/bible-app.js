@@ -24177,11 +24177,11 @@ function bindEvents() {
       requestAnimationFrame(() => document.getElementById(inputId)?.focus({ preventScroll: true }));
     });
   });
-  document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1));
-  document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1));
-  document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1));
+  document.getElementById("prevVerse")?.addEventListener("click", () => moveVerse(-1, { animate: true }));
+  document.getElementById("nextVerse")?.addEventListener("click", () => moveVerse(1, { animate: true }));
+  document.getElementById("presentationPrev")?.addEventListener("click", () => moveVerse(-1, { animate: true }));
   document.getElementById("presentationContinueChapter")?.addEventListener("click", continuePresentationChapter);
-  document.getElementById("presentationNext")?.addEventListener("click", () => moveVerse(1));
+  document.getElementById("presentationNext")?.addEventListener("click", () => moveVerse(1, { animate: true }));
   ["title", "search"].forEach((surface) => {
     const label = surface.charAt(0).toUpperCase() + surface.slice(1);
     document.getElementById(`presentation${label}VersionToggle`)?.addEventListener("click", () => {
