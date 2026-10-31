@@ -27300,3 +27300,39 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .focus-passage-notch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .focus-passage-notch svg { width: 16px; height: 16px; flex-shrink: 0; }
 .focus-passage-notch:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+
+/* Keep the picker and its anchor clear while the surrounding reader recedes. */
+.focus-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  background: rgb(0 0 0 / 20%);
+  animation: focusPickerDimIn 240ms ease-out both;
+}
+.app-shell:has(.focus-picker-backdrop) .focus-passage-notch { z-index: 141; }
+.focus-passage-notch .focus-passage-notch-arrow {
+  display: flex;
+  flex-shrink: 0;
+  overflow: visible;
+  transform: rotate(90deg);
+  transition: transform 260ms cubic-bezier(.2, .7, .2, 1);
+}
+.focus-passage-notch[aria-expanded="true"] .focus-passage-notch-arrow { transform: rotate(270deg); }
+@starting-style {
+  .focus-passage-notch[aria-expanded="true"] .focus-passage-notch-arrow { transform: rotate(90deg); }
+  .focus-passage-notch[aria-expanded="false"] .focus-passage-notch-arrow { transform: rotate(270deg); }
+}
+.app-shell.focus-shell .passage-picker-workspace {
+  transform-origin: top center;
+  animation: focusPickerIn 280ms cubic-bezier(.2, .7, .2, 1) both;
+}
+@keyframes focusPickerIn {
+  from { opacity: 0; transform: translateY(-8px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes focusPickerDimIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.focus-shell .passage-picker-workspace,
+  .focus-picker-backdrop { animation: none; }
+  .focus-passage-notch .focus-passage-notch-arrow { transition: none; }
+}

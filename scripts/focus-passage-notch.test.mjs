@@ -27,3 +27,27 @@ context.state.focusWorkspacePanel = 'Verse';
 context.updateFocusPassageNotch();
 assert.equal(notch.hidden, false, 'An open picker keeps its anchor visible');
 console.log('Focus passage notch visibility, placement, and reference checks passed.');
+
+// Keep the notch-centered picker below its anchor even on short landscape screens.
+const panel = { style: { removeProperty(key) { delete this[key]; } }, scrollHeight: 360 };
+context.updateFocusPassageNotch = () => {};
+context.isCompactScreen = () => false;
+context.state.focusMode = true;
+context.state.focusVersePickerAnchor = '#focusPassageNotch';
+let viewportWidth = 1024;
+notch.getBoundingClientRect = () => ({ left: viewportWidth / 2 - 100, width: 200, top: 72, bottom: 116 });
+context.document.getElementById = id => id === 'mobileFocusWorkspace' ? panel : notch;
+context.document.documentElement = { clientWidth: viewportWidth, clientHeight: 768 };
+context.window = {};
+vm.runInContext(source.slice(source.indexOf('function positionFocusWorkspacePanel()'), source.indexOf('function pushReminderSettings(')), context);
+for (const [width, height] of [[1024, 768], [390, 844], [844, 390], [667, 320]]) {
+  viewportWidth = width;
+  context.document.documentElement.clientWidth = width;
+  context.document.documentElement.clientHeight = height;
+  context.positionFocusWorkspacePanel();
+  const pickerWidth = parseFloat(panel.style.width);
+  assert.ok(Math.abs(parseFloat(panel.style.left) + pickerWidth / 2 - width / 2) <= 1, 'Picker is centered under the notch');
+  assert.equal(panel.style.top, '124px', 'Picker stays below the notch in every orientation');
+  assert.ok(parseFloat(panel.style.maxHeight) <= height - 124, 'Dialog fits the remaining viewport');
+}
+console.log('Focus picker portrait, landscape, and desktop positioning checks passed.');

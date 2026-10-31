@@ -3272,7 +3272,7 @@ function focusPassageNotch() {
   return `<button class="focus-passage-notch" id="focusPassageNotch" type="button" data-passage-picker hidden
     aria-label="Choose passage, currently ${escapeHtml(activePassageLabel())}" aria-haspopup="dialog"
     aria-expanded="${state.focusWorkspacePanel === "Verse"}">
-    ${icons.book}<span>${escapeHtml(activePassageLabel())}</span>${icons.chevron}
+    ${icons.book}<span>${escapeHtml(activePassageLabel())}</span><span class="focus-passage-notch-arrow" aria-hidden="true">${icons.chevron}</span>
   </button>`;
 }
 
@@ -3451,6 +3451,7 @@ function mobileFocusWorkspacePanel() {
         ? icons.bookmark
         : icons.note;
   return `
+    ${panel === "Verse" && state.focusMode ? '<div class="focus-picker-backdrop" aria-hidden="true"></div>' : ""}
     <section class="mobile-focus-workspace ${panel === "Verse" ? "passage-picker-workspace" : ""}" id="mobileFocusWorkspace" role="dialog" aria-label="${panelTitle}">
       <header class="mobile-focus-workspace-head">
         <div>
@@ -3565,21 +3566,23 @@ function positionFocusWorkspacePanel() {
   panel.style.removeProperty("max-height");
   const versePicker = state.focusWorkspacePanel === "Verse";
   if (isCompactScreen() && !versePicker) return;
-  const anchor = versePicker && state.focusVersePickerAnchor
+  const notchAnchor = versePicker && state.focusMode ? document.getElementById("focusPassageNotch") : null;
+  const anchor = notchAnchor || (versePicker && state.focusVersePickerAnchor
     ? document.querySelector(state.focusVersePickerAnchor)
-    : document.querySelector(".topbar .search");
+    : document.querySelector(".topbar .search"));
   if (!anchor) return;
   const anchorRect = anchor.getBoundingClientRect();
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
   const margin = 14;
   const width = Math.min(440, Math.max(400, anchorRect.width), viewportWidth - margin * 2);
-  const left = Math.min(Math.max(margin, anchorRect.left), viewportWidth - width - margin);
+  const anchorLeft = notchAnchor ? anchorRect.left + anchorRect.width / 2 - width / 2 : anchorRect.left;
+  const left = Math.min(Math.max(margin, anchorLeft), viewportWidth - width - margin);
   let top = anchorRect.bottom + (versePicker ? 8 : 70);
   if (versePicker) {
     panel.style.bottom = "auto";
     // Floating controls near the bottom need room above rather than off screen.
-    if (viewportHeight - top - margin < Math.min(panel.scrollHeight, 240)) {
+    if (!notchAnchor && viewportHeight - top - margin < Math.min(panel.scrollHeight, 240)) {
       top = Math.max(margin, anchorRect.top - panel.scrollHeight - 8);
     }
     panel.style.maxHeight = `${Math.max(80, viewportHeight - top - margin)}px`;
