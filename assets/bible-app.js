@@ -5174,6 +5174,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.8": [
+      "Big Screen settings use a wider panel and the available safe screen height on Android phones in landscape, so rotating no longer squeezes the settings list into a short popover.",
+    ],
     "2026.10.31.7": [
       "Big Screen left-aligned passages now keep the reference and page label aligned with Scripture, with more room for text in phone landscape.",
       "Book, chapter, verse, and version menus use consistent opening directions, shorter scrolling lists, and safe-area spacing. Rotation keeps Scripture visible and loaded fonts trigger a fresh text fit.",

@@ -27448,3 +27448,20 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   }
   #app .presentation .presentation-attribution { margin-top: 6px; }
 }
+
+/* Android's short landscape viewport needs the screen height, rather than
+   the portrait popover's fixed header/footer allowance. */
+@media (orientation: landscape) and (max-height: 560px) {
+  html[data-android-edge-to-edge="true"] #app .presentation-bottom:has(.presentation-settings-popover.open) {
+    transform: none;
+  }
+  html[data-android-edge-to-edge="true"] #app .presentation-bottom-settings-menu .presentation-settings-popover {
+    position: fixed;
+    top: calc(8px + var(--app-safe-area-top, 0px));
+    right: calc(8px + var(--presentation-safe-right));
+    bottom: auto;
+    box-sizing: border-box;
+    width: min(440px, calc(100vw - 16px - var(--presentation-safe-left) - var(--presentation-safe-right)));
+    max-height: calc(100dvh - 16px - var(--app-safe-area-top, 0px) - var(--app-safe-area-bottom, 0px));
+  }
+}
