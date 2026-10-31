@@ -1495,3 +1495,56 @@ html[data-control-material="glass"] .memorize-shell .memory-word-field[data-memo
   html[data-control-material="glass"] .memorize-shell .memory-workspace .primary-btn,
   html[data-control-material="glass"] .memorize-shell .memory-stages .active { background: var(--teal); color: var(--accent-ink); }
 }
+
+/* One outer hover halo for header controls in both Classic and Glass.
+   Keep keyboard focus distinct, without adding dark borders on pointer hover. */
+html #app .app-shell .topbar :is(.icon-btn, .mode-tabs button, .streak-chip, .versions) {
+  --header-hover-halo: 0 0 10px color-mix(in srgb, var(--teal) 32%, transparent),
+    0 0 18px color-mix(in srgb, var(--teal) 20%, transparent);
+  transition: box-shadow var(--motion-fast) ease;
+}
+@media (hover: hover) {
+  html #app .app-shell .topbar :is(#focusToggle, #mobileFocusToggle, #accountQuickButton, #settingsToggle, .icon-btn, .mode-tabs button, .streak-chip):not(:disabled):hover,
+  html #app .app-shell .topbar .versions:has(> .primary-version-toggle:not(:disabled):hover) {
+    border-color: var(--line);
+    box-shadow: var(--header-hover-halo);
+    filter: none;
+    text-shadow: none;
+    transform: none;
+  }
+}
+/* The wrapper paints the version selector's single surface and halo. */
+html #app .app-shell .topbar .versions > .primary-version-toggle,
+html #app .app-shell .topbar .versions > .primary-version-toggle:is(:hover, :focus-visible) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  filter: none;
+  text-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html #app .app-shell .topbar :is(.icon-btn, .mode-tabs button, .streak-chip, .primary-version-toggle):focus:not(:focus-visible) {
+  outline: none;
+}
+html #app .app-shell .topbar :is(.icon-btn, .mode-tabs button, .streak-chip, .primary-version-toggle):focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+@media (prefers-contrast: more) {
+  html #app .app-shell .topbar :is(.icon-btn, .mode-tabs button, .streak-chip, .primary-version-toggle):hover {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+}
+@media (forced-colors: active) {
+  html #app .app-shell .topbar :is(.icon-btn, .mode-tabs button, .streak-chip, .primary-version-toggle):is(:hover, :focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html #app .app-shell .topbar :is(.icon-btn, .mode-tabs button, .streak-chip, .versions) {
+    transition: none;
+  }
+}
