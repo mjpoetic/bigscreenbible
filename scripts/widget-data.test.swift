@@ -1,4 +1,5 @@
 import Foundation
+import CoreText
 
 @main
 struct WidgetDataTests {
@@ -42,11 +43,20 @@ struct WidgetDataTests {
         precondition(savedFavorite.favorite?.text == "Favorite wording")
         precondition(legacy.favorite == nil)
         precondition(legacy.fontFamily == nil)
-        precondition(WidgetFontCache.fileName("../Lora").count == 68)
-        precondition(!WidgetFontCache.fileName("../Lora").contains("/"))
-        precondition(WidgetFontCache.downloadURL("url(https://fonts.gstatic.com/s/lora/v1/font.ttf)")?.host == "fonts.gstatic.com")
-        precondition(WidgetFontCache.downloadURL("url(https://other.example/font.ttf)") == nil)
-        precondition(WidgetFontCache.downloadURL("url(https://fonts.gstatic.com/font.woff2)") == nil)
+        precondition(Set(WidgetFontCache.files.keys) == Set(["Literata", "Lora", "Inter", "Source Sans 3"]))
+        precondition(WidgetFontCache.fontName("Unknown font") == WidgetFontCache.fontName(nil), "Old selections use the safe default")
+        let fontFolder = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("ios/App/ScriptureWidget/Fonts")
+        let info = try PropertyListSerialization.propertyList(from: Data(contentsOf: fontFolder.deletingLastPathComponent().appendingPathComponent("Info.plist")), format: nil) as! [String: Any]
+        let declared = Set(info["UIAppFonts"] as! [String])
+        for (family, file) in WidgetFontCache.files {
+            precondition(declared.contains("Fonts/\(file).ttf"), "Widget must declare each bundled font")
+            let url = fontFolder.appendingPathComponent(file + ".ttf")
+            precondition(CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil))
+            let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as! [CTFontDescriptor]
+            let font = CTFontCreateWithFontDescriptor(descriptors[0], 14, nil)
+            precondition(CTFontCopyFamilyName(font) as String == family, "Bundled font family must match the setting")
+        }
         print("Widget data: local dates, check-ins, streak expiry, Codable snapshot and passage links passed.")
     }
 }

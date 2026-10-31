@@ -103,6 +103,21 @@ assert.equal(context.nativeWidgetFavorite().linkReference, 'John 3:16');
 assert.equal(context.nativeWidgetFavorite().verses, '16,18');
 
 context.state.scriptureFont = 'custom'; context.state.customScriptureFont = 'Lora, Georgia';
-assert.equal(context.nativeWidgetFontFamily(), 'Lora');
+assert.equal(context.nativeWidgetFontFamily(), 'Literata', 'Reader custom fonts never enter the widget');
 context.state.scriptureFont = 'literata';
 assert.equal(context.nativeWidgetFontFamily(), 'Literata');
+
+native = true; available = true;
+for (const font of ['Literata', 'Lora', 'Inter', 'Source Sans 3']) {
+  settings.set('lw_widget_font_choice', font);
+  assert.equal(context.nativeWidgetFontFamily(), font);
+  await context.syncNativeWidgetSnapshot();
+  assert.equal(calls.at(-1).fontFamily, font, 'widget font changes publish without a streak change');
+}
+settings.set('lw_widget_font_choice', 'Unknown font');
+assert.equal(context.nativeWidgetFontFamily(), 'Literata');
+native = true;
+context.window.Capacitor.getPlatform = () => 'ios';
+assert.match(context.widgetSettingsMarkup('mobile'), /id="mobileWidgetFont"/);
+context.window.Capacitor.getPlatform = () => 'android';
+assert.doesNotMatch(context.widgetSettingsMarkup('mobile'), /id="mobileWidgetFont"/);

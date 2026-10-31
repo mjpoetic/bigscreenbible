@@ -24,6 +24,7 @@
 		B5B025000000000000000010 /* ScriptureWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B5B025000000000000000007 /* ScriptureWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B5B025000000000000000029 /* WidgetShared/PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */; };
 		B5B02500000000000000002A /* WidgetShared/PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */; };
+		B5B031000000000000000001 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = B5B031000000000000000002 /* Fonts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 		B5B025000000000000000006 /* ScriptureWidget/ScriptureWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScriptureWidget/ScriptureWidget.entitlements; sourceTree = SOURCE_ROOT; };
 		B5B025000000000000000007 /* ScriptureWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = ScriptureWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = WidgetShared/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
+		B5B031000000000000000002 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ScriptureWidget/Fonts; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +131,7 @@
 		B5B025000000000000000014 /* Scripture Widget */ = {
 			isa = PBXGroup;
 			children = (
+				B5B031000000000000000002 /* Fonts */,
 				B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */,
 				B5B025000000000000000001 /* App/BSBWidgetPlugin.swift */,
 				B5B025000000000000000002 /* WidgetShared/WidgetData.swift */,
@@ -239,6 +242,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B5B031000000000000000001 /* Fonts in Resources */,
 				B5B02500000000000000000E /* WidgetShared/widget-catalog.json in Resources */,
 				B5B025000000000000000029 /* WidgetShared/PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -415,7 +419,7 @@
 				BSB_NATIVE_PUSH_AVAILABLE = YES;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 8QY8QS9TH2;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -441,7 +445,7 @@
 				BSB_NATIVE_PUSH_AVAILABLE = YES;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 8QY8QS9TH2;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -464,7 +468,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ScriptureWidget/ScriptureWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 8QY8QS9TH2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScriptureWidget/Info.plist;
@@ -490,7 +494,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ScriptureWidget/ScriptureWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 8QY8QS9TH2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScriptureWidget/Info.plist;

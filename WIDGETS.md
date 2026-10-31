@@ -2,9 +2,9 @@
 
 The first native widget combines a daily verse, the current reading streak, and today's check-in. Tap anywhere to open the displayed passage in Reader. Home Screen appearance is configurable in the app. No notification permission or account is required.
 
-iOS Home Screen Scripture widgets follow the Reader Scripture font. Literata uses the containing app's bundled font; other Google Font families download as native font files on the first online timeline refresh and remain cached in the App Group for offline use. Installed fonts resolve locally. Unavailable fonts fall back to Georgia. Lock Screen accessories retain their compact system typography. This requires an updated native iOS build as well as the web bridge update.
+iOS Home Screen Scripture widgets have an independent **Widget font** choice in Settings → Widgets: Literata and Lora (serif), Inter and Source Sans 3 (sans serif). All four TTF files and licenses are included directly in the widget extension, declared in UIAppFonts, and registered locally. No font downloads or Reader font syncing occur. Legacy snapshots containing other font names use the local default, and missing font resources fall back to Georgia. Lock Screen typography remains system-controlled. This fix requires a new native iOS build plus the web settings update; it does not change Android typography.
 
-Small and medium iOS Scripture text tries progressively smaller sizes in half-point steps, down to 11pt and 12pt respectively, before truncating with an ellipsis. Short passages retain the larger size. Standalone native renders cover short, supplied, and extreme passages, including downloaded Lora; installed WidgetKit layouts and Google Font downloads still need physical-device QA.
+Small and medium iOS Scripture text tries progressively smaller sizes in half-point steps, down to 11pt and 12pt respectively, before truncating with an ellipsis. Short passages retain the larger size. Verify all four fonts on an installed widget, including offline use and switching from an old Google Font selection.
 
 ## Available sizes
 

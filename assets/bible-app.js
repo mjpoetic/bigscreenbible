@@ -1320,9 +1320,8 @@ function nativeWidgetBackground() {
   return /^#[0-9a-f]{6}$/i.test(color || "") ? color : null;
 }
 function nativeWidgetFontFamily() {
-  return state.scriptureFont === "custom"
-    ? (String(state.customScriptureFont || "").split(",")[0].trim().replace(/^['"]|['"]$/g, "").slice(0, 100) || "Literata")
-    : (scriptureFonts.find(font => font.code === state.scriptureFont)?.name || "Literata");
+  const selected = localStorage.getItem("lw_widget_font_choice");
+  return ["Literata", "Lora", "Inter", "Source Sans 3"].includes(selected) ? selected : "Literata";
 }
 function nativeWidgetFavorite(activeOnly = true) {
   if (activeOnly && localStorage.getItem("lw_widget_content") !== "favorite") return null;
@@ -5176,6 +5175,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.15": [
+      "iOS widgets offer four bundled fonts: Literata, Lora, Inter, and Source Sans 3. Choose a widget font separately from Reader; all four work offline with no font downloads. Requires iOS build 6 or later.",
+    ],
+    "2026.10.31.14": [
+      "iOS Home Screen widgets now offer four independent font choices: Literata, Georgia, Arial, and Verdana. Local fonts replace Google Font syncing to avoid blank widgets. Requires an updated iOS build.",
+    ],
     "2026.10.31.13": [
       "Lexend appears above OpenDyslexic in font choices. OpenDyslexic has a smaller baseline size for a closer match to the other fonts, and Scripture reference headings follow built-in sans-serif font choices. Custom fonts retain the existing heading style.",
     ],
@@ -5972,7 +5977,7 @@ function settingsScriptureFontMarkup(prefix = "", options = {}) {
 function widgetSettingsMarkup(prefix = "") {
   return `
     ${window.Capacitor?.isNativePlatform?.() ? `
-    <div class="setting-group" data-settings-search-item data-settings-search-text="widget background color appearance custom">
+    <div class="setting-group" data-settings-search-item data-settings-search-text="widget background color appearance custom font typeface">
       <span class="setting-label">Home Screen widget content</span>
       ${settingsChoiceMarkup(`${prefix}WidgetContent`, localStorage.getItem("lw_widget_content") || "daily",
         [{value: "daily", label: "Verse of the Day"}, {value: "favorite", label: "My favorite passage"}], {label: "Home Screen widget content"})}
@@ -5983,7 +5988,12 @@ function widgetSettingsMarkup(prefix = "") {
         {label: "Widget appearance"})}
       ${localStorage.getItem("lw_widget_appearance") === "custom" ? `<label>Widget background <input type="color" data-widget-color aria-label="Widget background color" value="${/^#[0-9a-f]{6}$/i.test(localStorage.getItem("lw_widget_color") || "") ? localStorage.getItem("lw_widget_color") : "#f8f7f3"}"></label>` : ""}
       <p class="setting-help">Applies to all Home Screen widgets on this device after opening the app. Text contrasts automatically. Lock Screen and tinted widgets follow system styling.</p>
-      ${window.Capacitor?.getPlatform?.() === "ios" ? '<p class="setting-help">iOS Home Screen widgets follow your Reader Scripture font. Google fonts need an initial internet connection and are cached; unavailable fonts use a readable fallback.</p>' : ""}
+      ${window.Capacitor?.getPlatform?.() === "ios" ? `
+      <span class="setting-label">Widget font</span>
+      ${settingsChoiceMarkup(`${prefix}WidgetFont`, nativeWidgetFontFamily(),
+        [{value: "Literata", label: "Literata (serif)"}, {value: "Lora", label: "Lora (serif)"},
+         {value: "Inter", label: "Inter (sans serif)"}, {value: "Source Sans 3", label: "Source Sans 3 (sans serif)"}], {label: "Widget font"})}
+      <p class="setting-help">Choose a font for all iOS Home Screen Scripture widgets on this device. Works offline and is separate from your Reader font. Requires the latest iOS app build.</p>` : ""}
     </div>
     ` : ""}
   `;
@@ -23266,6 +23276,13 @@ function bindEvents() {
     });
   });
   document.getElementById("useSelectionInWidget")?.addEventListener("click", useSelectedPassageInWidget);
+  document.querySelectorAll('select[id$="WidgetFont"]').forEach((select) => {
+    select.addEventListener("change", () => {
+      localStorage.setItem("lw_widget_font_choice", select.value);
+      scheduleNativeWidgetSync();
+      renderPreservingReaderScroll();
+    });
+  });
   document.querySelectorAll('select[id$="WidgetAppearance"]').forEach((select) => {
     select.addEventListener("change", () => {
       localStorage.setItem("lw_widget_appearance", select.value);

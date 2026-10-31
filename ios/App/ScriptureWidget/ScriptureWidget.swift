@@ -11,14 +11,12 @@ struct ScriptureProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (ScriptureEntry) -> Void) { completion(entry(Date())) }
     func entry(_ date: Date) -> ScriptureEntry { ScriptureEntry(date: date, verse: WidgetStore.verse(for: date), streak: WidgetStore.snapshot()) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<ScriptureEntry>) -> Void) {
-        WidgetFontCache.refresh(WidgetStore.snapshot().fontFamily) {
-            WidgetStore.refreshVerse {
-                let now = Date()
-                // Include local midnights even when the system delays the next reload.
-                let midnight = Calendar.current.startOfDay(for: now)
-                let dates = [now] + (1...7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: midnight) }
-                completion(Timeline(entries: dates.map { entry($0) }, policy: .after(now.addingTimeInterval(3600))))
-            }
+        WidgetStore.refreshVerse {
+            let now = Date()
+            // Include local midnights even when the system delays the next reload.
+            let midnight = Calendar.current.startOfDay(for: now)
+            let dates = [now] + (1...7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: midnight) }
+            completion(Timeline(entries: dates.map { entry($0) }, policy: .after(now.addingTimeInterval(3600))))
         }
     }
 }
