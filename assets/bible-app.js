@@ -5174,6 +5174,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.11": [
+      "Meet the Creator now features Dane’s worship photo, cropped to preserve his raised hands and sized to fit within the About page panel.",
+    ],
     "2026.10.31.10": [
       "The Bible version sits closer beneath the reference in left-aligned Big Screen layouts, while the inline share button retains its larger touch target.",
     ],
