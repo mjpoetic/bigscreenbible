@@ -2007,6 +2007,7 @@ function render() {
       ${gameChallengePopup()}
       ${bottombar()}
       ${state.mode === "big" ? "" : searchReturnAction()}
+      ${focusPassageNotch()}
       ${mobileFocusOverlayControls()}
       ${mobileSettingsPanel(settingsPanelRerender)}
       ${presentation(accountPanelRerender)}
@@ -3266,6 +3267,36 @@ function loadingScreen() {
   `;
 }
 
+function focusPassageNotch() {
+  if (!state.focusMode || !["reader", "parallel"].includes(state.mode)) return "";
+  return `<button class="focus-passage-notch" id="focusPassageNotch" type="button" data-passage-picker hidden
+    aria-label="Choose passage, currently ${escapeHtml(activePassageLabel())}" aria-haspopup="dialog"
+    aria-expanded="${state.focusWorkspacePanel === "Verse"}">
+    ${icons.book}<span>${escapeHtml(activePassageLabel())}</span>${icons.chevron}
+  </button>`;
+}
+
+let focusPassageNotchFrame = 0;
+function updateFocusPassageNotch() {
+  focusPassageNotchFrame = 0;
+  const notch = document.getElementById("focusPassageNotch");
+  const scripture = document.querySelector(".scripture");
+  const header = document.querySelector(".topbar");
+  if (!notch || !scripture || !header) return;
+  notch.style.top = `${header.getBoundingClientRect().bottom}px`;
+  notch.hidden = scripture.scrollTop <= 24 && state.focusWorkspacePanel !== "Verse";
+  if (notch.hidden) return;
+  const top = Math.max(scripture.getBoundingClientRect().top, header.getBoundingClientRect().bottom + notch.offsetHeight);
+  const verse = [...scripture.querySelectorAll("[data-verse]")].find(row => row.getBoundingClientRect().bottom > top + 4)?.dataset.verse;
+  const label = verse ? `${state.reference}:${verse}` : activePassageLabel();
+  notch.querySelector("span").textContent = label;
+  notch.setAttribute("aria-label", `Choose passage, currently ${label}`);
+}
+
+function scheduleFocusPassageNotch() {
+  if (!focusPassageNotchFrame) focusPassageNotchFrame = requestAnimationFrame(updateFocusPassageNotch);
+}
+
 function mobileFocusOverlayControls() {
   if (["big", "memorize", "trivia"].includes(state.mode)) return "";
   const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
@@ -3524,6 +3555,7 @@ function positionFocusSearchResults() {
 }
 
 function positionFocusWorkspacePanel() {
+  updateFocusPassageNotch();
   const panel = document.getElementById("mobileFocusWorkspace");
   if (!panel) return;
   panel.style.removeProperty("left");
@@ -8075,7 +8107,7 @@ function floatingControlsFadeEnabled() {
 
 function focusFloatingControls() {
   if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton, .beside-auto-scroll .scroll-speed-toggle, .reader-return-button, .scripture-reader-launcher")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, .beside-auto-scroll .scroll-speed-toggle, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, #focusPassageNotch, .beside-auto-scroll .scroll-speed-toggle, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher")];
 }
 
 function focusControlsInUse() {
@@ -8139,6 +8171,8 @@ function resetFocusToolSurfaces() {
 }
 
 function bindMobileSettingsVisibility() {
+  updateFocusPassageNotch();
+  document.querySelector(".scripture")?.addEventListener("scroll", scheduleFocusPassageNotch, { passive: true });
   revealMobileSettingsButton();
   document.querySelectorAll(".scripture, .trivia-reader, .trivia-setup-main").forEach((surface) => {
     surface.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
@@ -22835,7 +22869,7 @@ function bindEvents() {
         ? ".topbar [data-passage-picker]"
         : button.closest(".verse-of-day-reader")
           ? ".verse-of-day-reader [data-passage-picker]"
-          : ".mobile-floating-passage";
+          : button.id === "focusPassageNotch" ? "#focusPassageNotch" : ".mobile-floating-passage";
       state.focusWorkspacePanel = "Verse";
       state.focusReferenceOpen = false;
       state.focusSearchResultsOpen = false;
@@ -33512,6 +33546,7 @@ window.visualViewport?.addEventListener("resize", scheduleReadingControlDimming,
 window.visualViewport?.addEventListener("scroll", scheduleReadingControlDimming, { passive: true });
 document.addEventListener("transitionend", scheduleReadingControlDimming, { passive: true });
 document.addEventListener("animationend", scheduleReadingControlDimming, { passive: true });
+window.addEventListener("resize", scheduleFocusPassageNotch, { passive: true });
 window.addEventListener("scroll", revealMobileSettingsButton, { passive: true });
 ["pointerdown", "pointermove", "keydown", "focusin", "wheel", "touchmove"].forEach((eventName) => {
   window.addEventListener(eventName, (event) => {

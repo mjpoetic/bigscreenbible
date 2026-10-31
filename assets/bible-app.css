@@ -27269,3 +27269,34 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   transform: none;
   animation: none;
 }
+
+/* A passage tab tucked under the Focus header, in every orientation. */
+.app-shell .focus-passage-notch {
+  position: fixed;
+  z-index: 45;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: calc(100vw - 32px - var(--app-safe-area-left, 0px) - var(--app-safe-area-right, 0px));
+  padding: 8px 18px;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-top: 0;
+  border-radius: 0 0 22px 22px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow: inset 0 -1px 1px rgb(255 255 255 / 35%), 0 6px 22px rgb(0 0 0 / 12%);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.app-shell .focus-passage-notch[hidden] { display: none; }
+.focus-passage-notch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.focus-passage-notch svg { width: 16px; height: 16px; flex-shrink: 0; }
+.focus-passage-notch:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
