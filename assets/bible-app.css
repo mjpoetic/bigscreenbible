@@ -14476,6 +14476,15 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   max-width: 720px;
 }
 
+.about-creator-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 24px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
 @keyframes aboutPanelIn {
   from {
     opacity: 0;
