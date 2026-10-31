@@ -14476,13 +14476,23 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
   max-width: 720px;
 }
 
+.about-creator-photo-frame {
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 7 / 4;
+  margin: 0 0 24px;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
 .about-creator-photo {
   display: block;
   width: 100%;
-  height: auto;
-  margin: 0 0 24px;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  max-width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
 }
 
 @keyframes aboutPanelIn {
