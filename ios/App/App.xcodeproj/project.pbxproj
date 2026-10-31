@@ -25,6 +25,7 @@
 		B5B025000000000000000029 /* WidgetShared/PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */; };
 		B5B02500000000000000002A /* WidgetShared/PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */; };
 		B5B031000000000000000001 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = B5B031000000000000000002 /* Fonts */; };
+		B5B032000000000000000001 /* BSBAppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B032000000000000000002 /* BSBAppShortcuts.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +73,7 @@
 		B5B025000000000000000007 /* ScriptureWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = ScriptureWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5B025000000000000000028 /* WidgetShared/PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = WidgetShared/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
 		B5B031000000000000000002 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ScriptureWidget/Fonts; sourceTree = "<group>"; };
+		B5B032000000000000000002 /* BSBAppShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BSBAppShortcuts.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +120,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC31A1FED79650016851F /* SceneDelegate.swift */,
+				B5B032000000000000000002 /* BSBAppShortcuts.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -259,6 +262,7 @@
 				B5B02500000000000000000C /* WidgetShared/WidgetData.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				504EC3191FED79650016851F /* SceneDelegate.swift in Sources */,
+				B5B032000000000000000001 /* BSBAppShortcuts.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

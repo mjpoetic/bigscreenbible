@@ -57,6 +57,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        receiveAppShortcut()
+        quickActionAttempts = 0
+        deliverQuickAction()
+    }
+
+    // Also called directly when Siri runs an action in an already active app.
+    func receiveAppShortcut() {
+        guard let destination = BSBShortcutNavigation.pending else { return }
+        BSBShortcutNavigation.pending = nil
+        pendingQuickAction = destination
         quickActionAttempts = 0
         deliverQuickAction()
     }

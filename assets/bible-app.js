@@ -34023,9 +34023,9 @@ function submitQuickActionSearch(query) {
   return runReferenceOrPhraseSearch(query, { source: "scripture", scope: "all" });
 }
 
-// Called by the native iOS and Android hosts after a Home Screen shortcut.
+// Called by native hosts for Home Screen quick actions and Apple Shortcuts.
 function handleNativeQuickAction(action) {
-  const modes = { reader: "reader", parallel: "parallel", games: "trivia", search: "reader" };
+  const modes = { reader: "reader", parallel: "parallel", games: "trivia", search: "reader", continue: "reader" };
   if (!Object.hasOwn(modes, action) || !["ios", "android"].includes(window.Capacitor?.getPlatform?.())) return false;
   if (dataLoading || dataError || !state.startupApplied) return false;
   if (action === "search") return openQuickActionSearch();
@@ -34036,9 +34036,33 @@ function handleNativeQuickAction(action) {
   state.streakPopupVisible = false;
   state.libraryOpen = false;
   resetFocusToolSurfaces();
-  switchMode(modes[action], { immediate: true });
-  // switchMode intentionally skips rendering if this mode is already selected.
-  renderPreservingReaderScroll();
+  let readingPosition = null;
+  if (action === "continue") {
+    readingPosition = savedReaderPosition();
+    state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
+    state.selectedVerses = [];
+    state.tutorialIntroVisible = false;
+    if (readingPosition && setReferenceFromString(`${readingPosition.reference}:${readingPosition.activeVerse}`)) {
+      readingPosition = { ...readingPosition, mode: "reader", readerAnchor: { ...readingPosition.readerAnchor, mode: "reader" } };
+    } else readingPosition = null;
+  }
+  if (action === "continue") {
+    switchMode("reader", { immediate: true });
+    state.pendingVerseFocus = false;
+    render();
+    if (readingPosition) {
+      const restore = () => {
+        if (state.mode === "reader" && state.reference === readingPosition.reference) restoreReaderScroll(readingPosition);
+      };
+      restore();
+      requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
+    }
+  } else {
+    switchMode(modes[action], { immediate: true });
+    // switchMode intentionally skips rendering if this mode is already selected.
+    renderPreservingReaderScroll();
+  }
   return true;
 }
 

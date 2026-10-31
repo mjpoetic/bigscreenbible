@@ -4,15 +4,19 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const handler = source.match(/function handleNativeQuickAction\([^]*?\n\}/)[0];
 const nativePlatform = process.env.BSB_QUICK_ACTION_PLATFORM || 'ios';
-let platform = nativePlatform, renders = 0, popupOpens = 0, searched;
+let platform = nativePlatform, renders = 0, popupOpens = 0, searched, savedPosition = null, restoredPosition = null;
 const state = { startupApplied: false, mode: 'big', focusMode: false, settingsOpen: true, accountOpen: true };
 const context = vm.createContext({
   state, window: { Capacitor: { getPlatform: () => platform } },
   document: { getElementById() { return null; } },
   openQuickActionSearch() { popupOpens++; return true; },
   resetFocusToolSurfaces() {}, resetSearchForSource() {},
+  savedReaderPosition() { return savedPosition; },
+  setReferenceFromString(reference) { state.reference = reference.split(':')[0]; return !reference.startsWith('Invalid'); },
+  restoreReaderScroll(position) { restoredPosition = position; },
   switchMode(mode, options) { assert.equal(options.immediate, true); state.mode = mode; },
   renderPreservingReaderScroll() { renders++; },
+  render() { renders++; }, requestAnimationFrame(callback) { callback(); },
   runReferenceOrPhraseSearch(query, options) { searched = { query, ...options }; },
 });
 const submit = source.match(/function submitQuickActionSearch\([^]*?\n\}/)[0];
@@ -42,6 +46,24 @@ for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
   }
 }
 assert.equal(popupOpens, 8);
+// Siri's Continue action restores a saved passage even from VOD or a shared link.
+savedPosition = {mode: 'parallel', reference: 'Romans 8', activeVerse: 28,
+  readerAnchor: {mode: 'parallel', reference: 'Romans 8', verse: '28', offset: 36}, scriptureTop: 240};
+state.isVerseOfDayActive = true; state.sharedPassage = {verses: [1]}; state.selectedVerses = [1];
+assert.equal(run('handleNativeQuickAction("continue")'), true);
+assert.equal(state.mode, 'reader');
+assert.equal(state.reference, 'Romans 8');
+assert.equal(state.isVerseOfDayActive, false);
+assert.equal(state.sharedPassage, null);
+assert.equal(state.selectedVerses.length, 0);
+assert.equal(restoredPosition.mode, 'reader');
+assert.equal(restoredPosition.readerAnchor.mode, 'reader');
+assert.equal(restoredPosition.readerAnchor.offset, 36);
+for (const position of [null, {...savedPosition, reference: 'Invalid'}]) {
+  savedPosition = position; restoredPosition = null;
+  assert.equal(run('handleNativeQuickAction("continue")'), true);
+  assert.equal(restoredPosition, null, 'Missing or unavailable passages use the current reader');
+}
 assert.equal(run('handleNativeQuickAction("constructor")'), false);
 platform = 'web'; assert.equal(run('handleNativeQuickAction("search")'), false);
 platform = nativePlatform; run('dataError = "offline"'); assert.equal(run('handleNativeQuickAction("search")'), false);
