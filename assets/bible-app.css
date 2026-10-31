@@ -27465,3 +27465,42 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     max-height: calc(100dvh - 16px - var(--app-safe-area-top, 0px) - var(--app-safe-area-bottom, 0px));
   }
 }
+
+/* A single reference row in left-aligned layouts, including narrow phones.
+   Keep the 44px share target in flow; shorten only an unusually long book name. */
+#app .presentation[data-text-alignment="left"] .presentation-reference-controls,
+#app .presentation[data-text-alignment="left"] .presentation-reference-row {
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+#app .presentation[data-text-alignment="left"] .presentation-part-position {
+  flex: 0 0 auto;
+}
+#app .presentation[data-text-alignment="left"] .presentation-reference-picker {
+  flex-shrink: 0;
+}
+#app .presentation[data-text-alignment="left"] .presentation-book-picker {
+  flex-shrink: 1;
+  min-width: 0;
+}
+#app .presentation[data-text-alignment="left"] .presentation-book-picker > .presentation-reference-toggle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#app .presentation[data-text-alignment="left"] .presentation-reference-share-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: static;
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  transform: none;
+}
+#app .presentation[data-text-alignment="left"] .presentation-reference-mobile-share {
+  display: none;
+}

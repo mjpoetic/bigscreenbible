@@ -5174,6 +5174,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.10.31.9": [
+      "Left-aligned Big Screen layouts keep the passage reference, part count, and share button on one line on phones, tablets, and desktop. The Bible version stays on the second line.",
+    ],
     "2026.10.31.8": [
       "Big Screen settings use a wider panel and the available safe screen height on Android phones in landscape, so rotating no longer squeezes the settings list into a short popover.",
     ],
