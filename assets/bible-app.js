@@ -5362,6 +5362,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.01.2": [
+      "Word Search, Crossword, and Hidden Word use their original Atkinson Hyperlegible Next game font again. OpenDyslexic remains available for Scripture.",
+    ],
     "2026.11.01.1": [
       "Home Screen widgets can follow the first Reader Bible version for the daily passage and favorites, with accurately labeled fallback text when unavailable. Android adds the same four bundled fonts as iOS and supports shorter, wide layouts. Requires updated native builds.",
     ],
