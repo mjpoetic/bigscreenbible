@@ -142,8 +142,8 @@ struct ReadDailyScriptureIntent: AppIntent {
             WidgetStore.refreshVerse { continuation.resume() }
         }
         let verse = WidgetStore.verse(for: Date())
-        var scripture = ShortcutScripture(reference: verse.reference, text: verse.text, version: verse.source == "KJV" ? "KJV" : "BSB")
-        scripture.credit = verse.source == "KJV" ? "Offline daily selection" : "Verse of the Day"
+        var scripture = ShortcutScripture(reference: verse.reference, text: verse.text, version: verse.version ?? (verse.source == "KJV" ? "KJV" : "BSB"))
+        scripture.credit = verse.source == "KJV" && verse.version == nil ? "Offline daily selection" : "Verse of the Day"
         let response = "\(scripture.credit!) · \(scripture.reference) (\(scripture.version))\n\n\(scripture.text)"
         return .result(value: response, dialog: IntentDialog(stringLiteral: response), snippetIntent: ScriptureCardIntent(scripture: scripture))
     }
