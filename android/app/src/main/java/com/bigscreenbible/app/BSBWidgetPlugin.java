@@ -21,6 +21,11 @@ public class BSBWidgetPlugin extends Plugin {
             snapshot.put("days", days);
             JSONObject favorite = call.getObject("favorite");
             if (ScriptureWidgetProvider.validFavorite(favorite)) snapshot.put("favorite", favorite);
+            JSONObject daily = call.getObject("daily");
+            if (ScriptureWidgetProvider.validFavorite(daily)) snapshot.put("daily", daily);
+            String font = call.getString("fontFamily", "Literata");
+            if (!java.util.Arrays.asList("Literata", "Lora", "Inter", "Source Sans 3").contains(font)) font = "Literata";
+            snapshot.put("fontFamily", font);
             String background = call.getString("background", "");
             if (background.matches("#[0-9a-fA-F]{6}")) snapshot.put("background", background);
             android.content.SharedPreferences prefs = ScriptureWidgetProvider.prefs(getContext());

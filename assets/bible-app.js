@@ -1337,6 +1337,57 @@ function nativeWidgetFavorite(activeOnly = true) {
       linkReference: typeof item.linkReference === "string" ? item.linkReference.slice(0, 100) : item.reference};
   } catch { return null; }
 }
+// Translation uses the existing Reader loaders; native widgets receive only bounded text.
+let nativeWidgetTranslationRequest = 0;
+async function nativeWidgetTranslatedContent() {
+  const favorite = nativeWidgetFavorite();
+  const version = state.versions?.[0];
+  if (!version || localStorage.getItem("lw_widget_version_mode") === "original") return {favorite, daily: null};
+  const today = localDateKey(new Date());
+  let reference = "";
+  try {
+    const resolved = await resolvedVerseOfDay();
+    const published = Date.parse(resolved.item?.publishedAt || "");
+    reference = Number.isFinite(published) && Date.now() - published > 86400000
+      ? verseOfDayReference() : resolved.reference;
+  } catch { /* Native daily fallback remains available. */ }
+  const cacheKey = JSON.stringify([today, version, reference, favorite]);
+  try {
+    const cached = JSON.parse(localStorage.getItem("lw_widget_translation_cache") || "null");
+    if (cached?.key === cacheKey) return cached.content;
+  } catch { /* Invalid local cache is replaced. */ }
+  async function translate(reference, day) {
+    const parsed = parsePassageReference(reference);
+    if (!parsed) return null;
+    if (isRemoteTranslation(version)) await ensureRemoteBibleVersion(version, parsed.key, {rerender: false});
+    else await loadBibleVersion(version);
+    rebuildBibleData();
+    // Do not silently drop requested verses absent from a provider's chapter.
+    const numbers = [];
+    for (const part of String(reference).split(":")[1]?.replace(/[–—]/g, "-").split(",") || []) {
+      const match = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+      if (!match) return null;
+      const first = Number(match[1]), last = Number(match[2] || match[1]);
+      if (first < 1 || last < first || last - first > 199 || numbers.length + last - first + 1 > 200) return null;
+      for (let n = first; n <= last; n++) if (!numbers.includes(n)) numbers.push(n);
+    }
+    const selected = numbers.map(n => bibleData[parsed.key]?.verses.find(verse => verse.n === n));
+    if (!selected.length || selected.some(verse => !verse?.[version])) return null;
+    const text = uniqueVersionVerses(selected, version).map(verse => String(verse[version]).trim()).join(" ");
+    if (!text || text.length > 2000) return null;
+    return {reference, text, source: translationDisplayCode(version), version, day,
+      linkReference: reference, verses: numbers.join(",")};
+  }
+  let daily = null, translatedFavorite = favorite;
+  try { if (reference) daily = await translate(reference, today); } catch { /* Preserve source label on fallback. */ }
+  try { if (favorite) translatedFavorite = await translate(favorite.reference, "") || favorite; } catch { /* Keep saved wording. */ }
+  const content = {favorite: translatedFavorite, daily};
+  // Retry failed provider requests on the next sync instead of caching a failure.
+  if (daily && (!favorite || translatedFavorite !== favorite)) {
+    localStorage.setItem("lw_widget_translation_cache", JSON.stringify({key: cacheKey, content}));
+  }
+  return content;
+}
 function useSelectedPassageInWidget() {
   const numbers = selectedVerseNumbers();
   const text = passageLines(numbers).map(line => String(line.text || "").trim()).filter(Boolean).join(" ");
@@ -1363,8 +1414,12 @@ function scheduleNativeWidgetSync() {
 async function syncNativeWidgetSnapshot() {
   const capacitor = window.Capacitor;
   if (!capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBWidget")) return;
+  const request = ++nativeWidgetTranslationRequest;
+  const content = await nativeWidgetTranslatedContent();
+  if (request !== nativeWidgetTranslationRequest) return;
   const streak = normalizeReadingStreak(state.streak);
-  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground(), favorite: nativeWidgetFavorite(), fontFamily: nativeWidgetFontFamily() };
+  const payload = { current: streak.current, lastVisit: streak.lastVisit || "", days: (streak.days || []).slice(-400), background: nativeWidgetBackground(), favorite: content.favorite, daily: content.daily, fontFamily: nativeWidgetFontFamily() };
+  localStorage.setItem("lw_widget_published_content", JSON.stringify(content));
   const key = JSON.stringify(payload);
   if (key === nativeWidgetSnapshotKey) return;
   try {
@@ -5307,6 +5362,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.01.1": [
+      "Home Screen widgets can follow the first Reader Bible version for the daily passage and favorites, with accurately labeled fallback text when unavailable. Android adds the same four bundled fonts as iOS and supports shorter, wide layouts. Requires updated native builds.",
+    ],
     "2026.10.31.20": [
       "Big Screen settings now include Notifications, where you can change morning and evening push reminder times and notification choices.",
     ],
@@ -6132,18 +6190,22 @@ function widgetSettingsMarkup(prefix = "") {
       ${settingsChoiceMarkup(`${prefix}WidgetContent`, localStorage.getItem("lw_widget_content") || "daily",
         [{value: "daily", label: "Verse of the Day"}, {value: "favorite", label: "My favorite passage"}], {label: "Home Screen widget content"})}
       <p class="setting-help">${nativeWidgetFavorite(false) ? `Saved: ${escapeHtml(nativeWidgetFavorite(false).reference)} (${escapeHtml(nativeWidgetFavorite(false).source)})` : "Select verses in Reader, then choose Use in widget to save a favorite passage. Until then, Verse of the Day is shown."} Lock Screen Scripture stays on the daily verse.</p>
+      <span class="setting-label">Widget Bible version</span>
+      ${settingsChoiceMarkup(`${prefix}WidgetVersion`, localStorage.getItem("lw_widget_version_mode") || "follow",
+        [{value: "follow", label: "Follow Reader Bible version"}, {value: "original", label: "Original passage text"}], {label: "Widget Bible version"})}
+      <p class="setting-help">Follows the first Bible version selected in Reader when the app opens. If unavailable or the daily passage changes while the app is closed, available text keeps its actual version label. Saved favorites keep their wording when Original passage text is selected.</p>
       <label class="setting-label" for="${prefix}WidgetAppearance">Widget appearance</label>
       ${settingsChoiceMarkup(`${prefix}WidgetAppearance`, localStorage.getItem("lw_widget_appearance") || "app",
         [["app", "Follow app theme"], ["system", "Device light/dark"], ["custom", "Custom color"]].map(([value, label]) => ({value, label})),
         {label: "Widget appearance"})}
       ${localStorage.getItem("lw_widget_appearance") === "custom" ? `<label>Widget background <input type="color" data-widget-color aria-label="Widget background color" value="${/^#[0-9a-f]{6}$/i.test(localStorage.getItem("lw_widget_color") || "") ? localStorage.getItem("lw_widget_color") : "#f8f7f3"}"></label>` : ""}
       <p class="setting-help">Applies to all Home Screen widgets on this device after opening the app. Text contrasts automatically. Lock Screen and tinted widgets follow system styling.</p>
-      ${window.Capacitor?.getPlatform?.() === "ios" ? `
+      ${`
       <span class="setting-label">Widget font</span>
       ${settingsChoiceMarkup(`${prefix}WidgetFont`, nativeWidgetFontFamily(),
         [{value: "Literata", label: "Literata (serif)"}, {value: "Lora", label: "Lora (serif)"},
          {value: "Inter", label: "Inter (sans serif)"}, {value: "Source Sans 3", label: "Source Sans 3 (sans serif)"}], {label: "Widget font"})}
-      <p class="setting-help">Choose a font for all iOS Home Screen Scripture widgets on this device. Works offline and is separate from your Reader font. Requires the latest iOS app build.</p>` : ""}
+      <p class="setting-help">Choose a font for all Home Screen Scripture widgets on this device. Works offline and is separate from your Reader font. Requires the latest native app build.</p>`}
     </div>
     ` : ""}
   `;
@@ -23455,6 +23517,13 @@ function bindEvents() {
     });
   });
   document.getElementById("useSelectionInWidget")?.addEventListener("click", useSelectedPassageInWidget);
+  document.querySelectorAll('select[id$="WidgetVersion"]').forEach((select) => {
+    select.addEventListener("change", () => {
+      localStorage.setItem("lw_widget_version_mode", select.value);
+      scheduleNativeWidgetSync();
+      renderPreservingReaderScroll();
+    });
+  });
   document.querySelectorAll('select[id$="WidgetFont"]').forEach((select) => {
     select.addEventListener("change", () => {
       localStorage.setItem("lw_widget_font_choice", select.value);

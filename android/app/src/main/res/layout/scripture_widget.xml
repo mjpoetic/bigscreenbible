@@ -5,22 +5,27 @@
         android:scaleType="fitXY" android:importantForAccessibility="no" android:visibility="gone" />
 <LinearLayout
     android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp" android:background="@drawable/widget_background">
+    android:orientation="vertical" android:padding="12dp" android:background="@drawable/widget_background">
     <TextView android:id="@+id/widget_heading" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="@string/widget_heading" android:textSize="10sp" android:letterSpacing="0.10"
         android:textColor="@color/widget_secondary" android:drawableStart="@drawable/widget_book"
         android:drawablePadding="8dp" android:gravity="center_vertical" android:maxLines="1" />
-    <TextView android:id="@+id/widget_verse" android:layout_width="match_parent" android:layout_height="0dp"
-        android:layout_weight="1" android:layout_marginTop="8dp" android:text="@string/widget_preview_verse"
-        android:fontFamily="serif" android:textSize="21sp" android:textColor="@color/widget_ink"
-        android:maxLines="3" android:ellipsize="end" />
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="8dp">
+        <TextView android:id="@+id/widget_verse" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:text="@string/widget_preview_verse" android:fontFamily="serif" android:textSize="21sp"
+            android:textColor="@color/widget_ink" android:ellipsize="end" />
+        <ImageView android:id="@+id/widget_verse_image" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:visibility="gone" android:scaleType="fitStart" android:tint="@color/widget_ink" android:importantForAccessibility="no" />
+        <ImageView android:id="@+id/widget_verse_custom_image" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:visibility="gone" android:scaleType="fitStart" android:importantForAccessibility="no" />
+    </FrameLayout>
     <TextView android:id="@+id/widget_reference" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:text="@string/widget_preview_reference" android:textSize="11sp" android:textColor="@color/widget_secondary"
         android:maxLines="1" android:ellipsize="end" />
     <!-- RemoteViews rejects plain View elements, including decorative dividers. -->
     <TextView android:id="@+id/widget_divider" android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/widget_divider"
         android:importantForAccessibility="no"
-        android:layout_marginTop="9dp" android:layout_marginBottom="9dp" />
+        android:layout_marginTop="5dp" android:layout_marginBottom="5dp" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
         <TextView android:id="@+id/widget_streak" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
             android:maxLines="1" android:ellipsize="end"

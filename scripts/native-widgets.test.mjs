@@ -26,13 +26,13 @@ vm.runInContext(sync, context);
 context.scheduleNativeWidgetSync(); context.scheduleNativeWidgetSync();
 assert.equal(timers.size, 1, 'renders coalesce into one update');
 await [...timers.values()][0](); timers.clear();
-assert.deepEqual(calls, [{ current: 12, lastVisit: '2026-10-26', days: ['2026-10-25', '2026-10-26'], background: '#f8f7f3', favorite: null, fontFamily: 'Literata' }]);
+assert.deepEqual(calls, [{ current: 12, lastVisit: '2026-10-26', days: ['2026-10-25', '2026-10-26'], background: '#f8f7f3', favorite: null, daily: null, fontFamily: 'Literata' }]);
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 1, 'unchanged snapshots do not reload widgets');
 state.streak.current = 13; fail = true;
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 1);
 fail = false; await context.syncNativeWidgetSnapshot(); assert.equal(calls.length, 2, 'failed updates retry');
 state.streak = { current: 0, lastVisit: '', days: [] };
-await context.syncNativeWidgetSnapshot(); assert.deepEqual(calls.at(-1), { current: 0, lastVisit: '', days: [], background: '#f8f7f3', favorite: null, fontFamily: 'Literata' }, 'account changes clear old progress');
+await context.syncNativeWidgetSnapshot(); assert.deepEqual(calls.at(-1), { current: 0, lastVisit: '', days: [], background: '#f8f7f3', favorite: null, daily: null, fontFamily: 'Literata' }, 'account changes clear old progress');
 settings.set('lw_widget_appearance', 'system');
 await context.syncNativeWidgetSnapshot(); assert.equal(calls.at(-1).background, null, 'device appearance clears the shared color');
 settings.set('lw_widget_appearance', 'custom'); settings.set('lw_widget_color', '#123456');
@@ -95,6 +95,7 @@ assert.equal(context.nativeWidgetFavorite(), null, 'oversize passages are reject
 Object.assign(context, {URL, selectedVerseNumbers: () => [16, 18], passageLines: () => [{text: 'First verse'}, {text: 'Another verse'}],
   passageShareUrl: () => 'https://bigscreenbible.com/?ref=John+3%3A16&verses=16%2C18',
   formatReferenceLabel: () => 'John 3:16,18', expandedVersionVerseNumbers: (r, n) => n, passageVersion: () => 'KJV', showToast: () => {}});
+settings.set('lw_widget_version_mode', 'original');
 context.state.versions = ['KJV']; context.state.reference = 'John 3';
 context.useSelectedPassageInWidget();
 assert.equal(settings.get('lw_widget_content'), 'favorite');
@@ -120,4 +121,40 @@ native = true;
 context.window.Capacitor.getPlatform = () => 'ios';
 assert.match(context.widgetSettingsMarkup('mobile'), /id="mobileWidgetFont"/);
 context.window.Capacitor.getPlatform = () => 'android';
-assert.doesNotMatch(context.widgetSettingsMarkup('mobile'), /id="mobileWidgetFont"/);
+assert.match(context.widgetSettingsMarkup('mobile'), /id="mobileWidgetFont"/);
+
+// Both platforms receive actual translated text, not merely a different version label.
+settings.set('lw_widget_version_mode', 'follow');
+settings.set('lw_widget_content', 'daily');
+let loadCount = 0;
+Object.assign(context, {
+  localDateKey: () => '2026-11-01',
+  resolvedVerseOfDay: async () => ({reference: 'John 3:16'}),
+  parsePassageReference: () => ({key: 'John 3', verse: 16, verses: [16]}),
+  isRemoteTranslation: () => false,
+  loadBibleVersion: async () => { loadCount++; },
+  rebuildBibleData: () => {},
+  uniqueVersionVerses: verses => verses,
+  translationDisplayCode: version => version,
+  bibleData: {'John 3': {verses: [{n: 16, KJV: 'Translated KJV text', BSB: 'Translated BSB text'}, {n: 18, KJV: 'KJV second verse', BSB: 'BSB second verse'}]}}
+});
+await context.syncNativeWidgetSnapshot();
+assert.equal(calls.at(-1).daily.text, 'Translated KJV text');
+assert.equal(calls.at(-1).daily.day, '2026-11-01');
+assert.equal(calls.at(-1).daily.version, 'KJV');
+await context.syncNativeWidgetSnapshot();
+assert.equal(loadCount, 1, 'successful translated content is cached');
+context.state.versions = ['BSB'];
+await context.syncNativeWidgetSnapshot();
+assert.equal(calls.at(-1).daily.text, 'Translated BSB text');
+settings.set('lw_widget_content', 'favorite');
+await context.syncNativeWidgetSnapshot();
+assert.equal(calls.at(-1).favorite.version, 'BSB');
+context.state.versions = ['MISSING'];
+await context.syncNativeWidgetSnapshot();
+assert.equal(calls.at(-1).daily, null, 'missing translations never relabel fallback text');
+assert.equal(calls.at(-1).favorite.version, 'KJV', 'unavailable translation retains original favorite wording and version');
+settings.set('lw_widget_version_mode', 'original');
+await context.syncNativeWidgetSnapshot();
+assert.equal(calls.at(-1).daily, null);
+console.log('Widget translations: version changes, favorites, caching and truthful fallback labels passed.');

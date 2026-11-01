@@ -16,6 +16,7 @@ enum WidgetStore {
         return value
     }
     static func verse(for date: Date) -> WidgetVerse {
+        if let translated = snapshot().daily, translated.isValidFavorite, translated.day == dayKey(date) { return translated }
         if let data = defaults?.data(forKey: "dailyVerse"),
            let cached = try? JSONDecoder().decode(WidgetVerse.self, from: data), cached.day == dayKey(date) { return cached }
         let catalog = catalogData()
@@ -73,6 +74,7 @@ struct WidgetSnapshot: Codable {
     var background: String? = nil
     var favorite: WidgetVerse? = nil
     var fontFamily: String? = nil
+    var daily: WidgetVerse? = nil
     func checked(_ date: Date) -> Bool { lastVisit == WidgetStore.dayKey(date) || days.contains(WidgetStore.dayKey(date)) }
     func streak(_ date: Date) -> Int {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date)!
@@ -80,8 +82,6 @@ struct WidgetSnapshot: Codable {
     }
 }
 
-// Web CSS fonts must be registered independently in the widget process. Only
-// Google Fonts' HTTPS endpoints are fetched; installed and bundled fonts work offline.
 // Widget fonts are packaged in the extension, never downloaded at runtime.
 enum WidgetFontCache {
     static let files = ["Literata": "Literata-Regular", "Lora": "Lora-Regular",

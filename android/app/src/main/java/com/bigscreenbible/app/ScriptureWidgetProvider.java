@@ -47,6 +47,9 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         return out.toString("UTF-8");
     }
     static JSONObject selectedVerse(Context context) throws Exception {
+        JSONObject snapshot = new JSONObject(prefs(context).getString("snapshot", "{}"));
+        JSONObject translated = snapshot.optJSONObject("daily");
+        if (validFavorite(translated) && day(new Date()).equals(translated.optString("day"))) return translated;
         JSONObject saved = new JSONObject(prefs(context).getString("dailyVerse", "{}"));
         String today = day(new Date());
         if (today.equals(saved.optString("day"))) return saved;
@@ -95,11 +98,21 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
             android.appwidget.AppWidgetProviderInfo info = manager.getAppWidgetInfo(id);
             boolean streakOnly = info != null && info.provider.getClassName().equals(ReadingStreakWidgetProvider.class.getName());
             boolean compact = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250) < 220;
-            RemoteViews views = render(context, verse, snapshot, compact);
-            if (streakOnly) views = renderStreak(context, verse, snapshot, compact);
-
-            applyAppearance(views, snapshot, options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 330),
-                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 180));
+            int width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 330);
+            int height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 160);
+            RemoteViews views = renderSized(context, verse, snapshot, width, height, streakOnly);
+            // Android 12+ supplies actual host sizes, including rotation and resizing.
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                java.util.ArrayList<android.util.SizeF> sizes = options.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES);
+                if (sizes != null && !sizes.isEmpty()) {
+                    java.util.Map<android.util.SizeF, RemoteViews> layouts = new java.util.LinkedHashMap<>();
+                    for (android.util.SizeF size : sizes) {
+                        if (layouts.size() >= 4) break; // Bound total bitmap memory across layouts.
+                        layouts.put(size, renderSized(context, verse, snapshot, (int)size.getWidth(), (int)size.getHeight(), streakOnly));
+                    }
+                    views = new RemoteViews(layouts);
+                }
+            }
             Uri url = Uri.parse("https://bigscreenbible.com/").buildUpon()
                 .appendQueryParameter("ref", verse.optString("linkReference", verse.getString("reference")))
                 .appendQueryParameter("mode", "reader")
@@ -110,6 +123,64 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
             views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
             manager.updateAppWidget(id, views);
         } catch (Exception error) { android.util.Log.w("BSBWidget", "Widget update failed", error); }
+    }
+    static RemoteViews renderSized(Context context, JSONObject verse, JSONObject snapshot, int width, int height, boolean streakOnly) throws Exception {
+        RemoteViews views = streakOnly ? renderStreak(context, verse, snapshot, width < 220) : render(context, verse, snapshot, width < 220);
+        applyAppearance(views, snapshot, width, height);
+        if (!streakOnly) {
+            // RemoteViews cannot reliably transmit a custom Typeface to a launcher.
+            // Render only the verse to a bounded bitmap; keep native labels and spoken text.
+            int w = Math.max(100, Math.min(width - 24, 760));
+            int h = Math.max(16, Math.min(height - 88, 600));
+            float scale = (float)Math.min(context.getResources().getDisplayMetrics().density, Math.sqrt(160000.0 / (w * h)));
+            android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(Math.max(1, (int)(w * scale)), Math.max(1, (int)(h * scale)), android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+            canvas.scale(scale, scale);
+            android.text.TextPaint paint = new android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(widgetInk(context, snapshot));
+            String family = snapshot.optString("fontFamily", "Literata");
+            String file = "Lora".equals(family) ? "Lora-Regular.ttf" : "Inter".equals(family) ? "Inter-Regular.ttf"
+                : "Source Sans 3".equals(family) ? "SourceSans3-Regular.ttf" : "Literata-Regular.ttf";
+            try { paint.setTypeface(android.graphics.Typeface.createFromAsset(context.getAssets(), "widget-fonts/" + file)); }
+            catch (RuntimeException error) { paint.setTypeface(android.graphics.Typeface.SERIF); }
+            String text = verse.getString("text");
+            android.text.StaticLayout layout = null;
+            float fontScale = context.getResources().getConfiguration().fontScale;
+            for (float size = width < 220 ? 18 : 22; size >= 11; size -= 0.5f) {
+                paint.setTextSize(size * fontScale);
+                layout = android.text.StaticLayout.Builder.obtain(text, 0, text.length(), paint, w).setIncludePad(false).build();
+                if (layout.getHeight() <= h) break;
+            }
+            if (layout != null && layout.getHeight() > h) {
+                paint.setTextSize(11 * fontScale);
+                int lines = Math.max(1, (int)(h / paint.getFontSpacing()));
+                layout = android.text.StaticLayout.Builder.obtain(text, 0, text.length(), paint, w).setIncludePad(false)
+                    .setMaxLines(lines).setEllipsize(android.text.TextUtils.TruncateAt.END).setEllipsizedWidth(w).build();
+            }
+            if (layout != null) layout.draw(canvas);
+            boolean custom = snapshot.optString("background", "").matches("#[0-9a-fA-F]{6}");
+            int image = custom ? R.id.widget_verse_custom_image : R.id.widget_verse_image;
+            // System mode uses an XML tint that resolves in the launcher's current
+            // light/dark resources, rather than baking that color into the bitmap.
+            views.setImageViewBitmap(image, bitmap);
+            views.setViewVisibility(R.id.widget_verse_image, custom ? View.GONE : View.VISIBLE);
+            views.setViewVisibility(R.id.widget_verse_custom_image, custom ? View.VISIBLE : View.GONE);
+            views.setViewVisibility(R.id.widget_verse, View.GONE);
+        }
+        return views;
+    }
+    static int widgetInk(Context context, JSONObject snapshot) {
+        String hex = snapshot.optString("background", "");
+        if (!hex.matches("#[0-9a-fA-F]{6}")) return context.getResources().getColor(R.color.widget_ink, context.getTheme());
+        int color = android.graphics.Color.parseColor(hex);
+        double luminance = 0;
+        double[] weights = {0.2126, 0.7152, 0.0722};
+        int[] channels = {android.graphics.Color.red(color), android.graphics.Color.green(color), android.graphics.Color.blue(color)};
+        for (int i = 0; i < 3; i++) {
+            double c = channels[i] / 255.0;
+            luminance += weights[i] * (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+        }
+        return luminance < 0.179 ? android.graphics.Color.WHITE : android.graphics.Color.BLACK;
     }
     static RemoteViews render(Context context, JSONObject verse, JSONObject snapshot, boolean compact) throws Exception {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.scripture_widget);
@@ -158,7 +229,7 @@ public class ScriptureWidgetProvider extends AppWidgetProvider {
         }
         int ink = luminance < 0.179 ? android.graphics.Color.WHITE : android.graphics.Color.BLACK;
         // A bitmap background preserves rounded corners on older launchers too.
-        int w = Math.max(150, Math.min(width, 800)), h = Math.max(150, Math.min(height, 800));
+        int w = Math.max(150, Math.min(width, 800)), h = Math.max(110, Math.min(height, 800));
         android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
         android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
         paint.setColor(color);
