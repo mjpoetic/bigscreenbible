@@ -98,20 +98,35 @@ struct BSBAppShortcuts: AppShortcutsProvider {
     }
 }
 
+@available(iOS 26.0, *)
+enum ScriptureCardVersion: String, AppEnum {
+    case bsb = "BSB", kjv = "KJV", web = "WEB", asv = "ASV", bbe = "BBE", ylt = "YLT"
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Bible Translation"
+    static var caseDisplayRepresentations: [ScriptureCardVersion: DisplayRepresentation] = [
+        .bsb: "Berean Standard Bible (BSB)",
+        .kjv: "King James Version (KJV)",
+        .web: "World English Bible (WEB)",
+        .asv: "American Standard Version (ASV)",
+        .bbe: "Bible in Basic English (BBE)",
+        .ylt: "Young's Literal Translation (YLT)"
+    ]
+}
+
 // Card actions run without bringing the app to the foreground. Text is also
 // returned to Shortcuts/Siri, which may choose its own presentation on iOS 27.
 @available(iOS 26.0, *)
 struct ShowBiblePassageIntent: AppIntent {
     static var title: LocalizedStringResource = "Show Bible Passage"
-    static var description = IntentDescription("Show a compact KJV Scripture card without opening the app. Use a reference such as John 3:16 or Psalm 23.")
+    static var description = IntentDescription("Show a compact Scripture card in your selected translation without opening the app. Use a reference such as John 3:16 or Psalm 23.")
     static var openAppWhenRun = false
     @Parameter(title: "Passage", requestValueDialog: "Which Bible passage?") var passage: String
-    static var parameterSummary: some ParameterSummary { Summary("Show \(\.$passage)") }
+    @Parameter(title: "Translation", default: .bsb) var translation: ScriptureCardVersion
+    static var parameterSummary: some ParameterSummary { Summary("Show \(\.$passage) in \(\.$translation)") }
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog & ShowsSnippetIntent {
-        guard let source = Bundle.main.url(forResource: "KJV", withExtension: "js", subdirectory: "public/assets/bibles") else { throw ScriptureError.unavailable }
-        let scripture = try ShortcutScripture.passage(passage, source: source)
-        let response = "\(scripture.reference) (KJV)\n\n\(scripture.text)"
+        guard let source = Bundle.main.url(forResource: translation.rawValue, withExtension: "js", subdirectory: "public/assets/bibles") else { throw ScriptureError.unavailable }
+        let scripture = try ShortcutScripture.passage(passage, source: source, version: translation.rawValue)
+        let response = "\(scripture.reference) (\(scripture.version))\n\n\(scripture.text)"
         return .result(value: response, dialog: IntentDialog(stringLiteral: response), snippetIntent: ScriptureCardIntent(scripture: scripture))
     }
 }
@@ -128,7 +143,7 @@ struct ReadDailyScriptureIntent: AppIntent {
         }
         let verse = WidgetStore.verse(for: Date())
         var scripture = ShortcutScripture(reference: verse.reference, text: verse.text, version: verse.source == "KJV" ? "KJV" : "BSB")
-        scripture.credit = verse.source == "KJV" ? "Offline daily selection" : "Verse of the Day via Heartlight"
+        scripture.credit = verse.source == "KJV" ? "Offline daily selection" : "Verse of the Day"
         let response = "\(scripture.credit!) · \(scripture.reference) (\(scripture.version))\n\n\(scripture.text)"
         return .result(value: response, dialog: IntentDialog(stringLiteral: response), snippetIntent: ScriptureCardIntent(scripture: scripture))
     }

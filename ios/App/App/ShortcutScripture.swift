@@ -12,7 +12,7 @@ struct ShortcutScripture {
         return parts.url!
     }
 
-    static func passage(_ input: String, source: URL) throws -> ShortcutScripture {
+    static func passage(_ input: String, source: URL, version: String = "KJV") throws -> ShortcutScripture {
         let input = input.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "–", with: "-").replacingOccurrences(of: "—", with: "-")
         let regex = try NSRegularExpression(pattern: "^([1-3]?\\s*[A-Za-z ]+?)\\s*(\\d{1,3})(?::(\\d{1,3})(?:-(\\d{1,3}))?)?$")
@@ -21,9 +21,9 @@ struct ShortcutScripture {
         let book = group(1)!.lowercased().replacingOccurrences(of: " ", with: "")
         let chapter = Int(group(2)!)!
         let raw = try String(contentsOf: source, encoding: .utf8)
-        guard raw.hasPrefix("window.BIGSCREEN_BIBLE_KJV="), let start = raw.firstIndex(of: "{"), let end = raw.lastIndex(of: "}") else { throw ScriptureError.unavailable }
+        guard raw.hasPrefix("window.BIGSCREEN_BIBLE_\(version)="), let start = raw.firstIndex(of: "{"), let end = raw.lastIndex(of: "}") else { throw ScriptureError.unavailable }
         let data = Data(raw[start...end].utf8)
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], let chapters = root["chapters"] as? [String: [String: Any]],
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], root["code"] as? String == version, let chapters = root["chapters"] as? [String: [String: Any]],
               let key = chapters.keys.first(where: {
                   let normalized = $0.lowercased().replacingOccurrences(of: " ", with: "")
                   return normalized == "\(book == "psalms" ? "psalm" : book)\(chapter)"
@@ -38,7 +38,7 @@ struct ShortcutScripture {
         guard selected.count <= 40 else { throw ScriptureError.tooLong }
         let reference = first.map { "\(key):\($0)" + (last != first ? "-\(last!)" : "") } ?? key
         let text = selected.compactMap { $0["text"] as? String }.joined(separator: "\n\n")
-        return ShortcutScripture(reference: reference, text: text, version: "KJV")
+        return ShortcutScripture(reference: reference, text: text, version: version)
     }
 }
 

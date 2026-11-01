@@ -18,6 +18,15 @@ struct ShortcutScriptureTests {
         let items = URLComponents(url: john.url, resolvingAgainstBaseURL: false)!.queryItems!
         precondition(items.first(where: { $0.name == "ref" })?.value == "John 3:16")
         precondition(items.first(where: { $0.name == "version" })?.value == "KJV")
+        for version in ["BSB", "KJV", "WEB", "ASV", "BBE", "YLT"] {
+            let url = URL(fileURLWithPath: "assets/bibles/\(version).js")
+            let passage = try ShortcutScripture.passage("John 3:16", source: url, version: version)
+            precondition(passage.version == version && !passage.text.isEmpty)
+            let query = URLComponents(url: passage.url, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.first(where: { $0.name == "version" })?.value == version)
+        }
+        do { _ = try ShortcutScripture.passage("John 3:16", source: source, version: "BSB"); fatalError("Accepted a mismatched translation") }
+        catch ScriptureError.unavailable { }
         print("Scripture cards: real bundled text, ranges, chapter references, validation and reader links passed.")
     }
 }
