@@ -5362,6 +5362,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.02.1": [
+      "Big Screen refits Scripture when split-screen panes change size and lets you scroll passages that cannot fit comfortably.",
+      "Big Screen search has more typing room, with Bible version selection kept in Settings and the Scripture reference. You can still include a version in your search.",
+    ],
     "2026.11.01.2": [
       "Word Search, Crossword, and Hidden Word use their original Atkinson Hyperlegible Next game font again. OpenDyslexic remains available for Scripture.",
     ],
@@ -22445,7 +22449,6 @@ function presentation(accountPanelRerender = false) {
             <div class="presentation-search-field">
             <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
             ${searchClearControl(state.searchQuery)}
-            ${presentationVersionPicker("search", version)}
             </div>
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
@@ -33076,6 +33079,9 @@ function showToast(message) {
   }, 1600);
 }
 
+let presentationStageObserver;
+let observedPresentationStage;
+
 function fitPresentationText() {
   const presentation = document.getElementById("presentation");
   if (!presentation?.classList.contains("open")) return;
@@ -33084,6 +33090,14 @@ function fitPresentationText() {
   const passage = presentation.querySelector(".presentation-passage");
   const copy = presentation.querySelector(".presentation-copy");
   if (!viewport || !passage || !copy) return;
+
+  // Split-screen dividers can resize the stage without a window resize event.
+  if (typeof ResizeObserver !== "undefined" && observedPresentationStage !== viewport) {
+    presentationStageObserver?.disconnect();
+    observedPresentationStage = viewport;
+    presentationStageObserver = new ResizeObserver(() => fitPresentationText());
+    presentationStageObserver.observe(viewport);
+  }
 
   presentation.classList.remove("presentation-overflow");
   presentation.style.removeProperty("--presentation-font-size");

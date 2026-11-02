@@ -13596,6 +13596,9 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 .presentation.presentation-overflow .presentation-text {
   align-items: flex-start;
   overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
+  overflow-wrap: anywhere;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
@@ -23670,7 +23673,7 @@ svg {
   .app-shell .topbar .version-selected-label { white-space: normal; font-size: 11px; }
 }
 
-/* Keep the version picker inside the expanded Big Screen search field. */
+/* Give the query the full search field; versions live in Settings/reference. */
 .presentation-search-field {
   display: none;
   position: relative;
@@ -23680,50 +23683,17 @@ svg {
 .presentation-search.search-open .presentation-search-field {
   display: flex;
   align-items: center;
+  width: 280px;
 }
 .presentation .presentation-search.search-open .presentation-search-field input {
   width: 100%;
   min-width: 0;
-  padding-right: 84px;
-}
-.presentation-search.search-open .presentation-search-field {
-  width: 280px;
-}
-.presentation-search-version-control {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-}
-.presentation-search-version-control .presentation-version-picker-toggle {
-  height: 100%;
-  min-height: 34px;
-  padding: 4px 8px;
-  border: 0;
-  border-left: 1px solid var(--presentation-button-border);
-  border-radius: 0;
-  background: transparent;
-}
-.presentation-search-version-control .presentation-version-menu {
-  left: auto;
-  right: -4px;
-  transform: none;
-  max-height: min(360px, calc(100dvh - 100px));
-}
-.presentation-search-version-control.open .presentation-version-menu {
-  animation-name: versionMenuMobileIn;
-}
-.presentation-search-version-control .presentation-version-menu.motion-exit {
-  animation-name: versionMenuMobileOut !important;
+  padding-right: 12px;
 }
 @media (max-width: 840px) {
   .presentation-search.search-open .presentation-search-field {
     width: auto;
     flex: 1 1 180px;
-  }
-  .presentation-search-version-control .presentation-version-menu {
-    width: min(280px, calc(100vw - 96px));
   }
 }
 

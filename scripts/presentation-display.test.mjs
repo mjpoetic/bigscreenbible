@@ -224,6 +224,47 @@ for (const height of [220, 500]) {
   assert.equal(classes.has("presentation-overflow"), false, "Full content width does not force false overflow");
 }
 
+// A very short research pane must expose overflow rather than crop the verse.
+{
+  const properties = new Map();
+  const classes = new Set(["open"]);
+  const viewport = { clientHeight: 100, clientWidth: 300 };
+  const copy = { textContent: "A long verse ".repeat(40) };
+  const passage = {
+    get scrollHeight() { return (parseFloat(properties.get("--presentation-font-size")) || 64) * 12; },
+    scrollWidth: 252,
+  };
+  let resizeCallback;
+  let observed;
+  const presentation = {
+    classList: { contains: key => classes.has(key), add: key => classes.add(key), remove: key => classes.delete(key) },
+    style: { setProperty: (key, value) => properties.set(key, value), removeProperty: key => properties.delete(key) },
+    querySelector: selector => ({ ".presentation-text": viewport, ".presentation-passage": passage, ".presentation-copy": copy })[selector],
+  };
+  const context = {
+    document: { getElementById: () => presentation },
+    getComputedStyle: element => element === copy ? { fontSize: "64px" } : {
+      paddingTop: "24px", paddingBottom: "24px", paddingLeft: "24px", paddingRight: "24px",
+    },
+    ResizeObserver: class {
+      constructor(callback) { resizeCallback = callback; }
+      observe(element) { observed = element; }
+      disconnect() {}
+    },
+    state: { presentationTextScale: 1 }, defaultPresentationTextScale: 1,
+    clamp: (value, low, high) => Math.min(high, Math.max(low, value)),
+  };
+  vm.runInNewContext(`let presentationStageObserver; let observedPresentationStage;
+    ${extractFunction("fitPresentationText")}\nfitPresentationText();`, context);
+  assert.equal(observed, viewport, "Watch the actual pane, not only window resize");
+  assert.equal(classes.has("presentation-overflow"), true, "Short pane enables scrolling");
+  viewport.clientHeight = 700;
+  resizeCallback();
+  assert.equal(classes.has("presentation-overflow"), false, "Growing the pane refits and removes scrolling");
+}
+assert.match(styles, /\.presentation\.presentation-overflow \.presentation-text \{[^}]*touch-action: pan-y;/);
+assert.doesNotMatch(source, /presentationVersionPicker\("search", version\)/);
+
 console.log("Presentation display tests passed");
 
 const motionContext = { clamp: (value, min, max) => Math.min(max, Math.max(min, value)), state: { mode: "big", presentationBackgroundMotion: "off", presentationMotionIntensity: "subtle" }, performance: { now: () => 12500 } };
