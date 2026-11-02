@@ -482,3 +482,28 @@ console.log("Big Screen floating menu viewport checks passed");
 
 assert.doesNotMatch(extractFunction("schedulePresentationViewportFit"), /presentationRotating = "true"/, "Rotation must not hide the Scripture stage");
 assert.match(source, /document\.fonts\?\.addEventListener\("loadingdone"/, "Refit when actual font metrics become available");
+
+// Navigation starts its animation only after the replacement passage is fitted.
+const navigationSteps = [];
+const navigationContext = {
+  state: { mode: "big", verse: 1, presentationPart: 0 },
+  window: { matchMedia: () => ({ matches: false }) },
+  currentPresentationParts: () => ["first", "second"],
+  render: () => navigationSteps.push("render"),
+  fitPresentationText: () => navigationSteps.push("fit"),
+  document: { getElementById: () => ({
+    get offsetWidth() { navigationSteps.push("layout"); return 390; },
+    classList: { add: (name) => navigationSteps.push(name) },
+  }) },
+};
+vm.createContext(navigationContext);
+vm.runInContext(extractFunction("moveVerse"), navigationContext);
+navigationContext.moveVerse(1, { animate: true });
+assert.deepEqual(navigationSteps, ["render", "fit", "layout", "presentation-enter-next"]);
+navigationSteps.length = 0;
+navigationContext.moveVerse(-1, { animate: true });
+assert.deepEqual(navigationSteps, ["render", "fit", "layout", "presentation-enter-previous"]);
+navigationSteps.length = 0;
+navigationContext.window.matchMedia = () => ({ matches: true });
+navigationContext.moveVerse(1, { animate: true });
+assert.deepEqual(navigationSteps, ["render"], "Reduced motion skips navigation animation");

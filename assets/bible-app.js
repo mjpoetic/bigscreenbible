@@ -32578,12 +32578,19 @@ function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
 
 function moveVerse(direction, options = {}) {
   const renderMove = () => {
-    if (state.mode === "big" && options.animate) {
-      presentationEnterDirection = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
-        ? 0
-        : direction;
-    }
+    const animate = state.mode === "big" && options.animate
+      && !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     render();
+    if (animate) {
+      const presentation = document.getElementById("presentation");
+      // Finish rendering and fitting before starting the slide, especially on
+      // compact devices where that layout work can consume the animation.
+      if (presentation) {
+        fitPresentationText();
+        void presentation.offsetWidth;
+        presentation.classList.add(direction > 0 ? "presentation-enter-next" : "presentation-enter-previous");
+      }
+    }
   };
   if (state.mode === "big") {
     const parts = currentPresentationParts();
