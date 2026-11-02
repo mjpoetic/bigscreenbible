@@ -5372,6 +5372,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.02.3": [
+      "The verse picker finds numbered books by name: typing John includes 1, 2, and 3 John, and names such as Samuel, Kings, Corinthians, and Timothy include both numbered books.",
+    ],
     "2026.11.02.2": [
       "Search results include Clear and Done actions with centered tooltips. Big Screen search has an inset clear button and readable controls in light mode.",
       "Big Screen Settings → Look & Feel now includes Light, Dark, and System appearance controls.",
