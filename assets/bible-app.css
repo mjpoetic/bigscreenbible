@@ -4340,10 +4340,19 @@ label.social-terms-consent {
 
 /* Search panels use the interface palette, independently of the projection
    theme's blanket button color. Keep text paired with its panel background. */
-#presentation .presentation-search-results .ghost-btn {
+#presentation .presentation-search-results,
+#presentation .presentation-search-results summary {
+  color: var(--ink);
+}
+
+#presentation .presentation-search-results button {
   color: var(--ink);
   background: var(--panel);
   border-color: var(--line);
+}
+
+#presentation .presentation-search-results .search-filter-chip {
+  background: var(--soft);
 }
 
 @media (min-width: 841px) {

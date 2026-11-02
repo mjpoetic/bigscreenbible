@@ -6224,8 +6224,17 @@ function widgetSettingsMarkup(prefix = "") {
   `;
 }
 
-function settingsAppearanceMarkup(prefix = "", options = {}) {
+function settingsAppearanceModeMarkup() {
   const followsSystemTheme = !localStorage.getItem("lw_theme");
+  return `
+      <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
+        <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
+        <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
+        <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
+      </div>`;
+}
+
+function settingsAppearanceMarkup(prefix = "", options = {}) {
   const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
   const themeFamilyId = prefix ? `${prefix}ThemeFamilySelect` : "themeFamilySelect";
   const themePresetId = prefix ? `${prefix}ThemePresetSelect` : "themePresetSelect";
@@ -6273,11 +6282,7 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
     ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
     <div class="setting-group" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="appearance mode light dark system theme"' : ""}>
       <span class="setting-label">Appearance</span>
-      <div class="theme-mode-segment" role="group" aria-label="Appearance mode">
-        <button class="theme-mode-button ${!followsSystemTheme && state.theme === "light" ? "active" : ""}" type="button" data-theme-choice="light" aria-label="Use light mode">${icons.sun}<span>Light</span></button>
-        <button class="theme-mode-button ${!followsSystemTheme && state.theme === "dark" ? "active" : ""}" type="button" data-theme-choice="dark" aria-label="Use dark mode">${icons.moon}<span>Dark</span></button>
-        <button class="theme-mode-button ${followsSystemTheme ? "active" : ""}" type="button" data-theme-choice="system" aria-label="Follow system theme"><span>System</span></button>
-      </div>
+      ${settingsAppearanceModeMarkup()}
     </div>
   `;
 }
@@ -22161,6 +22166,10 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
     content = offlineBibleSettings("presentation");
   } else if (page === "look") {
     content = `
+      <div class="setting-group">
+        <span class="setting-label">Appearance</span>
+        ${settingsAppearanceModeMarkup()}
+      </div>
       <div class="presentation-settings-choice-field">
         <span>Text alignment</span>
         ${settingsChoiceMarkup("presentationTextAlignmentSelect", state.presentationTextAlignment, [
