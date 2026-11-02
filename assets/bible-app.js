@@ -3616,7 +3616,7 @@ function mobileFocusSearchResults() {
         </div>
         <div class="search-results-actions">
           ${searchResultsClearControl()}
-          <button class="glass-close-control" id="mobileFocusSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results" data-tooltip="Done—keep search results">${icons.done}</button>
+          <button class="glass-close-control" id="mobileFocusSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results" data-tooltip="Done">${icons.done}</button>
         </div>
       </header>
       <div class="mobile-focus-search-results-body">
@@ -3640,7 +3640,7 @@ function presentationSearchResults() {
         </div>
         <div class="search-results-actions">
           ${searchResultsClearControl()}
-          <button class="glass-close-control" id="presentationSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results" data-tooltip="Done—keep search results">${icons.done}</button>
+          <button class="glass-close-control" id="presentationSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results" data-tooltip="Done">${icons.done}</button>
         </div>
       </header>
       <div class="mobile-focus-search-results-body">
@@ -9079,7 +9079,7 @@ function library() {
           <span>${title}</span>
           <div class="search-results-actions">
           ${state.activeRail === "Search" ? searchResultsClearControl() : ""}
-          <button class="icon-btn glass-close-control" id="closeLibrary" data-search-done="${state.activeRail === "Search"}" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">${state.activeRail === "Search" ? icons.done : icons.clear}</button>
+          <button class="icon-btn glass-close-control" id="closeLibrary" data-search-done="${state.activeRail === "Search"}" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${state.activeRail === "Search" ? "Done" : escapeHtml(closeLabel)}">${state.activeRail === "Search" ? icons.done : icons.clear}</button>
           </div>
         </div>
         ${libraryContent()}
