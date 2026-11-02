@@ -3614,7 +3614,10 @@ function mobileFocusSearchResults() {
           <span>Search results</span>
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
-        <button class="glass-close-control" id="mobileFocusSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results">${icons.done}</button>
+        <div class="search-results-actions">
+          ${searchResultsClearControl()}
+          <button class="glass-close-control" id="mobileFocusSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results" data-tooltip="Done—keep search results">${icons.done}</button>
+        </div>
       </header>
       <div class="mobile-focus-search-results-body">
         ${searchScopeControls()}
@@ -3635,7 +3638,10 @@ function presentationSearchResults() {
           <span>Search results</span>
           <strong>${escapeHtml(state.searchResultsQuery)}</strong>
         </div>
-        <button class="glass-close-control" id="presentationSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results">${icons.done}</button>
+        <div class="search-results-actions">
+          ${searchResultsClearControl()}
+          <button class="glass-close-control" id="presentationSearchResultsClose" data-search-done="true" type="button" aria-label="Done—return to reading; keep search results" data-tooltip="Done—keep search results">${icons.done}</button>
+        </div>
       </header>
       <div class="mobile-focus-search-results-body">
         ${searchScopeControls()}
@@ -9071,7 +9077,10 @@ function library() {
       <aside class="library">
         <div class="panel-minihead">
           <span>${title}</span>
+          <div class="search-results-actions">
+          ${state.activeRail === "Search" ? searchResultsClearControl() : ""}
           <button class="icon-btn glass-close-control" id="closeLibrary" data-search-done="${state.activeRail === "Search"}" aria-label="${escapeHtml(closeLabel)}" data-tooltip="${escapeHtml(closeLabel)}">${state.activeRail === "Search" ? icons.done : icons.clear}</button>
+          </div>
         </div>
         ${libraryContent()}
       </aside>
@@ -9133,6 +9142,10 @@ function crossReferencesPanel() {
 
 function searchScopeControls() {
   return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button></div>`;
+}
+
+function searchResultsClearControl() {
+  return `<button class="icon-btn glass-close-control" type="button" data-clear-search-results aria-label="Clear search results" data-tooltip="Clear search results">${icons.clear}</button>`;
 }
 
 function searchClearControl(value = "") {
@@ -24466,6 +24479,14 @@ function bindEvents() {
       state.searchQuery = input.value;
       const clear = input.parentElement.querySelector(".unified-search-clear");
       if (clear) clear.hidden = !input.value;
+    });
+  });
+  document.querySelectorAll("[data-clear-search-results]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      state.focusSearchResultsOpen = false;
+      state.presentationSearchResultsOpen = false;
+      clearSearchResults();
     });
   });
   document.querySelectorAll("[data-clear-search]").forEach((button) => {
