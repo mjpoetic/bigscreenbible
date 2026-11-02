@@ -5499,6 +5499,44 @@ label.social-terms-consent {
   color: var(--accent-ink);
 }
 
+/* Appearance choices belong to the Big Screen panel's palette. */
+#presentation .presentation-settings-popover .theme-mode-segment {
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--presentation-button-border);
+  border-radius: 999px;
+  background: var(--presentation-button-bg);
+  box-shadow: none;
+}
+
+#presentation .presentation-settings-popover .theme-mode-button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--glass-ink, inherit);
+  box-shadow: none;
+  filter: none;
+  text-shadow: none;
+}
+
+#presentation .presentation-settings-popover .theme-mode-button.active,
+#presentation .presentation-settings-popover .theme-mode-button:hover {
+  border-color: var(--presentation-button-border);
+  background: var(--presentation-button-bg);
+}
+
+#presentation .presentation-settings-popover .theme-mode-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+
+#presentation .presentation-settings-popover .theme-mode-button span {
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .print-layout-segment .theme-mode-button {
   min-height: 42px;
   padding: 6px;
