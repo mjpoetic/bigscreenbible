@@ -5368,6 +5368,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.02.2": [
+      "Search results include Clear and Done actions with centered tooltips. Big Screen search has an inset clear button and readable controls in light mode.",
+      "Big Screen Settings → Look & Feel now includes Light, Dark, and System appearance controls.",
+    ],
     "2026.11.02.1": [
       "Big Screen refits Scripture when split-screen panes change size and lets you scroll passages that cannot fit comfortably.",
       "Big Screen search has more typing room, with Bible version selection kept in Settings and the Scripture reference. You can still include a version in your search.",
