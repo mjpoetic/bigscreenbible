@@ -77,8 +77,13 @@ assert.equal(narrowMenu.style.width, '84px', 'Minimum width still respects the v
 console.log('Narrow verse dropdown sizing checks passed');
 
 vm.runInContext(extract('passageChoiceMatches'), context);
-const choices = ['Job', 'Joel', 'John', 'Jonah', 'Jeremiah', '1 John', '2 John'].map(label => ({ label, value: label }));
-assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'jo'), o => o.value), ['Job', 'Joel', 'John', 'Jonah']);
+const choices = ['Job', 'Joel', 'John', 'Jonah', 'Jeremiah', '1 John', '2 John', '3 John', '1 Chronicles', '2 Chronicles', '1 Corinthians', '2 Corinthians'].map(label => ({ label, value: label }));
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'jo'), o => o.value), ['Job', 'Joel', 'John', 'Jonah', '1 John', '2 John', '3 John']);
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'John'), o => o.value), ['John', '1 John', '2 John', '3 John']);
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'chr'), o => o.value), ['1 Chronicles', '2 Chronicles']);
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'cor'), o => o.value), ['1 Corinthians', '2 Corinthians']);
+assert.deepEqual(Array.from(context.passageChoiceMatches(choices, '2 co'), o => o.value), ['2 Corinthians']);
+assert.equal(context.passageChoiceMatches([{ label: '3 John', disabled: true }], 'John').length, 0);
 assert.deepEqual(Array.from(context.passageChoiceMatches(choices, ' JE '), o => o.value), ['Jeremiah']);
 assert.deepEqual(Array.from(context.passageChoiceMatches(choices, '1j'), o => o.value), ['1 John']);
 assert.equal(context.passageChoiceMatches(choices, 'xyz').length, 0);

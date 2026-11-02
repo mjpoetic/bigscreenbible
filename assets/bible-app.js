@@ -4434,8 +4434,12 @@ function openSettingsChoiceMenu(trigger) {
 
 function passageChoiceMatches(options, query) {
   const normalized = String(query).toLowerCase().replace(/\s+/g, "");
-  return Array.from(options).filter((option) => !option.disabled
-    && option.label.toLowerCase().replace(/\s+/g, "").startsWith(normalized));
+  return Array.from(options).filter((option) => {
+    if (option.disabled) return false;
+    const label = option.label.toLowerCase().replace(/\s+/g, "");
+    return label.startsWith(normalized)
+      || label.replace(/^[123](?=[a-z])/, "").startsWith(normalized);
+  });
 }
 
 function bindPassageComboboxes() {
