@@ -5372,6 +5372,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.02.4": [
+      "Big Screen next and previous arrows now use the same full slide transition as swiping, including on iPhone. Rapid taps no longer overlap verse transitions.",
+    ],
     "2026.11.02.3": [
       "The verse picker finds numbered books by name: typing John includes 1, 2, and 3 John, and names such as Samuel, Kings, Corinthians, and Timothy include both numbered books.",
     ],
@@ -30874,15 +30877,18 @@ function finishPresentationPinch() {
 }
 
 function commitPresentationSwipe(direction) {
-  playNativeHaptic();
   const presentationElement = document.getElementById("presentation");
+  if (presentationElement?.classList.contains("presentation-swipe-commit-next")
+    || presentationElement?.classList.contains("presentation-swipe-commit-previous")) return;
+  playNativeHaptic();
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (!presentationElement || reducedMotion) {
     presentationEnterDirection = 0;
     moveVerse(direction);
     return;
   }
-  presentationElement.classList.remove("presentation-dragging", "presentation-swipe-ready");
+  // An unfinished entrance must not override the outgoing transform.
+  presentationElement.classList.remove("presentation-enter-next", "presentation-enter-previous", "presentation-dragging", "presentation-drag-settling", "presentation-swipe-ready");
   presentationElement.classList.add(direction > 0 ? "presentation-swipe-commit-next" : "presentation-swipe-commit-previous");
   clearTimeout(presentationTransitionTimer);
   presentationTransitionTimer = setTimeout(() => {
@@ -32584,21 +32590,11 @@ function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
 }
 
 function moveVerse(direction, options = {}) {
-  const renderMove = () => {
-    const animate = state.mode === "big" && options.animate
-      && !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    render();
-    if (animate) {
-      const presentation = document.getElementById("presentation");
-      // Finish rendering and fitting before starting the slide, especially on
-      // compact devices where that layout work can consume the animation.
-      if (presentation) {
-        fitPresentationText();
-        void presentation.offsetWidth;
-        presentation.classList.add(direction > 0 ? "presentation-enter-next" : "presentation-enter-previous");
-      }
-    }
-  };
+  if (state.mode === "big" && options.animate) {
+    if (adjacentPresentationContent(direction)) commitPresentationSwipe(direction);
+    return;
+  }
+  const renderMove = () => render();
   if (state.mode === "big") {
     const parts = currentPresentationParts();
     const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));

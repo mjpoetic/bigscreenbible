@@ -483,27 +483,51 @@ console.log("Big Screen floating menu viewport checks passed");
 assert.doesNotMatch(extractFunction("schedulePresentationViewportFit"), /presentationRotating = "true"/, "Rotation must not hide the Scripture stage");
 assert.match(source, /document\.fonts\?\.addEventListener\("loadingdone"/, "Refit when actual font metrics become available");
 
-// Navigation starts its animation only after the replacement passage is fitted.
+// Arrow navigation uses the same outgoing/incoming transition as a swipe.
 const navigationSteps = [];
+let finishTransition;
+const classes = new Set();
 const navigationContext = {
   state: { mode: "big", verse: 1, presentationPart: 0 },
   window: { matchMedia: () => ({ matches: false }) },
   currentPresentationParts: () => ["first", "second"],
-  render: () => navigationSteps.push("render"),
-  fitPresentationText: () => navigationSteps.push("fit"),
-  document: { getElementById: () => ({
-    get offsetWidth() { navigationSteps.push("layout"); return 390; },
-    classList: { add: (name) => navigationSteps.push(name) },
-  }) },
+  adjacentPresentationContent: () => ({ text: "adjacent" }),
+  render: () => { navigationSteps.push("render"); classes.clear(); },
+  playNativeHaptic() {},
+  clearTimeout() {},
+  setTimeout: (callback) => { finishTransition = callback; return 1; },
+  presentationTransitionTimer: 0,
+  presentationSwipeCommitMs: 180,
+  presentationEnterDirection: 0,
+  document: { getElementById: () => ({ classList: {
+    contains: name => classes.has(name),
+    remove: (...names) => names.forEach(name => classes.delete(name)),
+    add: name => { classes.add(name); navigationSteps.push(name); },
+  } }) },
 };
 vm.createContext(navigationContext);
-vm.runInContext(extractFunction("moveVerse"), navigationContext);
-navigationContext.moveVerse(1, { animate: true });
-assert.deepEqual(navigationSteps, ["render", "fit", "layout", "presentation-enter-next"]);
-navigationSteps.length = 0;
-navigationContext.moveVerse(-1, { animate: true });
-assert.deepEqual(navigationSteps, ["render", "fit", "layout", "presentation-enter-previous"]);
+vm.runInContext(["moveVerse", "commitPresentationSwipe"].map(extractFunction).join("\n"), navigationContext);
+for (const direction of [1, -1]) {
+  navigationSteps.length = 0;
+  classes.add("presentation-enter-next");
+  navigationContext.moveVerse(direction, { animate: true });
+  assert.equal(navigationContext.state.presentationPart, direction > 0 ? 0 : 1,
+    "The old passage remains until its exit finishes");
+  assert.deepEqual(navigationSteps, [direction > 0 ? "presentation-swipe-commit-next" : "presentation-swipe-commit-previous"]);
+  assert.ok(!classes.has("presentation-enter-next"), "Entrance cannot override the exit");
+  navigationContext.moveVerse(direction, { animate: true });
+  assert.equal(navigationSteps.length, 1, "Rapid taps do not overlap transitions");
+  finishTransition();
+  assert.equal(navigationContext.presentationEnterDirection, direction);
+  assert.equal(navigationContext.state.presentationPart, direction > 0 ? 1 : 0);
+  assert.equal(navigationSteps.at(-1), "render");
+}
 navigationSteps.length = 0;
 navigationContext.window.matchMedia = () => ({ matches: true });
 navigationContext.moveVerse(1, { animate: true });
-assert.deepEqual(navigationSteps, ["render"], "Reduced motion skips navigation animation");
+assert.deepEqual(navigationSteps, ["render"], "Reduced motion navigates immediately");
+navigationSteps.length = 0;
+navigationContext.adjacentPresentationContent = () => null;
+navigationContext.moveVerse(1, { animate: true });
+assert.deepEqual(navigationSteps, [], "Boundary arrows leave the passage in place");
+console.log("Verse arrow transition lifecycle checks passed");
