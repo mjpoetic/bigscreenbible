@@ -27735,3 +27735,19 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   cursor: pointer;
 }
 .passage-combobox-empty { padding: 12px; color: var(--muted); }
+
+[data-widget-passage-form] {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+[data-widget-passage] { width: 100%; min-width: 0; box-sizing: border-box; }
+.widget-passage-suggestions {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.widget-passage-suggestions[hidden] { display: none; }
+.widget-passage-suggestions [aria-selected="true"] { background: var(--line); }

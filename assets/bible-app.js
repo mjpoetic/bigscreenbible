@@ -1388,8 +1388,8 @@ async function nativeWidgetTranslatedContent() {
   }
   return content;
 }
-function useSelectedPassageInWidget() {
-  const numbers = selectedVerseNumbers();
+function useSelectedPassageInWidget(numbers = selectedVerseNumbers()) {
+  if (!Array.isArray(numbers)) numbers = selectedVerseNumbers();
   const text = passageLines(numbers).map(line => String(line.text || "").trim()).filter(Boolean).join(" ");
   if (!text || text.length > 2000) { showToast("Choose a shorter passage for your widget"); return; }
   const url = new URL(passageShareUrl(numbers));
@@ -6209,6 +6209,96 @@ function settingsScriptureFontMarkup(prefix = "", options = {}) {
   `;
 }
 
+function widgetPassageSuggestions(value) {
+  const query = String(value).trim().replace(/[–—]/g, "-");
+  const match = query.match(/^(.+?)\s+(\d*)(?::(\d*)(?:-(\d*))?)?$/);
+  const book = match && normalizeBookName(match[1]);
+  if (!book) return books.filter(name => name.toLowerCase().replace(/\s/g, "").startsWith(query.toLowerCase().replace(/\s/g, "")));
+  if (!query.includes(":")) return Object.keys(bibleData).filter(key => bookNameFromChapterKey(key) === book && key.startsWith(`${book} ${match[2]}`)).map(key => `${key}:`);
+  const key = `${book} ${Number(match[2])}`;
+  const start = Number(match[3]);
+  const range = match[4] !== undefined;
+  const prefix = range ? match[4] : match[3];
+  return (bibleData[key]?.verses || []).filter(verse => (!range || verse.n >= start) && String(verse.n).startsWith(prefix)).map(verse => `${key}:${range ? `${start}-` : ""}${verse.n}`);
+}
+
+async function saveWidgetPassageReference(value) {
+  const reference = String(value).trim().replace(/[–—]/g, "-");
+  if (!/^.+?\s+\d+:\d+(?:\s*-\s*\d+)?(?:\s*,\s*\d+(?:\s*-\s*\d+)?)*$/.test(reference)) throw Error("Enter a reference such as John 3:16–17.");
+  const parsed = parsePassageReference(reference);
+  if (!parsed) throw Error("Choose a valid Bible book and passage.");
+  const version = state.versions[0];
+  if (isRemoteTranslation(version)) await ensureRemoteBibleVersion(version, parsed.key, {rerender: false});
+  else await loadBibleVersion(version);
+  rebuildBibleData();
+  const numbers = [];
+  for (const token of reference.split(":")[1].split(",")) {
+    const [first, last = first] = token.trim().split(/\s*-\s*/).map(Number);
+    if (first < 1 || last < first || last - first > 199 || numbers.length + last - first + 1 > 200) throw Error("Choose a valid, shorter verse range.");
+    for (let n = first; n <= last; n++) if (!numbers.includes(n)) numbers.push(n);
+  }
+  const selected = numbers.sort((a, b) => a - b).map(n => bibleData[parsed.key]?.verses.find(verse => verse.n === n));
+  if (selected.some(verse => !verse?.[version])) throw Error("That passage is unavailable in the selected Bible version.");
+  const text = uniqueVersionVerses(selected, version).map(verse => String(verse[version]).trim()).join(" ");
+  if (!text || text.length > 2000) throw Error("Choose a shorter passage for your widget.");
+  const label = formatReferenceLabel(parsed.key, numbers);
+  localStorage.setItem("lw_widget_favorite", JSON.stringify({reference: label, text, source: translationDisplayCode(version), version, verses: numbers.join(","), linkReference: label, day: ""}));
+  localStorage.setItem("lw_widget_content", "favorite");
+  scheduleNativeWidgetSync();
+}
+
+function bindWidgetPassageForms() {
+  document.querySelectorAll("[data-widget-passage-form]").forEach(form => {
+    const input = form.querySelector("[data-widget-passage]");
+    const list = form.querySelector('[role="listbox"]');
+    let active = -1;
+    const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); };
+    const update = () => {
+      active = -1;
+      input.removeAttribute("aria-activedescendant");
+      const suggestions = widgetPassageSuggestions(input.value);
+      list.innerHTML = suggestions.map((value, index) => `<button type="button" class="settings-choice-option" role="option" aria-selected="false" tabindex="-1" id="${list.id}Option${index}">${escapeHtml(value)}</button>`).join("");
+      list.hidden = !suggestions.length;
+      input.setAttribute("aria-expanded", String(!list.hidden));
+      list.querySelectorAll("button").forEach(button => {
+        button.addEventListener("pointerdown", event => event.preventDefault());
+        button.addEventListener("click", () => { input.value = button.textContent; input.focus(); update(); });
+      });
+    };
+    input.addEventListener("input", update);
+    input.addEventListener("focus", update);
+    input.addEventListener("blur", close);
+    input.addEventListener("keydown", event => {
+      if (event.isComposing) return;
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
+      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        if (list.hidden) update();
+        const options = [...list.querySelectorAll("button")];
+        active = Math.max(0, Math.min(options.length - 1, active + (event.key === "ArrowDown" ? 1 : -1)));
+        options.forEach((button, index) => button.setAttribute("aria-selected", String(index === active)));
+        if (options[active]) { input.setAttribute("aria-activedescendant", options[active].id); options[active].scrollIntoView({block: "nearest"}); }
+      }
+      if (event.key === "Enter" && !list.hidden && active >= 0) {
+        event.preventDefault();
+        list.querySelectorAll("button")[active]?.click();
+      }
+    });
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const button = form.querySelector("button");
+      button.disabled = true;
+      try {
+        await saveWidgetPassageReference(input.value);
+        showToast("Passage saved for your Home Screen widgets");
+        renderPreservingReaderScroll();
+      } catch (error) {
+        form.querySelector("[data-widget-passage-status]").textContent = error.message || "Unable to load passage. Please try again.";
+      } finally { button.disabled = false; }
+    });
+  });
+}
+
 function widgetSettingsMarkup(prefix = "") {
   return `
     ${window.Capacitor?.isNativePlatform?.() ? `
@@ -6216,7 +6306,14 @@ function widgetSettingsMarkup(prefix = "") {
       <span class="setting-label">Home Screen widget content</span>
       ${settingsChoiceMarkup(`${prefix}WidgetContent`, localStorage.getItem("lw_widget_content") || "daily",
         [{value: "daily", label: "Verse of the Day"}, {value: "favorite", label: "My favorite passage"}], {label: "Home Screen widget content"})}
-      <p class="setting-help">${nativeWidgetFavorite(false) ? `Saved: ${escapeHtml(nativeWidgetFavorite(false).reference)} (${escapeHtml(nativeWidgetFavorite(false).source)})` : "Select verses in Reader, then choose Use in widget to save a favorite passage. Until then, Verse of the Day is shown."} Lock Screen Scripture stays on the daily verse.</p>
+      <p class="setting-help">${nativeWidgetFavorite(false) ? `Saved: ${escapeHtml(nativeWidgetFavorite(false).reference)} (${escapeHtml(nativeWidgetFavorite(false).source)})` : "Enter a passage below, or tap a verse number in Reader and choose My favorite passage. Until saved, Verse of the Day is shown."} Lock Screen Scripture stays on the daily verse.</p>
+      <form data-widget-passage-form>
+        <label for="${prefix}WidgetPassage">Favorite passage</label>
+        <input id="${prefix}WidgetPassage" data-widget-passage role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${prefix}WidgetPassageSuggestions" value="${escapeHtml(nativeWidgetFavorite(false)?.reference || "")}" placeholder="John 3:16–17" autocomplete="off" spellcheck="false" required maxlength="100">
+        <div class="widget-passage-suggestions" id="${prefix}WidgetPassageSuggestions" role="listbox" aria-label="Passage suggestions" hidden></div>
+        <button class="text-btn" type="submit">Save favorite passage</button>
+        <p class="setting-help" data-widget-passage-status role="status">Enter a book, chapter, and verse or verse range. Uses the first Reader Bible version.</p>
+      </form>
       <span class="setting-label">Widget Bible version</span>
       ${settingsChoiceMarkup(`${prefix}WidgetVersion`, localStorage.getItem("lw_widget_version_mode") || "follow",
         [{value: "follow", label: "Follow Reader Bible version"}, {value: "original", label: "Original passage text"}], {label: "Widget Bible version"})}
@@ -21086,6 +21183,7 @@ function openVerseActionMenu(anchor) {
     <button type="button" data-menu-copy aria-label="Copy ${state.reference}:${verseNumber}">${icons.copy}</button>
     <button type="button" data-menu-cross-ref data-cross-ref-verse="${verseNumber}" aria-label="Cross references for ${state.reference}:${verseNumber}">${icons.layers}</button>
     <button type="button" data-menu-note aria-label="${hasNote ? "Edit" : "Add"} note for ${state.reference}:${verseNumber}">${hasNote ? icons.note : icons.noteAdd}</button>
+    ${window.Capacitor?.isNativePlatform?.() ? `<button type="button" data-menu-widget aria-label="My favorite passage" data-tooltip="My favorite passage">${icons.book}</button>` : ""}
     <button type="button" data-menu-highlight aria-label="Highlight ${state.reference}:${verseNumber}">${icons.highlighter}</button>
   `;
   (document.querySelector(".app-shell") || document.body).appendChild(menu);
@@ -21116,6 +21214,12 @@ function openVerseActionMenu(anchor) {
     event.stopPropagation();
     closeVerseActionMenu(true);
     openNoteComposer(noteRef, anchor);
+  });
+  menu.querySelector("[data-menu-widget]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const selected = selectedVerseNumbers();
+    useSelectedPassageInWidget(selected.includes(verseNumber) ? selected : [verseNumber]);
+    closeVerseActionMenu();
   });
   menu.querySelector("[data-menu-highlight]")?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -21758,7 +21862,6 @@ function selectionBar() {
         <div class="selection-bar-actions">
           <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
           <button class="text-btn selection-action" id="memorizeSelection" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
-          ${window.Capacitor?.isNativePlatform?.() ? `<button class="text-btn selection-action" id="useSelectionInWidget" aria-label="Use selected passage in Home Screen widget" data-tooltip="Use in widget"><span class="selection-action-icon">${icons.book}</span><span class="selection-action-label">Use in widget</span></button>` : ""}
           <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
           <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
           <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
@@ -23558,7 +23661,7 @@ function bindEvents() {
       renderPreservingReaderScroll();
     });
   });
-  document.getElementById("useSelectionInWidget")?.addEventListener("click", useSelectedPassageInWidget);
+  bindWidgetPassageForms();
   document.querySelectorAll('select[id$="WidgetVersion"]').forEach((select) => {
     select.addEventListener("change", () => {
       localStorage.setItem("lw_widget_version_mode", select.value);
