@@ -5372,6 +5372,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.04.1": [
+      "Save My favorite passage from the verse-number popup, with fewer buttons in the highlighter bar. Widget settings now support manual passage entry with book, chapter, verse, and range suggestions.",
+    ],
     "2026.11.02.4": [
       "Big Screen next and previous arrows now use the same full slide transition as swiping, including on iPhone. Rapid taps no longer overlap verse transitions.",
     ],
