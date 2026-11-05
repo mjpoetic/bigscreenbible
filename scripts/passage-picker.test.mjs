@@ -92,3 +92,44 @@ const numbers = ['1', '2', '10', '11', '12'].map(label => ({ label, value: label
 assert.deepEqual(Array.from(context.passageChoiceMatches(numbers, '1'), o => o.value), ['1', '10', '11', '12']);
 assert.equal(context.passageChoiceMatches(numbers, '99').length, 0);
 console.log('Editable passage choice filtering checks passed');
+
+vm.runInContext(extract('passagePickerViewport'), context);
+vm.runInContext(extract('positionFocusWorkspacePanel'), context);
+context.window = {
+  innerWidth: 956, innerHeight: 440,
+  visualViewport: { offsetLeft: 0, offsetTop: 55, width: 956, height: 178 },
+  matchMedia: () => ({ matches: true }),
+};
+const safeAreas = { '--passage-picker-safe-left': '62px', '--passage-picker-safe-right': '62px', '--passage-picker-safe-bottom': '21px' };
+context.getComputedStyle = () => ({ getPropertyValue: name => safeAreas[name] });
+const styles = {};
+const classes = new Set();
+const panel = {
+  style: Object.assign(styles, { removeProperty: name => delete styles[name] }),
+  classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) },
+};
+context.document = {
+  documentElement: {},
+  getElementById: () => panel,
+  querySelector: () => ({ getBoundingClientRect: () => ({ left: 910, bottom: 100 }) }),
+};
+context.state.focusWorkspacePanel = 'Verse';
+context.updateFocusPassageNotch = () => {};
+context.positionFocusWorkspacePanel();
+assert.equal(styles.top, '63px', 'Landscape picker follows the panned viewport above the keyboard');
+assert.equal(styles.maxHeight, '162px', 'The panel ends above the keyboard with no layout viewport height floor');
+assert.equal(styles.left, '446px', 'The picker stays inside the landscape safe area');
+assert.ok(classes.has('passage-picker-compact'));
+
+Object.assign(context.window, {
+  innerWidth: 440, innerHeight: 956,
+  visualViewport: { offsetLeft: 0, offsetTop: 0, width: 440, height: 600 },
+});
+delete safeAreas['--passage-picker-safe-left'];
+delete safeAreas['--passage-picker-safe-right'];
+context.positionFocusWorkspacePanel();
+assert.equal(styles.top, '108px');
+assert.equal(styles.maxHeight, '484px', 'Portrait picker can keep its normal anchor and use the space above the keyboard');
+assert.equal(styles.width, '424px');
+assert.ok(!classes.has('passage-picker-compact'));
+console.log('Touch passage picker keyboard viewport checks passed');

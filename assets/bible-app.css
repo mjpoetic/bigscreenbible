@@ -27736,6 +27736,42 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 }
 .passage-combobox-empty { padding: 12px; color: var(--muted); }
 
+@media (pointer: coarse) {
+  :root {
+    --passage-picker-safe-top: env(safe-area-inset-top, 0px);
+    --passage-picker-safe-right: env(safe-area-inset-right, 0px);
+    --passage-picker-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --passage-picker-safe-left: env(safe-area-inset-left, 0px);
+  }
+  .passage-picker-workspace .passage-combobox input {
+    /* iOS zooms focused inputs with smaller text. */
+    font-size: max(16px, 1em);
+  }
+  .passage-picker-workspace .focus-mini-verse-picker {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    gap: 8px;
+  }
+  .focus-mini-verse-picker > :not(.passage-combobox-list) { flex: none; }
+  .focus-mini-verse-picker > .passage-combobox-list {
+    position: static;
+    min-height: 54px;
+    max-height: 240px;
+    box-shadow: none;
+    animation: none;
+  }
+  .passage-combobox-list .settings-choice-option { grid-template-columns: minmax(0, 1fr); }
+  .passage-picker-compact .mobile-focus-workspace-head {
+    padding-block: 2px;
+  }
+  .passage-picker-compact .mobile-focus-workspace-head > div > span,
+  .passage-picker-compact .focus-mini-verse-picker > p { display: none; }
+  #app .passage-picker-compact .mobile-focus-workspace-body { padding: 0; }
+  #app .passage-picker-compact .focus-mini-verse-picker { padding: 6px; }
+}
+
 [data-widget-passage-form] {
   display: grid;
   gap: 8px;

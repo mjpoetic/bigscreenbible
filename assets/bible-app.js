@@ -3672,6 +3672,19 @@ function positionFocusSearchResults() {
   panel.style.width = `${Math.round(width)}px`;
 }
 
+function passagePickerViewport() {
+  const viewport = window.visualViewport;
+  const safeStyle = getComputedStyle(document.documentElement);
+  const safe = (edge) => Math.max(0, parseFloat(safeStyle.getPropertyValue(`--app-safe-area-${edge}`)) || 0,
+    parseFloat(safeStyle.getPropertyValue(`--android-safe-${edge}`)) || 0,
+    parseFloat(safeStyle.getPropertyValue(`--passage-picker-safe-${edge}`)) || 0);
+  const left = Math.max(viewport?.offsetLeft || 0, safe("left")) + 8;
+  const top = Math.max(viewport?.offsetTop || 0, safe("top")) + 8;
+  const right = Math.min((viewport?.offsetLeft || 0) + (viewport?.width || window.innerWidth), window.innerWidth - safe("right")) - 8;
+  const bottom = Math.min((viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight), window.innerHeight - safe("bottom")) - 8;
+  return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+}
+
 function positionFocusWorkspacePanel() {
   updateFocusPassageNotch();
   const panel = document.getElementById("mobileFocusWorkspace");
@@ -3682,6 +3695,26 @@ function positionFocusWorkspacePanel() {
   panel.style.removeProperty("bottom");
   panel.style.removeProperty("max-height");
   const versePicker = state.focusWorkspacePanel === "Verse";
+  const touchPicker = versePicker && window.matchMedia("(pointer: coarse)").matches;
+  if (touchPicker) {
+    const bounds = passagePickerViewport();
+    const width = Math.min(440, bounds.width);
+    const notch = state.focusMode ? document.getElementById("focusPassageNotch") : null;
+    const anchor = notch || document.querySelector(state.focusVersePickerAnchor || ".topbar .search");
+    const rect = anchor?.getBoundingClientRect();
+    const anchorLeft = rect ? (notch ? rect.left + (rect.width - width) / 2 : rect.left) : bounds.left;
+    panel.classList.toggle("passage-picker-compact", bounds.height < 300);
+    // Reserve space for choices even when the list is closed so tapping
+    // another control cannot move it between pointerdown and click.
+    const top = Math.max(bounds.top, Math.min((rect?.bottom ?? bounds.top) + 8, bounds.top + bounds.height - 340));
+    panel.style.left = `${Math.min(Math.max(bounds.left, anchorLeft), bounds.left + bounds.width - width)}px`;
+    panel.style.top = `${top}px`;
+    panel.style.bottom = "auto";
+    panel.style.width = `${width}px`;
+    panel.style.maxHeight = `${Math.max(0, bounds.top + bounds.height - top)}px`;
+    return;
+  }
+  panel.classList.remove("passage-picker-compact");
   if (isCompactScreen() && !versePicker) return;
   const notchAnchor = versePicker && state.focusMode ? document.getElementById("focusPassageNotch") : null;
   const anchor = notchAnchor || (versePicker && state.focusVersePickerAnchor
@@ -4447,6 +4480,8 @@ function bindPassageComboboxes() {
     const root = input.closest("[data-settings-choice]");
     const select = root.querySelector("select");
     const arrow = root.querySelector("[data-passage-arrow]");
+    const form = root.closest(".focus-mini-verse-picker");
+    const usesInlineList = () => form && window.matchMedia("(pointer: coarse)").matches;
     let activeIndex = -1;
     let visible = [];
     const commit = (value, focusId = input.id) => {
@@ -4477,7 +4512,10 @@ function bindPassageComboboxes() {
         button.setAttribute("aria-selected", "false");
         button.textContent = option.label;
         button.addEventListener("pointerdown", (event) => event.preventDefault());
-        button.addEventListener("click", () => commit(option.value));
+        button.addEventListener("click", () => {
+          commit(option.value, usesInlineList() ? "" : input.id);
+          if (usesInlineList()) input.blur();
+        });
         menu.appendChild(button);
       });
       if (!visible.length) {
@@ -4487,18 +4525,23 @@ function bindPassageComboboxes() {
         empty.textContent = "No matches";
         menu.appendChild(empty);
       }
-      document.body.appendChild(menu);
+      const inline = usesInlineList();
+      if (inline) menu.classList.add("passage-combobox-list");
+      (inline ? form : document.body).appendChild(menu);
       input.setAttribute("aria-expanded", "true");
-      const reposition = () => positionSettingsChoiceMenu(root, menu);
+      const reposition = () => inline ? positionFocusWorkspacePanel() : positionSettingsChoiceMenu(root, menu);
       activeSettingsChoiceMenu = { menu, trigger: root, select, cleanup: () => {
         input.setAttribute("aria-expanded", "false");
         input.removeAttribute("aria-activedescendant");
         window.visualViewport?.removeEventListener("resize", reposition);
         window.removeEventListener("resize", reposition);
+        if (inline) positionFocusWorkspacePanel();
       } };
       document.addEventListener("pointerdown", closeSettingsChoiceMenuOnOutsidePointerDown, true);
-      window.addEventListener("resize", reposition);
-      window.visualViewport?.addEventListener("resize", reposition);
+      if (!inline) {
+        window.addEventListener("resize", reposition);
+        window.visualViewport?.addEventListener("resize", reposition);
+      }
       reposition();
     };
     input.addEventListener("focus", () => { input.select(); });
@@ -4507,7 +4550,10 @@ function bindPassageComboboxes() {
     arrow.addEventListener("pointerdown", (event) => event.preventDefault());
     arrow.addEventListener("click", () => {
       if (activeSettingsChoiceMenu?.trigger === root) closeSettingsChoiceMenu();
-      else { input.focus({ preventScroll: true }); show(true); }
+      else {
+        if (!usesInlineList()) input.focus({ preventScroll: true });
+        show(true);
+      }
     });
     input.addEventListener("keydown", (event) => {
       if (event.isComposing) return;
@@ -5372,6 +5418,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.05.1": [
+      "On touch screens, the Verse Picker keeps book, chapter, and verse choices inside the panel and fits above the keyboard in portrait and landscape.",
+    ],
     "2026.11.04.1": [
       "Save My favorite passage from the verse-number popup, with fewer buttons in the highlighter bar. Widget settings now support manual passage entry with book, chapter, verse, and range suggestions.",
     ],
@@ -34188,6 +34237,9 @@ window.visualViewport?.addEventListener("scroll", updateGamesPlayViewport);
 window.visualViewport?.addEventListener("scroll", updateGamesOptionsViewport);
 window.visualViewport?.addEventListener("scroll", refreshDraggedPopupPositions);
 window.visualViewport?.addEventListener("scroll", positionMobileFocusSearch);
+window.visualViewport?.addEventListener("scroll", () => {
+  if (state.focusWorkspacePanel === "Verse") positionFocusWorkspacePanel();
+});
 window.visualViewport?.addEventListener("scroll", positionPresentationBibleMenus);
 window.visualViewport?.addEventListener("scroll", positionNoteComposer);
 window.visualViewport?.addEventListener("scroll", restoreScriptureSearchWindowScroll);
