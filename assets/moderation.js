@@ -6,13 +6,14 @@
   if (!window.supabase || !config?.url || !config?.anonKey) { $('access-message').textContent='Sign-in tools could not load. Refresh or check your connection.'; return; }
   const client=window.supabase.createClient(config.url,config.anonKey);
   let page=0,total=0,selected=null,busy=false,authorized=false,generation=0,lastOpen=null,currentUser=null,mfaFactor=null;
+  let accountPage=0,accountHasNext=false;
   const drafts=new Map();
   const titles={review:'Start review',resolve:'Resolve report',dismiss:'Dismiss report',note:'Save note',suspend:'Suspend social access',restore_access:'Restore social access',remove_profile:'Remove profile'};
   function node(tag,text,className) { const n=document.createElement(tag); if(text!==undefined) n.textContent=String(text); if(className) n.className=className; return n; }
   function date(value) { return value ? new Date(value).toLocaleString() : '—'; }
   function notice(text) { $('notice').textContent=text; }
-  function lock(value) { busy=value; document.querySelectorAll('button').forEach(b=>b.disabled=value); if(!value) { $('previous').disabled=page===0; $('next').disabled=(page+1)*25>=total; document.querySelectorAll('[data-protected]').forEach(b=>b.disabled=true); } }
-  function clear() { mfaFactor=null; $('mfa').hidden=true; $('mfa').replaceChildren(); authorized=false; generation++; selected=null; lastOpen=null; drafts.clear(); $('workspace').hidden=true; $('access').hidden=false; $('queue').replaceChildren(); $('detail').replaceChildren(node('h2','Select a report'),node('p','Review the profile snapshot, details, and action history before taking action.')); $('summary').replaceChildren(); $('account').textContent=''; $('alerts-status').textContent=''; }
+  function lock(value) { busy=value; document.querySelectorAll('button').forEach(b=>b.disabled=value); if(!value) { $('accounts-previous').disabled=accountPage===0; $('accounts-next').disabled=!accountHasNext; $('previous').disabled=page===0; $('next').disabled=(page+1)*25>=total; document.querySelectorAll('[data-protected]').forEach(b=>b.disabled=true); } }
+  function clear() { accountPage=0; accountHasNext=false; $('account-search').value=''; $('account-results').replaceChildren(); $('account-detail').replaceChildren(); $('accounts-page').textContent=''; mfaFactor=null; $('mfa').hidden=true; $('mfa').replaceChildren(); authorized=false; generation++; selected=null; lastOpen=null; drafts.clear(); $('workspace').hidden=true; $('access').hidden=false; $('queue').replaceChildren(); $('detail').replaceChildren(node('h2','Select a report'),node('p','Review the profile snapshot, details, and action history before taking action.')); $('summary').replaceChildren(); $('account').textContent=''; $('alerts-status').textContent=''; }
   async function api(payload) {
     const {data,error}=await client.auth.getSession();
     if(error || !data.session) { clear(); throw new Error('Sign in through Big Screen Bible, then return here.'); }
@@ -74,6 +75,47 @@
     for(const event of data.history) { const li=node('li'); li.append(node('strong',`${titles[event.action] || event.action} · ${event.moderator_name}`),node('p',event.note),node('small',date(event.created_at))); history.append(li); }
     d.append(history); if(!data.history.length) d.append(node('p','No moderator actions yet.'));
   }
+  async function accounts() {
+    const gen=generation,data=await api({action:'accounts',search:$('account-search').value,page:accountPage});
+    if(gen!==generation) return;
+    accountHasNext=data.items.length>25;
+    $('account-detail').replaceChildren(); $('account-results').replaceChildren();
+    for(const account of data.items.slice(0,25)) {
+      const button=node('button',account.email || account.name || account.id,'report'); button.type='button';
+      button.append(node('small',`${account.name || 'No public profile'} · ${account.protected ? 'Moderator' : 'User'}`));
+      button.addEventListener('click',()=>accountDetail(account)); $('account-results').append(button);
+    }
+    if(!data.items.length) $('account-results').append(node('p','No accounts found.'));
+    $('accounts-page').textContent=`Page ${accountPage+1}`;
+  }
+  function accountDetail(account) {
+    if(busy) return;
+    const gen=generation,d=$('account-detail'); d.replaceChildren(node('h3',account.email || 'Account details'));
+    const info=node('dl');
+    for(const [label,value] of [['User ID',account.id],['Name',account.name || '—'],['Created',date(account.created_at)],['Last sign-in',date(account.last_sign_in_at)],['Email verified',date(account.email_confirmed_at)],['Sign-in methods',(account.providers || []).join(', ') || '—']]) info.append(node('dt',label),node('dd',value));
+    d.append(info);
+    if(account.protected) { d.append(node('p','Manage moderator accounts in the Supabase administrator dashboard.')); return; }
+    const label=node('label','Account action note (required)'),note=node('textarea'); note.maxLength=2000; label.append(note); d.append(label);
+    const confirmationLabel=node('label',`To permanently delete, type DELETE ${account.id}`),confirmation=node('input'); confirmation.type='text'; confirmation.autocomplete='off'; confirmation.spellcheck=false; confirmationLabel.append(confirmation);
+    d.append(node('p','Password reset sends an email so the user can choose a password. For Apple or Google accounts, the user can continue using their existing sign-in method.'));
+    const reset=node('button','Send password reset email'); reset.type='button'; reset.disabled=!account.email;
+    if(!account.email) reset.dataset.protected='true';
+    const remove=node('button','Permanently delete account','danger'); remove.type='button';
+    for(const [button,action] of [[reset,'reset_password'],[remove,'delete_user']]) button.addEventListener('click',()=>run(async()=>{
+      if(gen!==generation || !authorized) return;
+      if(!note.value.trim()) { notice('Add an account action note first.'); note.focus(); return; }
+      if(action==='delete_user' && confirmation.value!==`DELETE ${account.id}`) { notice('Type the full deletion confirmation shown above.'); confirmation.focus(); return; }
+      if(!window.confirm(action==='delete_user' ? `Permanently delete ${account.email || account.id}? This cannot be undone. Account data will be removed, including saved study data and social records. Sessions and notification subscriptions are removed first; existing access tokens expire normally. External Apple/Google authorization is managed by the user.` : `Send a password reset email to ${account.email}?`)) return;
+      await api({action,user_id:account.id,email:account.email || '',note:note.value,confirmation:confirmation.value});
+      if(gen!==generation) return;
+      await accounts(); await queue(); notice(action==='delete_user' ? 'Account permanently deleted and action recorded.' : 'Password reset email requested and action recorded. Ask the user to check their inbox.');
+    }));
+    d.append(reset,node('h3','Permanent account deletion'),node('p','This removes the app account and associated data. Report history tied to the deleted account may also be removed. The account action audit is retained.'),confirmationLabel,remove);
+    d.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  $('account-search-form').addEventListener('submit',event=>{event.preventDefault();accountPage=0;run(accounts);});
+  $('accounts-previous').addEventListener('click',()=>{if(accountPage>0){accountPage--;run(accounts);}});
+  $('accounts-next').addEventListener('click',()=>{if(accountHasNext){accountPage++;run(accounts);}});
   async function run(fn) { if(busy) return; lock(true); try { await fn(); } catch(e) { notice(e.message || 'Something went wrong.'); } finally { lock(false); } }
   async function showMfa() {
     const gen=generation;

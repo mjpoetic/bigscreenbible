@@ -31,3 +31,25 @@ Deno.test('MFA required is a step-up response, not a logout',async()=>{
  const response=await handleModeration(request({action:'queue'}),admin as never);
  if(response.status!==428) throw new Error('MFA step-up status missing');
 });
+
+Deno.test('Account mutations are gated by the account RPC before Auth is called',async()=>{
+ const admin=mock();let touched=false;
+ Object.assign(admin.auth,{admin:{deleteUser:()=>{touched=true;return Promise.resolve({error:null});}}});
+ admin.rpc=()=>Promise.resolve({data:null,error:{code:'28000',message:'Verify authenticator'}}) as never;
+ const response=await handleModeration(request({action:'delete_user',user_id:id,email:'user@example.com',note:'Requested removal',confirmation:`DELETE ${id}`}),admin as never);
+ if(response.status!==428 || touched) throw new Error('Account mutation bypassed MFA gate');
+});
+Deno.test('Password reset uses server-selected email and fixed redirect, then records outcome',async()=>{
+ const admin=mock();const calls: Array<Record<string,unknown>>=[];let sent='';
+ Object.assign(admin.auth,{resetPasswordForEmail:(email:string,options:{redirectTo:string})=>{sent=email;if(options.redirectTo!=='https://bigscreenbible.com/') throw new Error('Unsafe redirect');return Promise.resolve({error:null});}});
+ admin.rpc=(_name:string,args:Record<string,unknown>)=>{calls.push(args);return Promise.resolve({data:{allowed:true,audit_id:id,email:'verified@example.com',user_id:id},error:null});};
+ const response=await handleModeration(request({action:'reset_password',user_id:id,email:'input@example.com',note:'Help requested',redirectTo:'https://evil.example'}),admin as never);
+ if(response.status!==200 || sent!=='verified@example.com' || calls.length!==2 || (calls[1].payload as Record<string,unknown>).success!==true) throw new Error('Reset or audit incorrect');
+});
+Deno.test('Deletion failures are recorded and surfaced without reporting success',async()=>{
+ const admin=mock();let count=0;let success:unknown;
+ Object.assign(admin.auth,{admin:{deleteUser:(target:string,soft:boolean)=>{if(target!==id || soft!==false) throw new Error('Wrong deletion');return Promise.resolve({error:{message:'Storage blocker'}});}}});
+ admin.rpc=(_name:string,args:Record<string,unknown>)=>{count++;if(count===2) success=(args.payload as Record<string,unknown>).success;return Promise.resolve({data:{allowed:true,audit_id:id,user_id:id},error:null});};
+ const response=await handleModeration(request({action:'delete_user',user_id:id,email:'user@example.com',note:'Requested removal',confirmation:`DELETE ${id}`}),admin as never);
+ if(response.status!==502 || success!==false) throw new Error('Failed deletion not recorded');
+});

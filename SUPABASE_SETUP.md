@@ -412,3 +412,27 @@ See [APPLE_SIGN_IN_SETUP.md](./APPLE_SIGN_IN_SETUP.md) for native iOS capability
 ## Account deletion
 
 See [ACCOUNT_DELETION_SETUP.md](./ACCOUNT_DELETION_SETUP.md) for the deployed deletion endpoint, server-only Apple secrets, confirmation flow, and verification steps.
+
+### Moderator account management
+
+Apply `supabase/migrations/20261107181444_moderation_accounts.sql`, then redeploy
+`supabase/functions/moderation/index.ts` before publishing the updated moderation
+page and assets. The new service-only RPC reuses the live moderator session and
+15-minute TOTP verification checks. No additional browser secrets are required.
+
+The **User accounts** section searches email, public profile name/username, and
+user ID, with 25 accounts per page. It supports password reset emails and permanent
+Auth account deletion independently of reports. Both require a note; deletion
+also requires `DELETE <user ID>` and a final confirmation. Moderator accounts,
+including the current operator, cannot be changed here. Reset redirects always
+use `https://bigscreenbible.com/`, matching the app's password recovery flow.
+
+Account action attempts and outcomes are retained in private `bsb_account_history`
+without foreign keys to deleted users. A `requested` record means the operation
+may have been interrupted: check Auth before retrying. The endpoint enforces a
+one-minute interval per target/action. Deletion revokes refresh sessions and
+removes notification subscriptions before calling the Auth Admin API; already
+issued access JWTs expire normally. If Auth deletion fails (for example because
+of owned Storage objects), those sessions/subscriptions remain removed and the
+page reports the failure. Provider authorization at Apple/Google is separate.
+No real account deletion or reset email is needed for deployment verification.

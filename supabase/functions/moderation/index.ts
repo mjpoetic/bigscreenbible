@@ -36,11 +36,20 @@ export async function handleModeration(request: Request, supplied?: ReturnType<t
     let input;
     try { input=JSON.parse(raw); } catch { return reply(request,400,{error:'Invalid request.'}); }
     if (!input || typeof input!=='object' || Array.isArray(input)) return reply(request,400,{error:'Invalid request.'});
-    const actions=['access','queue','detail','review','resolve','dismiss','note','suspend','restore_access','remove_profile'];
+    const actions=['access','queue','detail','review','resolve','dismiss','note','suspend','restore_access','remove_profile','accounts','reset_password','delete_user'];
     if (!actions.includes(input.action)) return reply(request,400,{error:'Invalid action.'});
     const verifiedAt=Math.max(0,...(Array.isArray(claims.amr) ? claims.amr : []).filter((entry: {method?:string;timestamp?:number})=>entry.method==='totp' && Number.isFinite(entry.timestamp)).map((entry: {timestamp:number})=>entry.timestamp));
     const payload: Record<string,unknown>={action:input.action,session_id:claims.session_id,assurance:claims.aal || 'aal1',mfa_verified_at:verifiedAt};
-    if (input.action==='queue') {
+    const accountAction=['accounts','reset_password','delete_user'].includes(input.action);
+    if (accountAction) {
+      payload.search=String(input.search || '').slice(0,100);
+      payload.page=Number.isInteger(input.page) ? Math.max(0,Math.min(20000,input.page)) : 0;
+      if(input.action!=='accounts') {
+        if(!uuid.test(input.user_id || '') || typeof input.email!=='string' || typeof input.note!=='string' || !input.note.trim() || input.note.length>2000) return reply(request,400,{error:'Select an account and add a note of 1–2000 characters.'});
+        payload.user_id=input.user_id; payload.email=input.email; payload.note=input.note.trim();
+        payload.confirmation=input.confirmation;
+      }
+    } else if (input.action==='queue') {
       payload.status=String(input.status || 'active'); payload.reason=String(input.reason || 'all');
       payload.search=String(input.search || '').slice(0,100);
       payload.page=Number.isInteger(input.page) ? Math.max(0,Math.min(20000,input.page)) : 0;
@@ -53,10 +62,23 @@ export async function handleModeration(request: Request, supplied?: ReturnType<t
         payload.note=input.note.trim(); payload.expected_updated_at=input.expected_updated_at;
       }
     }
-    const {data,error}=await admin.rpc('bsb_moderation',{operator_id:identity.user.id,payload});
+    const {data,error}=await admin.rpc(accountAction ? 'bsb_moderation_accounts' : 'bsb_moderation',{operator_id:identity.user.id,payload});
     if (error) {
       const status=({'42501':403,'28000':428,'40001':409,'P0002':404,'22023':400,'22P02':400} as Record<string,number>)[error.code] || 500;
       return reply(request,status,{error:status===500 ? 'Moderation could not finish. Try again.' : error.message});
+    }
+    if(accountAction && input.action!=='accounts') {
+      let success=false;
+      try {
+        const outcome=input.action==='delete_user'
+          ? await admin.auth.admin.deleteUser(data.user_id,false)
+          : await admin.auth.resetPasswordForEmail(data.email,{redirectTo:'https://bigscreenbible.com/'});
+        success=!outcome.error;
+      } catch { success=false; }
+      const {error:auditError}=await admin.rpc('bsb_moderation_accounts',{operator_id:identity.user.id,payload:{...payload,action:'account_finish',audit_id:data.audit_id,success}});
+      if(auditError) return reply(request,500,{error:'Account action outcome could not be recorded. Check Supabase before retrying.'});
+      if(!success) return reply(request,502,{error:input.action==='delete_user' ? 'Deletion could not finish. Sessions and notification subscriptions have been removed; check Supabase for blockers such as owned Storage files.' : 'Password reset email could not be sent. Wait a minute and retry.'});
+      return reply(request,200,{completed:true});
     }
     if(input.action==='queue' && data?.alerts) data.alerts.configured=Boolean(Deno.env.get('RESEND_API_KEY') && Deno.env.get('MODERATION_EMAIL_FROM'));
     return reply(request,200,data);

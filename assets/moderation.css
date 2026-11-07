@@ -23,3 +23,5 @@ dl { display:grid; grid-template-columns:130px minmax(0,1fr); gap:8px 14px; } dt
 @media(max-width:760px) { body { padding:16px; } .columns { grid-template-columns:1fr; } .filters label { width:100%; } dl { grid-template-columns:100px minmax(0,1fr); } }
 
 .mfa-qr { display:block; max-width:240px; width:100%; background:white; padding:12px; margin:16px 0; } .mfa-secret { display:block; overflow-wrap:anywhere; user-select:all; padding:12px; } #mfa input { display:block; margin:8px 0 16px; }
+
+.account-panel { margin-top:20px; } #account-detail input { width:100%; } #account-results button { overflow-wrap:anywhere; }
