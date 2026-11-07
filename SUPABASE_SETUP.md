@@ -423,7 +423,9 @@ page and assets. The new service-only RPC reuses the live moderator session and
 The **User accounts** section searches email, public profile name/username, and
 user ID, with 25 accounts per page. It supports password reset emails and permanent
 Auth account deletion independently of reports. Both require a note; deletion
-also requires `DELETE <user ID>` and a final confirmation. Moderator accounts,
+also requires typing only `DELETE` and a final confirmation naming the account.
+The browser binds this confirmation to the selected user ID using the existing
+server request format; no database or Edge Function change is needed. Moderator accounts,
 including the current operator, cannot be changed here. Reset redirects always
 use `https://bigscreenbible.com/`, matching the app's password recovery flow.
 
@@ -436,3 +438,8 @@ issued access JWTs expire normally. If Auth deletion fails (for example because
 of owned Storage objects), those sessions/subscriptions remain removed and the
 page reports the failure. Provider authorization at Apple/Google is separate.
 No real account deletion or reset email is needed for deployment verification.
+
+The moderation workspace uses the reader's saved appearance and material settings.
+`assets/moderation-theme.css` is derived from the reader palette; regenerate it
+with `node scripts/build-moderation-theme.mjs` whenever reader palettes change.
+The moderation test command checks that these palettes stay synchronized.

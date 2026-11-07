@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const source=readFileSync(new URL('../assets/moderation.js',import.meta.url),'utf8');
+const start=source.indexOf('  function accountDetail(account)'),end=source.indexOf("  $('account-search-form')",start);
+function element(tag,text) {return {tag,text,children:[],value:'',listeners:{},append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},addEventListener(event,fn){this.listeners[event]=fn;},focus(){this.focused=true;},scrollIntoView(){}};}
+const detail=element('div'),calls=[];let confirmed=false,notice='',pending;
+const context={document:{querySelector:()=>({classList:{add(){},remove(){}}})},initials:()=> 'ER',busy:false,generation:1,authorized:true,node:element,$:()=>detail,date:()=>'',window:{confirm:()=>confirmed},run:fn=>{pending=fn();},notice:text=>notice=text,api:async payload=>calls.push(payload),accounts:async()=>{},queue:async()=>{}};
+vm.createContext(context);vm.runInContext(source.slice(start,end)+';globalThis.show=accountDetail;',context);
+const account={id:'11111111-1111-4111-8111-111111111111',name:'Example Reader',email:'reader@example.com',providers:['email']};
+context.show(account);
+const all=()=>{const nodes=[];const visit=n=>{nodes.push(n);n.children.forEach(visit);};visit(detail);return nodes;};
+const note=all().find(n=>n.tag==='textarea'),input=all().find(n=>n.tag==='input'),remove=all().find(n=>n.text==='Permanently delete account');
+assert.ok(all().some(n=>n.text==='Type DELETE to confirm'));
+assert.ok(all().some(n=>n.text==='Account to delete: Example Reader · reader@example.com'));
+note.value='Account owner requested removal';input.value='delete';confirmed=true;
+remove.listeners.click();await pending;assert.equal(calls.length,0,'Mistyped confirmation must not send a deletion');assert.match(notice,/Type DELETE/);
+input.value='DELETE';confirmed=false;remove.listeners.click();await pending;assert.equal(calls.length,0,'Cancelled final confirmation must not send a deletion');
+confirmed=true;remove.listeners.click();await pending;
+assert.equal(calls.length,1);assert.equal(calls[0].user_id,account.id);assert.equal(calls[0].email,account.email);assert.equal(calls[0].confirmation,`DELETE ${account.id}`,'Short input must retain server binding to selected account');
+context.show({...account,protected:true});assert.ok(!all().some(n=>n.text==='Permanently delete account'));
+console.log('Mobile deletion confirmation checks passed: short input, account identity, cancellation, server binding, moderator protection.');

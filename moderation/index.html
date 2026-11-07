@@ -8,34 +8,39 @@
   <meta name="theme-color" content="#f3f5f9">
   <script src="../assets/theme-catalog.js?v=2026.11.07.4"></script>
   <script>window.BigScreenBibleThemeCatalog.watchStoredTheme({migrate:false});</script>
+  <link rel="stylesheet" href="../assets/moderation-theme.css?v=2026.11.07.4">
   <link rel="stylesheet" href="../assets/liquid-glass.css?v=2026.11.07.4">
-  <link rel="stylesheet" href="../assets/moderation.css?v=2026.11.07.4&amp;layout=2">
+  <link rel="stylesheet" href="../assets/moderation.css?v=2026.11.07.4&amp;layout=4">
   <script defer src="../assets/supabase-config.js?v=2026.11.07.4"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1/dist/umd/supabase.js"></script>
-  <script defer src="../assets/moderation.js?v=2026.11.07.4&amp;layout=2"></script>
+  <script defer src="../assets/moderation.js?v=2026.11.07.4&amp;layout=4"></script>
 </head>
 <body>
-  <header><div><a href="../">Big Screen Bible</a><h1>Moderation</h1><p>Review reports and protect the social experience.</p></div><div><span id="account"></span><button id="refresh">Refresh</button></div></header>
+  <header><div><a class="button back-button" href="../"><span aria-hidden="true">←</span> Back to Big Screen Bible</a><h1>Community care</h1><p>A safe, welcoming place to connect.</p></div><div class="header-tools"><span id="verified" class="badge" hidden>✓ Verified</span><button id="refresh" type="button">Refresh</button></div></header>
   <p id="notice" role="status" aria-live="polite"></p>
   <section id="access" class="panel"><h2>Private moderator workspace</h2><p id="access-message">Checking your sign-in…</p><p><a href="../" class="button">Sign in through Big Screen Bible</a> Then return here and refresh.</p></section>
   <section id="mfa" class="panel" hidden aria-label="Moderator two-factor verification"></section>
   <main id="workspace" hidden>
-    <section class="panel"><h2>Moderator security</h2><p>Reports require an authenticator check within the last 15 minutes. Keep a backup authenticator in a secure place. Losing every authenticator requires an administrator identity review.</p><button id="add-authenticator" type="button">Add backup authenticator</button><button id="lock-moderation" type="button">Sign out on this device</button></section>
-    <section class="panel account-panel" aria-label="Account management"><h2>User accounts</h2><p>Find an account by email, name, username, or user ID. Account actions require a note. Moderator accounts are protected.</p>
-      <form id="account-search-form" class="filters"><label>Find account<input id="account-search" type="search" maxlength="100" placeholder="Email, name, or user ID"></label><button type="submit">Search accounts</button></form>
-      <div id="account-results"></div><nav aria-label="Account pages"><button id="accounts-previous" type="button">Previous accounts</button><span id="accounts-page"></span><button id="accounts-next" type="button">Next accounts</button></nav>
-      <div id="account-detail"></div>
+    <nav class="workspace-tabs" role="tablist" aria-label="Moderation workspace"><button id="reports-tab" role="tab" aria-selected="true" aria-controls="reports-panel" tabindex="0" type="button">Reports</button><button id="accounts-tab" role="tab" aria-selected="false" aria-controls="accounts-panel" tabindex="-1" type="button">Accounts</button></nav>
+    <section id="accounts-panel" role="tabpanel" aria-labelledby="accounts-tab" hidden>
+    <section class="panel account-panel" aria-label="Account management"><h2>Look after an account</h2><p>Find someone to help with sign-in or manage their account.</p>
+      <form id="account-search-form" class="filters"><label>Search accounts<input id="account-search" type="search" maxlength="100" placeholder="Name, email, or user ID"></label><button type="submit">Search accounts</button></form>
+      <div id="account-results"><p>Search for an account to get started.</p></div><nav aria-label="Account pages"><button id="accounts-previous" type="button">Previous accounts</button><span id="accounts-page"></span><button id="accounts-next" type="button">Next accounts</button></nav>
+      <section id="account-detail" class="account-detail" aria-label="Selected account" hidden></section>
     </section>
-    <p id="alerts-status" role="status"></p>
+    </section>
+    <section id="reports-panel" role="tabpanel" aria-labelledby="reports-tab">
     <div id="summary" class="summary" aria-label="Report counts"></div>
-    <form id="filters" class="panel filters">
+    <details class="filter-disclosure"><summary>Filter reports</summary><form id="filters" class="filters">
       <label>Status<select id="status"><option value="active">Needs attention</option><option value="open">Open</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option><option value="all">All reports</option></select></label>
       <label>Reason<select id="reason"><option value="all">All reasons</option><option value="harassment">Harassment</option><option value="hate">Hate</option><option value="sexual">Sexual content</option><option value="impersonation">Impersonation</option><option value="spam">Spam</option><option value="other">Other</option></select></label>
       <label>Profile search<input id="search" maxlength="100" type="search" placeholder="Name or username"></label><button type="submit">Apply filters</button>
-    </form>
-    <div class="columns"><section class="panel"><h2>Report queue</h2><p>Oldest reports first. A report is an allegation, not proof.</p><div id="queue"></div><nav aria-label="Report pages"><button id="previous">Previous</button><span id="page"></span><button id="next">Next</button></nav></section>
+    </form></details>
+    <div class="columns"><section class="panel"><h2>Reports to review</h2><p>Start with the oldest. Take a moment to understand what happened.</p><div id="queue"></div><nav aria-label="Report pages"><button id="previous">Previous</button><span id="page"></span><button id="next">Next</button></nav></section>
       <section id="detail" class="panel" aria-label="Report review"><h2>Select a report</h2><p>Review the profile snapshot, details, and action history before taking action.</p></section></div>
-    <p class="footnote">While this page is visible, the queue checks for updates every minute. Configured email alerts check every five minutes; a daily backlog reminder follows at or after 9 a.m. Eastern. Email delivery is not guaranteed—review this queue daily. Social suspensions leave private reading and study available.</p>
+    </section>
+    <details class="panel security-panel"><summary>Security &amp; activity</summary><p id="account" class="signed-in-account"></p><h2>Moderator security</h2><p>Verify your authenticator every 15 minutes to view private information or take action. Keep a backup authenticator somewhere secure.</p><div class="actions"><button id="add-authenticator" type="button">Add backup authenticator</button><button id="lock-moderation" type="button">Sign out on this device</button></div><h3>Email alerts</h3><p id="alerts-status" role="status"></p>
+    <p class="footnote">While this page is visible, the queue checks for updates every minute. Configured email alerts check every five minutes; a daily backlog reminder follows at or after 9 a.m. Eastern. Email delivery is not guaranteed—review this queue daily. Social suspensions leave private reading and study available.</p></details>
   </main>
 </body>
 </html>
