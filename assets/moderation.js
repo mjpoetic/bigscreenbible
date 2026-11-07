@@ -1,6 +1,9 @@
 /* Private data is fetched only after server authorization; never persist reports locally. */
 (() => {
   'use strict';
+  const syncAppearance=()=>window.BigScreenBibleThemeCatalog?.applyStoredTheme({migrate:false});
+  window.addEventListener('storage',syncAppearance);
+  window.addEventListener('pageshow',syncAppearance);
   const $=id=>document.getElementById(id);
   const config=window.BigScreenBibleSupabase;
   if (!window.supabase || !config?.url || !config?.anonKey) { $('access-message').textContent='Sign-in tools could not load. Refresh or check your connection.'; return; }
@@ -127,7 +130,7 @@
     if(factors.length) {
       const label=node('label','Authenticator'); const select=node('select'); select.id='mfa-factor';
       factors.forEach((f,i)=>{const option=node('option',f.friendly_name || `Authenticator ${i+1}`); option.value=f.id; select.append(option);}); label.append(select); panel.append(label);
-      mfaFactor=factors[0].id; select.addEventListener('change',()=>mfaFactor=select.value); addCodeForm(panel,false);
+      mfaFactor=factors[0].id; select.title=select.options[select.selectedIndex].textContent; select.addEventListener('change',()=>{mfaFactor=select.value; select.title=select.options[select.selectedIndex].textContent;}); addCodeForm(panel,false);
     } else {
       panel.append(node('p','Set up an authenticator for this account. Save it securely and add a backup after verifying.'));
       const button=node('button','Set up authenticator'); button.addEventListener('click',()=>run(enrollAuthenticator)); panel.append(button);
