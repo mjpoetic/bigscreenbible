@@ -7,7 +7,7 @@ android {
         applicationId "com.bigscreenbible.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
+        versionCode 7
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -72,3 +72,25 @@ tasks.register('verifyReleasePushConfiguration') {
 tasks.configureEach { task ->
     if (task.name == 'preReleaseBuild') task.dependsOn('verifyReleasePushConfiguration')
 }
+
+// Synced Documents folders can accumulate "name 2.ext" copies after cap copy.
+// Snapshot assets into the unsynced Gradle build directory and exclude only
+// numbered copies with an existing canonical file and no authored counterpart.
+def originalAppAssets = file('src/main/assets')
+def packagedAppAssets = layout.buildDirectory.dir('generated/cleanAppAssets')
+def stageCleanAppAssets = tasks.register('stageCleanAppAssets', Sync) {
+    from(originalAppAssets)
+    into(packagedAppAssets)
+    exclude { details ->
+        if (details.isDirectory()) return false
+        def relative = details.relativePath.pathString
+        if (details.file.name == '.DS_Store') return true
+        if (!relative.startsWith('public/')) return false
+        def canonical = relative.replaceFirst(/ \d+(\.[^\/.]+)$/, '$1')
+        if (canonical == relative || !new File(originalAppAssets, canonical).isFile()) return false
+        def authored = rootProject.file('../' + relative.substring('public/'.length()))
+        return !authored.exists()
+    }
+}
+android.sourceSets.main.assets.setSrcDirs([packagedAppAssets])
+tasks.named('preBuild').configure { dependsOn(stageCleanAppAssets) }
