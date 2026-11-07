@@ -1,3 +1,6 @@
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
@@ -36,5 +39,25 @@ self.addEventListener("notificationclick", (event) => {
       if ("focus" in client) return client.focus();
     }
     return self.clients.openWindow(targetUrl);
+  })());
+});
+
+// Installed PWAs receive text without placing a devotional in browser history.
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'POST' || url.origin !== self.location.origin || url.pathname !== '/' || url.searchParams.get('import') !== 'share') return;
+  event.respondWith((async () => {
+    try {
+      const form = await event.request.formData();
+      const text = [form.get('title'), form.get('text'), form.get('url')].filter(value => typeof value === 'string' && value.trim()).join('\n\n');
+      if (!text || text.length > 100000) return new Response('Please copy the devotional text and use Import from text (up to 100,000 characters).', { status: 400 });
+      const cache = await caches.open('bsb-share-inbox');
+      // Keep the inbox bounded, including abandoned share operations.
+      const keys = await cache.keys();
+      for (const key of keys.slice(0, Math.max(0, keys.length - 9))) await cache.delete(key);
+      const id = crypto.randomUUID();
+      await cache.put(new Request(`${url.origin}/__shared_passages/${id}`), new Response(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }));
+      return Response.redirect(`${url.origin}/?import-shared=${id}`, 303);
+    } catch { return new Response('Could not receive shared text. Please use Import from text.', { status: 400 }); }
   })());
 });

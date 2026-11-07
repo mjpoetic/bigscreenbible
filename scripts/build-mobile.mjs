@@ -1,4 +1,5 @@
 import "./build-widget-catalog.mjs";
+import "./build-passage-import-catalog.mjs";
 
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";

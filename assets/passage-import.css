@@ -1,0 +1,15 @@
+.passage-import-dialog { color: var(--ink, #ecf0f5); background: var(--panel, #172437); border: 1px solid var(--line, #637083); border-radius: 18px; width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 40px); padding: 20px; box-sizing: border-box; overscroll-behavior: contain; }
+.passage-import-dialog::backdrop { background: #0009; }
+.passage-import-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.passage-import-dialog h2 { margin: 0; font-size: 1.4rem; overflow-wrap: anywhere; }
+.passage-import-body { padding-top: 16px; }
+.passage-import-body label { display: block; margin: 10px 0; }
+.passage-import-body input:not([type=checkbox]), .passage-import-body textarea { display: block; width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; border: 1px solid var(--line, #637083); border-radius: 8px; background: var(--bg, #101a24); color: inherit; font: inherit; }
+.passage-import-body textarea { resize: vertical; }
+.passage-import-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; }
+.passage-import-candidate { border-top: 1px solid var(--line, #637083); padding: 14px 0; }
+.passage-import-saved article { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
+.passage-import-saved button { overflow-wrap: anywhere; text-align: start; }
+.passage-import-dialog button { min-height: 44px; }
+.passage-import-dialog .reference-preview-text { max-height: none; }
+.passage-import-return { position: fixed; z-index: 80; bottom: calc(12px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); max-width: min(80vw, 420px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--panel, #172437); box-shadow: 0 4px 20px #0005; }

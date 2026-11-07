@@ -5418,6 +5418,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.07.1": [
+      "Import Bible references from devotional or study text into saved passage lists under Bookmarks. Review and correct references, preview Scripture, and open passages with the usual highlighting, bookmarks, and notes.",
+      "Native sharing accepts devotional text on Android and queues shared text on iOS for review when the app opens. Installed web apps can receive shared text on supported platforms.",
+    ],
     "2026.11.05.1": [
       "On touch screens, the Verse Picker keeps book, chapter, and verse choices inside the panel and fits above the keyboard in portrait and landscape.",
     ],
@@ -9484,6 +9488,7 @@ function bookmarksPanel() {
   const isBookmarked = state.bookmarks.includes(ref);
   return `
     <section class="study-section panel-section" id="bookmarksSection">
+      <button class="ghost-btn panel-action" type="button" data-open-passage-import>Imported passages · Import from text</button>
       <button class="ghost-btn panel-action" id="panelBookmarkToggle">${isBookmarked ? "Remove" : "Add"} ${escapeHtml(ref)}</button>
       <div class="bookmark-list">
         ${bookmarkItemsMarkup()}

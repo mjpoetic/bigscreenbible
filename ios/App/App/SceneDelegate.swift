@@ -9,6 +9,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     var window: UIWindow?
     private var pendingQuickAction: String?
+    private var sharedTextDeliveryInFlight = false
+    private var sharedTextAttempts = 0
+    private var sharedTextRetry: DispatchWorkItem?
     private var quickActionRetry: DispatchWorkItem?
     private var quickActionDeliveryInFlight = false
     private var quickActionAttempts = 0
@@ -57,9 +60,48 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        receiveSharedText()
         receiveAppShortcut()
         quickActionAttempts = 0
         deliverQuickAction()
+    }
+
+    // The extension queues imports in the App Group; remove only after web acknowledgement.
+    private func receiveSharedText() {
+        sharedTextAttempts = 0
+        deliverSharedText()
+    }
+
+    private func deliverSharedText() {
+        guard !sharedTextDeliveryInFlight, sharedTextAttempts < 200,
+              window?.windowScene?.activationState == .foregroundActive,
+              let store = UserDefaults(suiteName: "group.com.bigscreenbible.app"),
+              let queue = store.array(forKey: "bsbSharedTextInbox") as? [[String: String]],
+              let item = queue.first, let text = item["text"], let id = item["id"] else { return }
+        sharedTextAttempts += 1
+        guard let controller = window?.rootViewController as? CAPBridgeViewController,
+              let webView = controller.webView else { retrySharedText(); return }
+        guard let host = webView.url?.host, ["bigscreenbible.com", "localhost"].contains(host),
+              let data = try? JSONSerialization.data(withJSONObject: [text]),
+              let argument = String(data: data, encoding: .utf8) else { retrySharedText(); return }
+        sharedTextDeliveryInFlight = true
+        webView.evaluateJavaScript("window.bsbReceiveSharedText?.(...\(argument)) === true") { [weak self] result, _ in
+            guard let self else { return }
+            self.sharedTextDeliveryInFlight = false
+            if result as? Bool == true {
+                let latest = store.array(forKey: "bsbSharedTextInbox") as? [[String: String]] ?? []
+                store.set(latest.filter { $0["id"] != id }, forKey: "bsbSharedTextInbox")
+            }
+            self.retrySharedText()
+        }
+    }
+
+    private func retrySharedText() {
+        sharedTextRetry?.cancel()
+        guard sharedTextAttempts < 200 else { return }
+        let task = DispatchWorkItem { [weak self] in self?.deliverSharedText() }
+        sharedTextRetry = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: task)
     }
 
     // Also called directly when Siri runs an action in an already active app.
@@ -73,6 +115,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneWillResignActive(_ scene: UIScene) {
         quickActionRetry?.cancel()
+        sharedTextRetry?.cancel()
         (window?.rootViewController as? BSBBridgeViewController)?.captureWidgetProgress()
     }
 

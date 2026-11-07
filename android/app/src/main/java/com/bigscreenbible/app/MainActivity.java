@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
     private boolean webEdgeToEdge;
     private int chromeColor = Color.rgb(17, 29, 55);
     private String pendingQuickAction;
+    private String pendingSharedText;
     private int quickActionAttempts;
     private boolean shortcutResumed;
     private boolean shortcutInFlight;
@@ -28,6 +29,26 @@ public class MainActivity extends BridgeActivity {
 
     private void queueQuickAction(Intent intent) {
         String action = intent == null ? null : intent.getAction();
+        if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(intent.getType())) {
+            CharSequence shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+            if (shared != null && shared.length() > 0 && shared.length() <= 100000) {
+                org.json.JSONArray inbox = sharedTextInbox();
+                if (inbox.length() >= 10) {
+                    android.widget.Toast.makeText(this, "Review pending imports in Big Screen Bible before sharing more.", android.widget.Toast.LENGTH_LONG).show();
+                    return;
+                }
+                inbox.put(shared.toString());
+                saveSharedTextInbox(inbox);
+                if (pendingSharedText == null) pendingSharedText = inbox.optString(0);
+                quickActionAttempts = 0;
+                intent.removeExtra(Intent.EXTRA_TEXT);
+                intent.setAction(Intent.ACTION_MAIN);
+                deliverQuickAction();
+            } else {
+                android.widget.Toast.makeText(this, "Share devotional text of up to 100,000 characters, or use Import from text.", android.widget.Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         Uri url = intent == null ? null : intent.getData();
         if (Intent.ACTION_VIEW.equals(action) && url != null && "https".equals(url.getScheme())
                 && "bigscreenbible.com".equals(url.getHost()) && url.getUserInfo() == null
@@ -52,18 +73,45 @@ public class MainActivity extends BridgeActivity {
         deliverQuickAction();
     }
 
+    private org.json.JSONArray sharedTextInbox() {
+        try { return new org.json.JSONArray(getSharedPreferences("passage_import", MODE_PRIVATE).getString("inbox", "[]")); }
+        catch (org.json.JSONException error) { return new org.json.JSONArray(); }
+    }
+
+    private void saveSharedTextInbox(org.json.JSONArray inbox) {
+        getSharedPreferences("passage_import", MODE_PRIVATE).edit().putString("inbox", inbox.toString()).commit();
+    }
+
     private void deliverQuickAction() {
-        if (!shortcutResumed || pendingQuickAction == null || shortcutInFlight
+        if (!shortcutResumed || (pendingQuickAction == null && pendingSharedText == null) || shortcutInFlight
                 || quickActionAttempts >= 200 || getBridge() == null) return;
-        String action = pendingQuickAction;
+        boolean sharing = pendingSharedText != null;
+        String action = sharing ? pendingSharedText : pendingQuickAction;
+        String currentUrl = getBridge().getWebView().getUrl();
+        String host = currentUrl == null ? null : Uri.parse(currentUrl).getHost();
+        if (!"bigscreenbible.com".equals(host) && !"localhost".equals(host)) {
+            quickActionAttempts++;
+            shortcutHandler.removeCallbacks(shortcutDelivery);
+            shortcutHandler.postDelayed(shortcutDelivery, 300);
+            return;
+        }
         quickActionAttempts++;
         shortcutInFlight = true;
-        String handler = action.startsWith("https://") ? "bsbHandleSharedLink" : "bsbHandleQuickAction";
+        String handler = sharing ? "bsbReceiveSharedText" : action.startsWith("https://") ? "bsbHandleSharedLink" : "bsbHandleQuickAction";
         getBridge().getWebView().evaluateJavascript(
             "window." + handler + "?.(" + org.json.JSONObject.quote(action) + ") === true", result -> {
                 shortcutInFlight = false;
-                if ("true".equals(result) && action.equals(pendingQuickAction)) pendingQuickAction = null;
-                if (pendingQuickAction != null && shortcutResumed) {
+                if ("true".equals(result)) {
+                    if (sharing && action.equals(pendingSharedText)) {
+                        org.json.JSONArray inbox = sharedTextInbox();
+                        org.json.JSONArray remaining = new org.json.JSONArray();
+                        for (int i = 1; i < inbox.length(); i++) remaining.put(inbox.optString(i));
+                        saveSharedTextInbox(remaining);
+                        pendingSharedText = remaining.length() > 0 ? remaining.optString(0) : null;
+                    }
+                    else if (!sharing && action.equals(pendingQuickAction)) pendingQuickAction = null;
+                }
+                if ((pendingQuickAction != null || pendingSharedText != null) && shortcutResumed) {
                     shortcutHandler.removeCallbacks(shortcutDelivery);
                     shortcutHandler.postDelayed(shortcutDelivery, 300);
                 }
@@ -74,6 +122,10 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         shortcutResumed = true;
+        if (pendingSharedText == null) {
+            org.json.JSONArray inbox = sharedTextInbox();
+            pendingSharedText = inbox.length() > 0 ? inbox.optString(0) : null;
+        }
         quickActionAttempts = 0;
         deliverQuickAction();
     }
