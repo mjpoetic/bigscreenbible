@@ -1,10 +1,25 @@
 # Importing devotional passages
 
-Website and apps: open **Bookmarks → Imported passages → Import from text**.
-Paste devotional text or choose a UTF-8 `.txt` file, select **Find passages**, correct
-any flagged references, uncheck unwanted passages, name the list, and save it.
-**Open passage** displays that selection in the Reader with the normal verse actions.
-**Read in context** opens the full chapter. The bottom return button restores the list.
+Website and apps: open **Bookmarks → Import passages**, below the current-passage
+bookmark button. Paste devotional text or choose a UTF-8 `.txt` file and select
+**Find passages**. Recognized passages are saved and opened together in the Reader,
+using the same Scripture typography as shared passages. Every passage is displayed
+in reading order. **Saved lists** reopens older imports, and **Edit references**
+lets you correct or deselect references before updating the same list. Invalid
+references are omitted from automatic reading; the original draft remains available
+for correction.
+
+At the end of the reading list, **Bookmark all** adds every passage without removing
+existing bookmarks, and **Highlight all** offers the usual highlight colors for all
+imported verses. Overlapping ranges highlight each verse once. Verse-number menus
+support individual bookmarks, highlights, and notes. **Read full chapter** opens the
+chapter; the bottom return button restores the complete list and its reading position.
+
+These Reader and button changes are web assets: deploying the site updates the normal
+live-site experience in iOS build 11 and Android build 7, without new native builds.
+Refreshing bundled offline assets requires a subsequent app rebuild. The native
+sharing integrations themselves are unchanged.
+
 Lists and unfinished drafts are stored on the device, including the app's existing
 live/offline storage handoff. Lists do not currently sync between devices. Ordinary
 verse annotations keep their existing storage and account sync behavior.
@@ -64,6 +79,8 @@ Before release, check these on real devices:
 5. Installed Android PWA share, including a URL-only share and an oversized payload.
 6. Remote translation unavailable/offline: verify the preview discloses its fallback.
 
-Local compilation and VM tests do not establish real-device share-sheet behavior
-or browser visual quality. Browser inspection was unavailable during implementation
-because the Mac was locked; simulator and device sharing remain manual acceptance.
+Safari desktop verification covered paste import, automatic display across three
+chapters, Bookmark all, Highlight all, full-chapter navigation, and return to the
+complete list. VM tests also cover overlapping ranges, storage failure, translation
+fallback, and metadata surviving remote-cache eviction. Physical-device sharing
+and narrow portrait layout remain manual acceptance checks.

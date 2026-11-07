@@ -2096,6 +2096,7 @@ function render() {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  void window.BSBImportedReader?.afterRender();
   syncBibleReturnMessage();
   const memorySurface = document.querySelector(".memorize-reader");
   if (memorySurface) {
@@ -2769,6 +2770,7 @@ function switchMode(nextMode, options = {}) {
     && state.isVerseOfDayActive
     && Boolean(state.verseOfDayItem);
   if (nextMode === state.mode && !openVerseOfDayPassage) return;
+  globalThis.window?.BSBImportedReader?.leave();
   if (nextMode === "trivia" && currentGameReferenceReturn()) return returnToTriviaGame();
   if (nextMode !== "trivia") cleanupTriviaCelebration();
   const audible = Boolean(options.audible && state.modeTransitionSounds);
@@ -5418,6 +5420,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.07.2": [
+      "Imported passages now open together in the Reader with the same layout as shared passages. Bookmark all or choose a highlight color for every imported verse at the end of the list, with verse actions and notes available throughout.",
+      "The shorter Import passages action now appears below the current-passage bookmark button.",
+    ],
     "2026.11.07.1": [
       "Import Bible references from devotional or study text into saved passage lists under Bookmarks. Review and correct references, preview Scripture, and open passages with the usual highlighting, bookmarks, and notes.",
       "Native sharing accepts devotional text on Android and queues shared text on iOS for review when the app opens. Installed web apps can receive shared text on supported platforms.",
@@ -9488,8 +9494,8 @@ function bookmarksPanel() {
   const isBookmarked = state.bookmarks.includes(ref);
   return `
     <section class="study-section panel-section" id="bookmarksSection">
-      <button class="ghost-btn panel-action" type="button" data-open-passage-import>Imported passages · Import from text</button>
       <button class="ghost-btn panel-action" id="panelBookmarkToggle">${isBookmarked ? "Remove" : "Add"} ${escapeHtml(ref)}</button>
+      <button class="text-btn passage-import-entry" type="button" data-open-passage-import>${icons.plus} Import passages</button>
       <div class="bookmark-list">
         ${bookmarkItemsMarkup()}
       </div>
@@ -10126,7 +10132,7 @@ function reader(chapterChange = null) {
     ? activeBibleVersionLoadingState()
     : null;
   return `
-    <section class="reader ${state.focusMode && state.focusReading ? "focus-reading-active" : ""} ${state.sharedPassage ? "shared-passage-active" : ""}">
+    <section class="reader ${state.focusMode && state.focusReading ? "focus-reading-active" : ""} ${state.sharedPassage || window.BSBImportedReader?.isActive() ? "shared-passage-active" : ""}">
       ${readerBookmarkMarker()}
       ${focusReadingControls()}
       ${LEGACY_VERSE_SELECTOR_ENABLED ? `<div class="chapter-tools-region ${state.verseNavCollapsed ? "collapsed" : ""}">
@@ -10652,13 +10658,13 @@ function closeMobileVerseNavMenu(options = {}) {
   if (options.restoreFocus && trigger.isConnected) trigger.focus();
 }
 
-function renderStrongText(verse, version) {
-  const text = getVerseText(verse, version);
+function renderStrongText(verse, version, chapterKey = state.reference) {
+  const text = getVerseText(verse, version, chapterKey);
   const redLetterRanges = wordsOfJesusRanges(verse, version);
   const lineBreaks = lineBreaksForVerse(verse, version);
   const searchRanges = inlineSearchRangesForText(
     text,
-    activeInlineSearchQuery(),
+    chapterKey === state.reference ? activeInlineSearchQuery() : "",
     state.inlineSearchPhraseOnly,
   );
   if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
@@ -10671,7 +10677,7 @@ function renderStrongText(verse, version) {
     lineBreaks,
     // Capture the rendered verse, not state.verse (which need not be clicked).
     !verse.verseRanges?.[version] && (Array.isArray(verse.strong?.[version]) || Array.isArray(verse.strong))
-      ? `${state.reference}:${verse.n}` : "",
+      ? `${chapterKey}:${verse.n}` : "",
   );
 }
 
@@ -14664,6 +14670,7 @@ async function syncNowAccount() {
 }
 
 function readerView() {
+  if (window.BSBImportedReader?.isActive()) return window.BSBImportedReader.markup();
   if (state.sharedPassage) return sharedPassageReaderView();
   if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView();
   const version = state.versions[0] || "BSB";
@@ -29896,6 +29903,7 @@ function setReferenceFromString(value) {
     showToast(`${parsed.key} is not available in the bundled Bible data`);
     return false;
   }
+  globalThis.window?.BSBImportedReader?.leave();
   const chapter = bibleData[parsed.key];
   state.isVerseOfDayActive = false;
   state.sharedPassage = null;
@@ -32754,7 +32762,7 @@ function moveVerse(direction, options = {}) {
     if (adjacentPresentationContent(direction)) commitPresentationSwipe(direction);
     return;
   }
-  const renderMove = () => render();
+  const renderMove = () => { globalThis.window?.BSBImportedReader?.leave(); render(); };
   if (state.mode === "big") {
     const parts = currentPresentationParts();
     const partIndex = Math.max(0, Math.min(parts.length - 1, Number(state.presentationPart) || 0));
@@ -32809,6 +32817,7 @@ function extendKeyboardVerseSelection(anchorFallback, activeVerse) {
 }
 
 function applyChapterMove(direction, nextReference, { animated = false, transition = "default", showIndicator = true } = {}) {
+  globalThis.window?.BSBImportedReader?.leave();
   pendingChapterChange = {
     direction: direction > 0 ? 1 : -1,
     reference: nextReference,
