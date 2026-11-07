@@ -42,24 +42,45 @@ handlers.fetch({ request: new Request('https://other.example/?import=share', {me
 assert.equal(intercepted, false);
 // Exercise the actual native acknowledgement function with recoverable draft storage.
 const ui = read('assets/passage-import-ui.js');
-const receiver = ui.slice(ui.indexOf('  window.bsbReceiveSharedText ='), ui.indexOf('  const params ='));
+const receiver = ui.slice(ui.indexOf('  function saveImportedBookmarks('), ui.indexOf('  const params ='));
 const stored = new Map();
-let received;
+let received, receivedAction, bookmarkSyncs = 0;
 const app = {
-  window: {}, dataLoading: true, bibleData: { 'Luke 1': {} }, dialog: null,
+  window: {}, dataLoading: true, bibleData: { 'Luke 1': { verses: [{ n: 37 }] }, 'John 3': { verses: [{ n: 16 }] } }, bookAliases: { luke: 'Luke', john: 'John' }, dialog: null,
+  state: { bookmarks: ['Psalm 23:1'] }, scheduleCloudSync() { bookmarkSyncs++; }, renderPreservingReaderScroll() {}, showToast() {},
   localStorage: { getItem(key) { return stored.get(key) || null; }, setItem(key, value) { stored.set(key, value); } },
-  compose(text) { received = text; },
+  compose(text, reviewOnly, editingId, action) { received = text; receivedAction = action; },
 };
-vm.createContext(app); vm.runInContext(receiver, app);
+vm.createContext(app); vm.runInContext(read('assets/passage-import.js'), app); vm.runInContext(receiver, app);
 assert.equal(app.window.bsbReceiveSharedText('Luke 1:37'), false);
 app.dataLoading = false;
 assert.equal(app.window.bsbReceiveSharedText('Luke 1:37'), true);
 assert.equal(received, 'Luke 1:37');
+assert.equal(receivedAction, 'choose', 'Android and legacy shares offer both actions');
 assert.equal(JSON.parse(stored.get('lw_passage_import_draft')).text, 'Luke 1:37');
 assert.equal(app.window.bsbReceiveSharedText('John 3:16'), false, 'A second share must not overwrite an unsaved draft');
 app.dialog = { open: true };
 assert.equal(app.window.bsbReceiveSharedText('Luke 1:37'), false);
 app.dialog = null; stored.clear();
+assert.equal(app.window.bsbReceiveSharedImport('John 3:16', 'bookmarks'), true);
+assert.deepEqual([...app.state.bookmarks], ['John 3:16', 'Psalm 23:1']);
+assert.equal(bookmarkSyncs, 1);
+assert.equal(app.window.bsbReceiveSharedImport('John 3:16', 'bookmarks'), true);
+assert.equal(bookmarkSyncs, 1, 'Native retries never duplicate bookmarks');
+assert.equal(received, 'Luke 1:37', 'Saving bookmarks never opens a Reader list');
+assert.equal(app.window.bsbReceiveSharedImport('John 3:16', 'unknown'), false);
+assert.equal(app.window.bsbReceiveSharedImport('Luke 1:37', 'read'), true);
+assert.equal(receivedAction, 'read', 'Explicit iOS reading skips the chooser');
+stored.clear();
 app.localStorage.setItem = () => { throw Error('Full'); };
 assert.equal(app.window.bsbReceiveSharedText('Luke 1:37'), false, 'Native inbox retains text if draft storage fails');
+assert.equal(app.window.bsbReceiveSharedImport('Luke 1:37', 'bookmarks'), false);
+assert.deepEqual([...app.state.bookmarks], ['John 3:16', 'Psalm 23:1'], 'Bookmark storage failure leaves state unchanged');
+const native = read('ios/App/App/SceneDelegate.swift');
+assert.ok(native.includes('bsbReceiveSharedImport'));
+const extension = read('ios/App/PassageShare/ShareViewController.swift');
+assert.ok(extension.includes('Read in Big Screen Bible'));
+assert.ok(extension.includes('Save as bookmarks'));
+assert.ok(extension.includes('next open Big Screen Bible'));
+assert.ok(extension.includes('\"action\": action'));
 console.log('Sharing: POST receipt, private redirect, bounded inbox, validation, readiness, acknowledgement, draft preservation, and storage failure passed.');

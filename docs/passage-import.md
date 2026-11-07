@@ -2,8 +2,8 @@
 
 Website and apps: open **Bookmarks → Import passages**, below the current-passage
 bookmark button. Paste devotional text or choose a UTF-8 `.txt` file and select
-**Find passages**. Recognized passages are saved and opened together in the Reader,
-using the same Scripture typography as shared passages. Every passage is displayed
+**Find passages**. Choose **Read in Big Screen Bible** to save a reading list and open all recognized passages together in the Reader,
+using the same Scripture typography as shared passages. Choose **Save as bookmarks** instead to add the recognized references to Bookmarks without creating a reading list. Every passage is displayed
 in reading order. **Saved lists** reopens older imports, and **Edit references**
 lets you correct or deselect references before updating the same list. Invalid
 references are omitted from automatic reading; the original draft remains available
@@ -18,10 +18,13 @@ links, notes, and printing. Repeated taps toggle selection; selecting in another
 chapter starts a new selection, and ranges include only imported verses. **Read full chapter** opens the
 chapter; the bottom return button restores the complete list and its reading position.
 
-These Reader and button changes are web assets: deploying the site updates the normal
-live-site experience in iOS build 11 and Android build 7, without new native builds.
-Refreshing bundled offline assets requires a subsequent app rebuild. The native
-sharing integrations themselves are unchanged.
+The web import chooser works in the live-site experience of existing Android builds
+without a native rebuild. iOS build 12 adds the two explicit actions to the native
+share extension. Both iOS actions take effect when the app next opens; the extension
+does not force-launch the app. Deploy web release 2026.11.07.4 so the live site can
+honor explicit iOS actions. Older sites do not acknowledge the new receiver, and
+the native inbox retains the request until a compatible site is available. The
+updated iOS build includes the same web release for its bundled offline path.
 
 Lists and unfinished drafts are stored on the device, including the app's existing
 live/offline storage handoff. Lists do not currently sync between devices. Ordinary
@@ -44,8 +47,8 @@ translation sends the Scripture reference to its existing provider, not the devo
   ready. It is removed from the native inbox only after durable draft storage succeeds.
 - **iOS:** the `PassageShare` extension accepts text and web URLs. The same JavaScript
   extractor runs locally through JavaScriptCore using bundled reference metadata.
-  Recognized references are editable in the sharing panel. Save, then open the app
-  to preview Scripture and finish the list. The extension does not force-launch the
+  Recognized references are editable in the sharing panel. Choose **Read in Big Screen
+  Bible** or **Save as bookmarks**, then open the app to apply that choice. The extension does not force-launch the
   containing app. App Group `group.com.bigscreenbible.app` holds pending imports until
   the trusted webview acknowledges them. If extraction is unavailable, the original
   shared text is retained for review in the app.

@@ -45,16 +45,17 @@
       if (writeLists(readLists().filter(list => list.id !== button.dataset.importDelete))) home();
     });
   }
-  function compose(text, reviewOnly = false, editingId = null) {
+  function compose(text, reviewOnly = false, editingId = null, requestedAction = null) {
     const body = shell('Import from text');
     let draft = {};
     try { draft = JSON.parse(localStorage.getItem('lw_passage_import_draft') || '{}'); } catch {}
+    requestedAction = requestedAction || draft.action || 'choose';
     body.innerHTML = `<label>List name<input id="passageImportTitle" maxlength="120" placeholder="My devotional passages"></label><label>Devotional or study text<textarea id="passageImportText" rows="9" maxlength="100000" placeholder="Paste text containing references such as Luke 1:37"></textarea></label><div class="passage-import-actions"><button class="primary-btn" data-import-find>Find passages</button><button class="ghost-btn" data-import-home>Saved lists</button><button class="ghost-btn" data-import-discard>Discard draft</button><label class="passage-import-file">Import a text file<input type="file" accept=".txt,text/plain" data-import-file></label></div><p role="status" data-import-status></p><div data-import-review></div>`;
     const input = body.querySelector('textarea');
     const title = body.querySelector('#passageImportTitle');
     input.value = text ?? draft.text ?? '';
     title.value = text != null ? String(text).split('\n').find(line => line.trim())?.slice(0, 120) || '' : draft.title || '';
-    const remember = () => { try { localStorage.setItem('lw_passage_import_draft', JSON.stringify({ text: input.value, title: title.value })); } catch {} };
+    const remember = () => { try { localStorage.setItem('lw_passage_import_draft', JSON.stringify({ text: input.value, title: title.value, action: requestedAction })); } catch {} };
     input.oninput = () => { remember(); body.querySelector('[data-import-review]').replaceChildren(); };
     title.oninput = remember;
     body.querySelector('[data-import-home]').onclick = home;
@@ -66,14 +67,21 @@
       try { const value = await file.text(); if (value.length > 100000) throw new Error('Please import no more than 100,000 characters.'); input.value = value; input.oninput(); }
       catch (error) { body.querySelector('[data-import-status]').textContent = error.message; }
     };
-    const find = () => {
+    const find = (action = requestedAction) => {
       remember();
       body.querySelector('[data-import-review]').replaceChildren();
       if (dataLoading || !Object.keys(bibleData).length) { body.querySelector('[data-import-status]').textContent = 'Bible data is still loading. Please try again in a moment.'; return; }
       try { review = BSBPassageImport.extract(input.value, bookAliases, bibleData); }
       catch (error) { body.querySelector('[data-import-status]').textContent = error.message; return; }
       body.querySelector('[data-import-status]').textContent = review.length ? `${review.length} passages found. Review references before saving.` : 'No references found. Share or paste the devotional text itself; a webpage link alone does not include its text.';
-      if (!reviewOnly) {
+      if (!reviewOnly && action === 'bookmarks') {
+        const refs = review.filter(item => !item.error).map(item => item.ref);
+        if (refs.length && review.every(item => !item.error)) {
+          if (saveImportedBookmarks(refs)) { localStorage.removeItem('lw_passage_import_draft'); dialog.close(); }
+          return;
+        }
+      }
+      if (!reviewOnly && action === 'read') {
         const refs = review.filter(item => !item.error).map(item => item.ref);
         if (refs.length) {
           const lists = readLists();
@@ -88,7 +96,16 @@
         }
       }
       const region = body.querySelector('[data-import-review]');
-      region.innerHTML = review.map((item, index) => `<article class="passage-import-candidate"><label><input type="checkbox" data-import-select="${index}" ${item.error ? 'disabled' : 'checked'}>Include passage</label><label>Reference<input data-import-correct="${index}" value="${esc(item.ref)}" aria-describedby="importIssue${index}"></label><p id="importIssue${index}" class="muted">${esc(item.error || `${item.verses.length} ${item.verses.length === 1 ? 'verse' : 'verses'}`)}</p><div data-import-preview="${index}"></div></article>`).join('') + (review.length ? '<button class="primary-btn" data-import-save>Save passage list</button>' : '');
+      const recognized = review.filter(item => !item.error);
+      if (!reviewOnly && action === 'choose' && recognized.length) {
+        region.innerHTML = `<p>${recognized.length} ${recognized.length === 1 ? 'passage' : 'passages'} ready.</p><div class="passage-import-actions"><button class="primary-btn" type="button" data-import-read>Read in Big Screen Bible</button><button class="ghost-btn" type="button" data-import-bookmarks>Save as bookmarks</button><button class="text-btn" type="button" data-import-review-references>Review references</button></div>`;
+        region.querySelector('[data-import-read]').onclick = () => find('read');
+        region.querySelector('[data-import-bookmarks]').onclick = () => find('bookmarks');
+        region.querySelector('[data-import-review-references]').onclick = () => compose(input.value, true, editingId);
+        return;
+      }
+
+      region.innerHTML = review.map((item, index) => `<article class="passage-import-candidate"><label><input type="checkbox" data-import-select="${index}" ${item.error ? 'disabled' : 'checked'}>Include passage</label><label>Reference<input data-import-correct="${index}" value="${esc(item.ref)}" aria-describedby="importIssue${index}"></label><p id="importIssue${index}" class="muted">${esc(item.error || `${item.verses.length} ${item.verses.length === 1 ? 'verse' : 'verses'}`)}</p><div data-import-preview="${index}"></div></article>`).join('') + (review.length ? '<div class="passage-import-actions"><button class="primary-btn" type="button" data-import-save>Read in Big Screen Bible</button><button class="ghost-btn" type="button" data-import-bookmark-selected>Save as bookmarks</button></div>' : '');
       region.querySelectorAll('[data-import-correct]').forEach(field => field.onchange = () => {
         const index = Number(field.dataset.importCorrect);
         let matches = [];
@@ -102,6 +119,11 @@
         if (item) void previewPassage(preview, item.ref, generation);
       });
       review.forEach((item, index) => { if (!item.error) void previewPassage(region.querySelector(`[data-import-preview="${index}"]`), item.ref, generation); });
+      region.querySelector('[data-import-bookmark-selected]')?.addEventListener('click', () => {
+        const refs = [...new Set([...region.querySelectorAll('[data-import-select]:checked:not(:disabled)')].map(box => review[Number(box.dataset.importSelect)].ref))];
+        if (!refs.length) { body.querySelector('[data-import-status]').textContent = 'Select at least one valid passage.'; return; }
+        if (saveImportedBookmarks(refs)) { localStorage.removeItem('lw_passage_import_draft'); dialog.close(); }
+      });
       region.querySelector('[data-import-save]')?.addEventListener('click', () => {
         const refs = [...new Set([...region.querySelectorAll('[data-import-select]:checked:not(:disabled)')].map(box => review[Number(box.dataset.importSelect)].ref))];
         if (!refs.length) { body.querySelector('[data-import-status]').textContent = 'Select at least one valid passage.'; return; }
@@ -113,7 +135,7 @@
         showList(list.id, input.value);
       });
     };
-    body.querySelector('[data-import-find]').onclick = find;
+    body.querySelector('[data-import-find]').onclick = () => find();
     if (text != null) find();
     else input.focus();
   }
@@ -148,18 +170,38 @@
   document.addEventListener('click', event => {
     if (event.target.closest('[data-open-passage-import]')) compose();
   });
-  // Acknowledge only once the text is recoverable in this webview.
-  window.bsbReceiveSharedText = text => {
-    if (typeof text !== 'string' || text.length > 100000 || dataLoading || !Object.keys(bibleData).length) return false;
+  function saveImportedBookmarks(refs) {
+    const missing = [...new Set(refs)].filter(ref => !state.bookmarks.includes(ref));
+    if (!missing.length) { showToast('All passages are already saved as bookmarks.'); return true; }
+    const next = [...missing, ...state.bookmarks];
+    try { localStorage.setItem('lw_bookmarks', JSON.stringify(next)); }
+    catch { showToast('Bookmarks could not be saved. Device storage may be full.'); return false; }
+    state.bookmarks = next;
+    scheduleCloudSync();
+    renderPreservingReaderScroll();
+    showToast(`${missing.length} ${missing.length === 1 ? 'passage saved' : 'passages saved'} as bookmarks`);
+    return true;
+  }
+  // Explicit native actions require this newer receiver. Older live sites cannot
+  // accidentally acknowledge a bookmark action as an ordinary text import.
+  window.bsbReceiveSharedImport = (text, action) => {
+    if (!['read', 'bookmarks', 'choose'].includes(action) || typeof text !== 'string' || text.length > 100000 || dataLoading || !Object.keys(bibleData).length) return false;
     if (dialog?.open) return false;
+    if (action === 'bookmarks') {
+      let entries;
+      try { entries = BSBPassageImport.extract(text, bookAliases, bibleData); } catch { return false; }
+      if (entries.length && entries.every(entry => !entry.error)) return saveImportedBookmarks(entries.map(entry => entry.ref));
+    }
     try {
       const draft = JSON.parse(localStorage.getItem('lw_passage_import_draft') || '{}');
       if (draft.text && draft.text !== text) return false;
-      localStorage.setItem('lw_passage_import_draft', JSON.stringify({ text }));
+      localStorage.setItem('lw_passage_import_draft', JSON.stringify({ text, action }));
     } catch { return false; }
-    compose(text);
+    compose(text, action === 'bookmarks', null, action);
     return true;
   };
+  // Android, installed websites, and legacy queued iOS imports show both choices.
+  window.bsbReceiveSharedText = text => window.bsbReceiveSharedImport(text, 'choose');
   const params = new URLSearchParams(location.search);
   const inboxId = params.get('import-shared');
   if (inboxId && /^[a-f0-9-]{36}$/i.test(inboxId)) {

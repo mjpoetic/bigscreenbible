@@ -81,11 +81,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         sharedTextAttempts += 1
         guard let controller = window?.rootViewController as? CAPBridgeViewController,
               let webView = controller.webView else { retrySharedText(); return }
+        let action = item["action"]
+        let explicitAction = action == "read" || action == "bookmarks"
+        let arguments: [String] = explicitAction ? [text, action!] : [text]
+        let handler = explicitAction ? "bsbReceiveSharedImport" : "bsbReceiveSharedText"
         guard let host = webView.url?.host, ["bigscreenbible.com", "localhost"].contains(host),
-              let data = try? JSONSerialization.data(withJSONObject: [text]),
+              let data = try? JSONSerialization.data(withJSONObject: arguments),
               let argument = String(data: data, encoding: .utf8) else { retrySharedText(); return }
         sharedTextDeliveryInFlight = true
-        webView.evaluateJavaScript("window.bsbReceiveSharedText?.(...\(argument)) === true") { [weak self] result, _ in
+        webView.evaluateJavaScript("window.\(handler)?.(...\(argument)) === true") { [weak self] result, _ in
             guard let self else { return }
             self.sharedTextDeliveryInFlight = false
             if result as? Bool == true {
