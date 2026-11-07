@@ -218,11 +218,19 @@ Deployment requirements:
 - Enable Associated Domains for Apple app `com.bigscreenbible.app` in team
   `8QY8QS9TH2`, refresh provisioning, and distribute a newly signed native build.
   The checked-in entitlement specifies `applinks:bigscreenbible.com`.
-- The Android association currently contains the actual local development
-  certificate fingerprint, extracted from this machine's debug keystore. Before
-  distributing a release, add its SHA-256 app-signing certificate fingerprint.
-  With Play App Signing, use the Play Console app-signing certificate, not the
-  upload certificate. No Android release signing is configured in this checkout.
+- The Android association includes the Play app-signing SHA-256 fingerprint
+  copied from Play Console's Digital Asset Links JSON on November 7, 2026,
+  plus the existing local development certificate. To find the current snippet,
+  open **Protected with Play → Play Store protection → Show details →
+  Manage Play app signing → Digital Asset Links JSON**. Use the Play app-signing
+  certificate, not the upload certificate, and update the association after key
+  changes. No Android release signing is configured in this checkout.
+- After deploying the association file, recheck the domain in Play Console's
+  Deep links page. On an Android 12+ device with the Play-installed app, run
+  `adb shell pm verify-app-links --re-verify com.bigscreenbible.app`, wait for
+  verification, then run `adb shell pm get-app-links com.bigscreenbible.app`.
+  Confirm `bigscreenbible.com` is `verified` and open a passage link from another
+  app. This association update does not require a new Android bundle.
 - Only the canonical domain is claimed. If `www.bigscreenbible.com` is later
   claimed, it must independently serve the verification files without redirects
   and be added to both native allowlists and the web handler.
