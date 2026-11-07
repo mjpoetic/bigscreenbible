@@ -20,7 +20,9 @@
 .imported-reader-header h1 { color: var(--muted); font: 600 1rem var(--ui-font); overflow-wrap: anywhere; }
 .imported-reader-passage { margin: clamp(32px, 5vh, 64px) 0 0; max-width: none; }
 .imported-reader-passage + .imported-reader-passage { border-top: 1px solid var(--line); padding-top: clamp(24px, 4vh, 48px); }
-.imported-reader-verse .paragraph-verse { cursor: text; }
+.imported-reader-verse { cursor: pointer; }
+.imported-reader-verse .paragraph-verse { cursor: pointer; }
+.imported-reader-verse:focus-visible { outline: 2px solid var(--teal); outline-offset: 5px; border-radius: 6px; }
 .imported-note-indicator { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--teal); vertical-align: middle; }
 .imported-note-indicator svg { width: 18px; height: 18px; }
 .imported-reader-footer { margin-top: 48px; border-top: 1px solid var(--line); padding: 28px 0 48px; }

@@ -13,7 +13,7 @@
   }
   function isActive() {
     return Boolean(active && state.mode === 'reader' && !state.sharedPassage && !state.isVerseOfDayActive
-      && state.reference === active.anchor && state.verse === active.anchorVerse);
+      && state.reference === active.anchor && (state.verse === active.anchorVerse || active.entries.some(entry => entry.key === state.reference && entry.verses.includes(state.verse))));
   }
   function leave() { active = null; }
   function open(list, callbacks = {}) {
@@ -40,6 +40,7 @@
   }
   async function afterRender() {
     if (!isActive()) return;
+    bindVerseSelection();
     const view = active;
     const version = state.versions[0] || 'BSB';
     if (view.version === version) return;
@@ -67,6 +68,62 @@
       }
     }
     await Promise.all(Array.from({ length: 3 }, worker));
+  }
+  function selectVerse(reference, extendRange = false) {
+    if (!isActive() || !verseReferences().includes(reference)) return false;
+    const split = reference.lastIndexOf(':');
+    const key = reference.slice(0, split);
+    const number = Number(reference.slice(split + 1));
+    if (state.reference !== key) state.selectedVerses = [];
+    state.reference = key;
+    state.verse = number;
+    active.anchor = key;
+    active.anchorVerse = number;
+    // The existing toolbar's tools all use the active chapter and selection.
+    // Keep the imported list active while updating that context to the tapped row.
+    toggleVerseSelection(number, extendRange);
+    const available = new Set(verseReferences().filter(ref => ref.startsWith(`${key}:`)).map(ref => Number(ref.slice(ref.lastIndexOf(':') + 1))));
+    state.selectedVerses = state.selectedVerses.filter(n => available.has(n));
+    state.returnSelectionToolsOpen = true;
+    state.pendingVerseFocus = false;
+    state.pendingVerseHalo = false;
+    renderPreservingReaderScroll();
+    return true;
+  }
+  function bindVerseSelection() {
+    for (const row of document.querySelectorAll?.('[data-import-select-verse]') || []) {
+      if (row.dataset.importSelectionBound) continue;
+      row.dataset.importSelectionBound = 'true';
+      row.addEventListener('click', event => {
+        if (event.target.closest('button, a, input, select, textarea, label')) return;
+        if (window.getSelection?.()?.toString().trim()) return;
+        event.stopPropagation();
+        selectVerse(row.dataset.importSelectVerse, event.shiftKey);
+      });
+      row.addEventListener('keydown', event => {
+        if (event.target !== row || !['Enter', ' '].includes(event.key)) return;
+        event.preventDefault(); event.stopPropagation();
+        const reference = row.dataset.importSelectVerse;
+        selectVerse(reference, event.shiftKey);
+        requestAnimationFrame(() => {
+          [...(document.querySelectorAll?.('[data-import-select-verse]') || [])].find(item => item.dataset.importSelectVerse === reference)?.focus({ preventScroll: true });
+        });
+      });
+    }
+  }
+  function selectedLines(numbers) {
+    if (!isActive()) return null;
+    const version = state.versions[0] || 'BSB';
+    if (active.version !== version) return null;
+    const verses = new Map();
+    for (const entry of active.entries.filter(item => item.key === state.reference)) {
+      const snapshot = active.snapshots.get(entry.ref);
+      if (snapshot?.version !== version) continue;
+      for (const verse of snapshot.verses) if (numbers.includes(verse.n)) verses.set(verse.n, verse);
+    }
+    if (numbers.some(n => !verses.has(n))) return null;
+    return uniqueVersionVerses([...verses.values()].sort((a, b) => a.n - b.n), version)
+      .map(verse => ({ n: verse.n, label: versionVerseLabel(verse, version), text: verse[version], verse }));
   }
   function verseReferences(entries = active?.entries || []) {
     return [...new Set(entries.flatMap(entry => entry.verses.map(n => `${entry.key}:${n}`)))];
@@ -106,6 +163,7 @@
     const version = state.versions[0] || 'BSB';
     const allBookmarked = view.entries.every(entry => state.bookmarks.includes(entry.ref));
     return `<div class="imported-passage-reader" aria-label="${esc(view.list.title)}">
+      ${selectionBar()}
       <header class="imported-reader-header"><h1>${esc(view.list.title)}</h1><div class="passage-import-actions"><button class="ghost-btn" type="button" data-import-manage>Saved lists</button><button class="ghost-btn" type="button" data-import-edit>Edit references</button></div></header>
       ${view.entries.map((entry, index) => {
         const snapshot = view.version === version ? view.snapshots.get(entry.ref) : null;
@@ -118,7 +176,7 @@
             const ref = `${entry.key}:${verse.n}`;
             const color = state.highlights[ref];
             const content = verse[shownVersion] ? renderStrongText(verse, shownVersion, entry.key) : '<span class="muted">Scripture text is unavailable for this verse.</span>';
-            return `<p class="verse-of-day-copy imported-reader-verse"><button class="focused-verse-number" type="button" data-import-verse-menu="${esc(ref)}" aria-label="Actions for ${esc(ref)}" aria-haspopup="dialog">${versionVerseLabel(verse, shownVersion)}</button> <span class="paragraph-verse ${highlightClassForColor(color)}" ${highlightStyleForColor(color)}>${content}</span>${publisherFootnoteButtonMarkup(verse, shownVersion, entry.key)}${state.notes[ref] ? `<button class="imported-note-indicator" type="button" data-import-note="${esc(ref)}" aria-label="Edit note for ${esc(ref)}">${icons.note}</button>` : ''}</p>`;
+            return `<p class="verse-of-day-copy imported-reader-verse" data-import-select-verse="${esc(ref)}" tabindex="0" aria-label="Select ${esc(ref)}"><button class="focused-verse-number" type="button" data-import-verse-menu="${esc(ref)}" aria-label="Actions for ${esc(ref)}" aria-haspopup="dialog">${versionVerseLabel(verse, shownVersion)}</button> <span class="paragraph-verse ${highlightClassForColor(color)} ${state.reference === entry.key && state.selectedVerses.includes(verse.n) ? "selected passage-selected" : ""}" ${highlightStyleForColor(color)}>${content}</span>${publisherFootnoteButtonMarkup(verse, shownVersion, entry.key)}${state.notes[ref] ? `<button class="imported-note-indicator" type="button" data-import-note="${esc(ref)}" aria-label="Edit note for ${esc(ref)}">${icons.note}</button>` : ''}</p>`;
           }).join('')}
           <div class="focused-passage-actions"><button class="ghost-btn verse-of-day-read-button" type="button" data-import-context="${index}"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button><button class="ghost-btn" type="button" data-import-passage-note="${index}"><span aria-hidden="true">${icons.note}</span><span>${state.notes[entry.ref] ? 'Edit note' : 'Note'}</span></button></div>
           ${snapshot ? apiBibleAttributionMarkup([shownVersion], 'reference-preview-attribution', entry.key) : ''}
@@ -191,5 +249,5 @@
       popup.querySelector('button')?.focus();
     }
   });
-  window.BSBImportedReader = { open, isActive, leave, markup, afterRender, bookmarkAll, highlightReferences, verseReferences };
+  window.BSBImportedReader = { open, isActive, leave, markup, afterRender, bookmarkAll, highlightReferences, verseReferences, selectVerse, selectedLines };
 })();

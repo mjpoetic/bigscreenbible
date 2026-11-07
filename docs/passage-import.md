@@ -12,7 +12,10 @@ for correction.
 At the end of the reading list, **Bookmark all** adds every passage without removing
 existing bookmarks, and **Highlight all** offers the usual highlight colors for all
 imported verses. Overlapping ranges highlight each verse once. Verse-number menus
-support individual bookmarks, highlights, and notes. **Read full chapter** opens the
+support individual bookmarks, highlights, and notes. Tap verse text to open the
+normal highlighter bar with cross references, memorization, copy, share, passage
+links, notes, and printing. Repeated taps toggle selection; selecting in another
+chapter starts a new selection, and ranges include only imported verses. **Read full chapter** opens the
 chapter; the bottom return button restores the complete list and its reading position.
 
 These Reader and button changes are web assets: deploying the site updates the normal

@@ -21,6 +21,8 @@ const ctx = {
   async ensureRemoteBibleVersion(version, key) { for (const verse of chapters[key].verses) { verse[version] = `Translated ${verse.n}`; verse.footnotes = { [version]: [{ text: 'Snapshot footnote' }] }; } },
   translationDisplayCode: version => version, uniqueVersionVerses: verses => verses,
   renderStrongText(verse, version, chapter) { return `${chapter}: ${verse[version]}`; },
+  selectionBar: () => ctx.state.selectedVerses.length ? `<div class="selection-bar">${ctx.state.reference}</div>` : "",
+  toggleVerseSelection(number) { ctx.state.selectedVerses = ctx.state.selectedVerses.includes(number) ? ctx.state.selectedVerses.filter(n => n !== number) : [...ctx.state.selectedVerses, number].sort((a,b) => a-b); },
   publisherFootnoteButtonMarkup: (verse, version) => verse.footnotes?.[version]?.[0]?.text || '', apiBibleAttributionMarkup: () => '',
   versionVerseLabel: verse => verse.n, highlightClassForColor: color => color ? `highlight-${color}` : '', highlightStyleForColor: () => '',
   highlightColors: ['yellow', 'blue'], icons: { book: '', note: '', bookmark: '', highlighter: '', clear: '' },
@@ -104,3 +106,47 @@ ctx.parsePassageReference = () => null;
 vm.runInContext(app.slice(setStart, setEnd), ctx);
 assert.equal(ctx.setReferenceFromString('invalid'), false);
 assert.equal(reader.isActive(), true, 'Invalid navigation must leave the imported list and actions intact');
+
+// Imported taps drive the existing toolbar, including tools that use currentChapter.
+function actualFunction(name) {
+  const start = app.indexOf(`function ${name}(`);
+  const end = app.indexOf('\nfunction ', start + 1);
+  vm.runInContext(app.slice(start, end < 0 ? undefined : end), ctx);
+}
+ctx.currentChapter = () => chapters[ctx.state.reference];
+ctx.normalizeHighlightColor = () => null;
+for (const name of ['toggleVerseSelection', 'selectedVerseNumbers', 'applyHighlight', 'passageLines']) actualFunction(name);
+ctx.state.versions = ['BSB'];
+reader.open({ title: 'Tap selection', refs: ['Luke 1:37', 'John 3:16-17'] });
+await reader.afterRender();
+assert.equal(reader.selectVerse('John 3:16'), true);
+assert.equal(reader.isActive(), true);
+assert.equal(ctx.state.reference, 'John 3');
+assert.deepEqual([...ctx.state.selectedVerses], [16]);
+assert.ok(reader.markup().includes('selection-bar'));
+assert.ok(reader.markup().includes('data-import-select-verse="John 3:16"'));
+reader.selectVerse('John 3:17');
+assert.deepEqual([...ctx.state.selectedVerses], [16,17]);
+ctx.applyHighlight('yellow');
+assert.equal(ctx.state.highlights['John 3:16'], 'yellow');
+assert.equal(ctx.state.highlights['John 3:17'], 'yellow');
+ctx.state.verse = 16; // The cross-reference toolbar action focuses the first selected verse.
+assert.equal(reader.isActive(), true, 'Cross-reference tools must keep the complete imported list active');
+ctx.state.selectedVerses = [];
+assert.equal(reader.isActive(), true, 'Dismissing a toolbar after cross-reference focus must retain the imported list');
+reader.selectVerse('Luke 1:37');
+assert.deepEqual([...ctx.state.selectedVerses], [37], 'Cross-chapter taps begin a new chapter selection');
+ctx.applyHighlight('blue');
+assert.equal(ctx.state.highlights['Luke 1:37'], 'blue');
+assert.equal(ctx.state.highlights['John 3:16'], 'yellow');
+assert.equal(ctx.passageLines()[0].text, 'Nothing is impossible with God.');
+assert.ok(reader.markup().includes('John 3:16-17'), 'The rest of the imported list stays displayed');
+reader.selectVerse('Luke 1:37');
+assert.equal(ctx.state.selectedVerses.length, 0);
+assert.equal(reader.isActive(), true);
+assert.equal(reader.selectVerse('John 3:99'), false);
+ctx.state.versions = ['ESV']; await reader.afterRender();
+reader.selectVerse('John 3:16');
+for (const chapter of Object.values(chapters)) for (const verse of chapter.verses) delete verse.ESV;
+assert.equal(ctx.passageLines()[0].text, 'Translated 16', 'Copy/share/print retain selected remote text after cache eviction');
+console.log('Imported verse taps: native toolbar selection, repeated taps, multi-verse and cross-chapter highlights, cross references, and cached copy/share/print text passed.');

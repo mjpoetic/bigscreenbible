@@ -5420,6 +5420,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.07.3": [
+      "Tap imported verse text to open the usual highlighter bar and passage tools. Selections, highlights, notes, copy, sharing, links, memorization, and printing use the tapped verse’s chapter while keeping the complete imported list open.",
+    ],
     "2026.11.07.2": [
       "Imported passages now open together in the Reader with the same layout as shared passages. Bookmark all or choose a highlight color for every imported verse at the end of the list, with verse actions and notes available throughout.",
       "The shorter Import passages action now appears below the current-passage bookmark button.",
@@ -33180,6 +33183,8 @@ function dismissSelectionBarOnOutsideClick(event) {
 }
 
 function passageLines(verseNumbers = selectedVerseNumbers()) {
+  const importedLines = globalThis.window?.BSBImportedReader?.selectedLines(verseNumbers);
+  if (importedLines) return importedLines;
   if (state.isVerseOfDayActive && state.verseOfDayItem) {
     return verseOfDayVerseEntries().map((entry) => ({ n: entry.verse, text: entry.text }));
   }
