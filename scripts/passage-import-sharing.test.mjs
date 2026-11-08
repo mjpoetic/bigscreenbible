@@ -79,7 +79,7 @@ assert.deepEqual([...app.state.bookmarks], ['John 3:16', 'Psalm 23:1'], 'Bookmar
 const native = read('ios/App/App/SceneDelegate.swift');
 assert.ok(native.includes('bsbReceiveSharedImport'));
 const extension = read('ios/App/PassageShare/ShareViewController.swift');
-assert.ok(extension.includes('Big Screen Bible · Reader'));
+assert.ok(extension.includes('Big Screen Bible'));
 assert.ok(extension.includes('Bookmark all'));
 assert.ok(extension.includes('Highlight all'));
 assert.ok(extension.includes('bsbShareReaderInbox'));

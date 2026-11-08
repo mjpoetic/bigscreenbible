@@ -203,6 +203,10 @@
   };
   // Android, installed websites, and legacy queued iOS imports show both choices.
   window.bsbReceiveSharedText = text => window.bsbReceiveSharedImport(text, 'choose');
+  function loadSharedKJV() {
+    if (typeof loadBibleVersion !== 'function' || typeof loadedVersionData === 'undefined' || loadedVersionData.has('KJV')) return;
+    void loadBibleVersion('KJV').then(() => rebuildBibleData()).catch(() => {});
+  }
   // Acknowledge only after both the change and replay receipt are durable.
   window.bsbReceiveShareReaderChange = (text, id) => {
     if (dataLoading || !Object.keys(bibleData).length || typeof id !== 'string' || !/^[a-zA-Z0-9-]{1,64}$/.test(id)
@@ -219,13 +223,13 @@
         if (typeof ref !== 'string') return false;
         if (change.kind === 'bookmarks') {
           const parsed = BSBPassageImport.extract(ref, bookAliases, bibleData);
-          if (parsed.length !== 1 || parsed[0].error || parsed[0].ref !== ref) return false;
+          if (parsed.length !== 1 || parsed[0].error || parsed[0].ref !== ref) { loadSharedKJV(); return false; }
         } else {
           const verse = ref.match(/^(.*):([1-9][0-9]{0,2})$/);
-          if (!verse || !bibleData[verse[1]]?.verses.some(item => item.n === Number(verse[2]))) return false;
+          if (!verse || !bibleData[verse[1]]?.verses.some(item => item.n === Number(verse[2]))) { loadSharedKJV(); return false; }
         }
       }
-      if (change.kind === 'highlights' && !['none', '#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe'].includes(change.value)) return false;
+      if (change.kind === 'highlights' && !['none', 'yellow', 'blue', 'pink', 'green', 'orange', 'purple', '#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe'].includes(change.value)) return false;
       if (change.kind === 'notes' && (change.refs.length !== 1 || change.value.length > 20000)) return false;
       const key = 'lw_' + change.kind;
       const next = change.kind === 'bookmarks' ? [...new Set([...state.bookmarks, ...change.refs])] : { ...state[change.kind] };

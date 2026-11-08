@@ -5422,6 +5422,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.08.5": [
+      "The iOS share Reader now includes offline KJV, regular Scripture typography, all six vivid site highlight colors, and fitted custom verse and translation pickers. Shared standard highlights keep their normal colors in the main app.",
+    ],
+    "2026.11.08.4": [
+      "The iOS share Reader now uses app-style Scripture typography, inline highlights, clearer passage spacing, and compact verse tools with color swatches, bookmarks, notes, and copy in light and dark mode.",
+    ],
     "2026.11.08.3": [
       "Sort bookmarks, saved notes, and highlights by Bible order or date, newest or oldest first. Dates are tracked when items are saved or updated; older items without recorded dates appear under Date unknown.",
     ],

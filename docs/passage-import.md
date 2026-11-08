@@ -150,3 +150,55 @@ Run `npm run test:share-reader-online` on macOS to execute the actual native cha
 reducer against complete/partial, malformed, wrong-version, offline and reporting
 cases. Physical-device checks still need NLT/NASB selection, slow/offline fallback,
 rapid switching, attribution links, copy labels, and Done before reporting loads.
+
+### Share Reader appearance (build 15)
+
+The focused native share view now uses the site's bundled Literata font for
+Scripture, italic passage headings, a branded header, pill controls, passage
+separators and a readable maximum width on iPad. Native stack/scroll layout keeps
+bulk actions after the last passage without manual content-size calculation.
+Highlight color applies only to Scripture glyphs, excluding verse numbers, margins
+and empty trailing lines. Highlighted text uses dark lettering for contrast in
+both system appearances; other text and materials adapt to light/dark mode.
+
+Tap verse text or its verse number for an anchored custom popover with five color
+swatches, remove highlight, Bookmark, Note and Copy. The selected color and saved
+bookmark state are indicated. Bulk Highlight all uses the same palette. These
+verse actions no longer use system action sheets. Translation selection retains
+its native picker. No Focus-mode floating controls were added.
+
+Native rendering previews cover light and dark Reader and palette layouts. They
+are isolated component renders, not proof of the real share-sheet presentation.
+Physical-device acceptance should check tap anchors, popover dismissal and arrows,
+long note editing, large accessibility text, iPad, offline/online switching, saved
+annotations, and scrolling to the bulk actions.
+
+### Share Reader refinements (build 16)
+
+BSB and KJV are now bundled in the share catalog for offline reading. Only plain
+verse text is added for KJV, not another full copy of its Strong's/metadata bundle.
+The extension retains only the imported KJV chapters after extraction. Validation
+uses the union of BSB/KJV verse numbers, so references such as Acts 8:37 can open in
+KJV. A passage missing in BSB uses an explicitly labeled complete KJV fallback;
+translations are never mislabeled or partially combined. The main app can load its
+existing KJV bundle before acknowledging a KJV-only reference.
+
+The palette's six default swatches (yellow, blue, pink, green, orange, purple) are
+generated from the site's actual CSS. New selections save the same named highlight
+values as the website. Older queued pastel hex values remain accepted; the native
+Reader displays their matching vivid standard color. Publish web 2026.11.08.5 so
+the live app can acknowledge named highlights and KJV-only references.
+
+Scripture now uses regular Literata and regular italic references. Verse numbers
+have no background box. The version selector is a custom scrollable list with
+version codes, full names, selected checkmark, and offline labels for BSB/KJV.
+Both custom pickers size their content inside the *presented* popover safe area,
+include generous edge padding and scroll when available height is limited. The
+six circular color targets wrap into two rows on narrow popovers. An opaque inner
+surface keeps Scripture from showing through behind the controls. Theme is
+explicitly inherited from the Reader.
+
+A native presentation harness checks actual presented palette button frames against
+the popover safe area in light, dark and narrow layouts, and verifies regular font
+weight plus offline KJV including a KJV-only verse. These are simulator presentation
+checks; physical iPhone/iPad share-extension acceptance remains required.

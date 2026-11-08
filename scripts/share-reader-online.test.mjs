@@ -57,3 +57,14 @@ assert.ok(source.includes('onlineTask?.cancel()'));
 assert.ok(source.includes('bsbShareFumsInbox'));
 assert.ok(read('ios/App/App/SceneDelegate.swift').includes('deliverShareTracking'));
 console.log('Online share wiring: shared providers, preferred-version snapshot, stale-request cancellation and durable reporting present.');
+
+assert.equal(catalog.online.translations.find(item => item.code === 'KJV').endpoint, '');
+assert.ok(catalog.bundled.KJV['John 3'].verses.find(v => v.n === 16).text.includes('only begotten Son'));
+assert.ok(catalog.validation['Acts 8'].verses.some(v => v.n === 37), 'Validate KJV-only verses');
+assert.ok(!catalog.chapters['Acts 8'].verses.some(v => v.n === 37), 'Do not invent a BSB verse');
+const css = read('assets/bible-app.css');
+assert.deepEqual(catalog.highlights.map(s => s.value), ['yellow', 'blue', 'pink', 'green', 'orange', 'purple']);
+for (const swatch of catalog.highlights) {
+  assert.ok(css.includes(`.highlight-swatch.highlight-${swatch.value} {\n  background: ${swatch.hex};`), 'Use the actual website swatch');
+}
+console.log('Bundled KJV, KJV-only verse validation, and all six website swatches passed.');

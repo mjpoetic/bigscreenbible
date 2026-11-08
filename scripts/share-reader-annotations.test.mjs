@@ -59,4 +59,8 @@ assert.equal(context.state.notes['John 3:16'], undefined);
 failKey = '';
 assert.equal(receive('notes', ['John 3:16'], 'Retry succeeds', 'note-failure'), true);
 assert.equal(context.state.notes['John 3:16'], 'Retry succeeds');
+for (const color of ['yellow', 'blue', 'pink', 'green', 'orange', 'purple']) {
+  assert.equal(receive('highlights', ['John 3:16'], color, 'site-' + color), true);
+  assert.equal(context.state.highlights['John 3:16'], color, 'Preserve the site default highlight identity');
+}
 console.log('Share Reader annotations: merge, ranges, validation, multiline notes, removal, replay, readiness, storage rollback and retry passed.');
