@@ -22,7 +22,8 @@ context.show({...account,protected:true});assert.ok(!all().some(n=>n.text==='Per
 context.show({...account,providers:['google','apple','email','google']});
 const methods=all().find(n=>n.tag==='section');
 assert.equal(methods.children[0].text,'Linked sign-in methods');
-assert.deepEqual(methods.children[1].children.map(n=>n.text),['Google','Apple','Email']);
+assert.deepEqual(methods.children[1].children.map(n=>n.children.at(-1).text),['Google','Apple','Email']);
+assert.ok(methods.children[1].children.every(n=>n.children[0].innerHTML.includes('<svg')),'Known methods share an SVG icon treatment');
 context.show({...account,email:'reader@example.com',providers:[]});
 assert.ok(all().some(n=>n.text==='Not available'),'Do not infer a linked email identity from contact email');
 context.show({...account,providers:['custom-sso']});assert.ok(all().some(n=>n.text==='custom-sso'));

@@ -140,3 +140,10 @@ html[data-control-material="glass"] :is(button,.button,input,select,textarea) { 
 .sign-in-methods h3 { margin:0 0 10px; font-size:15px; }
 .provider-badges { display:flex; flex-wrap:wrap; gap:8px; }
 .provider-badges .badge { max-width:100%; overflow-wrap:anywhere; border:1px solid var(--line); }
+
+.provider-badges .provider-badge { display:inline-flex; align-items:center; gap:7px; line-height:1.4; padding:6px 10px; }
+.provider-icon { display:inline-grid; place-items:center; width:22px; height:22px; flex:0 0 22px; color:var(--ink); }
+.provider-icon svg { display:block; width:20px; height:20px; overflow:visible; }
+.provider-label { min-width:0; overflow-wrap:anywhere; }
+.person-copy .provider-badges-compact { display:flex; margin-top:8px; }
+.provider-badges-compact .provider-badge { font-size:12px; font-weight:500; }

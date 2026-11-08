@@ -86,7 +86,8 @@
     accountsLoaded=true; accountHasNext=data.items.length>25; $('account-detail').hidden=true; document.querySelector('.account-panel').classList.remove('viewing-account');
     $('account-detail').replaceChildren(); $('account-results').replaceChildren();
     for(const account of data.items.slice(0,25)) {
-      const button=personButton(account.name || account.email || 'Account',account.email || account.id,`${account.protected ? 'Moderator' : 'View account'} · ${linkedSignInMethods(account.providers).join(' · ')}`); button.type='button';
+      const button=personButton(account.name || account.email || 'Account',account.email || account.id,account.protected ? 'Moderator' : 'View account'); button.type='button';
+      const providers=node('span',undefined,'provider-badges provider-badges-compact');linkedSignInMethods(account.providers).forEach(name=>providers.append(providerBadge(name)));button.querySelector('.person-copy').append(providers);
       button.addEventListener('click',()=>accountDetail(account)); $('account-results').append(button);
     }
     if(!data.items.length) $('account-results').append(node('p','No accounts found.'));
@@ -97,6 +98,13 @@
     const methods=Array.isArray(providers) ? [...new Set(providers.filter(p=>typeof p==='string' && p.trim()).map(p=>p.trim()))] : [];
     return methods.length ? methods.map(provider=>labels[provider] || provider) : ['Not available'];
   }
+  function providerBadge(name) {
+    const badge=node('span',undefined,'badge provider-badge');
+    // Fixed, trusted artwork; provider names are always inserted as text.
+    const artwork={Google:'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.2 3-7.2z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.6-2.5l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 13.8A6 6 0 0 1 6 12c0-.6.1-1.2.4-1.8V7.6H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.4l3.3-2.6z"/><path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2 10 10 0 0 0 3.1 7.6l3.3 2.6c.8-2.3 3-4.1 5.6-4.1z"/></svg>',Apple:'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.05 12.54c.03 3.23 2.83 4.3 2.86 4.31-.02.08-.45 1.54-1.48 3.05-.9 1.3-1.83 2.6-3.3 2.63-1.44.03-1.9-.85-3.55-.85-1.64 0-2.15.82-3.52.88-1.42.05-2.5-1.41-3.4-2.71-1.85-2.67-3.26-7.55-1.36-10.85a5.28 5.28 0 0 1 4.47-2.71c1.4-.03 2.72.94 3.56.94.84 0 2.42-1.16 4.08-.99.7.03 2.67.28 3.94 2.14-.1.06-2.35 1.36-2.3 4.16zM14.36 4.48c.75-.91 1.26-2.17 1.12-3.43-1.08.04-2.4.72-3.17 1.62-.69.8-1.3 2.09-1.13 3.32 1.2.09 2.42-.61 3.18-1.51z"/></svg>',Email:'<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m3 6 9 7 9-7"/></svg>'};
+    if(artwork[name]) { const icon=node('span',undefined,'provider-icon');icon.innerHTML=artwork[name];badge.append(icon); }
+    badge.append(node('span',name,'provider-label'));return badge;
+  }
   function accountDetail(account) {
     if(busy) return;
     const gen=generation,d=$('account-detail'); d.hidden=false; d.replaceChildren();
@@ -105,7 +113,7 @@
     const identity=node('div',undefined,'identity-card');identity.append(node('span',initials(account.name || account.email),'avatar'),node('h3',account.name || account.email || 'Account details'),node('p',account.email || account.id),node('span',account.email_confirmed_at ? '✓ Email verified' : 'Email unverified','badge')); d.append(identity);
     const methods=node('section',undefined,'sign-in-methods');methods.append(node('h3','Linked sign-in methods'));
     const badges=node('div',undefined,'provider-badges');
-    linkedSignInMethods(account.providers).forEach(name=>badges.append(node('span',name,'badge')));
+    linkedSignInMethods(account.providers).forEach(name=>badges.append(providerBadge(name)));
     methods.append(badges); d.append(methods);
     const metadata=node('details',undefined,'account-metadata');metadata.append(node('summary','Account details'));
     const info=node('dl');
