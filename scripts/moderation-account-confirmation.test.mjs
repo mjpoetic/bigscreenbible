@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const source=readFileSync(new URL('../assets/moderation.js',import.meta.url),'utf8');
-const start=source.indexOf('  function accountDetail(account)'),end=source.indexOf("  $('account-search-form')",start);
+const start=source.indexOf('  function linkedSignInMethods(providers)'),end=source.indexOf("  $('account-search-form')",start);
 function element(tag,text) {return {tag,text,children:[],value:'',listeners:{},append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},addEventListener(event,fn){this.listeners[event]=fn;},focus(){this.focused=true;},scrollIntoView(){}};}
 const detail=element('div'),calls=[];let confirmed=false,notice='',pending;
 const context={document:{querySelector:()=>({classList:{add(){},remove(){}}})},initials:()=> 'ER',busy:false,generation:1,authorized:true,node:element,$:()=>detail,date:()=>'',window:{confirm:()=>confirmed},run:fn=>{pending=fn();},notice:text=>notice=text,api:async payload=>calls.push(payload),accounts:async()=>{},queue:async()=>{}};
@@ -19,4 +19,11 @@ input.value='DELETE';confirmed=false;remove.listeners.click();await pending;asse
 confirmed=true;remove.listeners.click();await pending;
 assert.equal(calls.length,1);assert.equal(calls[0].user_id,account.id);assert.equal(calls[0].email,account.email);assert.equal(calls[0].confirmation,`DELETE ${account.id}`,'Short input must retain server binding to selected account');
 context.show({...account,protected:true});assert.ok(!all().some(n=>n.text==='Permanently delete account'));
+context.show({...account,providers:['google','apple','email','google']});
+const methods=all().find(n=>n.tag==='section');
+assert.equal(methods.children[0].text,'Linked sign-in methods');
+assert.deepEqual(methods.children[1].children.map(n=>n.text),['Google','Apple','Email']);
+context.show({...account,email:'reader@example.com',providers:[]});
+assert.ok(all().some(n=>n.text==='Not available'),'Do not infer a linked email identity from contact email');
+context.show({...account,providers:['custom-sso']});assert.ok(all().some(n=>n.text==='custom-sso'));
 console.log('Mobile deletion confirmation checks passed: short input, account identity, cancellation, server binding, moderator protection.');

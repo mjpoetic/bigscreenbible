@@ -135,3 +135,8 @@ html[data-control-material="glass"] :is(button,.button,input,select,textarea) { 
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more),(forced-colors:active) {
  html[data-control-material="glass"] :is(button,.button,input,select,textarea) { box-shadow:none; }
 }
+
+.sign-in-methods { margin:18px 0; }
+.sign-in-methods h3 { margin:0 0 10px; font-size:15px; }
+.provider-badges { display:flex; flex-wrap:wrap; gap:8px; }
+.provider-badges .badge { max-width:100%; overflow-wrap:anywhere; border:1px solid var(--line); }

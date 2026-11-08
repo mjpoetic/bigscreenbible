@@ -86,11 +86,16 @@
     accountsLoaded=true; accountHasNext=data.items.length>25; $('account-detail').hidden=true; document.querySelector('.account-panel').classList.remove('viewing-account');
     $('account-detail').replaceChildren(); $('account-results').replaceChildren();
     for(const account of data.items.slice(0,25)) {
-      const button=personButton(account.name || account.email || 'Account',account.email || account.id,account.protected ? 'Moderator' : 'View account'); button.type='button';
+      const button=personButton(account.name || account.email || 'Account',account.email || account.id,`${account.protected ? 'Moderator' : 'View account'} · ${linkedSignInMethods(account.providers).join(' · ')}`); button.type='button';
       button.addEventListener('click',()=>accountDetail(account)); $('account-results').append(button);
     }
     if(!data.items.length) $('account-results').append(node('p','No accounts found.'));
     $('accounts-page').textContent=`Page ${accountPage+1}`;
+  }
+  function linkedSignInMethods(providers) {
+    const labels={google:'Google',apple:'Apple',email:'Email',github:'GitHub',azure:'Microsoft'};
+    const methods=Array.isArray(providers) ? [...new Set(providers.filter(p=>typeof p==='string' && p.trim()).map(p=>p.trim()))] : [];
+    return methods.length ? methods.map(provider=>labels[provider] || provider) : ['Not available'];
   }
   function accountDetail(account) {
     if(busy) return;
@@ -98,9 +103,13 @@
     document.querySelector('.account-panel').classList.add('viewing-account');
     const back=node('button','← All accounts','detail-back');back.type='button';back.addEventListener('click',()=>{d.hidden=true;d.replaceChildren();document.querySelector('.account-panel').classList.remove('viewing-account');$('account-search').focus();});d.append(back);
     const identity=node('div',undefined,'identity-card');identity.append(node('span',initials(account.name || account.email),'avatar'),node('h3',account.name || account.email || 'Account details'),node('p',account.email || account.id),node('span',account.email_confirmed_at ? '✓ Email verified' : 'Email unverified','badge')); d.append(identity);
+    const methods=node('section',undefined,'sign-in-methods');methods.append(node('h3','Linked sign-in methods'));
+    const badges=node('div',undefined,'provider-badges');
+    linkedSignInMethods(account.providers).forEach(name=>badges.append(node('span',name,'badge')));
+    methods.append(badges); d.append(methods);
     const metadata=node('details',undefined,'account-metadata');metadata.append(node('summary','Account details'));
     const info=node('dl');
-    for(const [label,value] of [['User ID',account.id],['Name',account.name || '—'],['Created',date(account.created_at)],['Last sign-in',date(account.last_sign_in_at)],['Email verified',date(account.email_confirmed_at)],['Sign-in methods',(account.providers || []).join(', ') || '—']]) info.append(node('dt',label),node('dd',value));
+    for(const [label,value] of [['User ID',account.id],['Name',account.name || '—'],['Created',date(account.created_at)],['Last sign-in',date(account.last_sign_in_at)],['Email verified',date(account.email_confirmed_at)]]) info.append(node('dt',label),node('dd',value));
     metadata.append(info); d.append(metadata);
     if(account.protected) { d.append(node('p','Manage moderator accounts in the Supabase administrator dashboard.')); return; }
     d.append(node('h3','Account support'));
