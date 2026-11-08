@@ -27787,3 +27787,23 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 }
 .widget-passage-suggestions[hidden] { display: none; }
 .widget-passage-suggestions [aria-selected="true"] { background: var(--line); }
+
+.annotation-sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: 13px;
+}
+.annotation-sort select {
+  max-width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}

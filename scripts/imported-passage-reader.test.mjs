@@ -115,7 +115,7 @@ function actualFunction(name) {
 }
 ctx.currentChapter = () => chapters[ctx.state.reference];
 ctx.normalizeHighlightColor = () => null;
-for (const name of ['toggleVerseSelection', 'selectedVerseNumbers', 'applyHighlight', 'passageLines']) actualFunction(name);
+for (const name of ['recordAnnotationDate', 'toggleVerseSelection', 'selectedVerseNumbers', 'applyHighlight', 'passageLines']) actualFunction(name);
 ctx.state.versions = ['BSB'];
 reader.open({ title: 'Tap selection', refs: ['Luke 1:37', 'John 3:16-17'] });
 await reader.afterRender();

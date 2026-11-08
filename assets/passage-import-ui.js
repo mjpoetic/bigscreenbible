@@ -176,6 +176,7 @@
     const next = [...missing, ...state.bookmarks];
     try { localStorage.setItem('lw_bookmarks', JSON.stringify(next)); }
     catch { showToast('Bookmarks could not be saved. Device storage may be full.'); return false; }
+    if (typeof recordAnnotationDate === 'function') missing.forEach(ref => recordAnnotationDate('bookmarks', ref));
     state.bookmarks = next;
     scheduleCloudSync();
     renderPreservingReaderScroll();
@@ -238,6 +239,11 @@
       catch (error) {
         if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);
         throw error;
+      }
+      if (typeof recordAnnotationDate === 'function') {
+        const refs = change.kind === 'bookmarks' ? change.refs.filter(ref => !state.bookmarks.includes(ref))
+          : change.refs.filter(ref => next[ref]);
+        refs.forEach(ref => recordAnnotationDate(change.kind, ref));
       }
       state[change.kind] = next;
     } catch { return false; }

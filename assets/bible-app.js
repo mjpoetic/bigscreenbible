@@ -940,6 +940,8 @@ const state = {
   keyboardSelectionAnchor: null,
   noteComposerRef: "",
   noteComposerAnchor: null,
+  annotationDates: JSON.parse(localStorage.getItem("lw_annotation_dates") || "{}"),
+  annotationSort: JSON.parse(localStorage.getItem("lw_annotation_sort") || "{}"),
   highlights: JSON.parse(localStorage.getItem("lw_highlights") || "{}"),
   customHighlightColor: normalizeHighlightColor(localStorage.getItem("lw_custom_highlight_color")) || "#c084fc",
   bookmarks: JSON.parse(localStorage.getItem("lw_bookmarks") || '["John 3:16","Psalm 23:1"]'),
@@ -5420,6 +5422,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.08.3": [
+      "Sort bookmarks, saved notes, and highlights by Bible order or date, newest or oldest first. Dates are tracked when items are saved or updated; older items without recorded dates appear under Date unknown.",
+    ],
     "2026.11.08.2": [
       "The iOS share Reader can now load NLT, NASB, NIV, NIrV, NKJV, CEV, AMP, and ESV online. It follows your supported preferred Reader translation and offers a version picker, with clearly labeled BSB fallback when a passage cannot load.",
     ],
@@ -7128,6 +7133,7 @@ function blankLocalSnapshot(sourceSnapshot = captureCloudSnapshot()) {
     settings: {
       ...(sourceSnapshot?.settings || {}),
       gameRecords: {},
+      annotationDates: {},
       versionsUpdatedAt: "",
     },
     bookmarks: [],
@@ -9495,6 +9501,7 @@ function annotationShelfMarkup(label, count, listClass, content, shelfKey, optio
   return `
     <details class="annotation-shelf" data-annotation-shelf="${escapeHtml(shelfKey)}" ${open ? "open" : ""}>
       <summary><span>${escapeHtml(label)}</span><small>${escapeHtml(count)}</small></summary>
+      ${annotationSortMarkup(shelfKey)}
       <div class="${listClass} saved-list annotation-shelf-list">
         ${content}
       </div>
@@ -9509,6 +9516,7 @@ function bookmarksPanel() {
     <section class="study-section panel-section" id="bookmarksSection">
       <button class="ghost-btn panel-action" id="panelBookmarkToggle">${isBookmarked ? "Remove" : "Add"} ${escapeHtml(ref)}</button>
       <button class="text-btn passage-import-entry" type="button" data-open-passage-import>${icons.plus} Import passages</button>
+      ${annotationSortMarkup("bookmarks")}
       <div class="bookmark-list">
         ${bookmarkItemsMarkup()}
       </div>
@@ -14086,6 +14094,7 @@ function refreshAccountGameRecords() {
 function captureCloudSnapshot() {
   return {
     settings: {
+      annotationDates: state.annotationDates,
       gameRecords: captureGameRecords(),
       versions: persistentVersions(),
       versionsUpdatedAt: state.versionsUpdatedAt,
@@ -14182,6 +14191,7 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       ...versionSettings,
       ...disclosureSettings,
       ...appearanceSettings,
+      annotationDates: mergeAnnotationDates(cloud.settings.annotationDates, localSnapshot.settings.annotationDates),
       gameRecords: mergeGameRecords(cloud.settings.gameRecords, localSnapshot.settings.gameRecords),
       wordSearchRecentPassages: mergeWordSearchRecentPassages(
         cloud.settings.wordSearchRecentPassages,
@@ -14323,6 +14333,7 @@ function applyCloudSnapshot(snapshot) {
   Object.values(customFontInputTimers).forEach((timer) => window.clearTimeout(timer));
   const settings = migrateAppearanceSettings(snapshot.settings);
   state.versions = versionsWithSharedVersionOverride(settings.versions);
+  state.annotationDates = mergeAnnotationDates(settings.annotationDates);
   state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
   applyResolvedAppearance(appearanceFromSnapshotSettings(settings));
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
@@ -14457,6 +14468,7 @@ function persistCloudSnapshotLocally(snapshot) {
   const settings = migrateAppearanceSettings(snapshot.settings);
   const migratedSnapshot = { ...snapshot, settings };
   applyGameRecords(settings.gameRecords);
+  localStorage.setItem("lw_annotation_dates", JSON.stringify(state.annotationDates));
   persistVersions();
   if (settings.appearance && typeof settings.appearance === "object") {
     state.appearance = writeStoredAppearance(settings.appearance);
@@ -14595,7 +14607,7 @@ function applyOfflineChanges(merged, base, local) {
     const before = base[field] || {};
     const after = local[field] || {};
     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (["gameRecords", "wordSearchRecentPassages"].includes(key) && field === "settings") continue;
+      if (["gameRecords", "wordSearchRecentPassages", "annotationDates"].includes(key) && field === "settings") continue;
       if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
       if (Object.hasOwn(after, key)) result[field][key] = after[key];
       else delete result[field][key];
@@ -20516,6 +20528,72 @@ function crossReferenceItems(reference = referenceLabel()) {
   return sourceRefs.map(normalizeCrossReference).filter(Boolean);
 }
 
+// Keep annotation payloads compatible with existing clients; dates sync in settings.
+function mergeAnnotationDates(...sources) {
+  const result = {};
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const collection of ["bookmarks", "notes", "highlights"]) {
+      for (const [ref, at] of Object.entries(source[collection] || {})) {
+        const timestamp = Date.parse(at);
+        if (!Number.isFinite(timestamp)) continue;
+        result[collection] ||= {};
+        if (!result[collection][ref] || timestamp > Date.parse(result[collection][ref])) {
+          result[collection][ref] = new Date(timestamp).toISOString();
+        }
+      }
+    }
+  }
+  return result;
+}
+
+function recordAnnotationDate(collection, ref) {
+  state.annotationDates ||= {};
+  state.annotationDates[collection] ||= {};
+  state.annotationDates[collection][ref] = new Date().toISOString();
+  // Saving the annotation itself must still succeed if metadata storage is full.
+  try { localStorage.setItem("lw_annotation_dates", JSON.stringify(state.annotationDates)); } catch {}
+}
+
+function annotationSortMarkup(collection) {
+  const selected = state.annotationSort?.[collection] || "bible";
+  return `<label class="annotation-sort">Sort ${escapeHtml(collection)}
+    <select data-annotation-sort="${collection}" aria-label="Sort ${collection}">
+      ${[["bible", "Bible order"], ["newest", "Date: newest first"], ["oldest", "Date: oldest first"]].map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("")}
+    </select>
+  </label>`;
+}
+
+function annotationItemTimestamp(collection, ref) {
+  const dates = state.annotationDates?.[collection] || {};
+  if (collection === "highlights") {
+    const parsed = parsePassageReference(ref);
+    return Math.max(0, ...(parsed?.verses || []).map(verse => Date.parse(dates[`${parsed.key}:${verse}`]) || 0));
+  }
+  return Date.parse(dates[ref]) || 0;
+}
+
+function datedAnnotationItemsMarkup(items, renderItem, collection) {
+  const direction = state.annotationSort[collection] === "oldest" ? 1 : -1;
+  const sorted = items.map(item => ({ ...item, at: annotationItemTimestamp(collection, item.ref) }))
+    .sort((a, b) => !a.at - !b.at || direction * (a.at - b.at) || compareReferenceStrings(a.ref, b.ref));
+  const groups = new Map();
+  sorted.forEach(item => {
+    const label = item.at ? new Date(item.at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "Date unknown";
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(item);
+  });
+  return [...groups].map(([label, group], index) => {
+    const groupKey = `${collection}:date:${label}`;
+    const open = state.touchedAnnotationGroupCollections.includes(collection)
+      ? state.openAnnotationGroups.includes(groupKey) : index === 0;
+    return `<details class="annotation-group" data-annotation-group="${escapeHtml(groupKey)}" ${open ? "open" : ""}>
+      <summary><span>${escapeHtml(label)}</span><small>${group.length}</small></summary>
+      <div class="annotation-group-list">${group.map(renderItem).join("")}</div>
+    </details>`;
+  }).join("");
+}
+
 function bookmarkItemsMarkup() {
   if (!state.bookmarks.length) return `<div class="empty-state">No bookmarks saved yet.</div>`;
   const items = state.bookmarks.slice().sort(compareReferenceStrings).map((ref) => ({ ref }));
@@ -20542,6 +20620,9 @@ function referenceBookName(ref) {
 
 function groupedAnnotationItemsMarkup(items, emptyText, renderItem, collectionKey = "annotations") {
   if (!items.length) return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
+  if (["newest", "oldest"].includes(state.annotationSort?.[collectionKey])) {
+    return datedAnnotationItemsMarkup(items, renderItem, collectionKey);
+  }
   const groups = new Map();
   items.forEach((item) => {
     const book = referenceBookName(item.ref);
@@ -24546,6 +24627,13 @@ function bindEvents() {
       if (details.dataset.notesFilterManaged === "true") return;
       markAnnotationGroupCollectionTouched(details.dataset.annotationGroup);
       syncOpenStateList("openAnnotationGroups", details.dataset.annotationGroup, details.open);
+    });
+  });
+  document.querySelectorAll("[data-annotation-sort]").forEach((select) => {
+    select.addEventListener("change", () => {
+      state.annotationSort[select.dataset.annotationSort] = select.value;
+      localStorage.setItem("lw_annotation_sort", JSON.stringify(state.annotationSort));
+      renderPreservingReaderScroll();
     });
   });
   document.getElementById("notesFilterInput")?.addEventListener("input", (event) => {
@@ -32909,6 +32997,7 @@ function toggleBookmark() {
     showToast("Bookmark removed");
   } else {
     state.bookmarks.unshift(ref);
+    recordAnnotationDate("bookmarks", ref);
     showToast("Bookmark saved");
   }
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
@@ -32926,7 +33015,10 @@ function saveNote() {
 
 function persistNote(ref, note) {
   const cleaned = String(note || "").trim();
-  if (cleaned) state.notes[ref] = cleaned;
+  if (cleaned) {
+    state.notes[ref] = cleaned;
+    recordAnnotationDate("notes", ref);
+  }
   else delete state.notes[ref];
   localStorage.setItem("lw_notes", JSON.stringify(state.notes));
   scheduleCloudSync();
@@ -32960,6 +33052,7 @@ function editBookmark(ref) {
   if (nextRef === null) return;
   const cleaned = nextRef.trim().replace(/\s+/g, " ");
   if (!referenceExists(cleaned)) return showToast("Try a bundled reference like John 3:16");
+  recordAnnotationDate("bookmarks", cleaned);
   state.bookmarks = state.bookmarks.map((item) => item === ref ? cleaned : item);
   state.bookmarks = [...new Set(state.bookmarks)];
   localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
@@ -33158,7 +33251,10 @@ function applyHighlight(color) {
   if (!shouldRemove && !highlightColor) return;
   verses.forEach((verseNumber) => {
     const ref = `${state.reference}:${verseNumber}`;
-    if (highlightColor) state.highlights[ref] = highlightColor;
+    if (highlightColor) {
+      state.highlights[ref] = highlightColor;
+      recordAnnotationDate("highlights", ref);
+    }
     else delete state.highlights[ref];
   });
   if (normalizedColor) {

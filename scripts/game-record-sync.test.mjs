@@ -51,7 +51,7 @@ function device() {
   });
   for (const name of ['gameRecordStorageKeys','compareGamePoints','mergeGameRecords',
     'captureGameRecords','applyGameRecords','captureCloudSnapshot','normalizeCloudRow',
-    'mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
+    'mergeAnnotationDates','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
   ctx.state.bookmarks = []; ctx.state.notes = {}; ctx.state.highlights = {}; ctx.state.history = [];
   return ctx;
 }

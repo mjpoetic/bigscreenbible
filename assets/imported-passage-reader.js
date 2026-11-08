@@ -131,6 +131,11 @@
   function persistAnnotations(key, next, kind) {
     try { localStorage.setItem(key, JSON.stringify(next)); }
     catch { showToast('Changes could not be saved. Device storage may be full.'); return false; }
+    if (typeof recordAnnotationDate === 'function') {
+      const refs = kind === 'bookmarks' ? next.filter(ref => !state.bookmarks.includes(ref))
+        : Object.keys(next).filter(ref => next[ref] !== state[kind][ref]);
+      refs.forEach(ref => recordAnnotationDate(kind, ref));
+    }
     state[kind] = next;
     scheduleCloudSync();
     repaint();
