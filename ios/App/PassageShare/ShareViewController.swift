@@ -1,9 +1,11 @@
 import UIKit
 import UniformTypeIdentifiers
 import JavaScriptCore
+import WebKit
+import SafariServices
 
-// A focused, offline Reader hosted by the share extension, never the containing app.
-final class ShareViewController: UIViewController, UITextViewDelegate {
+// A focused Reader hosted by the share extension, never the containing app.
+final class ShareViewController: UIViewController, UITextViewDelegate, WKNavigationDelegate {
     private let reader = UITextView()
     private let status = UILabel()
     private let footer = UIStackView()
@@ -14,6 +16,19 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
     private var notes: [String: String] = [:]
     private var bookmarked = Set<String>()
     private let store = UserDefaults(suiteName: "group.com.bigscreenbible.app")
+    private let versionButton = UIButton(type: .system)
+    private var baseline: [(ref: String, verses: [(ref: String, text: String)])] = []
+    private var online: [String: Any] = [:]
+    private var versions: [[String: Any]] = []
+    private var selectedVersion = "BSB"
+    private var displayedVersions: [String: String] = [:]
+    private var notices: [String: String] = [:]
+    private var copyrights: [String: String] = [:]
+    private var onlineTask: Task<Void, Never>?
+    private var generation = UUID()
+    private var tracker: WKWebView?
+    private var trackedTokens = Set<String>()
+    private var loading = false
     private let inboxKey = "bsbShareReaderInbox"
 
     override func viewDidLoad() {
@@ -26,7 +41,11 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
         let done = UIButton(type: .system)
         done.setTitle("Done", for: .normal)
         done.addTarget(self, action: #selector(close), for: .touchUpInside)
-        let header = UIStackView(arrangedSubviews: [heading, done])
+        versionButton.setTitle("BSB ▾", for: .normal)
+        versionButton.accessibilityLabel = "Bible translation"
+        versionButton.addTarget(self, action: #selector(chooseVersion), for: .touchUpInside)
+        versionButton.setContentHuggingPriority(.required, for: .horizontal)
+        let header = UIStackView(arrangedSubviews: [heading, versionButton, done])
         header.spacing = 12
         done.setContentHuggingPriority(.required, for: .horizontal)
         status.text = "Finding passages…"
@@ -154,10 +173,15 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
             status.text = issues.isEmpty ? "No Bible references found. Share the devotional text itself; a webpage link does not contain its text." : issues.joined(separator: "\n")
             return
         }
+        online = catalog["online"] as? [String: Any] ?? [:]
+        versions = online["translations"] as? [[String: Any]] ?? []
+        baseline = passages
         restoreAnnotations()
         status.text = "BSB · Tap a verse for highlights, bookmarks, and notes."
         footer.isHidden = false
         renderReader()
+        let preferred = (store?.dictionary(forKey: "bsbShareReaderSnapshot")?["versions"] as? [String])?.first ?? "BSB"
+        selectVersion(preferred)
     }
 
     private func restoreAnnotations() {
@@ -188,16 +212,25 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
         paragraph.lineSpacing = 8
         paragraph.paragraphSpacing = 20
         let font = UIFontMetrics(forTextStyle: .title2).scaledFont(for: UIFont(name: "Georgia", size: 25) ?? .systemFont(ofSize: 25))
-        for passage in passages {
-            output.append(NSAttributedString(string: "\(passage.ref) (BSB)\n\n", attributes: [
+        for (passageIndex, passage) in passages.enumerated() {
+            output.append(NSAttributedString(string: "\(passage.ref) (\(displayCode(displayedVersions[passage.ref] ?? "BSB")))\n\n", attributes: [
                 .font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: UIFont(name: "Georgia-Italic", size: 22) ?? .italicSystemFont(ofSize: 22)),
                 .foregroundColor: UIColor.label]))
+            if let notice = notices[passage.ref] {
+                output.append(NSAttributedString(string: notice + "\n\n", attributes: [.font: UIFont.preferredFont(forTextStyle: .footnote), .foregroundColor: UIColor.secondaryLabel]))
+            }
             for verse in passage.verses {
                 let marked = notes[verse.ref] == nil ? "" : "  ✎"
                 var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.label,
-                    .paragraphStyle: paragraph, .link: URL(string: "bsbverse://tools/" + verse.ref.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)!]
+                    .paragraphStyle: paragraph, .link: URL(string: "bsbverse://tools/" + verse.ref.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)! + "?passage=\(passageIndex)")!]
                 if let color = highlights[verse.ref] { attributes[.backgroundColor] = highlightColor(color) }
                 output.append(NSAttributedString(string: "\(verse.ref.split(separator: ":").last ?? "")  \(verse.text)\(marked)\n\n", attributes: attributes))
+            }
+        }
+        for (version, copyright) in copyrights.sorted(by: { $0.key < $1.key }) {
+            output.append(NSAttributedString(string: "\n\(displayCode(version)) · \(copyright)\n", attributes: [.font: UIFont.preferredFont(forTextStyle: .footnote), .foregroundColor: UIColor.secondaryLabel]))
+            for (label, url) in publisherLinks(version) {
+                output.append(NSAttributedString(string: label + "\n", attributes: [.font: UIFont.preferredFont(forTextStyle: .footnote), .link: url]))
             }
         }
         if !issues.isEmpty {
@@ -209,8 +242,13 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
     }
 
     func textView(_ textView: UITextView, shouldInteractWith URL: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {
+        if URL.scheme == "https" {
+            present(SFSafariViewController(url: URL), animated: true)
+            return false
+        }
         guard URL.scheme == "bsbverse", let ref = String(URL.path.dropFirst()).removingPercentEncoding else { return false }
-        verseTools(ref)
+        let index = URLComponents(url: URL, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "passage" })?.value.flatMap(Int.init)
+        verseTools(ref, passageIndex: index)
         return false
     }
 
@@ -224,14 +262,17 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
         return sheet
     }
 
-    private func verseTools(_ ref: String) {
+    private func verseTools(_ ref: String, passageIndex: Int?) {
         let menu = sheet(ref)
         menu.addAction(UIAlertAction(title: "Bookmark verse", style: .default) { [weak self] _ in self?.save(kind: "bookmarks", refs: [ref]) })
         menu.addAction(UIAlertAction(title: "Highlight", style: .default) { [weak self] _ in self?.chooseHighlight([ref]) })
         menu.addAction(UIAlertAction(title: "Add or edit note", style: .default) { [weak self] _ in self?.editNote(ref) })
         menu.addAction(UIAlertAction(title: "Copy verse", style: .default) { [weak self] _ in
-            guard let verse = self?.passages.flatMap({ $0.verses }).first(where: { $0.ref == ref }) else { return }
-            UIPasteboard.general.string = "\(verse.text) — \(ref) (BSB)"
+            guard let self, let passageIndex, self.passages.indices.contains(passageIndex) else { return }
+            let passage = self.passages[passageIndex]
+            guard let verse = passage.verses.first(where: { $0.ref == ref }) else { return }
+            let version = self.displayedVersions[passage.ref] ?? "BSB"
+            UIPasteboard.general.string = "\(verse.text) — \(ref) (\(self.displayCode(version)))"
         })
         present(menu, animated: true)
     }
@@ -275,12 +316,189 @@ final class ShareViewController: UIViewController, UITextViewDelegate {
         return true
     }
 
+    private func displayCode(_ code: String) -> String {
+        versions.first(where: { $0["code"] as? String == code })?["displayCode"] as? String ?? code
+    }
+
+    @objc private func chooseVersion() {
+        let menu = sheet("Bible translation", anchor: versionButton)
+        let preferred = store?.dictionary(forKey: "bsbShareReaderSnapshot")?["versions"] as? [String] ?? []
+        let sorted = versions.sorted { a, b in
+            let aRank = preferred.firstIndex(of: a["code"] as? String ?? "") ?? 100
+            let bRank = preferred.firstIndex(of: b["code"] as? String ?? "") ?? 100
+            return aRank == bRank ? (a["code"] as? String ?? "") < (b["code"] as? String ?? "") : aRank < bRank
+        }
+        for version in sorted {
+            guard let code = version["code"] as? String, let name = version["name"] as? String else { continue }
+            menu.addAction(UIAlertAction(title: "\(code == selectedVersion ? "✓ " : "")\(displayCode(code)) · \(name)", style: .default) { [weak self] _ in self?.selectVersion(code) })
+        }
+        present(menu, animated: true)
+    }
+
+    private func selectVersion(_ requested: String) {
+        onlineTask?.cancel()
+        generation = UUID()
+        let version = versions.first(where: { $0["code"] as? String == requested })
+        selectedVersion = version == nil ? "BSB" : requested
+        versionButton.setTitle("\(displayCode(selectedVersion)) ▾", for: .normal)
+        passages = baseline
+        displayedVersions.removeAll()
+        notices.removeAll()
+        copyrights.removeAll()
+        loading = false
+        if version == nil && requested != "BSB" {
+            for passage in passages { notices[passage.ref] = "\(requested) is available in the full app. Showing BSB here." }
+        }
+        guard selectedVersion != "BSB", let version,
+              let endpoint = version["endpoint"] as? String,
+              let base = online["url"] as? String, let key = online["anonKey"] as? String,
+              let baseURL = URL(string: base), baseURL.scheme == "https", baseURL.host == "yyldnatfhzobyeqnvqjv.supabase.co" else {
+            status.text = "BSB · Tap a verse for highlights, bookmarks, and notes."
+            renderReader()
+            return
+        }
+        loading = true
+        status.text = "Loading \(displayCode(selectedVersion))… BSB is available while you wait."
+        for passage in passages { notices[passage.ref] = "Loading \(displayCode(selectedVersion))… showing BSB for now." }
+        renderReader()
+        let requestID = generation
+        let code = selectedVersion
+        let chapters = Array(Set(baseline.compactMap { $0.verses.first?.ref.components(separatedBy: ":").first })).sorted()
+        let needsTracking = version["tracksFums"] as? Bool == true
+        onlineTask = Task { @MainActor [weak self] in
+            // Two requests at a time; responses are kept only for this share session.
+            await withTaskGroup(of: (String, Data?).self) { group in
+                var iterator = chapters.makeIterator()
+                func enqueue(_ chapter: String) {
+                    group.addTask {
+                        var components = URLComponents(url: baseURL.appendingPathComponent("functions/v1/" + endpoint), resolvingAgainstBaseURL: false)!
+                        components.queryItems = [URLQueryItem(name: "ref", value: chapter), URLQueryItem(name: "version", value: code)]
+                        guard let url = components.url, !Task.isCancelled else { return (chapter, nil) }
+                        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 12)
+                        request.setValue(key, forHTTPHeaderField: "apikey")
+                        // The public publishable key is not a JWT. No account/session token enters the extension.
+                        do {
+                            let config = URLSessionConfiguration.ephemeral
+                            config.urlCache = nil
+                            let session = URLSession(configuration: config)
+                            defer { session.invalidateAndCancel() }
+                            let (data, response) = try await session.data(for: request)
+                            guard let http = response as? HTTPURLResponse, http.statusCode == 200, data.count < 2_000_000 else { return (chapter, nil) }
+                            return (chapter, data)
+                        } catch { return (chapter, nil) }
+                    }
+                }
+                for _ in 0..<2 { if let chapter = iterator.next() { enqueue(chapter) } }
+                for await (chapter, data) in group {
+                    guard !Task.isCancelled, let self, self.generation == requestID else { group.cancelAll(); return }
+                    self.applyOnlineChapter(chapter, data: data, code: code, needsTracking: needsTracking)
+                    if let next = iterator.next() { enqueue(next) }
+                }
+            }
+            guard !Task.isCancelled, let self, self.generation == requestID else { return }
+            self.loading = false
+            let failures = self.notices.count
+            self.status.text = failures == 0 ? "\(self.displayCode(code)) · Tap a verse for tools." : "\(self.displayCode(code)) unavailable for \(failures) \(failures == 1 ? "passage" : "passages"). BSB is shown instead. Choose a version to retry."
+        }
+    }
+
+    private func applyOnlineChapter(_ chapter: String, data: Data?, code: String, needsTracking: Bool) {
+        let payload = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let validVersion = payload?["version"] as? String == code
+        let verses = validVersion ? payload?["verses"] as? [[String: Any]] ?? [] : []
+        var texts: [Int: String] = [:]
+        for verse in verses {
+            if let n = verse["n"] as? Int, let text = verse["text"] as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { texts[n] = text }
+        }
+        var displayed = false
+        for index in passages.indices where baseline[index].verses.first?.ref.hasPrefix(chapter + ":") == true {
+            let source = baseline[index]
+            let translated = source.verses.compactMap { verse -> (ref: String, text: String)? in
+                guard let n = Int(verse.ref.components(separatedBy: ":").last ?? ""), let text = texts[n] else { return nil }
+                return (verse.ref, text)
+            }
+            if translated.count == source.verses.count && !translated.isEmpty {
+                passages[index] = (source.ref, translated)
+                displayedVersions[source.ref] = code
+                notices.removeValue(forKey: source.ref)
+                displayed = true
+            } else {
+                notices[source.ref] = "\(displayCode(code)) could not load this complete passage. Showing BSB instead."
+            }
+        }
+        if displayed {
+            copyrights[code] = payload?["copyright"] as? String ?? (code == "ESV" ? "ESV® Bible © 2001 by Crossway. Used by permission. All rights reserved." : "")
+            if needsTracking, let token = payload?["fumsToken"] as? String, !token.isEmpty { trackView(token) }
+        }
+        renderReader()
+    }
+
+    private func publisherLinks(_ code: String) -> [(String, URL)] {
+        let links: [String: (String, String)] = [
+            "NLT": ("Tyndale", "https://www.tyndale.com/"), "NKJV": ("Thomas Nelson", "https://www.thomasnelsonbibles.com/"),
+            "CEV": ("American Bible Society", "https://www.americanbible.org/"), "ESV": ("ESV (Crossway)", "https://www.esv.org/"),
+            "NASB2020": ("The Lockman Foundation", "https://www.lockman.org/"), "AMP": ("The Lockman Foundation", "https://www.lockman.org/"),
+            "NIV": ("Biblica", "https://www.biblica.com/"), "NIRV": ("Biblica", "https://www.biblica.com/")]
+        var result: [(String, URL)] = []
+        if let link = links[code], let url = URL(string: link.1) { result.append((link.0, url)) }
+        if ["NLT", "NKJV", "CEV"].contains(code) { result.append(("API.Bible", URL(string: "https://api.bible/")!)) }
+        if code == "ESV" { result.append(("Full ESV copyright and copying limits", URL(string: "https://bigscreenbible.com/terms/#bible-rights")!)) }
+        return result
+    }
+
+    private func trackView(_ token: String) {
+        guard trackedTokens.insert(token).inserted else { return }
+        if let store {
+            var pending = store.stringArray(forKey: "bsbShareFumsInbox") ?? []
+            if !pending.contains(token) { pending.append(token); store.set(pending, forKey: "bsbShareFumsInbox") }
+        }
+        if tracker == nil {
+            let config = WKWebViewConfiguration()
+            // Dedicated provider storage, with no main-app cookies or sign-in credentials.
+            config.websiteDataStore = .default()
+            let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+            web.navigationDelegate = self
+            web.isHidden = true
+            view.addSubview(web)
+            tracker = web
+            web.loadHTMLString("""
+            <!doctype html><meta name="referrer" content="no-referrer">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://pkg.api.bible; connect-src https://fums.api.bible">
+            <script>window.fumsData=[];window.fums=function(){fumsData.push(arguments);};</script>
+            <script src="https://pkg.api.bible/fumsV3.min.js" onload="window.bsbFumsReady=true"></script>
+            """, baseURL: URL(string: "https://bigscreenbible.com/"))
+        } else if tracker?.isLoading == false { deliverTracking() }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { deliverTracking() }
+
+    private func deliverTracking() {
+        let pending = store?.stringArray(forKey: "bsbShareFumsInbox") ?? Array(trackedTokens)
+        guard !pending.isEmpty else { return }
+        tracker?.callAsyncJavaScript("""
+        if (!window.bsbFumsReady) return false;
+        await window.fums('trackView', tokens);
+        return true;
+        """, arguments: ["tokens": pending], in: nil, in: .page) { [weak self] result in
+            guard case .success(let value) = result, value as? Bool == true, let store = self?.store else { return }
+            let latest = store.stringArray(forKey: "bsbShareFumsInbox") ?? []
+            store.set(latest.filter { !pending.contains($0) }, forKey: "bsbShareFumsInbox")
+        }
+    }
+
     private func highlightColor(_ hex: String) -> UIColor {
         let value = UInt32(hex.dropFirst(), radix: 16) ?? 0xfde68a
         return UIColor(red: CGFloat((value >> 16) & 255) / 255, green: CGFloat((value >> 8) & 255) / 255, blue: CGFloat(value & 255) / 255, alpha: 0.65)
     }
 
-    @objc private func close() { extensionContext?.completeRequest(returningItems: nil) }
+    @objc private func close() {
+        onlineTask?.cancel()
+        tracker?.stopLoading()
+        extensionContext?.completeRequest(returningItems: nil)
+    }
+
+    deinit { onlineTask?.cancel() }
+
 }
 
 private final class ShareNoteController: UIViewController {

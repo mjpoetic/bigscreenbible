@@ -5420,6 +5420,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.08.2": [
+      "The iOS share Reader can now load NLT, NASB, NIV, NIrV, NKJV, CEV, AMP, and ESV online. It follows your supported preferred Reader translation and offers a version picker, with clearly labeled BSB fallback when a passage cannot load.",
+    ],
     "2026.11.08.1": [
       "Read imported Scripture directly in the iOS share sheet, with verse highlights, notes, and bookmarks plus Bookmark all and Highlight all. Saved changes transfer to the app when it next opens.",
     ],

@@ -8,7 +8,13 @@ vm.runInContext(readFileSync(new URL('assets/bibles/BSB.js', root), 'utf8'), con
 vm.runInContext(source.slice(source.indexOf('const bookDefinitions'), source.indexOf('const oldTestamentBooks'))
   + source.slice(source.indexOf('function buildBookAliases()'), source.indexOf('async function initializeBibleData()'))
   + '\nglobalThis.aliases = buildBookAliases();', context);
+vm.runInContext(readFileSync(new URL('assets/supabase-config.js', root), 'utf8'), context);
+vm.runInContext(source.slice(source.indexOf('const bibleProviders ='), source.indexOf('const translationCodes =')) + '\nglobalThis.shareTranslations = translations; globalThis.shareProviders = bibleProviders;', context);
 const catalog = {
+  online: { ...context.window.BigScreenBibleSupabase,
+    translations: context.shareTranslations.filter(item => item.code === 'BSB' || context.shareProviders[item.provider].type === 'remote')
+      .map(item => ({ ...item, endpoint: context.shareProviders[item.provider].edgeFunction || '', tracksFums: !!context.shareProviders[item.provider].tracksFums })),
+  },
   aliases: context.aliases,
   chapters: Object.fromEntries(Object.entries(context.window.BIGSCREEN_BIBLE_BSB.chapters)
     .map(([key, chapter]) => [key, { verses: chapter.verses.map(({ n, text }) => ({ n, text })) }])),

@@ -117,3 +117,36 @@ Physical-device acceptance: share Notes text in light/dark mode, tap a verse, sa
 note and color, use both bulk actions, Done, reopen the app, verify normal saved
 annotations, relaunch and check no duplicate/replayed changes. Include no-reference,
 invalid-reference, overlapping-range, long devotional, iPad popover and large-text cases.
+
+### Online share translations (build 14)
+
+The share Reader offers BSB plus the app's existing online ESV, NLT, NKJV, CEV,
+NASB2020 (displayed as NASB), NIV, NIrV, and AMP providers. It reads the first Reader
+version from the most recent App Group annotation snapshot; open the updated app
+once before sharing to publish this preference. The picker puts supported preferred
+versions first. Other bundled translations (KJV, ASV, BBE, WEB, YLT) remain available
+in the full app; if one is preferred, the share Reader explicitly explains its BSB
+fallback. A picker choice applies to this share session and does not reorder the
+main app's preferred versions.
+
+Only chapter references and the public client key go to the existing passage
+endpoints. Devotional text, notes, account credentials, and session tokens do not.
+At most two chapters load concurrently with a 12-second request timeout. Switching
+versions cancels the previous task and ignores stale responses. BSB stays visible
+while loading. Each complete passage switches atomically; if any requested verse is
+missing, the complete passage remains BSB with a notice and BSB heading. Selecting
+the version again retries. Copy uses the tapped passage's actual displayed version,
+including overlapping references with different fallbacks. Annotations remain tied
+to the same canonical verse references across versions.
+
+Online text is ephemeral for the extension session. Publisher copyright and fixed
+publisher links appear below the passages. API.Bible views use its official FUMS
+script in a dedicated extension web view. Pending reporting tokens survive a quick
+Done and are delivered by the main app when its live page reports FUMS readiness;
+only acknowledged tokens leave the App Group inbox. Web release 2026.11.08.2 adds
+that readiness signal. No server deployment or provider API-key change is needed.
+
+Run `npm run test:share-reader-online` on macOS to execute the actual native chapter
+reducer against complete/partial, malformed, wrong-version, offline and reporting
+cases. Physical-device checks still need NLT/NASB selection, slow/offline fallback,
+rapid switching, attribution links, copy labels, and Done before reporting loads.

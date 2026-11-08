@@ -60,10 +60,33 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        deliverShareTracking()
         receiveSharedText()
         receiveAppShortcut()
         quickActionAttempts = 0
         deliverQuickAction()
+    }
+
+    // A quick Done must not discard provider reporting queued by the share Reader.
+    private func deliverShareTracking(attempt: Int = 0) {
+        guard attempt < 60, window?.windowScene?.activationState == .foregroundActive,
+              let store = UserDefaults(suiteName: "group.com.bigscreenbible.app"),
+              let tokens = store.stringArray(forKey: "bsbShareFumsInbox"), !tokens.isEmpty else { return }
+        let retry = { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self?.deliverShareTracking(attempt: attempt + 1) }
+        }
+        guard let controller = window?.rootViewController as? CAPBridgeViewController,
+              let web = controller.webView, web.url?.scheme == "https", web.url?.host == "bigscreenbible.com" else { retry(); return }
+        web.callAsyncJavaScript("""
+        if (!window.bsbFumsReady || typeof window.fums !== 'function') return false;
+        await window.fums('trackView', tokens);
+        return true;
+        """, arguments: ["tokens": tokens], in: nil, in: .page) { result in
+            if case .success(let value) = result, value as? Bool == true {
+                let latest = store.stringArray(forKey: "bsbShareFumsInbox") ?? []
+                store.set(latest.filter { !tokens.contains($0) }, forKey: "bsbShareFumsInbox")
+            } else { retry() }
+        }
     }
 
     // The extension queues imports in the App Group; remove only after web acknowledgement.
@@ -197,7 +220,7 @@ class BSBBridgeViewController: CAPBridgeViewController {
     // Installed beta shells also work with the currently deployed web release.
     func captureWidgetProgress() {
         guard let host = webView?.url?.host, ["bigscreenbible.com", "localhost"].contains(host) else { return }
-        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), shareReader: {bookmarks: JSON.parse(localStorage.getItem('lw_bookmarks') || '[]'), highlights: JSON.parse(localStorage.getItem('lw_highlights') || '{}'), notes: JSON.parse(localStorage.getItem('lw_notes') || '{}')}, background: localStorage.getItem('lw_widget_background') || null, fontFamily: localStorage.getItem('lw_widget_font'), ...JSON.parse(localStorage.getItem('lw_widget_published_content') || '{\"favorite\":null,\"daily\":null}')})") { result, _ in
+        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), shareReader: {versions: JSON.parse(localStorage.getItem('lw_versions') || '[\"BSB\",\"KJV\"]'), bookmarks: JSON.parse(localStorage.getItem('lw_bookmarks') || '[]'), highlights: JSON.parse(localStorage.getItem('lw_highlights') || '{}'), notes: JSON.parse(localStorage.getItem('lw_notes') || '{}')}, background: localStorage.getItem('lw_widget_background') || null, fontFamily: localStorage.getItem('lw_widget_font'), ...JSON.parse(localStorage.getItem('lw_widget_published_content') || '{\"favorite\":null,\"daily\":null}')})") { result, _ in
             guard let raw = result as? String, let data = raw.data(using: .utf8),
                   let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
             if let annotations = value["shareReader"] as? [String: Any] {
