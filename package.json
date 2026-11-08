@@ -87,7 +87,7 @@
     "test:screen-reading": "node scripts/scripture-screen-reading.test.mjs && node scripts/android-speech.test.mjs",
     "test:social-safety": "node scripts/social-safety-db.test.mjs && node scripts/social-safety.test.mjs",
     "test:moderation": "node scripts/build-moderation-theme.mjs --check && node scripts/moderation-account-confirmation.test.mjs && node scripts/moderator-access.test.mjs && node scripts/moderation-db.test.mjs && deno test --allow-env supabase/functions/moderation/index.test.ts supabase/functions/moderation-alerts/index.test.ts",
-    "test:passage-import": "node scripts/passage-import.test.mjs && node scripts/passage-import-sharing.test.mjs && node scripts/imported-passage-reader.test.mjs",
+    "test:passage-import": "node scripts/passage-import.test.mjs && node scripts/passage-import-sharing.test.mjs && node scripts/share-reader-annotations.test.mjs && node scripts/imported-passage-reader.test.mjs",
     "clean:mobile-assets": "node scripts/clean-mobile-assets.mjs",
     "test:mobile-assets": "node scripts/clean-mobile-assets.test.mjs"
   },

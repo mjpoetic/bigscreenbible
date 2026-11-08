@@ -1,4 +1,4 @@
-// Reference metadata only; the extension uses the website's exact extractor.
+// Compact BSB text and reference metadata; the extension uses the website's exact extractor.
 import { readFileSync, writeFileSync } from 'node:fs';
 import vm from 'node:vm';
 const root = new URL('../', import.meta.url);
@@ -11,7 +11,7 @@ vm.runInContext(source.slice(source.indexOf('const bookDefinitions'), source.ind
 const catalog = {
   aliases: context.aliases,
   chapters: Object.fromEntries(Object.entries(context.window.BIGSCREEN_BIBLE_BSB.chapters)
-    .map(([key, chapter]) => [key, { verses: chapter.verses.map(({ n }) => ({ n })) }])),
+    .map(([key, chapter]) => [key, { verses: chapter.verses.map(({ n, text }) => ({ n, text })) }])),
 };
 writeFileSync(new URL('ios/App/PassageShare/passage-import-catalog.json', root), JSON.stringify(catalog) + '\n');
 console.log('Bundled passage reference metadata for the iOS share extension.');

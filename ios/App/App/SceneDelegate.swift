@@ -76,15 +76,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard !sharedTextDeliveryInFlight, sharedTextAttempts < 200,
               window?.windowScene?.activationState == .foregroundActive,
               let store = UserDefaults(suiteName: "group.com.bigscreenbible.app"),
-              let queue = store.array(forKey: "bsbSharedTextInbox") as? [[String: String]],
+              let queue = ((store.array(forKey: "bsbShareReaderInbox") as? [[String: String]])?.isEmpty == false
+                ? store.array(forKey: "bsbShareReaderInbox") : store.array(forKey: "bsbSharedTextInbox")) as? [[String: String]],
               let item = queue.first, let text = item["text"], let id = item["id"] else { return }
         sharedTextAttempts += 1
         guard let controller = window?.rootViewController as? CAPBridgeViewController,
               let webView = controller.webView else { retrySharedText(); return }
+        let readerChange = (store.array(forKey: "bsbShareReaderInbox") as? [[String: String]])?.first?["id"] == id
+        let inboxKey = readerChange ? "bsbShareReaderInbox" : "bsbSharedTextInbox"
         let action = item["action"]
         let explicitAction = action == "read" || action == "bookmarks"
-        let arguments: [String] = explicitAction ? [text, action!] : [text]
-        let handler = explicitAction ? "bsbReceiveSharedImport" : "bsbReceiveSharedText"
+        let arguments: [String] = readerChange ? [text, id] : explicitAction ? [text, action!] : [text]
+        let handler = readerChange ? "bsbReceiveShareReaderChange" : explicitAction ? "bsbReceiveSharedImport" : "bsbReceiveSharedText"
         guard let host = webView.url?.host, ["bigscreenbible.com", "localhost"].contains(host),
               let data = try? JSONSerialization.data(withJSONObject: arguments),
               let argument = String(data: data, encoding: .utf8) else { retrySharedText(); return }
@@ -93,8 +96,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             guard let self else { return }
             self.sharedTextDeliveryInFlight = false
             if result as? Bool == true {
-                let latest = store.array(forKey: "bsbSharedTextInbox") as? [[String: String]] ?? []
-                store.set(latest.filter { $0["id"] != id }, forKey: "bsbSharedTextInbox")
+                let latest = store.array(forKey: inboxKey) as? [[String: String]] ?? []
+                store.set(latest.filter { $0["id"] != id }, forKey: inboxKey)
             }
             self.retrySharedText()
         }
@@ -194,9 +197,12 @@ class BSBBridgeViewController: CAPBridgeViewController {
     // Installed beta shells also work with the currently deployed web release.
     func captureWidgetProgress() {
         guard let host = webView?.url?.host, ["bigscreenbible.com", "localhost"].contains(host) else { return }
-        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), background: localStorage.getItem('lw_widget_background') || null, fontFamily: localStorage.getItem('lw_widget_font'), ...JSON.parse(localStorage.getItem('lw_widget_published_content') || '{\"favorite\":null,\"daily\":null}')})") { result, _ in
+        webView?.evaluateJavaScript("JSON.stringify({...JSON.parse(localStorage.getItem('lw_reading_streak') || '{}'), shareReader: {bookmarks: JSON.parse(localStorage.getItem('lw_bookmarks') || '[]'), highlights: JSON.parse(localStorage.getItem('lw_highlights') || '{}'), notes: JSON.parse(localStorage.getItem('lw_notes') || '{}')}, background: localStorage.getItem('lw_widget_background') || null, fontFamily: localStorage.getItem('lw_widget_font'), ...JSON.parse(localStorage.getItem('lw_widget_published_content') || '{\"favorite\":null,\"daily\":null}')})") { result, _ in
             guard let raw = result as? String, let data = raw.data(using: .utf8),
                   let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            if let annotations = value["shareReader"] as? [String: Any] {
+                UserDefaults(suiteName: "group.com.bigscreenbible.app")?.set(annotations, forKey: "bsbShareReaderSnapshot")
+            }
             var snapshot = WidgetSnapshot(current: max(0, min(value["current"] as? Int ?? 0, 100000)),
                 lastVisit: value["lastVisit"] as? String ?? "", days: Array((value["days"] as? [String] ?? []).suffix(400)), background: value["background"] as? String)
             if let item = value["favorite"] as? [String: Any], let data = try? JSONSerialization.data(withJSONObject: item),

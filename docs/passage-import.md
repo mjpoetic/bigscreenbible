@@ -90,3 +90,30 @@ chapters, Bookmark all, Highlight all, full-chapter navigation, and return to th
 complete list. VM tests also cover overlapping ranges, storage failure, translation
 fallback, and metadata surviving remote-cache eviction. Physical-device sharing
 and narrow portrait layout remain manual acceptance checks.
+
+### iOS share Reader (build 13)
+
+The sharing apps row opens a focused native Reader inside PassageShare. It extracts
+references automatically and shows full, offline Berean Standard Bible text from a
+compact bundled catalog. It does not launch the containing app or upload devotional
+text. Invalid references remain visible as correction notices; a URL alone does not
+fetch a webpage. Tap Scripture for highlight colors, bookmark, multiline note, or
+copy. Bookmark all and Highlight all follow the final passage. Done returns to the
+source app. This focused view uses BSB, independently of the main Reader translation.
+
+Edits are written immediately to a bounded App Group operation inbox, not discarded
+on Done. The main app drains this inbox on activation through
+`bsbReceiveShareReaderChange`, acknowledging only after validated local persistence
+and a replay receipt. Existing annotations are merged rather than replaced; cloud
+sync uses the app's normal settings. Pending changes survive older website versions,
+storage failures, and process termination. The extension restores pending edits and
+the most recently published app annotation snapshot; that snapshot may be stale
+until the app has opened and resigned active. No reading list or bookmark is created
+merely by viewing shared text. Legacy queued imports are still supported.
+
+Requires a new iOS binary and the matching website release (2026.11.08.1 or later)
+for transferring edits. Android does not need a rebuild for this iOS-only change.
+Physical-device acceptance: share Notes text in light/dark mode, tap a verse, save a
+note and color, use both bulk actions, Done, reopen the app, verify normal saved
+annotations, relaunch and check no duplicate/replayed changes. Include no-reference,
+invalid-reference, overlapping-range, long devotional, iPad popover and large-text cases.

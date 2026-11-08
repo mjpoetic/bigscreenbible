@@ -202,6 +202,50 @@
   };
   // Android, installed websites, and legacy queued iOS imports show both choices.
   window.bsbReceiveSharedText = text => window.bsbReceiveSharedImport(text, 'choose');
+  // Acknowledge only after both the change and replay receipt are durable.
+  window.bsbReceiveShareReaderChange = (text, id) => {
+    if (dataLoading || !Object.keys(bibleData).length || typeof id !== 'string' || !/^[a-zA-Z0-9-]{1,64}$/.test(id)
+      || typeof text !== 'string' || text.length > 1000000) return false;
+    const receiptsKey = 'lw_share_reader_receipts';
+    try {
+      const receipts = JSON.parse(localStorage.getItem(receiptsKey) || '[]');
+      if (!Array.isArray(receipts)) return false;
+      if (receipts.includes(id)) return true;
+      const change = JSON.parse(text);
+      if (!['bookmarks', 'highlights', 'notes'].includes(change.kind) || !Array.isArray(change.refs)
+        || !change.refs.length || change.refs.length > 20000 || typeof change.value !== 'string') return false;
+      for (const ref of change.refs) {
+        if (typeof ref !== 'string') return false;
+        if (change.kind === 'bookmarks') {
+          const parsed = BSBPassageImport.extract(ref, bookAliases, bibleData);
+          if (parsed.length !== 1 || parsed[0].error || parsed[0].ref !== ref) return false;
+        } else {
+          const verse = ref.match(/^(.*):([1-9][0-9]{0,2})$/);
+          if (!verse || !bibleData[verse[1]]?.verses.some(item => item.n === Number(verse[2]))) return false;
+        }
+      }
+      if (change.kind === 'highlights' && !['none', '#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe'].includes(change.value)) return false;
+      if (change.kind === 'notes' && (change.refs.length !== 1 || change.value.length > 20000)) return false;
+      const key = 'lw_' + change.kind;
+      const next = change.kind === 'bookmarks' ? [...new Set([...state.bookmarks, ...change.refs])] : { ...state[change.kind] };
+      if (change.kind !== 'bookmarks') for (const ref of change.refs) {
+        if (change.value === 'none' && change.kind === 'highlights' || !change.value && change.kind === 'notes') delete next[ref];
+        else next[ref] = change.value;
+      }
+      const previous = localStorage.getItem(key);
+      localStorage.setItem(key, JSON.stringify(next));
+      try { localStorage.setItem(receiptsKey, JSON.stringify([...receipts, id].slice(-1000))); }
+      catch (error) {
+        if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);
+        throw error;
+      }
+      state[change.kind] = next;
+    } catch { return false; }
+    // Persistence succeeded. A rendering or sync failure must not replay an edit.
+    try { scheduleCloudSync(); render(); } catch {}
+    return true;
+  };
+
   const params = new URLSearchParams(location.search);
   const inboxId = params.get('import-shared');
   if (inboxId && /^[a-f0-9-]{36}$/i.test(inboxId)) {

@@ -79,8 +79,9 @@ assert.deepEqual([...app.state.bookmarks], ['John 3:16', 'Psalm 23:1'], 'Bookmar
 const native = read('ios/App/App/SceneDelegate.swift');
 assert.ok(native.includes('bsbReceiveSharedImport'));
 const extension = read('ios/App/PassageShare/ShareViewController.swift');
-assert.ok(extension.includes('Read in Big Screen Bible'));
-assert.ok(extension.includes('Save as bookmarks'));
-assert.ok(extension.includes('next open Big Screen Bible'));
-assert.ok(extension.includes('\"action\": action'));
+assert.ok(extension.includes('Big Screen Bible · Reader'));
+assert.ok(extension.includes('Bookmark all'));
+assert.ok(extension.includes('Highlight all'));
+assert.ok(extension.includes('bsbShareReaderInbox'));
+assert.ok(native.includes('bsbReceiveShareReaderChange'));
 console.log('Sharing: POST receipt, private redirect, bounded inbox, validation, readiness, acknowledgement, draft preservation, and storage failure passed.');

@@ -5420,6 +5420,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.08.1": [
+      "Read imported Scripture directly in the iOS share sheet, with verse highlights, notes, and bookmarks plus Bookmark all and Highlight all. Saved changes transfer to the app when it next opens.",
+    ],
     "2026.11.07.4": [
       "Choose Read in Big Screen Bible or Save as bookmarks when importing shared text. Saving bookmarks adds the recognized passages to Bookmarks without creating a Reader list.",
       "The iOS share extension now offers both explicit actions and explains that they take effect when Big Screen Bible next opens.",
