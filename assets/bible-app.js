@@ -514,6 +514,7 @@ let activeMobileVerseNavMenu = null;
 let cloudSyncTimer = 0;
 let statusToastTimer = 0;
 let verseOfDayRequest = null;
+let verseOfDayFeedCache = null;
 let activeTriviaCelebration = null;
 let triviaCelebrationToken = 0;
 let gameChallengeRealtimeChannel = null;
@@ -2055,6 +2056,8 @@ function render() {
   const gamesTabScroll = document.querySelector(".trivia-mode-tabs")?.scrollLeft || 0;
   const previousVideo = document.querySelector(".presentation-background-video");
   previousVideo?.remove();
+  const previousToast = document.getElementById("toast");
+  const previousUpdateNotice = document.getElementById("appUpdateNotice");
   app.innerHTML = `
     <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
@@ -2085,9 +2088,15 @@ function render() {
         <span class="reader-gesture-feedback-mark" aria-hidden="true">Aa</span>
         <span class="reader-gesture-feedback-label"></span>
       </div>
-      <div class="status-toast" id="toast"></div>
+      <div class="status-toast" id="toast" role="status" aria-atomic="true"></div>
     </main>
   `;
+  const shell = app.querySelector(".app-shell");
+  if (previousToast) {
+    shell.querySelector("#toast").replaceWith(previousToast);
+    shell.classList.toggle("toast-visible", previousToast.classList.contains("show"));
+  }
+  if (previousUpdateNotice) shell.append(previousUpdateNotice);
   restoreFocusPickerMotion(focusPickerMotion);
   settingsPageTransition = "";
   syncPresentationVideo(previousVideo);
@@ -5429,6 +5438,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.09.1": [
+      "Verse of the Day retries after a connection failure and can still open a bundled verse if the daily schedule is unavailable.",
+      "Bottom messages and site update prompts briefly glow to draw attention.",
+    ],
     "2026.11.08.5": [
       "The iOS share Reader now includes offline KJV, regular Scripture typography, all six vivid site highlight colors, and fitted custom verse and translation pickers. Shared standard highlights keep their normal colors in the main app.",
     ],
@@ -5927,6 +5940,7 @@ function syncAppUpdateNotification() {
     } else if (!state.appUpdateAvailable) dot?.remove();
   }
   if (appUpdateNoticeVersion !== state.appUpdateVersion) {
+    document.getElementById("appUpdateNotice")?.remove();
     appUpdateNoticeVersion = state.appUpdateVersion;
     appUpdateNoticeCollapsed = false;
     window.clearTimeout(appUpdateNoticeTimer);
@@ -5962,7 +5976,7 @@ function syncAppUpdateNotification() {
       window.clearTimeout(appUpdateNoticeTimer);
       appUpdateNoticeTimer = 0;
       notice.remove();
-      const settings = [...shell.querySelectorAll("#settingsToggle, #mobileFloatingSettings, #mobileControlsToggle")]
+      const settings = [...document.querySelectorAll(".app-shell :is(#settingsToggle, #mobileFloatingSettings, #mobileControlsToggle)")]
         .find((button) => button.getClientRects().length);
       settings?.focus({ preventScroll: true });
     });
@@ -29733,17 +29747,10 @@ function verseOfDayReference(date = new Date()) {
   const key = monthDayKey(date);
   const seasonalRef = config.seasonal?.[key];
   const anchors = buildVerseOfDayPool();
-  const dayIndex = Math.max(0, dayOfYear(date) - 1);
-  const selectedRef = seasonalRef && referenceExists(seasonalRef)
-    ? seasonalRef
-    : anchors[dayIndex % anchors.length];
-  const approvedRefs = new Set([...(config.anchors || []), ...Object.values(config.seasonal || {})]);
-
-  if (!approvedRefs.has(selectedRef)) {
-    console.warn(`[Verse of the Day] Rejected unapproved reference: ${selectedRef || "(none)"}`);
-    return "";
-  }
-  return selectedRef;
+  if (seasonalRef && referenceExists(seasonalRef)) return seasonalRef;
+  if (anchors.length) return anchors[(dayOfYear(date) - 1) % anchors.length];
+  // This curated anchor remains available if the schedule script failed to load.
+  return referenceExists("John 3:16") ? "John 3:16" : "";
 }
 
 function buildVerseOfDayPool() {
@@ -29758,8 +29765,8 @@ function buildVerseOfDayPool() {
   };
 
   (config.anchors || []).forEach(addRef);
-  verseOfDayPool = refs;
-  return verseOfDayPool;
+  if (refs.length) verseOfDayPool = refs;
+  return refs;
 }
 
 function limitVerseOfDayPool(refs, priorityRefs, targetCount) {
@@ -33405,15 +33412,17 @@ function formatReferenceLabel(chapterKey, verseNumbers = selectedVerseNumbers())
 function showToast(message) {
   const toast = document.getElementById("toast");
   if (!toast) return;
-  const shell = toast.closest(".app-shell");
   clearTimeout(statusToastTimer);
+  toast.classList.remove("show");
+  void toast.offsetWidth;
   toast.textContent = message;
   toast.classList.add("show");
-  shell?.classList.add("toast-visible");
+  toast.closest(".app-shell")?.classList.add("toast-visible");
   statusToastTimer = setTimeout(() => {
     toast.classList.remove("show");
-    shell?.classList.remove("toast-visible");
-  }, 1600);
+    toast.closest(".app-shell")?.classList.remove("toast-visible");
+    toast.textContent = "";
+  }, 2800);
 }
 
 let presentationStageObserver;
@@ -33742,7 +33751,7 @@ function verseOfDayReferenceLabel(item = state.verseOfDayItem) {
 
 async function fetchVerseOfDayItem() {
   if (window.bsbOffline?.active) return null;
-  if (state.verseOfDayItem) return state.verseOfDayItem;
+  if (verseOfDayFeedCache && Date.now() < verseOfDayFeedCache.expiresAt) return verseOfDayFeedCache.item;
   if (verseOfDayRequest) return verseOfDayRequest;
 
   verseOfDayRequest = (async () => {
@@ -33752,6 +33761,7 @@ async function fetchVerseOfDayItem() {
     try {
       const response = await fetch(url, {
         cache: "no-store",
+        signal: AbortSignal.timeout(12_000),
         headers: {
           apikey: config.anonKey,
           Authorization: `Bearer ${config.anonKey}`,
@@ -33761,13 +33771,13 @@ async function fetchVerseOfDayItem() {
       if (!response.ok) throw new Error(payload.error || "Verse of the Day request failed");
       const item = normalizeVerseOfDayItem(payload);
       if (!item) throw new Error("Verse of the Day returned invalid data");
-      state.verseOfDayItem = item;
+      verseOfDayFeedCache = { item, expiresAt: Date.now() + 5 * 60_000 };
       return item;
     } catch (error) {
       console.warn("[Verse of the Day] Using curated fallback", error);
       return null;
     }
-  })();
+  })().finally(() => { verseOfDayRequest = null; });
 
   return verseOfDayRequest;
 }

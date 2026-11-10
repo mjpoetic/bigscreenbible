@@ -149,3 +149,42 @@ vm.runInContext(`${extractFunction("openVerseOfDayInReader")}; openVerseOfDayInR
 assert.equal(readContext.state.mode, "reader");
 assert.equal(readContext.state.pendingVerseFocus, true);
 assert.equal(readContext.state.pendingVerseHalo, true, "Read in Bible spotlights the Verse of the Day passage");
+
+const recoveredItem = { reference: "Romans 8:28", verseText: "Daily feed text" };
+let requestCount = 0;
+let now = 0;
+const feedContext = vm.createContext({
+  window: { BigScreenBibleSupabase: { anonKey: "test" } },
+  supabaseFunctionUrl: () => "https://example.com/verse-of-the-day",
+  normalizeVerseOfDayItem: (payload) => payload,
+  referenceExists: () => true,
+  AbortSignal,
+  Date: class extends Date { static now() { return now; } },
+  console: { warn() {} },
+  async fetch() {
+    requestCount += 1;
+    if (requestCount === 1) throw new Error("Temporary connection failure");
+    return { ok: true, json: async () => recoveredItem };
+  },
+});
+vm.runInContext(`
+  let verseOfDayRequest = null, verseOfDayFeedCache = null, verseOfDayPool = null;
+  async ${extractFunction("fetchVerseOfDayItem")}
+  async ${extractFunction("resolvedVerseOfDay")}
+  ${extractFunction("verseOfDayReference")}
+  ${extractFunction("buildVerseOfDayPool")}
+  ${extractFunction("monthDayKey")}
+  ${extractFunction("dayOfYear")}
+`, feedContext);
+const resolveDaily = () => vm.runInContext("resolvedVerseOfDay()", feedContext);
+assert.equal((await resolveDaily()).reference, "John 3:16", "A missing schedule still has a bundled fallback");
+feedContext.window.BIGSCREEN_VERSE_OF_DAY = { anchors: ["Psalm 23:1"] };
+assert.equal(vm.runInContext("verseOfDayReference()", feedContext), "Psalm 23:1", "An empty schedule cache can recover");
+const recovered = await Promise.all([resolveDaily(), resolveDaily()]);
+assert.ok(recovered.every(({ item }) => item === recoveredItem));
+assert.equal(requestCount, 2, "Retry after failure and share the in-flight request");
+assert.equal((await resolveDaily()).item, recoveredItem);
+assert.equal(requestCount, 2, "Reuse a recent successful request");
+now += 6 * 60_000;
+await resolveDaily();
+assert.equal(requestCount, 3, "Refresh the feed in long-lived sessions");
