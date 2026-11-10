@@ -27477,22 +27477,29 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .focus-passage-notch:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 
 /* Keep open Focus controls clear while the surrounding reader recedes. */
-.focus-picker-backdrop,
-.app-shell.focus-shell::after {
+.focus-backdrop {
   position: fixed;
   inset: 0;
   z-index: 130;
   background: rgb(0 0 0 / 48%);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  opacity: var(--focus-backdrop-open, 0);
+  -webkit-backdrop-filter: blur(calc(4px * var(--focus-backdrop-open, 0)));
+  backdrop-filter: blur(calc(4px * var(--focus-backdrop-open, 0)));
+  pointer-events: var(--focus-backdrop-events, none);
+  transition: opacity 320ms ease-in-out, backdrop-filter 320ms ease-in-out;
+}
+.app-shell.focus-shell:has(.passage-picker-workspace:not(.focus-picker-exiting)) {
+  --focus-backdrop-open: 1;
+  --focus-backdrop-events: auto;
 }
 @media (max-width: 840px) and (orientation: portrait) {
-  .app-shell.focus-shell:not(:has(.focus-picker-backdrop)):has(
+  .app-shell.focus-shell:has(
     .mobile-focus-tools-control.expanded, .mobile-focus-passage-popover, #mobileFocusSearchResults
-  )::after {
-    content: "";
+  ) {
+    --focus-backdrop-open: 1;
+    --focus-backdrop-events: auto;
   }
-  #app .app-shell.focus-shell:not(:has(.focus-picker-backdrop)) :is(
+  #app .app-shell.focus-shell:not(:has(.passage-picker-workspace:not(.focus-picker-exiting))) :is(
     .mobile-focus-tools-control.expanded,
     .mobile-focus-passage-control:has(.mobile-focus-passage-popover)
   ) {
@@ -27500,21 +27507,17 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   }
 }
 @media (min-width: 841px) {
-  .app-shell.focus-shell:not(:has(.focus-picker-backdrop)):has(
-    .desktop-focus-tools-control.expanded, #mobileFocusSearchResults
-  )::after {
-    content: "";
+  .app-shell.focus-shell:has(.desktop-focus-tools-control.expanded, #mobileFocusSearchResults) {
+    --focus-backdrop-open: 1;
+    --focus-backdrop-events: auto;
   }
-  .app-shell.focus-shell:not(:has(.focus-picker-backdrop)):has(
-    .desktop-focus-tools-control.expanded, #mobileFocusSearchResults
+  .app-shell.focus-shell:has(.desktop-focus-tools-control.expanded, #mobileFocusSearchResults):not(
+    :has(.passage-picker-workspace:not(.focus-picker-exiting))
   ) > .topbar {
     z-index: 131;
   }
 }
-.focus-picker-backdrop {
-  animation: focusPickerDimIn 240ms ease-out both;
-}
-.app-shell:has(.focus-picker-backdrop) .focus-passage-notch { z-index: 141; }
+.app-shell.focus-shell:has(.passage-picker-workspace) .focus-passage-notch { z-index: 141; }
 .focus-passage-notch .focus-passage-notch-arrow {
   display: flex;
   flex-shrink: 0;
@@ -27534,21 +27537,14 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   from { opacity: 0; transform: translateY(-8px) scale(.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes focusPickerDimIn {
-  from { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
-  to { opacity: 1; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-}
 .app-shell .focus-picker-settled { animation: none; }
 .app-shell .focus-picker-exiting { pointer-events: none; }
 .app-shell .passage-picker-workspace.focus-picker-exiting {
   animation: focusPickerOut 260ms cubic-bezier(.2, .7, .2, 1) both;
 }
-.app-shell .focus-picker-backdrop.focus-picker-exiting {
-  animation: focusPickerDimOut 260ms cubic-bezier(.2, .7, .2, 1) both;
-}
 @media (prefers-reduced-motion: reduce) {
-  .app-shell.focus-shell .passage-picker-workspace,
-  .focus-picker-backdrop { animation: none; }
+  .app-shell.focus-shell .passage-picker-workspace { animation: none; }
+  .focus-backdrop { transition: none; }
   .focus-passage-notch .focus-passage-notch-arrow { transition: none; }
 }
 
@@ -27564,10 +27560,6 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(-8px) scale(.97); }
 }
-@keyframes focusPickerDimOut {
-  from { opacity: 1; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
-  to { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
-}
 /* Preserve the iOS opaque-panel workaround, while allowing an opacity-only
    fade. Match its ID specificity so the earlier animation:none cannot win. */
 @supports (-webkit-touch-callout: none) {
@@ -27581,8 +27573,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 @keyframes focusPickerOpacityIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes focusPickerOpacityOut { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  #app .app-shell .passage-picker-workspace,
-  #app .app-shell .focus-picker-backdrop { animation: none; }
+  #app .app-shell .passage-picker-workspace { animation: none; }
   #app .app-shell .focus-picker-exiting { visibility: hidden; }
 }
 

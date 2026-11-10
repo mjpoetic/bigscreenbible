@@ -3333,13 +3333,15 @@ function loadingScreen() {
 
 // Retain the arrow across full renders so its rotation can reverse naturally.
 function captureFocusPickerMotion() {
-  const backdrop = document.querySelector(".focus-picker-backdrop:not(.focus-picker-exiting)");
+  const backdrop = document.querySelector(".focus-backdrop");
+  const backdropStyle = backdrop ? getComputedStyle(backdrop) : null;
   const arrow = document.querySelector(".focus-passage-notch-arrow");
   return {
     arrow,
     arrowTransform: arrow ? getComputedStyle(arrow).transform : null,
-    backdrop,
-    panel: backdrop ? document.getElementById("mobileFocusWorkspace") : null,
+    backdropOpacity: backdropStyle?.opacity ?? "0",
+    backdropFilter: backdropStyle?.backdropFilter || backdropStyle?.webkitBackdropFilter || "blur(0px)",
+    panel: document.querySelector(".focus-shell .passage-picker-workspace:not(.focus-picker-exiting)"),
   };
 }
 
@@ -3356,23 +3358,28 @@ function restoreFocusPickerMotion(previous) {
       ], { duration: 260, easing: "cubic-bezier(.2, .7, .2, 1)" });
     }
   }
-  const backdrop = document.querySelector(".focus-picker-backdrop");
-  if (backdrop && previous.backdrop) {
-    backdrop.classList.add("focus-picker-settled");
-    document.getElementById("mobileFocusWorkspace")?.classList.add("focus-picker-settled");
+  const backdrop = document.querySelector(".focus-backdrop");
+  if (backdrop && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    // Full renders replace the backdrop. Resume from the values on screen,
+    // including when an open or close interrupts the previous transition.
+    backdrop.style.opacity = previous.backdropOpacity;
+    backdrop.style.setProperty("-webkit-backdrop-filter", previous.backdropFilter);
+    backdrop.style.backdropFilter = previous.backdropFilter;
+    void getComputedStyle(backdrop).opacity;
+    backdrop.removeAttribute("style");
   }
-  if (!backdrop && previous.backdrop && previous.panel) {
-    const shell = document.querySelector(".app-shell");
-    for (const element of [previous.backdrop, previous.panel]) {
-      element.removeAttribute("id");
-      element.querySelectorAll("[id]").forEach(child => child.removeAttribute("id"));
-      element.inert = true;
-      element.setAttribute("aria-hidden", "true");
-      element.classList.add("focus-picker-exiting");
-      shell?.append(element);
-      element.addEventListener("animationend", () => element.remove(), { once: true });
-      setTimeout(() => element.remove(), 320);
-    }
+  const panel = document.querySelector(".focus-shell .passage-picker-workspace");
+  if (panel && previous.panel) panel.classList.add("focus-picker-settled");
+  if (!panel && previous.panel) {
+    const exitingPanel = previous.panel;
+    exitingPanel.removeAttribute("id");
+    exitingPanel.querySelectorAll("[id]").forEach(child => child.removeAttribute("id"));
+    exitingPanel.inert = true;
+    exitingPanel.setAttribute("aria-hidden", "true");
+    exitingPanel.classList.add("focus-picker-exiting");
+    document.querySelector(".app-shell")?.append(exitingPanel);
+    exitingPanel.addEventListener("animationend", () => exitingPanel.remove(), { once: true });
+    setTimeout(() => exitingPanel.remove(), 320);
   }
 }
 
@@ -3466,6 +3473,7 @@ function mobileFocusOverlayControls() {
     `
     : "";
   return `
+    ${state.focusMode ? '<div class="focus-backdrop" aria-hidden="true"></div>' : ""}
     ${focusTools}
     ${focusReferenceSwitcher}
     ${state.focusMode ? `
@@ -3566,7 +3574,6 @@ function mobileFocusWorkspacePanel() {
         ? icons.bookmark
         : icons.note;
   return `
-    ${panel === "Verse" && state.focusMode ? '<div class="focus-picker-backdrop" aria-hidden="true"></div>' : ""}
     <section class="mobile-focus-workspace ${panel === "Verse" ? "passage-picker-workspace" : ""}" id="mobileFocusWorkspace" role="dialog" aria-label="${panelTitle}">
       <header class="mobile-focus-workspace-head">
         <div>
