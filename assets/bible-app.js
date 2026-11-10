@@ -768,8 +768,10 @@ const state = {
   themePreset: initialResolvedAppearance.preset,
   scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
+  customScriptureFontWeight: normalizedCustomScriptureFontWeight(localStorage.getItem("lw_custom_scripture_font_weight")),
   presentationScriptureFont: localStorage.getItem("lw_presentation_scripture_font") || localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   presentationCustomScriptureFont: localStorage.getItem("lw_presentation_custom_scripture_font") ?? localStorage.getItem("lw_custom_scripture_font") ?? "",
+  presentationCustomScriptureFontWeight: normalizedCustomScriptureFontWeight(localStorage.getItem("lw_presentation_custom_scripture_font_weight"), true),
   popupTextScale: clampPopupTextScale(localStorage.getItem("lw_popup_text_scale") || 1),
   popupPinchEnabled: localStorage.getItem("lw_popup_pinch_enabled") !== "false",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
@@ -4756,6 +4758,7 @@ function handleControlHaptic(event) {
   }
   if (event.type === "change") {
     if (!control.matches('select, input[type="checkbox"], input[type="radio"], input[type="range"]')) return;
+    if (control.matches('[data-custom-font-weight]')) return; // This slider ticks as its value changes.
     if (control.matches('[data-haptics-toggle]')) {
       localStorage.setItem("lw_haptics_enabled", String(control.checked));
       syncHapticSettings();
@@ -5438,6 +5441,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.10.1": [
+      "Adjust custom Scripture font weight from 100 to 900 in Reader, Parallel, and Big Screen. Supported devices give a light haptic tick as you move the slider.",
+    ],
     "2026.11.09.1": [
       "Verse of the Day retries after a connection failure and can still open a bundled verse if the daily schedule is unavailable.",
       "Bottom messages and site update prompts briefly glow to draw attention.",
@@ -6304,7 +6310,7 @@ function settingsScriptureFontMarkup(prefix = "", options = {}) {
   const customFontId = prefix ? `${prefix}CustomScriptureFontInput` : "customScriptureFontInput";
   const customFontField = state.scriptureFont === "custom" ? customScriptureFontField(customFontId) : "";
   return `
-    <div class="setting-group settings-scripture-font" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="scripture font typeface typography custom Google font"' : ""}>
+    <div class="setting-group settings-scripture-font" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="scripture font typeface typography custom Google font weight"' : ""}>
       <span class="setting-label">Scripture font</span>
       ${settingsChoiceMarkup(scriptureFontId, state.scriptureFont, scriptureFontSettingsChoices(), {
         label: "Scripture font",
@@ -14128,8 +14134,10 @@ function captureCloudSnapshot() {
       ...appearanceSnapshotSettings(state.appearance),
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
+      customScriptureFontWeight: state.customScriptureFontWeight,
       presentationScriptureFont: state.presentationScriptureFont,
       presentationCustomScriptureFont: state.presentationCustomScriptureFont,
+      presentationCustomScriptureFontWeight: state.presentationCustomScriptureFontWeight,
       customHighlightColor: state.customHighlightColor,
       popupTextScale: state.popupTextScale,
       popupPinchEnabled: state.popupPinchEnabled,
@@ -14365,8 +14373,10 @@ function applyCloudSnapshot(snapshot) {
   applyResolvedAppearance(appearanceFromSnapshotSettings(settings));
   state.scriptureFont = normalizedScriptureFont(settings.scriptureFont);
   state.customScriptureFont = sanitizeFontName(settings.customScriptureFont || "");
+  state.customScriptureFontWeight = normalizedCustomScriptureFontWeight(settings.customScriptureFontWeight);
   state.presentationScriptureFont = normalizedScriptureFont(settings.presentationScriptureFont ?? settings.scriptureFont);
   state.presentationCustomScriptureFont = sanitizeFontName(settings.presentationCustomScriptureFont ?? settings.customScriptureFont ?? "");
+  state.presentationCustomScriptureFontWeight = normalizedCustomScriptureFontWeight(settings.presentationCustomScriptureFontWeight, true);
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.popupTextScale = clampPopupTextScale(settings.popupTextScale ?? 1);
   state.popupPinchEnabled = settings.popupPinchEnabled !== false;
@@ -14504,8 +14514,10 @@ function persistCloudSnapshotLocally(snapshot) {
   mirrorAppearanceToLegacyStorage(state.appearance);
   localStorage.setItem("lw_scripture_font", state.scriptureFont);
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
+  localStorage.setItem("lw_custom_scripture_font_weight", state.customScriptureFontWeight);
   localStorage.setItem("lw_presentation_scripture_font", state.presentationScriptureFont);
   localStorage.setItem("lw_presentation_custom_scripture_font", state.presentationCustomScriptureFont);
+  localStorage.setItem("lw_presentation_custom_scripture_font_weight", state.presentationCustomScriptureFontWeight);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_popup_text_scale", String(state.popupTextScale));
@@ -22426,7 +22438,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           })}
         </div>
         ${settingsColorMenuMarkup("presentation", true)}
-      <div class="presentation-settings-choice-field" data-settings-search-item data-settings-search-text="Scripture font typeface typography custom Google font">
+      <div class="presentation-settings-choice-field" data-settings-search-item data-settings-search-text="Scripture font typeface typography custom Google font weight">
         <span>Scripture font</span>
         ${settingsChoiceMarkup("presentationScriptureFontSelect", state.presentationScriptureFont, scriptureFontSettingsChoices(), {
           label: "Scripture font",
@@ -23890,6 +23902,7 @@ function bindEvents() {
   document.getElementById("mobileScriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value);
   });
+  bindCustomScriptureFontWeight(false);
   bindCustomScriptureFontInput("customScriptureFontInput");
   bindCustomScriptureFontInput("mobileCustomScriptureFontInput");
   document.querySelectorAll("[data-interface-text-size-choice]").forEach((button) => {
@@ -24978,6 +24991,7 @@ function bindEvents() {
   document.getElementById("presentationScriptureFontSelect")?.addEventListener("change", (event) => {
     setScriptureFont(event.target.value, true);
   });
+  bindCustomScriptureFontWeight(true);
   bindCustomScriptureFontInput("presentationCustomScriptureFontInput");
   document.getElementById("presentationFullscreenQuick")?.addEventListener("click", toggleFullscreen);
   document.getElementById("presentationSettingsToggle")?.addEventListener("click", () => {
@@ -28410,6 +28424,39 @@ function bindCustomScriptureFontInput(inputId) {
   });
 }
 
+function normalizedCustomScriptureFontWeight(value, bigScreen = false) {
+  const weight = Number(value);
+  return weight >= 100 && weight <= 900 && weight % 100 === 0 ? weight : (bigScreen ? 700 : 400);
+}
+
+function bindCustomScriptureFontWeight(bigScreen) {
+  const scope = bigScreen ? "presentation" : "reader";
+  const stateKey = bigScreen ? "presentationCustomScriptureFontWeight" : "customScriptureFontWeight";
+  const storageKey = bigScreen ? "lw_presentation_custom_scripture_font_weight" : "lw_custom_scripture_font_weight";
+  const sliders = document.querySelectorAll(`[data-custom-font-weight="${scope}"]`);
+  sliders.forEach((slider) => {
+    slider.addEventListener("input", (event) => {
+      const weight = normalizedCustomScriptureFontWeight(slider.value, bigScreen);
+      if (event.isTrusted) playNativeHaptic("tick");
+      sliders.forEach((control) => {
+        control.value = weight;
+        control.labels[0].querySelector("[data-custom-font-weight-value]").textContent = weight;
+      });
+      const surface = bigScreen ? document.querySelector("#presentation") : document.documentElement;
+      surface?.style.setProperty("--custom-scripture-font-weight", weight);
+      if (bigScreen) fitPresentationText();
+    });
+    slider.addEventListener("change", () => {
+      const weight = normalizedCustomScriptureFontWeight(slider.value, bigScreen);
+      if (weight === state[stateKey]) return;
+      state[stateKey] = weight;
+      localStorage.setItem(storageKey, weight);
+      scheduleCloudSync();
+      scriptureFontLoaders[Number(bigScreen)].load();
+    });
+  });
+}
+
 function sanitizeFontName(font) {
   return String(font || "")
     .split(",")
@@ -28437,12 +28484,17 @@ function cssFontFamily(font) {
 
 function customScriptureFontStack(bigScreen = false) {
   const custom = customScriptureFontNames(bigScreen);
-  return [...custom.map(cssFontFamily), "Georgia", "serif"].join(", ");
+  const families = custom.map(cssFontFamily);
+  if (custom[0] && !genericCustomFontFamilies.has(custom[0].toLowerCase())) {
+    // Let the browser match installed family weights before trying the exact face name.
+    families.splice(1, 0, quotedCssFontFamily(`BSB Local ${custom[0]}`));
+  }
+  return [...families, "Georgia", "serif"].join(", ");
 }
 
-function customGoogleFontUrl(font) {
+function customGoogleFontUrl(font, weight) {
   const family = encodeURIComponent(font).replace(/%20/g, "+");
-  return `https://fonts.googleapis.com/css2?family=${family}&display=swap`;
+  return `https://fonts.googleapis.com/css2?family=${family}${weight ? `:wght@${weight}` : ""}&display=swap`;
 }
 
 function normalizedFontFaceFamily(font) {
@@ -28460,12 +28512,17 @@ function fontFaceIsLoaded(font) {
 function customScriptureFontField(inputId) {
   const statusId = `${inputId}Status`;
   const bigScreen = inputId.startsWith("presentation");
+  const weight = bigScreen ? state.presentationCustomScriptureFontWeight : state.customScriptureFontWeight;
   const customFontLoadState = scriptureFontLoaders[Number(bigScreen)].state;
   const preferredFamily = customScriptureFontNames(bigScreen)[0] || "";
   const status = customFontLoadState.family === preferredFamily ? customFontLoadState : { status: "idle", message: "" };
   return `
     <input class="custom-font-input" id="${inputId}" value="${escapeHtml(bigScreen ? state.presentationCustomScriptureFont : state.customScriptureFont)}" placeholder="Georgia or a Google Fonts family" aria-label="Custom device or Google font" aria-describedby="${statusId}Help ${statusId}" autocomplete="off" spellcheck="false" />
-    <p class="setting-help custom-font-help" id="${statusId}Help">Uses an installed font first. Otherwise loads the exact family name from Google Fonts. Internet required.</p>
+    <label class="custom-font-weight">
+      <span>Font weight</span><span data-custom-font-weight-value aria-hidden="true">${weight}</span>
+      <input type="range" min="100" max="900" step="100" value="${weight}" data-custom-font-weight="${bigScreen ? "presentation" : "reader"}" aria-label="Font weight" aria-describedby="${statusId}Help" />
+    </label>
+    <p class="setting-help custom-font-help" id="${statusId}Help">Uses an installed font first, then looks up the exact family name on Google Fonts when online. Available weights vary by font.</p>
     <p class="custom-font-status" id="${statusId}" data-font-scope="${bigScreen ? "presentation" : "reader"}" data-font-status="${status.status}" role="status" aria-live="polite">${escapeHtml(status.message)}</p>
   `;
 }
@@ -28474,6 +28531,7 @@ function customScriptureFontField(inputId) {
 function createCustomFontLoader(bigScreen) {
   const customGoogleFontStylesheetId = bigScreen ? "presentation-custom-google-font-stylesheet" : "custom-google-font-stylesheet";
   let customFontLoadRequest = 0;
+  let requestedWeight;
   let customDeviceFontFace = null;
   let customFontLoadState = { family: "", status: "idle", message: "" };
   function setCustomFontLoadState(family, status, message) {
@@ -28490,12 +28548,12 @@ function createCustomFontLoader(bigScreen) {
     customDeviceFontFace = null;
   }
 
-  function loadGoogleFontStylesheet(font, request) {
+  function loadGoogleFontStylesheet(font, request, weight) {
     return new Promise((resolve, reject) => {
       const link = document.createElement("link");
       link.id = customGoogleFontStylesheetId;
       link.rel = "stylesheet";
-      link.href = customGoogleFontUrl(font);
+      link.href = customGoogleFontUrl(font, weight);
       link.addEventListener("load", () => resolve(link), { once: true });
       link.addEventListener("error", () => reject(new Error("Google Fonts stylesheet failed to load")), { once: true });
       if (request !== customFontLoadRequest) {
@@ -28514,12 +28572,16 @@ function createCustomFontLoader(bigScreen) {
       setCustomFontLoadState("", "idle", "");
       return;
     }
-    if (customFontLoadState.family === font && ["checking", "loading", "device", "ready", "google", "error"].includes(customFontLoadState.status)) {
+    const weight = bigScreen ? state.presentationCustomScriptureFontWeight : state.customScriptureFontWeight;
+    if (customFontLoadState.family === font && (
+      requestedWeight === weight || ["device", "ready"].includes(customFontLoadState.status)
+    )) {
       setCustomFontLoadState(font, customFontLoadState.status, customFontLoadState.message);
       return;
     }
 
     const request = ++customFontLoadRequest;
+    requestedWeight = weight;
     removeCustomFontResources();
     setCustomFontLoadState(font, "checking", `Checking for ${font} on this device…`);
     if (genericCustomFontFamilies.has(font.toLowerCase())) {
@@ -28529,7 +28591,7 @@ function createCustomFontLoader(bigScreen) {
 
     if (typeof FontFace === "function" && document.fonts?.add) {
       try {
-        const localFace = new FontFace(font, `local(${quotedCssFontFamily(font)})`);
+        const localFace = new FontFace(`BSB Local ${font}`, `local(${quotedCssFontFamily(font)})`);
         await localFace.load();
         if (request !== customFontLoadRequest) return;
         document.fonts.add(localFace);
@@ -28544,13 +28606,17 @@ function createCustomFontLoader(bigScreen) {
     if (request !== customFontLoadRequest) return;
     setCustomFontLoadState(font, "loading", `Loading ${font} from Google Fonts…`);
     try {
-      const link = await loadGoogleFontStylesheet(font, request);
+      const link = await loadGoogleFontStylesheet(font, request, weight === 400 ? undefined : weight).catch((error) => {
+        if (request !== customFontLoadRequest || !weight || weight === 400) throw error;
+        document.getElementById(customGoogleFontStylesheetId)?.remove();
+        return loadGoogleFontStylesheet(font, request);
+      });
       if (request !== customFontLoadRequest) {
         link.remove();
         return;
       }
       if (document.fonts?.load) {
-        await document.fonts.load(`1em ${quotedCssFontFamily(font)}`);
+        await document.fonts.load(`${weight || 400} 1em ${quotedCssFontFamily(font)}`);
         if (request !== customFontLoadRequest) return;
         if (!fontFaceIsLoaded(font)) throw new Error("Google Fonts family was not found");
       }
@@ -28574,6 +28640,8 @@ function applyCustomScriptureFont() {
   document.documentElement.style.setProperty("--custom-scripture-font", fontStack);
   document.querySelector(".app-shell")?.style.setProperty("--custom-scripture-font", fontStack);
   document.querySelector("#presentation")?.style.setProperty("--custom-scripture-font", customScriptureFontStack(true));
+  document.documentElement.style.setProperty("--custom-scripture-font-weight", state.customScriptureFontWeight);
+  document.querySelector("#presentation")?.style.setProperty("--custom-scripture-font-weight", state.presentationCustomScriptureFontWeight);
   scriptureFontLoaders.forEach((loader) => loader.load());
 }
 

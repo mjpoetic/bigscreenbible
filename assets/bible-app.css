@@ -191,9 +191,14 @@ html {
   --scripture-font: "Lexend", Arial, sans-serif;
 }
 
+:where([data-scripture-font]) {
+  --scripture-font-weight: initial;
+}
+
 [data-scripture-font="custom"] {
   --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: var(--custom-scripture-font, Georgia, serif);
+  --scripture-font-weight: var(--custom-scripture-font-weight);
 }
 
 .sr-only {
@@ -2424,6 +2429,29 @@ button {
 
 .presentation-settings-choice-menu .settings-choice-option-detail {
   color: var(--settings-choice-menu-accent);
+}
+
+label.custom-font-weight,
+.presentation-settings-popover label.custom-font-weight {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.custom-font-weight input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 30px;
+  margin: 0;
+  accent-color: var(--presentation-accent, var(--teal));
+  cursor: pointer;
+}
+
+.custom-font-weight [data-custom-font-weight-value] {
+  font-variant-numeric: tabular-nums;
 }
 
 .custom-font-help {
@@ -9648,7 +9676,7 @@ select {
 
 .verse-of-day-copy {
   margin: 0;
-  font: 400 calc(clamp(27px, 3.4vw, 46px) * var(--text-scale, 1)) / 1.55 var(--scripture-font);
+  font: var(--scripture-font-weight, 400) calc(clamp(27px, 3.4vw, 46px) * var(--text-scale, 1)) / 1.55 var(--scripture-font);
   text-wrap: pretty;
 }
 
@@ -9872,7 +9900,7 @@ select {
 
 .scripture-paragraph {
   margin: 0;
-  font: 400 var(--verse-font) / 1.78 var(--scripture-font);
+  font: var(--scripture-font-weight, 400) var(--verse-font) / 1.78 var(--scripture-font);
 }
 
 .paragraph-verse {
@@ -10302,7 +10330,7 @@ select {
 }
 
 .verse-text {
-  font: 400 var(--verse-font) / 1.68 var(--scripture-font);
+  font: var(--scripture-font-weight, 400) var(--verse-font) / 1.68 var(--scripture-font);
   overflow-wrap: break-word;
 }
 
@@ -10861,7 +10889,7 @@ select {
 }
 
 .parallel-row .parallel-copy {
-  font: 400 var(--parallel-font) / 1.7 var(--scripture-font);
+  font: var(--scripture-font-weight, 400) var(--parallel-font) / 1.7 var(--scripture-font);
 }
 
 .parallel-heading-row {
@@ -11910,7 +11938,7 @@ select {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   margin: 0 0 0.8em;
-  font: 400 calc(16px * var(--popup-text-scale, 1)) / 1.62 var(--scripture-font);
+  font: var(--scripture-font-weight, 400) calc(16px * var(--popup-text-scale, 1)) / 1.62 var(--scripture-font);
 }
 
 .reference-preview-verse:last-child {
@@ -13461,7 +13489,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 .presentation-copy {
   display: block;
   max-width: 100%;
-  font: 700 var(--presentation-font-size, clamp(34px, 5.8vw, 240px)) / var(--presentation-line-height, 1.12) var(--scripture-font);
+  font: var(--scripture-font-weight, 700) var(--presentation-font-size, clamp(34px, 5.8vw, 240px)) / var(--presentation-line-height, 1.12) var(--scripture-font);
 }
 
 @media (hover: hover) and (pointer: fine) {

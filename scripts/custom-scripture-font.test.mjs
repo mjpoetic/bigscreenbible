@@ -32,6 +32,7 @@ vm.runInContext(`
   ${extractFunction("cssFontFamily")}
   ${extractFunction("customScriptureFontStack")}
   ${extractFunction("customGoogleFontUrl")}
+  ${extractFunction("normalizedCustomScriptureFontWeight")}
   globalThis.sanitize = sanitizeFontName;
   globalThis.names = customScriptureFontNames;
   globalThis.stack = customScriptureFontStack;
@@ -44,16 +45,21 @@ assert.equal(context.sanitize("Georgia, Charter, Avenir, fourth"), "Georgia, Cha
 
 context.state.customScriptureFont = "Roboto Slab";
 assert.deepEqual(Array.from(context.names()), ["Roboto Slab"]);
-assert.equal(context.stack(), '"Roboto Slab", Georgia, serif');
+assert.equal(context.stack(), '"Roboto Slab", "BSB Local Roboto Slab", Georgia, serif');
 assert.equal(context.url("Roboto Slab"), "https://fonts.googleapis.com/css2?family=Roboto+Slab&display=swap");
+assert.equal(context.url("Roboto Slab", 600), "https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600&display=swap");
+assert.equal(context.normalizedCustomScriptureFontWeight(null), 400);
+assert.equal(context.normalizedCustomScriptureFontWeight(undefined, true), 700);
+assert.equal(context.normalizedCustomScriptureFontWeight("200"), 200);
+assert.equal(context.normalizedCustomScriptureFontWeight(950), 400);
 
 context.state.customScriptureFont = "Georgia, Charter";
-assert.equal(context.stack(), '"Georgia", "Charter", Georgia, serif');
+assert.equal(context.stack(), '"Georgia", "BSB Local Georgia", "Charter", Georgia, serif');
 
 context.state.customScriptureFont = "system-ui";
 assert.equal(context.stack(), "system-ui, Georgia, serif");
 
-assert.match(source, /new FontFace\(font, `local\(/);
+assert.match(source, /new FontFace\(`BSB Local \$/);
 assert.match(source, /loadGoogleFontStylesheet\(font, request\)/);
 assert.match(source, /Loaded \$\{font\} from Google Fonts/);
 assert.match(source, /bindCustomScriptureFontInput\("presentationCustomScriptureFontInput"\)/);
@@ -103,6 +109,65 @@ assert.equal(context.readerLoader.state.status, "idle");
 assert.equal(context.bigLoader.state.status, "ready");
 assert.equal(context.state.presentationScriptureFont, "custom");
 console.log("Independent Big Screen font settings and loaders passed");
+
+// A drag previews each step, and committing saves only the active surface.
+function mockWeightSlider(value) {
+  const readout = {};
+  const handlers = {};
+  return {
+    value, readout, handlers,
+    labels: [{ querySelector: () => readout }],
+    addEventListener: (name, handler) => { handlers[name] = handler; },
+  };
+}
+const desktopSlider = mockWeightSlider(400);
+const mobileSlider = mockWeightSlider(400);
+const presentationSlider = mockWeightSlider(700);
+const hapticKinds = [];
+const appliedWeights = {};
+const styleFor = (surface) => ({ setProperty: (property, value) => { appliedWeights[surface] = [property, value]; } });
+let syncs = 0;
+let fitsForWeight = 0;
+Object.assign(context, {
+  document: {
+    documentElement: { style: styleFor("reader") },
+    querySelector: () => ({ style: styleFor("presentation") }),
+    querySelectorAll: (selector) => {
+      if (selector.includes('="reader"]') && selector.startsWith("[data-custom-font-weight")) return [desktopSlider, mobileSlider];
+      if (selector.includes('="presentation"]') && selector.startsWith("[data-custom-font-weight")) return [presentationSlider];
+      return [];
+    },
+    getElementById: () => null,
+  },
+  fitPresentationText: () => { fitsForWeight++; },
+  playNativeHaptic: (kind) => hapticKinds.push(kind),
+  scheduleCloudSync: () => { syncs++; },
+  scriptureFontLoaders: [context.readerLoader, context.bigLoader],
+});
+context.state.customScriptureFontWeight = 400;
+context.state.presentationCustomScriptureFontWeight = 700;
+vm.runInContext(extractFunction("bindCustomScriptureFontWeight"), context);
+context.bindCustomScriptureFontWeight(false);
+context.bindCustomScriptureFontWeight(true);
+
+desktopSlider.value = "500";
+desktopSlider.handlers.input({ isTrusted: true });
+assert.deepEqual(appliedWeights.reader, ["--custom-scripture-font-weight", 500]);
+assert.equal(mobileSlider.value, 500);
+assert.equal(mobileSlider.readout.textContent, 500);
+assert.equal(context.state.customScriptureFontWeight, 400, "Dragging previews before committing");
+desktopSlider.handlers.change();
+assert.equal(saved.get("lw_custom_scripture_font_weight"), 500);
+assert.equal(context.state.presentationCustomScriptureFontWeight, 700);
+
+presentationSlider.value = "800";
+presentationSlider.handlers.input({ isTrusted: false });
+presentationSlider.handlers.change();
+assert.deepEqual(appliedWeights.presentation, ["--custom-scripture-font-weight", 800]);
+assert.equal(saved.get("lw_presentation_custom_scripture_font_weight"), 800);
+assert.equal(fitsForWeight, 1);
+assert.equal(syncs, 2);
+assert.deepEqual(hapticKinds, ["tick"], "Only trusted slider input triggers a haptic tick");
 
 // Keyboard viewport/inset changes must never replace a focused font field.
 let pendingResize;
