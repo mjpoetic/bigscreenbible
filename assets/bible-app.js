@@ -5441,6 +5441,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.10.2": [
+      "Custom Scripture fonts now have a weight slider with separate settings for Reader and Big Screen and haptic feedback on supported devices.",
+    ],
     "2026.11.10.1": [
       "Adjust custom Scripture font weight from 100 to 900 in Reader, Parallel, and Big Screen. Supported devices give a light haptic tick as you move the slider.",
     ],
