@@ -295,3 +295,26 @@ pendingResize();
 assert.equal(renders, beforePuzzleResize + 1, 'Passage blur resumes deferred Games layout');
 assert.ok(source.includes('puzzleReferenceInput?.addEventListener("blur", resumeViewportRefreshAfterInput)'));
 console.log('Games passage keyboard insets, queued refresh, and blur recovery passed');
+
+// Every built-in Scripture font must expose the same saved weight control.
+const fontSettingsContext = vm.createContext({
+  state: { customScriptureFontWeight: 500, presentationCustomScriptureFontWeight: 800 },
+  settingsChoiceMarkup: () => "<select></select>",
+  scriptureFontSettingsChoices: () => [],
+  customScriptureFontField: () => '<input class="custom-font-input" />',
+});
+vm.runInContext(`
+  ${extractFunction("scriptureFontWeightMarkup")}
+  ${extractFunction("settingsScriptureFontMarkup")}
+`, fontSettingsContext);
+for (const font of ["lora", "libre", "literata", "crimson", "noto-sans", "figtree", "source-sans", "manrope", "opendyslexic", "lexend", "custom"]) {
+  fontSettingsContext.state.scriptureFont = font;
+  for (const prefix of ["", "mobile"]) {
+    const markup = fontSettingsContext.settingsScriptureFontMarkup(prefix);
+    assert.equal((markup.match(/data-custom-font-weight="/g) || []).length, 1, font);
+    assert.match(markup, /value="500"/);
+    assert.equal(markup.includes('class="custom-font-input"'), font === "custom");
+  }
+}
+assert.match(fontSettingsContext.scriptureFontWeightMarkup(true), /value="800"/);
+console.log("All Scripture font choices expose the saved weight slider");

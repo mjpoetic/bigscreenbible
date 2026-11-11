@@ -5441,6 +5441,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.10.3": [
+      "Adjust Scripture font weight for every font choice in Reader, Parallel, and Big Screen, with live previews and haptic feedback on supported devices.",
+    ],
     "2026.11.10.2": [
       "Custom Scripture fonts now have a weight slider with separate settings for Reader and Big Screen and haptic feedback on supported devices.",
     ],
@@ -6321,6 +6324,7 @@ function settingsScriptureFontMarkup(prefix = "", options = {}) {
         selectClass: "scripture-font-select",
       })}
       ${customFontField}
+      ${scriptureFontWeightMarkup()}
     </div>
   `;
 }
@@ -22449,6 +22453,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
           selectClass: "scripture-font-select",
         })}
         ${customFontField}
+        ${scriptureFontWeightMarkup(true)}
       </div>
         <div class="presentation-text-size-setting" data-settings-search-item data-settings-search-text="Scripture text size zoom">
           <span>Text size</span>
@@ -28427,6 +28432,17 @@ function bindCustomScriptureFontInput(inputId) {
   });
 }
 
+function scriptureFontWeightMarkup(bigScreen = false) {
+  // Retain the existing preference keys so saved custom-font weights carry forward.
+  const weight = bigScreen ? state.presentationCustomScriptureFontWeight : state.customScriptureFontWeight;
+  return `
+    <label class="custom-font-weight">
+      <span>Font weight</span><span data-custom-font-weight-value aria-hidden="true">${weight}</span>
+      <input type="range" min="100" max="900" step="100" value="${weight}" data-custom-font-weight="${bigScreen ? "presentation" : "reader"}" aria-label="Font weight" />
+    </label>
+  `;
+}
+
 function normalizedCustomScriptureFontWeight(value, bigScreen = false) {
   const weight = Number(value);
   return weight >= 100 && weight <= 900 && weight % 100 === 0 ? weight : (bigScreen ? 700 : 400);
@@ -28515,16 +28531,11 @@ function fontFaceIsLoaded(font) {
 function customScriptureFontField(inputId) {
   const statusId = `${inputId}Status`;
   const bigScreen = inputId.startsWith("presentation");
-  const weight = bigScreen ? state.presentationCustomScriptureFontWeight : state.customScriptureFontWeight;
   const customFontLoadState = scriptureFontLoaders[Number(bigScreen)].state;
   const preferredFamily = customScriptureFontNames(bigScreen)[0] || "";
   const status = customFontLoadState.family === preferredFamily ? customFontLoadState : { status: "idle", message: "" };
   return `
     <input class="custom-font-input" id="${inputId}" value="${escapeHtml(bigScreen ? state.presentationCustomScriptureFont : state.customScriptureFont)}" placeholder="Georgia or a Google Fonts family" aria-label="Custom device or Google font" aria-describedby="${statusId}Help ${statusId}" autocomplete="off" spellcheck="false" />
-    <label class="custom-font-weight">
-      <span>Font weight</span><span data-custom-font-weight-value aria-hidden="true">${weight}</span>
-      <input type="range" min="100" max="900" step="100" value="${weight}" data-custom-font-weight="${bigScreen ? "presentation" : "reader"}" aria-label="Font weight" aria-describedby="${statusId}Help" />
-    </label>
     <p class="setting-help custom-font-help" id="${statusId}Help">Uses an installed font first, then looks up the exact family name on Google Fonts when online. Available weights vary by font.</p>
     <p class="custom-font-status" id="${statusId}" data-font-scope="${bigScreen ? "presentation" : "reader"}" data-font-status="${status.status}" role="status" aria-live="polite">${escapeHtml(status.message)}</p>
   `;

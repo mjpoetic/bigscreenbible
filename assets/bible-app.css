@@ -191,14 +191,13 @@ html {
   --scripture-font: "Lexend", Arial, sans-serif;
 }
 
-:where([data-scripture-font]) {
-  --scripture-font-weight: initial;
+[data-scripture-font] {
+  --scripture-font-weight: var(--custom-scripture-font-weight);
 }
 
 [data-scripture-font="custom"] {
   --scripture-heading-font: "Libre Baskerville", Georgia, serif;
   --scripture-font: var(--custom-scripture-font, Georgia, serif);
-  --scripture-font-weight: var(--custom-scripture-font-weight);
 }
 
 .sr-only {
