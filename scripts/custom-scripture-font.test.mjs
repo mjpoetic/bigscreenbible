@@ -83,12 +83,18 @@ Object.assign(context, {
 vm.runInContext(`
   const scriptureFontCodes = ["lora", "figtree", "custom"];
   const customFontInputTimers = {};
+  ${extractFunction("scriptureFontWeightKey")}
+  ${extractFunction("normalizedScriptureFontWeights")}
+  ${extractFunction("mergeScriptureFontWeights")}
+  ${extractFunction("restoreScriptureFontWeight")}
   ${extractFunction("setScriptureFont")}
   ${extractFunction("createCustomFontLoader")}
   globalThis.readerLoader = createCustomFontLoader(false);
   globalThis.bigLoader = createCustomFontLoader(true);
   globalThis.setFont = setScriptureFont;
 `, context);
+context.state.scriptureFontWeights = {};
+context.state.presentationScriptureFontWeights = {};
 context.state.scriptureFont = "lora";
 context.setFont("figtree", true);
 assert.equal(context.state.scriptureFont, "lora");
@@ -318,3 +324,64 @@ for (const font of ["lora", "libre", "literata", "crimson", "noto-sans", "figtre
 }
 assert.match(fontSettingsContext.scriptureFontWeightMarkup(true), /value="800"/);
 console.log("All Scripture font choices expose the saved weight slider");
+
+// Returning to built-in and custom families restores each weight independently.
+context.setFont("lora");
+desktopSlider.value = "600";
+desktopSlider.handlers.input({ isTrusted: false });
+desktopSlider.handlers.change();
+context.setFont("figtree");
+assert.equal(context.state.customScriptureFontWeight, 400);
+desktopSlider.value = "300";
+desktopSlider.handlers.change();
+context.setFont("lora");
+assert.equal(context.state.customScriptureFontWeight, 600);
+assert.equal(desktopSlider.value, 600);
+context.setFont("figtree");
+assert.equal(context.state.customScriptureFontWeight, 300);
+
+vm.runInContext(`
+  ${extractFunction("setCustomScriptureFont")}
+`, context);
+context.applyCustomScriptureFont = () => {};
+context.setFont("custom");
+context.setCustomScriptureFont("Roboto Slab", { rerender: false });
+desktopSlider.value = "500";
+desktopSlider.handlers.change();
+context.setCustomScriptureFont("Georgia", { rerender: false });
+assert.equal(context.state.customScriptureFontWeight, 400);
+desktopSlider.value = "800";
+desktopSlider.handlers.change();
+context.setCustomScriptureFont("  roboto   slab ", { rerender: false });
+assert.equal(context.state.customScriptureFontWeight, 500);
+assert.equal(desktopSlider.value, 500, "Custom field changes update the visible slider without rerendering");
+context.setCustomScriptureFont("Georgia", { rerender: false });
+assert.equal(context.state.customScriptureFontWeight, 800);
+context.setFont("lora", true);
+assert.equal(context.state.presentationCustomScriptureFontWeight, 700);
+context.setFont("custom", true);
+assert.equal(context.state.presentationCustomScriptureFontWeight, 800, "Big Screen has its own saved weights");
+
+const reloadedWeights = context.normalizedScriptureFontWeights(saved.get("lw_scripture_font_weights"));
+context.state.scriptureFontWeights = reloadedWeights;
+context.setFont("figtree");
+assert.equal(context.state.customScriptureFontWeight, 300, "Saved maps survive reload");
+context.state.scriptureFontWeights = {};
+context.restoreScriptureFontWeight(false, 600);
+assert.equal(context.state.scriptureFontWeights["font:figtree"].weight, 600, "Legacy weight migrates to the selected font");
+context.setFont("lora");
+assert.equal(context.state.customScriptureFontWeight, 400, "Unvisited fonts start with the surface default");
+
+const mergedWeights = context.mergeScriptureFontWeights(
+  { "font:lora": { weight: 300, updatedAt: 20 } },
+  { "font:lora": { weight: 600, updatedAt: 10 }, "custom:georgia": { weight: 800, updatedAt: 30 } },
+);
+assert.equal(mergedWeights["font:lora"].weight, 300);
+assert.equal(mergedWeights["custom:georgia"].weight, 800);
+assert.equal(context.mergeScriptureFontWeights(
+  { "font:lora": { weight: 300, updatedAt: 20 } },
+  { "font:lora": { weight: 600, updatedAt: 40 } },
+)["font:lora"].weight, 600);
+assert.equal(Object.keys(context.normalizedScriptureFontWeights("bad json")).length, 0);
+assert.equal(Object.keys(context.normalizedScriptureFontWeights({ "font:lora": { weight: 999 } })).length, 0);
+console.log("Per-font weights restore, migrate, persist and merge across surfaces");

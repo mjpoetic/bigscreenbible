@@ -769,9 +769,11 @@ const state = {
   scriptureFont: localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   customScriptureFont: localStorage.getItem("lw_custom_scripture_font") || "",
   customScriptureFontWeight: normalizedCustomScriptureFontWeight(localStorage.getItem("lw_custom_scripture_font_weight")),
+  scriptureFontWeights: normalizedScriptureFontWeights(localStorage.getItem("lw_scripture_font_weights")),
   presentationScriptureFont: localStorage.getItem("lw_presentation_scripture_font") || localStorage.getItem("lw_scripture_font") || defaultScriptureFont,
   presentationCustomScriptureFont: localStorage.getItem("lw_presentation_custom_scripture_font") ?? localStorage.getItem("lw_custom_scripture_font") ?? "",
   presentationCustomScriptureFontWeight: normalizedCustomScriptureFontWeight(localStorage.getItem("lw_presentation_custom_scripture_font_weight"), true),
+  presentationScriptureFontWeights: normalizedScriptureFontWeights(localStorage.getItem("lw_presentation_scripture_font_weights")),
   popupTextScale: clampPopupTextScale(localStorage.getItem("lw_popup_text_scale") || 1),
   popupPinchEnabled: localStorage.getItem("lw_popup_pinch_enabled") !== "false",
   textScale: Number(localStorage.getItem("lw_text_scale") || 1),
@@ -1074,6 +1076,8 @@ if (!state.versions.some(isBundledTranslation)) state.versions.unshift("BSB");
 if (!presentationThemeCodes.includes(state.presentationTheme)) state.presentationTheme = defaultPresentationTheme;
 state.scriptureFont = normalizedScriptureFont(state.scriptureFont);
 state.presentationScriptureFont = normalizedScriptureFont(state.presentationScriptureFont);
+restoreScriptureFontWeight(false, state.customScriptureFontWeight);
+restoreScriptureFontWeight(true, state.presentationCustomScriptureFontWeight);
 // Freeze the inherited choice once so later Reader changes cannot change Big Screen.
 localStorage.setItem("lw_presentation_scripture_font", state.presentationScriptureFont);
 localStorage.setItem("lw_presentation_custom_scripture_font", state.presentationCustomScriptureFont);
@@ -5441,6 +5445,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.10.4": [
+      "Each Scripture font remembers its own weight, including named custom fonts, with separate preferences for Reader and Big Screen.",
+    ],
     "2026.11.10.3": [
       "Adjust Scripture font weight for every font choice in Reader, Parallel, and Big Screen, with live previews and haptic feedback on supported devices.",
     ],
@@ -14142,9 +14149,11 @@ function captureCloudSnapshot() {
       scriptureFont: state.scriptureFont,
       customScriptureFont: state.customScriptureFont,
       customScriptureFontWeight: state.customScriptureFontWeight,
+      scriptureFontWeights: { ...state.scriptureFontWeights },
       presentationScriptureFont: state.presentationScriptureFont,
       presentationCustomScriptureFont: state.presentationCustomScriptureFont,
       presentationCustomScriptureFontWeight: state.presentationCustomScriptureFontWeight,
+      presentationScriptureFontWeights: { ...state.presentationScriptureFontWeights },
       customHighlightColor: state.customHighlightColor,
       popupTextScale: state.popupTextScale,
       popupPinchEnabled: state.popupPinchEnabled,
@@ -14233,6 +14242,8 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       ...versionSettings,
       ...disclosureSettings,
       ...appearanceSettings,
+      scriptureFontWeights: mergeScriptureFontWeights(cloud.settings.scriptureFontWeights, localSnapshot.settings.scriptureFontWeights),
+      presentationScriptureFontWeights: mergeScriptureFontWeights(cloud.settings.presentationScriptureFontWeights, localSnapshot.settings.presentationScriptureFontWeights),
       annotationDates: mergeAnnotationDates(cloud.settings.annotationDates, localSnapshot.settings.annotationDates),
       gameRecords: mergeGameRecords(cloud.settings.gameRecords, localSnapshot.settings.gameRecords),
       wordSearchRecentPassages: mergeWordSearchRecentPassages(
@@ -14384,6 +14395,10 @@ function applyCloudSnapshot(snapshot) {
   state.presentationScriptureFont = normalizedScriptureFont(settings.presentationScriptureFont ?? settings.scriptureFont);
   state.presentationCustomScriptureFont = sanitizeFontName(settings.presentationCustomScriptureFont ?? settings.customScriptureFont ?? "");
   state.presentationCustomScriptureFontWeight = normalizedCustomScriptureFontWeight(settings.presentationCustomScriptureFontWeight, true);
+  state.scriptureFontWeights = normalizedScriptureFontWeights(settings.scriptureFontWeights);
+  state.presentationScriptureFontWeights = normalizedScriptureFontWeights(settings.presentationScriptureFontWeights);
+  restoreScriptureFontWeight(false, state.customScriptureFontWeight);
+  restoreScriptureFontWeight(true, state.presentationCustomScriptureFontWeight);
   state.customHighlightColor = normalizeHighlightColor(settings.customHighlightColor) || state.customHighlightColor;
   state.popupTextScale = clampPopupTextScale(settings.popupTextScale ?? 1);
   state.popupPinchEnabled = settings.popupPinchEnabled !== false;
@@ -14521,10 +14536,8 @@ function persistCloudSnapshotLocally(snapshot) {
   mirrorAppearanceToLegacyStorage(state.appearance);
   localStorage.setItem("lw_scripture_font", state.scriptureFont);
   localStorage.setItem("lw_custom_scripture_font", state.customScriptureFont);
-  localStorage.setItem("lw_custom_scripture_font_weight", state.customScriptureFontWeight);
   localStorage.setItem("lw_presentation_scripture_font", state.presentationScriptureFont);
   localStorage.setItem("lw_presentation_custom_scripture_font", state.presentationCustomScriptureFont);
-  localStorage.setItem("lw_presentation_custom_scripture_font_weight", state.presentationCustomScriptureFontWeight);
   localStorage.setItem("lw_custom_highlight_color", state.customHighlightColor);
   localStorage.setItem("lw_text_scale", String(state.textScale));
   localStorage.setItem("lw_popup_text_scale", String(state.popupTextScale));
@@ -14653,7 +14666,7 @@ function applyOfflineChanges(merged, base, local) {
     const before = base[field] || {};
     const after = local[field] || {};
     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (["gameRecords", "wordSearchRecentPassages", "annotationDates"].includes(key) && field === "settings") continue;
+      if (["gameRecords", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
       if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
       if (Object.hasOwn(after, key)) result[field][key] = after[key];
       else delete result[field][key];
@@ -14705,6 +14718,8 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
     if (readError) throw readError;
     if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
     const next = { ...snapshot, settings: { ...snapshot.settings,
+      scriptureFontWeights: mergeScriptureFontWeights(current?.settings?.scriptureFontWeights, snapshot.settings?.scriptureFontWeights),
+      presentationScriptureFontWeights: mergeScriptureFontWeights(current?.settings?.presentationScriptureFontWeights, snapshot.settings?.presentationScriptureFontWeights),
       gameRecords: mergeGameRecords(current?.settings?.gameRecords, snapshot.settings?.gameRecords, captureGameRecords()),
     } };
     const result = current
@@ -28379,6 +28394,7 @@ function setScriptureFont(font, bigScreen = false) {
   if (!scriptureFontCodes.includes(font)) return;
   state[bigScreen ? "presentationScriptureFont" : "scriptureFont"] = font;
   localStorage.setItem(bigScreen ? "lw_presentation_scripture_font" : "lw_scripture_font", font);
+  restoreScriptureFontWeight(bigScreen);
   scheduleCloudSync();
   renderPreservingReaderScroll();
 }
@@ -28395,8 +28411,9 @@ function setInterfaceTextSize(size) {
 function setCustomScriptureFont(font, { rerender = true, bigScreen = false } = {}) {
   window.clearTimeout(customFontInputTimers[bigScreen]);
   state[bigScreen ? "presentationCustomScriptureFont" : "customScriptureFont"] = sanitizeFontName(font);
-  scriptureFontLoaders[Number(bigScreen)].reset();
   localStorage.setItem(bigScreen ? "lw_presentation_custom_scripture_font" : "lw_custom_scripture_font", sanitizeFontName(font));
+  restoreScriptureFontWeight(bigScreen);
+  scriptureFontLoaders[Number(bigScreen)].reset();
   applyCustomScriptureFont();
   scheduleCloudSync();
   if (rerender) renderPreservingReaderScroll();
@@ -28432,8 +28449,55 @@ function bindCustomScriptureFontInput(inputId) {
   });
 }
 
+function scriptureFontWeightKey(bigScreen = false) {
+  const font = state[bigScreen ? "presentationScriptureFont" : "scriptureFont"];
+  if (font !== "custom") return `font:${font}`;
+  const family = customScriptureFontNames(bigScreen)[0] || "";
+  return `custom:${family.toLowerCase().replace(/\s+/g, " ")}`;
+}
+
+function normalizedScriptureFontWeights(value) {
+  if (typeof value === "string") {
+    try { value = JSON.parse(value); } catch { return {}; }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([key, entry]) => (
+    /^(font|custom):/.test(key) && key.length <= 300
+    && entry && typeof entry === "object"
+    && Number(entry.weight) >= 100 && Number(entry.weight) <= 900 && Number(entry.weight) % 100 === 0
+  )).map(([key, entry]) => [key, {
+    weight: Number(entry.weight),
+    updatedAt: Number.isFinite(entry.updatedAt) && entry.updatedAt >= 0 ? entry.updatedAt : 0,
+  }]));
+}
+
+function mergeScriptureFontWeights(cloudWeights, localWeights) {
+  const merged = normalizedScriptureFontWeights(cloudWeights);
+  Object.entries(normalizedScriptureFontWeights(localWeights)).forEach(([key, entry]) => {
+    if (!merged[key] || entry.updatedAt > merged[key].updatedAt) merged[key] = entry;
+  });
+  return merged;
+}
+
+function restoreScriptureFontWeight(bigScreen = false, legacyWeight) {
+  const weightsKey = bigScreen ? "presentationScriptureFontWeights" : "scriptureFontWeights";
+  const weightKey = bigScreen ? "presentationCustomScriptureFontWeight" : "customScriptureFontWeight";
+  const storageKey = bigScreen ? "lw_presentation_custom_scripture_font_weight" : "lw_custom_scripture_font_weight";
+  const weightsStorageKey = bigScreen ? "lw_presentation_scripture_font_weights" : "lw_scripture_font_weights";
+  const key = scriptureFontWeightKey(bigScreen);
+  const weights = state[weightsKey];
+  const weight = weights[key]?.weight ?? normalizedCustomScriptureFontWeight(legacyWeight, bigScreen);
+  state[weightKey] = weight;
+  if (!weights[key] && legacyWeight !== undefined) weights[key] = { weight, updatedAt: 0 };
+  localStorage.setItem(storageKey, weight);
+  localStorage.setItem(weightsStorageKey, JSON.stringify(weights));
+  document.querySelectorAll(`[data-custom-font-weight="${bigScreen ? "presentation" : "reader"}"]`).forEach((control) => {
+    control.value = weight;
+    control.labels[0].querySelector("[data-custom-font-weight-value]").textContent = weight;
+  });
+}
+
 function scriptureFontWeightMarkup(bigScreen = false) {
-  // Retain the existing preference keys so saved custom-font weights carry forward.
   const weight = bigScreen ? state.presentationCustomScriptureFontWeight : state.customScriptureFontWeight;
   return `
     <label class="custom-font-weight">
@@ -28451,7 +28515,6 @@ function normalizedCustomScriptureFontWeight(value, bigScreen = false) {
 function bindCustomScriptureFontWeight(bigScreen) {
   const scope = bigScreen ? "presentation" : "reader";
   const stateKey = bigScreen ? "presentationCustomScriptureFontWeight" : "customScriptureFontWeight";
-  const storageKey = bigScreen ? "lw_presentation_custom_scripture_font_weight" : "lw_custom_scripture_font_weight";
   const sliders = document.querySelectorAll(`[data-custom-font-weight="${scope}"]`);
   sliders.forEach((slider) => {
     slider.addEventListener("input", (event) => {
@@ -28468,8 +28531,9 @@ function bindCustomScriptureFontWeight(bigScreen) {
     slider.addEventListener("change", () => {
       const weight = normalizedCustomScriptureFontWeight(slider.value, bigScreen);
       if (weight === state[stateKey]) return;
-      state[stateKey] = weight;
-      localStorage.setItem(storageKey, weight);
+      const weights = state[bigScreen ? "presentationScriptureFontWeights" : "scriptureFontWeights"];
+      weights[scriptureFontWeightKey(bigScreen)] = { weight, updatedAt: Date.now() };
+      restoreScriptureFontWeight(bigScreen);
       scheduleCloudSync();
       scriptureFontLoaders[Number(bigScreen)].load();
     });

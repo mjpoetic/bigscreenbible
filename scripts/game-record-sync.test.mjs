@@ -51,7 +51,7 @@ function device() {
   });
   for (const name of ['gameRecordStorageKeys','compareGamePoints','mergeGameRecords',
     'captureGameRecords','applyGameRecords','captureCloudSnapshot','normalizeCloudRow',
-    'mergeAnnotationDates','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
+    'mergeAnnotationDates','normalizedScriptureFontWeights','mergeScriptureFontWeights','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
   ctx.state.bookmarks = []; ctx.state.notes = {}; ctx.state.highlights = {}; ctx.state.history = [];
   return ctx;
 }
@@ -104,6 +104,18 @@ failReads = true;
 await assert.rejects(mac.upsertCloudSnapshot(), /offline/);
 assert.ok(mac.captureGameRecords()[timeKeys[0]].mac, 'offline failure retains local records');
 failReads = false;
+
+mac.state.scriptureFontWeights = { "font:lora": { weight: 600, updatedAt: 20 } };
+phone.state.scriptureFontWeights = {
+  "font:lora": { weight: 300, updatedAt: 10 },
+  "custom:georgia": { weight: 800, updatedAt: 30 },
+};
+await mac.upsertCloudSnapshot();
+await phone.upsertCloudSnapshot();
+assert.equal(row.settings.scriptureFontWeights["font:lora"].weight, 600);
+assert.equal(row.settings.scriptureFontWeights["custom:georgia"].weight, 800);
+console.log("Concurrent font preferences merge by font and update time");
+
 const beforeSwitch = clone(row);
 mac.authenticatedSupabaseSession = async () => { mac.state.authUser = {id: 'b'}; return {user: {id: 'b'}}; };
 await mac.upsertCloudSnapshot();
