@@ -5447,6 +5447,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.13.1": [
+      "Highlight confirmations and app update confirmations gently dim and blur the area around the notification.",
+    ],
     "2026.11.10.4": [
       "Each Scripture font remembers its own weight, including named custom fonts, with separate preferences for Reader and Big Screen.",
     ],
