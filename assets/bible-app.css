@@ -15825,11 +15825,39 @@ kbd {
   }
 }
 
-.status-toast {
+.status-toast-region {
   position: fixed;
   left: 50%;
   bottom: calc(82px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  z-index: 500;
+  pointer-events: none;
+}
+
+.status-toast-region::before {
+  content: "";
+  position: absolute;
+  inset: -36px clamp(-72px, -12vw, -24px);
+  background: rgb(0 0 0 / 22%);
+  --toast-backdrop-mask: radial-gradient(ellipse closest-side,
+    #000 0%, rgb(0 0 0 / 80%) 30%, rgb(0 0 0 / 35%) 60%,
+    rgb(0 0 0 / 8%) 84%, transparent 100%);
+  -webkit-mask-image: var(--toast-backdrop-mask);
+  mask-image: var(--toast-backdrop-mask);
+  opacity: 0;
+  -webkit-backdrop-filter: blur(0);
+  backdrop-filter: blur(0);
+  transition: opacity 320ms ease-in-out, backdrop-filter 320ms ease-in-out;
+}
+
+.status-toast-region:has(.status-toast.show)::before {
+  opacity: 1;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.status-toast {
+  position: relative;
   background: #151915;
   color: #fff;
   padding: 10px 14px;
@@ -15839,7 +15867,6 @@ kbd {
   max-width: min(32rem, calc(100vw - 48px));
   text-align: center;
   box-shadow: var(--shadow);
-  z-index: 500;
   opacity: 0;
   pointer-events: none;
   transition: opacity 160ms ease, transform 160ms ease;
@@ -16150,10 +16177,9 @@ kbd {
 
 .status-toast.show {
   opacity: 1;
-  transform: translateX(-50%) translateY(-8px);
+  transform: translateY(-8px);
 }
 
-.status-toast.show,
 .app-update-notice {
   animation: bottom-notice-spotlight 2s ease-out;
 }
@@ -16164,7 +16190,8 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .status-toast { transition: none; }
+  .status-toast,
+  .status-toast-region::before { transition: none; }
 }
 
 .motion-exit {

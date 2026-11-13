@@ -2062,7 +2062,7 @@ function render() {
   const gamesTabScroll = document.querySelector(".trivia-mode-tabs")?.scrollLeft || 0;
   const previousVideo = document.querySelector(".presentation-background-video");
   previousVideo?.remove();
-  const previousToast = document.getElementById("toast");
+  const previousToast = document.querySelector(".status-toast-region");
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
   app.innerHTML = `
     <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
@@ -2094,13 +2094,15 @@ function render() {
         <span class="reader-gesture-feedback-mark" aria-hidden="true">Aa</span>
         <span class="reader-gesture-feedback-label"></span>
       </div>
-      <div class="status-toast" id="toast" role="status" aria-atomic="true"></div>
+      <div class="status-toast-region">
+        <div class="status-toast" id="toast" role="status" aria-atomic="true"></div>
+      </div>
     </main>
   `;
   const shell = app.querySelector(".app-shell");
   if (previousToast) {
-    shell.querySelector("#toast").replaceWith(previousToast);
-    shell.classList.toggle("toast-visible", previousToast.classList.contains("show"));
+    shell.querySelector(".status-toast-region").replaceWith(previousToast);
+    shell.classList.toggle("toast-visible", Boolean(previousToast.querySelector(".show")));
   }
   if (previousUpdateNotice) shell.append(previousUpdateNotice);
   restoreFocusPickerMotion(focusPickerMotion);
@@ -33559,15 +33561,13 @@ function showToast(message) {
   const toast = document.getElementById("toast");
   if (!toast) return;
   clearTimeout(statusToastTimer);
-  toast.classList.remove("show");
-  void toast.offsetWidth;
   toast.textContent = message;
   toast.classList.add("show");
   toast.closest(".app-shell")?.classList.add("toast-visible");
   statusToastTimer = setTimeout(() => {
     toast.classList.remove("show");
     toast.closest(".app-shell")?.classList.remove("toast-visible");
-    toast.textContent = "";
+    statusToastTimer = setTimeout(() => { toast.textContent = ""; }, 320);
   }, 2800);
 }
 
