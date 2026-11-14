@@ -5479,6 +5479,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.7": [
+      "The Crossword timer and buttons have more room above the divider on wider screens.",
+    ],
     "2026.11.14.6": [
       "The view-mode icons have distinct colors in the navigation and the closed mode picker.",
     ],
