@@ -250,6 +250,8 @@ context.state.selectedVerses = [];
 context.state.verse = 17;
 assert.deepEqual([...context.selectedVerseNumbers()], [16,17]);
 const popupContext = {
+  window: { BIGSCREEN_CROSS_REFS: { refs: {} } },
+  referencePreviewRequestId: 0,
   state: { reference: 'John 3', sharedPassage: {verses:[16,17]}, isVerseOfDayActive:false },
   crossReferenceItems: () => [],
   crossReferencePopupMarkup: () => '',

@@ -5447,6 +5447,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.13.2": [
+      "Scripture files load in parallel, and cross references load when opened.",
+    ],
     "2026.11.13.1": [
       "Highlight confirmations and app update confirmations gently dim and blur the area around the notification.",
     ],
@@ -9374,13 +9377,16 @@ function versePickerPanel() {
 
 function crossReferencesPanel() {
   const refs = crossReferenceItems();
+  if (!refs.length && !window.BIGSCREEN_CROSS_REFS && !crossReferenceLoadFailed) {
+    loadCrossReferences();
+  }
   return `
     <section class="study-section panel-section" id="crossRefsSection">
       <div class="study-heading">${icons.layers} ${escapeHtml(referenceLabel())}</div>
       <div class="ref-list">
         ${refs.length
           ? refs.map((ref) => `<button class="ref-item" data-goto="${escapeHtml(parsePassageReference(ref.label) ? ref.label : ref.goto)}" data-link-navigation="true"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
-          : `<div class="empty-state">No cross references are bundled for ${escapeHtml(referenceLabel())}.</div>`}
+          : crossReferenceStatus(referenceLabel(), { retry: true })}
       </div>
       <div class="source-note">
         Cross references from <a href="https://www.openbible.info/labs/cross-references/" target="_blank" rel="noopener">OpenBible.info</a>, CC-BY.
@@ -20589,6 +20595,77 @@ function highlightStyleForColor(color) {
   return customColor ? `style="--custom-highlight-color: ${escapeHtml(customColor)}"` : "";
 }
 
+let crossReferenceRequest;
+let crossReferenceLoadFailed = false;
+
+function loadCrossReferences() {
+  if (window.BIGSCREEN_CROSS_REFS) return Promise.resolve();
+  if (crossReferenceRequest) return crossReferenceRequest;
+  crossReferenceLoadFailed = false;
+  crossReferenceRequest = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = `./assets/crossrefs.js?v=${encodeURIComponent(appVersion)}`;
+    function finish() {
+      crossReferenceLoadFailed = !window.BIGSCREEN_CROSS_REFS?.refs;
+      if (crossReferenceLoadFailed) {
+        delete window.BIGSCREEN_CROSS_REFS;
+        script.remove();
+      }
+      resolve();
+    }
+    script.addEventListener("load", finish, { once: true });
+    script.addEventListener("error", finish, { once: true });
+    document.head.appendChild(script);
+  }).finally(() => {
+    crossReferenceRequest = null;
+    const section = document.getElementById("crossRefsSection");
+    if (!section) return;
+    const template = document.createElement("template");
+    template.innerHTML = crossReferencesPanel().trim();
+    const list = section.querySelector(".ref-list");
+    list.replaceChildren(...template.content.querySelector(".ref-list").childNodes);
+    list.querySelectorAll("[data-goto]").forEach(bindGotoButton);
+    list.querySelector("[data-retry-cross-refs]")?.addEventListener("click", retryCrossReferencePanel);
+  });
+  return crossReferenceRequest;
+}
+
+function bindGotoButton(button) {
+  button.addEventListener("click", () => {
+    if (button.dataset.searchResult === "true") {
+      state.searchReturnAvailable = true;
+      state.searchReturnScroll = button.closest(".mobile-focus-search-results-body, .library")?.scrollTop || 0;
+      document.activeElement?.blur();
+    }
+    const fromFocusWorkspace = Boolean(button.closest(".mobile-focus-workspace"));
+    if (fromFocusWorkspace) resetFocusToolSurfaces();
+    const closeLibraryAfterNavigation = !fromFocusWorkspace && button.dataset.keepLibraryOpen !== "true";
+    if (!closeLibraryAfterNavigation) rememberOpenLibraryState();
+    const focusVerse = button.dataset.gotoVerse ? Number(button.dataset.gotoVerse) : NaN;
+    gotoReference(button.dataset.goto, {
+      focusVerse,
+      libraryScroll: closeLibraryAfterNavigation ? null : captureLibraryScroll(),
+      closeLibrary: closeLibraryAfterNavigation,
+      linkNavigation: button.dataset.linkNavigation === "true",
+    });
+  });
+}
+
+function retryCrossReferencePanel() {
+  loadCrossReferences();
+  renderPreservingReaderScroll();
+}
+
+function crossReferenceStatus(reference, { retry = false } = {}) {
+  if (crossReferenceLoadFailed) {
+    return `<div class="empty-state" role="status">Cross references could not be loaded.${retry
+      ? ' <button type="button" data-retry-cross-refs>Try again</button>'
+      : " Reopen this popup to try again."}</div>`;
+  }
+  if (!window.BIGSCREEN_CROSS_REFS) return '<div class="empty-state" role="status">Loading cross references…</div>';
+  return `<div class="empty-state">No cross references are bundled for ${escapeHtml(reference)}.</div>`;
+}
+
 function crossReferenceItems(reference = referenceLabel()) {
   const sourceRefs = window.BIGSCREEN_CROSS_REFS?.refs?.[reference] || [];
   return sourceRefs.map(normalizeCrossReference).filter(Boolean);
@@ -21141,12 +21218,20 @@ function openStrongPopup(anchor) {
 function openCrossReferencePopup(anchor) {
   const verseNumber = Number(anchor.dataset.crossRefVerse || anchor.dataset.crossRefHold);
   const reference = `${state.reference}:${verseNumber}`;
+  const pending = window.BIGSCREEN_CROSS_REFS ? null : loadCrossReferences();
   const refs = crossReferenceItems(reference);
   state.verse = verseNumber;
   if (!state.sharedPassage) state.isVerseOfDayActive = false;
   const popup = showStudyPopup(anchor, crossReferencePopupMarkup(reference, refs), "Cross references");
   popup.dataset.crossRefVerse = String(verseNumber);
   bindCrossReferencePreviewLinks(popup);
+  const requestId = referencePreviewRequestId;
+  pending?.then(() => {
+    if (requestId !== referencePreviewRequestId || !popup.isConnected || !anchor.isConnected) return;
+    setStudyPopupContent(popup, crossReferencePopupMarkup(reference), "Cross references");
+    bindCrossReferencePreviewLinks(popup);
+    positionStudyPopup(anchor, popup);
+  });
 }
 
 function suppressCrossReferenceVerseClick(event) {
@@ -21229,7 +21314,7 @@ function crossReferencePopupMarkup(reference, refs = crossReferenceItems(referen
     <div class="popup-ref-list">
       ${refs.length
         ? refs.map((ref) => `<button class="ref-item" type="button" data-popup-preview="${escapeHtml(ref.label)}" data-popup-navigation="${escapeHtml(ref.goto)}" aria-label="Preview ${escapeHtml(ref.label)}" aria-haspopup="dialog"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
-        : `<div class="empty-state">No cross references are bundled for ${escapeHtml(reference)}.</div>`}
+        : crossReferenceStatus(reference)}
     </div>
     <div class="source-note">Cross references from OpenBible.info, CC-BY.</div>
   `;
@@ -24742,26 +24827,8 @@ function bindEvents() {
       }
     });
   });
-  document.querySelectorAll("[data-goto]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.dataset.searchResult === "true") {
-        state.searchReturnAvailable = true;
-        state.searchReturnScroll = button.closest(".mobile-focus-search-results-body, .library")?.scrollTop || 0;
-        document.activeElement?.blur();
-      }
-      const fromFocusWorkspace = Boolean(button.closest(".mobile-focus-workspace"));
-      if (fromFocusWorkspace) resetFocusToolSurfaces();
-      const closeLibraryAfterNavigation = !fromFocusWorkspace && button.dataset.keepLibraryOpen !== "true";
-      if (!closeLibraryAfterNavigation) rememberOpenLibraryState();
-      const focusVerse = button.dataset.gotoVerse ? Number(button.dataset.gotoVerse) : NaN;
-      gotoReference(button.dataset.goto, {
-        focusVerse,
-        libraryScroll: closeLibraryAfterNavigation ? null : captureLibraryScroll(),
-        closeLibrary: closeLibraryAfterNavigation,
-        linkNavigation: button.dataset.linkNavigation === "true",
-      });
-    });
-  });
+  document.querySelectorAll("[data-goto]").forEach(bindGotoButton);
+  document.querySelector("[data-retry-cross-refs]")?.addEventListener("click", retryCrossReferencePanel);
   document.querySelectorAll("[data-edit-bookmark]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -33780,21 +33847,21 @@ async function initializeBibleData() {
   render();
   if (state.strongNumbers) loadStrongLexicon();
   try {
-    await loadBibleBundleScript("index");
-    bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
-    if (!bibleIndex) throw new Error("Bible index script did not initialize");
-    await Promise.all([
-      loadBibleParagraphMetadata(),
-      loadBibleSectionHeadingMetadata(),
-      loadBibleRedLetterMetadata(),
-      loadBibleFootnoteMetadata(),
-    ]);
     const bundledVersions = new Set([
       "BSB",
       ...state.versions.filter(isBundledTranslation),
       ...(state.puzzleCustomVersion ? [state.puzzleCustomVersion] : []),
     ]);
-    await Promise.all([...bundledVersions].map(loadBibleVersion));
+    await Promise.all([
+      loadBibleBundleScript("index"),
+      loadBibleParagraphMetadata(),
+      loadBibleSectionHeadingMetadata(),
+      loadBibleRedLetterMetadata(),
+      loadBibleFootnoteMetadata(),
+      ...[...bundledVersions].map(loadBibleVersion),
+    ]);
+    bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
+    if (!bibleIndex) throw new Error("Bible index script did not initialize");
     rebuildBibleData();
     await applyStartupExperience({ updateReload: new URL(window.location.href).searchParams.has(appUpdateQueryKey) });
     let offlineRestoreState = null;
