@@ -5479,6 +5479,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.6": [
+      "The view-mode icons have distinct colors in the navigation and the closed mode picker.",
+    ],
     "2026.11.14.5": [
       "Games ask before leaving an active round. Hint and menu buttons are easier to spot, and mobile controls use a compact sliders icon.",
     ],
@@ -6999,7 +7002,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
       ${versionControls}
       <div class="portrait-navigation ${state.portraitNavigationOpen ? "open" : ""}">
-        <button class="primary-version-toggle portrait-navigation-toggle" id="portraitNavigationToggle" type="button" aria-expanded="${state.portraitNavigationOpen ? "true" : "false"}" aria-controls="headerModeNavigation" aria-label="${currentModeOption[1]}. Choose view mode"><span class="current-mode-icon" aria-hidden="true">${currentModeOption[2]}</span><span class="current-mode-label">${currentModeOption[1]}</span><span aria-hidden="true">⌄</span></button>
+        <button class="primary-version-toggle portrait-navigation-toggle" id="portraitNavigationToggle" type="button" aria-expanded="${state.portraitNavigationOpen ? "true" : "false"}" aria-controls="headerModeNavigation" aria-label="${currentModeOption[1]}. Choose view mode"><span class="current-mode-icon" data-mode-icon="${currentModeOption[0]}" aria-hidden="true">${currentModeOption[2]}</span><span class="current-mode-label">${currentModeOption[1]}</span><span aria-hidden="true">⌄</span></button>
       <nav class="mode-tabs" id="headerModeNavigation" aria-label="View mode">
         ${modeOptions.map(([mode, label, icon]) => `<button class="${state.mode === mode ? "active" : ""}" data-mode="${mode}" aria-label="${label}" data-tooltip="${label}">${icon}<span class="mode-label">${label}</span></button>`).join("")}
         <button class="mobile-mode-focus ${state.focusMode ? "active" : ""}" id="mobileFocusToggle" aria-label="${focusLabel}" data-tooltip="${focusLabel}">${state.focusMode ? icons.panels : icons.focus}<span class="mode-label">${focusLabel}</span></button>

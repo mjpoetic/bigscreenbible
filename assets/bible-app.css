@@ -1841,6 +1841,27 @@ button {
   border-right: 1px solid var(--line);
 }
 
+.mode-tabs [data-mode="reader"],
+.current-mode-icon[data-mode-icon="reader"] { --mode-icon-color: light-dark(#a34d14, #ffab72); }
+
+.mode-tabs [data-mode="parallel"],
+.current-mode-icon[data-mode-icon="parallel"] { --mode-icon-color: light-dark(#176e8e, #78cce9); }
+
+.mode-tabs [data-mode="big"],
+.current-mode-icon[data-mode-icon="big"] { --mode-icon-color: light-dark(#7145a5, #c5a4f4); }
+
+.mode-tabs [data-mode="memorize"],
+.current-mode-icon[data-mode-icon="memorize"] { --mode-icon-color: light-dark(#a43e66, #f0a0c1); }
+
+.mode-tabs [data-mode="trivia"],
+.current-mode-icon[data-mode-icon="trivia"] { --mode-icon-color: light-dark(#28714b, #86d3a7); }
+
+.mode-tabs .mode-workspace-settings { --mode-icon-color: light-dark(#536980, #a9bfd5); }
+
+/* Selected tabs use the accent foreground for contrast. */
+.mode-tabs button:not(.active) > svg,
+.current-mode-icon { color: var(--mode-icon-color, inherit); }
+
 .mode-tabs button:last-child {
   border-right: 0;
 }
