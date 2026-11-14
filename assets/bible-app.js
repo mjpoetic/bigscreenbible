@@ -8765,8 +8765,8 @@ function floatingControlsFadeEnabled() {
 }
 
 function focusFloatingControls() {
-  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton, .beside-auto-scroll .scroll-speed-toggle, .reader-return-button, .scripture-reader-launcher")];
-  return [...document.querySelectorAll("#mobileFloatingSettings, #focusPassageNotch, .beside-auto-scroll .scroll-speed-toggle, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher")];
+  if (!state.focusMode) return [...document.querySelectorAll(".reader-page-button, #readerAutoScrollButton, .beside-auto-scroll .scroll-speed-toggle, .reader-return-button, .scripture-reader-launcher, .search-return-action")];
+  return [...document.querySelectorAll("#mobileFloatingSettings, #focusPassageNotch, .beside-auto-scroll .scroll-speed-toggle, #mobileFocusPassageToggle, #mobileFocusToolsToggle, #desktopFocusToolsToggle, .reader-page-button, #readerAutoScrollButton, #readerSelectionToolsButton, #readerReturnButton, #readerForwardButton, .focus-reading-controls, .scripture-reader-launcher, .search-return-action")];
 }
 
 function focusControlsInUse() {

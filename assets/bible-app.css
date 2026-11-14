@@ -27435,6 +27435,18 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .bible-return-hint button { color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 8px; padding: 6px 12px; }
 .search-return-action { position: fixed; z-index: 65; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; align-items: center; gap: 6px; max-width: 90vw; padding: 9px 14px; border-radius: 20px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 3px 14px #0002; font-size: 13px; }
 .search-return-action svg { width: 18px; height: 18px; }
+.presentation .search-return-action {
+  opacity: 0;
+  pointer-events: none;
+}
+.presentation.controls-visible .search-return-action,
+.presentation:focus-within .search-return-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .presentation .search-return-action { transition: opacity 600ms ease; }
+}
 @keyframes bible-return-glow {
   0% { opacity: 0; transform: scale(0.96); }
   22% { opacity: 0.8; }
