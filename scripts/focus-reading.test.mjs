@@ -181,3 +181,27 @@ const columnTops = [];
 for (let i = 0; i < 6; i++) { columnTops.push(context.focusReadingWindowRect().top); if (i < 5) context.moveFocusReading(1); }
 assert.deepEqual(columnTops, [30, 60, 150, 30, 60, 150], 'After reflow to side-by-side, playback retains column order');
 console.log('Parallel Focus Reading: stacked visual order, translation boundaries, final stop, and side-by-side reflow passed.');
+
+function verseFragment(verse, lines) {
+  return { ...text(30, lines), closest: selector => {
+    if (selector === '[data-verse]') return { dataset: { verse } };
+    return selector === '.parallel-copy' ? null : paragraph;
+  } };
+}
+context.state.mode = 'reader';
+surface.querySelectorAll = () => texts;
+context.state.focusMode = true;
+context.state.focusReading = true;
+context.state.reference = 'John 4';
+surface.scrollTop = 0;
+texts.splice(0, texts.length, verseFragment('1', [rect(80), rect(110)]), verseFragment('2', [rect(140)]));
+context.measureFocusReading();
+context.moveFocusReading(1);
+context.moveFocusReading(1);
+assert.equal(status.textContent, 'Reading line 3 of 3');
+texts.splice(0, texts.length, verseFragment('1', [rect(80)]), verseFragment('2', [rect(110)]));
+context.measureFocusReading();
+assert.equal(status.textContent, 'Reading line 2 of 2', 'Reflow follows the active verse');
+texts.splice(0, texts.length, verseFragment('1', [rect(80), rect(110)]), verseFragment('2', [rect(140)]));
+context.measureFocusReading();
+assert.equal(status.textContent, 'Reading line 3 of 3', 'Reflow back still follows the active verse');

@@ -1992,7 +1992,7 @@ function selectionBarIsVisible() {
   return Boolean(document.querySelector(".scripture .selection-bar:not(.selection-bar-exiting)")?.getClientRects().length);
 }
 
-function render() {
+function render({ preserveAutoScroll = false } = {}) {
   const focusPickerMotion = captureFocusPickerMotion();
   scheduleNativeWidgetSync();
   const previousMemorySurface = document.querySelector(".memorize-reader");
@@ -2011,7 +2011,7 @@ function render() {
   if (state.mode !== "big") state.presentationNoButtons = false;
   finishReaderVerseHold();
   parallelVersionDragCleanup?.();
-  pauseReaderAutoScroll({ updateControl: false });
+  if (!preserveAutoScroll) pauseReaderAutoScroll({ updateControl: false });
   closeSearchScopeMenu();
   closeSettingsChoiceMenu();
   if (!noteSearchAvailable() && normalizedSearchSource(state.searchSource) === "notes") {
@@ -2032,7 +2032,7 @@ function render() {
     ? document.activeElement.closest("#scriptureReadingRegion") : null;
   const readingFocusSnapshot = readingFocus ? {
     label: readingFocus.getAttribute("aria-label"),
-    verse: document.activeElement.closest("[data-verse]")?.dataset.verse,
+    verse: document.activeElement.closest("[data-verse]")?.dataset?.verse,
   } : null;
   const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   const sideToolbarPosition = effectiveSideToolbarPosition();
@@ -2371,15 +2371,18 @@ function renderPreservingReaderScroll(options = {}) {
   const navigating = Boolean(state.pendingVerseFocus);
   const reference = state.reference;
   const verse = state.verse;
-  render();
+  const preserveAutoScroll = options.preferLastReaderAnchor && !navigating && state.autoScrollActive;
+  render({ preserveAutoScroll });
   // A chapter arriving from the network must finish the requested navigation.
   // Delayed restores from an earlier render must not undo a newer arrival.
   const restore = () => {
     if (!navigating && state.reference === reference && state.verse === verse) {
       restoreReaderScroll(scrollState);
+      if (preserveAutoScroll) restoreAutoScrollAfterViewportChange();
     }
   };
   restore();
+  if (preserveAutoScroll) return;
   requestAnimationFrame(() => {
     restore();
     requestAnimationFrame(restore);
@@ -5447,6 +5450,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.13.4": [
+      "Auto-scroll keeps your place when you rotate your phone, including in Focus Reading.",
+    ],
     "2026.11.13.3": [
       "Highlight and update confirmations stand out more clearly over Scripture with a darker backdrop that fades softly at the edges.",
     ],
@@ -8850,6 +8856,22 @@ function pauseReaderAutoScroll({ announce = false, updateControl = true } = {}) 
   return wasActive;
 }
 
+function restoreAutoScrollAfterViewportChange() {
+  const surface = readerAutoScrollSurface();
+  if (!surface || !state.autoScrollActive) return;
+  if (state.focusMode && state.focusReading) {
+    cancelFocusReadingMotion();
+    measureFocusReading();
+    const line = focusReadingRects[focusReadingIndex];
+    if (line) {
+      surface.scrollTop = line.top - surface.clientHeight * 0.35;
+      paintFocusReading();
+    }
+  }
+  readerAutoScrollPosition = surface.scrollTop;
+  readerAutoScrollLastTime = 0;
+}
+
 function readerAutoScrollStep(timestamp) {
   if (!state.autoScrollActive) return;
   const scripture = readerAutoScrollSurface();
@@ -9139,6 +9161,12 @@ function preserveReaderScrollAfterViewportChange() {
     lastReaderScrollAnchor = scrollState.readerAnchor;
   }
   clearTimeout(readerViewportRestoreTimer);
+
+  if (state.autoScrollActive) {
+    restoreReaderScroll(scrollState);
+    restoreAutoScrollAfterViewportChange();
+    return;
+  }
 
   const restore = () => {
     if (generation !== readerScrollRestoreGeneration
@@ -9760,6 +9788,7 @@ function measureFocusReading() {
   const surface = document.querySelector(".scripture");
   if (!surface || !state.focusMode || !state.focusReading) return;
   const clip = surface.getBoundingClientRect();
+  const previousLine = focusReadingRects[focusReadingIndex];
   const rects = [];
   surface.querySelectorAll(".verse-text, .parallel-copy:not(.parallel-heading-copy), .verse-of-day-copy").forEach(text => {
     const range = document.createRange();
@@ -9770,6 +9799,7 @@ function measureFocusReading() {
       range.selectNodeContents(walker.currentNode);
       textRects.push(...range.getClientRects());
     }
+    const verse = text.closest("[data-verse]")?.dataset?.verse;
     const column = text.closest(".parallel-copy");
     const columnKey = column?.dataset.version || "reader";
     const bounds = (column || text.closest(".scripture-paragraph, .verse") || text).getBoundingClientRect();
@@ -9779,11 +9809,12 @@ function measureFocusReading() {
       const left = bounds.left - clip.left;
       const previous = rects.find(line => Math.abs(line.top - top) < 4 && line.columnKey === columnKey);
       if (previous) {
+        previous.verses.add(verse);
         previous.top = Math.min(previous.top, top);
         previous.bottom = Math.max(previous.bottom, rect.bottom - clip.top + surface.scrollTop);
         previous.left = Math.min(previous.left, left);
         previous.right = Math.max(previous.right, bounds.right - clip.left);
-      } else rects.push({ top, bottom: rect.bottom - clip.top + surface.scrollTop, left, right: bounds.right - clip.left, columnKey });
+      } else rects.push({ top, bottom: rect.bottom - clip.top + surface.scrollTop, left, right: bounds.right - clip.left, columnKey, verses: new Set([verse]) });
     }
   });
   const columns = [...new Set(rects.map(line => line.columnKey))];
@@ -9795,6 +9826,18 @@ function measureFocusReading() {
   rects.sort((a, b) => stacked
     ? a.top - b.top || columns.indexOf(a.columnKey) - columns.indexOf(b.columnKey)
     : columns.indexOf(a.columnKey) - columns.indexOf(b.columnKey) || a.top - b.top);
+  if (focusReadingReference === state.reference && previousLine) {
+    const verse = previousLine.verses.values().next().value;
+    if (verse) {
+      const matches = line => line.columnKey === previousLine.columnKey && line.verses.has(verse);
+      const previousVerseLines = focusReadingRects.filter(matches);
+      const nextVerseLines = rects.filter(matches);
+      if (nextVerseLines.length) {
+        const verseLineIndex = previousVerseLines.indexOf(previousLine);
+        focusReadingIndex = rects.indexOf(nextVerseLines[Math.min(verseLineIndex, nextVerseLines.length - 1)]);
+      }
+    }
+  }
   focusReadingRects = rects;
   if (focusReadingReference !== state.reference) {
     focusReadingReference = state.reference;
