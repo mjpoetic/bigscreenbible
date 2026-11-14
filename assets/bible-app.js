@@ -5479,6 +5479,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.8": [
+      "Play new Bible Trivia, Who Said It, Reference Rush, Crossword, Hidden Word, and Word Search items.",
+      "Trivia levels have more category-specific questions, and Book Sprint avoids repeating the same set within a round.",
+    ],
     "2026.11.14.7": [
       "The Crossword timer and buttons have more room above the divider on wider screens.",
     ],
@@ -15754,6 +15758,18 @@ const hiddenWordPuzzleCatalog = [
   { answer: "BALAAM'S DONKEY", category: "Food & Animals", reference: "Numbers 22:28", clue: "God opened this animal's mouth after it saw the angel in the road." },
   { answer: "DOVE WITH AN OLIVE LEAF", category: "Food & Animals", reference: "Genesis 8:11", clue: "This returning bird showed Noah that the floodwaters were receding." },
   { answer: "GREAT FISH", category: "Food & Animals", reference: "Jonah 1:17", clue: "The Lord appointed this creature to swallow Jonah." },
+  { answer: "APOLLOS", category: "People", reference: "Acts 18:24", clue: "An eloquent teacher from Alexandria who knew the Scriptures." },
+  { answer: "EMMAUS", category: "Places", reference: "Luke 24:13", clue: "Two disciples were walking to this village when the risen Jesus joined them." },
+  { answer: "HABAKKUK", category: "Books of the Bible", reference: "Habakkuk 3:18", clue: "This prophetic book ends with rejoicing even if the fig tree does not blossom." },
+  { answer: "RECONCILIATION", category: "Bible Vocabulary", reference: "2 Corinthians 5:18", clue: "The ministry of restoring a broken relationship with God through Christ." },
+  { answer: "A TIME TO WEEP", category: "Famous Phrases", reference: "Ecclesiastes 3:4", clue: "The season paired with a time to laugh." },
+  { answer: "THE FALL OF JERICHO", category: "Bible Events", reference: "Joshua 6:20", clue: "The event that followed the sound of trumpets and a great shout outside a walled city." },
+  { answer: "AARON'S STAFF", category: "Objects & Things", reference: "Numbers 17:8", clue: "This object sprouted buds, blossoms, and almonds overnight." },
+  { answer: "WATER FROM A ROCK", category: "Miracles", reference: "Exodus 17:6", clue: "What the thirsty Israelites received when Moses struck the stone at Horeb." },
+  { answer: "BE ANGRY AND DO NOT SIN", category: "Bible Quotes", reference: "Ephesians 4:26", clue: "The instruction just before the warning about letting the sun go down on your anger." },
+  { answer: "THE BARREN FIG TREE", category: "Parables", reference: "Luke 13:8", clue: "A gardener asked for one more year to tend this unfruitful tree." },
+  { answer: "THE TRUE VINE", category: "Titles of Jesus", reference: "John 15:1", clue: "Jesus called himself this and described his Father as the gardener." },
+  { answer: "QUAIL", category: "Food & Animals", reference: "Numbers 11:31", clue: "Birds a wind brought into the Israelite camp." },
 ];
 
 const hiddenWordPeople = new Set([
@@ -16113,6 +16129,15 @@ const crosswordTriviaCatalog = [
   { answer: "APOLLOS", clue: "Preacher from Alexandria whom Priscilla and her husband taught more accurately.", reference: "Acts 18:24-26" },
   { answer: "MUSTARD", clue: "Plant whose small seed illustrates the kingdom of heaven in a parable.", reference: "Matthew 13:31-32" },
   { answer: "POTTER", clue: "Craftsperson whose work with clay illustrated God's message to Jeremiah.", reference: "Jeremiah 18:1-6" },
+  { answer: "EUTYCHUS", clue: "Young man who fell from a third-story window during a long speech.", reference: "Acts 20:9" },
+  { answer: "TERTIUS", clue: "Scribe who adds his own greeting near the end of the letter to the Romans.", reference: "Romans 16:22" },
+  { answer: "HULDAH", clue: "Prophetess consulted after the book of the law was found in the temple.", reference: "2 Kings 22:14" },
+  { answer: "BARUCH", clue: "Scribe who wrote down the words dictated by a prophet during Jehoiakim’s reign.", reference: "Jeremiah 36:4" },
+  { answer: "CENCHREAE", clue: "Harbor where an apostle cut his hair before sailing for Syria.", reference: "Acts 18:18" },
+  { answer: "MALCHUS", clue: "High priest’s servant whose right ear was cut off.", reference: "John 18:10" },
+  { answer: "BEZALEL", clue: "Craftsman from Judah appointed to make furnishings for the tabernacle.", reference: "Exodus 31:1-5" },
+  { answer: "ONESIMUS", clue: "Man Paul called his child in a letter written from prison.", reference: "Philemon 1:10" },
+  { answer: "JETHRO", clue: "Moses’ father-in-law who advised him to appoint other judges.", reference: "Exodus 18:17-24" },
 ];
 
 function crosswordDifficultyConfig(difficulty = state.triviaDifficulty) {
@@ -16400,6 +16425,16 @@ const wordSearchCategoryCatalog = [
     "label": "Prophets",
     "entries": [
       {
+        "label": "Micaiah",
+        "fact": "Warned Ahab that the campaign at Ramoth-gilead would fail.",
+        "reference": "1 Kings 22:17"
+      },
+      {
+        "label": "Huldah",
+        "fact": "Was consulted about the book of the law found in the temple.",
+        "reference": "2 Kings 22:14"
+      },
+      {
         "label": "Isaiah",
         "fact": "Saw a vision of the Lord in the temple.",
         "reference": "Isaiah 6:1-8"
@@ -16506,6 +16541,16 @@ const wordSearchCategoryCatalog = [
     "label": "Kings and Rulers",
     "entries": [
       {
+        "label": "Belshazzar",
+        "fact": "Saw writing appear on the wall during his feast.",
+        "reference": "Daniel 5:1-6"
+      },
+      {
+        "label": "Festus",
+        "fact": "Heard Paul appeal to Caesar.",
+        "reference": "Acts 25:9-12"
+      },
+      {
         "label": "Saul",
         "fact": "Was anointed king by Samuel.",
         "reference": "1 Samuel 10:1"
@@ -16601,6 +16646,16 @@ const wordSearchCategoryCatalog = [
     "id": "women",
     "label": "Women of the Bible",
     "entries": [
+      {
+        "label": "Rhoda",
+        "fact": "Recognized Peter’s voice at the gate after his release from prison.",
+        "reference": "Acts 12:13-14"
+      },
+      {
+        "label": "Lois",
+        "fact": "Was Timothy’s grandmother.",
+        "reference": "2 Timothy 1:5"
+      },
       {
         "label": "Eve",
         "fact": "Was named as the mother of all the living.",
@@ -16703,6 +16758,11 @@ const wordSearchCategoryCatalog = [
     "label": "Apostles and Disciples",
     "entries": [
       {
+        "label": "Tabitha",
+        "fact": "Was a disciple in Joppa known for her good works.",
+        "reference": "Acts 9:36"
+      },
+      {
         "label": "Peter",
         "fact": "Left his nets to follow Jesus.",
         "reference": "Matthew 4:18-20"
@@ -16798,6 +16858,16 @@ const wordSearchCategoryCatalog = [
     "id": "places",
     "label": "Places of the Bible",
     "entries": [
+      {
+        "label": "Lydda",
+        "fact": "Peter healed Aeneas in this town.",
+        "reference": "Acts 9:32-34"
+      },
+      {
+        "label": "Cenchreae",
+        "fact": "Paul cut his hair at this harbor before sailing for Syria.",
+        "reference": "Acts 18:18"
+      },
       {
         "label": "Eden",
         "fact": "Was the garden where God placed the first man.",
@@ -16905,6 +16975,16 @@ const wordSearchCategoryCatalog = [
     "label": "Animals of the Bible",
     "entries": [
       {
+        "label": "Ostrich",
+        "fact": "The LORD describes this bird leaving its eggs on the ground.",
+        "reference": "Job 39:13-18"
+      },
+      {
+        "label": "Viper",
+        "fact": "Fastened onto Paul’s hand on Malta.",
+        "reference": "Acts 28:3"
+      },
+      {
         "label": "Lion",
         "fact": "Was the animal Samson encountered near Timnah.",
         "reference": "Judges 14:5-6"
@@ -17010,6 +17090,16 @@ const wordSearchCategoryCatalog = [
     "id": "opponents",
     "label": "Opponents & Betrayers",
     "entries": [
+      {
+        "label": "Sheba",
+        "fact": "Led a rebellion against David after Absalom’s death.",
+        "reference": "2 Samuel 20:1-2"
+      },
+      {
+        "label": "Geshem",
+        "fact": "Joined in mocking those rebuilding Jerusalem’s wall.",
+        "reference": "Nehemiah 2:19"
+      },
       {
         "label": "Cain",
         "fact": "Killed his brother Abel.",
@@ -26177,6 +26267,8 @@ const referenceRushEasyRefs = new Set([
   "Philippians 4:19", "Colossians 3:23", "1 Thessalonians 5:16", "2 Timothy 1:7",
   "Hebrews 11:1", "Hebrews 12:2", "James 1:5", "1 Peter 5:7", "1 John 1:9", "1 John 4:7",
   "Revelation 3:20", "Revelation 21:4",
+  "Psalm 56:3", "Psalm 118:6", "Proverbs 4:23", "Matthew 5:9", "Matthew 6:21",
+  "John 15:13", "Romans 12:12", "Philippians 4:6", "1 John 4:18", "Revelation 22:20",
 ]);
 
 const referenceRushMediumRefs = new Set([
@@ -26195,6 +26287,8 @@ const referenceRushMediumRefs = new Set([
   "Galatians 2:20", "Ephesians 4:32", "Philippians 2:5", "Colossians 3:2", "1 Thessalonians 5:18",
   "1 Timothy 4:12", "2 Timothy 3:16", "Hebrews 4:12", "James 1:22", "James 2:17",
   "1 Peter 3:15", "1 John 4:19", "Revelation 22:13",
+  "Genesis 18:14", "Deuteronomy 8:3", "1 Samuel 15:22", "2 Chronicles 7:14", "Psalm 73:26",
+  "Isaiah 55:11", "Matthew 12:34", "Luke 6:31", "Acts 20:35", "Hebrews 13:2",
 ]);
 
 function referenceRushDifficultyDescription(difficulty) {
@@ -26833,10 +26927,12 @@ function startBookSprintGame({ render = true } = {}) {
   const puzzleCount = normalizedTriviaCount("book-sprint", state.triviaCount);
   const target = savedBookSprintBest(state.triviaDifficulty, puzzleCount);
   if (target) primeBookSprintAudio();
+  const size = state.triviaDifficulty === "Hard" ? 7 : state.triviaDifficulty === "Medium" ? 6 : 5;
+  const starts = shuffleItems(Array.from({ length: books.length - size + 1 }, (_, index) => index)).slice(0, puzzleCount);
   state.triviaGame = {
     type: "book-sprint",
     difficulty: state.triviaDifficulty,
-    puzzles: Array.from({ length: puzzleCount }, createBookSprintPuzzle),
+    puzzles: starts.map((start) => createBookSprintPuzzle(books.slice(start, start + size))),
     index: 0,
     score: 0,
     startedAt: Date.now(),
@@ -26853,10 +26949,7 @@ function startBookSprintGame({ render = true } = {}) {
   if (render) renderPreservingReaderScroll();
 }
 
-function createBookSprintPuzzle() {
-  const size = state.triviaDifficulty === "Hard" ? 7 : state.triviaDifficulty === "Medium" ? 6 : 5;
-  const start = Math.floor(triviaRandomSource() * (books.length - size + 1));
-  const bookSet = books.slice(start, start + size);
+function createBookSprintPuzzle(bookSet) {
   return {
     books: bookSet,
     shuffledBooks: shuffleItems(bookSet),
@@ -26876,7 +26969,7 @@ const whoSaidItQuestions = [
   { difficulty: "easy", quote: "My Lord and my God!", answer: "Thomas", choices: ["Thomas", "Peter", "John", "Philip"], reference: "John 20:28", explanation: "Thomas said this after seeing the risen Jesus." },
   { difficulty: "easy", quote: "As for me and my house, we will serve the LORD.", answer: "Joshua", choices: ["Joshua", "Moses", "Caleb", "Gideon"], reference: "Joshua 24:15", explanation: "Joshua called Israel to covenant faithfulness." },
   { difficulty: "medium", quote: "Create in me a clean heart, O God.", answer: "David", choices: ["David", "Solomon", "Asaph", "Moses"], reference: "Psalm 51:10", explanation: "David prayed this after his sin was exposed." },
-  { difficulty: "medium", quote: "Vanity of vanities, says the Teacher.", answer: "Solomon", choices: ["Solomon", "Job", "David", "Agur"], reference: "Ecclesiastes 1:2", explanation: "Ecclesiastes is traditionally associated with Solomon's wisdom." },
+  { difficulty: "medium", quote: "Vanity of vanities! All is vanity.", answer: "The Teacher", choices: ["The Teacher", "Job", "Asaph", "Agur"], reference: "Ecclesiastes 1:2", explanation: "Ecclesiastes introduces its speaker as the Teacher." },
   { difficulty: "easy", quote: "Let it be to me according to your word.", answer: "Mary", choices: ["Mary", "Elizabeth", "Anna", "Martha"], reference: "Luke 1:38", explanation: "Mary responded faithfully to Gabriel's announcement." },
   { difficulty: "medium", quote: "Lord, to whom shall we go? You have the words of eternal life.", answer: "Peter", choices: ["Peter", "John", "Andrew", "James"], reference: "John 6:68", explanation: "Peter answered when many disciples turned away." },
   { difficulty: "medium", quote: "Believe in the Lord Jesus, and you will be saved.", answer: "Paul and Silas", choices: ["Paul and Silas", "Peter and John", "Barnabas and Mark", "Aquila and Priscilla"], reference: "Acts 16:31", explanation: "Paul and Silas answered the Philippian jailer." },
@@ -26895,12 +26988,12 @@ const whoSaidItQuestions = [
   { difficulty: "easy", quote: "Please let a little water be brought, that you may wash your feet.", answer: "Abraham", choices: ["Abraham", "Lot", "Isaac", "Jacob"], reference: "Genesis 18:4", explanation: "Abraham welcomed the heavenly visitors with hospitality." },
   { difficulty: "easy", quote: "Do not lay a hand on the boy.", answer: "The angel of the LORD", choices: ["The angel of the LORD", "Abraham", "Isaac", "Sarah"], reference: "Genesis 22:12", explanation: "The angel stopped Abraham from sacrificing Isaac." },
   { difficulty: "easy", quote: "Go to Pharaoh, for I have hardened his heart.", answer: "God", choices: ["God", "Moses", "Aaron", "Jethro"], reference: "Exodus 10:1", explanation: "God sent Moses back to Pharaoh." },
-  { difficulty: "easy", quote: "Let my people go.", answer: "God", choices: ["God", "Moses", "Aaron", "Joshua"], reference: "Exodus 8:1", explanation: "God gave Moses this message for Pharaoh." },
+  { difficulty: "easy", quote: "Let my people go, so that they may worship me.", answer: "God", choices: ["God", "Moses", "Aaron", "Joshua"], reference: "Exodus 8:1", explanation: "God gave Moses this message for Pharaoh." },
   { difficulty: "easy", quote: "Stand still and see the salvation of the LORD.", answer: "Moses", choices: ["Moses", "Joshua", "Caleb", "Aaron"], reference: "Exodus 14:13", explanation: "Moses encouraged Israel at the Red Sea." },
   { difficulty: "easy", quote: "I am the LORD your God.", answer: "God", choices: ["God", "Moses", "Joshua", "David"], reference: "Exodus 20:2", explanation: "God opened the Ten Commandments with this declaration." },
   { difficulty: "easy", quote: "The LORD is my shepherd.", answer: "David", choices: ["David", "Solomon", "Moses", "Asaph"], reference: "Psalm 23:1", explanation: "David's psalm begins with this trust-filled confession." },
   { difficulty: "easy", quote: "The LORD is my light and my salvation.", answer: "David", choices: ["David", "Isaiah", "Jeremiah", "Solomon"], reference: "Psalm 27:1", explanation: "David declared confidence in the LORD." },
-  { difficulty: "easy", quote: "For God so loved the world.", answer: "Jesus", choices: ["Jesus", "John", "Paul", "Peter"], reference: "John 3:16", explanation: "Jesus spoke these words to Nicodemus." },
+  { difficulty: "easy", quote: "I am the good shepherd. The good shepherd lays down His life for the sheep.", answer: "Jesus", choices: ["Jesus", "John the Baptist", "Paul", "Peter"], reference: "John 10:11", explanation: "Jesus described himself as the shepherd who gives his life for the sheep." },
   { difficulty: "easy", quote: "Father, forgive them.", answer: "Jesus", choices: ["Jesus", "Stephen", "Peter", "Paul"], reference: "Luke 23:34", explanation: "Jesus prayed this from the cross." },
   { difficulty: "easy", quote: "He is not here, for He has risen.", answer: "The angel", choices: ["The angel", "Mary Magdalene", "Peter", "John"], reference: "Matthew 28:6", explanation: "The angel announced Jesus' resurrection." },
   { difficulty: "easy", quote: "Follow Me, and I will make you fishers of men.", answer: "Jesus", choices: ["Jesus", "John the Baptist", "Peter", "Paul"], reference: "Matthew 4:19", explanation: "Jesus called His first disciples with these words." },
@@ -26950,7 +27043,7 @@ const whoSaidItQuestions = [
   { difficulty: "hard", quote: "Where is He who has been born King of the Jews?", answer: "The magi", choices: ["The magi", "Herod", "The shepherds", "The priests"], reference: "Matthew 2:2", explanation: "The magi asked this when they arrived in Jerusalem." },
   { difficulty: "hard", quote: "I am not worthy to untie the strap of His sandals.", answer: "John the Baptist", choices: ["John the Baptist", "Peter", "Paul", "Andrew"], reference: "John 1:27", explanation: "John humbled himself before Christ." },
   { difficulty: "hard", quote: "We have found the Messiah.", answer: "Andrew", choices: ["Andrew", "Philip", "Peter", "John"], reference: "John 1:41", explanation: "Andrew told his brother Simon about Jesus." },
-  { difficulty: "hard", quote: "Can anything good come out of Nazareth?", answer: "Nathanael", choices: ["Nathanael", "Philip", "Thomas", "Peter"], reference: "John 1:46", explanation: "Nathanael was skeptical before meeting Jesus." },
+  { difficulty: "medium", quote: "Can anything good come out of Nazareth?", answer: "Nathanael", choices: ["Nathanael", "Philip", "Thomas", "Peter"], reference: "John 1:46", explanation: "Nathanael was skeptical before meeting Jesus." },
   { difficulty: "hard", quote: "He must increase, but I must decrease.", answer: "John the Baptist", choices: ["John the Baptist", "Peter", "Paul", "Barnabas"], reference: "John 3:30", explanation: "John rejoiced that attention turned to Christ." },
   { difficulty: "hard", quote: "Give me this water so that I will not get thirsty.", answer: "The Samaritan woman", choices: ["The Samaritan woman", "Martha", "Mary Magdalene", "The Canaanite woman"], reference: "John 4:15", explanation: "The Samaritan woman responded to Jesus' offer of living water." },
   { difficulty: "hard", quote: "Rabbi, who sinned, this man or his parents?", answer: "The disciples", choices: ["The disciples", "The Pharisees", "The crowd", "The elders"], reference: "John 9:2", explanation: "The disciples asked about the man born blind." },
@@ -27068,6 +27161,11 @@ const whoSaidItQuestions = [
   { difficulty: "hard", quote: "Paul, you are out of your mind!", answer: "Festus", choices: ["Festus", "Agrippa", "Felix", "Tertullus"], reference: "Acts 26:24", explanation: "Festus interrupted Paul's defense before Agrippa." },
   { difficulty: "hard", quote: "Great is Artemis of the Ephesians!", answer: "The Ephesian crowd", choices: ["The Ephesian crowd", "Demetrius", "Paul", "Alexander"], reference: "Acts 19:28", explanation: "The crowd shouted this during the riot in Ephesus." },
   { difficulty: "hard", quote: "Should a man like me flee?", answer: "Nehemiah", choices: ["Nehemiah", "Ezra", "Mordecai", "Jeremiah"], reference: "Nehemiah 6:11", explanation: "Nehemiah refused the trap set by his enemies." },
+  { difficulty: "easy", quote: "I do not know the man!", answer: "Peter", choices: ["Peter", "Thomas", "Andrew", "Philip"], reference: "Matthew 26:74", explanation: "Peter denied knowing Jesus a third time." },
+  { difficulty: "hard", quote: "May another take his place of leadership.", answer: "Peter", choices: ["Peter", "Stephen", "James", "Paul"], reference: "Acts 1:20", explanation: "Peter quoted a psalm when the disciples gathered to replace Judas." },
+  { difficulty: "hard", quote: "I am innocent of the blood of all men.", answer: "Paul", choices: ["Paul", "Peter", "Stephen", "Philip"], reference: "Acts 20:26", explanation: "Paul said this in his farewell to the Ephesian elders at Miletus." },
+  { difficulty: "medium", quote: "Unless I see the nail marks in His hands, I will never believe.", answer: "Thomas", choices: ["Thomas", "Philip", "Andrew", "Peter"], reference: "John 20:25", explanation: "Thomas doubted the other disciples’ report that they had seen the risen Jesus." },
+  { difficulty: "medium", quote: "Who is my neighbor?", answer: "An expert in the law", choices: ["An expert in the law", "A rich ruler", "A Roman centurion", "A Samaritan woman"], reference: "Luke 10:29", explanation: "The question prompted Jesus to tell the parable of the Good Samaritan." },
 ];
 
 function startWhoSaidItGame({ render = true } = {}) {

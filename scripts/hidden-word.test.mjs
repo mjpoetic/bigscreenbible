@@ -63,9 +63,9 @@ const expectedCategories = [
 ];
 
 assert.deepEqual([...api.hiddenWordCategories], expectedCategories);
-assert.equal(api.hiddenWordPuzzleCatalog.length, 120, "Catalog should provide ten curated puzzles per category");
+assert.ok(api.hiddenWordPuzzleCatalog.length >= 132, "Catalog should provide at least eleven curated puzzles per category");
 expectedCategories.forEach((category) => {
-  assert.equal(api.hiddenWordPuzzleCatalog.filter((puzzle) => puzzle.category === category).length, 10, `${category} should have ten puzzles`);
+  assert.ok(api.hiddenWordPuzzleCatalog.filter((puzzle) => puzzle.category === category).length >= 11, `${category} should have at least eleven puzzles`);
 });
 
 const normalizedAnswers = api.hiddenWordPuzzleCatalog.map((puzzle) => puzzle.answer.replace(/[^A-Z]/g, ""));
@@ -93,7 +93,7 @@ api.hiddenWordPuzzleCatalog.forEach((puzzle) => {
 api.hiddenWordPuzzleCatalog.filter((puzzle) => puzzle.category === "Bible Quotes").forEach((puzzle) => {
   assert.ok(api.hiddenWordAnswerLetters(puzzle.answer).length <= 25, `${puzzle.answer} should remain a short Bible quote`);
 });
-assert.equal(api.hiddenWordCatalogCandidates().length, 120);
+assert.equal(api.hiddenWordCatalogCandidates().length, api.hiddenWordPuzzleCatalog.length);
 const balancedRound = api.hiddenWordSelectCatalogPuzzles(10);
 assert.equal(balancedRound.length, 10);
 assert.equal(new Set(balancedRound.map((puzzle) => puzzle.category)).size, 10, "A short curated round should rotate through distinct categories");

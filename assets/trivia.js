@@ -332,8 +332,7 @@ window.bibleTriviaQuestions.push(
   { category: "Prayer", difficulty: "medium", question: "Who prayed and the sun stood still?", choices: ["Joshua", "Moses", "Elijah", "Samuel"], answer: "Joshua", reference: "Joshua 10:12-14", explanation: "Joshua prayed during battle, and the sun stood still." },
   { category: "Prayer", difficulty: "medium", question: "Who prayed three times a day even when it was forbidden?", choices: ["Daniel", "Nehemiah", "Ezra", "Mordecai"], answer: "Daniel", reference: "Daniel 6:10", explanation: "Daniel continued praying toward Jerusalem despite the decree." },
   { category: "Prayer", difficulty: "hard", question: "Who prayed for God to enlarge his territory?", choices: ["Jabez", "Caleb", "Boaz", "Asa"], answer: "Jabez", reference: "1 Chronicles 4:10", explanation: "Jabez called on God to bless him and enlarge his territory." },
-  { category: "Commandments", difficulty: "easy", question: "What is the first commandment?", choices: ["Do not steal", "Honor your father and mother", "You shall have no other gods", "Do not murder"], answer: "You shall have no other gods", reference: "Exodus 20:3", explanation: "The first commandment forbids having other gods before the LORD." },
-  { category: "Commandments", difficulty: "medium", question: "Which commandment tells us to honor father and mother?", choices: ["Third", "Fourth", "Fifth", "Sixth"], answer: "Fifth", reference: "Exodus 20:12", explanation: "The fifth commandment is to honor father and mother." },
+  { category: "Commandments", difficulty: "easy", question: "What does the LORD say about other gods at Sinai?", choices: ["Do not steal", "Honor your father and mother", "You shall have no other gods", "Do not murder"], answer: "You shall have no other gods", reference: "Exodus 20:3", explanation: "At Sinai the LORD forbids having other gods before him." },
   { category: "Commandments", difficulty: "hard", question: "Jesus said the greatest commandment is to love God with all your heart, soul, and what else?", choices: ["Strength and mind", "Possessions and time", "Family and neighbor", "Words and works"], answer: "Strength and mind", reference: "Luke 10:27", explanation: "Jesus affirmed love for God with heart, soul, strength, and mind." },
   { category: "Psalms", difficulty: "easy", question: "Which Psalm begins, 'The LORD is my shepherd'?", choices: ["Psalm 1", "Psalm 23", "Psalm 91", "Psalm 121"], answer: "Psalm 23", reference: "Psalm 23:1", explanation: "Psalm 23 opens with the beloved shepherd image." },
   { category: "Psalms", difficulty: "medium", question: "Which Psalm says, 'Your word is a lamp to my feet'?", choices: ["Psalm 19", "Psalm 46", "Psalm 119", "Psalm 150"], answer: "Psalm 119", reference: "Psalm 119:105", explanation: "Psalm 119 celebrates God's word as guidance and light." },
@@ -552,22 +551,15 @@ window.bibleTriviaQuestions.push(
   ]);
 
   addRows("Commandments", [
-    ["easy", "Which commandment forbids murder?", "Sixth", ["Fourth", "Fifth", "Seventh"], "Exodus 20:13", "The sixth commandment says, You shall not murder.", "the command against murder"],
-    ["easy", "Which commandment forbids stealing?", "Eighth", ["Second", "Fourth", "Ninth"], "Exodus 20:15", "The eighth commandment says, You shall not steal.", "the command against theft"],
-    ["easy", "Which commandment forbids bearing false witness?", "Ninth", ["Third", "Fifth", "Tenth"], "Exodus 20:16", "The ninth commandment forbids false witness against a neighbor.", "the command protecting truthful witness"],
-    ["easy", "Which commandment says not to covet?", "Tenth", ["First", "Fourth", "Seventh"], "Exodus 20:17", "The tenth commandment forbids coveting what belongs to another.", "the command about coveting"],
-    ["medium", "Which commandment calls for remembering the Sabbath day?", "Fourth", ["First", "Second", "Fifth"], "Exodus 20:8", "The fourth commandment calls God's people to remember the Sabbath day.", "remembering the Sabbath"],
-    ["medium", "Which commandment says not to make carved images for worship?", "Second", ["First", "Third", "Fourth"], "Exodus 20:4", "The second commandment forbids making images for worship.", "the command against idols"],
-    ["medium", "Which commandment says not to misuse the LORD's name?", "Third", ["Second", "Fourth", "Sixth"], "Exodus 20:7", "The third commandment protects the holiness of God's name.", "the command about God's name"],
-    ["medium", "Which commandment says not to commit adultery?", "Seventh", ["Fifth", "Sixth", "Eighth"], "Exodus 20:14", "The seventh commandment protects covenant faithfulness in marriage.", "the command protecting marriage"],
-    ["medium", "Which commandment tells children to honor father and mother?", "Fifth", ["Second", "Fourth", "Sixth"], "Exodus 20:12", "The fifth commandment calls for honoring father and mother.", "honoring parents"],
-    ["medium", "What is the first commandment about?", "Having no other gods", ["Keeping Sabbath", "Honoring parents", "Not stealing"], "Exodus 20:3", "The first commandment calls for exclusive loyalty to the LORD.", "exclusive loyalty to God"],
+    ["easy", "Whom does the command in Exodus 20:12 tell people to honor?", "Their parents", ["Their rulers", "Their neighbors", "Their teachers"], "Exodus 20:12", "The command tells people to honor their father and mother.", "honoring father and mother"],
+    ["medium", "What reason does Exodus give for the Sabbath being blessed?", "God rested after making heaven and earth", ["Israel escaped from Pharaoh on that day", "The priests finished the tabernacle", "Moses returned from the mountain"], "Exodus 20:11", "The LORD rested on the seventh day after creating heaven and earth.", "the Sabbath and creation"],
+    ["hard", "What did the law say an Israelite should leave at the edges of a harvested field?", "Grain for the poor and the foreigner", ["A jar of oil for the priest", "A measure of flour for the king", "A basket of fruit for the landowner"], "Leviticus 19:9-10", "The law set aside the edges of the field and the gleanings for the poor and the foreigner.", "harvest gleanings"],
     ["medium", "Jesus summarized the law with love for God and love for whom?", "Neighbor", ["Rome", "Angels", "Tradition"], "Matthew 22:37-40", "Jesus said the law and prophets hang on love for God and neighbor.", "the second great love command"],
   ]);
 
   addRows("Psalms", [
     ["easy", "Which Psalm begins, 'Blessed is the man'?", "Psalm 1", ["Psalm 8", "Psalm 23", "Psalm 51"], "Psalm 1:1", "Psalm 1 opens by blessing the one who avoids wicked counsel.", "the blessed person who avoids wicked counsel"],
-    ["easy", "Which Psalm says the heavens declare the glory of God?", "Psalm 19", ["Psalm 2", "Psalm 23", "Psalm 46"], "Psalm 19:1", "Psalm 19 begins by praising God's glory in creation.", "the heavens declaring God's glory"],
+    ["medium", "Which Psalm says the heavens declare the glory of God?", "Psalm 19", ["Psalm 2", "Psalm 23", "Psalm 46"], "Psalm 19:1", "Psalm 19 begins by praising God's glory in creation.", "the heavens declaring God's glory"],
     ["medium", "Which Psalm says, 'Be still, and know that I am God'?", "Psalm 46", ["Psalm 23", "Psalm 51", "Psalm 91"], "Psalm 46:10", "Psalm 46 calls God's people to rest in His sovereignty.", "be still and know"],
     ["medium", "Which Psalm begins, 'I lift up my eyes to the hills'?", "Psalm 121", ["Psalm 23", "Psalm 46", "Psalm 91"], "Psalm 121:1", "Psalm 121 is a song of trust in the LORD's help.", "lifting eyes to the hills"],
     ["hard", "Which Psalm contains the line, 'My God, my God, why have You forsaken me?'", "Psalm 22", ["Psalm 2", "Psalm 16", "Psalm 40"], "Psalm 22:1", "Psalm 22 opens with words Jesus later cries from the cross.", "the forsaken cry quoted at the cross"],
@@ -592,7 +584,7 @@ window.bibleTriviaQuestions.push(
     ["medium", "Who was Ruth's mother-in-law?", "Naomi", ["Orpah", "Mara", "Hannah"], "Ruth 1:3-5", "Naomi was Ruth's mother-in-law after both women were widowed.", "Ruth's mother-in-law"],
     ["medium", "Who was Abraham's promised son through Sarah?", "Isaac", ["Ishmael", "Jacob", "Esau"], "Genesis 21:3", "Isaac was born to Abraham and Sarah as God promised.", "Abraham and Sarah's promised son"],
     ["medium", "Who were Moses' brother and sister?", "Aaron and Miriam", ["Caleb and Deborah", "Joshua and Zipporah", "Nadab and Abihu"], "Numbers 26:59", "Aaron, Moses, and Miriam were siblings.", "Moses' siblings"],
-    ["hard", "Who was John the Baptist's mother?", "Elizabeth", ["Mary", "Anna", "Martha"], "Luke 1:57", "Elizabeth gave birth to John in her old age.", "John the Baptist's mother"],
+    ["easy", "Who was John the Baptist's mother?", "Elizabeth", ["Mary", "Anna", "Martha"], "Luke 1:57", "Elizabeth gave birth to John in her old age.", "John the Baptist's mother"],
     ["hard", "Who was the father of James and John?", "Zebedee", ["Alphaeus", "Jonah", "Cleopas"], "Matthew 4:21", "James and John were sons of Zebedee.", "the father of the sons of thunder"],
   ]);
 
@@ -624,10 +616,105 @@ window.bibleTriviaQuestions.push(
     ["medium", "How many Gospels are in the New Testament?", "4", ["3", "5", "12"], "Matthew 1:1", "Matthew, Mark, Luke, and John are the four Gospels.", "the number of Gospels"],
     ["medium", "How many chapters are in Genesis?", "50", ["40", "52", "66"], "Genesis 50:1", "Genesis has 50 chapters.", "Genesis chapter count"],
     ["medium", "How many chapters are in Exodus?", "40", ["27", "39", "50"], "Exodus 40:1", "Exodus has 40 chapters.", "Exodus chapter count"],
-    ["hard", "How many chapters are in Psalms?", "150", ["119", "120", "100"], "Psalm 150:1", "Psalms has 150 chapters.", "Psalms chapter count"],
+    ["medium", "How many psalms are in the Book of Psalms?", "150", ["119", "120", "100"], "Psalm 150:1", "Psalms has 150 chapters.", "Psalms chapter count"],
     ["medium", "How many chapters are in Matthew?", "28", ["16", "21", "24"], "Matthew 28:1", "Matthew has 28 chapters.", "Matthew chapter count"],
     ["medium", "How many chapters are in John?", "21", ["16", "22", "24"], "John 21:1", "John has 21 chapters.", "John chapter count"],
-    ["hard", "What kind of biblical book is Romans?", "Pauline Letters", ["Gospels", "History", "General Letters"], "Romans 1:1", "Romans is commonly grouped with Paul's letters.", "Romans' library grouping"],
-    ["hard", "What kind of biblical book is Revelation?", "Prophecy", ["Gospels", "History", "Pauline Letters"], "Revelation 1:1", "Revelation is commonly grouped as prophecy.", "Revelation's library grouping"],
+    ["medium", "What kind of biblical book is Romans?", "Pauline Letters", ["Gospels", "History", "General Letters"], "Romans 1:1", "Romans is commonly grouped with Paul's letters.", "Romans' library grouping"],
+    ["medium", "What kind of biblical book is Revelation?", "Prophecy", ["Gospels", "History", "Pauline Letters"], "Revelation 1:1", "Revelation is commonly grouped as prophecy.", "Revelation's library grouping"],
   ]);
+
+  // People
+  addQuestion("People", "easy", "Who baptized Jesus in the Jordan?", "John the Baptist", ["Peter", "Andrew", "Philip"], "Matthew 3:13-16", "Jesus came to John to be baptized.");
+  addQuestion("People", "medium", "Who took Elijah's cloak after Elijah was taken up?", "Elisha", ["Gehazi", "Jehu", "Obadiah"], "2 Kings 2:13", "Elisha picked up the cloak that fell from Elijah.");
+  addQuestion("People", "hard", "Who hid a hundred prophets from Jezebel?", "Obadiah", ["Ahab", "Elisha", "Naboth"], "1 Kings 18:4", "Obadiah hid the prophets in two caves and supplied them with food and water.");
+
+  // Places
+  addQuestion("Places", "easy", "Where did Adam and Eve live before they were driven out?", "Garden of Eden", ["Jericho", "Bethlehem", "Mount Sinai"], "Genesis 2:8", "God planted the garden and put the man there.");
+  addQuestion("Places", "medium", "In what city were believers first called Christians?", "Antioch", ["Jerusalem", "Corinth", "Ephesus"], "Acts 11:26", "The disciples first received that name at Antioch.");
+  addQuestion("Places", "hard", "From what harbor did Paul sail for Syria after leaving Corinth?", "Cenchreae", ["Troas", "Joppa", "Ptolemais"], "Acts 18:18", "Paul cut his hair at Cenchreae before sailing for Syria.");
+
+  // Miracles
+  addQuestion("Miracles", "easy", "What happened to the sea when Moses stretched out his hand over it?", "It divided", ["It turned to blood", "It froze", "It overflowed"], "Exodus 14:21-22", "The waters divided and Israel crossed on dry ground.");
+  addQuestion("Miracles", "medium", "What did Elisha throw into the water before the lost iron floated?", "A stick", ["A stone", "A handful of salt", "A piece of bread"], "2 Kings 6:6", "Elisha cut a stick and threw it where the iron had fallen.");
+  addQuestion("Miracles", "hard", "Where was the man named Aeneas when Peter healed him?", "Lydda", ["Joppa", "Caesarea", "Bethany"], "Acts 9:32-34", "Peter found Aeneas bedridden in Lydda.");
+
+  // Parables
+  addQuestion("Parables", "easy", "What animal did the shepherd leave the ninety-nine to find?", "A sheep", ["A goat", "A donkey", "A calf"], "Luke 15:4", "The shepherd went after the one that was lost.");
+  addQuestion("Parables", "medium", "In the parable of the wedding banquet, what was the expelled guest missing?", "A wedding garment", ["An invitation", "A gift", "A lamp"], "Matthew 22:11-13", "The king saw the guest was missing the proper clothing.");
+  addQuestion("Parables", "hard", "How much did the dishonest manager reduce the oil debtor's bill to?", "Fifty measures", ["Twenty measures", "Eighty measures", "One hundred measures"], "Luke 16:5-7", "The manager told the oil debtor to write fifty and the wheat debtor eighty.");
+
+  // Life of Jesus
+  addQuestion("Life of Jesus", "easy", "What did Jesus ride into Jerusalem?", "A donkey", ["A horse", "A camel", "A chariot"], "John 12:14-15", "Jesus sat on a young donkey as he entered.");
+  addQuestion("Life of Jesus", "medium", "Which disciple was sitting at a tax booth when Jesus called him in Matthew's Gospel?", "Matthew", ["Philip", "Thomas", "Andrew"], "Matthew 9:9", "Jesus told the tax collector to follow him.");
+  addQuestion("Life of Jesus", "hard", "Who was the father of Alexander and Rufus, mentioned at Jesus' crucifixion?", "Simon of Cyrene", ["Joseph of Arimathea", "Nicodemus", "Cleopas"], "Mark 15:21", "Mark names the sons of the man compelled to carry Jesus' cross.");
+
+  // Wisdom
+  addQuestion("Wisdom", "easy", "According to Proverbs, what kind of answer turns away wrath?", "A gentle answer", ["A harsh answer", "A mocking answer", "A dishonest answer"], "Proverbs 15:1", "A gentle response can defuse anger.");
+  addQuestion("Wisdom", "medium", "What does Ecclesiastes say is better than the beginning of a matter?", "Its end", ["Its cost", "Its reputation", "Its speed"], "Ecclesiastes 7:8", "The verse pairs the end of a matter with the value of patience.");
+  addQuestion("Wisdom", "hard", "Who is named at the beginning of Proverbs 30?", "Agur", ["Lemuel", "Asaph", "Ethan"], "Proverbs 30:1", "The chapter opens with the words of Agur son of Jakeh.");
+
+  // Books
+  addQuestion("Books", "easy", "Which book comes immediately after Genesis?", "Exodus", ["Leviticus", "Numbers", "Joshua"], "Exodus 1:1", "The second book opens with the names of Israel's sons.");
+  addQuestion("Books", "medium", "Which book tells of the rebuilding of Jerusalem's wall under a former cupbearer?", "Nehemiah", ["Ezra", "Esther", "Haggai"], "Nehemiah 2:5", "Nehemiah asks the king to send him to rebuild Jerusalem.");
+  addQuestion("Books", "hard", "Which book says wisdom is the stability of your times?", "Isaiah", ["Job", "Proverbs", "Ecclesiastes"], "Isaiah 33:6", "The prophet connects wisdom and knowledge with stability.");
+
+  // Women
+  addQuestion("Women", "easy", "Who found the baby Moses in the basket?", "Pharaoh's daughter", ["Miriam", "Zipporah", "Pharaoh's wife"], "Exodus 2:5-6", "Pharaoh's daughter saw the basket while bathing at the Nile.");
+  addQuestion("Women", "medium", "Who welcomed Paul and his companions into her home after her household was baptized?", "Lydia", ["Priscilla", "Phoebe", "Dorcas"], "Acts 16:14-15", "Lydia invited the group to stay at her house in Philippi.");
+  addQuestion("Women", "hard", "Who was Shallum's wife and was consulted about the book found in the temple?", "Huldah", ["Deborah", "Miriam", "Noadiah"], "2 Kings 22:14", "The king's delegation went to Huldah the prophetess.");
+
+  // Faith
+  addQuestion("Faith", "easy", "What did Abraham do when God called him to go to a place he would inherit?", "He went", ["He hid", "He built a ship", "He returned to Egypt"], "Hebrews 11:8", "Abraham went by faith without knowing where he was going.");
+  addQuestion("Faith", "medium", "What did the father say immediately after declaring his belief to Jesus?", "Help my unbelief", ["Remember me", "Show us the Father", "Increase our faith"], "Mark 9:24", "The father asked Jesus for help with his unbelief.");
+  addQuestion("Faith", "hard", "Whose faith is highlighted for blessing each of Joseph's sons while dying?", "Jacob", ["Isaac", "Abraham", "Moses"], "Hebrews 11:21", "Jacob blessed Joseph's sons and worshiped.");
+
+  // Prophets
+  addQuestion("Prophets", "easy", "Which prophet was swallowed by a great fish?", "Jonah", ["Amos", "Micah", "Elijah"], "Jonah 1:17", "God appointed a great fish to swallow him.");
+  addQuestion("Prophets", "medium", "Which prophet confronted David with a story about a poor man's lamb?", "Nathan", ["Gad", "Samuel", "Ahijah"], "2 Samuel 12:1-7", "Nathan used the story to confront David about his sin.");
+  addQuestion("Prophets", "hard", "Which prophet was told to buy a field at Anathoth while Jerusalem was under siege?", "Jeremiah", ["Ezekiel", "Zechariah", "Haggai"], "Jeremiah 32:6-9", "Jeremiah bought the field from his cousin Hanamel.");
+
+  // Prayer
+  addQuestion("Prayer", "easy", "What did Jesus teach his disciples to ask for daily in his model prayer?", "Bread", ["Water", "Gold", "Rest"], "Matthew 6:11", "Jesus taught them to ask for their daily bread.");
+  addQuestion("Prayer", "medium", "Who prayed for forgiveness for those stoning him?", "Stephen", ["Peter", "Paul", "Philip"], "Acts 7:59-60", "Stephen asked the Lord not to hold their sin against them.");
+  addQuestion("Prayer", "hard", "What sign accompanied the promise that God had heard Hezekiah's prayer?", "The shadow went back ten steps", ["The Jordan dried up", "An altar caught fire", "A cloud filled the temple"], "2 Kings 20:5-11", "Isaiah asked the LORD, and the shadow moved back.");
+
+  // Commandments
+  addQuestion("Commandments", "easy", "What did Jesus call the greatest commandment?", "Love God with all your heart, soul, and mind", ["Honor your father and mother", "Keep the Sabbath holy", "Do not steal"], "Matthew 22:36-38", "Jesus named wholehearted love of God as the greatest commandment.");
+  addQuestion("Commandments", "medium", "What command did Jesus give his disciples just after Judas went out?", "Love one another as he loved them", ["Wash before every meal", "Go to Jerusalem for Pentecost", "Fast on the Sabbath"], "John 13:34", "Jesus commanded his disciples to love one another as he had loved them.");
+  addQuestion("Commandments", "hard", "What reason does Deuteronomy give Israel for keeping the Sabbath?", "God delivered them from slavery in Egypt", ["God gave them manna in the wilderness", "God stopped the sun for Joshua", "God rescued them from Babylon"], "Deuteronomy 5:15", "Moses ties Sabbath rest to remembering slavery and deliverance.");
+  addQuestion("Commandments", "hard", "What does the law say to do with a wandering ox that belongs to your enemy?", "Return it", ["Sell it", "Keep it until the Sabbath", "Offer it as a sacrifice"], "Exodus 23:4", "The law requires returning even an enemy's stray animal.");
+  addQuestion("Commandments", "hard", "Which command does James call the royal law?", "Love your neighbor as yourself", ["Honor your father and mother", "Remember the Sabbath", "Do not covet"], "James 2:8", "James quotes the command to love one's neighbor when addressing favoritism.");
+
+  // Psalms
+  addQuestion("Psalms", "easy", "In Psalm 23, what does the shepherd lead the speaker beside?", "Still waters", ["A roaring sea", "A dry riverbed", "A city wall"], "Psalm 23:2", "The shepherd leads the speaker beside restful waters.");
+  addQuestion("Psalms", "medium", "In Psalm 42, what animal pants for streams of water?", "A deer", ["A lion", "A lamb", "A dove"], "Psalm 42:1", "The thirsty deer pictures longing for God.");
+  addQuestion("Psalms", "hard", "Which psalm bears a heading identifying it as a prayer of Moses?", "Psalm 90", ["Psalm 72", "Psalm 89", "Psalm 91"], "Psalm 90:1", "The heading names Moses, the man of God.");
+
+  // Angels
+  addQuestion("Angels", "easy", "Who announced Jesus' birth to shepherds watching their flocks?", "An angel", ["A wise man", "A priest", "A soldier"], "Luke 2:8-11", "An angel brought the shepherds news of the Savior's birth.");
+  addQuestion("Angels", "medium", "What did the angel tell Joseph to do after the wise men left?", "Flee to Egypt", ["Return to Bethlehem", "Go to the temple", "Visit the wise men"], "Matthew 2:13", "The angel warned Joseph that Herod would seek to kill the child.");
+  addQuestion("Angels", "hard", "Who was riding a donkey that saw the angel in the road before its rider did?", "Balaam", ["Balak", "Gideon", "Jephthah"], "Numbers 22:23-31", "The donkey saw the angel with a drawn sword before Balaam's eyes were opened.");
+
+  // Family
+  addQuestion("Family", "easy", "Who was Isaac's father?", "Abraham", ["Jacob", "Joseph", "Noah"], "Genesis 21:3", "Abraham named the son Sarah bore him Isaac.");
+  addQuestion("Family", "medium", "Which two sons of Joseph did Jacob receive as his own?", "Ephraim and Manasseh", ["Reuben and Simeon", "Dan and Naphtali", "Gad and Asher"], "Genesis 48:5", "Jacob counted Joseph's two sons as his own.");
+  addQuestion("Family", "hard", "Who was Timothy's grandmother?", "Lois", ["Eunice", "Lydia", "Priscilla"], "2 Timothy 1:5", "Paul names Lois as Timothy's grandmother and Eunice as his mother.");
+
+  // Worship
+  addQuestion("Worship", "easy", "What did the heavenly host do when they appeared to the shepherds?", "Praised God", ["Built an altar", "Collected an offering", "Blew a trumpet"], "Luke 2:13-14", "The heavenly host praised God and proclaimed glory to him.");
+  addQuestion("Worship", "medium", "At what time were Peter and John going to the temple to pray?", "The ninth hour", ["The first hour", "The third hour", "The sixth hour"], "Acts 3:1", "They went to the temple at the ninth hour, the hour of prayer.");
+  addQuestion("Worship", "hard", "Which Levite stood with cymbals along with Heman and Ethan when the ark was brought up?", "Asaph", ["Jeduthun", "Korah", "Chenaniah"], "1 Chronicles 15:19", "Heman, Asaph, and Ethan were assigned to sound bronze cymbals.");
+
+  // Bible Survey
+  addQuestion("Bible Survey", "easy", "Which event is recorded in Acts?", "The coming of the Holy Spirit at Pentecost", ["The building of Solomon's temple", "The crossing of the Red Sea", "The birth of Jesus"], "Acts 2:1-4", "Acts describes the Holy Spirit coming at Pentecost.");
+  addQuestion("Bible Survey", "medium", "Which set contains only books of the Pentateuch?", "Genesis, Leviticus, Deuteronomy", ["Genesis, Joshua, Ruth", "Exodus, Judges, Job", "Numbers, Psalms, Proverbs"], "Deuteronomy 1:1", "The Pentateuch comprises the first five books.");
+  addQuestion("Bible Survey", "hard", "Which two books open by addressing Theophilus?", "Luke and Acts", ["Mark and Acts", "Luke and Romans", "John and Revelation"], "Acts 1:1", "Acts addresses the same recipient named in Luke's opening.");
+
+  // Bible Library
+  addQuestion("Bible Library", "easy", "Which of these is a Gospel?", "Mark", ["Acts", "Romans", "Hebrews"], "Mark 1:1", "Mark introduces his book as the gospel of Jesus Christ.");
+  addQuestion("Bible Library", "medium", "Which of these letters is addressed to an individual?", "Philemon", ["Galatians", "Philippians", "Colossians"], "Philemon 1:1", "Paul names Philemon in the greeting.");
+  addQuestion("Bible Library", "hard", "Which letter follows Titus in the standard New Testament order?", "Philemon", ["Hebrews", "James", "Jude"], "Philemon 1:1", "Philemon is placed between Titus and Hebrews.");
+  addQuestion("Bible Library", "hard", "Which of these New Testament letters has only one chapter?", "Jude", ["James", "Titus", "2 Peter"], "Jude 1:1", "Jude is one of the five single-chapter books in the Bible.");
+  addQuestion("Bible Library", "hard", "Which book immediately follows Haggai in the standard Old Testament order?", "Zechariah", ["Zephaniah", "Malachi", "Habakkuk"], "Zechariah 1:1", "The last three books in that order are Haggai, Zechariah, and Malachi.");
+  addQuestion("Bible Library", "hard", "Which of these books has twelve chapters?", "Daniel", ["Esther", "Nehemiah", "Zechariah"], "Daniel 12:1", "Daniel's final chapter describes a time of distress and resurrection.");
 })();
