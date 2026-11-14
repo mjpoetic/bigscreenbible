@@ -34751,16 +34751,16 @@ document.addEventListener("click", (event) => {
   if (!state.streakPopoverOpen || event.target.closest?.(".streak-menu")) return;
   toggleStreakPopover(false);
 });
-document.addEventListener("click", (event) => {
-  if (!state.focusReferenceOpen || event.target.closest?.(".mobile-focus-passage-control, .search-scope-popover")) return;
+function closeFocusSearchOnOutsideClick(event) {
+  if (!state.focusReferenceOpen && !state.focusSearchResultsOpen) return;
+  if (event.target.closest?.(".mobile-focus-passage-control, .focus-portrait-search, .search-scope-popover")) return;
+  if (state.focusSearchResultsOpen && event.target.closest?.(".mobile-focus-search-results, .topbar .search")) return;
   state.focusReferenceOpen = false;
-  renderPreservingReaderScroll();
-});
-document.addEventListener("click", (event) => {
-  if (!state.focusSearchResultsOpen || event.target.closest?.(".mobile-focus-search-results, .mobile-focus-passage-control, .topbar .search")) return;
   state.focusSearchResultsOpen = false;
   renderPreservingReaderScroll();
-});
+}
+
+document.addEventListener("click", closeFocusSearchOnOutsideClick);
 document.addEventListener("click", closePresentationSearchOnOutsideClick);
 document.addEventListener("click", (event) => {
   if ((!state.focusToolsOpen && !state.focusWorkspacePanel) || event.target.closest?.(".mobile-focus-tools-control, .desktop-focus-tools-control, .mobile-focus-workspace, .settings-choice-menu, [data-passage-picker]")) return;

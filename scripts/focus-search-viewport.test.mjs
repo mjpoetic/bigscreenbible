@@ -38,3 +38,23 @@ position();
 assert.equal(panel.style.top, '51.04px', 'Place the portrait panel inside the visible viewport');
 assert.equal(Number.parseFloat(panel.style.top) + Number.parseFloat(panel.style.maxHeight), 412, 'Keep portrait results above the keyboard');
 console.log('Focus search viewport: keyboard, panning, dismissal, landscape, and hidden controls passed.');
+
+const dismissal = source.match(/function closeFocusSearchOnOutsideClick\([^]*?\n\}/)[0];
+let dismissRenders = 0;
+context.renderPreservingReaderScroll = () => { dismissRenders += 1; };
+vm.runInContext(dismissal, context);
+const clickInside = (surface) => context.closeFocusSearchOnOutsideClick({
+  target: { closest: (selector) => selector.split(", ").includes(surface) },
+});
+state.focusReferenceOpen = true;
+state.focusSearchResultsOpen = false;
+clickInside(".focus-portrait-search");
+assert.equal(state.focusReferenceOpen, true, 'Tapping the portrait input or submit glyph keeps the search open');
+state.focusReferenceOpen = false;
+state.focusSearchResultsOpen = true;
+clickInside(".search-scope-popover");
+assert.equal(state.focusSearchResultsOpen, true, 'Choosing a scope keeps results open');
+assert.equal(dismissRenders, 0);
+clickInside(".focus-backdrop");
+assert.equal(state.focusSearchResultsOpen, false, 'Tapping outside still dismisses search');
+assert.equal(dismissRenders, 1);
