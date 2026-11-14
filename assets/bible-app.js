@@ -5485,6 +5485,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.11": [
+      "Opening a Scripture reference from a game respects your Reader panel preference.",
+    ],
     "2026.11.14.10": [
       "The selected game now stands out with a solid accent that follows your theme.",
     ],
@@ -28755,7 +28758,6 @@ function returnToTriviaGame() {
   resumeTriviaGameAfterReference(target.game);
   state.gameReferenceReturn = null;
   state.mode = "trivia";
-  state.focusMode = false;
   state.pendingVerseFocus = false;
   render();
   restoreModeScrollAfterRender(target.scrollState);
@@ -28795,7 +28797,6 @@ function openTriviaReference(referenceOverride = "") {
     scrollState: gameScrollState,
   };
   state.mode = "reader";
-  state.focusMode = false;
   state.libraryOpen = false;
   state.pendingVerseFocus = true;
   recordHistory();

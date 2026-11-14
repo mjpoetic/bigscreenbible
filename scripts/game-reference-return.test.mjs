@@ -29,6 +29,7 @@ assert.match(openReference, /const gameScrollState = captureReaderScroll\(\)/);
 assert.match(openReference, /pauseTriviaGameForReference\(game\)/);
 assert.match(openReference, /state\.gameReferenceReturn = \{[\s\S]*?game,[\s\S]*?scrollState: gameScrollState/);
 assert.match(openReference, /state\.mode = "reader"/);
+assert.doesNotMatch(openReference, /state\.focusMode\s*=/);
 assert.match(openReference, /scheduleGameReferenceVerseFocus\(state\.reference, state\.verse\)/);
 
 const focusReference = extractFunction("scheduleGameReferenceVerseFocus");
@@ -88,6 +89,7 @@ const returnToGame = extractFunction("returnToTriviaGame");
 assert.match(returnToGame, /resumeTriviaGameAfterReference\(target\.game\)/);
 assert.match(returnToGame, /state\.gameReferenceReturn = null/);
 assert.match(returnToGame, /state\.mode = "trivia"/);
+assert.doesNotMatch(returnToGame, /state\.focusMode\s*=/);
 assert.match(returnToGame, /restoreModeScrollAfterRender\(target\.scrollState\)/);
 
 assert.match(extractFunction("switchMode"), /nextMode === "trivia" && currentGameReferenceReturn\(\)[\s\S]*?returnToTriviaGame\(\)/);
