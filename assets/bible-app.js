@@ -5485,6 +5485,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.9": [
+      "Added an optional setting to keep floating reading controls faint until you tap, click, or focus one of them.",
+    ],
     "2026.11.14.8": [
       "Play new Bible Trivia, Who Said It, Reference Rush, Crossword, Hidden Word, and Word Search items.",
       "Trivia levels have more category-specific questions, and Book Sprint avoids repeating the same set within a round.",
