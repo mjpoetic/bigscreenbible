@@ -25225,7 +25225,14 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   .crossword-game:not(.is-complete) .crossword-keyboard-toggle { min-height: 36px; width: auto; }
 }
 @media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
-  .crossword-game:not(.is-complete) .crossword-play { grid-template-rows: auto 44px auto minmax(0, 1fr); }
+  /* Reserve space for all four keyboard rows before sizing the scrollable clue. */
+  .crossword-game:not(.is-complete) .crossword-play {
+    grid-template-rows: minmax(0, calc(44px + var(--crossword-clue-size, 15px) * 4.2)) 44px auto minmax(0, 1fr);
+  }
+  .crossword-game:not(.is-complete) .crossword-play:has(.crossword-keyboard:not([hidden])) .crossword-clue-bar {
+    height: 100%;
+    box-sizing: border-box;
+  }
   .crossword-game:not(.is-complete) .crossword-utilities {
     grid-column: 2 / -1; grid-row: 2;
     display: flex; justify-content: center; gap: 16px; padding: 0;

@@ -5450,6 +5450,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.2": [
+      "Crossword keeps Erase and Check word visible on shorter landscape screens.",
+    ],
     "2026.11.14.1": [
       "On Android, Crossword uses its built-in keyboard so the device keyboard no longer covers or shrinks the grid.",
     ],
