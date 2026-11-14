@@ -27525,12 +27525,15 @@ function updateCrosswordDom({ focus = false } = {}) {
     if (cell.left < viewport.left) gridScroll.scrollLeft += cell.left - viewport.left;
     else if (cell.right > viewport.right) gridScroll.scrollLeft += cell.right - viewport.right;
   }
-  if (focus && state.crosswordKeyboardVisible && document.activeElement?.id !== "crosswordNativeInput") {
+  if (focus && document.activeElement?.id !== "crosswordNativeInput") {
     document.querySelector(`[data-crossword-cell="${game.activeCellKey}"]`)?.focus({ preventScroll: true });
   }
 }
 
 function focusCrosswordNativeInput() {
+  // Android's soft keyboard shrinks the board in portrait and can cover it
+  // in landscape. Use the crossword keys or hardware keys on that platform.
+  if (window.Capacitor?.getPlatform?.() === "android" || /Android/i.test(navigator.userAgent)) return;
   const input = document.getElementById("crosswordNativeInput");
   if (!input || state.triviaGame?.type !== "crossword" || state.triviaGame.complete) return;
   input.value = "";
@@ -27549,6 +27552,7 @@ function setCrosswordKeyboardVisible(visible) {
     toggle.setAttribute("aria-expanded", String(state.crosswordKeyboardVisible));
   }
   if (!state.crosswordKeyboardVisible) focusCrosswordNativeInput();
+  else document.getElementById("crosswordNativeInput")?.blur();
 }
 
 function selectCrosswordEntry(entryId, preferredCellKey = "", options = {}) {
