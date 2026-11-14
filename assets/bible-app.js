@@ -5475,6 +5475,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.3": [
+      "In portrait on phones, Focus Mode opens a larger search panel with scope controls and results below. The panel stays open when you tap the search field or search button.",
+    ],
     "2026.11.14.2": [
       "Crossword keeps Erase and Check word visible on shorter landscape screens.",
     ],
