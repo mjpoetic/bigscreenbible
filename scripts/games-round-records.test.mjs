@@ -7,9 +7,10 @@ let exits = 0;
 const context = vm.createContext({ scheduleCloudSync() {},
   state: {mode: 'trivia'}, exitTriviaGame() { exits++; },
   activeSettingsChoiceMenu: null,
+  document: { getElementById: () => null },
   localStorage: {getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v)},
 });
-for (const name of ['referenceRushBestKey','savedReferenceRushBests','savedReferenceRushBest','recordReferenceRushBest','handleGamesEscapeKeydown']) {
+for (const name of ['referenceRushBestKey','savedReferenceRushBests','savedReferenceRushBest','recordReferenceRushBest','requestGamesMenu','handleGamesEscapeKeydown']) {
   const start = source.indexOf('function ' + name + '(');
   vm.runInContext(source.slice(start, source.indexOf('\nfunction ', start + 1)), context);
 }
@@ -53,6 +54,35 @@ context.handleGamesEscapeKeydown(event);
 assert.equal(menuCloses, 1, 'Escape closes the app difficulty menu first');
 assert.equal(exits, 1, 'Closing difficulty must preserve the options drawer and game');
 console.log('Reference Rush record eligibility, persistence, settings isolation and Games Escape passed.');
+
+let mountedDialog;
+let restoredFocus = 0;
+const opener = { isConnected: true, focus() { restoredFocus++; } };
+context.document = {
+  activeElement: opener,
+  getElementById: () => mountedDialog,
+  body: { append(dialog) { mountedDialog = dialog; } },
+  createElement: () => ({
+    returnValue: '',
+    setAttribute() {},
+    addEventListener(name, callback) { this[name] = callback; },
+    showModal() { this.open = true; },
+    remove() { mountedDialog = null; },
+  }),
+};
+const activeRound = context.state.triviaGame = round(1000);
+context.handleGamesEscapeKeydown(event);
+assert.equal(mountedDialog.open, true);
+context.requestGamesMenu(opener);
+assert.equal(exits, 1, 'Opening or tapping again must not exit the round');
+mountedDialog.close();
+assert.equal(restoredFocus, 1);
+assert.equal(context.state.triviaGame, activeRound);
+context.requestGamesMenu(opener);
+mountedDialog.returnValue = 'leave';
+mountedDialog.close();
+assert.equal(exits, 2, 'Confirming leaves the current round');
+context.state.triviaGame = null;
 
 let now = 1000;
 context.Date = class extends Date { static now() { return now; } };

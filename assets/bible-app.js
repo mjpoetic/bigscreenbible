@@ -1481,7 +1481,7 @@ const icons = {
   trivia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M6 4H4v2a4 4 0 0 0 4 4"/><path d="M18 4h2v2a4 4 0 0 1-4 4"/><path d="M12 11v4"/><path d="M9 21h6"/><path d="M10 15h4v6h-4z"/></svg>',
   music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><path d="M9 8l10-2"/><ellipse cx="6" cy="18" rx="3" ry="2.2"/><ellipse cx="16" cy="16" rx="3" ry="2.2"/></svg>',
   timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14l3-3"/><path d="M12 6a8 8 0 1 0 0 16 8 8 0 0 0 0-16z"/><path d="m17.5 6.5 1.5-1.5"/></svg>',
-  lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8.2 14.7A7 7 0 1 1 15.8 14.7c-.9.7-1.3 1.5-1.4 2.3H9.6c-.1-.8-.5-1.6-1.4-2.3z"/><path d="M12 3v2"/></svg>',
+  lightbulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17v-1c0-2-3-2.8-3-6a6 6 0 0 1 12 0c0 3.2-3 4-3 6v1zM9.5 20h5M11 22h2M2 10h1M21 10h1M3.7 3.7l1 1m14.6 0 1-1"/></svg>',
   quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4v6c0 4-2 7-5 8"/><path d="M21 11h-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4v6c0 4-2 7-5 8"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>',
   flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c3.6 0 6.5-2.7 6.5-6.2 0-2.6-1.4-4.7-3.5-6.7-.6 2-1.9 3.2-3.1 3.7.6-2.7-.4-5.2-3-8.1C8.5 8 5.5 10.8 5.5 15.8 5.5 19.3 8.4 22 12 22z"/><path d="M12 18.5c1.2 0 2.2-.9 2.2-2.1 0-1-.6-1.8-1.4-2.5-.2.7-.7 1.1-1.1 1.3.2-.9-.1-1.8-1-2.8-.1 1.2-.9 2.2-.9 4 0 1.2 1 2.1 2.2 2.1z"/></svg>',
@@ -5479,6 +5479,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.5": [
+      "Games ask before leaving an active round. Hint and menu buttons are easier to spot, and mobile controls use a compact sliders icon.",
+    ],
     "2026.11.14.4": [
       "Tap a Scripture reference in a publisher footnote to preview the passage.",
     ],
@@ -19354,7 +19357,7 @@ function triviaGameView() {
               <button class="reference-rush-hint-cancel" id="closeTriviaHints" type="button">Cancel</button>
             </div>
           ` : hintOptions.length ? `
-            <button class="ghost-btn" id="triviaHint" type="button">Choose a hint</button>
+            <button class="ghost-btn" id="triviaHint" type="button">${icons.lightbulb}<span>Choose a hint</span></button>
           ` : `
             <div class="reference-rush-hint-result" role="status">
               <strong>All hints used</strong>
@@ -20059,7 +20062,7 @@ function referenceRushGameView(game) {
                   <button class="reference-rush-hint-cancel" id="closeReferenceRushHints" type="button">Cancel</button>
                 </div>
               ` : hintOptions.length ? `
-                <button class="ghost-btn" id="referenceRushHint" type="button">Choose a hint</button>
+                <button class="ghost-btn" id="referenceRushHint" type="button">${icons.lightbulb}<span>Choose a hint</span></button>
               ` : `
                 <div class="reference-rush-hint-result" role="status">
                   <strong>All hints used</strong>
@@ -20411,7 +20414,7 @@ function showBestTimeCelebration(game, best) {
       <div class="best-time-actions">
         ${game.type === "word-search" && game.wordSearchMode === "categories" ? '<button type="button" class="primary-btn" data-best-time-action="review">Explore answers</button>' : ""}
         <button type="button" class="primary-btn" data-best-time-action="retry">Try again</button>
-        <button type="button" class="ghost-btn" data-best-time-action="menu">Games menu</button>
+        <button type="button" class="ghost-btn" data-best-time-action="menu">${icons.returnBack}<span>Games menu</span></button>
       </div>
     </div>`;
   document.body.append(dialog);
@@ -24737,7 +24740,7 @@ function bindEvents() {
     requestGameMusicRestart();
     startTriviaGame();
   });
-  document.getElementById("exitTriviaGame")?.addEventListener("click", exitTriviaGame);
+  document.getElementById("exitTriviaGame")?.addEventListener("click", (event) => requestGamesMenu(event.currentTarget));
   document.getElementById("newTriviaGame")?.addEventListener("click", () => {
     cleanupTriviaCelebration();
     state.activeGameChallengeId = "";
@@ -27240,6 +27243,34 @@ function nextTriviaQuestion() {
     game.selectedAnswer = null;
   }
   renderPreservingReaderScroll();
+}
+
+function requestGamesMenu(opener) {
+  const game = state.triviaGame;
+  if (!game || game.complete || game.challengeId) return exitTriviaGame();
+  if (document.getElementById("gamesExitDialog")) return;
+  const dialog = document.createElement("dialog");
+  dialog.id = "gamesExitDialog";
+  dialog.className = "games-exit-dialog";
+  dialog.setAttribute("aria-labelledby", "gamesExitTitle");
+  dialog.setAttribute("aria-describedby", "gamesExitDescription");
+  dialog.innerHTML = `
+    <h2 id="gamesExitTitle">Leave this game?</h2>
+    <p id="gamesExitDescription">Your current round will end and you’ll return to the Games menu.</p>
+    <form method="dialog" class="games-exit-actions">
+      <button class="primary-btn" value="stay" autofocus>Keep playing</button>
+      <button class="ghost-btn" value="leave">Leave game</button>
+    </form>`;
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (dialog.returnValue === "leave" && state.mode === "trivia" && state.triviaGame === game) {
+      exitTriviaGame();
+    } else if (opener?.isConnected) {
+      opener.focus({ preventScroll: true });
+    }
+  });
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 function exitTriviaGame() {
@@ -32633,13 +32664,17 @@ function cancelReaderTouchGesture() {
 function handleGamesEscapeKeydown(event) {
   if (state.mode !== "trivia" || event.key !== "Escape"
     || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (document.getElementById("gamesExitDialog")?.open) {
+    event.stopImmediatePropagation();
+    return;
+  }
   event.preventDefault();
   event.stopImmediatePropagation();
   if (activeSettingsChoiceMenu) {
     if (!event.repeat) closeSettingsChoiceMenu({ restoreFocus: true });
     return;
   }
-  if (!event.repeat) exitTriviaGame();
+  if (!event.repeat) requestGamesMenu(document.activeElement);
 }
 
 function handleGlobalShortcuts(event) {

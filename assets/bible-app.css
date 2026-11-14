@@ -27942,3 +27942,69 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .focus-portrait-search .mobile-focus-search-results-body {
   border-top: 1px solid var(--line);
 }
+
+/* Separate the hint and exit controls with colors from the active theme. */
+html #app .trivia-shell :is(.games-hint-action, #triviaHint, #referenceRushHint, #crosswordHint, #hiddenWordHint),
+html #app .trivia-shell .games-menu-control,
+.best-time-actions [data-best-time-action="menu"] {
+  --game-action-color: var(--gold);
+  color: color-mix(in srgb, var(--game-action-color) 65%, var(--ink));
+  border-color: color-mix(in srgb, var(--game-action-color) 55%, var(--line));
+  background: linear-gradient(145deg, var(--glass-reflection, transparent), transparent 62%),
+    color-mix(in srgb, var(--game-action-color) 15%, var(--panel));
+}
+html #app .trivia-shell .games-menu-control,
+.best-time-actions [data-best-time-action="menu"] {
+  --game-action-color: var(--teal);
+}
+html #app .trivia-shell :is(#triviaHint, #referenceRushHint, #crosswordHint, #hiddenWordHint),
+.best-time-actions [data-best-time-action="menu"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+html #app .trivia-shell :is(.games-hint-action, #triviaHint, #referenceRushHint, #crosswordHint, #hiddenWordHint) svg,
+.best-time-actions [data-best-time-action="menu"] svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint, #referenceRushHint, #crosswordHint, #hiddenWordHint, #gameControlsToggle):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+
+.games-exit-dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.games-exit-dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+.games-exit-dialog h2 { margin: 0; }
+.games-exit-dialog p { margin: 10px 0 18px; }
+.games-exit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.games-exit-actions button { min-height: 44px; }
+
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
+  .is-expanded-play .trivia-panel .trivia-header { padding-bottom: 6px; }
+  .is-expanded-play .trivia-panel.has-crossword:has(.crossword-game:not(.is-complete)) .trivia-header {
+    height: auto;
+    min-height: 50px;
+    padding-bottom: 6px;
+  }
+  .is-expanded-play .trivia-header-actions { gap: 8px; max-width: 100%; }
+  .is-expanded-play .trivia-header-actions #gameControlsToggle { width: 44px; padding-inline: 0; }
+  .is-expanded-play .trivia-header-actions :is(#gameControlsToggle, #gameHintsToggle) svg { display: block; }
+  .is-expanded-play .trivia-header-actions #gameControlsToggle span { display: none; }
+  .is-expanded-play .games-play-menu .games-menu-control { padding-inline: 8px; }
+}
+@media (max-width: 360px) and (orientation: portrait) {
+  .is-expanded-play .trivia-header-actions #gameHintsToggle { width: 44px; padding-inline: 0; }
+  .is-expanded-play .trivia-header-actions #gameHintsToggle span { display: none; }
+}
