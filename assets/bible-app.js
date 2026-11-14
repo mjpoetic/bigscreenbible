@@ -464,6 +464,7 @@ const modeScrollStates = new Map();
 let streakPopupTimer = 0;
 let mobileSettingsIdleTimer = 0;
 let focusSearchLastTapAt = null;
+const focusSearchPortrait = window.matchMedia("(max-width: 840px) and (orientation: portrait)");
 let focusControlsHideTimer = 0;
 let suppressSettingsSearchHoldClickUntil = 0;
 let settingsSearchLastClick = null;
@@ -3439,6 +3440,30 @@ function scheduleFocusPassageNotch() {
   if (!focusPassageNotchFrame) focusPassageNotchFrame = requestAnimationFrame(updateFocusPassageNotch);
 }
 
+function focusSearchPanelMarkup() {
+  if (!state.focusMode || !(state.focusReferenceOpen || state.focusSearchResultsOpen)) return "";
+  const source = normalizedSearchSource(state.searchSource);
+  const placeholder = source === "strongs" ? "Words or Strong’s numbers"
+    : source === "notes" ? "Search saved notes" : "Passage, phrase, or question";
+  const query = state.searchQuery;
+  return `
+    <section class="mobile-focus-search-results focus-portrait-search" id="mobileFocusSearchResults" role="dialog" aria-labelledby="focusSearchTitle">
+      <form class="quick-action-search-form" id="mobileFocusPassagePopover" role="search">
+        <label id="focusSearchTitle" for="mobileFocusPassageInput">Search the Bible</label>
+        <button class="quick-action-search-close glass-close-control" id="mobileFocusSearchResultsClose" type="button" aria-label="Close search">${icons.clear}</button>
+        <div class="quick-action-search-row">
+          <input id="mobileFocusPassageInput" type="search" value="${escapeHtml(query)}" placeholder="${placeholder}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" />
+          <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
+        </div>
+        ${searchScopeControls()}
+      </form>
+      ${state.focusSearchResultsOpen && state.searchResultsQuery ? `
+        <div class="mobile-focus-search-results-body" aria-live="polite" aria-busy="${state.searchPending}">
+          <div class="search-results">${searchResultsMarkup()}</div>
+        </div>` : ""}
+    </section>`;
+}
+
 function mobileFocusOverlayControls() {
   if (["big", "memorize", "trivia"].includes(state.mode)) return "";
   const strongSearchSource = normalizedSearchSource(state.searchSource) === "strongs";
@@ -3454,14 +3479,14 @@ function mobileFocusOverlayControls() {
           class="mobile-floating-passage ${state.focusReferenceOpen ? "active" : ""}"
           id="mobileFocusPassageToggle"
           type="button"
-          aria-label="Go to another passage"
-          aria-controls="mobileFocusPassagePopover"
-          aria-expanded="${state.focusReferenceOpen ? "true" : "false"}"
-          data-tooltip="Go to passage"
+          aria-label="${focusSearchPortrait.matches ? "Search the Bible" : "Go to another passage"}"
+          aria-controls="${focusSearchPortrait.matches ? "mobileFocusSearchResults" : "mobileFocusPassagePopover"}"
+          aria-expanded="${state.focusReferenceOpen || (focusSearchPortrait.matches && state.focusSearchResultsOpen) ? "true" : "false"}"
+          data-tooltip="${focusSearchPortrait.matches ? "Search the Bible" : "Go to passage"}"
         >
           ${icons.search}
         </button>
-        ${state.focusReferenceOpen ? `
+        ${state.focusReferenceOpen && !focusSearchPortrait.matches ? `
           <form class="mobile-focus-passage-popover ${activeInlineSearchQuery() ? "has-inline-clear" : ""}" id="mobileFocusPassagePopover" role="search" aria-label="Go to another passage">
             <input
               id="mobileFocusPassageInput"
@@ -3501,7 +3526,7 @@ function mobileFocusOverlayControls() {
         ${icons.settings}
       </button>
     ` : ""}
-    ${mobileFocusSearchResults()}
+    ${focusSearchPortrait.matches ? focusSearchPanelMarkup() : mobileFocusSearchResults()}
     ${mobileFocusWorkspacePanel()}
   `;
 }
@@ -23661,7 +23686,7 @@ function bindEvents() {
     event.stopPropagation();
     // Persist across renders: the first tap replaces this button in #app.
     const tappedAt = event.timeStamp;
-    const doubleTap = focusSearchLastTapAt !== null
+    const doubleTap = !focusSearchPortrait.matches && focusSearchLastTapAt !== null
       && tappedAt - focusSearchLastTapAt >= 0
       && tappedAt - focusSearchLastTapAt <= 350;
     focusSearchLastTapAt = doubleTap ? null : tappedAt;
@@ -23673,7 +23698,7 @@ function bindEvents() {
       openQuickActionSearch();
       return;
     }
-    state.focusReferenceOpen = !state.focusReferenceOpen;
+    state.focusReferenceOpen = !(state.focusReferenceOpen || (focusSearchPortrait.matches && state.focusSearchResultsOpen));
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
     if (state.focusReferenceOpen) {
@@ -23681,6 +23706,10 @@ function bindEvents() {
       state.accountOpen = false;
     }
     renderPreservingReaderScroll();
+    if (focusSearchPortrait.matches && state.focusReferenceOpen) {
+      positionMobileFocusSearch();
+      document.getElementById("mobileFocusPassageInput")?.focus({ preventScroll: true });
+    }
   });
   ["mobileFocusToolsToggle", "desktopFocusToolsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", (event) => {
@@ -23778,7 +23807,14 @@ function bindEvents() {
     state.searchReturnAvailable = Boolean(state.searchResultsQuery);
     state.searchReturnScroll = document.getElementById("mobileFocusSearchResultsClose")?.closest(".mobile-focus-search-results")?.querySelector(".mobile-focus-search-results-body")?.scrollTop || 0;
     state.focusSearchResultsOpen = false;
+    state.focusReferenceOpen = false;
     renderPreservingReaderScroll();
+    if (focusSearchPortrait.matches) document.getElementById("mobileFocusPassageToggle")?.focus({ preventScroll: true });
+  });
+  document.querySelector(".focus-portrait-search")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || activeSearchScopeMenu) return;
+    event.stopPropagation();
+    document.getElementById("mobileFocusSearchResultsClose")?.click();
   });
   document.getElementById("mobileFocusPassagePopover")?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -23787,7 +23823,7 @@ function bindEvents() {
     });
   });
   document.getElementById("mobileFocusPassageInput")?.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
+    if (event.key !== "Enter" || event.isComposing || focusSearchPortrait.matches) return;
     event.preventDefault();
     submitFocusReference(event.currentTarget.value, { sourceInputId: "mobileFocusPassageInput" });
   });
@@ -26491,19 +26527,25 @@ function openSearchScopeMenu(trigger, options = {}) {
   activeSearchScopeMenu = { menu, trigger };
   trigger.setAttribute("aria-expanded", "true");
   trigger.setAttribute("aria-controls", menu.id);
-  menu.querySelectorAll("[data-search-scope-option]").forEach((button) => {
-    button.addEventListener("click", () => {
-      setSearchScope(button.dataset.searchScopeOption);
-      closeSearchScopeMenu({ restoreFocus: true });
-    });
-  });
-  menu.querySelectorAll("[data-search-source-option]").forEach((button) => button.addEventListener("click", (event) => {
-    setSearchSource(event.currentTarget.dataset.searchSourceOption);
+  const applySearchOption = (apply) => {
+    const panel = trigger.closest(".focus-portrait-search");
+    const query = panel?.querySelector("input")?.value.trim();
+    const rerun = panel && state.focusSearchResultsOpen && query === state.searchResultsQuery;
+    if (panel && !state.focusSearchResultsOpen) state.focusReferenceOpen = true;
+    apply();
     closeSearchScopeMenu({ restoreFocus: true });
-  }));
+    if (rerun) runPhraseSearch(query, { focusResults: true });
+  };
+  menu.querySelectorAll("[data-search-scope-option]").forEach((button) => {
+    button.addEventListener("click", () => applySearchOption(() => setSearchScope(button.dataset.searchScopeOption)));
+  });
+  menu.querySelectorAll("[data-search-source-option]").forEach((button) => {
+    button.addEventListener("click", () => applySearchOption(() => setSearchSource(button.dataset.searchSourceOption)));
+  });
   menu.addEventListener("keydown", handleSearchScopeMenuKeydown);
   document.addEventListener("pointerdown", closeSearchScopeMenuOnOutside, true);
   window.addEventListener("resize", positionSearchScopeMenu);
+  window.visualViewport?.addEventListener("resize", positionSearchScopeMenu);
   window.addEventListener("scroll", positionSearchScopeMenu, true);
   positionSearchScopeMenu();
   const optionButtons = Array.from(menu.querySelectorAll("[data-search-scope-option], [data-search-source-option]"));
@@ -26525,6 +26567,7 @@ function closeSearchScopeMenu(options = {}) {
   trigger?.removeAttribute("aria-controls");
   document.removeEventListener("pointerdown", closeSearchScopeMenuOnOutside, true);
   window.removeEventListener("resize", positionSearchScopeMenu);
+  window.visualViewport?.removeEventListener("resize", positionSearchScopeMenu);
   window.removeEventListener("scroll", positionSearchScopeMenu, true);
   if (options.restoreFocus && trigger?.isConnected) trigger.focus({ preventScroll: true });
 }
@@ -26568,19 +26611,21 @@ function positionSearchScopeMenu() {
   const gap = 6;
   const anchor = trigger.getBoundingClientRect();
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+  const viewport = fixedPopoverViewport();
+  const viewportTop = viewport.offsetTop;
+  const viewportBottom = viewportTop + viewport.height;
   const width = Math.min(270, viewportWidth - margin * 2);
-  const availableBelow = Math.max(0, viewportHeight - anchor.bottom - gap - margin);
-  const availableAbove = Math.max(0, anchor.top - gap - margin);
+  const availableBelow = Math.max(0, viewportBottom - anchor.bottom - gap - margin);
+  const availableAbove = Math.max(0, anchor.top - viewportTop - gap - margin);
   const openBelow = availableBelow >= availableAbove;
   const availableHeight = Math.max(96, openBelow ? availableBelow : availableAbove);
   menu.style.width = `${Math.round(width)}px`;
-  menu.style.maxHeight = `${Math.round(Math.min(viewportHeight - margin * 2, availableHeight))}px`;
+  menu.style.maxHeight = `${Math.round(Math.min(viewport.height - margin * 2, availableHeight))}px`;
   const menuHeight = menu.getBoundingClientRect().height;
   const left = Math.min(Math.max(margin, anchor.left), viewportWidth - width - margin);
   const top = openBelow
-    ? Math.min(viewportHeight - menuHeight - margin, anchor.bottom + gap)
-    : Math.max(margin, anchor.top - menuHeight - gap);
+    ? Math.min(viewportBottom - menuHeight - margin, anchor.bottom + gap)
+    : Math.max(viewportTop + margin, anchor.top - menuHeight - gap);
   menu.style.left = `${Math.round(left)}px`;
   menu.style.top = `${Math.round(top)}px`;
 }
@@ -26621,7 +26666,7 @@ function setSearchSource(value) {
 function currentSearchInputDraft() {
   const inputIds = ["referenceInput", "studySearchInput", "mobileFocusPassageInput"];
   const activeInput = inputIds.includes(document.activeElement?.id) ? document.activeElement : null;
-  const input = activeInput || inputIds.map((id) => document.getElementById(id)).find(Boolean);
+  const input = activeInput || document.querySelector(".focus-portrait-search input") || inputIds.map((id) => document.getElementById(id)).find(Boolean);
   const value = String(input?.value || "").trim();
   return [referenceLabel(), activePassageLabel()].includes(value) ? "" : value;
 }
@@ -26634,6 +26679,7 @@ function resetSearchForSource(source, query = "") {
   state.searchResultsSource = normalizedSearchSource(source);
   state.searchResults = [];
   state.searchPending = false;
+  if (state.focusSearchResultsOpen && state.focusMode && focusSearchPortrait.matches) state.focusReferenceOpen = true;
   state.focusSearchResultsOpen = false;
   state.presentationSearchResultsOpen = false;
 }
@@ -28944,7 +28990,8 @@ function submitFocusReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   state.focusReferenceOpen = false;
-  if (normalizedSearchSource(options.source ?? state.searchSource) !== "strongs" && parseReference(cleaned)) {
+  const source = normalizedSearchSource(options.source ?? state.searchSource);
+  if (source !== "strongs" && !(source === "notes" && focusSearchPortrait.matches) && parseReference(cleaned)) {
     gotoReference(cleaned, {
       focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive),
       spotlight: true,
@@ -29015,7 +29062,7 @@ async function runPhraseSearch(value, options = {}) {
     }
     return;
   }
-  if (source === "scripture" && scope === "chapter" && !presentationResults) {
+  if (source === "scripture" && scope === "chapter" && !presentationResults && !(options.focusResults && state.focusMode && focusSearchPortrait.matches)) {
     if (advanceInlineChapterSearch(query, searchChapter)) return;
     runInlineChapterSearch(query, searchChapter, { sourceInputId: options.sourceInputId });
     return;
@@ -32832,6 +32879,14 @@ function shortcutWorkspace(target) {
 
 function positionMobileFocusSearch() {
   const popover = document.getElementById("mobileFocusPassagePopover");
+  const panel = popover?.closest(".focus-portrait-search");
+  if (panel) {
+    const viewport = passagePickerViewport();
+    const top = viewport.top + Math.max(8, Math.min(48, viewport.height * 0.06));
+    panel.style.top = `${top}px`;
+    panel.style.maxHeight = `${Math.max(0, viewport.top + viewport.height - top)}px`;
+    return;
+  }
   const control = popover?.closest(".mobile-focus-passage-control");
   if (!control) return;
   // Restore the normal footer/safe-area position before measuring. iOS can
@@ -34631,6 +34686,9 @@ window.addEventListener("blur", () => {
 });
 window.addEventListener("focus", () => {
   if (isStandaloneWebApp()) restoreReaderScrollAfterAppSwitch({ allowStored: true });
+});
+focusSearchPortrait.addEventListener("change", () => {
+  if (state.focusMode && (state.focusReferenceOpen || state.focusSearchResultsOpen)) renderPreservingReaderScroll();
 });
 window.addEventListener("resize", () => {
   refreshDraggedPopupPositions();
