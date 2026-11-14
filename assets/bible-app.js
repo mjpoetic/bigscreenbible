@@ -54,6 +54,10 @@ const searchScopeBookGroups = {
 };
 
 const bookAliases = buildBookAliases();
+const footnoteBookPattern = Object.keys(bookAliases)
+  .sort((a, b) => b.length - a.length)
+  .map((alias) => escapeRegExp(alias).replace(/ /g, "\\s*"))
+  .join("|");
 
 const bibleProviders = {
   local: {
@@ -5475,6 +5479,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.4": [
+      "Tap a Scripture reference in a publisher footnote to preview the passage.",
+    ],
     "2026.11.14.3": [
       "In portrait on phones, Focus Mode opens a larger search panel with scope controls and results below. The panel stays open when you tap the search field or search button.",
     ],
@@ -10884,9 +10891,29 @@ function publisherFootnoteButtonMarkup(verse, version, chapterKey = state.refere
   return `<button class="publisher-footnote-trigger" type="button" data-publisher-footnote="${verse.n}" data-footnote-chapter="${escapeHtml(chapterKey)}" data-footnote-version="${escapeHtml(version)}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" aria-expanded="false" data-tooltip="Footnotes"><span aria-hidden="true">*</span></button>`;
 }
 
+function renderPublisherFootnoteText(text) {
+  const value = String(text || "");
+  const references = new RegExp(
+    `(?<![\\p{L}\\p{N}])((?:${footnoteBookPattern})\\.?)\\s+(\\d{1,3}:\\d{1,3}(?:\\s*[-–—]\\s*\\d{1,3}(?![\\d:]))?(?:,\\s*\\d{1,3}(?![\\d:]))*)(?![\\p{L}\\p{N}:])`,
+    "giu",
+  );
+  let output = "";
+  let cursor = 0;
+  for (const match of value.matchAll(references)) {
+    const book = bookAliases[normalizeAliasKey(match[1])] || bookAliases[normalizeAliasKey(match[1]).replace(/ /g, "")];
+    const reference = normalizeHeadingReference(`${book} ${match[2]}`);
+    const parsed = parsePassageReference(reference);
+    if (!parsed || !bibleData[parsed.key]) continue;
+    output += escapeHtml(value.slice(cursor, match.index));
+    output += scriptureInlineReferenceButton(reference, match[0]);
+    cursor = match.index + match[0].length;
+  }
+  return output + escapeHtml(value.slice(cursor));
+}
+
 function publisherFootnotePopupMarkup(verse, version, chapterKey) {
   const notes = publisherFootnotesForVerse(verse, version);
-  return `<ol class="publisher-footnote-list">${notes.map((note) => `<li>${note.reference ? `<span class="publisher-footnote-reference">${escapeHtml(note.reference)}</span> ` : ""}${escapeHtml(note.text)}</li>`).join("")}</ol>
+  return `<ol class="publisher-footnote-list">${notes.map((note) => `<li>${note.reference ? `<span class="publisher-footnote-reference">${escapeHtml(note.reference)}</span> ` : ""}${renderPublisherFootnoteText(note.text)}</li>`).join("")}</ol>
     ${apiBibleAttributionMarkup([version], "publisher-footnote-attribution", chapterKey)}`;
 }
 
@@ -10900,9 +10927,29 @@ function openPublisherFootnotePopup(anchor) {
     return;
   }
   closeVerseActionMenu(true);
-  const popup = showStudyPopup(anchor, publisherFootnotePopupMarkup(verse, version, chapterKey),
-    `${chapterKey}:${versionVerseLabel(verse, version)} (${translationDisplayCode(version)})`,
-    { className: "publisher-footnote-popup" });
+  const content = publisherFootnotePopupMarkup(verse, version, chapterKey);
+  const label = `${chapterKey}:${versionVerseLabel(verse, version)} (${translationDisplayCode(version)})`;
+  const options = { className: "publisher-footnote-popup" };
+  const popup = showStudyPopup(anchor, content, label, options);
+  const bindReferences = () => {
+    popup.querySelectorAll("[data-scripture-reference]").forEach((button, index) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openReferencePreviewPopup(anchor, button.dataset.scriptureReference, {
+          popup,
+          version,
+          backLabel: "Footnotes",
+          onBack: () => {
+            setStudyPopupContent(popup, content, label, options);
+            positionStudyPopup(anchor, popup);
+            bindReferences();
+            popup.querySelectorAll("[data-scripture-reference]")[index]?.focus({ preventScroll: true });
+          },
+        });
+      });
+    });
+  };
+  bindReferences();
   popup.querySelector(".study-popup-close")?.focus({ preventScroll: true });
 }
 
@@ -11109,8 +11156,12 @@ function ampInlineReferenceMarkup(value) {
   if (!parts.length || parts.some((part) => !part)) return "";
 
   return parts
-    .map((part) => `<button class="scripture-inline-reference-link" type="button" data-scripture-reference="${escapeHtml(part.reference)}" aria-label="Preview ${escapeHtml(part.reference)}" aria-haspopup="dialog" aria-expanded="false">${escapeHtml(part.display)}</button>`)
+    .map((part) => scriptureInlineReferenceButton(part.reference, part.display))
     .join('<span class="scripture-inline-reference-separator">; </span>');
+}
+
+function scriptureInlineReferenceButton(reference, display) {
+  return `<button class="scripture-inline-reference-link" type="button" data-scripture-reference="${escapeHtml(reference)}" aria-label="Preview ${escapeHtml(reference)}" aria-haspopup="dialog" aria-expanded="false">${escapeHtml(display)}</button>`;
 }
 
 function ampInlineReferencePart(value, previousBook = "") {
@@ -21470,6 +21521,7 @@ function referencePreviewPassageMarkup(reference, requestedVersion, options = {}
         <p class="reference-preview-verse"><sup>${n}</sup><span>${escapeHtml(text)}</span></p>
       `).join("")
     : `<div class="empty-state">Scripture text is not available for this reference.</div>`;
+  const backLabel = options.backLabel || (options.returnToCrossReferences ? "Cross references" : "");
   const goToReference = parsed.verses.length > 1 ? reference : (options.goToReference || reference);
   return `
     <div class="reference-preview-meta">
@@ -21481,18 +21533,18 @@ function referencePreviewPassageMarkup(reference, requestedVersion, options = {}
       ${passage}
     </div>
     ${apiBibleAttributionMarkup([version], "reference-preview-attribution", parsed.key)}
-    <div class="reference-preview-actions ${options.returnToCrossReferences ? "has-back" : ""}">
-      ${options.returnToCrossReferences ? `<button class="reference-preview-back" type="button" data-reference-preview-back><span aria-hidden="true">←</span> Cross references</button>` : ""}
+    <div class="reference-preview-actions ${backLabel ? "has-back" : ""}">
+      ${backLabel ? `<button class="reference-preview-back" type="button" data-reference-preview-back><span aria-hidden="true">←</span> ${escapeHtml(backLabel)}</button>` : ""}
       <a class="reference-preview-go" href="${escapeHtml(referencePreviewHref(goToReference))}" data-popup-goto="${escapeHtml(goToReference)}">Go to Passage <span aria-hidden="true">→</span></a>
     </div>
   `;
 }
 
-function bindReferencePreviewBack(popup) {
+function bindReferencePreviewBack(popup, onBack = () => restoreCrossReferencePopup(popup)) {
   popup.querySelector("[data-reference-preview-back]")?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    restoreCrossReferencePopup(popup);
+    onBack();
   });
 }
 
@@ -21507,7 +21559,7 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
     ...options,
     goToReference: normalizeHeadingReference(options.goToReference || normalizedReference),
   };
-  const version = state.versions[0] || "BSB";
+  const version = options.version || state.versions[0] || "BSB";
   pruneExpiredRemoteVersionData();
   const needsRemoteText = isRemoteTranslation(version)
     && !remoteVersionData.has(remoteVersionLoadKey(version, parsed.key));
@@ -21531,7 +21583,7 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
   popup.dataset.referencePreviewRequest = String(requestId);
   popup.dataset.referencePreview = normalizedReference;
   bindStudyPopupGotoLinks(popup);
-  bindReferencePreviewBack(popup);
+  bindReferencePreviewBack(popup, options.onBack);
   if (!needsRemoteText) return;
 
   await ensureRemoteBibleVersion(version, parsed.key, { rerender: false });
@@ -21544,7 +21596,7 @@ async function openReferencePreviewPopup(anchor, reference, options = {}) {
   if (!body) return;
   body.innerHTML = referencePreviewPassageMarkup(normalizedReference, version, previewOptions);
   bindStudyPopupGotoLinks(popup);
-  bindReferencePreviewBack(popup);
+  bindReferencePreviewBack(popup, options.onBack);
   positionStudyPopup(anchor, popup);
   if (options.popup) popup.querySelector("[data-reference-preview-back]")?.focus({ preventScroll: true });
 }

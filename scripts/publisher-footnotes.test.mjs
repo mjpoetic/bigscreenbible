@@ -11,6 +11,9 @@ function extract(name) {
   return source.slice(start, end);
 }
 const ctx = {
+  bookAliases: { isaiah: 'Isaiah', '1 pet': '1 Peter', '1pet': '1 Peter' },
+  footnoteBookPattern: String.raw`isaiah|1\s*pet`,
+  normalizeBookName: value => value,
   state: { mode: 'reader', reference: 'Luke 4' }, window: {},
   bibleData: { 'Luke 4': { verses: [{ n: 33, BSB: 'Other version.', footnotes: { BSB: [{text:'Preserved.'}] } }] } },
   normalizeRemoteProviderText: (_, text) => text,
@@ -22,7 +25,13 @@ const ctx = {
   apiBibleAttributionMarkup: (versions, cls, chapter) => `<aside>${versions[0]} ${chapter}</aside>`,
 };
 vm.createContext(ctx);
-vm.runInContext(['versionVerseLabel', 'publisherFootnotesForVerse', 'publisherFootnoteButtonMarkup', 'publisherFootnotePopupMarkup', 'mergeRemoteVersionChapter'].map(extract).join('\n'), ctx);
+vm.runInContext(['versionVerseLabel', 'publisherFootnotesForVerse', 'publisherFootnoteButtonMarkup', 'publisherFootnotePopupMarkup', 'renderPublisherFootnoteText', 'scriptureInlineReferenceButton', 'normalizeAliasKey', 'normalizeHeadingReference', 'parsePassageReference', 'parseVerseList', 'mergeRemoteVersionChapter'].map(extract).join('\n'), ctx);
+ctx.bibleData['Isaiah 8'] = { verses: [{ n: 13 }, { n: 14 }] };
+ctx.bibleData['1 Peter 3'] = { verses: [{ n: 15 }] };
+const rendered = ctx.renderPublisherFootnoteText('See Isaiah 8:13–14; 1 Pet. 3:15 & Isaiah 999:13.');
+assert.match(rendered, /data-scripture-reference="Isaiah 8:13-14"[^>]*>Isaiah 8:13–14<\/button>/);
+assert.match(rendered, /data-scripture-reference="1 Peter 3:15"[^>]*>1 Pet\. 3:15<\/button>/);
+assert.match(rendered, /&amp; Isaiah 999:13\.$/);
 const remote = [{n:33,text:'Scripture.',footnotes:[{id:'n1',reference:'4:33',text:'Greek unclean; also in 4:36.'}]}];
 ctx.mergeRemoteVersionChapter('NLT','Luke 4',remote);
 const verse = ctx.bibleData['Luke 4'].verses[0];
