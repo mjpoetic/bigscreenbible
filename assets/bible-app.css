@@ -15837,11 +15837,11 @@ kbd {
 .status-toast-region::before {
   content: "";
   position: absolute;
-  inset: -36px clamp(-72px, -12vw, -24px);
-  background: rgb(0 0 0 / 22%);
+  inset: -46px clamp(-88px, -14vw, -32px);
+  background: rgb(0 0 0 / 38%);
   --toast-backdrop-mask: radial-gradient(ellipse closest-side,
-    #000 0%, rgb(0 0 0 / 80%) 30%, rgb(0 0 0 / 35%) 60%,
-    rgb(0 0 0 / 8%) 84%, transparent 100%);
+    #000 0%, rgb(0 0 0 / 76%) 30%, rgb(0 0 0 / 30%) 60%,
+    rgb(0 0 0 / 5%) 84%, transparent 100%);
   -webkit-mask-image: var(--toast-backdrop-mask);
   mask-image: var(--toast-backdrop-mask);
   opacity: 0;
