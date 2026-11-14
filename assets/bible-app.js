@@ -805,6 +805,7 @@ const state = {
   focusReadingStyle: localStorage.getItem("lw_focus_reading_style") === "blur" ? "blur" : "dim",
   focusReadingLines: Math.max(1, Math.min(3, Number(localStorage.getItem("lw_focus_reading_lines")) || 1)),
   focusControlsFade: localStorage.getItem("lw_focus_controls_fade") !== "false",
+  focusControlsTouchReveal: localStorage.getItem("lw_focus_controls_touch_reveal") === "true",
   focusControlsHide: localStorage.getItem("lw_focus_controls_hide") === "true",
   focusControlsHideSeconds: normalizedFocusControlsHideSeconds(localStorage.getItem("lw_focus_controls_hide_seconds")),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
@@ -4936,14 +4937,19 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
       </label>
-      <p class="setting-help">Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds. Interact to brighten them. Turn off to restore the original appearance behavior.</p>
+      <p class="setting-help">Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("FocusControlsTouchRevealToggle")}" data-focus-controls-setting="focusControlsTouchReveal" ${state.focusControlsTouchReveal ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
+        <span>Brighten faded controls only when used</span>
+      </label>
+      <p class="setting-help">Tap, click, or focus one faded control with the keyboard to brighten them all.</p>
       <label class="setting-checkbox">
         <input type="checkbox" data-focus-controls-setting="focusControlsHide" ${state.focusControlsHide ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
         <span>Eventually hide faded controls</span>
       </label>
       <label class="setting-label" for="${controlId("FocusControlsHideSeconds")}">Hide after seconds of inactivity</label>
       <input id="${controlId("FocusControlsHideSeconds")}" type="number" min="5" max="300" step="1" value="${state.focusControlsHideSeconds}" data-focus-controls-setting="focusControlsHideSeconds" ${state.focusControlsFade && state.focusControlsHide ? "" : "disabled"} />
-      <p class="setting-help">Default: 10 seconds. Touch, move the pointer, scroll, or use the keyboard to show controls again.</p>
+      <p class="setting-help">Default: 10 seconds. Once fully hidden, touch, move the pointer, scroll, or use the keyboard to show controls again.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
       <span class="setting-label" id="${controlId("SideToolbarPositionLabel")}">Landscape toolbar</span>
@@ -6739,6 +6745,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "FooterChapterArrowsToggle", "Show chapter arrows in footer", "Scripture & Reading", "footer arrows previous next hide remove navigation")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
+      ${result("reading", "FocusControlsTouchRevealToggle", "Brighten faded controls only when used", "Reading & navigation", "touch tap click floating reading buttons opacity")}
       ${result("reading", "FocusControlsFadeToggle", "Floating reading controls", "Reading & navigation", "focus reader parallel auto-scroll page fade opacity floating buttons hide inactivity delay")}
       ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
       ${result("reading", "AutoScrollSpeedLabel", "Auto-scroll speed", "Scripture & Reading", "automatic scrolling")}
@@ -8776,6 +8783,12 @@ function focusControlsInUse() {
 function revealMobileSettingsButton(event) {
   // Programmatic auto-scroll must not continually wake the floating controls.
   if (event?.type === "scroll" && state.autoScrollActive && floatingControlsFadeEnabled()) return;
+  if (event && state.focusControlsTouchReveal && floatingControlsFadeEnabled() &&
+      document.querySelector(".focus-control-faded") && !document.querySelector(".focus-control-hidden")) {
+    const control = event.target?.closest?.(".focus-control-faded");
+    if (!control || (event.type !== "pointerdown" &&
+        (event.type !== "focusin" || !event.target.matches(":focus-visible")))) return;
+  }
   scheduleReadingControlDimming();
   clearTimeout(focusControlsHideTimer);
   document.querySelectorAll(".focus-control-faded, .focus-control-hidden").forEach((button) => {
@@ -14319,6 +14332,7 @@ function captureCloudSnapshot() {
       settingsSectionsOpen: { ...state.settingsSectionsOpen },
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
       focusControlsFade: state.focusControlsFade,
+      focusControlsTouchReveal: state.focusControlsTouchReveal,
       focusControlsHide: state.focusControlsHide,
       focusControlsHideSeconds: state.focusControlsHideSeconds,
       autoScrollEnabled: state.autoScrollEnabled,
@@ -14574,6 +14588,7 @@ function applyCloudSnapshot(snapshot) {
     settings.settingsSectionsOpenUpdatedAt || localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
   );
   state.focusControlsFade = typeof settings.focusControlsFade === "boolean" ? settings.focusControlsFade : localStorage.getItem("lw_focus_controls_fade") !== "false";
+  state.focusControlsTouchReveal = typeof settings.focusControlsTouchReveal === "boolean" ? settings.focusControlsTouchReveal : localStorage.getItem("lw_focus_controls_touch_reveal") === "true";
   state.focusControlsHide = typeof settings.focusControlsHide === "boolean" ? settings.focusControlsHide : localStorage.getItem("lw_focus_controls_hide") === "true";
   state.focusControlsHideSeconds = normalizedFocusControlsHideSeconds(settings.focusControlsHideSeconds ?? localStorage.getItem("lw_focus_controls_hide_seconds"));
   state.autoScrollEnabled = typeof settings.autoScrollEnabled === "boolean"
@@ -14722,6 +14737,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_side_toolbar_position", state.sideToolbarPosition);
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
   localStorage.setItem("lw_focus_controls_fade", String(state.focusControlsFade));
+  localStorage.setItem("lw_focus_controls_touch_reveal", String(state.focusControlsTouchReveal));
   localStorage.setItem("lw_focus_controls_hide", String(state.focusControlsHide));
   localStorage.setItem("lw_focus_controls_hide_seconds", String(state.focusControlsHideSeconds));
   localStorage.setItem("lw_library_open", String(state.libraryOpen));
@@ -24335,7 +24351,7 @@ function bindEvents() {
   document.querySelectorAll("[data-focus-controls-setting]").forEach((input) => {
     input.addEventListener("change", () => {
       const key = input.dataset.focusControlsSetting;
-      const storageKeys = { focusControlsFade: "lw_focus_controls_fade", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
+      const storageKeys = { focusControlsFade: "lw_focus_controls_fade", focusControlsTouchReveal: "lw_focus_controls_touch_reveal", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
       state[key] = key === "focusControlsHideSeconds" ? normalizedFocusControlsHideSeconds(input.value) : input.checked;
       localStorage.setItem(storageKeys[key], String(state[key]));
       scheduleCloudSync();

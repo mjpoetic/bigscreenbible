@@ -13,7 +13,7 @@ controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
   activeSettingsChoiceMenu: null,
   state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
-  document: { querySelector: () => null, querySelectorAll: selector => selector.startsWith(".reader-page-button")
+  document: { querySelector: selector => controls.find(b => b.classes.has(selector.slice(1))) ?? null, querySelectorAll: selector => selector.startsWith(".reader-page-button")
     ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "scrollSpeedToggle" && selector.includes(".beside-auto-scroll .scroll-speed-toggle")) || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
     : selector.startsWith("#mobileFloatingSettings")
       ? controls.filter(b => b.id !== "scriptureReaderLauncher" || selector.includes(".scripture-reader-launcher"))
@@ -30,6 +30,24 @@ wake(); run(3200);
 assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'All controls fade on desktop, including auto-scroll');
 assert.equal(timers.size, 1, 'Default never schedules hiding');
 wake(); assert.ok(controls.every(b => b.classes.size === 0), 'Interaction restores visibility');
+context.state.focusControlsTouchReveal = true;
+wake(); run(3200);
+const fadedTarget = { closest: selector => context.document.querySelector(selector), matches: () => true };
+for (const type of ['pointermove', 'scroll', 'wheel', 'touchmove', 'keydown']) {
+  context.revealMobileSettingsButton({ type, target: fadedTarget });
+}
+context.revealMobileSettingsButton({ type: 'pointerdown', target: { closest: () => null } });
+assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'Other activity leaves controls faded');
+context.revealMobileSettingsButton({ type: 'pointerdown', target: fadedTarget });
+assert.ok(controls.every(b => b.classes.size === 0), 'Pressing a faded control brightens all controls');
+run(3200);
+context.revealMobileSettingsButton({ type: 'focusin', target: fadedTarget });
+assert.ok(controls.every(b => b.classes.size === 0), 'Keyboard focus brightens all controls');
+context.state.focusControlsHide = true;
+wake(); run(3200); run(10000);
+context.revealMobileSettingsButton({ type: 'pointermove' });
+assert.ok(controls.every(b => b.classes.size === 0), 'Fully hidden controls can still be recovered');
+context.state.focusControlsTouchReveal = false;
 context.state.focusControlsHide = true;
 wake(); run(10000);
 assert.ok(controls.every(b => b.classes.has('focus-control-hidden')));
