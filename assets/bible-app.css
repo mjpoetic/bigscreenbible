@@ -7011,9 +7011,10 @@ select {
   border-right: 0;
 }
 
-.trivia-mode-tabs button.active {
+#app .trivia-mode-tabs > button.active {
   background: var(--teal);
   color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent-ink) 35%, var(--teal));
 }
 
 .trivia-mode-tabs svg {
@@ -21347,10 +21348,6 @@ svg {
   scroll-snap-align: center;
 }
 
-.trivia-mode-tabs button.active {
-  border-color: var(--teal);
-}
-
 .trivia-mode-scroll {
   position: absolute;
   top: 1px;
@@ -21995,10 +21992,6 @@ svg {
     padding: 0 12px;
     font-size: 13px;
     scroll-snap-align: center;
-  }
-
-  .trivia-mode-tabs button.active {
-    border-color: var(--teal);
   }
 
   .trivia-setup-main {
@@ -25505,7 +25498,7 @@ html #app .app-shell :is(
   .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
   .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .reader-auto-scroll-button, .mode-tabs button, .theme-mode-button,
-  .icon-btn, .ghost-btn, .nav-button, .games-header-action, .trivia-mode-tabs button
+  .icon-btn, .ghost-btn, .nav-button, .games-header-action
 ):where(:not(#focusToggle, #mobileFocusToggle, .focus-toggle, .mobile-mode-focus))
 :not(:disabled):is(.active, [aria-pressed="true"], [aria-expanded="true"]) {
   --reading-control-active-glass: var(--teal);
@@ -25519,7 +25512,7 @@ html #app .app-shell :is(
   .mobile-floating-settings, .mobile-floating-passage, .mobile-floating-focus-tools,
   .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .reader-auto-scroll-button, .mode-tabs button, .theme-mode-button,
-  .icon-btn, .ghost-btn, .nav-button, .games-header-action, .trivia-mode-tabs button
+  .icon-btn, .ghost-btn, .nav-button, .games-header-action
 ):where(:not(#focusToggle, #mobileFocusToggle, .focus-toggle, .mobile-mode-focus))
 :not(:disabled):is(.active, [aria-pressed="true"], [aria-expanded="true"]) svg {
   color: inherit;

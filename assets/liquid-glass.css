@@ -158,7 +158,7 @@ html[data-control-material="glass"] :is(
   .mode-tabs > button, .theme-mode-button, .topbar .icon-btn, .rail > button,
   .mobile-floating-focus-tools, .mobile-floating-passage, .search-field-tool-button,
   .mobile-focus-tool-option, .desktop-focus-tool-option, .reader-auto-scroll-button,
-  .games-header-action, .trivia-mode-tabs > button
+  .games-header-action
 ).active {
   background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
   color: var(--accent-ink);

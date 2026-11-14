@@ -5485,6 +5485,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.10": [
+      "The selected game now stands out with a solid accent that follows your theme.",
+    ],
     "2026.11.14.9": [
       "Added an optional setting to keep floating reading controls faint until you tap, click, or focus one of them.",
     ],
