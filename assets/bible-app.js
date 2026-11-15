@@ -5477,6 +5477,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.4": [
+      "Highlight and add notes to the Verse of the Day and directly linked passages in Reader.",
+      "Import from text and imported passage controls now match the Liquid Glass setting.",
+    ],
     "2026.11.15.3": [
       "Signup confirmation can finish in the app when you open the email on the device where you signed up.",
     ],
@@ -15096,7 +15100,7 @@ async function syncNowAccount() {
 function readerView() {
   if (window.BSBImportedReader?.isActive()) return window.BSBImportedReader.markup();
   if (state.sharedPassage) return sharedPassageReaderView();
-  if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView();
+  if (state.isVerseOfDayActive && state.verseOfDayItem) return verseOfDayReaderView(true);
   const version = state.versions[0] || "BSB";
   if (window.bsbOffline?.active && isRemoteTranslation(version)) {
     return `<h1 class="section-title">${escapeHtml(state.reference)}</h1><p class="offline-version-unavailable">${escapeHtml(translationDisplayCode(version))} requires internet. Choose BSB, KJV, WEB, ASV, BBE or YLT in the Bible version menu to keep reading offline.</p>`;
@@ -15121,13 +15125,47 @@ function readerView() {
   `;
 }
 
-function verseOfDayReaderView() {
+function bindFocusedReaderVerseSelection() {
+  const focusedVerseRows = [...document.querySelectorAll("[data-focused-reader-verse]")];
+  focusedVerseRows.forEach((row) => {
+    const number = Number(row.dataset.focusedReaderVerse);
+    const select = (event) => {
+      event.stopPropagation();
+      state.verse = number;
+      toggleVerseSelection(number, event.shiftKey);
+      const visible = new Set(focusedVerseRows.map((item) => Number(item.dataset.focusedReaderVerse)));
+      state.selectedVerses = state.selectedVerses.filter((n) => visible.has(n));
+      state.returnSelectionToolsOpen = true;
+      renderPreservingReaderScroll();
+    };
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea, label") || window.getSelection()?.toString().trim()) return;
+      select(event);
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.target !== row || !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      select(event);
+      document.querySelector(`[data-focused-reader-verse="${number}"]`)?.focus({ preventScroll: true });
+    });
+  });
+}
+
+function focusedReaderVerse(number, content, marker = "", footnote = "", numbers = [number]) {
+  const color = numbers.map((n) => state.highlights[`${state.reference}:${n}`]).find(Boolean);
+  const selected = state.selectedVerses.includes(number);
+  return `<p class="verse-of-day-copy imported-reader-verse" data-focused-reader-verse="${number}" tabindex="0" aria-label="Select ${escapeHtml(formatReferenceLabel(state.reference, numbers))}">${marker}<span class="paragraph-verse ${highlightClassForColor(color)} ${selected ? "selected passage-selected" : ""}" ${highlightStyleForColor(color)}>${content}</span>${footnote}${verseNoteIndicatorsMarkup(number)}</p>`;
+}
+
+function verseOfDayReaderView(interactive = false) {
   const item = state.verseOfDayItem;
   if (!item) return "";
+  const entries = verseOfDayVerseEntries(item);
   return `
+    ${interactive ? selectionBar() : ""}
     <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
       <h1 class="section-title" id="verseOfDayReference"><button class="verse-of-day-reference-picker" type="button" data-passage-picker aria-label="Choose passage, currently ${escapeHtml(verseOfDayReferenceLabel(item))}" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}">${escapeHtml(verseOfDayReferenceLabel(item))}</button></h1>
-      <p class="verse-of-day-copy">${verseOfDayVerseEntries(item).map((entry) => escapeHtml(entry.text)).join(" ")}</p>
+      ${interactive ? entries.map((entry) => focusedReaderVerse(entry.verse, escapeHtml(entry.text), "", "", expandedVersionVerseNumbers(state.reference, [entry.verse], state.versions[0]))).join("") : `<p class="verse-of-day-copy">${entries.map((entry) => escapeHtml(entry.text)).join(" ")}</p>`}
       <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
         <span aria-hidden="true">${icons.book}</span>
         <span>Read in Bible</span>
@@ -22801,7 +22839,7 @@ function adjacentPresentationContent(direction) {
   const currentParts = currentPresentationParts();
   const partIndex = Math.max(0, Math.min(currentParts.length - 1, Number(state.presentationPart) || 0));
   const adjacentPartIndex = partIndex + direction;
-  const currentReference = state.isVerseOfDayActive && state.verseOfDayItem
+  const currentReference = state.isVerseOfDayActive && state.verseOfDayItem && !(state.mode === "reader" && state.selectedVerses.length)
     ? state.verseOfDayItem.reference
     : referenceLabel();
   if (adjacentPartIndex >= 0 && adjacentPartIndex < currentParts.length) {
@@ -24803,9 +24841,10 @@ function bindEvents() {
   brandVerseOfDay?.addEventListener("pointercancel", endFocusBrandVersionHold);
   brandVerseOfDay?.addEventListener("pointerleave", endFocusBrandVersionHold);
   brandVerseOfDay?.addEventListener("contextmenu", suppressFocusBrandContextMenu);
+  bindFocusedReaderVerseSelection();
   document.getElementById("sharedPassageReadChapter")?.addEventListener("click", openSharedPassageChapter);
-  document.getElementById("focusedPassageCopy")?.addEventListener("click", copySelectedPassage);
-  document.getElementById("focusedPassageShare")?.addEventListener("click", shareSelectedPassage);
+  document.getElementById("focusedPassageCopy")?.addEventListener("click", () => copySpecificVerses(state.sharedPassage.verses));
+  document.getElementById("focusedPassageShare")?.addEventListener("click", () => sharePassage(state.sharedPassage.verses));
   document.getElementById("focusedPassagePrint")?.addEventListener("click", printSelectedPassage);
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -29397,6 +29436,7 @@ function gotoReference(value, options = {}) {
       verses: cleaned.includes(":") ? [...parsed.verses] : currentChapter().verses.map((verse) => verse.n),
     };
     state.mode = "reader";
+    state.selectedVerses = [];
   }
   if (shouldTrackReturn && returnTarget && !currentPassageMatchesReturnTarget(returnTarget)) {
     pushReaderReturnTarget(returnTarget);
@@ -30235,7 +30275,7 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     await applySharedVersionFromUrl(verses);
     state.mode = requestedMode === "parallel" ? "parallel" : "reader";
     state.sharedPassage = state.mode === "parallel" ? null : { verses };
-    if (state.mode === "parallel") state.selectedVerses = verses;
+    state.selectedVerses = state.mode === "parallel" ? verses : [];
     state.pendingVerseFocus = state.mode === "parallel";
     state.libraryOpen = false;
     return;
@@ -30245,6 +30285,7 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     if (verseOfDay.reference && setReferenceFromString(verseOfDay.reference)) {
       state.verseOfDayItem = verseOfDay.item;
       state.isVerseOfDayActive = true;
+      state.selectedVerses = [];
     }
   }
   if (requestedMode) state.mode = requestedMode;
@@ -30291,9 +30332,12 @@ function sharedPassageReaderView() {
   const selected = new Set(verses);
   const lines = uniqueVersionVerses(currentChapter().verses.filter((verse) => selected.has(verse.n)), version);
   return `
+    ${selectionBar()}
     <section class="verse-of-day-reader shared-passage-reader" aria-labelledby="sharedPassageReference">
       <h1 class="section-title" id="sharedPassageReference">${escapeHtml(formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verses, version)))} <span>(${escapeHtml(translationDisplayCode(version))})</span></h1>
-      ${lines.map((verse) => `<p class="verse-of-day-copy" data-verse="${verse.n}"><button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> ${renderStrongText(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</p>`).join("")}
+      ${lines.map((verse) => focusedReaderVerse(verse.n, renderStrongText(verse, version),
+        `<button class="focused-verse-number" type="button" data-cross-ref-verse="${verse.n}" aria-label="Cross references for ${escapeHtml(state.reference)}:${verse.n}" data-tooltip="Cross references">${versionVerseLabel(verse, version)}</button> `,
+        publisherFootnoteButtonMarkup(verse, version), expandedVersionVerseNumbers(state.reference, [verse.n], version))).join("")}
       <div class="focused-passage-actions" role="group" aria-label="Passage actions">
         <button class="ghost-btn verse-of-day-read-button" id="sharedPassageReadChapter" type="button"><span aria-hidden="true">${icons.book}</span><span>Read full chapter</span></button>
         <button class="ghost-btn" id="focusedPassageCopy" type="button" aria-label="Copy passage" data-tooltip="Copy passage"><span aria-hidden="true">${icons.copy}</span><span>Copy</span></button>
@@ -30334,6 +30378,7 @@ async function openVerseOfDay(options = {}) {
   await loadBibleVersion(state.versions[0]);
   rebuildBibleData();
   state.mode = options.mode || "reader";
+  if (state.mode === "reader") state.selectedVerses = [];
   state.searchQuery = "";
   state.pendingVerseFocus = true;
   recordHistory();
@@ -34095,6 +34140,9 @@ function applyHighlight(color) {
 }
 
 function selectedVerseNumbers() {
+  if (state.mode === "reader" && (state.sharedPassage || state.isVerseOfDayActive) && state.selectedVerses.length) {
+    return expandedVersionVerseNumbers(state.reference, state.selectedVerses, state.versions[0]);
+  }
   if (state.sharedPassage) return [...state.sharedPassage.verses];
   return state.selectedVerses.length ? state.selectedVerses : [state.verse];
 }
@@ -34119,7 +34167,8 @@ function passageLines(verseNumbers = selectedVerseNumbers()) {
   const importedLines = globalThis.window?.BSBImportedReader?.selectedLines(verseNumbers);
   if (importedLines) return importedLines;
   if (state.isVerseOfDayActive && state.verseOfDayItem) {
-    return verseOfDayVerseEntries().map((entry) => ({ n: entry.verse, text: entry.text }));
+    return verseOfDayVerseEntries().filter((entry) => state.mode !== "reader" || !state.selectedVerses.length || verseNumbers.includes(entry.verse))
+      .map((entry) => ({ n: entry.verse, text: entry.text }));
   }
   const selected = new Set(verseNumbers);
   return uniqueVersionVerses(currentChapter().verses.filter((verse) => selected.has(verse.n)), state.versions[0])
@@ -34144,7 +34193,7 @@ function formattedPassageText(verseNumbers = selectedVerseNumbers()) {
     .map(({ n, label, text }) => verseNumbers.length > 1 ? `${label || n}. ${String(text || "").trim()}` : String(text || "").trim())
     .filter(Boolean)
     .join("\n");
-  const reference = state.isVerseOfDayActive && state.verseOfDayItem
+  const reference = state.isVerseOfDayActive && state.verseOfDayItem && !(state.mode === "reader" && state.selectedVerses.length)
     ? state.verseOfDayItem.reference
     : formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verseNumbers, state.versions[0]));
   const citation = `${reference} (${passageVersion()})`;

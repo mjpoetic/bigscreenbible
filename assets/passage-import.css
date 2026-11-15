@@ -32,3 +32,38 @@
 .imported-highlight-options summary svg { width: 17px; height: 17px; }
 .imported-highlight-palette { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .imported-highlight-palette .highlight-swatch { min-width: 44px; min-height: 44px; }
+
+html[data-control-material="glass"] .passage-import-dialog {
+  border-radius: 24px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+html[data-control-material="glass"] .passage-import-dialog::backdrop {
+  background: rgb(0 0 0 / .38);
+}
+html[data-control-material="glass"] .passage-import-body :is(input:not([type=checkbox]), textarea) {
+  border-color: var(--glass-edge);
+  border-radius: 14px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+}
+html[data-control-material="glass"] .passage-import-dialog .primary-btn,
+html[data-control-material="glass"] .passage-import-dialog ::file-selector-button {
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 var(--glass-light);
+}
+html[data-control-material="glass"] .passage-import-dialog .primary-btn {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  color: var(--accent-ink);
+}
+html[data-control-material="glass"] .passage-import-dialog ::file-selector-button {
+  margin-inline-end: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--panel);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

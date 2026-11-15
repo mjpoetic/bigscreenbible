@@ -63,6 +63,7 @@ html[data-control-material="glass"] :is(
   .presentation-search-field,
   .topbar .icon-btn, .topbar .search, .topbar .primary-version-toggle, .topbar .versions, .streak-chip,
   .focused-passage-actions .ghost-btn, .verse-of-day-reader .verse-of-day-read-button,
+  .imported-reader-header .ghost-btn, .passage-import-dialog .ghost-btn,
   .bottombar .nav-button, .bottombar .icon-btn, .bottombar .ghost-btn,
   .rail > button, .portrait-rail-actions > button,
   .games-header-action, .games-menu-control, .games-drawer-close, #referenceRushHint,
@@ -82,6 +83,7 @@ html[data-control-material="glass"] :is(
 html[data-control-material="glass"] :is(
   .topbar .icon-btn, .topbar .search, .topbar .primary-version-toggle, .topbar .versions, .streak-chip,
   .focused-passage-actions .ghost-btn, .verse-of-day-reader .verse-of-day-read-button,
+  .imported-reader-header .ghost-btn, .passage-import-dialog .ghost-btn,
   .bottombar .nav-button, .bottombar .icon-btn, .bottombar .ghost-btn,
   .rail > button, .portrait-rail-actions > button,
   .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,

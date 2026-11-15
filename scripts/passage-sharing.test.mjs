@@ -298,3 +298,48 @@ referenceSearch.state.sharedPassage={verses:[5,6]};
 await referenceSearch.runReferenceOrPhraseSearch('Proverbs 3');
 assert.deepEqual([...referenceSearch.state.sharedPassage.verses],[1,2,3]);
 console.log('Reference search preserves focused, Reader, and Parallel contexts');
+
+// A linked range and a daily reading can be annotated in place. The toolbar
+// acts on the tapped verses while the page's full reading stays intact.
+{
+  const savedHighlights = {};
+  function row(number) {
+    const listeners = {};
+    return { dataset: { focusedReaderVerse: number }, listeners, focus() {}, addEventListener(type, handler) { listeners[type] = handler; } };
+  }
+  const rows = [row(16), row(17)];
+  const focused = {
+    ...context,
+    state: { ...context.state, mode: "reader", sharedPassage: { verses: [16, 17] }, selectedVerses: [], highlights: {} },
+    document: { querySelectorAll: () => rows, querySelector: () => rows[1] },
+    window: { getSelection: () => null },
+    localStorage: { setItem: (key, value) => { if (key === "lw_highlights") savedHighlights[key] = JSON.parse(value); } },
+    highlightColors: ["yellow"],
+    normalizeHighlightColor: color => color === "yellow" ? color : "",
+    recordAnnotationDate() {},
+    scheduleCloudSync() {},
+    renderPreservingReaderScroll() {},
+    verseOfDayVerseEntries: () => [{ verse: 16, text: "First" }, { verse: 17, text: "Second" }],
+  };
+  vm.createContext(focused);
+  vm.runInContext([
+    "bindFocusedReaderVerseSelection", "toggleVerseSelection", "applyHighlight",
+    "selectedVerseNumbers", "expandedVersionVerseNumbers", "passageLines",
+  ].map(extractFunction).join("\n"), focused);
+  focused.bindFocusedReaderVerseSelection();
+  rows[1].listeners.click({ target: { closest: () => null }, stopPropagation() {} });
+  focused.applyHighlight("yellow");
+  assert.deepEqual(savedHighlights.lw_highlights, { "John 3:17": "yellow" });
+  assert.deepEqual(focused.state.sharedPassage.verses, [16, 17]);
+  rows[1].listeners.click({ target: { closest: () => null }, stopPropagation() {} });
+  assert.deepEqual([...focused.selectedVerseNumbers()], [16, 17]);
+
+  focused.state.sharedPassage = null;
+  focused.state.isVerseOfDayActive = true;
+  focused.state.verseOfDayItem = { reference: "John 3:16-17" };
+  rows[1].listeners.keydown({ target: rows[1], key: "Enter", preventDefault() {}, stopPropagation() {} });
+  assert.equal(focused.state.isVerseOfDayActive, true);
+  assert.deepEqual([...focused.passageLines()].map(line => line.text), ["Second"]);
+  focused.applyHighlight("none");
+  assert.deepEqual(savedHighlights.lw_highlights, {});
+}
