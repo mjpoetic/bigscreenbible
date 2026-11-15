@@ -760,6 +760,19 @@ let activeSettingsChoiceMenu = null;
 let settingsPageTransition = "";
 let presentationSettingsPageTransition = "";
 
+const startupModeChoices = [
+  { value: "big", label: "Big Screen" },
+  { value: "reader", label: "Reader" },
+  { value: "parallel", label: "Parallel Study" },
+  { value: "last", label: "Last used mode" },
+];
+
+function normalizeStartupMode(value, legacyBigScreen) {
+  return startupModeChoices.some(choice => choice.value === value)
+    ? value
+    : legacyBigScreen === false ? "reader" : "big";
+}
+
 const state = {
   memoryPractice: null,
   memoryNotice: "",
@@ -838,7 +851,7 @@ const state = {
   presentationTextAlignment: localStorage.getItem("lw_presentation_text_alignment") === "left" ? "left" : "center",
   presentationReferencePosition: localStorage.getItem("lw_presentation_reference_position") === "below" ? "below" : "above",
   presentationTextScale: Number(localStorage.getItem("lw_presentation_text_scale") || defaultPresentationTextScale),
-  startBigScreen: localStorage.getItem("lw_start_big_screen") !== "false",
+  startupMode: normalizeStartupMode(localStorage.getItem("lw_startup_mode"), localStorage.getItem("lw_start_big_screen") !== "false"),
   startVerseOfDay: localStorage.getItem("lw_start_verse_of_day") !== "false",
   isVerseOfDayActive: false,
   verseOfDayItem: null,
@@ -2854,6 +2867,7 @@ function switchMode(nextMode, options = {}) {
   const applyModeChange = () => {
     if (nextMode === "trivia" && previousMode !== "trivia") requestGameMusicRestart();
     state.mode = nextMode;
+    localStorage.setItem("lw_last_used_mode", nextMode);
     state.sharedPassage = null;
     if (presentationPassage) {
       state.selectedVerses = presentationPassage;
@@ -5471,10 +5485,10 @@ function startupReminderSettings(prefix = "", options = {}) {
   return settingsDisclosure("startup", "Startup & notifications", `
     <div class="setting-group">
       <span class="setting-label">Startup</span>
-      <label class="setting-checkbox">
-        <input type="checkbox" id="${controlId("StartBigScreenToggle")}" ${state.startBigScreen ? "checked" : ""} />
-        <span>Start in Big Screen Mode</span>
-      </label>
+      <span class="setting-label">Open on launch</span>
+      ${settingsChoiceMarkup(controlId("StartupModeSelect"), state.startupMode, startupModeChoices, {
+        label: "Open on launch",
+      })}
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("StartVerseOfDayToggle")}" ${state.startVerseOfDay ? "checked" : ""} />
         <span>Start with Verse of the Day</span>
@@ -6827,7 +6841,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("sharing", "PrintLayoutLabel", "Print layout", "Sharing & Printing", "reader big screen study")}
       ${result("sharing", "PrintVerseNumbersToggle", "Print verse numbers", "Sharing & Printing", "printing")}
       ${result("sharing", "PrintFullVersionNameToggle", "Full Bible version name in print", "Sharing & Printing", "printing")}
-      ${result("startup", "StartBigScreenToggle", "Start in Big Screen Mode", "Startup & Notifications", "launch opening")}
+      ${result("startup", "StartupModeSelect", "Open on launch", "Startup & Notifications", "launch opening")}
       ${result("startup", "StartVerseOfDayToggle", "Start with Verse of the Day", "Startup & Notifications", "launch opening")}
       ${result("startup", "ShowStreakPopupToggle", "Daily streak popup", "Startup & Notifications", "reading streak")}
       ${result("startup", "ChallengeQuietModeToggle", "Challenge Quiet Mode", "Startup & Notifications", "game popup")}
@@ -6855,7 +6869,7 @@ function mainSettingsRootMarkup(prefix = "") {
   const selectedShareFormat = passageShareFormats.find((format) => format.code === state.passageShareFormat)?.name || "Bible text";
   const selectedPrintLayout = printLayouts.find((layout) => layout.code === state.printLayout)?.name || "Print";
   const startupSummary = [
-    state.startBigScreen ? "Big Screen" : "Reader",
+    startupModeChoices.find(choice => choice.value === state.startupMode)?.label,
     state.startVerseOfDay ? "Verse of the Day" : "Last passage",
     state.pushEnabled ? "Notifications on" : "Notifications off",
   ].join(" · ");
@@ -14590,7 +14604,8 @@ function captureCloudSnapshot() {
       presentationTextAlignment: state.presentationTextAlignment,
       presentationReferencePosition: state.presentationReferencePosition,
       presentationTextScale: state.presentationTextScale,
-      startBigScreen: state.startBigScreen,
+      startupMode: state.startupMode,
+      startBigScreen: state.startupMode === "big",
       startVerseOfDay: state.startVerseOfDay,
       showStreakPopup: state.showStreakPopup,
       challengeQuietMode: state.challengeQuietMode,
@@ -14866,7 +14881,7 @@ function applyCloudSnapshot(snapshot) {
   state.presentationTextScale = clampPresentationTextScale(
     Number(settings.presentationTextScale ?? localStorage.getItem("lw_presentation_text_scale")) || defaultPresentationTextScale,
   );
-  state.startBigScreen = settings.startBigScreen !== false;
+  state.startupMode = normalizeStartupMode(settings.startupMode, settings.startBigScreen);
   state.startVerseOfDay = settings.startVerseOfDay !== false;
   state.showStreakPopup = settings.showStreakPopup !== false;
   state.challengeQuietMode = typeof settings.challengeQuietMode === "boolean"
@@ -14981,7 +14996,8 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_presentation_star_count", String(state.presentationStarCount));
   localStorage.setItem("lw_presentation_motion_intensity", state.presentationMotionIntensity);
   localStorage.setItem("lw_presentation_text_scale", String(state.presentationTextScale));
-  localStorage.setItem("lw_start_big_screen", String(state.startBigScreen));
+  localStorage.setItem("lw_startup_mode", state.startupMode);
+  localStorage.setItem("lw_start_big_screen", String(state.startupMode === "big"));
   localStorage.setItem("lw_start_verse_of_day", String(state.startVerseOfDay));
   localStorage.setItem("lw_show_streak_popup", String(state.showStreakPopup));
   localStorage.setItem("lw_challenge_quiet_mode", String(state.challengeQuietMode));
@@ -24730,15 +24746,14 @@ function bindEvents() {
   document.getElementById("mobileStrongNumbersToggle")?.addEventListener("change", (event) => {
     setStrongNumbers(event.target.checked, true);
   });
-  document.getElementById("startBigScreenToggle")?.addEventListener("change", (event) => {
-    state.startBigScreen = event.target.checked;
-    localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
-    scheduleCloudSync();
-  });
-  document.getElementById("mobileStartBigScreenToggle")?.addEventListener("change", (event) => {
-    state.startBigScreen = event.target.checked;
-    localStorage.setItem("lw_start_big_screen", state.startBigScreen ? "true" : "false");
-    scheduleCloudSync();
+  document.querySelectorAll("#startupModeSelect, #mobileStartupModeSelect").forEach(select => {
+    select.addEventListener("change", (event) => {
+      state.startupMode = normalizeStartupMode(event.target.value);
+      localStorage.setItem("lw_startup_mode", state.startupMode);
+      localStorage.setItem("lw_start_big_screen", String(state.startupMode === "big"));
+      scheduleCloudSync();
+      renderPreservingReaderScroll();
+    });
   });
   document.getElementById("startVerseOfDayToggle")?.addEventListener("change", (event) => {
     state.startVerseOfDay = event.target.checked;
@@ -30348,7 +30363,12 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     }
   }
   if (requestedMode) state.mode = requestedMode;
-  else if (state.startBigScreen) state.mode = "big";
+  else if (state.startupMode === "last") {
+    const lastMode = localStorage.getItem("lw_last_used_mode");
+    state.mode = ["reader", "parallel", "big", "trivia", "memorize"].includes(lastMode) ? lastMode : "big";
+  } else {
+    state.mode = state.startupMode;
+  }
   if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
 }
 

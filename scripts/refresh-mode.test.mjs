@@ -59,7 +59,7 @@ for (const mode of ['reader', 'parallel', 'trivia', 'memorize', 'vod', 'verseoft
       URLSearchParams,
       state: {
         mode: 'big', reference: 'John 3', verse: 16, versions: ['BSB', 'KJV'],
-        startVerseOfDay: true, startBigScreen: true, isVerseOfDayActive: true,
+        startVerseOfDay: true, startupMode: "big", isVerseOfDayActive: true,
         sharedPassage: { verses: [16] }, tutorialIntroVisible: true,
       },
       window: {
@@ -95,3 +95,27 @@ for (const mode of ['reader', 'parallel', 'trivia', 'memorize', 'vod', 'verseoft
   }
 }
 console.log('Direct modes override VOD startup; explicit VOD links open the daily verse');
+
+for (const [startupMode, lastMode, expected] of [
+  ["big", "reader", "big"],
+  ["reader", "parallel", "reader"],
+  ["parallel", "big", "parallel"],
+  ["last", "trivia", "trivia"],
+  ["last", "invalid", "big"],
+  ["last", null, "big"],
+]) {
+  const context = {
+    state: { mode: "reader", startupMode },
+    URLSearchParams,
+    requestedModeFromUrl: () => "",
+    sharedReferenceFromUrl: () => "",
+    window: { location: { search: "" } },
+    localStorage: { getItem: () => lastMode },
+    isCompactScreen: () => false,
+  };
+  vm.createContext(context);
+  vm.runInContext(helpers, context);
+  await context.applyStartupExperience();
+  assert.equal(context.state.mode, expected, `${startupMode} with last mode ${lastMode}`);
+}
+console.log("Startup mode and last-used fallback tests passed");
