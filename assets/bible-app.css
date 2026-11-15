@@ -25865,6 +25865,11 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
 
 /* Social safety controls inherit the account panel's accessible theme. */
 .social-terms-consent { margin: 0; font-size: 11px; line-height: 1.35; }
+.social-terms-consent a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
 .social-safety-dialog form { display: grid; gap: .75rem; }
 .social-safety-dialog select, .social-safety-dialog textarea { width: 100%; box-sizing: border-box; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: .6rem; padding: .75rem; font: inherit; }
 .friend-person-actions { flex-wrap: wrap; }
