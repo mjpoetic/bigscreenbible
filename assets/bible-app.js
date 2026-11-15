@@ -5477,6 +5477,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.13": [
+      "Scripture search shows matches from your current translation first, with an option to search all translations.",
+      "Meaning matches for questions and topics appear below the text results as they arrive.",
+      "New accounts created with a password require email verification before signing in.",
+    ],
     "2026.11.14.12": [
       "Social profile and friends sections expand and collapse smoothly, and Reader panels transition smoothly when you enter or leave Focus reading.",
     ],
