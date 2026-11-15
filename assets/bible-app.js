@@ -5477,6 +5477,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.14": [
+      "You can show your password as you type. When creating an account, enter it twice to catch typos.",
+      "The resend verification email action is easier to read in the account form.",
+    ],
     "2026.11.14.13": [
       "Scripture search shows matches from your current translation first, with an option to search all translations.",
       "Meaning matches for questions and topics appear below the text results as they arrive.",
