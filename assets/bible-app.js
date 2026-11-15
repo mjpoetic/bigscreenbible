@@ -8544,11 +8544,18 @@ function accountSignInCard(prefix = "", options = {}) {
       <form class="account-form" id="${suffix}accountForm">
         <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
         <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
-        <div class="account-actions">
-          <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
-          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create account</button>
-          <button class="account-secondary-action" type="submit" data-auth-action="resend" formnovalidate ${state.authBusy ? "disabled" : ""}>Resend verification email</button>
+        <div hidden>
+          <input id="${suffix}accountPasswordConfirmation" type="password" autocomplete="new-password" placeholder="Confirm password" aria-label="Confirm password" disabled />
         </div>
+        <label class="account-password-visibility">
+          <input type="checkbox" data-account-show-password aria-controls="${suffix}accountPassword ${suffix}accountPasswordConfirmation" />
+          Show password
+        </label>
+        <div class="account-actions">
+          <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" formnovalidate ${state.authBusy ? "disabled" : ""}>Sign in</button>
+          <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" formnovalidate ${state.authBusy ? "disabled" : ""}>Create account</button>
+        </div>
+        <button class="account-secondary-action" type="submit" data-auth-action="resend" formnovalidate ${state.authBusy ? "disabled" : ""}>Resend verification email</button>
       </form>
       <div class="account-divider"><span>or</span></div>
       <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
@@ -13656,9 +13663,27 @@ async function handleAccountSubmit(event, prefix = "") {
   const action = submitter?.dataset.authAction || "signin";
   const suffix = prefix ? `${prefix}-` : "";
   const emailInput = document.getElementById(`${suffix}accountEmail`);
-  const email = emailInput?.value.trim();
-  const password = document.getElementById(`${suffix}accountPassword`)?.value || "";
-  if (state.authBusy || !emailInput?.reportValidity() || !email || (action !== "resend" && !password)) return;
+  const passwordInput = document.getElementById(`${suffix}accountPassword`);
+  const confirmationInput = document.getElementById(`${suffix}accountPasswordConfirmation`);
+  if (state.authBusy) return;
+  if (action === "signup" && confirmationInput.disabled) {
+    confirmationInput.parentElement.hidden = false;
+    confirmationInput.disabled = false;
+    passwordInput.autocomplete = "new-password";
+    submitter.textContent = "Confirm and create account";
+    const firstEmptyField = [emailInput, passwordInput].find((input) => !input.value);
+    (firstEmptyField || confirmationInput).focus();
+    return;
+  }
+  if (!emailInput?.reportValidity()) return;
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  if (action !== "resend" && !passwordInput.reportValidity()) return;
+  if (action === "signup" && password !== confirmationInput.value) {
+    confirmationInput.setCustomValidity("Enter the same password in both fields.");
+    confirmationInput.reportValidity();
+    return;
+  }
   state.authEmailCueId = "";
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
@@ -24141,9 +24166,27 @@ function bindEvents() {
       state.presentationSettingsSectionsOpen[section.dataset.presentationSettingsSection] = section.open;
     });
   });
-  document.getElementById("accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event));
-  document.getElementById("mobile-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "mobile"));
-  document.getElementById("quick-accountForm")?.addEventListener("submit", (event) => handleAccountSubmit(event, "quick"));
+  for (const prefix of ["", "mobile", "quick"]) {
+    const suffix = prefix ? `${prefix}-` : "";
+    const accountForm = document.getElementById(`${suffix}accountForm`);
+    if (!accountForm) continue;
+    const password = document.getElementById(`${suffix}accountPassword`);
+    const confirmation = document.getElementById(`${suffix}accountPasswordConfirmation`);
+    accountForm.addEventListener("submit", (event) => handleAccountSubmit(event, prefix));
+    accountForm.querySelector("[data-account-show-password]").addEventListener("change", (event) => {
+      const type = event.target.checked ? "text" : "password";
+      password.type = type;
+      confirmation.type = type;
+    });
+    for (const input of [password, confirmation]) {
+      input.addEventListener("input", () => confirmation.setCustomValidity(""));
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" || confirmation.disabled) return;
+        event.preventDefault();
+        accountForm.requestSubmit(accountForm.querySelector('[data-auth-action="signup"]'));
+      });
+    }
+  }
   document.querySelectorAll("[id$='accountEmail']").forEach((input) => {
     input.addEventListener("input", () => {
       if (state.authEmailCueId !== input.id) return;

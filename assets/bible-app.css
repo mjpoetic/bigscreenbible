@@ -2793,6 +2793,16 @@ label.custom-font-weight,
   padding: 7px 9px;
 }
 
+.account-password-visibility {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  min-height: 28px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .account-form input.account-email-cue {
   border-color: #dc2626;
   background: color-mix(in srgb, #dc2626 10%, var(--panel));
