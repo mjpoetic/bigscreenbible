@@ -11953,6 +11953,35 @@ function authRedirectUrl() {
   return "https://bigscreenbible.com/";
 }
 
+function signupConfirmationRedirectUrl() {
+  if (!window.Capacitor?.isNativePlatform?.()) return authRedirectUrl();
+  return "https://bigscreenbible.com/?confirmSignup=1";
+}
+
+function isSignupConfirmationUrl(url) {
+  return url.pathname === "/" && url.searchParams.get("confirmSignup") === "1";
+}
+
+async function finishNativeSignupConfirmation(url) {
+  await supabaseAuthInitialization;
+  const client = createSupabaseClient();
+  const code = url.searchParams.get("code");
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  const hasError = url.searchParams.has("error") || fragment.has("error");
+  try {
+    if (!client || !code || hasError) throw new Error("Missing confirmation code");
+    const { error } = await client.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    showToast("Email verified. You’re signed in.");
+  } catch {
+    state.accountOpen = true;
+    state.authMessage = !hasError && (code || fragment.get("type") === "signup")
+      ? "Sign in with the password you created to finish."
+      : "This verification link could not be used. Try signing in or request a new link.";
+    renderPreservingReaderScroll();
+  }
+}
+
 function resetSocialProfileState() {
   state.socialConsent = false;
   state.socialSafetyReady = false;
@@ -13703,14 +13732,14 @@ async function handleAccountSubmit(event, prefix = "") {
       const { error } = await client.auth.resend({
         type: "signup",
         email,
-        options: { emailRedirectTo: authRedirectUrl() },
+        options: { emailRedirectTo: signupConfirmationRedirectUrl() },
       });
       if (error) throw error;
       state.authMessage = `If verification is pending for ${email}, check that inbox for a new link.`;
       return;
     }
     const signupResponse = action === "signup"
-      ? await client.auth.signUp({ email, password, options: { emailRedirectTo: authRedirectUrl() } })
+      ? await client.auth.signUp({ email, password, options: { emailRedirectTo: signupConfirmationRedirectUrl() } })
       : null;
     if (signupResponse?.error) throw signupResponse.error;
     if (signupResponse && !signupResponse.data?.session) {
@@ -35216,6 +35245,7 @@ const streakUpdatedToday = recordReadingStreak();
 scheduleNativeWidgetSync();
 state.streakPopupVisible = state.showStreakPopup && streakUpdatedToday;
 watchSystemTheme();
+let supabaseAuthInitialization;
 const startupLoaderPreview = new URLSearchParams(window.location.search).has("loaderPreview");
 if (startupLoaderPreview) {
   document.documentElement.dataset.loaderPreview = "true";
@@ -35224,7 +35254,24 @@ if (startupLoaderPreview) {
     if (!dataLoading && !dataError) renderPreservingReaderScroll();
     maybeOfferPushNotifications();
   });
-  initializeSupabaseAuth();
+  supabaseAuthInitialization = initializeSupabaseAuth();
+  const signupLandingUrl = new URL(window.location.href);
+  if (isSignupConfirmationUrl(signupLandingUrl)) {
+    // Safari may receive a native signup link if the app is unavailable or
+    // the user opens their mail on a different device.
+    const params = signupLandingUrl.searchParams;
+    const hasError = params.has("error") || new URLSearchParams(signupLandingUrl.hash.slice(1)).has("error");
+    if (hasError || params.has("code")) {
+      history.replaceState(history.state, "", signupLandingUrl.pathname);
+      void supabaseAuthInitialization.then(() => {
+        state.accountOpen = true;
+        state.authMessage = hasError
+          ? "This verification link could not be used. Try signing in or request a new link."
+          : "Email verified. Sign in with the password you created.";
+        if (!dataLoading && !dataError) renderPreservingReaderScroll();
+      });
+    }
+  }
   initializeBibleData();
 }
 
@@ -35360,6 +35407,11 @@ function handleNativeSharedLink(value) {
   let url;
   try { url = new URL(value); } catch { return true; }
   if (url.origin !== "https://bigscreenbible.com" || url.username || url.password) return true;
+  if (isSignupConfirmationUrl(url)) {
+    if (window.bsbOffline?.active) return false;
+    void finishNativeSignupConfirmation(url);
+    return true;
+  }
   // Do not wait for Bible downloads: links must also work from a failed startup.
   // Schedule navigation after acknowledging receipt so native retries cannot replay it.
   url.searchParams.set("nativeLink", "1");
