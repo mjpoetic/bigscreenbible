@@ -12253,6 +12253,10 @@ html[data-mode-transition]::view-transition-new(root) {
   backface-visibility: hidden;
 }
 
+html[data-mode-transition="reader-panels"]::view-transition-group(root) {
+  animation-duration: var(--motion-slow);
+}
+
 html[data-mode-transition="enter-big"]::view-transition-old(root) {
   z-index: 1;
   animation: mode-reader-recede 340ms var(--motion-ease) both;

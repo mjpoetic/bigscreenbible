@@ -58,9 +58,9 @@ availabilityContext.document.visibilityState = "visible";
 availabilityContext.document.startViewTransition = undefined;
 assert.equal(availabilityContext.available(), false);
 
-assert.match(extractFunction("runModeViewTransition"), /root\.dataset\.modeTransition = direction/);
-assert.match(extractFunction("runModeViewTransition"), /document\.startViewTransition/);
-assert.match(extractFunction("runModeViewTransition"), /transition\.finished\.then\(finish, finish\)/);
+assert.match(extractFunction("runLayoutViewTransition"), /root\.dataset\.modeTransition = direction/);
+assert.match(extractFunction("runLayoutViewTransition"), /document\.startViewTransition/);
+assert.match(extractFunction("runLayoutViewTransition"), /transition\.finished\.then\(finish, finish\)/);
 assert.match(extractFunction("switchMode"), /runModeViewTransition\(previousMode, nextMode, applyModeChange\)/);
 assert.match(extractFunction("returnFromPresentationToBible"), /switchMode\("reader"\)/);
 

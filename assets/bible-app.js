@@ -2586,7 +2586,10 @@ function runModeViewTransition(previousMode, nextMode, updateMode) {
     updateMode();
     return null;
   }
+  return runLayoutViewTransition(direction, updateMode);
+}
 
+function runLayoutViewTransition(direction, updateLayout) {
   activeModeViewTransition?.skipTransition?.();
   const root = document.documentElement;
   root.dataset.modeTransition = direction;
@@ -2595,11 +2598,11 @@ function runModeViewTransition(previousMode, nextMode, updateMode) {
   try {
     transition = document.startViewTransition(() => {
       updateRan = true;
-      updateMode();
+      updateLayout();
     });
   } catch (error) {
     delete root.dataset.modeTransition;
-    if (!updateRan) updateMode();
+    if (!updateRan) updateLayout();
     return null;
   }
 
@@ -3877,10 +3880,11 @@ function rememberDisclosureState(details, open = details.open) {
 
 function bindDisclosureAnimation(details) {
   const summary = details.querySelector(":scope > summary");
-  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy, :scope > .help-essentials-grid, :scope > .app-release-notes-content");
+  const content = details.querySelector(":scope > .settings-section-content, :scope > .shortcut-list, :scope > .help-feature-copy, :scope > .help-essentials-grid, :scope > .app-release-notes-content, :scope > .social-profile-content, :scope > .social-connections-content");
   if (!summary || !content) return;
 
   summary.addEventListener("click", (event) => {
+    if (event.defaultPrevented) return;
     if (details.dataset.disclosureAnimating === "true") {
       event.preventDefault();
       return;
@@ -3891,28 +3895,18 @@ function bindDisclosureAnimation(details) {
 
     event.preventDefault();
     const opening = !details.open;
-    const startHeight = opening ? 0 : content.getBoundingClientRect().height;
-    const contentStyles = getComputedStyle(content);
-    const expandedPaddingTop = contentStyles.paddingTop;
-    const expandedPaddingBottom = contentStyles.paddingBottom;
     rememberDisclosureState(details, opening);
     details.dataset.disclosureAnimating = "true";
-    content.style.overflow = "hidden";
-    content.style.willChange = "height, opacity";
+    if (opening) details.open = true;
 
-    if (opening) {
-      content.style.height = "0px";
-      content.style.opacity = "0";
-      details.open = true;
-    }
-
-    const endHeight = opening ? content.scrollHeight : 0;
+    const contentStyles = getComputedStyle(content);
     const expandedFrame = {
-      height: `${opening ? endHeight : startHeight}px`,
-      paddingTop: expandedPaddingTop,
-      paddingBottom: expandedPaddingBottom,
+      height: contentStyles.height,
+      paddingTop: contentStyles.paddingTop,
+      paddingBottom: contentStyles.paddingBottom,
       opacity: 1,
     };
+    content.style.overflow = "hidden";
     const collapsedFrame = {
       height: "0px",
       paddingTop: "0px",
@@ -3929,10 +3923,7 @@ function bindDisclosureAnimation(details) {
 
     animation.addEventListener("finish", () => {
       if (!opening) details.open = false;
-      content.style.removeProperty("height");
-      content.style.removeProperty("opacity");
       content.style.removeProperty("overflow");
-      content.style.removeProperty("will-change");
       animation.cancel();
       delete details.dataset.disclosureAnimating;
     }, { once: true });
@@ -5485,6 +5476,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.14.12": [
+      "Social profile and friends sections expand and collapse smoothly, and Reader panels transition smoothly when you enter or leave Focus reading.",
+    ],
     "2026.11.14.11": [
       "Opening a Scripture reference from a game respects your Reader panel preference.",
     ],
@@ -24143,11 +24137,7 @@ function bindEvents() {
       state.socialProfileOpen = disclosure.open;
       if (!disclosure.open) closeSocialAvatarPicker();
     });
-    disclosure.querySelector("summary")?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      disclosure.open = !disclosure.open;
-    });
+    bindDisclosureAnimation(disclosure);
   });
   document.querySelectorAll("[data-social-connections-disclosure]").forEach((disclosure) => {
     disclosure.addEventListener("toggle", () => {
@@ -24165,11 +24155,7 @@ function bindEvents() {
     disclosure.querySelector("summary")?.addEventListener("click", (event) => {
       if (openIncomingRequests()) event.preventDefault();
     });
-    disclosure.querySelector("summary")?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      if (!openIncomingRequests()) disclosure.open = !disclosure.open;
-    });
+    bindDisclosureAnimation(disclosure);
   });
   document.getElementById("quick-profileUsername")?.addEventListener("blur", (event) => {
     event.currentTarget.value = normalizeProfileUsername(event.currentTarget.value);
@@ -30738,18 +30724,23 @@ let pendingFocusChromeEnter = false;
 let pendingLibraryEnter = false;
 
 function toggleFocusMode() {
+  if (document.documentElement.dataset.modeTransition === "reader-panels") return;
   const enteringFocus = !state.focusMode;
-  const applyFocusMode = () => {
+  const applyFocusMode = (animateChrome = true) => {
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
     state.focusMode = enteringFocus;
     if (state.focusMode) state.mobileControlsOpen = false;
-    else pendingFocusChromeEnter = true;
+    else pendingFocusChromeEnter = animateChrome;
     localStorage.setItem("lw_focus_mode", String(state.focusMode));
     scheduleCloudSync();
     renderPreservingReaderScroll();
   };
+  if (modeViewTransitionAvailable()) {
+    runLayoutViewTransition("reader-panels", () => applyFocusMode(false));
+    return;
+  }
   if (!enteringFocus) {
     applyFocusMode();
     return;
