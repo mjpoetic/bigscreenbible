@@ -228,7 +228,7 @@ context.setScope("chapter");
 assert.deepEqual(shortLabels.map((label) => label.textContent), ["Ch", "Ch", "Ch"]);
 assert.equal(searchButton.label, "Search Current chapter (Matthew 11)");
 
-const searchBible = extractFunction("searchBible");
+const searchTranslation = extractFunction("searchScriptureTranslation");
 const searchVersion = extractFunction("searchVersion");
 const searchRemoteVersion = extractFunction("searchRemoteVersion");
 const searchSemanticBible = extractFunction("searchSemanticBible");
@@ -247,7 +247,7 @@ assert.match(source, /prophets: books\.slice\(books\.indexOf\("Isaiah"\), books\
 assert.match(source, /epistles: books\.slice\(books\.indexOf\("Romans"\), books\.indexOf\("Revelation"\)\)/);
 assert.match(source, /localStorage\.setItem\("lw_search_scope", scope\)/);
 assert.match(extractFunction("runPhraseSearch"), /searchResultsChapter = searchChapter/);
-assert.match(extractFunction("runPhraseSearch"), /searchBible\(query, scope, searchChapter\)/);
+assert.match(extractFunction("runPhraseSearch"), /searchScriptureTranslation\(search.version, search\)/);
 assert.match(extractFunction("runPhraseSearch"), /scope === "chapter"/);
 assert.match(extractFunction("runReferenceOrPhraseSearch"), /presentationResults: state\.mode === "big"/);
 assert.match(extractFunction("runPhraseSearch"), /presentationResults = Boolean\(options\.presentationResults && state\.mode === "big"\)/);
@@ -269,10 +269,11 @@ assert.match(extractFunction("runInlineChapterSearch"), /pendingInlineSearchInpu
 assert.match(extractFunction("runInlineChapterSearch"), /inlineSearchMatchCount = countInlineSearchMatches/);
 assert.match(extractFunction("render"), /restoreInlineSearchInputFocus\(inputId\)/);
 assert.match(extractFunction("bindEvents"), /referenceInput[\s\S]*?addEventListener\("keydown"[\s\S]*?sourceInputId: "referenceInput"/);
-assert.match(searchBible, /searchVersion\(version, criteria, scope, searchChapter\)/);
-assert.match(searchBible, /searchRemoteVersions\(query, criteria, scope, searchChapter\)/);
-assert.match(searchBible, /searchSemanticBible\(query, criteria, scope, searchChapter\)/);
-assert.match(searchBible, /referenceMatchesSearchScope\(result\.goto \|\| result\.ref, scope, searchChapter\)/);
+assert.match(searchTranslation, /searchVersion\(version, criteria, scope, chapter\)/);
+assert.match(searchTranslation, /searchRemoteVersion\(version, query, criteria, scope, chapter\)/);
+assert.match(extractFunction("expandScriptureSearch"), /searchRemoteVersions\(query, criteria, scope, chapter, versions\)/);
+assert.match(extractFunction("loadScriptureMeaningMatches"), /searchSemanticBible\(query, criteria, scope, chapter\)/);
+assert.match(extractFunction("rankScriptureMatches"), /referenceMatchesSearchScope\(result\.goto \|\| result\.ref, scope, chapter\)/);
 assert.match(searchVersion, /chapterMatchesSearchScope\(chapterKey, scope, currentChapter\)/);
 assert.match(searchRemoteVersion, /referenceMatchesSearchScope\(ref, scope, currentChapter\)/);
 assert.match(searchSemanticBible, /referenceMatchesSearchScope\(result\.goto \|\| result\.ref, scope, currentChapter\)/);
@@ -450,3 +451,54 @@ for (const compact of [false, true]) {
   assert.equal(workspace.state.searchQuery, "love");
 }
 console.log("Search button focuses the field synchronously across screen sizes");
+
+const translationCalls = [];
+let finishMeaningSearch;
+const progressiveSearch = vm.createContext({
+  searchRequestId: 0,
+  state: { versions: ["BSB"], mode: "reader" },
+  translationCodes: ["BSB", "KJV", "ESV"],
+  normalizedSearchSource: () => "scripture",
+  normalizedSearchScope: (scope) => scope,
+  normalizedSearchChapter: (chapter) => chapter,
+  parseSearchQuery: (query) => ({ tokens: [query], questionAnalysis: { isTopical: query.endsWith("?") } }),
+  clearInlineChapterSearchState() {},
+  localStorage: { setItem() {} },
+  render() {},
+  renderScriptureSearch() {},
+  rankScriptureMatches: (matches) => matches,
+  isBundledTranslation: (version) => version !== "ESV",
+  loadBibleVersion: async (version) => { translationCalls.push(version); },
+  searchVersion: (version, { tokens }, scope, chapter) => [{ version, query: tokens[0], scope, chapter }],
+  searchRemoteVersions: async (query, criteria, scope, chapter, candidates) => {
+    return candidates.filter((version) => version === "ESV").map((version) => {
+      translationCalls.push(version);
+      return { version, query, scope, chapter };
+    });
+  },
+  searchSemanticBible: () => new Promise((resolve) => { finishMeaningSearch = resolve; }),
+});
+vm.runInContext([
+  "runPhraseSearch", "searchScriptureTranslation", "loadScriptureMeaningMatches", "expandScriptureSearch",
+].map(extractFunction).join("\n"), progressiveSearch);
+await progressiveSearch.runPhraseSearch("What about wisdom?", { scope: "book", chapter: "Proverbs 1" });
+assert.deepEqual(translationCalls, ["BSB"]);
+assert.equal(progressiveSearch.state.searchPending, false);
+assert.equal(progressiveSearch.state.scriptureSearch.meaningPending, true);
+assert.equal(progressiveSearch.state.searchResults[0].version, "BSB");
+
+await progressiveSearch.expandScriptureSearch();
+assert.deepEqual(translationCalls, ["BSB", "KJV", "ESV"]);
+assert.equal(progressiveSearch.state.scriptureSearch.expanded, true);
+assert.ok(progressiveSearch.state.searchResults.every(({ query, scope, chapter }) =>
+  query === "What about wisdom?" && scope === "book" && chapter === "Proverbs 1"));
+const textResults = progressiveSearch.state.searchResults;
+finishMeaningSearch([{ version: "WEB", matchType: "Meaning match" }]);
+await new Promise(setImmediate);
+assert.equal(progressiveSearch.state.scriptureSearch.meaningResults.length, 1);
+assert.equal(progressiveSearch.state.searchResults, textResults);
+
+await progressiveSearch.runPhraseSearch("love one another", { scope: "all", chapter: "John 13" });
+assert.equal(progressiveSearch.state.scriptureSearch.meaningPending, false);
+assert.deepEqual(translationCalls, ["BSB", "KJV", "ESV", "BSB"]);
+console.log("Current-translation results, independent meaning matches, and scoped expansion passed");

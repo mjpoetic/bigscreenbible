@@ -272,6 +272,7 @@ assert.equal(routedSearch.options.source, "scripture");
 assert.equal(routedSearch.options.scope, "nt");
 assert.equal(routedSearch.options.chapter, "John 3");
 searchContext.searchScopeLabel = () => "New Testament";
+searchContext.searchGuidanceMarkup = () => "";
 searchContext.referenceMatchesSearchScope = () => true;
 Object.assign(searchContext.state, { searchResultsQuery: "love", searchResultsSource: "scripture", searchResults: [], searchPending: false });
 assert.match(searchContext.searchResultsMarkup(), /data-strong-search-shortcut/);

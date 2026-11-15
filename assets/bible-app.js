@@ -928,6 +928,7 @@ const state = {
   strongVerseLimit: 50,
   strongSearchReturn: null,
   searchPending: false,
+  scriptureSearch: null,
   inlineSearchQuery: "",
   inlineSearchChapter: "",
   inlineSearchPhraseOnly: false,
@@ -22042,9 +22043,14 @@ function searchResultsMarkup() {
   const matchedAnswer = window.BigScreenBibleSearchQuery?.matchVerifiedAnswer(query, eligibleQuestions);
   const verifiedAnswer = matchedAnswer && referenceMatchesSearchScope(matchedAnswer.reference, scope, searchChapter) ? matchedAnswer : null;
   const strongLookup = strongSearchShortcutMarkup(query);
-  if (!state.searchResults.length && !verifiedAnswer && !state.searchPending) {
-    return `${strongLookup}<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>${searchGuidanceMarkup()}`;
-  }
+  const search = state.scriptureSearch;
+  const translationLabel = search?.expanded ? "All translations" : search && translationDisplayCode(search.version);
+  const translationMarkup = translationLabel ? `<div class="search-passages-label">${escapeHtml(translationLabel)}</div>` : "";
+  const expandMarkup = search && !search.expanded && !state.searchPending
+    ? `<button class="ghost-btn strong-search-action" type="button" data-expand-scripture-search ${search.expanding ? "disabled" : ""}>${search.expanding ? "Searching all translations…" : "Search all translations"}</button>`
+    : "";
+  const emptyMarkup = !state.searchResults.length && !verifiedAnswer && !state.searchPending
+    ? `<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>` : "";
   const answerMarkup = verifiedAnswer ? `
     <article class="verified-answer" aria-label="Answer from Scripture">
       <div class="verified-answer-label">Answer from Scripture</div>
@@ -22060,6 +22066,8 @@ function searchResultsMarkup() {
     ["Phrase matches", state.searchResults.filter((result) => result.matchType === "Phrase")],
     ["Word matches", state.searchResults.filter((result) => result.matchType === "Words")],
     ["Related passages", state.searchResults.filter((result) => !["Phrase", "Words"].includes(result.matchType))],
+    ["Meaning matches", search ? removeRedundantSemanticResults([...state.searchResults, ...search.meaningResults])
+      .filter((result) => result.matchType === "Meaning match") : []],
   ];
   const passageMarkup = resultGroups.filter(([, results]) => results.length).map(([label, results]) => `<div class="search-passages-label">${label} (${results.length})</div>` + results.map((result) => {
     const versions = result.matches || [result];
@@ -22080,8 +22088,12 @@ function searchResultsMarkup() {
     ${strongLookup}
     ${answerMarkup}
     <details class="search-guidance-disclosure"><summary>Tips for questions and topics</summary>${searchGuidanceMarkup()}</details>
+    ${translationMarkup}
+    ${emptyMarkup}
     ${passageMarkup}
-    ${state.searchPending ? `<div class="empty-state search-pending">Finding related passages in ${escapeHtml(scopeLabel)}…</div>` : ""}
+    ${expandMarkup}
+    ${state.searchPending ? `<div class="empty-state search-pending" role="status">Searching ${escapeHtml(scopeLabel)}…</div>` : ""}
+    ${search?.meaningPending ? '<div class="empty-state search-pending" role="status">Finding meaning matches…</div>' : ""}
   `;
 }
 
@@ -25110,6 +25122,9 @@ function bindEvents() {
     document.getElementById("notesFilterInput")?.focus({ preventScroll: true });
   });
   updateNotesFilterDom(state.noteFilterQuery);
+  document.querySelectorAll("[data-expand-scripture-search]").forEach((button) => {
+    button.addEventListener("click", expandScriptureSearch);
+  });
   document.querySelectorAll("[data-strong-search-shortcut]").forEach((button) => {
     button.addEventListener("click", openStrongSearchShortcut);
   });
@@ -26900,6 +26915,7 @@ function resetSearchForSource(source, query = "") {
   searchRequestId += 1;
   state.searchQuery = query;
   state.searchResultsQuery = "";
+  state.scriptureSearch = null;
   state.searchResultsSource = normalizedSearchSource(source);
   state.searchResults = [];
   state.searchPending = false;
@@ -29298,6 +29314,7 @@ async function runPhraseSearch(value, options = {}) {
     state.searchResultsQuery = query;
     state.searchSource = "notes";
     state.searchResultsSource = "notes";
+    state.scriptureSearch = null;
     state.searchResultsScope = scope;
     state.searchResultsChapter = searchChapter;
     state.searchResults = searchSavedNotes(query);
@@ -29335,6 +29352,13 @@ async function runPhraseSearch(value, options = {}) {
   state.strongVerseResults = null;
   state.strongVerseLimit = 50;
   state.searchPending = true;
+  state.scriptureSearch = source === "scripture" ? {
+    version: state.versions[0] || "BSB",
+    criteria: parseSearchQuery(query),
+    query, scope, chapter: searchChapter,
+    textResults: [], meaningResults: [],
+    meaningPending: false, expanded: false, expanding: false,
+  } : null;
   localStorage.setItem("lw_search_scope", scope);
   if (focusResults) {
     state.focusReferenceOpen = false;
@@ -29372,8 +29396,13 @@ async function runPhraseSearch(value, options = {}) {
         state.strongVerseResults = chapters ? findStrongVerses(code, chapters) : null;
       }
     } else {
-      await ensureAllSearchVersionsLoaded();
-      results = await searchBible(query, scope, searchChapter);
+      const search = state.scriptureSearch;
+      if (!search.criteria.tokens.length && !search.criteria.exactPhrase) return;
+      if (!search.criteria.exactRequested && (search.criteria.questionAnalysis?.isQuestion || search.criteria.questionAnalysis?.isTopical)) {
+        void loadScriptureMeaningMatches(search);
+      }
+      search.textResults = await searchScriptureTranslation(search.version, search);
+      results = rankScriptureMatches(search.textResults, search);
     }
     if (requestId !== searchRequestId || state.searchResultsQuery !== query) return;
     state.searchResults = results;
@@ -29485,6 +29514,7 @@ function runInlineChapterSearch(query, searchChapter = state.reference, options 
   state.sharedPassage = null;
   state.searchQuery = query;
   state.searchResultsQuery = "";
+  state.scriptureSearch = null;
   state.searchSource = "scripture";
   state.searchResultsSource = "scripture";
   state.searchScope = "chapter";
@@ -29547,6 +29577,7 @@ function clearSearchResults() {
   clearInlineChapterSearchState();
   state.searchQuery = "";
   state.searchResultsQuery = "";
+  state.scriptureSearch = null;
   state.searchResultsSource = normalizedSearchSource(state.searchSource);
   state.searchResultsScope = normalizedSearchScope(state.searchScope);
   state.searchResultsChapter = normalizedSearchChapter(state.reference);
@@ -29555,39 +29586,58 @@ function clearSearchResults() {
   render();
 }
 
-async function ensureAllSearchVersionsLoaded() {
-  const bundled = translationCodes.filter(isBundledTranslation);
-  await Promise.all(bundled.map(loadBibleVersion));
+async function searchScriptureTranslation(version, { query, criteria, scope, chapter }) {
+  if (isBundledTranslation(version)) {
+    await loadBibleVersion(version);
+    return searchVersion(version, criteria, scope, chapter);
+  }
+  if (!window.bsbOffline?.active && isRemoteTranslation(version) && translationProvider(version).supportsSearch !== false) {
+    return searchRemoteVersion(version, query, criteria, scope, chapter);
+  }
+  return [];
 }
 
-async function searchBible(query, requestedScope = state.searchScope, requestedChapter = state.reference) {
-  const primaryVersion = state.versions[0] || "BSB";
-  const scope = normalizedSearchScope(requestedScope);
-  const searchChapter = normalizedSearchChapter(requestedChapter);
-  const criteria = parseSearchQuery(query);
-  if (!criteria.tokens.length && !criteria.exactPhrase) return [];
-  const searchableVersions = translationCodes.filter(isBundledTranslation);
-  const primarySearchVersion = searchableVersions.includes(primaryVersion) ? primaryVersion : "BSB";
-  const versionOrder = criteria.questionAnalysis?.isQuestion
-    ? [primarySearchVersion]
-    : [primarySearchVersion, ...searchableVersions.filter((version) => version !== primarySearchVersion)];
-  const localResults = versionOrder.flatMap((version) => searchVersion(version, criteria, scope, searchChapter));
-  const [remoteResults, semanticResults] = await Promise.all([
-    searchRemoteVersions(query, criteria, scope, searchChapter),
-    searchSemanticBible(query, criteria, scope, searchChapter),
+function renderScriptureSearch() {
+  const resultsBody = ".mobile-focus-search-results-body";
+  const scroll = document.querySelector(resultsBody)?.scrollTop;
+  const libraryScroll = captureLibraryScroll();
+  renderPreservingReaderScroll();
+  restoreLibraryScroll(libraryScroll);
+  const body = document.querySelector(resultsBody);
+  if (body && scroll !== undefined) body.scrollTop = scroll;
+}
+
+async function loadScriptureMeaningMatches(search) {
+  search.meaningPending = true;
+  const { query, criteria, scope, chapter } = search;
+  const results = await searchSemanticBible(query, criteria, scope, chapter);
+  if (state.scriptureSearch !== search) return;
+  search.meaningResults = rankScriptureMatches(results, search);
+  search.meaningPending = false;
+  if (!state.searchPending) renderScriptureSearch();
+}
+
+async function expandScriptureSearch() {
+  const search = state.scriptureSearch;
+  if (!search || state.searchPending || search.expanding || search.expanded) return;
+  search.expanding = true;
+  renderScriptureSearch();
+  const versions = translationCodes.filter((version) => version !== search.version);
+  const { query, criteria, scope, chapter } = search;
+  const [bundled, remote] = await Promise.all([
+    Promise.all(versions.filter(isBundledTranslation).map((version) => searchScriptureTranslation(version, search))),
+    searchRemoteVersions(query, criteria, scope, chapter, versions),
   ]);
-  const results = [...localResults, ...remoteResults, ...semanticResults];
-  const seen = new Set();
-  const ranked = results
-    .sort((a, b) => compareSearchResults(a, b, criteria))
-    .filter((result) => {
-      if (!referenceMatchesSearchScope(result.goto || result.ref, scope, searchChapter)) return false;
-      const key = `${result.ref}-${result.version}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  return groupSearchResults(removeRedundantSemanticResults(ranked), primaryVersion)
+  if (state.scriptureSearch !== search) return;
+  state.searchResults = rankScriptureMatches([...search.textResults, ...bundled.flat(), ...remote], search);
+  search.expanding = false;
+  search.expanded = true;
+  renderScriptureSearch();
+}
+
+function rankScriptureMatches(results, { version, criteria, scope, chapter }) {
+  const scoped = results.filter((result) => referenceMatchesSearchScope(result.goto || result.ref, scope, chapter));
+  return groupSearchResults(scoped, version)
     .sort((a, b) => compareSearchResults(a, b, criteria)).slice(0, 40);
 }
 
@@ -29752,12 +29802,9 @@ function balanceResultGroup(results, versionOrder) {
   return balanced;
 }
 
-async function searchRemoteVersions(query, criteria, scope = "all", currentChapter = "") {
+async function searchRemoteVersions(query, criteria, scope = "all", currentChapter = "", candidates) {
   if (window.bsbOffline?.active) return [];
-  const candidates = criteria.questionAnalysis?.isQuestion
-    ? uniqueList(state.versions.filter(isRemoteTranslation))
-    : translationCodes.filter(isRemoteTranslation);
-  const remoteVersions = candidates.filter((version) => translationProvider(version).supportsSearch !== false);
+  const remoteVersions = (candidates || translationCodes).filter((version) => isRemoteTranslation(version) && translationProvider(version).supportsSearch !== false);
   if (!remoteVersions.length) return [];
   const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria, scope, currentChapter)));
   return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
@@ -34269,7 +34316,7 @@ async function loadBibleVersion(version) {
     await ensureRemoteBibleVersion(version, state.reference);
     return;
   }
-  if (loadedVersionData.has(version) || loadingVersions.has(version)) return;
+  if (loadedVersionData.has(version)) return;
   loadingVersions.add(version);
   try {
     await loadBibleBundleScript(version);
