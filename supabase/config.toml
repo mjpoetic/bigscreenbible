@@ -29,3 +29,6 @@ verify_jwt = false
 # Scheduler-only delivery; validates x-push-cron-secret before touching the queue.
 [functions.moderation-alerts]
 verify_jwt = false
+
+[auth.email]
+enable_confirmations = true

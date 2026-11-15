@@ -8541,6 +8541,7 @@ function accountSignInCard(prefix = "", options = {}) {
         <div class="account-actions">
           <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" ${state.authBusy ? "disabled" : ""}>Sign in</button>
           <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" ${state.authBusy ? "disabled" : ""}>Create account</button>
+          <button class="account-secondary-action" type="submit" data-auth-action="resend" formnovalidate ${state.authBusy ? "disabled" : ""}>Resend verification email</button>
         </div>
       </form>
       <div class="account-divider"><span>or</span></div>
@@ -13648,18 +13649,40 @@ async function handleAccountSubmit(event, prefix = "") {
   const submitter = event.submitter;
   const action = submitter?.dataset.authAction || "signin";
   const suffix = prefix ? `${prefix}-` : "";
-  const email = document.getElementById(`${suffix}accountEmail`)?.value.trim();
+  const emailInput = document.getElementById(`${suffix}accountEmail`);
+  const email = emailInput?.value.trim();
   const password = document.getElementById(`${suffix}accountPassword`)?.value || "";
-  if (!email || !password) return;
+  if (state.authBusy || !emailInput?.reportValidity() || !email || (action !== "resend" && !password)) return;
   state.authEmailCueId = "";
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
   const outgoingUserId = state.authUser?.id || "";
   state.authBusy = true;
-  state.authMessage = action === "signup" ? "Creating your account..." : "Signing you in...";
+  state.authMessage = {
+    signup: "Creating your account...",
+    resend: "Requesting a verification email...",
+  }[action] || "Signing you in...";
   renderPreservingReaderScroll();
   try {
-    if (state.authUser) {
+    if (action === "resend") {
+      const { error } = await client.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: authRedirectUrl() },
+      });
+      if (error) throw error;
+      state.authMessage = `If verification is pending for ${email}, check that inbox for a new link.`;
+      return;
+    }
+    const signupResponse = action === "signup"
+      ? await client.auth.signUp({ email, password, options: { emailRedirectTo: authRedirectUrl() } })
+      : null;
+    if (signupResponse?.error) throw signupResponse.error;
+    if (signupResponse && !signupResponse.data?.session) {
+      state.authMessage = `Check ${email} for a verification link, then sign in. If the address has a typo, create an account with the correct address.`;
+      return;
+    }
+    if (!signupResponse && state.authUser) {
       const outgoingSnapshot = captureCloudSnapshot();
       await rememberCurrentAccountSession(client);
       saveSnapshotForOwner(outgoingUserId, outgoingSnapshot);
@@ -13672,17 +13695,13 @@ async function handleAccountSubmit(event, prefix = "") {
       }
       await unlinkPushSubscriptionFromCurrentAccount();
     }
-    const response = action === "signup"
-      ? await client.auth.signUp({ email, password })
-      : await client.auth.signInWithPassword({ email, password });
+    const response = signupResponse || await client.auth.signInWithPassword({ email, password });
     if (response.error) throw response.error;
     const session = response.data?.session || await authenticatedSupabaseSession(client);
     state.authUser = session?.user || null;
     state.passwordChangeOpen = false;
     state.passwordRecoveryMode = false;
-    state.authMessage = action === "signup" && !session
-      ? "Account created. Check your email if Supabase asks you to confirm it."
-      : "Signed in.";
+    state.authMessage = "Signed in.";
     if (session?.user) {
       rememberAuthenticatedAccount(session.user);
       rememberAuthenticatedSession(session);
@@ -13694,14 +13713,14 @@ async function handleAccountSubmit(event, prefix = "") {
         showAccountSwitchNotification(session.user);
       }
     }
-    else renderPreservingReaderScroll();
   } catch (error) {
     console.warn("Account action failed", error);
-    state.authMessage = error?.message || "Account action failed. Please try again.";
-    showToast("Account sign in failed");
-    renderPreservingReaderScroll();
+    state.authMessage = error?.code === "email_not_confirmed"
+      ? `Verify ${email} before signing in. Check your inbox or enter your email and choose Resend verification email.`
+      : error?.message || "Account action failed. Please try again.";
   } finally {
     state.authBusy = false;
+    renderPreservingReaderScroll();
   }
 }
 
