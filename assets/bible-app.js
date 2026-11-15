@@ -5511,6 +5511,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.6": [
+      "Big Screen settings headings, update information, and Email Support are easier to read in light and dark themes.",
+    ],
     "2026.11.15.5": [
       "Email verification and the signed-in address are easier to find, and social profile setup explains what it’s for.",
       "The account form keeps what you typed when the screen refreshes, and the Create profile button is easier to read.",

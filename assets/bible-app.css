@@ -13098,7 +13098,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 
 .presentation-settings-popover .presentation-settings-page-titlebar > strong {
   overflow: hidden;
-  color: #fff;
+  color: inherit;
   font-size: 11px;
   font-weight: 850;
   text-align: center;
@@ -13118,7 +13118,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 .presentation-settings-page-section > h3 {
   margin: 0;
   border-bottom: 1px solid var(--presentation-button-border);
-  color: #fff;
+  color: inherit;
   padding-bottom: 7px;
   font-size: 10px;
   font-weight: 850;
@@ -13379,6 +13379,18 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 .presentation-help-btn,
 .presentation-about-settings-btn {
   gap: 8px;
+}
+
+.presentation-settings-popover :is(
+  .presentation-settings-page-section .app-update-version,
+  .app-update-settings .setting-help,
+  .settings-support-link
+) {
+  color: inherit;
+}
+
+.presentation-settings-popover .app-update-settings.update-available .setting-help {
+  color: var(--presentation-accent);
 }
 
 .presentation-settings-popover .presentation-help-btn span,
