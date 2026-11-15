@@ -5480,15 +5480,21 @@ function sharingSettings(prefix = "", options = {}) {
   `, options);
 }
 
+function startupModePicker(id) {
+  return `<div data-settings-search-item data-settings-search-text="Open on launch startup mode">
+    <span class="setting-label">Open on launch</span>
+    ${settingsChoiceMarkup(id, state.startupMode, startupModeChoices, {
+      label: "Open on launch",
+    })}
+  </div>`;
+}
+
 function startupReminderSettings(prefix = "", options = {}) {
   const controlId = (name) => prefix ? `${prefix}${name}` : `${name[0].toLowerCase()}${name.slice(1)}`;
   return settingsDisclosure("startup", "Startup & notifications", `
     <div class="setting-group">
       <span class="setting-label">Startup</span>
-      <span class="setting-label">Open on launch</span>
-      ${settingsChoiceMarkup(controlId("StartupModeSelect"), state.startupMode, startupModeChoices, {
-        label: "Open on launch",
-      })}
+      ${startupModePicker(controlId("StartupModeSelect"))}
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("StartVerseOfDayToggle")}" ${state.startVerseOfDay ? "checked" : ""} />
         <span>Start with Verse of the Day</span>
@@ -5525,6 +5531,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.8": [
+      "Choose which mode opens on launch directly from Big Screen settings.",
+    ],
     "2026.11.15.7": [
       "Big Screen pinch-to-zoom tells you when the passage reaches the largest text size that fits.",
     ],
@@ -23145,6 +23154,9 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
             <button type="button" id="presentationIncreaseText" aria-label="Increase Big Screen text size">A+</button>
           </div>
         </div>
+        <div class="presentation-settings-choice-field">
+          ${startupModePicker("presentationStartupModeSelect")}
+        </div>
         <button class="ghost-btn presentation-help-btn" data-settings-search-item data-settings-search-text="Help tour tutorial" id="presentationHelpButton" type="button">?<span>Help & Tour</span></button>
         <nav class="presentation-settings-destinations" aria-label="More Big Screen settings">
           ${presentationSettingsDestinationRow("look", "Look & Feel", "Colors · Popup text")}
@@ -24749,7 +24761,7 @@ function bindEvents() {
   document.getElementById("mobileStrongNumbersToggle")?.addEventListener("change", (event) => {
     setStrongNumbers(event.target.checked, true);
   });
-  document.querySelectorAll("#startupModeSelect, #mobileStartupModeSelect").forEach(select => {
+  document.querySelectorAll("#startupModeSelect, #mobileStartupModeSelect, #presentationStartupModeSelect").forEach(select => {
     select.addEventListener("change", (event) => {
       state.startupMode = normalizeStartupMode(event.target.value);
       localStorage.setItem("lw_startup_mode", state.startupMode);
