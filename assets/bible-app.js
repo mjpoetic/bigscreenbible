@@ -993,6 +993,7 @@ const state = {
   moderatorAccessUserId: null,
   authStatus: "idle",
   authMessage: "",
+  verifiedSignupEmail: "",
   authEmailCueId: "",
   authBusy: false,
   accountSwitching: false,
@@ -1999,6 +2000,37 @@ function selectionBarIsVisible() {
   return Boolean(document.querySelector(".scripture .selection-bar:not(.selection-bar-exiting)")?.getClientRects().length);
 }
 
+function captureAccountFormDraft() {
+  const forms = Array.from(document.querySelectorAll("form[data-account-credentials]"));
+  return forms.map(form => ({
+    id: form.id,
+    owner: form.dataset.accountCredentials,
+    values: Array.from(form.querySelectorAll("input:not([type=checkbox])"), input => input.value),
+    showPassword: form.querySelector("[data-account-show-password]").checked,
+    confirmingPassword: !form.querySelector("[data-account-confirm-password]").disabled,
+    focusedId: form.contains(document.activeElement) ? document.activeElement.id : "",
+  }));
+}
+
+function restoreAccountFormDraft(drafts) {
+  for (const draft of drafts) {
+    const form = document.getElementById(draft.id);
+    if (form?.dataset.accountCredentials !== draft.owner) continue;
+    const [email, password, confirmation] = form.querySelectorAll("input:not([type=checkbox])");
+    const visibility = form.querySelector("[data-account-show-password]");
+    visibility.checked = draft.showPassword;
+    password.type = confirmation.type = draft.showPassword ? "text" : "password";
+    [email, password, confirmation].forEach((input, index) => { input.value = draft.values[index]; });
+    if (draft.confirmingPassword) {
+      confirmation.parentElement.hidden = false;
+      confirmation.disabled = false;
+      password.autocomplete = "new-password";
+      form.querySelector('[data-auth-action="signup"]').textContent = "Confirm and create account";
+    }
+    if (draft.focusedId && !state.authBusy) document.getElementById(draft.focusedId)?.focus({ preventScroll: true });
+  }
+}
+
 function render({ preserveAutoScroll = false } = {}) {
   const focusPickerMotion = captureFocusPickerMotion();
   scheduleNativeWidgetSync();
@@ -2030,6 +2062,7 @@ function render({ preserveAutoScroll = false } = {}) {
   }
   const settingsScrollState = captureSettingsPanelScroll();
   const accountScrollState = captureAccountPanelScroll();
+  const accountFormDraft = captureAccountFormDraft();
   const settingsPanelRerender = Boolean(settingsScrollState);
   const accountPanelRerender = Boolean(accountScrollState);
   closeMobileVerseNavMenu();
@@ -2122,6 +2155,7 @@ function render({ preserveAutoScroll = false } = {}) {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  restoreAccountFormDraft(accountFormDraft);
   void window.BSBImportedReader?.afterRender();
   syncBibleReturnMessage();
   const memorySurface = document.querySelector(".memorize-reader");
@@ -5477,6 +5511,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.5": [
+      "Email verification and the signed-in address are easier to find, and social profile setup explains what it’s for.",
+      "The account form keeps what you typed when the screen refreshes, and the Create profile button is easier to read.",
+    ],
     "2026.11.15.4": [
       "Highlight and add notes to the Verse of the Day and directly linked passages in Reader.",
       "Import from text and imported passage controls now match the Liquid Glass setting.",
@@ -7651,7 +7689,7 @@ function socialProfileCard(prefix = "") {
   const moreAvatarSelected = socialAvatarMoreOptions.some((option) => option.key === draft.avatarKey);
   const profileStatus = state.socialProfileMessage || (hasProfile
     ? `Your profile is saved as @${state.socialProfile.username}.`
-    : "Create the identity friends will see. Your email is never shown.");
+    : "Create a profile if you want to add friends or play challenges. You can skip this and still sync your reading and study data. Friends see your profile name, and your email stays private.");
   return `
     <details class="account-card social-profile-card" data-social-profile-disclosure ${state.socialProfileOpen ? "open" : ""}>
       <summary class="social-profile-summary">
@@ -7659,7 +7697,7 @@ function socialProfileCard(prefix = "") {
           ${socialProfileAvatarMarkup(profileForAvatar, "social-profile-avatar-preview")}
           <span class="account-card-head">
             <span class="setting-label">Social profile</span>
-            <strong>${hasProfile ? `@${escapeHtml(state.socialProfile.username)}` : "Choose your identity"}</strong>
+            <strong>${hasProfile ? `@${escapeHtml(state.socialProfile.username)}` : "Set up your profile (optional)"}</strong>
           </span>
         </span>
         <span class="social-profile-disclosure-icon" aria-hidden="true">${icons.chevron}</span>
@@ -8546,24 +8584,28 @@ function accountSignInCard(prefix = "", options = {}) {
   const emailId = `${suffix}accountEmail`;
   const showEmailCue = state.authEmailCueId === emailId;
   const addingAccount = options.addingAccount === true;
-  const status = state.authMessage || (
+  const status = state.authMessage || (state.verifiedSignupEmail ? "" : (
     addingAccount
       ? "Sign in once to add another account to this browser."
       : "Sign in or create an account to carry your settings, bookmarks, notes, highlights, and streak across devices."
-  );
+  ));
   return `
     <section class="account-card">
       <div class="account-card-head">
         <span class="setting-label">Account sync</span>
         <strong>${addingAccount ? "Add another account" : "Sign in or create account"}</strong>
       </div>
-      <p>${escapeHtml(status)}</p>
+      ${state.verifiedSignupEmail ? `<div class="account-verification-notice" role="status">
+        <strong>Email verified</strong>
+        <p>Sign in with the password you created for ${escapeHtml(state.verifiedSignupEmail)}.</p>
+      </div>` : ""}
+      ${status ? `<p>${escapeHtml(status)}</p>` : ""}
       ${signupConfirmationToken ? '<button class="primary-btn" type="button" data-confirm-signup>Confirm email address</button>' : ""}
-      <form class="account-form" id="${suffix}accountForm">
-        <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
+      <form class="account-form" id="${suffix}accountForm" data-account-credentials="${escapeHtml(state.authUser?.id || "")}">
+        <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" value="${escapeHtml(state.verifiedSignupEmail)}" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
         <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
         <div hidden>
-          <input id="${suffix}accountPasswordConfirmation" type="password" autocomplete="new-password" placeholder="Confirm password" aria-label="Confirm password" disabled />
+          <input id="${suffix}accountPasswordConfirmation" data-account-confirm-password type="password" autocomplete="new-password" placeholder="Confirm password" aria-label="Confirm password" disabled />
         </div>
         <label class="account-password-visibility">
           <input type="checkbox" data-account-show-password aria-controls="${suffix}accountPassword ${suffix}accountPasswordConfirmation" />
@@ -8660,14 +8702,17 @@ function accountPanel(prefix = "") {
         ${changePasswordButton}
       `;
     return `
+      <section class="account-card account-signed-in-heading">
+        <span class="setting-label">Signed in as</span>
+        <strong>${escapeHtml(email)}</strong>
+      </section>
+      ${socialProfileCard(prefix)}
       ${streakCard(prefix)}
       ${state.authUser?.id && state.moderatorAccessUserId === state.authUser.id ? `<section class="account-card"><div class="account-card-head"><span class="setting-label">Moderation</span></div><p>Review private reports. Authenticator verification is required.</p><a class="ghost-btn compact-account-btn" href="https://bigscreenbible.com/moderation/">Open moderation dashboard</a></section>` : ""}
-      ${socialProfileCard(prefix)}
       ${socialConnectionsSection(prefix)}
       <section class="account-card account-card-signed-in">
         <div class="account-card-head">
           <span class="setting-label">Account sync</span>
-          <strong>${escapeHtml(email)}</strong>
         </div>
         <p>${escapeHtml(status)}</p>
         <div class="account-actions">
@@ -8687,9 +8732,10 @@ function accountPanel(prefix = "") {
   }
 
   return `
+    ${state.verifiedSignupEmail ? accountSignInCard(prefix) : ""}
     ${streakCard(prefix)}
     ${rememberedAccountsCard(prefix)}
-    ${accountSignInCard(prefix)}
+    ${state.verifiedSignupEmail ? "" : accountSignInCard(prefix)}
   `;
 }
 
@@ -11900,6 +11946,7 @@ async function initializeSupabaseAuth() {
         state.authMessage = "Choose a new password to finish account recovery.";
       }
       if (state.authUser) {
+        state.verifiedSignupEmail = "";
         rememberAuthenticatedAccount(state.authUser);
         rememberAuthenticatedSession(session);
         state.accountSwitching = false;
@@ -12016,18 +12063,20 @@ async function redeemSignupConfirmation(token, expectedUserId = "") {
       if (!sessionError) {
         localStorage.removeItem(pendingSignupUserKey);
         localStorage.removeItem(pendingNativeSignupKey);
+        state.accountOpen = true;
         showToast("Email verified. You’re signed in.");
         return;
       }
     }
-    state.authMessage = "Email verified. Sign in with the password you created.";
+    state.verifiedSignupEmail = data.user?.email || data.session?.user?.email || "";
+    state.authMessage = state.verifiedSignupEmail ? "" : "Email verified. Sign in with the password you created.";
   } catch (error) {
     state.authMessage = error?.code === "otp_expired"
       ? "This confirmation link has expired or has already been used. Try signing in or request a new link."
       : "Email confirmation could not be completed. Try again or request a new link.";
   } finally {
     finishingSignupConfirmation = false;
-    if (state.authMessage && (!state.authUser || signupConfirmationToken)) {
+    if ((state.authMessage || state.verifiedSignupEmail) && (!state.authUser || signupConfirmationToken)) {
       state.accountOpen = true;
     }
     if (!dataLoading && !dataError) renderPreservingReaderScroll();
@@ -13802,6 +13851,7 @@ async function handleAccountSubmit(event, prefix = "") {
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
   const outgoingUserId = state.authUser?.id || "";
+  if (action === "signup") state.verifiedSignupEmail = "";
   state.authBusy = true;
   state.authMessage = {
     signup: "Creating your account...",
@@ -13824,6 +13874,12 @@ async function handleAccountSubmit(event, prefix = "") {
       : null;
     if (signupResponse?.error) throw signupResponse.error;
     if (signupResponse && !signupResponse.data?.session) {
+      const currentForm = document.getElementById(`${suffix}accountForm`);
+      if (currentForm) {
+        for (const input of currentForm.querySelectorAll("[autocomplete='new-password']")) input.value = "";
+        currentForm.querySelector("[data-account-show-password]").checked = false;
+        currentForm.querySelector("[data-account-confirm-password]").disabled = true;
+      }
       if (window.Capacitor?.isNativePlatform?.()) {
         localStorage.setItem(pendingNativeSignupKey, String(Date.now()));
         localStorage.setItem(pendingSignupUserKey, signupResponse.data?.user?.id || "");

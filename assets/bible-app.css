@@ -28058,3 +28058,31 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   .is-expanded-play .trivia-header-actions #gameHintsToggle { width: 44px; padding-inline: 0; }
   .is-expanded-play .trivia-header-actions #gameHintsToggle span { display: none; }
 }
+
+.account-verification-notice {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.account-card .account-verification-notice p {
+  margin: 0;
+  color: inherit;
+}
+
+.account-signed-in-heading {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.account-popover .social-profile-form button.social-profile-save,
+.presentation .presentation-account-popover .social-profile-form button.social-profile-save {
+  background: #175852;
+  border-color: #40867d;
+  color: #fff;
+}
