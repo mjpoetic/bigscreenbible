@@ -28,8 +28,8 @@ vm.runInContext(`
 `, scaleContext);
 
 assert.equal(scaleContext.clampScale(0.2), 0.6);
-assert.equal(scaleContext.clampScale(0.85), 0.9);
-assert.equal(scaleContext.clampScale(1.24), 1.2);
+assert.equal(scaleContext.clampScale(0.85), 0.85);
+assert.equal(scaleContext.clampScale(1.243), 1.243);
 assert.equal(scaleContext.clampScale(2), 1.6);
 assert.equal(scaleContext.clampScale(null), 1);
 
@@ -222,6 +222,8 @@ for (const height of [220, 500]) {
   vm.runInNewContext(`${extractFunction("fitPresentationText")}\nfitPresentationText();`, context);
   assert.ok(passage.scrollHeight <= (height - 48) * 0.92 + 1, "Text fits inside the padded stage");
   assert.equal(classes.has("presentation-overflow"), false, "Full content width does not force false overflow");
+  const limit = vm.runInNewContext(`${extractFunction("fitPresentationText")}\nfitPresentationText(true);`, context);
+  assert.ok(Math.abs(limit - (height === 220 ? ((height - 48) * 0.92 + 1) / (64 * 3) : 1.6)) < 0.001);
 }
 
 // A very short research pane must expose overflow rather than crop the verse.

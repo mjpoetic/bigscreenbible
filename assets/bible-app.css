@@ -13698,6 +13698,7 @@ html[data-mode-transition="exit-big"]::view-transition-new(root) {
 
 .presentation-scale-feedback-label {
   min-width: 64px;
+  text-align: center;
   padding: 7px 13px;
   color: currentColor;
   border: 1px solid var(--presentation-button-border);

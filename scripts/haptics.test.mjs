@@ -52,7 +52,10 @@ Object.assign(context, {
   touchDistance: (a, b) => Math.abs(b.clientX - a.clientX),
   updateReaderGestureMovement() {}, pauseReaderAutoScroll() {},
   applyTextScaleVars() {}, showReaderTextScaleFeedback() {},
-  applyPresentationTextScale() {}, showPresentationTextScaleFeedback() {},
+  fitPresentationText() { return context.presentationFitLimit; },
+  presentationFitLimit: 1.6,
+  applyPresentationTextScale() {},
+  showPresentationTextScaleFeedback(options) { context.presentationFeedback = options; },
   clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
 });
 vm.runInContext(["handleReaderGestureMove", "handlePresentationPinchMove"].map(extract).join("\n"), context);
@@ -84,6 +87,24 @@ for (const [gestureName, handler, minimum] of [["readerTouchGesture", "handleRea
   platform = 'web'; move(130); assert.equal(pulses.length, minCount);
   platform = 'ios';
 }
+context.presentationFitLimit = 1.23;
+context.state.presentationTextScale = 1;
+context.presentationPinchGesture = { startDistance: 100, startScale: 1 };
+const movePresentationPinch = distance => {
+  context.moveEvent.touches[1].clientX = distance;
+  run("handlePresentationPinchMove(moveEvent)");
+};
+movePresentationPinch(150);
+assert.equal(context.state.presentationTextScale, 1.23);
+assert.equal(context.presentationFeedback.atMaximum, true);
+const cappedPulseCount = pulses.length;
+movePresentationPinch(180);
+assert.equal(context.state.presentationTextScale, 1.23);
+assert.equal(pulses.length, cappedPulseCount, "The passage fit limit stops haptics");
+movePresentationPinch(175);
+assert.ok(context.state.presentationTextScale < 1.23, "Reversing at the fit limit shrinks text immediately");
+assert.equal(context.presentationFeedback.atMaximum, false);
+
 // Strength persists, previews, clamps corrupt storage, and appears only in supported iOS builds.
 assert.match(run('hapticsSettingsMarkup()'), /data-haptics-strength/);
 const slider = { value: '30', matches: selector => selector === '[data-haptics-strength]' };

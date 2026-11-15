@@ -5525,6 +5525,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.7": [
+      "Big Screen pinch-to-zoom tells you when the passage reaches the largest text size that fits.",
+    ],
     "2026.11.15.6": [
       "Big Screen settings headings, update information, and Email Support are easier to read in light and dark themes.",
     ],
@@ -31036,12 +31039,12 @@ function resetTextScale({ feedback = false } = {}) {
   if (feedback) requestAnimationFrame(() => showReaderTextScaleFeedback({ settle: true }));
 }
 
-function showPresentationTextScaleFeedback({ settle = false } = {}) {
+function showPresentationTextScaleFeedback({ settle = false, atMaximum = false } = {}) {
   const feedback = document.getElementById("presentationScaleFeedback");
   const label = feedback?.querySelector(".presentation-scale-feedback-label");
   if (!feedback || !label) return;
   const percent = Math.round(state.presentationTextScale * 100);
-  label.textContent = `${percent}%`;
+  label.textContent = atMaximum ? "Maximum size for this passage" : `${percent}%`;
   feedback.classList.add("show");
   clearTimeout(presentationScaleFeedbackTimer);
   if (!settle) return;
@@ -31065,7 +31068,7 @@ function persistPresentationTextScale() {
 }
 
 function adjustPresentationTextScale(delta, { feedback = false } = {}) {
-  state.presentationTextScale = clampPresentationTextScale(state.presentationTextScale + delta);
+  state.presentationTextScale = clampPresentationTextScale(Math.round((state.presentationTextScale + delta) * 100) / 100);
   persistPresentationTextScale();
   render();
   if (feedback) requestAnimationFrame(() => showPresentationTextScaleFeedback({ settle: true }));
@@ -32030,13 +32033,27 @@ function handlePresentationPinchMove(event) {
   const gesture = presentationPinchGesture;
   if (!gesture || event.touches?.length !== 2 || !gesture.startDistance) return false;
   const distance = touchDistance(event.touches[0], event.touches[1]);
-  if (!gesture.active && Math.abs(distance - gesture.startDistance) >= readerPinchStartPx) gesture.active = true;
-  if (!gesture.active) return false;
+  const starting = !gesture.active;
+  if (starting && Math.abs(distance - gesture.startDistance) < readerPinchStartPx) return false;
   if (event.cancelable) event.preventDefault();
-  state.presentationTextScale = clamp(gesture.startScale * (distance / gesture.startDistance), 0.6, 1.6);
+  if (starting) {
+    gesture.active = true;
+    gesture.maxScale = fitPresentationText(true) ?? 1.6;
+    gesture.startScale = Math.min(gesture.startScale, gesture.maxScale);
+  }
+  const requested = gesture.startScale * (distance / gesture.startDistance);
+  const previousScale = state.presentationTextScale;
+  state.presentationTextScale = clamp(requested, 0.6, gesture.maxScale);
+  if (requested !== state.presentationTextScale && distance > 0) {
+    // Reverse direction immediately after hitting either limit.
+    gesture.hapticPercent ??= Math.round(gesture.startScale * 100);
+    gesture.startDistance = distance;
+    gesture.startScale = state.presentationTextScale;
+  }
+  if (!starting && state.presentationTextScale === previousScale) return true;
   playPinchHaptic(gesture, state.presentationTextScale);
   applyPresentationTextScale();
-  showPresentationTextScaleFeedback();
+  showPresentationTextScaleFeedback({ atMaximum: state.presentationTextScale === gesture.maxScale });
   return true;
 }
 
@@ -32081,7 +32098,7 @@ function finishPresentationPinch() {
   if (!gesture?.active) return;
   persistPresentationTextScale();
   applyPresentationTextScale();
-  showPresentationTextScaleFeedback({ settle: true });
+  showPresentationTextScaleFeedback({ settle: true, atMaximum: state.presentationTextScale === gesture.maxScale });
 }
 
 function commitPresentationSwipe(direction) {
@@ -32127,13 +32144,7 @@ function handlePresentationTouchEnd(event) {
 }
 
 function cancelPresentationTouch() {
-  if (presentationPinchGesture?.active) {
-    persistPresentationTextScale();
-    applyPresentationTextScale();
-    showPresentationTextScaleFeedback({ settle: true });
-  }
-  presentationPinchGesture = null;
-  presentationTouchStart = null;
+  finishPresentationPinch();
   resetPresentationDrag();
 }
 
@@ -33561,7 +33572,7 @@ function clampTextScale(value) {
 }
 
 function clampPresentationTextScale(value) {
-  return Math.round(Math.min(1.6, Math.max(0.6, Number(value) || defaultPresentationTextScale)) * 10) / 10;
+  return Math.min(1.6, Math.max(0.6, Number(value) || defaultPresentationTextScale));
 }
 
 function textFontVars() {
@@ -34361,7 +34372,7 @@ function showToast(message) {
 let presentationStageObserver;
 let observedPresentationStage;
 
-function fitPresentationText() {
+function fitPresentationText(measurePinchLimit = false) {
   const presentation = document.getElementById("presentation");
   if (!presentation?.classList.contains("open")) return;
 
@@ -34382,7 +34393,7 @@ function fitPresentationText() {
   presentation.style.removeProperty("--presentation-font-size");
   presentation.style.removeProperty("--presentation-line-height");
   const naturalFontSize = Number.parseFloat(getComputedStyle(copy).fontSize) || 64;
-  const baseFontSize = naturalFontSize * clamp(state.presentationTextScale, 0.6, 1.6);
+  const baseFontSize = measurePinchLimit ? naturalFontSize * 1.6 : naturalFontSize * clamp(state.presentationTextScale, 0.6, 1.6);
   const copyLength = copy.textContent.trim().replace(/\s+/g, " ").length;
   const compactLineHeight = copyLength > 220 ? 1.06 : copyLength > 150 ? 1.09 : 1.12;
   const readableMinimum = viewport.clientWidth < 720 ? 0.46 : 0.52;
@@ -34396,7 +34407,7 @@ function fitPresentationText() {
   );
 
   presentation.style.setProperty("--presentation-line-height", compactLineHeight);
-  if (maxScale < 1 || state.presentationTextScale !== defaultPresentationTextScale) {
+  if (measurePinchLimit || maxScale < 1 || state.presentationTextScale !== defaultPresentationTextScale) {
     presentation.style.setProperty("--presentation-font-size", `${baseFontSize * maxScale}px`);
   }
 
@@ -34405,9 +34416,10 @@ function fitPresentationText() {
   const availableHeight = Math.max(0, viewport.clientHeight - parseFloat(viewportStyle.paddingTop) - parseFloat(viewportStyle.paddingBottom));
   const availableWidth = Math.max(0, viewport.clientWidth - parseFloat(viewportStyle.paddingLeft) - parseFloat(viewportStyle.paddingRight));
   const fits = () => passage.scrollHeight <= availableHeight * 0.92 + 1 && passage.scrollWidth <= Math.ceil(availableWidth) + 1;
-  if (fits()) return;
+  if (fits()) return measurePinchLimit ? 1.6 : undefined;
 
-  let low = readableMinimum;
+  // Measure down to the smallest font the normal fit can use at 60%.
+  let low = measurePinchLimit ? readableMinimum * 0.6 / 1.6 : readableMinimum;
   let high = maxScale;
   for (let index = 0; index < 12; index += 1) {
     const mid = (low + high) / 2;
@@ -34417,6 +34429,7 @@ function fitPresentationText() {
   }
 
   presentation.style.setProperty("--presentation-font-size", `${baseFontSize * low}px`);
+  if (measurePinchLimit) return clamp(low * 1.6 / maxScale, 0.6, 1.6);
   if (!fits()) presentation.classList.add("presentation-overflow");
 }
 
