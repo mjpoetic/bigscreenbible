@@ -3,14 +3,22 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync('assets/bible-app.js', 'utf8');
 const handler = source.match(/function handleNativeSharedLink\([^]*?\n\}/)[0];
+const signupMatchers = source.slice(
+  source.indexOf('const pendingNativeSignupKey'),
+  source.indexOf('async function finishNativeSignupConfirmation'),
+);
 for (const platform of ['ios', 'android', 'web']) {
-  const pending = [], opened = [];
-  const context = vm.createContext({URL, window: {
+  const pending = [], opened = [], confirmations = [];
+  let signupAt = null;
+  const context = vm.createContext({URL,
+    localStorage: {getItem: () => signupAt},
+    finishNativeSignupConfirmation: url => confirmations.push(url),
+    window: {
     Capacitor: {getPlatform: () => platform},
     setTimeout: callback => pending.push(callback),
     location: {assign: href => opened.push(href)},
   }});
-  vm.runInContext(handler, context);
+  vm.runInContext(signupMatchers + handler, context);
   for (const value of ['https://bigscreenbible.com/?ref=John+3%3A16&version=KJV&mode=parallel',
     'https://bigscreenbible.com/Proverbs3:5-6/KJV?mode=reader#verse',
     'https://bigscreenbible.com/?ref=John3:16&text=%27%22%5C']) {
@@ -27,6 +35,15 @@ for (const platform of ['ios', 'android', 'web']) {
     context.handleNativeSharedLink(value);
     assert.equal(pending.length, 0, 'Rejects untrusted URL: ' + value);
   }
+  const callback = 'https://bigscreenbible.com/?code=test-code';
+  context.handleNativeSharedLink(callback);
+  assert.equal(confirmations.length, 0, 'An unmarked callback requires a pending signup');
+  pending.length = 0;
+  signupAt = String(Date.now());
+  context.handleNativeSharedLink(callback);
+  assert.equal(confirmations.length, platform === 'web' ? 0 : 1);
+  assert.equal(pending.length, 0, 'Confirmation leaves the current page in place');
+
 }
 const apple = JSON.parse(readFileSync('.well-known/apple-app-site-association'));
 assert.deepEqual(apple.applinks.details[0].appIDs, ['8QY8QS9TH2.com.bigscreenbible.app']);

@@ -5477,6 +5477,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.2": [
+      "Improved handling when an email confirmation link returns to the app.",
+    ],
     "2026.11.15.1": [
       "Email confirmation links can return you to Big Screen Bible to finish signing in.",
     ],
@@ -11956,6 +11959,8 @@ function authRedirectUrl() {
   return "https://bigscreenbible.com/";
 }
 
+const pendingNativeSignupKey = "lw_pending_native_signup_at";
+
 function signupConfirmationRedirectUrl() {
   if (!window.Capacitor?.isNativePlatform?.()) return authRedirectUrl();
   return "https://bigscreenbible.com/?confirmSignup=1";
@@ -11963,6 +11968,13 @@ function signupConfirmationRedirectUrl() {
 
 function isSignupConfirmationUrl(url) {
   return url.pathname === "/" && url.searchParams.get("confirmSignup") === "1";
+}
+
+function isPendingNativeSignupCallback(url) {
+  if (url.pathname !== "/" || !url.searchParams.get("code")) return false;
+  const requestedAt = Number(localStorage.getItem(pendingNativeSignupKey));
+  const age = Date.now() - requestedAt;
+  return requestedAt > 0 && age >= 0 && age < 24 * 60 * 60 * 1000;
 }
 
 async function finishNativeSignupConfirmation(url) {
@@ -11975,6 +11987,7 @@ async function finishNativeSignupConfirmation(url) {
     if (!client || !code || hasError) throw new Error("Missing confirmation code");
     const { error } = await client.auth.exchangeCodeForSession(code);
     if (error) throw error;
+    localStorage.removeItem(pendingNativeSignupKey);
     showToast("Email verified. You’re signed in.");
   } catch {
     state.accountOpen = true;
@@ -13746,6 +13759,9 @@ async function handleAccountSubmit(event, prefix = "") {
       : null;
     if (signupResponse?.error) throw signupResponse.error;
     if (signupResponse && !signupResponse.data?.session) {
+      if (window.Capacitor?.isNativePlatform?.()) {
+        localStorage.setItem(pendingNativeSignupKey, String(Date.now()));
+      }
       state.authMessage = `Check ${email} for a verification link, then sign in. If the address has a typo, create an account with the correct address.`;
       return;
     }
@@ -35410,7 +35426,7 @@ function handleNativeSharedLink(value) {
   let url;
   try { url = new URL(value); } catch { return true; }
   if (url.origin !== "https://bigscreenbible.com" || url.username || url.password) return true;
-  if (isSignupConfirmationUrl(url)) {
+  if (isSignupConfirmationUrl(url) || isPendingNativeSignupCallback(url)) {
     if (window.bsbOffline?.active) return false;
     void finishNativeSignupConfirmation(url);
     return true;
