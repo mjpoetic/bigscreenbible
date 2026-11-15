@@ -1,0 +1,7 @@
+<h2>Confirm your email address</h2>
+<p>Follow the link to finish creating your Big Screen Bible account.</p>
+{{ if eq .RedirectTo "https://bigscreenbible.com/?confirmSignup=2" }}
+<p><a href="https://bigscreenbible.com/?confirmSignup=2#token_hash={{ .TokenHash }}">Confirm email address</a></p>
+{{ else }}
+<p><a href="{{ .ConfirmationURL }}">Confirm email address</a></p>
+{{ end }}

@@ -8,10 +8,10 @@ const signupMatchers = source.slice(
   source.indexOf('async function finishNativeSignupConfirmation'),
 );
 for (const platform of ['ios', 'android', 'web']) {
-  const pending = [], opened = [], confirmations = [];
+  const pending = [], opened = [], confirmations = [], redemptions = [];
   let signupAt = null;
-  const context = vm.createContext({URL,
-    localStorage: {getItem: () => signupAt},
+  const context = vm.createContext({URL, URLSearchParams,
+    localStorage: {getItem: key => key.endsWith("_user") ? "signup-user" : signupAt},
     finishNativeSignupConfirmation: url => confirmations.push(url),
     window: {
     Capacitor: {getPlatform: () => platform},
@@ -19,6 +19,7 @@ for (const platform of ['ios', 'android', 'web']) {
     location: {assign: href => opened.push(href)},
   }});
   vm.runInContext(signupMatchers + handler, context);
+  context.redeemSignupConfirmation = (...args) => redemptions.push(args);
   for (const value of ['https://bigscreenbible.com/?ref=John+3%3A16&version=KJV&mode=parallel',
     'https://bigscreenbible.com/Proverbs3:5-6/KJV?mode=reader#verse',
     'https://bigscreenbible.com/?ref=John3:16&text=%27%22%5C']) {
@@ -43,6 +44,9 @@ for (const platform of ['ios', 'android', 'web']) {
   context.handleNativeSharedLink(callback);
   assert.equal(confirmations.length, platform === 'web' ? 0 : 1);
   assert.equal(pending.length, 0, 'Confirmation leaves the current page in place');
+
+  context.handleNativeSharedLink('https://bigscreenbible.com/?confirmSignup=2#token_hash=test-token');
+  assert.deepEqual(redemptions, platform === 'web' ? [] : [['test-token', 'signup-user']]);
 
 }
 const apple = JSON.parse(readFileSync('.well-known/apple-app-site-association'));

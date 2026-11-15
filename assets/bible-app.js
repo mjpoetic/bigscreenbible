@@ -5477,6 +5477,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.3": [
+      "Signup confirmation can finish in the app when you open the email on the device where you signed up.",
+    ],
     "2026.11.15.2": [
       "Improved handling when an email confirmation link returns to the app.",
     ],
@@ -8551,6 +8554,7 @@ function accountSignInCard(prefix = "", options = {}) {
         <strong>${addingAccount ? "Add another account" : "Sign in or create account"}</strong>
       </div>
       <p>${escapeHtml(status)}</p>
+      ${signupConfirmationToken ? '<button class="primary-btn" type="button" data-confirm-signup>Confirm email address</button>' : ""}
       <form class="account-form" id="${suffix}accountForm">
         <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
         <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
@@ -11960,14 +11964,17 @@ function authRedirectUrl() {
 }
 
 const pendingNativeSignupKey = "lw_pending_native_signup_at";
+const pendingSignupUserKey = "lw_pending_native_signup_user";
+let signupConfirmationToken = "";
+let finishingSignupConfirmation = false;
 
 function signupConfirmationRedirectUrl() {
   if (!window.Capacitor?.isNativePlatform?.()) return authRedirectUrl();
-  return "https://bigscreenbible.com/?confirmSignup=1";
+  return "https://bigscreenbible.com/?confirmSignup=2";
 }
 
 function isSignupConfirmationUrl(url) {
-  return url.pathname === "/" && url.searchParams.get("confirmSignup") === "1";
+  return url.pathname === "/" && ["1", "2"].includes(url.searchParams.get("confirmSignup"));
 }
 
 function isPendingNativeSignupCallback(url) {
@@ -11975,6 +11982,60 @@ function isPendingNativeSignupCallback(url) {
   const requestedAt = Number(localStorage.getItem(pendingNativeSignupKey));
   const age = Date.now() - requestedAt;
   return requestedAt > 0 && age >= 0 && age < 24 * 60 * 60 * 1000;
+}
+
+async function redeemSignupConfirmation(token, expectedUserId = "") {
+  if (finishingSignupConfirmation) return;
+  finishingSignupConfirmation = true;
+  try {
+    await supabaseAuthInitialization;
+    if (window.bsbOffline?.active || !createSupabaseClient()) throw new Error("Auth unavailable");
+    const { url, anonKey } = supabaseCredentials();
+    // Verify in memory. Only install the returned session if it belongs to
+    // the account created on this device.
+    const verifier = window.supabase.createClient(url, anonKey, {
+      auth: {
+        storageKey: "bsb-signup-confirmation",
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+    const { data, error } = await verifier.auth.verifyOtp({ token_hash: token, type: "email" });
+    if (error) throw error;
+    signupConfirmationToken = "";
+    if (expectedUserId && data.session && data.user?.id === expectedUserId) {
+      const { error: sessionError } = await createSupabaseClient().auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+      if (!sessionError) {
+        localStorage.removeItem(pendingSignupUserKey);
+        localStorage.removeItem(pendingNativeSignupKey);
+        showToast("Email verified. You’re signed in.");
+        return;
+      }
+    }
+    state.authMessage = "Email verified. Sign in with the password you created.";
+  } catch (error) {
+    state.authMessage = error?.code === "otp_expired"
+      ? "This confirmation link has expired or has already been used. Try signing in or request a new link."
+      : "Email confirmation could not be completed. Try again or request a new link.";
+  } finally {
+    finishingSignupConfirmation = false;
+    if (state.authMessage && (!state.authUser || signupConfirmationToken)) {
+      state.accountOpen = true;
+    }
+    if (!dataLoading && !dataError) renderPreservingReaderScroll();
+  }
+}
+
+function offerSignupConfirmation(token) {
+  signupConfirmationToken = token;
+  state.accountOpen = true;
+  state.accountAddOpen = Boolean(state.authUser);
+  state.authMessage = "Confirm your email address to finish creating your account.";
+  if (!dataLoading && !dataError) renderPreservingReaderScroll();
 }
 
 async function finishNativeSignupConfirmation(url) {
@@ -13761,6 +13822,7 @@ async function handleAccountSubmit(event, prefix = "") {
     if (signupResponse && !signupResponse.data?.session) {
       if (window.Capacitor?.isNativePlatform?.()) {
         localStorage.setItem(pendingNativeSignupKey, String(Date.now()));
+        localStorage.setItem(pendingSignupUserKey, signupResponse.data?.user?.id || "");
       }
       state.authMessage = `Check ${email} for a verification link, then sign in. If the address has a typo, create an account with the correct address.`;
       return;
@@ -24216,6 +24278,12 @@ function bindEvents() {
   document.querySelectorAll("[data-presentation-settings-section]").forEach((section) => {
     section.addEventListener("toggle", () => {
       state.presentationSettingsSectionsOpen[section.dataset.presentationSettingsSection] = section.open;
+    });
+  });
+  document.querySelectorAll("[data-confirm-signup]").forEach(button => {
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      void redeemSignupConfirmation(signupConfirmationToken);
     });
   });
   for (const prefix of ["", "mobile", "quick"]) {
@@ -35275,7 +35343,11 @@ if (startupLoaderPreview) {
   });
   supabaseAuthInitialization = initializeSupabaseAuth();
   const signupLandingUrl = new URL(window.location.href);
-  if (isSignupConfirmationUrl(signupLandingUrl)) {
+  const signupToken = new URLSearchParams(signupLandingUrl.hash.slice(1)).get("token_hash");
+  if (isSignupConfirmationUrl(signupLandingUrl) && signupToken) {
+    history.replaceState(history.state, "", signupLandingUrl.pathname);
+    void supabaseAuthInitialization.then(() => offerSignupConfirmation(signupToken));
+  } else if (isSignupConfirmationUrl(signupLandingUrl)) {
     // Safari may receive a native signup link if the app is unavailable or
     // the user opens their mail on a different device.
     const params = signupLandingUrl.searchParams;
@@ -35428,7 +35500,14 @@ function handleNativeSharedLink(value) {
   if (url.origin !== "https://bigscreenbible.com" || url.username || url.password) return true;
   if (isSignupConfirmationUrl(url) || isPendingNativeSignupCallback(url)) {
     if (window.bsbOffline?.active) return false;
-    void finishNativeSignupConfirmation(url);
+    const token = new URLSearchParams(url.hash.slice(1)).get("token_hash");
+    if (token && isSignupConfirmationUrl(url)) {
+      const expectedUserId = localStorage.getItem(pendingSignupUserKey);
+      if (expectedUserId) void redeemSignupConfirmation(token, expectedUserId);
+      else void supabaseAuthInitialization.then(() => offerSignupConfirmation(token));
+    } else {
+      void finishNativeSignupConfirmation(url);
+    }
     return true;
   }
   // Do not wait for Bible downloads: links must also work from a failed startup.
