@@ -3513,7 +3513,7 @@ function focusSearchPanelMarkup() {
           <input id="mobileFocusPassageInput" type="search" value="${escapeHtml(query)}" placeholder="${placeholder}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" />
           <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
         </div>
-        ${searchScopeControls()}
+        ${searchScopeControls({ showResults: state.focusSearchResultsOpen })}
       </form>
       ${state.focusSearchResultsOpen && state.searchResultsQuery ? `
         <div class="mobile-focus-search-results-body" aria-live="polite" aria-busy="${state.searchPending}">
@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.16.1": [
+      "Search all translations is now beside the search filter at the top of the results.",
+    ],
     "2026.11.15.9": [
       "The resend verification email link appears when email verification is pending.",
     ],
@@ -9607,8 +9610,12 @@ function crossReferencesPanel() {
   `;
 }
 
-function searchScopeControls() {
-  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button></div>`;
+function searchScopeControls({ showResults = true } = {}) {
+  const search = state.scriptureSearch;
+  const expandMarkup = showResults && state.searchResultsQuery && search && !search.expanded && !state.searchPending
+    ? `<button class="search-filter-chip" type="button" data-expand-scripture-search ${search.expanding ? "disabled" : ""}>${search.expanding ? "Searching all translations…" : "Search all translations"}</button>`
+    : "";
+  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}</div>`;
 }
 
 function searchResultsClearControl() {
@@ -22324,9 +22331,6 @@ function searchResultsMarkup() {
   const search = state.scriptureSearch;
   const translationLabel = search?.expanded ? "All translations" : search && translationDisplayCode(search.version);
   const translationMarkup = translationLabel ? `<div class="search-passages-label">${escapeHtml(translationLabel)}</div>` : "";
-  const expandMarkup = search && !search.expanded && !state.searchPending
-    ? `<button class="ghost-btn strong-search-action" type="button" data-expand-scripture-search ${search.expanding ? "disabled" : ""}>${search.expanding ? "Searching all translations…" : "Search all translations"}</button>`
-    : "";
   const emptyMarkup = !state.searchResults.length && !verifiedAnswer && !state.searchPending
     ? `<div class="empty-state">No matches found in ${escapeHtml(scopeLabel)} for ${escapeHtml(query)}.</div>` : "";
   const answerMarkup = verifiedAnswer ? `
@@ -22369,7 +22373,6 @@ function searchResultsMarkup() {
     ${translationMarkup}
     ${emptyMarkup}
     ${passageMarkup}
-    ${expandMarkup}
     ${state.searchPending ? `<div class="empty-state search-pending" role="status">Searching ${escapeHtml(scopeLabel)}…</div>` : ""}
     ${search?.meaningPending ? '<div class="empty-state search-pending" role="status">Finding meaning matches…</div>' : ""}
   `;
