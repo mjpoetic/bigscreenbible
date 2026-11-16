@@ -1007,6 +1007,7 @@ const state = {
   authStatus: "idle",
   authMessage: "",
   verifiedSignupEmail: "",
+  pendingVerificationEmail: "",
   authEmailCueId: "",
   authBusy: false,
   accountSwitching: false,
@@ -5531,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.15.9": [
+      "The resend verification email link appears when email verification is pending.",
+    ],
     "2026.11.15.8": [
       "Choose which mode opens on launch directly from Big Screen settings.",
     ],
@@ -8631,7 +8635,7 @@ function accountSignInCard(prefix = "", options = {}) {
       ${status ? `<p>${escapeHtml(status)}</p>` : ""}
       ${signupConfirmationToken ? '<button class="primary-btn" type="button" data-confirm-signup>Confirm email address</button>' : ""}
       <form class="account-form" id="${suffix}accountForm" data-account-credentials="${escapeHtml(state.authUser?.id || "")}">
-        <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" value="${escapeHtml(state.verifiedSignupEmail)}" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
+        <input class="${showEmailCue ? "account-email-cue" : ""}" id="${emailId}" type="email" autocomplete="email" value="${escapeHtml(state.verifiedSignupEmail || state.pendingVerificationEmail)}" placeholder="${showEmailCue ? "Email required" : "Email"}" aria-label="Email" ${showEmailCue ? 'aria-invalid="true"' : ""} required />
         <input id="${suffix}accountPassword" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required />
         <div hidden>
           <input id="${suffix}accountPasswordConfirmation" data-account-confirm-password type="password" autocomplete="new-password" placeholder="Confirm password" aria-label="Confirm password" disabled />
@@ -8644,7 +8648,7 @@ function accountSignInCard(prefix = "", options = {}) {
           <button class="primary-btn compact-account-btn" type="submit" data-auth-action="signin" formnovalidate ${state.authBusy ? "disabled" : ""}>Sign in</button>
           <button class="ghost-btn compact-account-btn" type="submit" data-auth-action="signup" formnovalidate ${state.authBusy ? "disabled" : ""}>Create account</button>
         </div>
-        <button class="account-secondary-action" type="submit" data-auth-action="resend" formnovalidate ${state.authBusy ? "disabled" : ""}>Resend verification email</button>
+        ${state.pendingVerificationEmail ? `<button class="account-secondary-action" type="submit" data-auth-action="resend" formnovalidate ${state.authBusy ? "disabled" : ""}>Resend verification email</button>` : ""}
       </form>
       <div class="account-divider"><span>or</span></div>
       <button class="ghost-btn google-account-btn" id="${suffix}googleSignInButton" type="button" ${state.authBusy ? "disabled" : ""}>${icons.google}<span>Continue with Google</span></button>
@@ -12097,6 +12101,7 @@ async function redeemSignupConfirmation(token, expectedUserId = "") {
         return;
       }
     }
+    state.pendingVerificationEmail = "";
     state.verifiedSignupEmail = data.user?.email || data.session?.user?.email || "";
     state.authMessage = state.verifiedSignupEmail ? "" : "Email verified. Sign in with the password you created.";
   } catch (error) {
@@ -13881,6 +13886,7 @@ async function handleAccountSubmit(event, prefix = "") {
   if (!client) return showToast("Supabase is not connected yet");
   const outgoingUserId = state.authUser?.id || "";
   if (action === "signup") state.verifiedSignupEmail = "";
+  state.pendingVerificationEmail = action === "resend" ? email : "";
   state.authBusy = true;
   state.authMessage = {
     signup: "Creating your account...",
@@ -13913,6 +13919,7 @@ async function handleAccountSubmit(event, prefix = "") {
         localStorage.setItem(pendingNativeSignupKey, String(Date.now()));
         localStorage.setItem(pendingSignupUserKey, signupResponse.data?.user?.id || "");
       }
+      state.pendingVerificationEmail = email;
       state.authMessage = `Check ${email} for a verification link, then sign in. If the address has a typo, create an account with the correct address.`;
       return;
     }
@@ -13949,8 +13956,10 @@ async function handleAccountSubmit(event, prefix = "") {
     }
   } catch (error) {
     console.warn("Account action failed", error);
-    state.authMessage = error?.code === "email_not_confirmed"
-      ? `Verify ${email} before signing in. Check your inbox or enter your email and choose Resend verification email.`
+    const needsVerification = error?.code === "email_not_confirmed";
+    if (needsVerification) state.pendingVerificationEmail = email;
+    state.authMessage = needsVerification
+      ? `Verify ${email} before signing in. Check your inbox or choose Resend verification email.`
       : error?.message || "Account action failed. Please try again.";
   } finally {
     state.authBusy = false;
