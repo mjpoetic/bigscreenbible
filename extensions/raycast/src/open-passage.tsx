@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Detail, Form, List, Toast, getPreferenceValues, open, showToast, useNavigation } from '@raycast/api';
+import { Action, ActionPanel, Detail, Form, Icon, List, Toast, getPreferenceValues, open, showToast, useNavigation } from '@raycast/api';
 import { useState } from 'react';
 import { passageUrl } from './passage.mjs';
 import { escapeMarkdown, translations } from './scripture.mjs';
@@ -11,12 +11,12 @@ const openShortcut = { modifiers: ['cmd'] as ('cmd')[], key: 'return' as const }
 const allTranslations = [...translations, ...onlineTranslations];
 
 function ModeActions({ reference, version }: { reference: string; version: string }) {
-  return <ActionPanel.Submenu title="Open in Mode">
-    <Action.OpenInBrowser title="Reader" url={passageUrl(reference, version)} />
-    <Action.OpenInBrowser title="Big Screen" url={passageUrl(reference, version, 'big')} />
-    <Action.OpenInBrowser title="Parallel Study" url={passageUrl(reference, version, 'parallel')} />
-    <Action.OpenInBrowser title="Memorize" url={passageUrl(reference, version, 'memorize')} />
-    {['word-search', 'crossword', 'hidden-word'].map(game => <Action.OpenInBrowser key={game} title={`Set Up ${game === 'word-search' ? 'Word Search' : game === 'crossword' ? 'Crossword' : 'Hidden Word'}`} url={passageUrl(reference, version, 'trivia', game)} />)}
+  return <ActionPanel.Submenu title="Open in Mode" icon={Icon.AppWindowGrid2x2}>
+    <Action.OpenInBrowser title="Reader" icon={Icon.Book} url={passageUrl(reference, version)} />
+    <Action.OpenInBrowser title="Big Screen" icon={Icon.Desktop} url={passageUrl(reference, version, 'big')} />
+    <Action.OpenInBrowser title="Parallel Study" icon={Icon.AppWindowSidebarLeft} url={passageUrl(reference, version, 'parallel')} />
+    <Action.OpenInBrowser title="Memorize" icon={Icon.Bookmark} url={passageUrl(reference, version, 'memorize')} />
+    {['word-search', 'crossword', 'hidden-word'].map(game => <Action.OpenInBrowser icon={Icon.GameController} key={game} title={`Set Up ${game === 'word-search' ? 'Word Search' : game === 'crossword' ? 'Crossword' : 'Hidden Word'}`} url={passageUrl(reference, version, 'trivia', game)} />)}
   </ActionPanel.Submenu>;
 }
 
@@ -26,7 +26,7 @@ function CrossReferenceAction({ reference, version }: { reference: string; versi
     try { push(<CrossReferences reference={reference} version={version} items={await getCrossReferences(reference)} />); }
     catch (error) { await showToast({ style: Toast.Style.Failure, title: 'Could not load cross-references', message: String(error) }); }
   }
-  return <Action title="Show Cross-References" shortcut={{ modifiers: ['cmd', 'shift'], key: 'x' }} onAction={show} />;
+  return <Action title="Show Cross-References" icon={Icon.Network} shortcut={{ modifiers: ['cmd', 'shift'], key: 'x' }} onAction={show} />;
 }
 function CrossReferences({ reference, version, items }: { reference: string; version: string; items: {reference: string; label: string; sources: string[]}[] }) {
   const { push } = useNavigation();
@@ -42,10 +42,10 @@ function CrossReferences({ reference, version, items }: { reference: string; ver
     <List.EmptyView title="No Cross-References" description="The bundled catalog has no related verses for this passage." />
     <List.Section title={`${items.length} related passages · ${version}`} subtitle="OpenBible.info · CC-BY">
       {items.map(hit => <List.Item key={hit.reference} title={hit.label} subtitle={`From ${hit.sources.join(', ')}`} actions={<ActionPanel>
-        <Action title="Read Related Passage" onAction={() => read(hit.reference)} />
-        <Action.OpenInBrowser title="Open in Big Screen Bible" url={passageUrl(hit.reference, version)} shortcut={openShortcut} />
+        <Action title="Read Related Passage" icon={Icon.Book} onAction={() => read(hit.reference)} />
+        <Action.OpenInBrowser title="Open in Big Screen Bible" icon={Icon.Globe} url={passageUrl(hit.reference, version)} shortcut={openShortcut} />
         <ModeActions reference={hit.reference} version={version} />
-        <Action.OpenInBrowser title="Cross-Reference Source (CC-BY)" url="https://www.openbible.info/labs/cross-references/" />
+        <Action.OpenInBrowser title="Cross-Reference Source (CC-BY)" icon={Icon.Info} url="https://www.openbible.info/labs/cross-references/" />
       </ActionPanel>} />)}
     </List.Section>
   </List>;
@@ -57,9 +57,9 @@ function PassageView({ passage }: { passage: Passage }) {
   return <Detail navigationTitle={passage.reference} markdown={markdown} actions={<ActionPanel>
     <Action.CopyToClipboard title="Copy Scripture Text" content={passage.text} />
     <CrossReferenceAction reference={passage.reference} version={passage.version} />
-    <Action.OpenInBrowser title="Open in Big Screen Bible" url={url} shortcut={openShortcut} />
+    <Action.OpenInBrowser title="Open in Big Screen Bible" icon={Icon.Globe} url={url} shortcut={openShortcut} />
     <ModeActions reference={passage.reference} version={passage.version} />
-    <Action.CopyToClipboard title="Copy Passage Link" content={url} shortcut={{ modifiers: ['cmd', 'shift'], key: 'c' }} />
+    <Action.CopyToClipboard title="Copy Passage Link" icon={Icon.Link} content={url} shortcut={{ modifiers: ['cmd', 'shift'], key: 'c' }} />
   </ActionPanel>} />;
 }
 function Results({ data, version, query }: { data: any; version: string; query: string }) {
@@ -75,9 +75,9 @@ function Results({ data, version, query }: { data: any; version: string; query: 
     <List.EmptyView title="No Matching Verses" description="Try fewer words or another translation. Press Escape to search again." />
     <List.Section title={`${version} · ${data.results.length} shown${Number.isFinite(data.total) ? ` of ${data.total}` : ' (provider limit)'}`}>
       {data.results.map((hit: any) => <List.Item key={hit.ref} title={hit.ref} detail={<List.Item.Detail markdown={`## ${escapeMarkdown(hit.ref)}\n\n${escapeMarkdown(hit.text)}\n\n${escapeMarkdown(data.copyright || '')}`} />} actions={<ActionPanel>
-        <Action title="Read Passage" onAction={() => view(hit.ref)} />
+        <Action title="Read Passage" icon={Icon.Book} onAction={() => view(hit.ref)} />
         <CrossReferenceAction reference={hit.ref} version={version} />
-        <Action.OpenInBrowser title="Open in Big Screen Bible" url={passageUrl(hit.ref, version)} shortcut={openShortcut} />
+        <Action.OpenInBrowser title="Open in Big Screen Bible" icon={Icon.Globe} url={passageUrl(hit.ref, version)} shortcut={openShortcut} />
         <ModeActions reference={hit.ref} version={version} />
         <Action.CopyToClipboard title="Copy Scripture Text" content={`${hit.ref} (${version})\n\n${hit.text}\n\n${data.copyright || ''}`} />
       </ActionPanel>} />)}
@@ -105,16 +105,16 @@ export default function Command() {
     } finally { setLoading(false); }
   }
   return <Form isLoading={loading} actions={<ActionPanel>
-    <Action.SubmitForm title="Search Scripture" shortcut={{ modifiers: [], key: "return" }} onSubmit={(values: Values) => submit(values)} />
-    <Action.SubmitForm title="Open Passage in Big Screen Bible" shortcut={openShortcut} onSubmit={(values: Values) => submit(values, true)} />
+    <Action.SubmitForm title="Search Scripture" icon={Icon.MagnifyingGlass} shortcut={{ modifiers: [], key: "return" }} onSubmit={(values: Values) => submit(values)} />
+    <Action.SubmitForm title="Open Passage in Big Screen Bible" icon={Icon.Globe} shortcut={openShortcut} onSubmit={(values: Values) => submit(values, true)} />
   </ActionPanel>}>
     <Form.TextField id="reference" title="Search" placeholder={'John 3:16–18 or "love one another"'} error={error} onChange={() => setError(undefined)} />
     <Form.Dropdown id="translation" title="Translation" defaultValue={allTranslations.includes(preferred) ? preferred : 'BSB'}>
-      {allTranslations.map(code => <Form.Dropdown.Item key={code} value={code} title={`${code === 'NASB2020' ? 'NASB' : code} · ${translations.includes(code) ? 'Offline' : 'Online'}`} />)}
+      {allTranslations.map(code => <Form.Dropdown.Item key={code} value={code} title={`${code === 'NASB2020' ? 'NASB' : code}${translations.includes(code) ? '' : ' *'}`} />)}
     </Form.Dropdown>
     <Form.Dropdown id="kind" title="Search Type" defaultValue="auto">
       <Form.Dropdown.Item value="auto" title="Automatic" /><Form.Dropdown.Item value="reference" title="Passage Reference" /><Form.Dropdown.Item value="words" title="Words or Phrase" />
     </Form.Dropdown>
-    <Form.Description text={'Enter searches inside Raycast. Use quotation marks for an exact phrase. Command–Enter opens a reference on the website; for word searches, select a result then press Command–Enter. Online translations need internet. Local results show up to 50 matches; online results use the provider limit.'} />
+    <Form.Description text={'Enter searches inside Raycast. Use quotation marks for an exact phrase. Command–Enter opens a reference on the website; for word searches, select a result then press Command–Enter. * Requires internet access. Local results show up to 50 matches; online results use the provider limit.'} />
   </Form>;
 }

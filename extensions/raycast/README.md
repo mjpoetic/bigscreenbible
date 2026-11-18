@@ -1,6 +1,6 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.3. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.5. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
@@ -67,3 +67,5 @@ From a word-search result or passage, choose **Show Cross-References** (Command-
 The catalog is the same OpenBible.info CC-BY dataset used by the website, with up to eight references per source verse. Duplicate targets are merged. Cross-chapter targets retain their label but open the catalog's starting verse because inline lookup supports one chapter at a time. Attribution: https://www.openbible.info/labs/cross-references/ (CC-BY).
 
 What to Test: look up John 3:16, press Command-Shift-X, select a related passage, and press Enter. Repeat from a word-search result, try an online translation, and use Escape to return through the navigation stack.
+
+Translation labels use an asterisk (`*`) for versions requiring internet access; unmarked versions work offline.

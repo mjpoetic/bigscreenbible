@@ -5532,6 +5532,16 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.10": [
+      "Verse actions add bookmarks and tooltips. Add note now appears before cross references in the highlighter bar.",
+      "Customize each toolbar with saved visibility and ordering preferences on this device.",
+    ],
+    "2026.11.18.9": [
+      "Raycast action menus now show matching glyphs for search, cross-references, reading modes, and games.",
+    ],
+    "2026.11.18.8": [
+      "Raycast translation choices use an asterisk to mark translations that require internet access.",
+    ],
     "2026.11.18.7": [
       "Raycast search results and passage views now offer cross-references that can be read inside Raycast in the selected translation.",
     ],
@@ -22123,9 +22133,14 @@ function openVerseActionMenu(anchor) {
     <button type="button" data-menu-cross-ref data-cross-ref-verse="${verseNumber}" aria-label="Cross references for ${state.reference}:${verseNumber}">${icons.layers}</button>
     <button type="button" data-menu-note aria-label="${hasNote ? "Edit" : "Add"} note for ${state.reference}:${verseNumber}">${hasNote ? icons.note : icons.noteAdd}</button>
     ${window.Capacitor?.isNativePlatform?.() ? `<button type="button" data-menu-widget aria-label="My favorite passage" data-tooltip="My favorite passage">${icons.book}</button>` : ""}
+    <button type="button" data-menu-bookmark aria-label="${state.bookmarks.includes(noteRef) ? "Remove bookmark" : "Add bookmark"}">${icons.bookmarkAdd}</button>
     <button type="button" data-menu-highlight aria-label="Highlight ${state.reference}:${verseNumber}">${icons.highlighter}</button>
   `;
   (document.querySelector(".app-shell") || document.body).appendChild(menu);
+  menu.querySelectorAll("button").forEach(button => {
+    button.dataset.tooltip ||= button.getAttribute("aria-label");
+  });
+  configureStudyToolbar(menu, "verse");
   anchor.setAttribute("aria-expanded", "true");
   positionVerseActionMenu(anchor, menu);
 
@@ -22160,6 +22175,12 @@ function openVerseActionMenu(anchor) {
     useSelectedPassageInWidget(selected.includes(verseNumber) ? selected : [verseNumber]);
     closeVerseActionMenu();
   });
+  menu.querySelector("[data-menu-bookmark]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleStudyBookmark(noteRef);
+    closeVerseActionMenu(true);
+    renderPreservingReaderScroll();
+  });
   menu.querySelector("[data-menu-highlight]")?.addEventListener("click", (event) => {
     event.stopPropagation();
     closeVerseActionMenu(true);
@@ -22192,7 +22213,7 @@ function positionVerseActionMenu(anchor, menu) {
 function closeVerseActionMenuOnOutside(event) {
   const menu = document.getElementById("verseActionMenu");
   if (!menu) return;
-  if (menu.contains(event.target) || event.target.closest?.("[data-verse-actions]")) return;
+  if (menu.contains(event.target) || event.target.closest?.("[data-verse-actions], .toolbar-customizer")) return;
   closeVerseActionMenu();
 }
 
@@ -22720,11 +22741,111 @@ function bottombar() {
   `;
 }
 
+function toggleStudyBookmark(ref) {
+  if (state.bookmarks.includes(ref)) {
+    state.bookmarks = state.bookmarks.filter(item => item !== ref);
+    showToast("Bookmark removed");
+  } else {
+    state.bookmarks.unshift(ref);
+    recordAnnotationDate("bookmarks", ref);
+    showToast("Bookmark saved");
+  }
+  localStorage.setItem("lw_bookmarks", JSON.stringify(state.bookmarks));
+  scheduleCloudSync();
+}
+
+function studyToolbarLayout(kind, defaults) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(`lw_toolbar_${kind}`));
+    if (!Array.isArray(saved)) return defaults.map(id => ({ id, visible: true }));
+    const seen = new Set();
+    const layout = saved.filter(item => item && defaults.includes(item.id) && !seen.has(item.id) && seen.add(item.id))
+      .map(item => ({ id: item.id, visible: item.visible !== false }));
+    return [...layout, ...defaults.filter(id => !seen.has(id)).map(id => ({ id, visible: true }))];
+  } catch {
+    return defaults.map(id => ({ id, visible: true }));
+  }
+}
+
+function configureStudyToolbar(container, kind) {
+  if (!container || container.querySelector("[data-customize-toolbar]")) return;
+  const buttons = [...container.children].filter(element => element.tagName === "BUTTON");
+  const entries = buttons.map(button => ({
+    id: button.id || [...button.attributes].find(attribute => attribute.name.startsWith("data-menu-"))?.name,
+    button,
+    label: button.dataset.tooltip || button.getAttribute("aria-label"),
+  })).filter(entry => entry.id);
+  let layout = studyToolbarLayout(kind, entries.map(entry => entry.id));
+  const customize = document.createElement("button");
+  customize.type = "button";
+  customize.className = kind === "selection" ? "text-btn selection-action" : "";
+  customize.dataset.customizeToolbar = kind;
+  customize.dataset.tooltip = "Customize toolbar";
+  customize.setAttribute("aria-label", "Customize toolbar");
+  customize.setAttribute("aria-haspopup", "dialog");
+  customize.textContent = "⋯";
+  const apply = () => {
+    layout.forEach(item => {
+      const entry = entries.find(entry => entry.id === item.id);
+      entry.button.hidden = !item.visible;
+      container.append(entry.button);
+    });
+    container.append(customize);
+  };
+  apply();
+  customize.addEventListener("click", event => {
+    event.stopPropagation();
+    const dialog = document.createElement("dialog");
+    dialog.className = "toolbar-customizer";
+    dialog.setAttribute("aria-label", kind === "verse" ? "Customize verse toolbar" : "Customize highlighter toolbar");
+    const draw = () => {
+      dialog.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Choose controls and their order. Saved on this device.</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
+        const label = escapeHtml(entries.find(entry => entry.id === item.id).label);
+        return `<div class="toolbar-customizer-row"><label><input type="checkbox" data-control="${index}" ${item.visible ? "checked" : ""}> ${label}</label><button type="button" data-move="${index}" data-step="-1" aria-label="Move ${label} up" ${index === 0 ? "disabled" : ""}>↑</button><button type="button" data-move="${index}" data-step="1" aria-label="Move ${label} down" ${index === layout.length - 1 ? "disabled" : ""}>↓</button></div>`;
+      }).join("")}</div><div class="toolbar-customizer-footer"><button type="button" data-reset>Restore defaults</button><button type="button" data-done>Done</button></div>`;
+    };
+    const save = () => {
+      try { localStorage.setItem(`lw_toolbar_${kind}`, JSON.stringify(layout)); }
+      catch { showToast("Toolbar changes could not be saved on this device"); }
+      apply();
+    };
+    dialog.addEventListener("change", event => {
+      if (!event.target.matches("[data-control]")) return;
+      layout[Number(event.target.dataset.control)].visible = event.target.checked;
+      save();
+    });
+    dialog.addEventListener("click", event => {
+      const move = event.target.closest("[data-move]");
+      if (move) {
+        const index = Number(move.dataset.move), next = index + Number(move.dataset.step);
+        if (next < 0 || next >= layout.length) return;
+        [layout[index], layout[next]] = [layout[next], layout[index]];
+        save(); draw();
+        dialog.querySelector(`[data-move="${next}"][data-step="${move.dataset.step}"]`)?.focus();
+      }
+      if (event.target.closest("[data-reset]")) {
+        layout = entries.map(entry => ({ id: entry.id, visible: true }));
+        save(); draw();
+      }
+      if (event.target.closest("[data-done]") || event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      if (kind === "verse") closeVerseActionMenu(true);
+      else customize.focus();
+    }, { once: true });
+    draw();
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
 function bindSelectionTooltips() {
   selectionTooltipCleanup?.();
   selectionTooltipCleanup = null;
   const bar = document.querySelector(".selection-bar:not(.selection-bar-exiting)");
   if (!bar) return;
+  configureStudyToolbar(bar.querySelector(".selection-bar-actions"), "selection");
   const controller = new AbortController();
   const signal = controller.signal;
   let timer = 0;
@@ -22806,12 +22927,13 @@ function selectionBar() {
           <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight" data-tooltip="Remove highlight">${icons.clear}</button>
         </div>
         <div class="selection-bar-actions">
+          <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
           <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
           <button class="text-btn selection-action" id="memorizeSelection" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
           <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
           <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
           <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
-          <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
+
           <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
 
         </div>

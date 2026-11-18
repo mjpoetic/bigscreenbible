@@ -28112,3 +28112,25 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   border-color: #40867d;
   color: #fff;
 }
+
+/* Toolbar visibility must override the toolbar button display rules. */
+.verse-action-menu button[hidden], .selection-bar-actions button[hidden] { display: none; }
+.verse-action-menu { max-width: calc(100vw - 16px); flex-wrap: wrap; }
+.toolbar-customizer {
+  width: min(390px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 20px;
+  background: var(--paper, white);
+  color: var(--ink, #25364a);
+  box-shadow: 0 16px 50px #0003;
+}
+.toolbar-customizer::backdrop { background: #0005; }
+.toolbar-customizer h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.toolbar-customizer p { font-size: .9rem; }
+.toolbar-customizer-row { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.toolbar-customizer-row label { flex: 1; }
+.toolbar-customizer button { min-width: 36px; min-height: 36px; }
+.toolbar-customizer-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
