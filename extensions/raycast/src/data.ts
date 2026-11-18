@@ -1,3 +1,4 @@
+import { relatedReferences } from './cross-references.mjs';
 import { environment, LocalStorage } from '@raycast/api';
 import { randomUUID } from 'node:crypto';
 import { reportScriptureView } from './fums.mjs';
@@ -45,4 +46,13 @@ export async function findVerses(input: string, version: string) {
   const results = (Array.isArray(payload.results) ? payload.results : []).filter((hit: any) => typeof hit.ref === 'string' && typeof hit.text === 'string' && (!exact || hit.text.toLowerCase().includes(query.toLowerCase())));
   if (results.length) await trackPayload(payload, version);
   return { results, total: payload.totalResults, name: payload.bibleName || version, copyright: payload.copyright || (version === 'ESV' ? 'ESV® Bible © 2001 by Crossway. Used by permission. All rights reserved.' : ''), source: 'https://bigscreenbible.com/terms/#bible-rights' };
+}
+
+let crossReferenceCatalog: any;
+export async function getCrossReferences(reference: string) {
+  if (!crossReferenceCatalog) {
+    const bytes = await readFile(join(environment.assetsPath, 'crossrefs.json.gz'));
+    crossReferenceCatalog = JSON.parse(gunzipSync(bytes).toString('utf8'));
+  }
+  return relatedReferences(crossReferenceCatalog, reference);
 }

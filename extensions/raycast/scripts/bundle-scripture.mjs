@@ -9,3 +9,7 @@ for (const code of ['BSB', 'KJV', 'WEB', 'ASV', 'BBE', 'YLT']) {
   writeFileSync(new URL(`../assets/${code}.json.gz`, import.meta.url), gzipSync(JSON.stringify({ code, name: bible.name, source: bible.source, chapters })));
 }
 console.log('Bundled six text-only Scripture translations.');
+const crossScope = { window: {} };
+vm.runInNewContext(readFileSync(new URL('../../../assets/crossrefs.js', import.meta.url), 'utf8'), crossScope);
+writeFileSync(new URL('../assets/crossrefs.json.gz', import.meta.url), gzipSync(JSON.stringify(crossScope.window.BIGSCREEN_CROSS_REFS)));
+console.log('Bundled OpenBible CC-BY cross-reference catalog.');

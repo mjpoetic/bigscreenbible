@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { passageUrl } from './passage.mjs';
 import { escapeMarkdown, translations } from './scripture.mjs';
 import { isReference, onlineTranslations } from './search.mjs';
-import { findVerses, getPassage } from './data';
+import { findVerses, getPassage, getCrossReferences } from './data';
 
 type Values = { reference: string; translation: string; kind: string };
 type Passage = { reference: string; version: string; name: string; source: string; verses: { n: number; text: string }[]; text: string; copyright?: string };
@@ -20,11 +20,43 @@ function ModeActions({ reference, version }: { reference: string; version: strin
   </ActionPanel.Submenu>;
 }
 
+function CrossReferenceAction({ reference, version }: { reference: string; version: string }) {
+  const { push } = useNavigation();
+  async function show() {
+    try { push(<CrossReferences reference={reference} version={version} items={await getCrossReferences(reference)} />); }
+    catch (error) { await showToast({ style: Toast.Style.Failure, title: 'Could not load cross-references', message: String(error) }); }
+  }
+  return <Action title="Show Cross-References" shortcut={{ modifiers: ['cmd', 'shift'], key: 'x' }} onAction={show} />;
+}
+function CrossReferences({ reference, version, items }: { reference: string; version: string; items: {reference: string; label: string; sources: string[]}[] }) {
+  const { push } = useNavigation();
+  const [loading, setLoading] = useState(false);
+  async function read(target: string) {
+    if (loading) return;
+    setLoading(true);
+    try { push(<PassageView passage={await getPassage(target, version)} />); }
+    catch (error) { await showToast({ style: Toast.Style.Failure, title: 'Could not load related passage', message: String(error) }); }
+    finally { setLoading(false); }
+  }
+  return <List isLoading={loading} navigationTitle={`Cross-References: ${reference}`} searchBarPlaceholder="Filter related references">
+    <List.EmptyView title="No Cross-References" description="The bundled catalog has no related verses for this passage." />
+    <List.Section title={`${items.length} related passages · ${version}`} subtitle="OpenBible.info · CC-BY">
+      {items.map(hit => <List.Item key={hit.reference} title={hit.label} subtitle={`From ${hit.sources.join(', ')}`} actions={<ActionPanel>
+        <Action title="Read Related Passage" onAction={() => read(hit.reference)} />
+        <Action.OpenInBrowser title="Open in Big Screen Bible" url={passageUrl(hit.reference, version)} shortcut={openShortcut} />
+        <ModeActions reference={hit.reference} version={version} />
+        <Action.OpenInBrowser title="Cross-Reference Source (CC-BY)" url="https://www.openbible.info/labs/cross-references/" />
+      </ActionPanel>} />)}
+    </List.Section>
+  </List>;
+}
+
 function PassageView({ passage }: { passage: Passage }) {
   const url = passageUrl(passage.reference, passage.version);
   const markdown = `# ${escapeMarkdown(passage.reference)}\n\n${escapeMarkdown(passage.name)} (${passage.version})\n\n${passage.verses.map(({ n, text }) => `**${n}** ${escapeMarkdown(text)}`).join('\n\n')}\n\n---\n\n${escapeMarkdown(passage.copyright || '')}\n\n[Translation source and rights](${passage.source})`;
   return <Detail navigationTitle={passage.reference} markdown={markdown} actions={<ActionPanel>
     <Action.CopyToClipboard title="Copy Scripture Text" content={passage.text} />
+    <CrossReferenceAction reference={passage.reference} version={passage.version} />
     <Action.OpenInBrowser title="Open in Big Screen Bible" url={url} shortcut={openShortcut} />
     <ModeActions reference={passage.reference} version={passage.version} />
     <Action.CopyToClipboard title="Copy Passage Link" content={url} shortcut={{ modifiers: ['cmd', 'shift'], key: 'c' }} />
@@ -44,6 +76,7 @@ function Results({ data, version, query }: { data: any; version: string; query: 
     <List.Section title={`${version} · ${data.results.length} shown${Number.isFinite(data.total) ? ` of ${data.total}` : ' (provider limit)'}`}>
       {data.results.map((hit: any) => <List.Item key={hit.ref} title={hit.ref} detail={<List.Item.Detail markdown={`## ${escapeMarkdown(hit.ref)}\n\n${escapeMarkdown(hit.text)}\n\n${escapeMarkdown(data.copyright || '')}`} />} actions={<ActionPanel>
         <Action title="Read Passage" onAction={() => view(hit.ref)} />
+        <CrossReferenceAction reference={hit.ref} version={version} />
         <Action.OpenInBrowser title="Open in Big Screen Bible" url={passageUrl(hit.ref, version)} shortcut={openShortcut} />
         <ModeActions reference={hit.ref} version={version} />
         <Action.CopyToClipboard title="Copy Scripture Text" content={`${hit.ref} (${version})\n\n${hit.text}\n\n${data.copyright || ''}`} />

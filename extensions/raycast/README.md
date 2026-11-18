@@ -1,6 +1,6 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.2. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.3. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
@@ -59,3 +59,11 @@ The new website mode handling must be deployed with app version 2026.11.18.3 bef
 This extension has not been submitted to the Raycast Store. Before submission, verify the `author` value in package.json is your Raycast Store handle, capture screenshots in Raycast, and confirm the distribution license with the project owner. The repository's COPYRIGHT.md applies; this extension does not bundle Scripture text.
 
 API.Bible native reporting reference: https://docs.api.bible/guides/fair-use/
+
+## Cross-references
+
+From a word-search result or passage, choose **Show Cross-References** (Command-Shift-X). The list shows related passages and the source verses that link to them. Enter reads the related passage inside Raycast using the selected translation. Escape returns to the previous screen; Command-Enter opens the selected reference on the website. Mode actions remain available. Cross-references work offline with bundled translations; online text still requires connectivity.
+
+The catalog is the same OpenBible.info CC-BY dataset used by the website, with up to eight references per source verse. Duplicate targets are merged. Cross-chapter targets retain their label but open the catalog's starting verse because inline lookup supports one chapter at a time. Attribution: https://www.openbible.info/labs/cross-references/ (CC-BY).
+
+What to Test: look up John 3:16, press Command-Shift-X, select a related passage, and press Enter. Repeat from a word-search result, try an online translation, and use Escape to return through the navigation stack.
