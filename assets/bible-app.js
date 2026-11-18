@@ -3513,7 +3513,7 @@ function focusSearchPanelMarkup() {
           <input id="mobileFocusPassageInput" type="search" value="${escapeHtml(query)}" placeholder="${placeholder}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" />
           <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
         </div>
-        ${searchScopeControls({ showResults: state.focusSearchResultsOpen })}
+        ${searchScopeControls({ showResults: state.focusSearchResultsOpen, showClear: state.focusSearchResultsOpen && Boolean(state.searchResultsQuery) })}
       </form>
       ${state.focusSearchResultsOpen && state.searchResultsQuery ? `
         <div class="mobile-focus-search-results-body" aria-live="polite" aria-busy="${state.searchPending}">
@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.5": [
+      "Focus Mode search adds a Clear results button that clears the search and keeps the dialog ready for another query.",
+    ],
     "2026.11.18.4": [
       "Raycast commands now explicitly use the transparent squircle icon with a refreshed asset name.",
     ],
@@ -9637,12 +9640,15 @@ function crossReferencesPanel() {
   `;
 }
 
-function searchScopeControls({ showResults = true } = {}) {
+function searchScopeControls({ showResults = true, showClear = false } = {}) {
   const search = state.scriptureSearch;
   const expandMarkup = showResults && state.searchResultsQuery && search && !search.expanded && !state.searchPending
     ? `<button class="search-filter-chip" type="button" data-expand-scripture-search aria-busy="${Boolean(search.expanding)}" ${search.expanding ? "disabled" : ""}>${search.expanding ? '<span class="search-translations-spinner" aria-hidden="true"></span>Searching all translations…' : "Search all translations"}</button>`
     : "";
-  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}</div>`;
+  const clearMarkup = showClear
+    ? '<button class="search-filter-chip" type="button" data-clear-search-results>Clear results</button>'
+    : "";
+  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}${clearMarkup}</div>`;
 }
 
 function searchResultsClearControl() {
@@ -25568,9 +25574,14 @@ function bindEvents() {
   document.querySelectorAll("[data-clear-search-results]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
+      const portraitSearch = Boolean(button.closest(".focus-portrait-search"));
+      if (portraitSearch) state.focusReferenceOpen = true;
       state.focusSearchResultsOpen = false;
       state.presentationSearchResultsOpen = false;
       clearSearchResults();
+      if (portraitSearch) {
+        document.getElementById("mobileFocusPassageInput")?.focus({ preventScroll: true });
+      }
     });
   });
   document.querySelectorAll("[data-clear-search]").forEach((button) => {
