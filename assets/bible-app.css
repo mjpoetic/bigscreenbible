@@ -28190,3 +28190,17 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   border-radius: 10px;
   box-shadow: 0 0 12px color-mix(in srgb, var(--teal) 40%, transparent) !important;
 }
+
+/* Preview geometry stays intrinsic as controls appear and dissolve away. */
+.toolbar-customizer-preview :is(.verse-action-menu, .selection-bar) {
+  width: max-content !important;
+  height: auto !important;
+  flex-wrap: nowrap !important;
+  flex-shrink: 0 !important;
+}
+.toolbar-customizer-preview .selection-bar-controls {
+  max-width: none !important;
+  overflow: visible !important;
+  flex-shrink: 0 !important;
+}
+.toolbar-customizer-preview .verse-action-menu > button { flex-shrink: 0; }

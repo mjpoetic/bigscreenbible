@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.14": [
+      "Toolbar previews resize as actions change without wrapping or retaining stale dimensions. Removed the redundant Highlight action from highlighter toolbar options.",
+    ],
     "2026.11.18.13": [
       "Both toolbars offer matching optional actions, including bookmarks, while preserving their defaults. Customization previews focus on action buttons and spotlight the control being dragged.",
     ],
@@ -22783,7 +22786,7 @@ function configureStudyToolbar(container, kind) {
     ["memorize", "Memorize", icons.memorize], ["share", "Share", icons.share],
     ["link", "Copy link", icons.link], ["print", "Print", icons.print],
   ] : [
-    ["bookmark", "Bookmark", icons.bookmarkAdd], ["highlight", "Highlight", icons.highlighter],
+    ["bookmark", "Bookmark", icons.bookmarkAdd],
     ...(window.Capacitor?.isNativePlatform?.() ? [["widget", "My favorite passage", icons.book]] : []),
   ];
   optional.forEach(([action, label, glyph]) => {
@@ -22805,7 +22808,6 @@ function configureStudyToolbar(container, kind) {
       if (action === "share") sharePassage(numbers);
       if (action === "link") copyText(passageShareUrl(numbers)).then(() => showToast("Passage link copied"));
       if (action === "widget") useSelectedPassageInWidget(numbers);
-      if (action === "highlight") focusHighlightPalette();
       if (action === "print") {
         state.selectedVerses = numbers;
         renderPreservingReaderScroll();
@@ -22866,11 +22868,10 @@ function configureStudyToolbar(container, kind) {
     dialog.setAttribute("aria-label", kind === "verse" ? "Customize verse toolbar" : "Customize highlighter toolbar");
     const toolbar = kind === "verse" ? container : container.closest(".selection-bar");
     // Preserve the real toolbar appearance before moving out of its reader context.
-    const toolbarWidth = toolbar.getBoundingClientRect().width;
     const appearance = [toolbar, ...toolbar.querySelectorAll("*")].map(element => {
       const original = element.getAttribute("style");
       const computed = getComputedStyle(element);
-      const properties = ["background", "border", "border-radius", "box-shadow", "backdrop-filter", "-webkit-backdrop-filter", "color", "font", "padding", "gap", "align-items", "justify-content", "flex-direction", "flex-wrap", "width", "height", "min-width", "min-height", "flex-shrink"];
+      const properties = ["background", "border", "border-radius", "box-shadow", "backdrop-filter", "-webkit-backdrop-filter", "color", "font", "padding", "gap", "align-items", "justify-content", "flex-direction", "flex-wrap", "min-height", "flex-shrink"];
       const values = properties.map(property => [property, computed.getPropertyValue(property)]);
       return { element, original, values };
     });
@@ -22883,7 +22884,7 @@ function configureStudyToolbar(container, kind) {
     toolbar.dataset.customizing = "true";
     toolbar.inert = true;
     preview.append(toolbar);
-    toolbar.style.setProperty("width", kind === "selection" ? "max-content" : `${toolbarWidth}px`, "important");
+    toolbar.style.setProperty("width", "max-content", "important");
     const fitPreview = () => {
       const scale = Math.min(1, preview.clientWidth / Math.max(1, toolbar.scrollWidth, toolbar.offsetWidth));
       toolbar.style.setProperty("transform", `scale(${scale})`, "important");

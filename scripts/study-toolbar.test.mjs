@@ -31,3 +31,7 @@ assert.equal(vm.runInContext('studyToolbarLayout("selection", ["note", "bookmark
 saved = JSON.stringify([{ id: 'bookmark', visible: true }, { id: 'note', visible: false }]);
 assert.equal(vm.runInContext('studyToolbarLayout("selection", ["note", "bookmark"], ["bookmark"])[0].visible', context), true);
 console.log('Optional controls preserve defaults and saved visibility.');
+// Ignore a retired Highlight control while retaining the other saved choices.
+saved = JSON.stringify([{ id: 'data-menu-highlight', visible: true }, { id: 'bookmark', visible: true }, { id: 'note', visible: false }]);
+assert.equal(vm.runInContext('JSON.stringify(studyToolbarLayout("selection", ["note", "bookmark"], ["bookmark"]))', context), '[{"id":"bookmark","visible":true},{"id":"note","visible":false}]');
+console.log('Retired highlighter action is discarded without resetting other preferences.');
