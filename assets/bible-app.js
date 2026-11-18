@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.17.2": [
+      "Open compact passage links such as matthew28verse19, with a clearer, illustrated page to help recover from unrecognized addresses.",
+    ],
     "2026.11.17.1": [
       "Open Bible Passage understands spoken references with chapter and verse wording, spelled-out numbers, and First, Second, or Third book names.",
     ],

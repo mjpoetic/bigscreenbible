@@ -9,13 +9,35 @@
       html { color-scheme: light dark; background: var(--redirect-bg, Canvas); color: CanvasText; }
       html[data-theme="light"] { color-scheme: light; }
       html[data-theme="dark"] { color-scheme: dark; }
+      * { box-sizing: border-box; }
       .passage-redirecting main { display: none; }
-      body { margin: 0; padding: 48px 24px; background: transparent; color: inherit; font: 18px/1.6 system-ui, sans-serif; }
-      main { max-width: 620px; margin: auto; }
-      a { color: LinkText; }
-      code { overflow-wrap: anywhere; }
+      body { margin: 0; padding: 32px 20px 48px; font: 16px/1.6 system-ui, sans-serif; }
+      main { max-width: 720px; margin: auto; }
+      .brand { display: inline-flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; font-weight: 700; }
+      .brand img { width: 42px; height: 42px; border-radius: 12px; }
+      .hero { text-align: center; padding: 40px 0 24px; }
+      .illustration { display: grid; place-items: center; width: 104px; height: 104px; margin: 0 auto 24px; border-radius: 32px; background: color-mix(in srgb, #699bdf 16%, transparent); color: light-dark(#245c9f, #a8cdff); transform: rotate(-5deg); }
+      .illustration svg { width: 60px; height: 60px; transform: rotate(5deg); }
+      h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.15; letter-spacing: -.035em; margin: 0 0 16px; }
+      p { margin: 0 0 20px; }
+      .hero p { max-width: 480px; margin: 0 auto 24px; opacity: .78; }
+      a { color: inherit; text-underline-offset: 3px; }
+      a:focus-visible { outline: 3px solid light-dark(#245c9f, #a8cdff); outline-offset: 5px; }
+      .primary { display: inline-flex; padding: 12px 24px; border-radius: 14px; background: light-dark(#245c9f, #a8cdff); color: light-dark(white, #102540); font-weight: 700; text-decoration: none; }
+      .examples { padding: 22px; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 20px; margin: 8px 0 28px; }
+      h2 { font-size: 18px; margin: 0 0 8px; }
+      .examples p { margin-bottom: 14px; opacity: .78; font-size: 14px; }
+      .examples a { display: block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; color: light-dark(#245c9f, #a8cdff); padding: 4px 0; }
+      .destinations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .destination { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; background: color-mix(in srgb, currentColor 6%, transparent); text-decoration: none; }
+      .destination:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+      .destination svg { width: 26px; height: 26px; flex: none; color: light-dark(#245c9f, #a8cdff); }
+      .destination strong { display: block; font-size: 15px; }
+      .destination small { display: block; opacity: .7; font-size: 12px; }
+      .daily { display: block; text-align: center; margin-top: 24px; font-size: 14px; }
+      @media (max-width: 380px) { .destinations { grid-template-columns: 1fr; } }
     </style>
-    <script src="/assets/theme-catalog.js?v=2026.11.17.1"></script>
+    <script src="/assets/theme-catalog.js?v=2026.11.17.2"></script>
     <script>
       try {
         const appearance = window.BigScreenBibleThemeCatalog?.applyStoredTheme({ migrate: false });
@@ -42,7 +64,7 @@
           .replace(/[–—]/g, "-").replace(/\s+to\s+/gi, "-")
           .replace(/\s+chapter\s*/gi, " ").trim();
         if (passage.length > 180) return null;
-        const match = passage.match(/^((?:[1-3]\s*)?[a-z][a-z. ]*?)\s*(\d{1,3})(?:(?:\s*[:.]\s*|\s+v(?:erses?|v)?\.?\s*)(\d{1,3}(?:\s*[-,]\s*\d{1,3})*))?(?:\s*(?:\/|\s|\()\s*([a-z][a-z0-9]{1,14})\)?)?$/i);
+        const match = passage.match(/^((?:[1-3]\s*)?[a-z][a-z. ]*?)\s*(\d{1,3})(?:(?:\s*[:.]\s*|\s*v(?:erses?|v)?\.?\s*)(\d{1,3}(?:\s*[-,]\s*\d{1,3})*))?(?:\s*(?:\/|\s|\()\s*([a-z][a-z0-9]{1,14})\)?)?$/i);
         if (!match || Number(match[2]) < 1) return null;
         const reference = `${match[1].trim()} ${Number(match[2])}${match[3] ? `:${match[3].replace(/\s/g, "")}` : ""}`;
         const destination = new URL("/", source.origin);
@@ -84,9 +106,27 @@
   </head>
   <body>
     <main>
-      <h1>Open Big Screen Bible</h1>
-      <p id="passageLinkStatus">That address could not be opened. Try a passage such as <a href="/Pro3:5-6">Pro3:5-6</a> or <a href="/Proverbs3:5-6/KJV">Proverbs3:5-6/KJV</a>.</p>
-      <p>Open <a href="/reader">Reader</a>, <a href="/parallel">Parallel Study</a>, <a href="/games">Games</a> or <a href="/memorization">Memorization</a>, <a href="/verseoftheday">Verse of the Day</a>, or <a href="/">go to Big Screen Bible</a>.</p>
+      <a class="brand" href="/"><img src="/assets/icons/icon-192.png" alt="" />Big Screen Bible</a>
+      <section class="hero" aria-labelledby="pageTitle">
+        <div class="illustration" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M32 16c-8-6-17-6-25-3v36c8-3 17-3 25 3 8-6 17-6 25-3V13c-8-3-17-3-25 3ZM32 16v36M14 22l11 2M14 30l11 2M39 24l11-2M39 32l11-2"/><path d="m47 5 2-4M58 9l4-2"/></svg></div>
+        <h1 id="pageTitle">Let’s find your passage</h1>
+        <p id="passageLinkStatus">We couldn’t recognize this address. Check the book, chapter, and verse, or open Reader to find the passage you’re looking for.</p>
+        <a class="primary" href="/reader">Open Reader <span aria-hidden="true">&nbsp; →</span></a>
+      </section>
+      <section class="examples" aria-labelledby="examplesTitle">
+        <h2 id="examplesTitle">Try a passage link</h2>
+        <p>Add a book, chapter, and verse after bigscreenbible.com/</p>
+        <a href="/matthew28verse19">matthew28verse19 <span aria-hidden="true">→</span></a>
+        <a href="/Pro3:5-6">Pro3:5-6 <span aria-hidden="true">→</span></a>
+        <a href="/Proverbs3:5-6/KJV">Proverbs3:5-6/KJV <span aria-hidden="true">→</span></a>
+      </section>
+      <nav aria-label="Explore Big Screen Bible" class="destinations">
+        <a class="destination" href="/reader"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5C8 2 4 3 2 4v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-2-1-6-2-10 1ZM12 5v15"/></svg><span><strong>Reader</strong><small>Read at your own pace</small></span></a>
+        <a class="destination" href="/parallel"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="8" height="16" rx="2"/><rect x="14" y="4" width="8" height="16" rx="2"/><path d="M5 8h2M5 12h2M17 8h2M17 12h2"/></svg><span><strong>Parallel Study</strong><small>Compare Bible translations</small></span></a>
+        <a class="destination" href="/games"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M6 12h6M9 9v6M16 10h.01M18 14h.01"/></svg><span><strong>Bible Games</strong><small>Play, discover, and learn</small></span></a>
+        <a class="destination" href="/memorization"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v19l-6-4-6 4ZM9 8h6M9 12h6"/></svg><span><strong>Memorization</strong><small>Keep Scripture close</small></span></a>
+      </nav>
+      <a class="daily" href="/verseoftheday">Discover today’s Verse of the Day <span aria-hidden="true">→</span></a>
       <noscript><p>Enable JavaScript to open a passage directly.</p></noscript>
     </main>
 

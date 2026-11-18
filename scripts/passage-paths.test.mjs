@@ -11,6 +11,10 @@ assert.ok(html.indexOf('window.location.replace') < html.indexOf('<body>'), 'Red
 assert.equal(new URL(redirected).searchParams.get('ref'),'Pro 3:5-6');
 for (const [path, reference, version] of [
   ['Pro3:5-6','Pro 3:5-6',null],
+  ['matthew28verse19','matthew 28:19',null],
+  ['Matthew28verses19-20/KJV','Matthew 28:19-20','KJV'],
+  ['Matthew28v19','Matthew 28:19',null],
+  ['First Timothy3verse16','First Timothy 3:16',null],
   ['Proverbs3:5-6','Proverbs 3:5-6',null],
   ['Proverbs 3:5-6','Proverbs 3:5-6',null],
   ['Proverbs 3 verses 5-6','Proverbs 3:5-6',null],
@@ -58,9 +62,9 @@ for (const path of ['games/missing', 'memorization/missing', 'unknown', 'toStrin
 console.log('Direct area path tests passed');
 
 for (const mode of ['reader', 'parallel']) {
-  for (const path of [`Pro3:5-6/${mode}`, `${mode}/Pro3:5-6`, `Pro3:5-6/KJV/${mode}/`, `${mode}/Pro3:5-6/KJV`]) {
+  for (const path of [`matthew28verse19/${mode}`, `Pro3:5-6/${mode}`, `${mode}/Pro3:5-6`, `Pro3:5-6/KJV/${mode}/`, `${mode}/Pro3:5-6/KJV`]) {
     const result = new URL(context.passagePathDestination(`https://bigscreenbible.com/${path}?mode=big&view=games`));
-    assert.equal(result.searchParams.get('ref'), 'Pro 3:5-6');
+    assert.equal(result.searchParams.get('ref'), path.includes('matthew') ? 'matthew 28:19' : 'Pro 3:5-6');
     assert.equal(result.searchParams.get('mode'), mode);
     assert.equal(result.searchParams.has('view'), false);
     assert.equal(result.searchParams.get('version'), path.includes('KJV') ? 'KJV' : null);
