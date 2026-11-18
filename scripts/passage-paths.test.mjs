@@ -12,6 +12,8 @@ assert.equal(new URL(redirected).searchParams.get('ref'),'Pro 3:5-6');
 for (const [path, reference, version] of [
   ['Pro3:5-6','Pro 3:5-6',null],
   ['matthew28verse19','matthew 28:19',null],
+  ['matthew28verse19/New International Version','matthew 28:19','New International Version'],
+  ['matthew28verse19/NIV','matthew 28:19','NIV'],
   ['Matthew28verses19-20/KJV','Matthew 28:19-20','KJV'],
   ['Matthew28v19','Matthew 28:19',null],
   ['First Timothy3verse16','First Timothy 3:16',null],

@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.17.4": [
+      "Request a Bible translation by abbreviation or full name in passage searches, shortcut phrases, and shared links.",
+    ],
     "2026.11.17.3": [
       "Spoken passage references from Shortcuts and Siri now open just the requested verses instead of the entire chapter.",
     ],
@@ -30410,12 +30413,9 @@ async function applyStartupExperience({ updateReload = false } = {}) {
 
 function requestedVersionFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const requested = String(params.get("version") || params.get("translation") || "").trim().toLowerCase();
-  if (!requested) return "";
-  return translations.find((translation) => (
-    translation.code.toLowerCase() === requested
-    || String(translation.displayCode || "").toLowerCase() === requested
-  ))?.code || "";
+  const requested = String(params.get("version") || params.get("translation") || "").trim();
+  if (requested) return passageSearchInput(`John 1:1 ${requested}`).version || "";
+  return passageSearchInput(params.get("ref") || params.get("reference") || "").version || "";
 }
 
 async function applySharedVersionFromUrl(verses = selectedVerseNumbers()) {
@@ -30533,7 +30533,7 @@ function selectVerseOfDayReference(reference) {
 
 function sharedReferenceFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("ref") || params.get("reference") || "";
+  return passageSearchInput(params.get("ref") || params.get("reference") || "").reference;
 }
 
 function sharedVersesFromUrl() {
@@ -30875,13 +30875,17 @@ function firstVerseFromReference(value) {
 
 function passageSearchInput(value) {
   const cleaned = String(value || "").trim().replace(/\s+/g, " ");
-  const aliases = translations.flatMap(({ code, displayCode, name }) =>
-    [code, displayCode, name].filter(Boolean).map((alias) => ({ code, alias }))
-  ).sort((a, b) => b.alias.length - a.alias.length);
+  const aliases = translations.flatMap(({ code, displayCode, name }) => {
+    const names = [code, displayCode, name, name?.replace(/ 2020$/, "")];
+    // Dictation may insert spaces or periods between abbreviation letters.
+    return names.filter(Boolean).map(alias => ({ code, alias }));
+  }).sort((a, b) => b.alias.length - a.alias.length);
   for (const { code, alias } of aliases) {
-    const escaped = escapeRegExp(alias);
-    const prefix = cleaned.match(new RegExp(`^${escaped}\\s+(.+)$`, "i"));
-    const suffix = cleaned.match(new RegExp(`^(.+?)\\s+\\(?${escaped}\\)?$`, "i"));
+    const escaped = /^[A-Z]+[0-9]*$/.test(alias)
+      ? alias.split("").map(escapeRegExp).join("[. ]*") + "\\.?"
+      : escapeRegExp(alias).replace(/[’']/g, "[’']?");
+    const prefix = cleaned.match(new RegExp(`^(?:the )?${escaped}\\s+(.+)$`, "i"));
+    const suffix = cleaned.match(new RegExp(`^(.+?)\\s+(?:(?:in|from|using)\\s+)?(?:the\\s+)?\\(?${escaped}\\)?$`, "i"));
     if (prefix || suffix) return { reference: (prefix || suffix)[1].trim(), version: code };
   }
   return { reference: cleaned, version: null };

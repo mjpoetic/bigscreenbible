@@ -171,6 +171,8 @@ vm.runInContext(`
     { code: "BSB", name: "Berean Standard Bible" },
     { code: "NASB2020", displayCode: "NASB", name: "New American Standard Bible 2020" },
   ];
+  ${extractFunction("escapeRegExp")}
+  ${extractFunction("passageSearchInput")}
   ${extractFunction("requestedVersionFromUrl")}
   globalThis.requestedVersion = requestedVersionFromUrl;
 `, versionUrlContext);

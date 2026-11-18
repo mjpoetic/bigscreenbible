@@ -99,3 +99,41 @@ for (const reference of ["Matthew 28:19", "Matthew 28 verse 19", "Matthew chapte
   }
 }
 console.log("Spoken shortcut startup preserves verse selection; chapter links retain full chapters");
+
+vm.runInContext(`
+  ${source.slice(source.indexOf("const translations = ["), source.indexOf("const translationCodes ="))}
+  ${extractFunction("escapeRegExp")}
+  ${extractFunction("passageSearchInput")}
+  ${extractFunction("sharedReferenceFromUrl")}
+  ${extractFunction("requestedVersionFromUrl")}
+  globalThis.testTranslations = translations;
+`, context);
+context.requestedModeFromUrl = () => "reader";
+context.URLSearchParams = URLSearchParams;
+context.window = { location: { search: "" } };
+for (const translation of context.testTranslations) {
+  for (const alias of [translation.code, translation.displayCode, translation.name].filter(Boolean)) {
+    for (const phrase of [`Matthew chapter twenty-eight verse nineteen in the ${alias}`, `${alias} Matthew 28 verse 19`, `Matthew 28:19 (${alias})`]) {
+      const input = context.passageSearchInput(phrase);
+      assert.equal(input.version, translation.code, phrase);
+      assert.equal(parsePassage(input.reference).verse, 19, phrase);
+      context.window.location.search = `?${new URLSearchParams({ref: phrase, mode: "reader", nativeLink: "1"})}`;
+      assert.equal(context.requestedVersionFromUrl(), translation.code, phrase);
+      context.state = { startupApplied: false };
+      let loadedVersion;
+      context.applySharedVersionFromUrl = async () => { loadedVersion = context.requestedVersionFromUrl(); };
+      await context.applyStartupExperience();
+      assert.equal(loadedVersion, translation.code, phrase);
+      assert.deepEqual(Array.from(context.state.sharedPassage.verses), [19], phrase);
+    }
+    context.window.location.search = `?${new URLSearchParams({ref: "Matthew 28:19", version: alias})}`;
+    assert.equal(context.requestedVersionFromUrl(), translation.code, alias);
+  }
+}
+for (const [alias, version] of [["N. I. V.", "NIV"], ["New American Standard Bible", "NASB2020"], ["Young’s Literal Translation", "YLT"], ["New International Readers Version", "NIRV"]]) {
+  assert.equal(context.passageSearchInput(`Matthew 28 verse 19 in the ${alias}`).version, version, alias);
+}
+context.window.location.search = "?ref=Matthew+28+verse+19+NIV&version=KJV";
+assert.equal(context.requestedVersionFromUrl(), "KJV", "Explicit version takes precedence over spoken version");
+assert.equal(context.passageSearchInput("Matthew 28 verse 19 in the Unknown Bible").version, null);
+console.log("All translation names and codes work through spoken shortcut startup and version URLs");
