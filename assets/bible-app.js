@@ -5532,6 +5532,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.13": [
+      "Both toolbars offer matching optional actions, including bookmarks, while preserving their defaults. Customization previews focus on action buttons and spotlight the control being dragged.",
+    ],
+    "2026.11.18.12": [
+      "Drag toolbar controls to reorder them. Live previews retain the actual toolbar styling and fit without horizontal scrolling.",
+    ],
     "2026.11.18.11": [
       "Toolbar customization uses liquid glass, concise labels, and matching glyphs, with a persistent live toolbar preview and animated control changes.",
     ],
@@ -22758,21 +22764,56 @@ function toggleStudyBookmark(ref) {
   scheduleCloudSync();
 }
 
-function studyToolbarLayout(kind, defaults) {
+function studyToolbarLayout(kind, defaults, hidden = []) {
   try {
     const saved = JSON.parse(localStorage.getItem(`lw_toolbar_${kind}`));
-    if (!Array.isArray(saved)) return defaults.map(id => ({ id, visible: true }));
+    if (!Array.isArray(saved)) return defaults.map(id => ({ id, visible: !hidden.includes(id) }));
     const seen = new Set();
     const layout = saved.filter(item => item && defaults.includes(item.id) && !seen.has(item.id) && seen.add(item.id))
       .map(item => ({ id: item.id, visible: item.visible !== false }));
-    return [...layout, ...defaults.filter(id => !seen.has(id)).map(id => ({ id, visible: true }))];
+    return [...layout, ...defaults.filter(id => !seen.has(id)).map(id => ({ id, visible: !hidden.includes(id) }))];
   } catch {
-    return defaults.map(id => ({ id, visible: true }));
+    return defaults.map(id => ({ id, visible: !hidden.includes(id) }));
   }
 }
 
 function configureStudyToolbar(container, kind) {
   if (!container || container.querySelector("[data-customize-toolbar]")) return;
+  const optional = kind === "verse" ? [
+    ["memorize", "Memorize", icons.memorize], ["share", "Share", icons.share],
+    ["link", "Copy link", icons.link], ["print", "Print", icons.print],
+  ] : [
+    ["bookmark", "Bookmark", icons.bookmarkAdd], ["highlight", "Highlight", icons.highlighter],
+    ...(window.Capacitor?.isNativePlatform?.() ? [["widget", "My favorite passage", icons.book]] : []),
+  ];
+  optional.forEach(([action, label, glyph]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute(`data-menu-${action}`, "");
+    button.dataset.defaultHidden = "true";
+    button.dataset.tooltip = label;
+    button.setAttribute("aria-label", label);
+    button.className = kind === "selection" ? "text-btn selection-action" : "";
+    button.innerHTML = kind === "selection" ? `<span class="selection-action-icon">${glyph}</span><span class="selection-action-label">${label}</span>` : glyph;
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      const numbers = kind === "verse" ? [Number(container.dataset.verse)] : selectedVerseNumbers();
+      const reference = formatReferenceLabel(state.reference, numbers);
+      if (kind === "verse") closeVerseActionMenu(true);
+      if (action === "bookmark") { toggleStudyBookmark(reference); renderPreservingReaderScroll(); }
+      if (action === "memorize") addMemoryPassage(reference);
+      if (action === "share") sharePassage(numbers);
+      if (action === "link") copyText(passageShareUrl(numbers)).then(() => showToast("Passage link copied"));
+      if (action === "widget") useSelectedPassageInWidget(numbers);
+      if (action === "highlight") focusHighlightPalette();
+      if (action === "print") {
+        state.selectedVerses = numbers;
+        renderPreservingReaderScroll();
+        printSelectedPassage();
+      }
+    });
+    container.append(button);
+  });
   const buttons = [...container.children].filter(element => element.tagName === "BUTTON");
   const entries = buttons.map(button => ({
     id: button.id || [...button.attributes].find(attribute => attribute.name.startsWith("data-menu-"))?.name,
@@ -22785,7 +22826,8 @@ function configureStudyToolbar(container, kind) {
     }[[...button.attributes].find(attribute => attribute.name.startsWith("data-menu-"))?.name] || button.dataset.tooltip) : button.dataset.tooltip || button.getAttribute("aria-label"),
     glyph: button.querySelector("svg")?.outerHTML || "",
   })).filter(entry => entry.id);
-  let layout = studyToolbarLayout(kind, entries.map(entry => entry.id));
+  const hidden = entries.filter(entry => entry.button.dataset.defaultHidden === "true").map(entry => entry.id);
+  let layout = studyToolbarLayout(kind, entries.map(entry => entry.id), hidden);
   const customize = document.createElement("button");
   customize.type = "button";
   customize.className = kind === "selection" ? "text-btn selection-action" : "";
@@ -22823,6 +22865,16 @@ function configureStudyToolbar(container, kind) {
     dialog.className = "toolbar-customizer";
     dialog.setAttribute("aria-label", kind === "verse" ? "Customize verse toolbar" : "Customize highlighter toolbar");
     const toolbar = kind === "verse" ? container : container.closest(".selection-bar");
+    // Preserve the real toolbar appearance before moving out of its reader context.
+    const toolbarWidth = toolbar.getBoundingClientRect().width;
+    const appearance = [toolbar, ...toolbar.querySelectorAll("*")].map(element => {
+      const original = element.getAttribute("style");
+      const computed = getComputedStyle(element);
+      const properties = ["background", "border", "border-radius", "box-shadow", "backdrop-filter", "-webkit-backdrop-filter", "color", "font", "padding", "gap", "align-items", "justify-content", "flex-direction", "flex-wrap", "width", "height", "min-width", "min-height", "flex-shrink"];
+      const values = properties.map(property => [property, computed.getPropertyValue(property)]);
+      return { element, original, values };
+    });
+    appearance.forEach(({ element, values }) => values.forEach(([property, value]) => element.style.setProperty(property, value)));
     const placeholder = document.createComment("toolbar preview position");
     toolbar.before(placeholder);
     const preview = document.createElement("div");
@@ -22831,13 +22883,22 @@ function configureStudyToolbar(container, kind) {
     toolbar.dataset.customizing = "true";
     toolbar.inert = true;
     preview.append(toolbar);
+    toolbar.style.setProperty("width", kind === "selection" ? "max-content" : `${toolbarWidth}px`, "important");
+    const fitPreview = () => {
+      const scale = Math.min(1, preview.clientWidth / Math.max(1, toolbar.scrollWidth, toolbar.offsetWidth));
+      toolbar.style.setProperty("transform", `scale(${scale})`, "important");
+      preview.style.height = `${toolbar.offsetHeight * scale + 16}px`;
+    };
+    const previewObserver = new ResizeObserver(fitPreview);
+    previewObserver.observe(preview);
+    previewObserver.observe(toolbar);
     const editor = document.createElement("div");
     dialog.append(preview, editor);
     const draw = () => {
-      editor.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Choose controls and their order. Saved on this device.</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
+      editor.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Drag the handles to reorder controls. Saved on this device.</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
         const entry = entries.find(entry => entry.id === item.id);
         const label = escapeHtml(entry.label);
-        return `<div class="toolbar-customizer-row"><label><input type="checkbox" data-control="${index}" ${item.visible ? "checked" : ""}><span class="toolbar-customizer-glyph" aria-hidden="true">${entry.glyph}</span><span>${label}</span></label><button type="button" data-move="${index}" data-step="-1" aria-label="Move ${label} up" ${index === 0 ? "disabled" : ""}>↑</button><button type="button" data-move="${index}" data-step="1" aria-label="Move ${label} down" ${index === layout.length - 1 ? "disabled" : ""}>↓</button></div>`;
+        return `<div class="toolbar-customizer-row" data-row="${item.id}"><label><input type="checkbox" data-control="${index}" ${item.visible ? "checked" : ""}><span class="toolbar-customizer-glyph" aria-hidden="true">${entry.glyph}</span><span>${label}</span></label><button type="button" class="toolbar-drag-handle" data-drag="${item.id}" aria-label="Reorder ${label}. Use arrow keys to move." title="Drag to reorder">⠿</button></div>`;
       }).join("")}</div><div class="toolbar-customizer-footer"><button type="button" data-reset>Restore defaults</button><button type="button" data-done>Done</button></div>`;
     };
     const save = () => {
@@ -22850,22 +22911,74 @@ function configureStudyToolbar(container, kind) {
       layout[Number(event.target.dataset.control)].visible = event.target.checked;
       save();
     });
+    let drag = null;
+    const finishDrag = (cancel = false) => {
+      if (!drag) return;
+      const handle = drag.handle;
+      if (cancel) layout = drag.initial;
+      container.querySelectorAll(".toolbar-drag-spotlight").forEach(button => button.classList.remove("toolbar-drag-spotlight"));
+      dialog.classList.remove("is-reordering");
+      drag = null;
+      if (handle.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+      save(); draw();
+    };
+    let pointerId = null;
+    dialog.addEventListener("pointerdown", event => {
+      const handle = event.target.closest("[data-drag]");
+      if (!handle || event.button !== 0) return;
+      event.preventDefault();
+      pointerId = event.pointerId;
+      drag = { id: handle.dataset.drag, handle, initial: layout.map(item => ({ ...item })) };
+      handle.setPointerCapture(pointerId);
+      handle.closest("[data-row]").classList.add("is-dragging");
+      dialog.classList.add("is-reordering");
+      entries.find(entry => entry.id === drag.id).button.classList.add("toolbar-drag-spotlight");
+    });
+    dialog.addEventListener("pointermove", event => {
+      if (!drag || event.pointerId !== pointerId) return;
+      const rows = [...editor.querySelectorAll("[data-row]")];
+      const target = rows.find(row => {
+        const rect = row.getBoundingClientRect();
+        return event.clientY >= rect.top && event.clientY <= rect.bottom;
+      });
+      if (!target || target.dataset.row === drag.id) return;
+      const from = layout.findIndex(item => item.id === drag.id);
+      const to = layout.findIndex(item => item.id === target.dataset.row);
+      layout.splice(to, 0, layout.splice(from, 1)[0]);
+      const rowsContainer = target.parentElement;
+      layout.forEach((item, index) => {
+        const row = rows.find(row => row.dataset.row === item.id);
+        row.querySelector("[data-control]").dataset.control = index;
+        rowsContainer.append(row);
+      });
+      drag.handle.setPointerCapture(pointerId);
+      apply(true);
+    });
+    dialog.addEventListener("pointerup", () => finishDrag());
+    dialog.addEventListener("pointercancel", () => finishDrag(true));
+    dialog.addEventListener("keydown", event => {
+      const handle = event.target.closest("[data-drag]");
+      if (!handle || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+      event.preventDefault();
+      const from = layout.findIndex(item => item.id === handle.dataset.drag);
+      const to = Math.max(0, Math.min(layout.length - 1, from + (event.key === "ArrowUp" ? -1 : 1)));
+      layout.splice(to, 0, layout.splice(from, 1)[0]);
+      save(); draw();
+      editor.querySelector(`[data-drag="${handle.dataset.drag}"]`)?.focus();
+    });
     dialog.addEventListener("click", event => {
-      const move = event.target.closest("[data-move]");
-      if (move) {
-        const index = Number(move.dataset.move), next = index + Number(move.dataset.step);
-        if (next < 0 || next >= layout.length) return;
-        [layout[index], layout[next]] = [layout[next], layout[index]];
-        save(); draw();
-        dialog.querySelector(`[data-move="${next}"][data-step="${move.dataset.step}"]`)?.focus();
-      }
       if (event.target.closest("[data-reset]")) {
-        layout = entries.map(entry => ({ id: entry.id, visible: true }));
+        layout = entries.map(entry => ({ id: entry.id, visible: !hidden.includes(entry.id) }));
         save(); draw();
       }
       if (event.target.closest("[data-done]") || event.target === dialog) dialog.close();
     });
     dialog.addEventListener("close", () => {
+      previewObserver.disconnect();
+      appearance.forEach(({ element, original }) => {
+        if (original === null) element.removeAttribute("style");
+        else element.setAttribute("style", original);
+      });
       toolbar.inert = false;
       delete toolbar.dataset.customizing;
       placeholder.replaceWith(toolbar);
@@ -22876,6 +22989,7 @@ function configureStudyToolbar(container, kind) {
     draw();
     document.body.append(dialog);
     dialog.showModal();
+    fitPreview();
   });
 }
 

@@ -54,7 +54,7 @@ html[data-control-material="glass"] :is(
   .settings-popover, .mobile-settings-popover, .primary-version-menu,
   .parallel-version-menu, .settings-choice-menu, .search-scope-popover,
   .mobile-verse-nav-menu, .verse-action-menu, .streak-popover, .toolbar-customizer,
-  .toolbar-customizer button,
+  .toolbar-customizer-row > button, .toolbar-customizer-footer > button,
   .presentation-reference-menu, .presentation-version-menu, .presentation-settings-popover,
   .presentation-top > .presentation-actions > .ghost-btn,
   .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,

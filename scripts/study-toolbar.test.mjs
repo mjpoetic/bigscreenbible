@@ -23,3 +23,11 @@ assert.equal(syncs, 2);
 const selection = extract('selectionBar');
 assert.ok(selection.indexOf('id="noteSelection"') < selection.indexOf('id="crossRefSelection"'));
 console.log('Toolbar preference recovery, ordering, new controls, and bookmark toggling passed.');
+// Newly available optional controls must not change default or saved toolbars.
+saved = null;
+assert.equal(vm.runInContext('studyToolbarLayout("selection", ["note", "bookmark"], ["bookmark"])[1].visible', context), false);
+saved = JSON.stringify([{ id: 'note', visible: true }]);
+assert.equal(vm.runInContext('studyToolbarLayout("selection", ["note", "bookmark"], ["bookmark"])[1].visible', context), false);
+saved = JSON.stringify([{ id: 'bookmark', visible: true }, { id: 'note', visible: false }]);
+assert.equal(vm.runInContext('studyToolbarLayout("selection", ["note", "bookmark"], ["bookmark"])[0].visible', context), true);
+console.log('Optional controls preserve defaults and saved visibility.');
