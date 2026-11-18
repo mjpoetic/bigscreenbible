@@ -31,7 +31,7 @@ for (const mode of ['reader', 'parallel', 'big', 'trivia']) {
   context.state = { mode: 'big', startupApplied: false };
   context.setReferenceFromString = ref => { context.state.reference = ref; return true; };
   context.sharedVersesFromUrl = () => [];
-  context.parsePassageReference = () => ({ verses: [1] });
+  context.parsePassageReference = () => ({ verses: [1], hasExplicitVerses: true });
   context.applySharedVersionFromUrl = async () => {};
   await context.applyStartupExperience();
   assert.equal(context.state.reference, 'Psalm 23:1');

@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.17.3": [
+      "Spoken passage references from Shortcuts and Siri now open just the requested verses instead of the entire chapter.",
+    ],
     "2026.11.17.2": [
       "Open compact passage links such as matthew28verse19, with a clearer, illustrated page to help recover from unrecognized addresses.",
     ],
@@ -30378,7 +30381,7 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     const selected = sharedVersesFromUrl();
     if (selected.length) state.selectedVerses = selected;
     const parsed = parsePassageReference(sharedRef);
-    const verses = selected.length ? selected : sharedRef.includes(":") ? parsed.verses : currentChapter().verses.map((verse) => verse.n);
+    const verses = selected.length ? selected : parsed.hasExplicitVerses ? parsed.verses : currentChapter().verses.map((verse) => verse.n);
     await applySharedVersionFromUrl(verses);
     state.mode = requestedMode === "parallel" ? "parallel" : "reader";
     state.sharedPassage = state.mode === "parallel" ? null : { verses };
@@ -30933,10 +30936,10 @@ function parsePassageReference(value) {
   if (!book) return null;
   const key = `${book} ${match[2]}`;
   const available = bibleData[key]?.verses.map((verse) => verse.n) || [];
-  if (!available.length) return { key, verse: Number(match[3] || 1), verses: [Number(match[3] || 1)] };
+  if (!available.length) return { key, verse: Number(match[3] || 1), verses: [Number(match[3] || 1)], hasExplicitVerses: Boolean(match[3]) };
   const verses = match[3] ? parseVerseList(match[3], available) : [available[0]];
   if (!verses.length) return null;
-  return { key, verse: verses[0], verses };
+  return { key, verse: verses[0], verses, hasExplicitVerses: Boolean(match[3]) };
 }
 
 function parseVerseList(value, availableVerses) {

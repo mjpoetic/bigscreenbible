@@ -200,7 +200,7 @@ const landing = {
   requestedVersionFromUrl: () => 'NASB2020',
   setReferenceFromString: () => true,
   sharedVersesFromUrl: () => [],
-  parsePassageReference: () => ({verses: [16, 17]}),
+  parsePassageReference: () => ({verses: [16, 17], hasExplicitVerses: true}),
   currentChapter: () => ({ verses: [16,17,18].map(n => ({ n, BSB: 'BSB text', NASB2020: 'Requested text' })) }),
   loadBibleVersion: async () => {},
   rebuildBibleData: () => {},

@@ -77,3 +77,25 @@ assert.equal(parsePassage("Third John 1:4").key, "3 John 1");
 assert.equal(parsePassage("Psalm one hundred and nineteen verse one hundred and five").verse, 105);
 assert.equal(parsePassage("Deuteronomy chapter six verses four through five and seven").verses.join(","), "4,5,7");
 assert.equal(parsePassage("Matthew chapter banana verse 19"), null);
+
+// Exercise actual parsing through shortcut/native-link startup, not just parsing alone.
+vm.runInContext(source.slice(source.indexOf("async function applyStartupExperience("), source.indexOf("function requestedVersionFromUrl(")), context);
+for (const reference of ["Matthew 28:19", "Matthew 28 verse 19", "Matthew chapter 28, verse 19", "Matthew chapter twenty-eight verse nineteen", "Matthew 28", "First Timothy"]) {
+  for (const mode of ["reader", "parallel"]) {
+    const chapterVerses = Array.from({ length: 20 }, (_, index) => ({ n: index + 1 }));
+    Object.assign(context, {
+      state: { startupApplied: false },
+      sharedReferenceFromUrl: () => reference,
+      requestedModeFromUrl: () => mode,
+      refreshModeFromSession: () => null,
+      setReferenceFromString: () => true,
+      sharedVersesFromUrl: () => [],
+      currentChapter: () => ({ verses: chapterVerses }),
+      applySharedVersionFromUrl: async () => {},
+    });
+    await context.applyStartupExperience();
+    const expected = reference === "Matthew 28" || reference === "First Timothy" ? chapterVerses.map(v => v.n) : [19];
+    assert.deepEqual(Array.from(mode === "parallel" ? context.state.selectedVerses : context.state.sharedPassage.verses), expected, `${mode}: ${reference}`);
+  }
+}
+console.log("Spoken shortcut startup preserves verse selection; chapter links retain full chapters");
