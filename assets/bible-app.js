@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.4": [
+      "Raycast commands now explicitly use the transparent squircle icon with a refreshed asset name.",
+    ],
     "2026.11.18.3": [
       "Raycast adds online translations, word and phrase search, a squircle icon, and passage actions for reading, presenting, memorizing, and setting up passage games.",
     ],

@@ -3,8 +3,8 @@
   "name": "big-screen-bible",
   "title": "Big Screen Bible",
   "description": "Search Scripture offline or online inside Raycast, copy text, and open passages in Big Screen Bible modes.",
-  "version": "0.3.0",
-  "icon": "icon.png",
+  "version": "0.3.1",
+  "icon": "big-screen-bible-squircle.png",
   "author": "danehurst",
   "license": "UNLICENSED",
   "platforms": [
@@ -18,13 +18,15 @@
       "name": "open-passage",
       "title": "Look Up Bible Passage",
       "description": "Read Scripture inside Raycast, copy text, or open Big Screen Bible",
-      "mode": "view"
+      "mode": "view",
+      "icon": "big-screen-bible-squircle.png"
     },
     {
       "name": "open-bible",
       "title": "Open Big Screen Bible",
       "description": "Open Big Screen Bible in your default browser",
-      "mode": "no-view"
+      "mode": "no-view",
+      "icon": "big-screen-bible-squircle.png"
     }
   ],
   "preferences": [
