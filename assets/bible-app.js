@@ -5532,6 +5532,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.3": [
+      "Raycast adds online translations, word and phrase search, a squircle icon, and passage actions for reading, presenting, memorizing, and setting up passage games.",
+    ],
+    "2026.11.18.2": [
+      "Raycast companion now displays and copies Scripture inside Raycast, with six offline translations and optional website actions.",
+    ],
     "2026.11.18.1": [
       "Added a companion Raycast extension source for opening passages in Reader, Big Screen, or Parallel Study and copying passage links.",
     ],
@@ -10339,7 +10345,7 @@ function memorizationView() {
       <p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>
       <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
       <p class="memory-help">Reviews are self-assessed. Successful recall gradually extends the review interval, up to 30 days.</p>${item.copyright ? `<p class="memory-help">${escapeHtml(item.copyright)}</p>` : ""}
-    </article>` : `<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>
+    </article>` : `<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" value="${escapeHtml(state.memoryDraftReference || "")}" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>
     <section class="memory-library" aria-label="Saved memory passages"><div class="memory-heading"><h2>My passages <small>${items.length}</small></h2></div>${!items.length ? '<p>Your collection starts with one verse. Try John 3:16 or Psalm 23:1–6.</p>' : [...items].sort((a, b) => (a.due || 0) - (b.due || 0)).map((entry) => `<article class="memory-card memory-saved"><div><h3>${escapeHtml(entry.reference)} · ${escapeHtml(translationDisplayCode(entry.version))}</h3><p>${!entry.due || entry.due <= Date.now() ? "Ready to review" : `Next review ${new Date(entry.due).toLocaleDateString()}`} · ${Number(entry.reviews) || 0} ${(Number(entry.reviews) || 0) === 1 ? "review" : "reviews"}</p></div><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Word order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></article>`).join("")}</section>`}
     <p class="memory-help">Passages and progress are saved on this device, in this browser. Each passage keeps the translation you chose.</p>
   </div></section>`;
@@ -30338,6 +30344,26 @@ function refreshModeFromSession() {
   } catch { return null; }
 }
 
+// Passage links prepare a destination; saving memory passages and starting games remain user actions.
+function applyPassageModeDestination(reference, verses) {
+  if (state.mode === "memorize") {
+    state.memoryPractice = null;
+    state.memoryDraftReference = formatReferenceLabel(state.reference, verses);
+  }
+  if (state.mode !== "trivia") return;
+  const game = new URLSearchParams(window.location.search).get("game");
+  if (!["word-search", "crossword", "hidden-word"].includes(game)) return;
+  state.triviaGame = null;
+  state.triviaGameType = game;
+  state.wordSearchMode = "scripture";
+  state.crosswordMode = "scripture";
+  state.puzzlePassageSource = "custom";
+  state.puzzleCustomReference = reference;
+  state.puzzleCustomVersion = normalizedPuzzleCustomVersion(state.versions[0]) || "BSB";
+  if (state.puzzleCustomVersion !== state.versions[0]) showToast("Passage games use bundled translations. This puzzle uses BSB.");
+  resetPuzzleCustomWordChoices();
+}
+
 async function applyStartupExperience({ updateReload = false } = {}) {
   if (state.startupApplied) return;
   state.startupApplied = true;
@@ -30363,7 +30389,7 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     state.tutorialIntroVisible = false;
   }
   const refreshMode = !updateReload && refreshModeFromSession();
-  if (refreshMode && (!requestedMode || requestedMode === refreshMode.mode)) {
+  if (refreshMode && !sharedRef && (!requestedMode || requestedMode === refreshMode.mode)) {
     state.mode = refreshMode.mode;
     if (bibleData[refreshMode.reference]) {
       state.reference = refreshMode.reference;
@@ -30392,10 +30418,11 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     const parsed = parsePassageReference(sharedRef);
     const verses = selected.length ? selected : parsed.hasExplicitVerses ? parsed.verses : currentChapter().verses.map((verse) => verse.n);
     await applySharedVersionFromUrl(verses);
-    state.mode = requestedMode === "parallel" ? "parallel" : "reader";
-    state.sharedPassage = state.mode === "parallel" ? null : { verses };
-    state.selectedVerses = state.mode === "parallel" ? verses : [];
-    state.pendingVerseFocus = state.mode === "parallel";
+    state.mode = ["parallel", "big", "memorize", "trivia"].includes(requestedMode) ? requestedMode : "reader";
+    state.sharedPassage = state.mode === "reader" ? { verses } : null;
+    state.selectedVerses = state.mode === "reader" ? [] : verses;
+    state.pendingVerseFocus = ["parallel", "big"].includes(state.mode);
+    applyPassageModeDestination(sharedRef, verses);
     state.libraryOpen = false;
     return;
   }

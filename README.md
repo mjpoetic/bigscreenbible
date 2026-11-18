@@ -266,4 +266,4 @@ Open `https://bigscreenbible.com/?mode=big&preview=bible-return` to replay the B
 
 ## Raycast extension
 
-The companion [Raycast extension](extensions/raycast/README.md) opens passages in Reader, Big Screen, or Parallel Study and copies passage links. Source and local installation instructions are in `extensions/raycast`.
+The companion [Raycast extension](extensions/raycast/README.md) displays Scripture inside Raycast with six offline translations, copies text and links, and optionally opens the website. Source and local installation instructions are in `extensions/raycast`.

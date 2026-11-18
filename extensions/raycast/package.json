@@ -2,26 +2,54 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "big-screen-bible",
   "title": "Big Screen Bible",
-  "description": "Open Bible passages in Reader or Big Screen mode and copy passage links.",
-  "version": "0.1.0",
+  "description": "Search Scripture offline or online inside Raycast, copy text, and open passages in Big Screen Bible modes.",
+  "version": "0.3.0",
   "icon": "icon.png",
   "author": "danehurst",
   "license": "UNLICENSED",
-  "platforms": ["macOS"],
-  "categories": ["Productivity"],
+  "platforms": [
+    "macOS"
+  ],
+  "categories": [
+    "Productivity"
+  ],
   "commands": [
-    { "name": "open-passage", "title": "Open Bible Passage", "description": "Open a passage or copy its Big Screen Bible link", "mode": "view" },
-    { "name": "open-bible", "title": "Open Big Screen Bible", "description": "Open Big Screen Bible in your default browser", "mode": "no-view" }
+    {
+      "name": "open-passage",
+      "title": "Look Up Bible Passage",
+      "description": "Read Scripture inside Raycast, copy text, or open Big Screen Bible",
+      "mode": "view"
+    },
+    {
+      "name": "open-bible",
+      "title": "Open Big Screen Bible",
+      "description": "Open Big Screen Bible in your default browser",
+      "mode": "no-view"
+    }
   ],
   "preferences": [
-    { "name": "translation", "title": "Preferred Translation", "description": "Translation abbreviation supported by Big Screen Bible, such as BSB, KJV, ESV, or NIV. Unavailable translations fall back to BSB.", "type": "textfield", "required": false, "default": "BSB" }
+    {
+      "name": "translation",
+      "title": "Preferred Translation",
+      "description": "Default translation: BSB, KJV, WEB, ASV, BBE, YLT, ESV, NIV, NASB2020, AMP, or NIRV.",
+      "type": "textfield",
+      "required": false,
+      "default": "BSB"
+    }
   ],
   "scripts": {
     "dev": "ray develop",
     "build": "ray build -e dist -o dist",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "bundle:scripture": "node scripts/bundle-scripture.mjs"
   },
-  "dependencies": { "@raycast/api": "^1.83.2" },
-  "devDependencies": { "@types/node": "^22.0.0", "@types/react": "^19.0.0", "typescript": "^5.7.2" }
+  "dependencies": {
+    "@raycast/api": "^1.83.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.7.2"
+  }
 }

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const source=readFileSync(new URL('../assets/bible-app.js',import.meta.url),'utf8');
+const fn=source.slice(source.indexOf('function applyPassageModeDestination('),source.indexOf('\nasync function applyStartupExperience('));
+const ctx={URLSearchParams,state:{mode:'memorize',reference:'John 3',versions:['NIV']},window:{location:{search:'?game=crossword'}},formatReferenceLabel:(ref,verses)=>`${ref}:${verses.join('-')}`,normalizedPuzzleCustomVersion:v=>v==='KJV'?v:'',resetPuzzleCustomWordChoices(){},showToast(){}};
+vm.createContext(ctx);vm.runInContext(fn,ctx);
+ctx.applyPassageModeDestination('John 3:16-18',[16,18]);
+assert.equal(ctx.state.memoryDraftReference,'John 3:16-18');
+assert.equal(ctx.state.memoryPractice,null);
+ctx.state.mode='trivia';
+ctx.applyPassageModeDestination('John 3:16-18',[16,18]);
+assert.equal(ctx.state.triviaGameType,'crossword');assert.equal(ctx.state.puzzlePassageSource,'custom');
+assert.equal(ctx.state.puzzleCustomReference,'John 3:16-18');assert.equal(ctx.state.puzzleCustomVersion,'BSB');
+assert.equal(ctx.state.crosswordMode,'scripture');assert.equal(ctx.state.triviaGame,null);
+ctx.window.location.search='?game=invalid';ctx.state.triviaGameType='word-search';
+ctx.applyPassageModeDestination('John 3:16',[16]);assert.equal(ctx.state.triviaGameType,'word-search');
+console.log('Passage game setup and memorization destinations passed');

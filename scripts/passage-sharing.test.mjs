@@ -198,7 +198,7 @@ const landing = {
   refreshModeFromSession: () => "",
   state: { versions: ['KJV'], mode: 'big', startupApplied: false },
   sharedReferenceFromUrl: () => 'John 3:16-17',
-  requestedModeFromUrl: () => 'big',
+  requestedModeFromUrl: () => 'reader',
   requestedVersionFromUrl: () => 'NASB2020',
   setReferenceFromString: () => true,
   sharedVersesFromUrl: () => [],
@@ -211,9 +211,9 @@ const landing = {
   recordHistory: () => {}, updateShareUrl: () => {}, render: () => {},
 };
 vm.createContext(landing);
-vm.runInContext(`${extractFunction('applySharedVersionFromUrl')}\n${extractFunction('applyStartupExperience')}\n${extractFunction('openSharedPassageChapter')}`, landing);
+vm.runInContext(`${extractFunction('applyPassageModeDestination')}\n${extractFunction('applySharedVersionFromUrl')}\n${extractFunction('applyStartupExperience')}\n${extractFunction('openSharedPassageChapter')}`, landing);
 await landing.applyStartupExperience();
-assert.equal(landing.state.mode, 'reader', 'Shared links must start in Reader even when shared from Big Screen');
+assert.equal(landing.state.mode, 'reader', 'Explicit Reader links start in Reader');
 assert.deepEqual([...landing.state.sharedPassage.verses], [16,17]);
 assert.equal(landing.state.versions[0], 'NASB2020');
 assert.equal(landing.state.sharedVersionOverride.returnVersions[0], 'KJV');
@@ -222,13 +222,13 @@ assert.equal(landing.state.sharedPassage, null);
 assert.equal(landing.state.verse, 16);
 assert.equal(landing.state.pendingVerseFocus, true);
 assert.equal(landing.state.versions[0], 'NASB2020', 'Full context keeps the requested version');
-for (const mode of ['reader', 'parallel']) {
+for (const mode of ['reader', 'parallel', 'big']) {
   landing.state.startupApplied = false;
   landing.requestedModeFromUrl = () => mode;
   await landing.applyStartupExperience();
   assert.equal(landing.state.mode, mode, 'Explicit reading mode is honored for a passage');
-  assert.equal(landing.state.pendingVerseFocus, mode === 'parallel');
-  if (mode === 'parallel') {
+  assert.equal(landing.state.pendingVerseFocus, mode !== 'reader');
+  if (mode !== 'reader') {
     assert.equal(landing.state.sharedPassage, null, 'Parallel opens the chapter comparison');
     assert.deepEqual([...landing.state.selectedVerses], [16,17]);
   } else {

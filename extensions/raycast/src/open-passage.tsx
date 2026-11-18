@@ -1,44 +1,87 @@
-import { Action, ActionPanel, Clipboard, Form, Toast, getPreferenceValues, open, showToast } from "@raycast/api";
-import { useState } from "react";
-import { passageUrl } from "./passage.mjs";
+import { Action, ActionPanel, Detail, Form, List, Toast, getPreferenceValues, open, showToast, useNavigation } from '@raycast/api';
+import { useState } from 'react';
+import { passageUrl } from './passage.mjs';
+import { escapeMarkdown, translations } from './scripture.mjs';
+import { isReference, onlineTranslations } from './search.mjs';
+import { findVerses, getPassage } from './data';
 
-type Values = { reference: string; translation: string; mode: string };
+type Values = { reference: string; translation: string; kind: string };
+type Passage = { reference: string; version: string; name: string; source: string; verses: { n: number; text: string }[]; text: string; copyright?: string };
+const openShortcut = { modifiers: ['cmd'] as ('cmd')[], key: 'return' as const };
+const allTranslations = [...translations, ...onlineTranslations];
 
-export default function Command() {
-  const preferences = getPreferenceValues<{ translation?: string }>();
-  const [error, setError] = useState<string>();
+function ModeActions({ reference, version }: { reference: string; version: string }) {
+  return <ActionPanel.Submenu title="Open in Mode">
+    <Action.OpenInBrowser title="Reader" url={passageUrl(reference, version)} />
+    <Action.OpenInBrowser title="Big Screen" url={passageUrl(reference, version, 'big')} />
+    <Action.OpenInBrowser title="Parallel Study" url={passageUrl(reference, version, 'parallel')} />
+    <Action.OpenInBrowser title="Memorize" url={passageUrl(reference, version, 'memorize')} />
+    {['word-search', 'crossword', 'hidden-word'].map(game => <Action.OpenInBrowser key={game} title={`Set Up ${game === 'word-search' ? 'Word Search' : game === 'crossword' ? 'Crossword' : 'Hidden Word'}`} url={passageUrl(reference, version, 'trivia', game)} />)}
+  </ActionPanel.Submenu>;
+}
 
-  async function submit(values: Values, copy = false) {
-    try {
-      const url = passageUrl(values.reference, values.translation, values.mode);
-      if (copy) {
-        await Clipboard.copy(url);
-        await showToast({ style: Toast.Style.Success, title: "Passage link copied" });
-      } else {
-        await open(url);
-      }
-    } catch (error) {
-      await showToast({ style: Toast.Style.Failure, title: "Could not open passage", message: String(error instanceof Error ? error.message : error) });
-    }
+function PassageView({ passage }: { passage: Passage }) {
+  const url = passageUrl(passage.reference, passage.version);
+  const markdown = `# ${escapeMarkdown(passage.reference)}\n\n${escapeMarkdown(passage.name)} (${passage.version})\n\n${passage.verses.map(({ n, text }) => `**${n}** ${escapeMarkdown(text)}`).join('\n\n')}\n\n---\n\n${escapeMarkdown(passage.copyright || '')}\n\n[Translation source and rights](${passage.source})`;
+  return <Detail navigationTitle={passage.reference} markdown={markdown} actions={<ActionPanel>
+    <Action.CopyToClipboard title="Copy Scripture Text" content={passage.text} />
+    <Action.OpenInBrowser title="Open in Big Screen Bible" url={url} shortcut={openShortcut} />
+    <ModeActions reference={passage.reference} version={passage.version} />
+    <Action.CopyToClipboard title="Copy Passage Link" content={url} shortcut={{ modifiers: ['cmd', 'shift'], key: 'c' }} />
+  </ActionPanel>} />;
+}
+function Results({ data, version, query }: { data: any; version: string; query: string }) {
+  const { push } = useNavigation();
+  const [loading, setLoading] = useState(false);
+  async function view(ref: string) {
+    setLoading(true);
+    try { push(<PassageView passage={await getPassage(ref, version)} />); }
+    catch (error) { await showToast({ style: Toast.Style.Failure, title: 'Could not load passage', message: String(error) }); }
+    finally { setLoading(false); }
   }
-
-  return (
-    <Form
-      actions={
-        <ActionPanel>
-          <Action.SubmitForm title="Open Passage" onSubmit={(values: Values) => submit(values)} />
-          <Action.SubmitForm title="Copy Passage Link" shortcut={{ modifiers: ["cmd", "shift"], key: "c" }} onSubmit={(values: Values) => submit(values, true)} />
-        </ActionPanel>
-      }
-    >
-      <Form.TextField id="reference" title="Passage" placeholder="John 3:16–18" error={error} onChange={() => setError(undefined)} onBlur={(event) => setError(event.target.value?.trim() ? undefined : "Enter a Bible reference.")} info="Enter a book and chapter, a verse, or a verse range. Big Screen Bible resolves the reference when it opens." />
-      <Form.TextField id="translation" title="Translation" defaultValue={preferences.translation || "BSB"} placeholder="BSB" />
-      <Form.Dropdown id="mode" title="Display Mode" defaultValue="reader" storeValue>
-        <Form.Dropdown.Item value="reader" title="Reader" />
-        <Form.Dropdown.Item value="big" title="Big Screen" />
-        <Form.Dropdown.Item value="parallel" title="Parallel Study" />
-      </Form.Dropdown>
-      <Form.Description text="Opens bigscreenbible.com in your default browser. Scripture and translation availability are handled by Big Screen Bible." />
-    </Form>
-  );
+  return <List isLoading={loading} isShowingDetail navigationTitle={`Results: ${query}`} searchBarPlaceholder="Filter these results">
+    <List.EmptyView title="No Matching Verses" description="Try fewer words or another translation. Press Escape to search again." />
+    <List.Section title={`${version} · ${data.results.length} shown${Number.isFinite(data.total) ? ` of ${data.total}` : ' (provider limit)'}`}>
+      {data.results.map((hit: any) => <List.Item key={hit.ref} title={hit.ref} detail={<List.Item.Detail markdown={`## ${escapeMarkdown(hit.ref)}\n\n${escapeMarkdown(hit.text)}\n\n${escapeMarkdown(data.copyright || '')}`} />} actions={<ActionPanel>
+        <Action title="Read Passage" onAction={() => view(hit.ref)} />
+        <Action.OpenInBrowser title="Open in Big Screen Bible" url={passageUrl(hit.ref, version)} shortcut={openShortcut} />
+        <ModeActions reference={hit.ref} version={version} />
+        <Action.CopyToClipboard title="Copy Scripture Text" content={`${hit.ref} (${version})\n\n${hit.text}\n\n${data.copyright || ''}`} />
+      </ActionPanel>} />)}
+    </List.Section>
+  </List>;
+}
+export default function Command() {
+  const preferred = (getPreferenceValues<{ translation?: string }>().translation || 'BSB').trim().toUpperCase();
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const { push } = useNavigation();
+  async function submit(values: Values, external = false) {
+    if (loading) return;
+    setLoading(true); setError(undefined);
+    try {
+      if (!values.reference.trim()) throw new Error('Enter a reference or words to search.');
+      const passage = values.kind === 'reference' || (values.kind === 'auto' && isReference(values.reference));
+      if (external && passage) { await open(passageUrl(values.reference, values.translation)); return; }
+      if (passage) push(<PassageView passage={await getPassage(values.reference, values.translation)} />);
+      else push(<Results data={await findVerses(values.reference, values.translation)} version={values.translation} query={values.reference} />);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setError(message);
+      await showToast({ style: Toast.Style.Failure, title: 'Lookup Failed', message });
+    } finally { setLoading(false); }
+  }
+  return <Form isLoading={loading} actions={<ActionPanel>
+    <Action.SubmitForm title="Search Scripture" shortcut={{ modifiers: [], key: "return" }} onSubmit={(values: Values) => submit(values)} />
+    <Action.SubmitForm title="Open Passage in Big Screen Bible" shortcut={openShortcut} onSubmit={(values: Values) => submit(values, true)} />
+  </ActionPanel>}>
+    <Form.TextField id="reference" title="Search" placeholder={'John 3:16–18 or "love one another"'} error={error} onChange={() => setError(undefined)} />
+    <Form.Dropdown id="translation" title="Translation" defaultValue={allTranslations.includes(preferred) ? preferred : 'BSB'}>
+      {allTranslations.map(code => <Form.Dropdown.Item key={code} value={code} title={`${code === 'NASB2020' ? 'NASB' : code} · ${translations.includes(code) ? 'Offline' : 'Online'}`} />)}
+    </Form.Dropdown>
+    <Form.Dropdown id="kind" title="Search Type" defaultValue="auto">
+      <Form.Dropdown.Item value="auto" title="Automatic" /><Form.Dropdown.Item value="reference" title="Passage Reference" /><Form.Dropdown.Item value="words" title="Words or Phrase" />
+    </Form.Dropdown>
+    <Form.Description text={'Enter searches inside Raycast. Use quotation marks for an exact phrase. Command–Enter opens a reference on the website; for word searches, select a result then press Command–Enter. Online translations need internet. Local results show up to 50 matches; online results use the provider limit.'} />
+  </Form>;
 }

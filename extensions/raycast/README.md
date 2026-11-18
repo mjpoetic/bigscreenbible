@@ -1,17 +1,24 @@
 # Big Screen Bible for Raycast
 
-Version 0.1.0. A local Raycast extension for opening passages and copying links. No account or API key is required.
+Version 0.3.0. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
-- **Open Bible Passage**: enter a reference such as `John 3:16-18`, `Psalm 23`, or `1 Corinthians 13`. Choose a translation and Reader, Big Screen, or Parallel Study mode. Press Enter to open, or Command-Shift-C to copy the link.
-- **Open Big Screen Bible**: open the website in your default browser.
+- **Look Up Bible Passage**: enter a full book name and chapter, verse, or range, such as `John 3:16-18`, `Psalm 23`, or `1 Corinthians 13:4-7`. Choose offline BSB, KJV, WEB, ASV, BBE, or YLT, or online ESV, NIV, NASB, AMP, or NIrV. Enter runs the search. Read the passage in Raycast and press Escape to return to lookup.
+- On the passage screen, press Enter to **Copy Scripture Text**. The Actions menu also offers **Open in Big Screen Bible**, **Open in Big Screen Mode**, and **Copy Passage Link** (Command-Shift-C). Command-Enter opens the passage on the website. The Open in Mode submenu offers Reader, Big Screen, Parallel Study, Memorize, and setup for Word Search, Crossword, or Hidden Word. Memorize prefills the Save & practice form; games prefill custom passage setup and still require Start. Online game translations fall back to BSB with a notice because passage puzzles use bundled texts. Opening the website is optional. HTTPS links use the default browser; native app routing depends on the operating system and installed app.
+- **Open Big Screen Bible** opens the website directly.
 
-Set **Preferred Translation** in Raycast's extension preferences. Translation abbreviations are resolved by the website; unavailable translations fall back to BSB. References are resolved by the website, so the extension does not validate book names or chapter/verse numbers locally. Parallel Study uses the website's saved additional translations.
+Set **Preferred Translation** in extension preferences. Use NASB2020 or NIRV as the preference codes. NLT, NKJV, and CEV remain website-only because their provider requires browser usage tracking. Full chapters are supported; cross-chapter ranges are not.
+
+## Words and phrases
+
+Type words instead of a reference to search the selected translation. Unquoted local searches require all words in the same verse; wrap text in double quotes for an exact phrase. Choose Words or Phrase explicitly for ambiguous queries containing digits. Results show inside Raycast: Enter reads the selected passage, and Command-Enter opens it on the website. Local search shows the first 50 matches and a total count; online search returns the provider’s limited result set. Search is lexical/provider search, without the website’s semantic expansion. No results leave Raycast unless you choose an open action.
+
+Online requests require connectivity, time out after 25 seconds, and display service errors without silently switching translations. Copyright notices appear with online text and are included in copied text. Only the existing public publishable key is included; provider secrets remain on the server.
 
 ## Develop and install locally
 
-Requires Node.js 22 or newer and Raycast on macOS.
+Requires Node.js 22 or newer and Raycast on macOS. From the repository root:
 
 ```sh
 cd extensions/raycast
@@ -19,7 +26,7 @@ npm install
 npm run dev
 ```
 
-Run these commands from the repository root for the first line, then inside the extension directory for the remaining lines. The Raycast development command imports the extension into your installed Raycast. Search Raycast for **Open Bible Passage**.
+Search Raycast for **Look Up Bible Passage**. After it loads, you can stop the watcher with Control-C and close Terminal; rerun it when updating the extension.
 
 ```sh
 npm test
@@ -27,17 +34,25 @@ npm run typecheck
 npm run build
 ```
 
-The extension uses Raycast's standard manifest and command structure: https://developers.raycast.com/information/file-structure
+## Scripture assets
+
+The six compressed, text-only translation files are generated from the same bundled sources used by the iOS Shortcuts cards. Each passage includes its translation and source link. No licensed remote provider credentials are bundled. To refresh Scripture after updating the repository sources, run `npm run bundle:scripture` from this directory inside the Big Screen Bible repository. Commit the regenerated assets.
 
 ## What to Test
 
-1. Open `John 3:16-18` in Reader with BSB; check the passage and selected verses.
-2. Open `1 Corinthians 13` in Big Screen mode with KJV.
-3. Open a passage in Parallel Study and confirm your saved comparison translations.
-4. Copy a passage link with Command-Shift-C and open it in a browser.
-5. Set Preferred Translation to ESV, reopen the command, and check its default.
-6. Try a blank reference and an invalid book name; confirm the blank field is flagged and the website handles an unresolved reference.
-7. Run Open Big Screen Bible directly.
+1. Look up `John 3:16-18`; confirm all three verses display inside Raycast with no browser opening.
+2. Try all six translations and `1 Corinthians 13:4-7`.
+3. Disable connectivity and look up `Psalm 23`; confirm the whole chapter remains available.
+4. Copy Scripture text and a passage link, and check the pasted content.
+5. Choose Open in Big Screen Bible and Open in Big Screen Mode; verify the passage and translation.
+6. Try `John 3:999`, a backwards range, and an invalid book; confirm useful errors.
+7. Press Escape, change the reference, and look up another passage.
+8. Search `love world` and `"love one another"`; inspect results, read one with Enter, then open it with Command-Enter.
+9. Try each online translation and disconnect networking to verify useful errors.
+10. Test Reader, Big Screen, Parallel, Memorize, and all three game setup actions with the same passage. Very short passages may not contain enough words for a puzzle; the site shows its existing validation.
+11. Confirm the icon has transparent squircle corners in Raycast.
+
+The new website mode handling must be deployed with app version 2026.11.18.3 before live game and Memorize links work as described.
 
 ## Publishing
 
