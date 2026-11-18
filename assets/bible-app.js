@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.1": [
+      "Added a companion Raycast extension source for opening passages in Reader, Big Screen, or Parallel Study and copying passage links.",
+    ],
     "2026.11.17.5": [
       "Search all translations shows an animated loading indicator while searching.",
     ],
