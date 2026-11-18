@@ -66,3 +66,14 @@ assert.equal(parsePassage("1Corin 13:4").key, "1 Corinthians 13");
 assert.equal(parsePassage("Jo 3:16"), null);
 
 console.log("Book name resolution tests passed");
+
+for (const phrase of ["Matthew 28 verse 19", "Matthew chapter 28, verse 19", "Matthew chapter twenty-eight verse nineteen"]) {
+  assert.equal(parsePassage(phrase).key, "Matthew 28", phrase);
+  assert.equal(parsePassage(phrase).verse, 19, phrase);
+}
+assert.equal(parsePassage("First Timothy").key, "1 Timothy 1");
+assert.equal(parsePassage("Second Timothy chapter two verse three").key, "2 Timothy 2");
+assert.equal(parsePassage("Third John 1:4").key, "3 John 1");
+assert.equal(parsePassage("Psalm one hundred and nineteen verse one hundred and five").verse, 105);
+assert.equal(parsePassage("Deuteronomy chapter six verses four through five and seven").verses.join(","), "4,5,7");
+assert.equal(parsePassage("Matthew chapter banana verse 19"), null);

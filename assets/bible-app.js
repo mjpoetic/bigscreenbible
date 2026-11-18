@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.17.1": [
+      "Open Bible Passage understands spoken references with chapter and verse wording, spelled-out numbers, and First, Second, or Third book names.",
+    ],
     "2026.11.16.1": [
       "Search all translations is now beside the search filter at the top of the results.",
     ],
@@ -30898,7 +30901,29 @@ function continuePresentationChapter() {
 }
 
 function parsePassageReference(value) {
-  const cleaned = String(value || "").trim().replace(/[–—]/g, "-").replace(/\s+/g, " ");
+  // Normalize dictated references before using the same parser as typed references.
+  let cleaned = String(value || "").trim().replace(/[–—]/g, "-").replace(/\s+/g, " ");
+  cleaned = cleaned.replace(/^(first|second|third)\s+/i, (_, ordinal) =>
+    `${({ first: 1, second: 2, third: 3 })[ordinal.toLowerCase()]} `);
+  const numberWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+  const tens = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  const unitsPattern = numberWords.slice(1, 10).join("|");
+  const smallPattern = numberWords.join("|");
+  const tensPattern = `(?:${Object.keys(tens).join("|")})(?:[ -]+(?:${unitsPattern}))?`;
+  const numberPattern = new RegExp(`\\b(?:one hundred(?:[ -]+and)?(?:[ -]+(?:${tensPattern}|${smallPattern}))?|${tensPattern}|${smallPattern})\\b`, "gi");
+  cleaned = cleaned.replace(numberPattern, phrase => {
+    if (/^one hundred/i.test(phrase)) {
+      phrase = phrase.replace(/^one hundred(?:[ -]+and)?/i, "").trim();
+      return String(100 + phrase.toLowerCase().split(/[ -]+/).reduce((sum, word) => sum + (tens[word] || Math.max(0, numberWords.indexOf(word))), 0));
+    }
+    return String(phrase.toLowerCase().split(/[ -]+/).reduce((sum, word) => sum + (tens[word] || numberWords.indexOf(word)), 0));
+  });
+  cleaned = cleaned.replace(/\s+chapter\s+/i, " ")
+    .replace(/,?\s+verses?\s+/i, ":")
+    .replace(/\s+(?:through|to)\s+/gi, "-")
+    .replace(/\s+and\s+/gi, ",");
+  const bookOnly = normalizeBookName(cleaned);
+  if (bookOnly) cleaned = `${bookOnly} 1`;
   const match = cleaned.match(/^((?:[1-3]\s*)?[A-Za-z. ]+?)\s+(\d+)(?::([0-9,\-\s]+))?$/);
   if (!match) return null;
   const book = normalizeBookName(match[1]);
