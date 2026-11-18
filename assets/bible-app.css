@@ -28134,3 +28134,42 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .toolbar-customizer-row label { flex: 1; }
 .toolbar-customizer button { min-width: 36px; min-height: 36px; }
 .toolbar-customizer-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+
+.toolbar-customizer { padding: 16px; }
+.toolbar-customizer::backdrop { background: #0002; }
+.toolbar-customizer-preview {
+  position: sticky;
+  top: -16px;
+  z-index: 2;
+  padding: 12px 0 16px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.toolbar-customizer-preview :is(.verse-action-menu, .selection-bar) {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  opacity: 1 !important;
+  animation: none !important;
+  box-shadow: var(--glass-shadow, 0 4px 12px #0002);
+}
+.toolbar-customizer-preview .selection-bar { padding: 10px; display: flex !important; }
+.toolbar-customizer-preview .selection-bar-summary { display: none; }
+.toolbar-customizer-preview .selection-bar-controls,
+.toolbar-customizer-preview .selection-bar-actions { display: flex !important; flex-wrap: nowrap !important; }
+.toolbar-customizer-preview .selection-action { flex: 0 0 auto; }
+.toolbar-customizer-preview .selection-action-label { display: none; }
+.toolbar-customizer-preview [data-customize-toolbar] { display: none; }
+.toolbar-customizer-row label { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.toolbar-customizer-row input { flex: 0 0 auto; accent-color: var(--teal); }
+.toolbar-customizer-glyph { display: inline-flex; flex: 0 0 20px; color: var(--muted); }
+.toolbar-customizer-glyph svg { width: 20px; height: 20px; }
+.toolbar-customizer button { border: 1px solid var(--line); border-radius: 12px; color: inherit; background: var(--panel); }
+.toolbar-customizer button:disabled { opacity: .35; }
+.toolbar-customizer button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.toolbar-customizer-footer button { padding: 8px 12px; }

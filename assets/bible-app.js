@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.11": [
+      "Toolbar customization uses liquid glass, concise labels, and matching glyphs, with a persistent live toolbar preview and animated control changes.",
+    ],
     "2026.11.18.10": [
       "Verse actions add bookmarks and tooltips. Add note now appears before cross references in the highlighter bar.",
       "Customize each toolbar with saved visibility and ordering preferences on this device.",
@@ -22223,6 +22226,7 @@ function closeVerseActionMenuOnEscape(event) {
 }
 
 function closeVerseActionMenu(immediate = false) {
+  if (document.querySelector("#verseActionMenu[data-customizing]")) return;
   const menu = document.getElementById("verseActionMenu");
   const verseNumber = menu?.dataset.verse;
   if (verseNumber) {
@@ -22773,7 +22777,13 @@ function configureStudyToolbar(container, kind) {
   const entries = buttons.map(button => ({
     id: button.id || [...button.attributes].find(attribute => attribute.name.startsWith("data-menu-"))?.name,
     button,
-    label: button.dataset.tooltip || button.getAttribute("aria-label"),
+    label: kind === "verse" ? ({
+      "data-menu-select": "Select verse", "data-menu-copy": "Copy verse",
+      "data-menu-cross-ref": "Cross references", "data-menu-note": "Note",
+      "data-menu-bookmark": "Bookmark", "data-menu-highlight": "Highlight",
+      "data-menu-widget": "My favorite passage",
+    }[[...button.attributes].find(attribute => attribute.name.startsWith("data-menu-"))?.name] || button.dataset.tooltip) : button.dataset.tooltip || button.getAttribute("aria-label"),
+    glyph: button.querySelector("svg")?.outerHTML || "",
   })).filter(entry => entry.id);
   let layout = studyToolbarLayout(kind, entries.map(entry => entry.id));
   const customize = document.createElement("button");
@@ -22784,11 +22794,25 @@ function configureStudyToolbar(container, kind) {
   customize.setAttribute("aria-label", "Customize toolbar");
   customize.setAttribute("aria-haspopup", "dialog");
   customize.textContent = "⋯";
-  const apply = () => {
+  const apply = (animate = false) => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     layout.forEach(item => {
       const entry = entries.find(entry => entry.id === item.id);
-      entry.button.hidden = !item.visible;
-      container.append(entry.button);
+      const button = entry.button;
+      const wasHidden = button.hidden;
+      button.getAnimations().forEach(animation => animation.cancel());
+      if (animate && !reducedMotion && item.visible !== !wasHidden) {
+        button.hidden = false;
+        const frames = item.visible
+          ? [{ opacity: 0, filter: "blur(5px)", transform: "scale(.85)" }, { opacity: 1, filter: "blur(0)", transform: "scale(1)" }]
+          : [{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(7px)" }];
+        const animation = button.animate(frames, { duration: 240, easing: "ease-out", fill: "forwards" });
+        animation.finished.then(() => {
+          button.hidden = !layout.find(control => control.id === item.id).visible;
+          animation.cancel();
+        }).catch(() => {});
+      } else button.hidden = !item.visible;
+      container.append(button);
     });
     container.append(customize);
   };
@@ -22798,16 +22822,28 @@ function configureStudyToolbar(container, kind) {
     const dialog = document.createElement("dialog");
     dialog.className = "toolbar-customizer";
     dialog.setAttribute("aria-label", kind === "verse" ? "Customize verse toolbar" : "Customize highlighter toolbar");
+    const toolbar = kind === "verse" ? container : container.closest(".selection-bar");
+    const placeholder = document.createComment("toolbar preview position");
+    toolbar.before(placeholder);
+    const preview = document.createElement("div");
+    preview.className = "toolbar-customizer-preview";
+    preview.setAttribute("aria-label", "Live toolbar preview");
+    toolbar.dataset.customizing = "true";
+    toolbar.inert = true;
+    preview.append(toolbar);
+    const editor = document.createElement("div");
+    dialog.append(preview, editor);
     const draw = () => {
-      dialog.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Choose controls and their order. Saved on this device.</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
-        const label = escapeHtml(entries.find(entry => entry.id === item.id).label);
-        return `<div class="toolbar-customizer-row"><label><input type="checkbox" data-control="${index}" ${item.visible ? "checked" : ""}> ${label}</label><button type="button" data-move="${index}" data-step="-1" aria-label="Move ${label} up" ${index === 0 ? "disabled" : ""}>↑</button><button type="button" data-move="${index}" data-step="1" aria-label="Move ${label} down" ${index === layout.length - 1 ? "disabled" : ""}>↓</button></div>`;
+      editor.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Choose controls and their order. Saved on this device.</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
+        const entry = entries.find(entry => entry.id === item.id);
+        const label = escapeHtml(entry.label);
+        return `<div class="toolbar-customizer-row"><label><input type="checkbox" data-control="${index}" ${item.visible ? "checked" : ""}><span class="toolbar-customizer-glyph" aria-hidden="true">${entry.glyph}</span><span>${label}</span></label><button type="button" data-move="${index}" data-step="-1" aria-label="Move ${label} up" ${index === 0 ? "disabled" : ""}>↑</button><button type="button" data-move="${index}" data-step="1" aria-label="Move ${label} down" ${index === layout.length - 1 ? "disabled" : ""}>↓</button></div>`;
       }).join("")}</div><div class="toolbar-customizer-footer"><button type="button" data-reset>Restore defaults</button><button type="button" data-done>Done</button></div>`;
     };
     const save = () => {
       try { localStorage.setItem(`lw_toolbar_${kind}`, JSON.stringify(layout)); }
       catch { showToast("Toolbar changes could not be saved on this device"); }
-      apply();
+      apply(true);
     };
     dialog.addEventListener("change", event => {
       if (!event.target.matches("[data-control]")) return;
@@ -22830,6 +22866,9 @@ function configureStudyToolbar(container, kind) {
       if (event.target.closest("[data-done]") || event.target === dialog) dialog.close();
     });
     dialog.addEventListener("close", () => {
+      toolbar.inert = false;
+      delete toolbar.dataset.customizing;
+      placeholder.replaceWith(toolbar);
       dialog.remove();
       if (kind === "verse") closeVerseActionMenu(true);
       else customize.focus();
