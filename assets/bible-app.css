@@ -27530,6 +27530,19 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   outline-offset: -2px;
 }
 .search-filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.search-translations-spinner {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: bsb-loading-spin 900ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-translations-spinner { animation: none; }
+}
+
 .search-filter-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; max-width: 100%; padding: 6px 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); color: var(--ink); font-size: 13px; }
 [data-search-done="true"] { color: var(--teal, #28736c); }
 .search-results .search-result { border: 0; border-radius: 5px; padding: 10px 4px; background: transparent; box-shadow: none; }

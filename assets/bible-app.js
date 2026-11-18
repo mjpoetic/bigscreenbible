@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.17.5": [
+      "Search all translations shows an animated loading indicator while searching.",
+    ],
     "2026.11.17.4": [
       "Request a Bible translation by abbreviation or full name in passage searches, shortcut phrases, and shared links.",
     ],
@@ -9625,7 +9628,7 @@ function crossReferencesPanel() {
 function searchScopeControls({ showResults = true } = {}) {
   const search = state.scriptureSearch;
   const expandMarkup = showResults && state.searchResultsQuery && search && !search.expanded && !state.searchPending
-    ? `<button class="search-filter-chip" type="button" data-expand-scripture-search ${search.expanding ? "disabled" : ""}>${search.expanding ? "Searching all translations…" : "Search all translations"}</button>`
+    ? `<button class="search-filter-chip" type="button" data-expand-scripture-search aria-busy="${Boolean(search.expanding)}" ${search.expanding ? "disabled" : ""}>${search.expanding ? '<span class="search-translations-spinner" aria-hidden="true"></span>Searching all translations…' : "Search all translations"}</button>`
     : "";
   return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}</div>`;
 }
