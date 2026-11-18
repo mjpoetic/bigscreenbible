@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.6": [
+      "Raycast adds NKJV, NLT, and CEV passage lookup and search with API.Bible native usage reporting and copyright notices.",
+    ],
     "2026.11.18.5": [
       "Focus Mode search adds a Clear results button that clears the search and keeps the dialog ready for another query.",
     ],

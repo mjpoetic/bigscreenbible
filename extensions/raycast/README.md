@@ -1,18 +1,18 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.0. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.2. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
-- **Look Up Bible Passage**: enter a full book name and chapter, verse, or range, such as `John 3:16-18`, `Psalm 23`, or `1 Corinthians 13:4-7`. Choose offline BSB, KJV, WEB, ASV, BBE, or YLT, or online ESV, NIV, NASB, AMP, or NIrV. Enter runs the search. Read the passage in Raycast and press Escape to return to lookup.
+- **Look Up Bible Passage**: enter a full book name and chapter, verse, or range, such as `John 3:16-18`, `Psalm 23`, or `1 Corinthians 13:4-7`. Choose offline BSB, KJV, WEB, ASV, BBE, or YLT, or online ESV, NIV, NASB, AMP, NIrV, NKJV, NLT, or CEV. Enter runs the search. Read the passage in Raycast and press Escape to return to lookup.
 - On the passage screen, press Enter to **Copy Scripture Text**. The Actions menu also offers **Open in Big Screen Bible**, **Open in Big Screen Mode**, and **Copy Passage Link** (Command-Shift-C). Command-Enter opens the passage on the website. The Open in Mode submenu offers Reader, Big Screen, Parallel Study, Memorize, and setup for Word Search, Crossword, or Hidden Word. Memorize prefills the Save & practice form; games prefill custom passage setup and still require Start. Online game translations fall back to BSB with a notice because passage puzzles use bundled texts. Opening the website is optional. HTTPS links use the default browser; native app routing depends on the operating system and installed app.
 - **Open Big Screen Bible** opens the website directly.
 
-Set **Preferred Translation** in extension preferences. Use NASB2020 or NIRV as the preference codes. NLT, NKJV, and CEV remain website-only because their provider requires browser usage tracking. Full chapters are supported; cross-chapter ranges are not.
+Set **Preferred Translation** in extension preferences. Use NASB2020 or NIRV as the preference codes. NLT, NKJV, and CEV use API.Bible’s documented native HTTP usage reporting. A random device identifier is saved in Raycast’s extension storage and a random session identifier is generated for each command execution. No account, email, or hardware identifiers are sent. Reporting must succeed before API.Bible text is displayed; a failed report shows an error so you can retry. No remote Scripture is saved to disk. Full chapters are supported; cross-chapter ranges are not.
 
 ## Words and phrases
 
-Type words instead of a reference to search the selected translation. Unquoted local searches require all words in the same verse; wrap text in double quotes for an exact phrase. Choose Words or Phrase explicitly for ambiguous queries containing digits. Results show inside Raycast: Enter reads the selected passage, and Command-Enter opens it on the website. Local search shows the first 50 matches and a total count; online search returns the provider’s limited result set. Search is lexical/provider search, without the website’s semantic expansion. No results leave Raycast unless you choose an open action.
+Type words instead of a reference to search the selected translation. Unquoted local searches require all words in the same verse; wrap text in double quotes for an exact phrase. Choose Words or Phrase explicitly for ambiguous queries containing digits. Results show inside Raycast: Enter reads the selected passage, and Command-Enter opens it on the website. Local search shows the first 50 matches and a total count; online search returns the provider’s limited result set. Search is lexical/provider search, without the website’s semantic expansion. Scripture stays in the Raycast UI unless you choose an open action. Online queries and API.Bible anonymous usage reports are sent to their respective services.
 
 Online requests require connectivity, time out after 25 seconds, and display service errors without silently switching translations. Copyright notices appear with online text and are included in copied text. Only the existing public publishable key is included; provider secrets remain on the server.
 
@@ -57,3 +57,5 @@ The new website mode handling must be deployed with app version 2026.11.18.3 bef
 ## Publishing
 
 This extension has not been submitted to the Raycast Store. Before submission, verify the `author` value in package.json is your Raycast Store handle, capture screenshots in Raycast, and confirm the distribution license with the project owner. The repository's COPYRIGHT.md applies; this extension does not bundle Scripture text.
+
+API.Bible native reporting reference: https://docs.api.bible/guides/fair-use/
