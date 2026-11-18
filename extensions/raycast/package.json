@@ -3,7 +3,7 @@
   "name": "big-screen-bible",
   "title": "Big Screen Bible",
   "description": "Search Scripture offline or online inside Raycast, copy text, and open passages in Big Screen Bible modes.",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "icon": "big-screen-bible-squircle.png",
   "author": "danehurst",
   "license": "UNLICENSED",

@@ -15,7 +15,7 @@ export function lookupPassage(bible, input) {
   if (!verses.length || (first !== undefined && (first < 1 || last < first || verses.length !== last - first + 1))) throw new Error('That verse range is not available in this chapter.');
   const reference = key + (first === undefined ? '' : `:${first}${last === first ? '' : `-${last}`}`);
   const text = `${reference} (${bible.code})\n\n${verses.map(({ n, text }) => `${n} ${text}`).join('\n\n')}`;
-  return { reference, version: bible.code, name: bible.name, source: bible.source, verses, text };
+  return { reference, copyright: '', version: bible.code, name: bible.name, source: bible.source, verses, text };
 }
 export function escapeMarkdown(value) {
   return String(value).replace(/[\\`*_{}\[\]()<>#+.!|~-]/g, '\\$&');

@@ -1,3 +1,6 @@
+import { collectTranslations } from './all-translations.mjs';
+import { translations } from './scripture.mjs';
+import { onlineTranslations } from './search.mjs';
 import { relatedReferences } from './cross-references.mjs';
 import { environment, LocalStorage } from '@raycast/api';
 import { randomUUID } from 'node:crypto';
@@ -55,4 +58,12 @@ export async function getCrossReferences(reference: string) {
     crossReferenceCatalog = JSON.parse(gunzipSync(bytes).toString('utf8'));
   }
   return relatedReferences(crossReferenceCatalog, reference);
+}
+
+export async function searchAllTranslations(input: string, reference = false) {
+  return collectTranslations([...translations, ...onlineTranslations], async (version: string) => {
+    if (!reference) return findVerses(input, version);
+    const passage = await getPassage(input, version);
+    return { results: [{ ref: passage.reference, text: passage.text, passage }], copyright: passage.copyright || '' };
+  });
 }

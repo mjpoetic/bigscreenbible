@@ -1,6 +1,6 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.5. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.6. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
@@ -69,3 +69,9 @@ The catalog is the same OpenBible.info CC-BY dataset used by the website, with u
 What to Test: look up John 3:16, press Command-Shift-X, select a related passage, and press Enter. Repeat from a word-search result, try an online translation, and use Escape to return through the navigation stack.
 
 Translation labels use an asterisk (`*`) for versions requiring internet access; unmarked versions work offline.
+
+## Search all translations
+
+Choose **All translations \*** in the translation dropdown. Word/phrase searches run across all fourteen translations with at most three requests in flight. Results retain their translation label and copyright; reading, cross-references, copying, and website actions use that result’s translation. A passage reference shows the passage in each available translation. Failed translations appear separately with an explanation; available results remain usable, including the six bundled translations while offline. Per-translation result limits still apply. Command-Enter from the form first shows the combined results so you can choose a translation; Command-Enter on a result opens that specific translation.
+
+What to Test: search `"love one another"` with All translations, inspect translation labels, copy an NLT result, and open an NIV result on the website. Try John 3:16 to compare translations. Disconnect networking and confirm bundled matches remain available with online failures labeled.

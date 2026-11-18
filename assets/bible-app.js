@@ -5532,6 +5532,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.16": [
+      "Raycast adds an All translations search option with translation labels and partial results when an online service is unavailable.",
+    ],
     "2026.11.18.15": [
       "Overflowing highlighter actions show swipe guidance and buttons to reveal more tools. Memorize and the verse toolbar Highlight action are now optional by default; saved custom layouts are preserved.",
     ],

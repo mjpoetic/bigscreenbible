@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { passageUrl } from './passage.mjs';
 import { escapeMarkdown, translations } from './scripture.mjs';
 import { isReference, onlineTranslations } from './search.mjs';
-import { findVerses, getPassage, getCrossReferences } from './data';
+import { findVerses, getPassage, getCrossReferences, searchAllTranslations } from './data';
 
 type Values = { reference: string; translation: string; kind: string };
 type Passage = { reference: string; version: string; name: string; source: string; verses: { n: number; text: string }[]; text: string; copyright?: string };
@@ -65,21 +65,22 @@ function PassageView({ passage }: { passage: Passage }) {
 function Results({ data, version, query }: { data: any; version: string; query: string }) {
   const { push } = useNavigation();
   const [loading, setLoading] = useState(false);
-  async function view(ref: string) {
+  async function view(ref: string, hitVersion: string, passage?: Passage) {
     setLoading(true);
-    try { push(<PassageView passage={await getPassage(ref, version)} />); }
+    try { push(<PassageView passage={passage || await getPassage(ref, hitVersion)} />); }
     catch (error) { await showToast({ style: Toast.Style.Failure, title: 'Could not load passage', message: String(error) }); }
     finally { setLoading(false); }
   }
   return <List isLoading={loading} isShowingDetail navigationTitle={`Results: ${query}`} searchBarPlaceholder="Filter these results">
-    <List.EmptyView title="No Matching Verses" description="Try fewer words or another translation. Press Escape to search again." />
-    <List.Section title={`${version} · ${data.results.length} shown${Number.isFinite(data.total) ? ` of ${data.total}` : ' (provider limit)'}`}>
-      {data.results.map((hit: any) => <List.Item key={hit.ref} title={hit.ref} detail={<List.Item.Detail markdown={`## ${escapeMarkdown(hit.ref)}\n\n${escapeMarkdown(hit.text)}\n\n${escapeMarkdown(data.copyright || '')}`} />} actions={<ActionPanel>
-        <Action title="Read Passage" icon={Icon.Book} onAction={() => view(hit.ref)} />
-        <CrossReferenceAction reference={hit.ref} version={version} />
-        <Action.OpenInBrowser title="Open in Big Screen Bible" icon={Icon.Globe} url={passageUrl(hit.ref, version)} shortcut={openShortcut} />
-        <ModeActions reference={hit.ref} version={version} />
-        <Action.CopyToClipboard title="Copy Scripture Text" content={`${hit.ref} (${version})\n\n${hit.text}\n\n${data.copyright || ''}`} />
+    <List.EmptyView title="No Matching Verses" description={data.failures?.length ? `Some translations failed: ${data.failures.map((failure: any) => failure.version).join(", ")}. Press Escape to retry.` : "Try fewer words or another translation. Press Escape to search again."} />
+    {data.failures?.length > 0 && <List.Section title="Unavailable Translations">{data.failures.map((failure: any) => <List.Item key={failure.version} title={failure.version} icon={Icon.ExclamationMark} detail={<List.Item.Detail markdown={escapeMarkdown(failure.message)} />} />)}</List.Section>}
+    <List.Section title={`${version === 'ALL' ? 'All translations' : version} · ${data.results.length} shown${Number.isFinite(data.total) ? ` of ${data.total}` : ' (provider limit)'}`}>
+      {data.results.map((hit: any) => <List.Item key={`${hit.version || version}:${hit.ref}`} title={hit.ref} accessories={[{ text: hit.version || version }]} detail={<List.Item.Detail markdown={`## ${escapeMarkdown(hit.ref)}\n\n${escapeMarkdown(hit.text)}\n\n${escapeMarkdown(hit.copyright || data.copyright || '')}`} />} actions={<ActionPanel>
+        <Action title="Read Passage" icon={Icon.Book} onAction={() => view(hit.ref, hit.version || version, hit.passage)} />
+        <CrossReferenceAction reference={hit.ref} version={hit.version || version} />
+        <Action.OpenInBrowser title="Open in Big Screen Bible" icon={Icon.Globe} url={passageUrl(hit.ref, hit.version || version)} shortcut={openShortcut} />
+        <ModeActions reference={hit.ref} version={hit.version || version} />
+        <Action.CopyToClipboard title="Copy Scripture Text" content={`${hit.ref} (${hit.version || version})\n\n${hit.text}\n\n${hit.copyright || data.copyright || ''}`} />
       </ActionPanel>} />)}
     </List.Section>
   </List>;
@@ -95,6 +96,10 @@ export default function Command() {
     try {
       if (!values.reference.trim()) throw new Error('Enter a reference or words to search.');
       const passage = values.kind === 'reference' || (values.kind === 'auto' && isReference(values.reference));
+      if (values.translation === 'ALL') {
+        push(<Results data={await searchAllTranslations(values.reference, passage)} version="ALL" query={values.reference} />);
+        return;
+      }
       if (external && passage) { await open(passageUrl(values.reference, values.translation)); return; }
       if (passage) push(<PassageView passage={await getPassage(values.reference, values.translation)} />);
       else push(<Results data={await findVerses(values.reference, values.translation)} version={values.translation} query={values.reference} />);
@@ -109,12 +114,13 @@ export default function Command() {
     <Action.SubmitForm title="Open Passage in Big Screen Bible" icon={Icon.Globe} shortcut={openShortcut} onSubmit={(values: Values) => submit(values, true)} />
   </ActionPanel>}>
     <Form.TextField id="reference" title="Search" placeholder={'John 3:16–18 or "love one another"'} error={error} onChange={() => setError(undefined)} />
-    <Form.Dropdown id="translation" title="Translation" defaultValue={allTranslations.includes(preferred) ? preferred : 'BSB'}>
+    <Form.Dropdown id="translation" title="Translation" defaultValue={(preferred === 'ALL' || allTranslations.includes(preferred)) ? preferred : 'BSB'}>
+      <Form.Dropdown.Item value="ALL" title="All translations *" icon={Icon.Globe} />
       {allTranslations.map(code => <Form.Dropdown.Item key={code} value={code} title={`${code === 'NASB2020' ? 'NASB' : code}${translations.includes(code) ? '' : ' *'}`} />)}
     </Form.Dropdown>
     <Form.Dropdown id="kind" title="Search Type" defaultValue="auto">
       <Form.Dropdown.Item value="auto" title="Automatic" /><Form.Dropdown.Item value="reference" title="Passage Reference" /><Form.Dropdown.Item value="words" title="Words or Phrase" />
     </Form.Dropdown>
-    <Form.Description text={'Enter searches inside Raycast. Use quotation marks for an exact phrase. Command–Enter opens a reference on the website; for word searches, select a result then press Command–Enter. * Requires internet access. Local results show up to 50 matches; online results use the provider limit.'} />
+    <Form.Description text={'Enter searches inside Raycast. Use quotation marks for an exact phrase. Command–Enter opens a reference on the website; for word searches, select a result then press Command–Enter. * Requires internet access. All translations keeps available results if an online service fails. Local results show up to 50 matches; online results use the provider limit.'} />
   </Form>;
 }
