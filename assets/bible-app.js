@@ -4985,7 +4985,7 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
       </label>
-      <p class="setting-help">Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
+      <p class="setting-help">Use the small moon / sun button beside the page arrows or Shift+D to toggle fading. Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsTouchRevealToggle")}" data-focus-controls-setting="focusControlsTouchReveal" ${state.focusControlsTouchReveal ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
         <span>Brighten faded controls only when used</span>
@@ -5539,6 +5539,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.18": [
+      "A subtle button beside the page arrows and Shift+D toggle floating control fading while preserving your brighten and hide preferences.",
+    ],
     "2026.11.18.17": [
       "The highlighter toolbar clears the floating verse picker in portrait Focus Mode.",
     ],
@@ -10589,7 +10592,8 @@ function reader(chapterChange = null) {
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
         ${readerForwardButton()}
-        <div class="reader-page-controls" aria-label="Page navigation" role="group">
+        <div class="reader-page-controls" aria-label="Reading controls" role="group">
+          ${readerControlsFadeButton()}
           <button class="reader-top-button reader-page-button" id="readerTopButton" type="button" aria-label="Page up; press twice for top" data-tooltip="Page up · twice for top">
             ${icons.arrowUp}
           </button>
@@ -10714,6 +10718,31 @@ function bindReaderAutoScrollButton(button) {
     }
     toggleReaderAutoScroll({ announce: false });
   });
+}
+
+function readerControlsFadeButton() {
+  const action = state.focusControlsFade ? "Keep floating controls bright" : "Fade idle floating controls";
+  return `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="${action}" aria-pressed="${state.focusControlsFade}" aria-keyshortcuts="Shift+D" data-tooltip="${action} (Shift+D)">${state.focusControlsFade ? icons.moon : icons.sun}</button>`;
+}
+
+function toggleReaderControlsFade() {
+  state.focusControlsFade = !state.focusControlsFade;
+  localStorage.setItem("lw_focus_controls_fade", String(state.focusControlsFade));
+  scheduleCloudSync();
+  const button = document.getElementById("readerControlsFadeToggle");
+  if (button) {
+    const action = state.focusControlsFade ? "Keep floating controls bright" : "Fade idle floating controls";
+    button.setAttribute("aria-label", action);
+    button.setAttribute("aria-pressed", String(state.focusControlsFade));
+    button.dataset.tooltip = `${action} (Shift+D)`;
+    button.innerHTML = state.focusControlsFade ? icons.moon : icons.sun;
+  }
+  revealMobileSettingsButton();
+  showToast(state.focusControlsFade ? "Floating controls fade when idle" : "Floating controls stay bright");
+}
+
+function bindReaderControlsFadeToggle() {
+  document.getElementById("readerControlsFadeToggle")?.addEventListener("click", toggleReaderControlsFade);
 }
 
 function readerAutoScrollButton() {
@@ -24037,6 +24066,7 @@ function shortcutOverlay() {
     ["Shift + N", "Toggle No buttons in Big Screen (double tap Scripture also works)"],
     ["F", "Toggle focus layout"],
     ["Shift + I", "Open / close Scripture reader (enables its Accessibility setting)"],
+    ["Shift + D", "Toggle fading of floating reading controls"],
     ["Shift + R", "Toggle Focus Reading (enters Focus Mode; two-finger double tap in Focus on touch screens)"],
     ["↑ / ↓ in Focus Reading", "Move the reading guide one line"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
@@ -26169,6 +26199,7 @@ function bindEvents() {
   document.getElementById("presentation")?.addEventListener("touchend", handlePresentationTouchEnd, { passive: false });
   document.getElementById("presentation")?.addEventListener("touchcancel", cancelPresentationTouch, { passive: true });
   const scriptureTouchSurface = document.querySelector(".scripture");
+  bindReaderControlsFadeToggle();
   bindReaderAutoScrollButton(document.getElementById("readerAutoScrollButton"));
   bindReaderAutoScrollSpeed();
   bindReaderVerseHold(scriptureTouchSurface);
@@ -33814,6 +33845,11 @@ function handleGlobalShortcuts(event) {
 
   if (typing || state.pushPromptVisible || state.shortcutsOpen || state.aboutMenuOpen || state.tutorialActive || state.tutorialIntroVisible) return;
 
+  if (event.shiftKey && key === "d" && ["reader", "parallel"].includes(state.mode) && canUseReaderKeyboardNavigation()) {
+    event.preventDefault();
+    if (!event.repeat) toggleReaderControlsFade();
+    return;
+  }
   if (event.shiftKey && key === "r" && ["reader", "parallel"].includes(state.mode) && !state.settingsOpen && !state.accountOpen) {
     event.preventDefault();
     if (!event.repeat) toggleFocusReading();
