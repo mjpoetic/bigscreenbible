@@ -8,6 +8,13 @@ const scripture = { scrollTop: 0, getBoundingClientRect: () => ({ top: 72 }), qu
   { dataset: { verse: '1' }, getBoundingClientRect: () => ({ bottom: 90 }) },
   { dataset: { verse: '2' }, getBoundingClientRect: () => ({ bottom: 180 }) },
 ] };
+scripture.style = {
+  setProperty(key, value) { this[key] = value; },
+  removeProperty(key) { delete this[key]; },
+};
+notch.getBoundingClientRect = () => ({
+  bottom: parseFloat(notch.style.top) + notch.offsetHeight + parseFloat(notch.style['--notch-offset']),
+});
 const context = vm.createContext({
   state: { reference: 'John 3', focusWorkspacePanel: '' },
   document: { getElementById: () => notch, querySelector: s => s === '.scripture' ? scripture : { getBoundingClientRect: () => ({ bottom: 72 }) } },
@@ -21,6 +28,9 @@ for (const [scroll, expected] of [[30, 0.15625], [60, 0.5], [90, 0.84375], [120,
   scripture.scrollTop = scroll;
   context.updateFocusPassageNotch();
   assert.equal(Number(notch.style['--notch-reveal']), expected, 'Reveal tracks scroll in both directions');
+  assert.equal(scripture.style['--focus-notch-clearance'],
+    expected ? `${notch.getBoundingClientRect().bottom - 72}px` : undefined,
+    'Highlighter clearance follows the moving notch and resets when hidden');
 }
 scripture.scrollTop = 100;
 context.updateFocusPassageNotch();
@@ -36,7 +46,7 @@ assert.equal(notch.style['--notch-reveal'], '1', 'An open picker fully reveals t
 console.log('Focus passage notch visibility, placement, and reference checks passed.');
 
 // Keep the notch-centered picker below its anchor even on short landscape screens.
-const panel = { style: { removeProperty(key) { delete this[key]; } }, scrollHeight: 360 };
+const panel = { style: { removeProperty(key) { delete this[key]; } }, classList: { remove() {} }, scrollHeight: 360 };
 context.updateFocusPassageNotch = () => {};
 context.isCompactScreen = () => false;
 context.state.focusMode = true;
@@ -45,7 +55,7 @@ let viewportWidth = 1024;
 notch.getBoundingClientRect = () => ({ left: viewportWidth / 2 - 100, width: 200, top: 72, bottom: 116 });
 context.document.getElementById = id => id === 'mobileFocusWorkspace' ? panel : notch;
 context.document.documentElement = { clientWidth: viewportWidth, clientHeight: 768 };
-context.window = {};
+context.window = { matchMedia: () => ({ matches: false }) };
 vm.runInContext(source.slice(source.indexOf('function positionFocusWorkspacePanel()'), source.indexOf('function pushReminderSettings(')), context);
 for (const [width, height] of [[1024, 768], [390, 844], [844, 390], [667, 320]]) {
   viewportWidth = width;

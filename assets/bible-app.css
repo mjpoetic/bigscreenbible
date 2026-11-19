@@ -25662,6 +25662,10 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
     transform: none;
     animation: none !important;
   }
+
+  #app .focus-shell:has(.focus-passage-notch:not([hidden])) .reader .scripture .selection-bar {
+    top: calc(var(--focus-notch-clearance, 0px) + 8px) !important;
+  }
 }
 
 /* Clip toolbar contents while its occupied space expands. */

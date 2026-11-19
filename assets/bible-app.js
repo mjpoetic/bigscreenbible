@@ -3478,7 +3478,8 @@ function updateFocusPassageNotch() {
   const scripture = document.querySelector(".scripture");
   const header = document.querySelector(".topbar");
   if (!notch || !scripture || !header) return;
-  notch.style.top = `${header.getBoundingClientRect().bottom}px`;
+  const headerBottom = header.getBoundingClientRect().bottom;
+  notch.style.top = `${headerBottom}px`;
   // Scrub the reveal with the gesture instead of toggling at a scroll threshold.
   const distance = Math.min(1, Math.max(0, scripture.scrollTop / 120));
   const progress = state.focusWorkspacePanel === "Verse" ? 1 : distance * distance * (3 - 2 * distance);
@@ -3486,8 +3487,14 @@ function updateFocusPassageNotch() {
   notch.style.setProperty("--notch-offset", `${(1 - progress) * -12}px`);
   notch.hidden = progress === 0;
   notch.inert = progress < 0.15;
-  if (notch.hidden) return;
-  const top = Math.max(scripture.getBoundingClientRect().top, header.getBoundingClientRect().bottom + notch.offsetHeight);
+  if (notch.hidden) {
+    scripture.style.removeProperty("--focus-notch-clearance");
+    return;
+  }
+  const scriptureTop = scripture.getBoundingClientRect().top;
+  const clearance = Math.max(0, notch.getBoundingClientRect().bottom - scriptureTop);
+  scripture.style.setProperty("--focus-notch-clearance", `${clearance}px`);
+  const top = Math.max(scriptureTop, headerBottom + notch.offsetHeight);
   const verse = [...scripture.querySelectorAll("[data-verse]")].find(row => row.getBoundingClientRect().bottom > top + 4)?.dataset.verse;
   const label = verse ? `${state.reference}:${verse}` : activePassageLabel();
   notch.querySelector("span").textContent = label;
@@ -5532,6 +5539,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.17": [
+      "The highlighter toolbar clears the floating verse picker in portrait Focus Mode.",
+    ],
     "2026.11.18.16": [
       "Raycast adds an All translations search option with translation labels and partial results when an online service is unavailable.",
     ],
