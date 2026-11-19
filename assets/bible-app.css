@@ -28240,9 +28240,10 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 
 /* A quiet, recoverable switch that does not inherit the floating controls' fade. */
 .reader-controls-fade-toggle {
-  position: absolute;
-  right: calc(100% + 8px);
-  bottom: 0;
+  position: fixed;
+  z-index: 42;
+  left: max(12px, var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+  bottom: calc(4px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -28267,3 +28268,16 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   outline-offset: 3px;
 }
 .reader-controls-fade-toggle svg { width: 16px; height: 16px; }
+
+@media (max-width: 840px) and (orientation: portrait) {
+  .app-shell:has(.reader-controls-fade-toggle) .reader-controls-fade-toggle {
+    left: max(12px, var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+    bottom: calc(var(--mobile-portrait-footer-height) + 14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+  .app-shell.focus-shell:has(.reader-controls-fade-toggle) :is(.mobile-floating-settings, .mobile-focus-passage-control, .mobile-focus-tools-control) {
+    margin-bottom: 40px;
+  }
+  .app-shell.footer-collapsed:has(.reader-controls-fade-toggle) .reader-controls-fade-toggle {
+    bottom: calc(14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+}

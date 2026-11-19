@@ -817,6 +817,7 @@ const state = {
   focusReading: false,
   focusReadingStyle: localStorage.getItem("lw_focus_reading_style") === "blur" ? "blur" : "dim",
   focusReadingLines: Math.max(1, Math.min(3, Number(localStorage.getItem("lw_focus_reading_lines")) || 1)),
+  showControlsFadeToggle: localStorage.getItem("lw_show_controls_fade_toggle") !== "false",
   focusControlsFade: localStorage.getItem("lw_focus_controls_fade") !== "false",
   focusControlsTouchReveal: localStorage.getItem("lw_focus_controls_touch_reveal") === "true",
   focusControlsHide: localStorage.getItem("lw_focus_controls_hide") === "true",
@@ -4982,10 +4983,15 @@ function readingSettings(prefix = "", options = {}) {
     <div class="setting-group settings-section-subgroup">
       <span class="setting-label">Floating reading controls</span>
       <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
+        <span>Show quick fading toggle</span>
+      </label>
+      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Shift+D works even when this button is hidden.</p>
+      <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
       </label>
-      <p class="setting-help">Use the small moon / sun button beside the page arrows or Shift+D to toggle fading. Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
+      <p class="setting-help">Use the small moon / sun button below floating Settings or Shift+D to toggle fading. Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsTouchRevealToggle")}" data-focus-controls-setting="focusControlsTouchReveal" ${state.focusControlsTouchReveal ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
         <span>Brighten faded controls only when used</span>
@@ -5539,6 +5545,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.18.19": [
+      "The quick fading toggle sits in the lower left below floating Settings, with an option to hide the button while keeping Shift+D available.",
+    ],
     "2026.11.18.18": [
       "A subtle button beside the page arrows and Shift+D toggle floating control fading while preserving your brighten and hide preferences.",
     ],
@@ -6922,6 +6931,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "FooterChapterArrowsToggle", "Show chapter arrows in footer", "Scripture & Reading", "footer arrows previous next hide remove navigation")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
+      ${result("reading", "ShowControlsFadeToggle", "Show quick fading toggle", "Reading & navigation", "moon sun floating button hide dim shift d")}
       ${result("reading", "FocusControlsTouchRevealToggle", "Brighten faded controls only when used", "Reading & navigation", "touch tap click floating reading buttons opacity")}
       ${result("reading", "FocusControlsFadeToggle", "Floating reading controls", "Reading & navigation", "focus reader parallel auto-scroll page fade opacity floating buttons hide inactivity delay")}
       ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
@@ -10589,11 +10599,11 @@ function reader(chapterChange = null) {
       ${state.mode === "reader" || state.mode === "parallel" ? `
         ${scriptureReaderQuickButton(`reader-auto-scroll-button scripture-reader-launcher ${state.autoScrollEnabled || (state.focusMode && state.focusReading) ? "beside-playback" : ""}`)}
         ${readerAutoScrollButton()}
+        ${readerControlsFadeButton()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
         ${readerForwardButton()}
         <div class="reader-page-controls" aria-label="Reading controls" role="group">
-          ${readerControlsFadeButton()}
           <button class="reader-top-button reader-page-button" id="readerTopButton" type="button" aria-label="Page up; press twice for top" data-tooltip="Page up · twice for top">
             ${icons.arrowUp}
           </button>
@@ -10721,6 +10731,7 @@ function bindReaderAutoScrollButton(button) {
 }
 
 function readerControlsFadeButton() {
+  if (!state.showControlsFadeToggle) return "";
   const action = state.focusControlsFade ? "Keep floating controls bright" : "Fade idle floating controls";
   return `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="${action}" aria-pressed="${state.focusControlsFade}" aria-keyshortcuts="Shift+D" data-tooltip="${action} (Shift+D)">${state.focusControlsFade ? icons.moon : icons.sun}</button>`;
 }
@@ -14709,6 +14720,7 @@ function captureCloudSnapshot() {
       modeTransitionVolume: state.modeTransitionVolume,
       settingsSectionsOpen: { ...state.settingsSectionsOpen },
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
+      showControlsFadeToggle: state.showControlsFadeToggle,
       focusControlsFade: state.focusControlsFade,
       focusControlsTouchReveal: state.focusControlsTouchReveal,
       focusControlsHide: state.focusControlsHide,
@@ -14966,6 +14978,7 @@ function applyCloudSnapshot(snapshot) {
   state.settingsSectionsOpenUpdatedAt = normalizedVersionsUpdatedAt(
     settings.settingsSectionsOpenUpdatedAt || localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
   );
+  state.showControlsFadeToggle = typeof settings.showControlsFadeToggle === "boolean" ? settings.showControlsFadeToggle : localStorage.getItem("lw_show_controls_fade_toggle") !== "false";
   state.focusControlsFade = typeof settings.focusControlsFade === "boolean" ? settings.focusControlsFade : localStorage.getItem("lw_focus_controls_fade") !== "false";
   state.focusControlsTouchReveal = typeof settings.focusControlsTouchReveal === "boolean" ? settings.focusControlsTouchReveal : localStorage.getItem("lw_focus_controls_touch_reveal") === "true";
   state.focusControlsHide = typeof settings.focusControlsHide === "boolean" ? settings.focusControlsHide : localStorage.getItem("lw_focus_controls_hide") === "true";
@@ -15115,6 +15128,7 @@ function persistCloudSnapshotLocally(snapshot) {
   localStorage.setItem("lw_strong_numbers", String(state.strongNumbers));
   localStorage.setItem("lw_side_toolbar_position", state.sideToolbarPosition);
   localStorage.setItem("lw_focus_mode", String(state.focusMode));
+  localStorage.setItem("lw_show_controls_fade_toggle", String(state.showControlsFadeToggle));
   localStorage.setItem("lw_focus_controls_fade", String(state.focusControlsFade));
   localStorage.setItem("lw_focus_controls_touch_reveal", String(state.focusControlsTouchReveal));
   localStorage.setItem("lw_focus_controls_hide", String(state.focusControlsHide));
@@ -25091,7 +25105,7 @@ function bindEvents() {
   document.querySelectorAll("[data-focus-controls-setting]").forEach((input) => {
     input.addEventListener("change", () => {
       const key = input.dataset.focusControlsSetting;
-      const storageKeys = { focusControlsFade: "lw_focus_controls_fade", focusControlsTouchReveal: "lw_focus_controls_touch_reveal", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
+      const storageKeys = { showControlsFadeToggle: "lw_show_controls_fade_toggle", focusControlsFade: "lw_focus_controls_fade", focusControlsTouchReveal: "lw_focus_controls_touch_reveal", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
       state[key] = key === "focusControlsHideSeconds" ? normalizedFocusControlsHideSeconds(input.value) : input.checked;
       localStorage.setItem(storageKeys[key], String(state[key]));
       scheduleCloudSync();
