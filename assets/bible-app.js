@@ -4986,7 +4986,7 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
         <span>Show quick fading toggle</span>
       </label>
-      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
+      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Tap for options; hold to toggle fading. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
@@ -5545,6 +5545,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.19.2": [
+      "Floating reading options match Liquid Glass styling. Hold the moon / sun button to toggle fading directly; tap to open its options.",
+    ],
     "2026.11.19.1": [
       "The floating moon / sun button opens quick controls for fading, brightening only when used, and hiding after a chosen delay. Shift+Alt+D opens the controls even when the button is hidden; Shift+D still toggles fading.",
     ],
@@ -10734,7 +10737,7 @@ function bindReaderAutoScrollButton(button) {
 }
 
 function readerControlsFadeButton() {
-  return `${state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Floating reading controls (Shift+Alt+D)">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : ""}
+  return `${state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to toggle fading">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : ""}
     <div id="readerControlsFadePopover" class="reader-controls-fade-popover" popover="auto" role="dialog" aria-labelledby="readerControlsFadeTitle">
       <strong id="readerControlsFadeTitle">Floating reading controls</strong>
       <label><input type="checkbox" data-quick-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} autofocus /> Fade idle controls</label>
@@ -10778,9 +10781,47 @@ function openReaderControlsFadePopover() {
   document.getElementById("readerControlsFadePopover")?.showPopover();
 }
 
+function bindReaderControlsFadeHold(button) {
+  if (!button) return;
+  let gesture = null;
+  let timer = 0;
+  let suppressClick = false;
+  const cancel = () => {
+    clearTimeout(timer);
+    gesture = null;
+  };
+  button.addEventListener("pointerdown", event => {
+    if (event.isPrimary === false || event.button !== 0) return;
+    cancel();
+    suppressClick = false;
+    gesture = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    timer = setTimeout(() => {
+      if (!gesture || !button.isConnected) return;
+      suppressClick = true;
+      toggleReaderControlsFade();
+      playControlHaptic();
+      cancel();
+    }, 450);
+  });
+  button.addEventListener("pointermove", event => {
+    if (!gesture || event.pointerId !== gesture.id) return;
+    if (Math.abs(event.clientX - gesture.x) > 12 || Math.abs(event.clientY - gesture.y) > 12) cancel();
+  });
+  ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"].forEach(name => button.addEventListener(name, cancel));
+  button.addEventListener("click", event => {
+    if (!suppressClick || event.detail === 0) return;
+    suppressClick = false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  button.addEventListener("contextmenu", event => event.preventDefault());
+  button.addEventListener("selectstart", event => event.preventDefault());
+}
+
 function bindReaderControlsFadeToggle() {
   const popover = document.getElementById("readerControlsFadePopover");
   if (!popover) return;
+  bindReaderControlsFadeHold(document.getElementById("readerControlsFadeToggle"));
   updateReaderControlsFadePopover();
   popover.querySelectorAll("[data-quick-controls-setting]").forEach(input => {
     input.addEventListener("change", () => setQuickReadingControlsSetting(input.dataset.quickControlsSetting,

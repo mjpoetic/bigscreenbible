@@ -28305,3 +28305,5 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .reader-controls-fade-popover input[type="number"] { width: 64px; margin-left: auto; padding: 6px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
 .reader-controls-fade-popover > button { margin-top: 10px; width: 100%; }
 .reader-controls-fade-toggle[aria-expanded="true"] { opacity: 1; }
+
+.reader-controls-fade-toggle { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

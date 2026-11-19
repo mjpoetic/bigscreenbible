@@ -49,6 +49,7 @@ html[data-control-material="glass"] :is(
   .selection-bar, .focus-reading-controls, .reader-top-button, .reader-auto-scroll-button,
   .reader-selection-tools-button, .reader-return-button,
   .scroll-speed-toggle, .scroll-speed-popover, .scroll-speed-done,
+  .reader-controls-fade-toggle, .reader-controls-fade-popover, .reader-controls-fade-popover > .ghost-btn,
   .mobile-floating-passage, .mobile-floating-settings, .mobile-floating-focus-tools,
   .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .settings-popover, .mobile-settings-popover, .primary-version-menu,
