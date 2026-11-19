@@ -28281,3 +28281,27 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     bottom: calc(14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
   }
 }
+
+.reader-controls-fade-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 8px 32px rgb(0 0 0 / .2);
+  font-size: 14px;
+}
+.reader-controls-fade-popover strong { display: block; margin-bottom: 10px; }
+.reader-controls-fade-popover label { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.reader-controls-fade-popover [hidden] { display: none; }
+.reader-controls-fade-popover input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--teal); }
+.reader-controls-fade-popover input[type="number"] { width: 64px; margin-left: auto; padding: 6px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
+.reader-controls-fade-popover > button { margin-top: 10px; width: 100%; }
+.reader-controls-fade-toggle[aria-expanded="true"] { opacity: 1; }

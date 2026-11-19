@@ -4986,12 +4986,12 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
         <span>Show quick fading toggle</span>
       </label>
-      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Shift+D works even when this button is hidden.</p>
+      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
       </label>
-      <p class="setting-help">Use the small moon / sun button below floating Settings or Shift+D to toggle fading. Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
+      <p class="setting-help">Use the small moon / sun button below floating Settings to adjust these options, or Shift+D to toggle fading. Fade auto-scroll and page buttons in Reader and Parallel, plus floating Focus Mode buttons, after a few seconds.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsTouchRevealToggle")}" data-focus-controls-setting="focusControlsTouchReveal" ${state.focusControlsTouchReveal ? "checked" : ""} ${state.focusControlsFade ? "" : "disabled"} />
         <span>Brighten faded controls only when used</span>
@@ -5545,6 +5545,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.19.1": [
+      "The floating moon / sun button opens quick controls for fading, brightening only when used, and hiding after a chosen delay. Shift+Alt+D opens the controls even when the button is hidden; Shift+D still toggles fading.",
+    ],
     "2026.11.18.19": [
       "The quick fading toggle sits in the lower left below floating Settings, with an option to hide the button while keeping Shift+D available.",
     ],
@@ -8981,7 +8984,7 @@ function focusFloatingControls() {
 }
 
 function focusControlsInUse() {
-  return Boolean(document.querySelector(".scroll-speed-popover:popover-open")) || state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || Boolean(activeSettingsChoiceMenu?.trigger?.closest(".focus-reading-controls"));
+  return Boolean(document.querySelector(".scroll-speed-popover:popover-open, #readerControlsFadePopover:popover-open")) || state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || Boolean(activeSettingsChoiceMenu?.trigger?.closest(".focus-reading-controls"));
 }
 
 function revealMobileSettingsButton(event) {
@@ -10731,29 +10734,74 @@ function bindReaderAutoScrollButton(button) {
 }
 
 function readerControlsFadeButton() {
-  if (!state.showControlsFadeToggle) return "";
-  const action = state.focusControlsFade ? "Keep floating controls bright" : "Fade idle floating controls";
-  return `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="${action}" aria-pressed="${state.focusControlsFade}" aria-keyshortcuts="Shift+D" data-tooltip="${action} (Shift+D)">${state.focusControlsFade ? icons.moon : icons.sun}</button>`;
+  return `${state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Floating reading controls (Shift+Alt+D)">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : ""}
+    <div id="readerControlsFadePopover" class="reader-controls-fade-popover" popover="auto" role="dialog" aria-labelledby="readerControlsFadeTitle">
+      <strong id="readerControlsFadeTitle">Floating reading controls</strong>
+      <label><input type="checkbox" data-quick-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} autofocus /> Fade idle controls</label>
+      <label><input type="checkbox" data-quick-controls-setting="focusControlsTouchReveal" ${state.focusControlsTouchReveal ? "checked" : ""} /> Brighten only when used</label>
+      <label><input type="checkbox" data-quick-controls-setting="focusControlsHide" ${state.focusControlsHide ? "checked" : ""} /> Eventually hide controls</label>
+      <label data-quick-controls-delay>Hide after (seconds)<input type="number" min="5" max="300" step="1" value="${state.focusControlsHideSeconds}" data-quick-controls-setting="focusControlsHideSeconds" /></label>
+      <button type="button" class="ghost-btn" popovertarget="readerControlsFadePopover" popovertargetaction="hide">Done</button>
+    </div>`;
+}
+
+function updateReaderControlsFadePopover() {
+  document.querySelectorAll("[data-quick-controls-setting], [data-focus-controls-setting]").forEach(input => {
+    const key = input.dataset.quickControlsSetting || input.dataset.focusControlsSetting;
+    if (key === "focusControlsHideSeconds") input.value = state[key];
+    else input.checked = state[key];
+    if (["focusControlsTouchReveal", "focusControlsHide"].includes(key)) input.disabled = !state.focusControlsFade;
+    if (key === "focusControlsHideSeconds") input.disabled = !state.focusControlsFade || !state.focusControlsHide;
+  });
+  const delay = document.querySelector("[data-quick-controls-delay]");
+  if (delay) delay.hidden = !state.focusControlsHide;
+  const button = document.getElementById("readerControlsFadeToggle");
+  if (button) button.innerHTML = state.focusControlsFade ? icons.moon : icons.sun;
+}
+
+function setQuickReadingControlsSetting(key, value) {
+  const storageKeys = { focusControlsFade: "lw_focus_controls_fade", focusControlsTouchReveal: "lw_focus_controls_touch_reveal", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
+  if (!storageKeys[key]) return;
+  state[key] = key === "focusControlsHideSeconds" ? normalizedFocusControlsHideSeconds(value) : Boolean(value);
+  localStorage.setItem(storageKeys[key], String(state[key]));
+  scheduleCloudSync();
+  updateReaderControlsFadePopover();
+  revealMobileSettingsButton();
 }
 
 function toggleReaderControlsFade() {
-  state.focusControlsFade = !state.focusControlsFade;
-  localStorage.setItem("lw_focus_controls_fade", String(state.focusControlsFade));
-  scheduleCloudSync();
-  const button = document.getElementById("readerControlsFadeToggle");
-  if (button) {
-    const action = state.focusControlsFade ? "Keep floating controls bright" : "Fade idle floating controls";
-    button.setAttribute("aria-label", action);
-    button.setAttribute("aria-pressed", String(state.focusControlsFade));
-    button.dataset.tooltip = `${action} (Shift+D)`;
-    button.innerHTML = state.focusControlsFade ? icons.moon : icons.sun;
-  }
-  revealMobileSettingsButton();
+  setQuickReadingControlsSetting("focusControlsFade", !state.focusControlsFade);
   showToast(state.focusControlsFade ? "Floating controls fade when idle" : "Floating controls stay bright");
 }
 
+function openReaderControlsFadePopover() {
+  document.getElementById("readerControlsFadePopover")?.showPopover();
+}
+
 function bindReaderControlsFadeToggle() {
-  document.getElementById("readerControlsFadeToggle")?.addEventListener("click", toggleReaderControlsFade);
+  const popover = document.getElementById("readerControlsFadePopover");
+  if (!popover) return;
+  updateReaderControlsFadePopover();
+  popover.querySelectorAll("[data-quick-controls-setting]").forEach(input => {
+    input.addEventListener("change", () => setQuickReadingControlsSetting(input.dataset.quickControlsSetting,
+      input.type === "number" ? input.value : input.checked));
+  });
+  popover.addEventListener("beforetoggle", event => {
+    const open = event.newState === "open";
+    const button = document.getElementById("readerControlsFadeToggle");
+    button?.setAttribute("aria-expanded", String(open));
+    if (open) {
+      const rect = button?.getBoundingClientRect();
+      popover.style.left = `${Math.max(12, Math.min(rect?.left ?? 12, window.innerWidth - 312))}px`;
+      const bottom = Math.max(12, window.innerHeight - (rect?.top ?? window.innerHeight - 44) + 8);
+      popover.style.bottom = `${bottom}px`;
+      popover.style.maxHeight = `${Math.max(80, window.innerHeight - bottom - 12)}px`;
+      updateReaderControlsFadePopover();
+    }
+  });
+  popover.addEventListener("toggle", () => revealMobileSettingsButton());
+  // Escape dismisses the native popover without also leaving Focus Mode.
+  popover.addEventListener("keydown", event => { if (event.key === "Escape") event.stopPropagation(); });
 }
 
 function readerAutoScrollButton() {
@@ -24081,6 +24129,7 @@ function shortcutOverlay() {
     ["F", "Toggle focus layout"],
     ["Shift + I", "Open / close Scripture reader (enables its Accessibility setting)"],
     ["Shift + D", "Toggle fading of floating reading controls"],
+    ["Shift + Alt + D", "Open floating reading controls"],
     ["Shift + R", "Toggle Focus Reading (enters Focus Mode; two-finger double tap in Focus on touch screens)"],
     ["↑ / ↓ in Focus Reading", "Move the reading guide one line"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
@@ -33735,6 +33784,15 @@ function handleGlobalShortcuts(event) {
   if (!typing && event.key === "?") {
     event.preventDefault();
     openKeyboardShortcutsHelp();
+    return;
+  }
+
+  if (!typing && event.shiftKey && event.altKey && !event.ctrlKey && !event.metaKey
+      && (event.code === "KeyD" || key === "d") && ["reader", "parallel"].includes(state.mode)
+      && !state.settingsOpen && !state.accountOpen && !state.shortcutsOpen && !state.aboutMenuOpen
+      && !state.tutorialActive && !state.tutorialIntroVisible && !state.pushPromptVisible) {
+    event.preventDefault();
+    if (!event.repeat) openReaderControlsFadePopover();
     return;
   }
 
