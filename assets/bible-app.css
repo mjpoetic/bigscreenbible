@@ -28514,3 +28514,75 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
  #coloringPrintSheet p { margin:0 0 12pt; }
  #coloringPrintSheet svg { display:block; width:min(100%,7in); height:auto; max-height:8.5in; margin:auto; }
 }
+
+/* Keep Exit full screen outside the scrolling tool strip. */
+.coloring-studio dialog.coloring-stage {
+  margin:0;
+  border:0;
+  width:auto;
+  max-width:none;
+  max-height:none;
+}
+.coloring-studio dialog.coloring-stage:not(.is-expanded) {
+  position:static;
+  padding:0;
+  background:transparent;
+  color:inherit;
+  overflow:visible;
+}
+.coloring-studio dialog.coloring-stage.is-expanded {
+  box-sizing:border-box;
+  padding:max(8px,var(--app-safe-area-top,env(safe-area-inset-top))) max(8px,env(safe-area-inset-right)) max(8px,var(--app-safe-area-bottom,env(safe-area-inset-bottom))) max(8px,env(safe-area-inset-left));
+}
+.coloring-canvas[data-coloring-tool="pan"] { cursor:grab; }
+.coloring-canvas.is-panning, .coloring-reader .coloring-canvas.is-panning #coloringPixels { cursor:grabbing; }
+
+@media (orientation:portrait) and (max-width:700px), (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
+  .coloring-studio :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) {
+    flex-direction:row;
+    padding:4px 7px;
+    min-height:44px;
+    font-size:12px;
+  }
+  .coloring-studio .coloring-tool-label {
+    position:absolute;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    clip-path:inset(50%);
+    white-space:nowrap;
+  }
+}
+@media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
+  .coloring-studio :is([data-tool="brush"],[data-tool="fill"],[data-coloring="expand"]) .coloring-tool-label {
+    position:static;
+    width:auto;
+    height:auto;
+    clip-path:none;
+  }
+  .coloring-studio .coloring-view-controls { gap:4px; }
+  .coloring-standard-colors { gap:6px; padding-block:4px; }
+  .coloring-studio .coloring-standard-colors > button { flex-basis:28px; width:28px; min-width:28px; height:28px; min-height:28px; }
+  .coloring-studio .coloring-custom, .coloring-studio .coloring-palette .coloring-skin-toggle {
+    flex-direction:row;
+    min-height:36px;
+    padding:3px 7px;
+  }
+  .coloring-studio .coloring-custom input { width:22px; height:22px; }
+}
+@media (orientation:portrait) and (max-width:700px) {
+  .coloring-studio :is(.coloring-custom > span,.coloring-skin-toggle > span:last-child) {
+    position:absolute;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    clip-path:inset(50%);
+    white-space:nowrap;
+  }
+  .coloring-studio :is(.coloring-custom,.coloring-palette .coloring-skin-toggle) {
+    box-sizing:border-box;
+    min-width:44px;
+    justify-content:center;
+    align-items:center;
+  }
+}

@@ -161,7 +161,7 @@
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
-      <div class="coloring-stage ${expanded ? "is-expanded" : ""}">
+      <dialog class="coloring-stage" open aria-label="Coloring canvas">
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
             <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">${controlLabel("brush","Brush")}</button>
@@ -169,10 +169,10 @@
             <button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">${controlLabel("move","Move")}</button>
             <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">${controlLabel("eraser","Eraser")}</button>
             <button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>${controlLabel("undo","Undo")}</button>
-            <button class="ghost-btn" type="button" data-coloring="expand">${controlLabel(expanded?"collapse":"expand",expanded?"Exit full screen":"Full screen")}</button>
             <button class="ghost-btn" type="button" data-coloring="fit">${controlLabel("fit","Fit")}</button>
             <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
           </div></div><div class="coloring-secondary-tools">
+            <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
             <button class="ghost-btn" type="button" data-coloring="save">${controlLabel("save","Save")}</button>
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Each stroke stays in its starting shape. Lift your finger or Pencil before coloring another shape.</p>
@@ -184,10 +184,10 @@
           </div></div>
           <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
         </div>
-        <div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
+        <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
         <a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a>
         <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
-      </div></article></section>`;
+      </dialog></article></section>`;
   }
   function status(message) { document.getElementById("coloringStatus").textContent = message; }
   function persist() { try { localStorage.setItem(KEY,JSON.stringify(saved)); return true; } catch { return false; } }
@@ -234,6 +234,7 @@
       }else{await new Promise(requestAnimationFrame);window.print();}
     }catch{cleanup();status("Could not open printing. Please try again.");}
   }
+  let inkLifecycle;
   function bind(options) {
     viewportObserver?.disconnect();
     callbacks=options;
@@ -243,6 +244,26 @@
     let drawing = null, tap = null, gesture = null, suppressFillUntil = 0, ready = !validInk(ink());
     const pointers = new Map();
     const viewport = root.querySelector(".coloring-canvas");
+    let drag = null;
+    viewport.onpointerdown = event => {
+      if (tool !== "pan" || event.pointerType === "touch" || event.button !== 0) return;
+      if (viewport.scrollWidth <= viewport.clientWidth && viewport.scrollHeight <= viewport.clientHeight) return;
+      event.preventDefault();
+      viewport.setPointerCapture(event.pointerId);
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+      viewport.classList.add("is-panning");
+    };
+    viewport.onpointermove = event => {
+      if (drag?.id !== event.pointerId) return;
+      viewport.scrollLeft = drag.left + drag.x - event.clientX;
+      viewport.scrollTop = drag.top + drag.y - event.clientY;
+    };
+    viewport.onlostpointercapture = event => {
+      if (drag?.id !== event.pointerId) return;
+      drag = null;
+      viewport.classList.remove("is-panning");
+    };
+
     let restoreGeneration=0;
     function restoreInk(){
       const generation=++restoreGeneration;
@@ -256,7 +277,7 @@
     function updateTool() {
       canvas.classList.toggle("is-drawing", tool === "brush");
 
-      root.querySelector(".coloring-sheet").dataset.coloringTool=tool;
+      root.querySelector(".coloring-sheet").dataset.coloringTool=tool;viewport.dataset.coloringTool=tool;
       root.querySelectorAll("[data-tool]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool === tool)));
     }
     root.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;updateTool();});
@@ -331,7 +352,9 @@
       const end=points[points.length-1];target.beginPath();target.arc(end.x,end.y,target.lineWidth/2,0,Math.PI*2);target.fill();
       if(withinLines){strokeCtx.globalCompositeOperation="destination-in";strokeCtx.drawImage(maskCanvas,0,0);ctx.globalCompositeOperation=erasing?"destination-out":"source-over";ctx.drawImage(strokeCanvas,0,0);}
       drawing.changed=true;
+      if(!checkpointTimer)checkpointTimer=setTimeout(checkpointStroke,1000);
     }
+    let checkpointTimer=0;
     let strokeFrame=0,pendingPoints=[],pendingEvent;
     function flushStroke(){
       if(strokeFrame)cancelAnimationFrame(strokeFrame);strokeFrame=0;
@@ -340,16 +363,34 @@
     }
     function saveInk(before){
       history.push({kind:"ink",previous:before});if(history.length>30)history.shift();
-      ctx.globalCompositeOperation="source-over";
-      if (!saved.__ink || typeof saved.__ink !== "object") saved.__ink={};
-      saved.__ink[selected]=canvas.toDataURL("image/png");
-      const stored=persist();updateUndo();
+      const stored=storeInk();updateUndo();
       status(stored ? "Progress saved on this device." : "Storage is full or unavailable. Download your artwork to keep it.");
     }
+    function storeInk(){
+      if (!saved.__ink || typeof saved.__ink !== "object") saved.__ink={};
+      saved.__ink[selected]=canvas.toDataURL("image/png");
+      return persist();
+    }
+    function checkpointStroke(){
+      clearTimeout(checkpointTimer);
+      checkpointTimer=0;
+      if (!root.isConnected || !drawing) return;
+      flushStroke();
+      clearTimeout(checkpointTimer);
+      checkpointTimer=0;
+      if(drawing.changed)storeInk();
+    }
+    const lifecycle = new AbortController();
+    inkLifecycle?.abort();
+    inkLifecycle=lifecycle;
+    window.addEventListener("pagehide",checkpointStroke,{signal:lifecycle.signal});
+    document.addEventListener("visibilitychange",()=>{
+      if(document.hidden)checkpointStroke();
+    },{signal:lifecycle.signal});
     function finish(e) {
       if(tap && e.pointerId===tap.id){const start=tap;tap=null;if(e.type!=="pointercancel" && tool==="fill" && Date.now()>suppressFillUntil && Math.hypot(e.clientX-start.x,e.clientY-start.y)<10)fillAt(point(e));}
       if(!drawing || e.pointerId!==drawing.id)return;
-      flushStroke();const completed=drawing;drawing=null;pendingPoints=[];if(completed.changed)saveInk(completed.before);
+      flushStroke();clearTimeout(checkpointTimer);checkpointTimer=0;const completed=drawing;drawing=null;pendingPoints=[];if(completed.changed)saveInk(completed.before);
     }
     function pinchState() { const [a,b]=[...pointers.values()];return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,d:Math.hypot(a.x-b.x,a.y-b.y)}; }
     const sheet=root.querySelector(".coloring-sheet");
@@ -425,13 +466,28 @@
       setZoom(1);viewport.scrollTop=0;viewport.scrollLeft=0;
     }
     const stage=root.querySelector(".coloring-stage");
-    function expandedState() {
-      stage.setAttribute("role", expanded ? "dialog" : "region");
-      stage.setAttribute("aria-label","Coloring canvas");
-      if(expanded)stage.setAttribute("aria-modal","true");else stage.removeAttribute("aria-modal");
-      root.querySelectorAll(".coloring-heading, .coloring-pages").forEach(el=>el.inert=expanded);
+    const expandButton=root.querySelector('[data-coloring="expand"]');
+    function toggleExpanded() {
+      if (expanded) {
+        stage.close();
+        stage.setAttribute("open","");
+      } else {
+        stage.close();
+        stage.showModal();
+      }
+      expanded=!expanded;
+      stage.classList.toggle("is-expanded",expanded);
+      const label=expanded?"Exit full screen":"Full screen";
+      expandButton.innerHTML=controlLabel(expanded?"collapse":"expand",label);
+      expandButton.setAttribute("aria-label",label);
+      fit();
+      expandButton.focus({preventScroll:true});
     }
-    expandedState();
+    expanded=false;
+    stage.oncancel=event=>{
+      event.preventDefault();
+      if(expanded)toggleExpanded();
+    };
     viewportObserver=new ResizeObserver(()=>{if(zoom===1)fit();});viewportObserver.observe(viewport);
     requestAnimationFrame(()=>{if(root.isConnected)fit();});
     const more=root.querySelector(".coloring-options");
@@ -451,14 +507,14 @@
       e.preventDefault();
       switch(b.dataset.coloring) {
         case "skin-tones": skinPanel.hidden=!skinPanel.hidden;b.setAttribute("aria-expanded",String(!skinPanel.hidden));more.open=false;break;
-        case "expand": expanded=!expanded;root.querySelector(".coloring-stage").classList.toggle("is-expanded",expanded);b.innerHTML=controlLabel(expanded?"collapse":"expand",expanded?"Exit full screen":"Full screen");expandedState();fit();b.focus();break;
+        case "expand": toggleExpanded();break;
         case "zoom-in": setZoom(zoom+.25);break;
         case "zoom-out": setZoom(zoom-.25);break;
         case "fit": fit();break;
         case "mode": tool=tool==="fill"?"brush":tool==="brush"?"pan":"fill";updateTool();break;
         case "games":
-        case "close": expanded=false;options.close(); break;
-        case "reader": expanded=false;options.reader();break;
+        case "close": if(expanded)toggleExpanded();options.close(); break;
+        case "reader": if(expanded)toggleExpanded();options.reader();break;
         case "read": expanded=false;options.read(page().reference); break;
         case "save": download(false); break;
         case "outline": more.open=false;void printOutline(); break;
