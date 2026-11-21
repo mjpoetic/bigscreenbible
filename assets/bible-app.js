@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.29": [
+      "Challenge a friend now uses a gold accent to distinguish it from the teal game start button.",
+    ],
     "2026.11.21.28": [
       "Light mode Coloring Book menus now have an opaque backing so the drawing cannot show through.",
     ],

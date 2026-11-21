@@ -28217,7 +28217,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   border-top: 1px solid var(--line);
 }
 
-/* Separate the hint and exit controls with colors from the active theme. */
+/* Differentiate game actions with accents from the active theme. */
+html #app .trivia-shell .game-challenge-start:not(:disabled),
 html #app .trivia-shell :is(.games-hint-action, #triviaHint, #referenceRushHint, #crosswordHint, #hiddenWordHint),
 html #app .trivia-shell .games-menu-control,
 .best-time-actions [data-best-time-action="menu"] {
