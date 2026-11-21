@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.6": [
+      "The My Friend QR checkmark uses a filled accent so it’s easier to spot.",
+    ],
     "2026.11.21.5": [
       "Open My Friend QR from the mini code next to your signed-in address. A checkmark closes the smaller sharing pop-up.",
     ],
@@ -13749,7 +13752,7 @@ function openFriendInviteDialog(opener) {
     <header class="friend-invite-header">
       <h2 id="friendInviteTitle">My Friend QR</h2>
       <form method="dialog">
-        <button type="submit" class="ghost-btn friend-invite-done" aria-label="Done" title="Done" autofocus><span aria-hidden="true">✓</span></button>
+        <button type="submit" class="primary-btn friend-invite-done" aria-label="Done" title="Done" autofocus><span aria-hidden="true">✓</span></button>
       </form>
     </header>
     <p>Scan to find @${escapeHtml(profile.username)} and send a friend request.</p>
