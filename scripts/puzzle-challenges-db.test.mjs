@@ -29,6 +29,9 @@ try {
  await db.exec(schema);
  await db.exec(safety);
  await db.exec(read("supabase/migrations/20261024161817_puzzle_game_challenges.sql"));
+ const rematches=read("supabase/migrations/20261121031016_game_room_rematches.sql");
+ assert.ok(read('supabase/schema.sql').includes(rematches));
+ await db.exec(rematches);
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
@@ -45,22 +48,31 @@ try {
  await login(b);
  await db.query(`update public.bsb_friendships set status='accepted',responded_at=now() where requester_id='${a}' and addressee_id='${b}'`);
  await login(a);
+ await db.query(`insert into public.bsb_friendships(requester_id,addressee_id) values('${a}','${c}')`);
+ await login(c);
+ await db.query(`update public.bsb_friendships set status='accepted',responded_at=now() where requester_id='${a}' and addressee_id='${c}'`);
 
  for (const type of ['word-search','crossword','hidden-word']) {
   await login(a);
   const puzzle={type,words:['FAITH'],cells:[['F']],difficulty:'Medium',version:'BSB'};
-  const create=()=>db.query(`select public.create_bsb_puzzle_room(array['${b}'::uuid],$1,'Mixed','Medium',5::smallint,'BSB',false,$2::jsonb) id`,[type,JSON.stringify(puzzle)]);
+  const invitees = type === 'hidden-word' ? [b, c] : [b];
+  const create=()=>db.query(`select public.create_bsb_puzzle_room($3::uuid[],$1,'Mixed','Medium',5::smallint,'BSB',false,$2::jsonb) id`,[type,JSON.stringify(puzzle),invitees]);
   const room=(await create()).rows[0].id;
   assert.deepEqual((await db.query(`select puzzle from public.bsb_game_challenges where id='${room}'`)).rows[0].puzzle,puzzle);
   await denied(`update public.bsb_game_challenge_players set puzzle_state='{"score":1}' where challenge_id='${room}' and user_id='${a}'`,'23514');
   await login(c);
-  assert.equal((await db.query(`select * from public.bsb_game_challenges where id='${room}'`)).rows.length,0);
+  if (invitees.includes(c)) {
+   await db.query(`update public.bsb_game_challenge_players set invite_status='accepted', ready=true where challenge_id='${room}' and user_id='${c}'`);
+  } else {
+   assert.equal((await db.query(`select * from public.bsb_game_challenges where id='${room}'`)).rows.length,0);
+  }
   await assert.rejects(create(), e=>e.code==='42501');
   await login(b);
   await db.query(`update public.bsb_game_challenge_players set invite_status='accepted',responded_at=now(),ready=true where challenge_id='${room}' and user_id='${b}'`);
-  await db.query(`update public.bsb_game_challenge_players set ready=true where challenge_id='${room}' and user_id='${b}'`);
+  assert.equal((await db.query(`select ready from public.bsb_game_challenge_players where challenge_id='${room}' and user_id='${b}'`)).rows[0].ready, true);
+  await denied(`select public.rematch_bsb_game_room('${room}')`,'23514');
+  await denied(`select public.start_bsb_game_room('${room}')`,'42501');
   await login(a);
-  await db.query(`update public.bsb_game_challenge_players set ready=true where challenge_id='${room}' and user_id='${a}'`);
   await db.query(`select public.start_bsb_game_room('${room}')`);
   await db.query(`update public.bsb_game_challenge_players set score=1,progress=1,puzzle_state='{"foundWords":["FAITH"],"score":1}' where challenge_id='${room}' and user_id='${a}'`);
   await login(b);
@@ -69,8 +81,35 @@ try {
   await db.query(`update public.bsb_game_challenge_players set score=99 where challenge_id='${room}' and user_id='${a}'`);
   assert.equal((await db.query(`select score from public.bsb_game_challenge_players where challenge_id='${room}' and user_id='${a}'`)).rows[0].score,1);
   await db.query(`update public.bsb_game_challenge_players set score=1,progress=1,completed_at=now(),elapsed_ms=12000 where challenge_id='${room}' and user_id='${b}'`);
+  if (invitees.includes(c)) {
+   await login(c);
+   await db.query(`update public.bsb_game_challenge_players set completed_at=now(),elapsed_ms=14000 where challenge_id='${room}' and user_id='${c}'`);
+  }
   await login(a);
   await db.query(`update public.bsb_game_challenge_players set completed_at=now(),elapsed_ms=10000 where challenge_id='${room}' and user_id='${a}'`);
+  assert.equal((await db.query(`select status from public.bsb_game_challenges where id='${room}'`)).rows[0].status,'completed');
+  if (!invitees.includes(c)) {
+   await login(c);
+   await denied(`select public.rematch_bsb_game_room('${room}')`,'42501');
+  }
+  await login(b);
+  const rematch = (await db.query(`select public.rematch_bsb_game_room('${room}') as id`)).rows[0].id;
+  assert.notEqual(rematch, room);
+  const { rows: [replay] } = await db.query(`select status, started_at, rematch_of, puzzle,
+    seed = (select seed from public.bsb_game_challenges where id='${room}') as same_seed
+    from public.bsb_game_challenges where id='${rematch}'`);
+  assert.equal(replay.status, 'accepted');
+  assert.ok(replay.started_at);
+  assert.equal(replay.rematch_of, room);
+  assert.deepEqual(replay.puzzle, puzzle);
+  assert.equal(replay.same_seed, true);
+  await login(a);
+  assert.equal((await db.query(`select public.rematch_bsb_game_room('${room}') as id`)).rows[0].id, rematch);
+  const { rows: replayPlayers } = await db.query(`select invite_status, score, progress, completed_at, puzzle_state
+    from public.bsb_game_challenge_players where challenge_id='${rematch}'`);
+  assert.deepEqual(replayPlayers, Array.from({ length: invitees.length + 1 }, () => ({
+    invite_status: 'accepted', score: 0, progress: 0, completed_at: null, puzzle_state: null,
+  })));
   assert.equal((await db.query(`select status from public.bsb_game_challenges where id='${room}'`)).rows[0].status,'completed');
  }
  console.log('Puzzle challenge PostgreSQL room, RLS, progress, and completion tests passed');

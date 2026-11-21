@@ -5550,6 +5550,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.15": [
+      "The Custom color picker in Coloring Book now shows a circular swatch.",
+    ],
+    "2026.11.20.14": [
+      "Tap I’m ready from a game invitation to join and get ready in one step. Finished challenges now offer a rematch with the same game and players, starting directly in the game.",
+    ],
     "2026.11.20.13": [
       "Coloring controls now include brush, fill, eraser, undo, move, save, fit, full-screen, and ellipsis glyphs, with labels retained for clarity. Black now sits directly before White in the palette. A two-row dock adds a skin-tone palette and custom picker, with zoom and Fit beside full screen and Save beside More. The Bible reference is below the drawing, with a return button only for that link. Print outline opens native printing or Save as PDF.",
     ],
@@ -8028,6 +8034,7 @@ function normalizedGameChallenge(row = {}) {
     timed: Boolean(row.timed),
     maxPlayers: Math.min(10, Math.max(2, Number(row.max_players || row.maxPlayers || 2))),
     puzzle: row.puzzle || null,
+    rematchOf: String(row.rematch_of || row.rematchOf || ""),
     seed: Number(row.seed || 1),
     status: String(row.status || "pending"),
     respondedAt: row.responded_at || row.respondedAt || "",
@@ -8206,7 +8213,19 @@ function gameChallengePopupCandidates(
       challengeId: challenge.id,
       status: "invited",
     }));
-  return [...replies, ...incoming];
+  const rematches = challenges
+    .filter((challenge) => challenge.rematchOf && challenge.status === "accepted"
+      && challenge.challengerId !== userId
+      && (players[challenge.id] || []).some((player) => player.userId === userId
+        && player.inviteStatus === "accepted" && !player.completedAt))
+    .map((challenge) => ({
+      userId,
+      actorUserId: challenge.challengerId,
+      kind: "incoming",
+      challengeId: challenge.id,
+      status: "rematch",
+    }));
+  return [...replies, ...rematches, ...incoming];
 }
 
 function gameChallengePopupNoticeIsValid(
@@ -8217,6 +8236,11 @@ function gameChallengePopupNoticeIsValid(
   if (!notice || notice.userId !== userId) return false;
   const challenge = challenges.find((item) => item.id === notice.challengeId);
   if (!challenge) return false;
+  if (notice.status === "rematch") {
+    const player = gameChallengePlayer(challenge.id, userId);
+    return challenge.status === "accepted" && player?.inviteStatus === "accepted"
+      && !player.completedAt && state.activeGameChallengeId !== challenge.id;
+  }
   if (notice.kind === "incoming") {
     return challenge.status === "pending"
       && gameChallengePlayer(challenge.id, userId)?.inviteStatus === "invited"
@@ -8327,18 +8351,19 @@ function gameChallengePopup() {
   const personHandle = person.username ? `@${person.username}` : "";
   const incoming = notice.kind === "incoming";
   const accepted = notice.status === "accepted";
-  const title = incoming
-    ? `${personName} invited you`
-    : accepted ? `${personName} joined your room` : `${personName} may play later`;
-  const body = incoming
-    ? "Join the waiting room for a live game with friends?"
-    : accepted
-      ? "Open the waiting room to see who is ready."
-      : "They passed on this room. You can invite them again another time.";
-  const primaryAction = incoming ? "accept" : accepted ? "join" : "";
-  const primaryLabel = incoming
-    ? state.gameChallengeActionBusyId === challenge.id ? "Joining…" : "Join room"
-    : accepted ? "Open lobby" : "Got it";
+  const rematch = notice.status === "rematch";
+  const waiting = challenge.status === "pending";
+  const title = rematch ? `${personName} started a rematch`
+    : incoming ? `${personName} invited you`
+      : accepted ? `${personName} joined your room` : `${personName} may play later`;
+  const body = rematch ? "Jump back in with the same challenge and players."
+    : incoming ? "Join ready to play. The host will start the game."
+      : accepted ? waiting ? "Get ready and see who’s ready to play." : "The game has already started."
+        : "They passed on this room. You can invite them again another time.";
+  const primaryAction = rematch ? "join" : incoming ? "accept" : accepted ? waiting ? "ready-open" : "join" : "";
+  const primaryLabel = state.gameChallengeActionBusyId === challenge.id ? "Working…"
+    : rematch ? "Join rematch" : incoming || (accepted && waiting) ? "I’m ready"
+      : accepted ? "Join game" : "Got it";
   const popupBusy = Boolean(state.gameChallengeActionBusyId);
   return `
     <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}">
@@ -8354,7 +8379,7 @@ function gameChallengePopup() {
         tabindex="-1"
       >
         <div class="game-challenge-popup-icon" aria-hidden="true">${icons.trivia}</div>
-        <div class="shortcut-eyebrow">${incoming ? "Game room invitation" : "Room update"}</div>
+        <div class="shortcut-eyebrow">${rematch ? "Rematch" : incoming ? "Game room invitation" : "Room update"}</div>
         <div class="game-challenge-popup-person">
           ${socialProfileAvatarMarkup(person, "game-challenge-popup-avatar")}
           <div>
@@ -8382,7 +8407,7 @@ function gameChallengePopup() {
             ? `<button class="ghost-btn" type="button" data-game-challenge-popup-dismiss ${popupBusy ? "disabled" : ""}>Maybe later</button>`
             : ""}
         </div>
-        ${incoming ? '<p class="game-challenge-popup-note">Maybe later keeps this invitation waiting in Friends &amp; Challenges.</p>' : ""}
+        ${incoming && !rematch ? '<p class="game-challenge-popup-note">Maybe later keeps this invitation waiting in Friends &amp; Challenges.</p>' : ""}
       </article>
     </section>
   `;
@@ -8420,7 +8445,7 @@ function gameChallengeRow(challenge, kind) {
   let note = gameChallengeSummary(challenge);
   if (kind === "incoming") {
     actions = `
-      ${gameChallengeActionButton("accept", "Accept", challenge, { primary: true })}
+      ${gameChallengeActionButton("accept", "I’m ready", challenge, { primary: true })}
       ${gameChallengeActionButton("decline", "Decline", challenge)}
     `;
     note = `${note} · ${acceptedPlayers.length} joined · Invited you`;
@@ -8441,7 +8466,8 @@ function gameChallengeRow(challenge, kind) {
     `;
     note = `${note} · ${acceptedPlayers.length} players · Live now`;
   } else {
-    actions = gameChallengeActionButton("view", "Results", challenge);
+    actions = gameChallengeActionButton("view", "Results", challenge)
+      + gameChallengeRematchButton(challenge);
     const selfPlayer = acceptedPlayers.find((player) => player.userId === state.authUser?.id);
     const place = gameChallengePlayerRank(challenge, selfPlayer, acceptedPlayers);
     note = `${gameChallengeSummary(challenge)} · ${place ? `Placed #${place} of ${acceptedPlayers.length}` : `${acceptedPlayers.length} players`}`;
@@ -12528,7 +12554,7 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
       ] = await Promise.all([
         client
           .from(gameChallengeTable)
-          .select("id, challenger_id, challenged_id, game_type, category, difficulty, round_count, version, timed, max_players, seed, puzzle, status, responded_at, started_at, completed_at, expires_at, created_at, updated_at")
+          .select("id, challenger_id, challenged_id, game_type, category, difficulty, round_count, version, timed, max_players, seed, puzzle, rematch_of, status, responded_at, started_at, completed_at, expires_at, created_at, updated_at")
           .in("id", challengeIds)
           .order("updated_at", { ascending: false }),
         client
@@ -12805,7 +12831,7 @@ async function sendGameChallenge(opponentIds = state.challengeOpponentIds) {
     state.gameStandingsOpen = false;
     state.activeGameChallengeId = String(roomId || "");
     state.mode = "trivia";
-    state.gameChallengeMessage = "Room created. Invitations expire in 24 hours.";
+    state.gameChallengeMessage = "Room created. Start the game when a friend is ready.";
     await subscribeToActiveGameRoomPresence();
     showToast(`Game room created for ${inviteeIds.length + 1}`);
   } catch (error) {
@@ -12834,6 +12860,7 @@ async function updateGameChallengeResponse(challengeId, action) {
         .from(gameChallengePlayerTable)
         .update({
           invite_status: action === "accept" ? "accepted" : "declined",
+          ready: action === "accept",
           responded_at: new Date().toISOString(),
         }, { count: "exact" })
         .eq("challenge_id", challengeId)
@@ -12861,12 +12888,8 @@ async function updateGameChallengeResponse(challengeId, action) {
     }
     await loadGameChallenges({ render: false });
     if (action === "accept") {
-      state.activeGameChallengeId = challengeId;
-      state.mode = "trivia";
-      state.accountOpen = false;
-      await subscribeToActiveGameRoomPresence();
-      state.gameChallengeMessage = "You joined the waiting room.";
-      showToast("Joined the game room");
+      await joinGameChallenge(challengeId);
+      showToast("You’re ready to play");
     } else if (action === "end") {
       state.gameChallengeMessage = "Game room ended.";
       showToast("Game room ended");
@@ -12892,25 +12915,22 @@ async function joinGameChallenge(challengeId) {
   state.mode = "trivia";
   state.focusMode = false;
   state.accountOpen = false;
+  state.gamesDrawerOpen = "";
   state.triviaGameType = challenge.gameType;
   state.triviaCategory = challenge.category;
   state.triviaDifficulty = challenge.difficulty;
   state.triviaCount = challenge.roundCount;
   state.referenceRushTimed = challenge.timed;
-  await subscribeToActiveGameRoomPresence();
-  if (challenge.status === "pending") {
-    state.triviaGame = null;
-    renderPreservingReaderScroll();
-    return;
-  }
+  if (challenge.status === "pending") state.triviaGame = null;
   if (challenge.status === "completed" || challenge.startedAt) {
-    startLoadedGameChallenge(challenge);
-    return;
+    if (state.triviaGame?.challengeId !== challengeId) startLoadedGameChallenge(challenge, { render: false });
   }
   renderPreservingReaderScroll();
+  await subscribeToActiveGameRoomPresence()
+    .catch((error) => console.warn("Game room presence failed", error));
 }
 
-async function setGameRoomReady(challengeId, ready) {
+async function setGameRoomReady(challengeId, ready, { openRoom = false } = {}) {
   const client = createSupabaseClient();
   if (!client || !challengeId || state.gameChallengeActionBusyId) return;
   state.gameChallengeActionBusyId = challengeId;
@@ -12929,7 +12949,13 @@ async function setGameRoomReady(challengeId, ready) {
     if (!data?.challenge_id) throw new Error("That waiting room is no longer available.");
     state.gameChallengeActionBusyId = "";
     await loadGameChallenges({ render: false });
-    await trackActiveGameRoomPresence();
+    if (openRoom) {
+      clearMatchingGameChallengePopup(challengeId);
+      if (!gameChallengePopupNotice) showNextGameChallengePopup();
+      await joinGameChallenge(challengeId);
+    } else {
+      await trackActiveGameRoomPresence();
+    }
     state.gameChallengeMessage = ready ? "You’re ready." : "Ready state cleared.";
   } catch (error) {
     console.warn("Game room ready update failed", error);
@@ -12963,6 +12989,30 @@ async function startGameRoom(challengeId) {
     state.gameChallengeMessage = gameChallengeErrorMessage(error);
     showToast("Game not started");
   } finally {
+    renderPreservingReaderScroll();
+  }
+}
+
+async function rematchGameRoom(challengeId) {
+  const client = createSupabaseClient();
+  if (!client || state.gameChallengeActionBusyId) return;
+  state.gameChallengeActionBusyId = challengeId;
+  renderPreservingReaderScroll();
+  try {
+    const { data: roomId, error } = await client.rpc("rematch_bsb_game_room", { source_room_id: challengeId });
+    if (error) throw error;
+    await loadGameChallenges({ render: false });
+    if (!state.gameChallenges.some((challenge) => challenge.id === roomId)) {
+      throw new Error("The rematch could not load. Try again to rejoin.");
+    }
+    clearMatchingGameChallengePopup(roomId);
+    if (!gameChallengePopupNotice) showNextGameChallengePopup();
+    await joinGameChallenge(roomId);
+  } catch (error) {
+    console.warn("Game rematch failed", error);
+    showToast(error?.message || "The rematch could not start");
+  } finally {
+    state.gameChallengeActionBusyId = "";
     renderPreservingReaderScroll();
   }
 }
@@ -13148,6 +13198,8 @@ function handleGameChallengeAction(button) {
     if (action === "end" && !window.confirm("End this live challenge for every player?")) return;
     return updateGameChallengeResponse(challengeId, action);
   }
+  if (action === "rematch") return rematchGameRoom(challengeId);
+  if (action === "ready-open") return setGameRoomReady(challengeId, true, { openRoom: true });
   if (action === "ready") return setGameRoomReady(challengeId, true);
   if (action === "not-ready") return setGameRoomReady(challengeId, false);
   if (action === "start-room") return startGameRoom(challengeId);
@@ -19045,6 +19097,15 @@ function liveBookSprintPlayerResult(challenge, player) {
   `;
 }
 
+function gameChallengeRematchButton(challenge) {
+  if (challenge.status !== "completed" || gameChallengeAcceptedPlayers(challenge.id).length < 2) return "";
+  const rematch = state.gameChallenges.find((room) => room.rematchOf === challenge.id);
+  if (rematch?.status === "completed") {
+    return gameChallengeActionButton("view", "Rematch results", rematch);
+  }
+  return gameChallengeActionButton("rematch", rematch ? "Join rematch" : "Rematch", challenge, { primary: true });
+}
+
 function liveGameChallengeScoreboard() {
   const challenge = activeGameChallenge();
   if (!challenge || challenge.status === "pending") return "";
@@ -19090,6 +19151,7 @@ function liveGameChallengeScoreboard() {
       </ol>
       <p role="status" aria-live="polite">${escapeHtml(result)}</p>
       </div>
+      ${gameChallengeRematchButton(challenge)}
     </section>
   `;
 }
@@ -19128,6 +19190,9 @@ function refreshLiveGameChallengeScoreboard() {
   if (details) details.scrollTop = standingsScrollTop;
   if (restoreToggleFocus) replacement.querySelector("[data-game-standings-toggle]")?.focus({ preventScroll: true });
   replacement.querySelectorAll("[data-friend-action]").forEach(button => button.addEventListener("click", () => handleFriendAction(button)));
+  replacement.querySelectorAll("[data-game-challenge-action]").forEach((button) => {
+    button.addEventListener("click", () => handleGameChallengeAction(button));
+  });
   updateLiveBookSprintTimes();
   return true;
 }
@@ -19139,13 +19204,13 @@ function gameRoomLobbyPlayer(challenge, player) {
   const online = isSelf || state.gameRoomOnlineUserIds.includes(player.userId);
   const status = player.inviteStatus === "invited"
     ? "Invited"
-    : player.ready ? "Ready" : "Joined";
+    : player.isHost ? "Hosting" : player.ready ? "Ready" : "Joined";
   return `
     <li class="game-room-player ${player.ready ? "is-ready" : ""} ${player.inviteStatus === "invited" ? "is-invited" : ""}">
       ${socialProfileAvatarMarkup(profile, "game-room-player-avatar")}
       <span class="game-room-player-copy">
         <strong>${escapeHtml(name)}</strong>
-        <small>${player.isHost ? "Host · " : ""}${escapeHtml(status)}</small>
+        <small>${escapeHtml(status)}</small>
       </span>
       <span class="game-room-presence ${online ? "is-online" : ""}">
         <span aria-hidden="true"></span>${online ? "Online" : "Offline"}
@@ -19167,7 +19232,8 @@ function gameRoomLobbyCard(challenge) {
   const invitedPlayers = players.filter((player) => player.inviteStatus === "invited");
   const selfPlayer = gameChallengePlayer(challenge.id);
   const isHost = challenge.challengerId === state.authUser?.id;
-  const everyoneReady = acceptedPlayers.length >= 2 && acceptedPlayers.every((player) => player.ready);
+  const canStart = acceptedPlayers.length >= 2
+    && acceptedPlayers.every((player) => player.isHost || player.ready);
   const busy = Boolean(state.gameChallengeActionBusyId);
   return `
     <section class="challenge-setup-card game-room-lobby" aria-labelledby="gameRoomLobbyTitle">
@@ -19180,25 +19246,24 @@ function gameRoomLobbyCard(challenge) {
         ${players.map((player) => gameRoomLobbyPlayer(challenge, player)).join("")}
       </ul>
       <div class="game-room-lobby-actions">
-        ${selfPlayer?.ready
-          ? gameChallengeActionButton("not-ready", "Not ready", challenge)
-          : gameChallengeActionButton("ready", "I’m ready", challenge, { primary: true })}
         ${isHost ? `
           <button
             class="primary-btn friend-action-button"
             type="button"
             data-game-challenge-action="start-room"
             data-game-challenge-id="${escapeHtml(challenge.id)}"
-            ${!everyoneReady || busy ? "disabled" : ""}
+            ${!canStart || busy ? "disabled" : ""}
           >${state.gameChallengeActionBusyId === challenge.id ? "Starting…" : "Start game"}</button>
           ${gameChallengeActionButton("cancel", "Cancel room", challenge, { danger: true })}
-        ` : '<span class="game-room-host-note">The host starts when joined players are ready.</span>'}
+        ` : selfPlayer?.ready
+          ? gameChallengeActionButton("not-ready", "Not ready", challenge)
+          : gameChallengeActionButton("ready", "I’m ready", challenge, { primary: true })}
       </div>
-      <small>${everyoneReady
-        ? isHost ? "Everyone who joined is ready. You can start now." : "Everyone is ready. Waiting for the host."
-        : acceptedPlayers.length < 2
-          ? "At least one friend must join before the room can start."
-          : "Players who have not answered do not block the room."}</small>
+      <small>${isHost
+        ? canStart ? "Your friends are ready. Start the game when you’re ready."
+          : acceptedPlayers.length < 2 ? "Start becomes available when a friend joins ready to play."
+            : "Waiting for joined players to mark themselves ready."
+        : selfPlayer?.ready ? "You’re ready. The host will start the game." : "Tap I’m ready when you’re set to play."}</small>
     </section>
   `;
 }

@@ -134,6 +134,7 @@ assert.deepEqual(
     timed: false,
     maxPlayers: 2,
     puzzle: null,
+    rematchOf: "",
     seed: 42,
     status: "pending",
     respondedAt: "",
@@ -211,6 +212,31 @@ assert.deepEqual(
   [{ kind: "reply", challengeId: "reply", status: "declined" }],
   "The challenger must see a declined reply transition",
 );
+const rematchRoom = { id: "rematch", rematchOf: "complete", challengerId: "user-e", status: "accepted" };
+const rematchRoster = { rematch: [{ userId: "user-a", inviteStatus: "accepted" }] };
+assert.equal(pureContext.popupCandidates([], [rematchRoom], "user-a", {}, rematchRoster)[0].status, "rematch");
+
+const popupContext = vm.createContext({
+  state: { ...state, gameChallenges: [...state.gameChallenges, rematchRoom] },
+  document: { getElementById: () => null },
+  escapeHtml: String,
+  icons: { trivia: "" },
+  friendshipProfile: () => ({ displayName: "Friend" }),
+  socialProfileAvatarMarkup: () => "",
+  gameChallengeSummary: () => "Trivia",
+  gameChallengePopupIsVisible: () => true,
+  gameChallengePopupNoticeKey: () => "notice",
+});
+vm.runInContext(extractFunction("gameChallengePopup"), popupContext);
+for (const [kind, status, challengeId, action, label] of [
+  ["incoming", "invited", "incoming", "accept", "I’m ready"],
+  ["reply", "accepted", "outgoing", "ready-open", "I’m ready"],
+  ["incoming", "rematch", "rematch", "join", "Join rematch"],
+]) {
+  popupContext.gameChallengePopupNotice = { kind, status, challengeId, actorUserId: "friend" };
+  const markup = popupContext.gameChallengePopup();
+  assert.match(markup, new RegExp(`data-game-challenge-action="${action}"[\\s\\S]*>${label}</button>`));
+}
 assert.equal(
   pureContext.popupShouldInterrupt({ kind: "incoming" }, true, "reader"),
   false,
@@ -348,7 +374,7 @@ assert.match(source, /data-game-challenge-action="end"/);
 assert.match(source, /Invite up to 9 friends to a live room/);
 assert.match(source, /data-challenge-friend=/);
 assert.match(source, /data-game-challenge-action="start-room"/);
-assert.match(source, /Players who have not answered do not block the room/);
+assert.match(source, /Start becomes available when a friend joins ready to play/);
 assert.match(source, /const challengeSetupLock = waitingForLiveChallenge/);
 assert.match(source, /End this live challenge for every player/);
 assert.match(extractFunction("exitTriviaGame"), /The host ends a live challenge for everyone/);
