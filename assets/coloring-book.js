@@ -197,7 +197,7 @@
           </div></div>
           <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
         </div>
-        <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span><span class="coloring-brush-preview" aria-hidden="true" hidden></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
+        <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span><span class="coloring-pointer-preview" aria-hidden="true" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${controlGlyphs.fill}</svg></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
         <div class="coloring-caption"><h2 class="coloring-page-title">${page().title}</h2><a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a></div>
         <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
       </dialog></article></section>`;
@@ -307,35 +307,36 @@
       root.querySelector('[data-coloring="undo"]').disabled=!history.length;
       root.querySelector('[data-coloring="redo"]').disabled=!redoHistory.length;
     }
-    const brushPreview=root.querySelector(".coloring-brush-preview");
-    function updateBrushPreview() {
+    const pointerPreview=root.querySelector(".coloring-pointer-preview");
+    function updatePointerPreview() {
       const [red,green,blue]=[1,3,5].map(start=>parseInt(color.slice(start,start+2),16));
       const dark=red*.2126+green*.7152+blue*.0722<145;
-      brushPreview.style.setProperty("--brush-fill",erasing?"transparent":color);
-      brushPreview.style.setProperty("--brush-outline",!erasing && dark?"white":"#111");
-      brushPreview.style.setProperty("--brush-contrast",!erasing && dark?"#111":"white");
-      brushPreview.style.width=(erasing?eraserSize:brushSize)/6+"%";
-      if(tool!=="brush")hideBrushPreview();
+      pointerPreview.dataset.preview=tool==="fill"?"fill":erasing?"eraser":"brush";
+      pointerPreview.style.setProperty("--brush-fill",erasing?"transparent":color);
+      pointerPreview.style.setProperty("--brush-outline",!erasing && dark?"white":"#111");
+      pointerPreview.style.setProperty("--brush-contrast",!erasing && dark?"#111":"white");
+      pointerPreview.style.width=(erasing?eraserSize:brushSize)/6+"%";
+      if(tool==="pan")hidePointerPreview();
     }
-    function hideBrushPreview() {
-      brushPreview.hidden=true;
-      canvas.classList.remove("has-brush-preview");
+    function hidePointerPreview() {
+      pointerPreview.hidden=true;
+      canvas.classList.remove("has-pointer-preview");
     }
-    function showBrushPreview(event) {
-      if(event.pointerType!=="mouse" || tool!=="brush")return;
+    function showPointerPreview(event) {
+      if(event.pointerType!=="mouse" || tool==="pan")return;
       const p=point(event);
-      if(p.x<0 || p.x>=600 || p.y<0 || p.y>=600){hideBrushPreview();return;}
-      brushPreview.style.left=p.x/6+"%";
-      brushPreview.style.top=p.y/6+"%";
-      brushPreview.hidden=false;
-      canvas.classList.add("has-brush-preview");
+      if(p.x<0 || p.x>=600 || p.y<0 || p.y>=600){hidePointerPreview();return;}
+      pointerPreview.style.left=p.x/6+"%";
+      pointerPreview.style.top=p.y/6+"%";
+      pointerPreview.hidden=false;
+      canvas.classList.add("has-pointer-preview");
     }
-    canvas.addEventListener("pointerenter",showBrushPreview);
-    canvas.addEventListener("pointerleave",hideBrushPreview);
-    canvas.addEventListener("pointercancel",hideBrushPreview);
-    updateBrushPreview();
+    canvas.addEventListener("pointerenter",showPointerPreview);
+    canvas.addEventListener("pointerleave",hidePointerPreview);
+    canvas.addEventListener("pointercancel",hidePointerPreview);
+    updatePointerPreview();
     function updateTool() {
-      updateBrushPreview();
+      updatePointerPreview();
       canvas.classList.toggle("is-drawing",tool==="brush");
       root.querySelector(".coloring-sheet").dataset.coloringTool=tool;
       viewport.dataset.coloringTool=tool;
@@ -357,7 +358,7 @@
         const size=Math.max(1,Math.min(60,value));
         if(isEraser)eraserSize=size;
         else brushSize=size;
-        updateBrushPreview();
+        updatePointerPreview();
         return size;
       }
       input.oninput=()=>{
@@ -577,6 +578,7 @@
     }
     sheet.addEventListener("pointerup",releaseTouch);sheet.addEventListener("pointercancel",releaseTouch);
     canvas.onpointerdown=e=>{
+      if(e.pointerType!=="mouse")hidePointerPreview();
       // Safari touch/Pencil events do not consistently supply mouse button or
       // primary-pointer metadata. Only filter mouse buttons; use pointer IDs
       // to own the active stroke and allow Pencil even while a palm is present.
@@ -584,7 +586,7 @@
       if(!ready || drawing || (e.pointerType==="mouse" && e.button!==0))return;
       if(e.pointerType==="touch" && touchGesture)return;
       if(tool==="fill"){tap={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
-      if(tool!=="brush" || (e.pointerType!=="pen" && pointers.size>1))return;
+      if(tool!=="brush" || (e.pointerType==="touch" && pointers.size>1))return;
       const p=point(e);
       e.preventDefault();try{canvas.setPointerCapture(e.pointerId);}catch{}
       drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,changed:false,saveWasPending:savePending,
@@ -604,12 +606,16 @@
     canvas.addEventListener("touchmove",e=>{if(tool==="brush" && e.cancelable)e.preventDefault();},{passive:false});
     canvas.addEventListener("contextmenu",e=>e.preventDefault());
     canvas.onpointermove=e=>{
-      showBrushPreview(e);
+      showPointerPreview(e);
       if(!drawing || e.pointerId!==drawing.id)return;
       e.preventDefault();const samples=e.getCoalescedEvents?.();for(const sample of samples?.length?samples:[e])pendingPoints.push(point(sample));pendingEvent=e;
       if(!strokeFrame)strokeFrame=requestAnimationFrame(flushStroke);
     };
-    canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=e=>{tap=null;if(drawing?.id===e.pointerId)finish(e);};
+    canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=e=>{
+      releaseTouch(e);
+      if(tap?.id===e.pointerId)tap=null;
+      if(drawing?.id===e.pointerId)finish(e);
+    };
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
     root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];redoHistory=[];zoom=1;refresh();});
     const skinPanel=root.querySelector("#coloringSkinTones"),skinToggle=root.querySelector('[data-coloring="skin-tones"]');

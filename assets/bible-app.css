@@ -29074,8 +29074,8 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { width:12px; min-width:0; }
 }
 
-.coloring-reader #coloringPixels.has-brush-preview { cursor:none; }
-.coloring-brush-preview {
+.coloring-reader #coloringPixels.has-pointer-preview { cursor:none; }
+.coloring-pointer-preview {
   position:absolute;
   z-index:3;
   pointer-events:none;
@@ -29087,4 +29087,23 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   background:var(--brush-fill);
   outline:1px solid var(--brush-outline);
   box-shadow:0 0 0 2px var(--brush-contrast);
+}
+
+
+.coloring-pointer-preview > svg { display:none; }
+.coloring-pointer-preview[data-preview="eraser"] { outline-style:dashed; }
+.coloring-pointer-preview[data-preview="fill"] {
+  width:9px !important;
+  outline:1px solid var(--brush-outline);
+  box-shadow:0 0 0 2px var(--brush-contrast);
+}
+.coloring-pointer-preview[data-preview="fill"] > svg {
+  display:block;
+  position:absolute;
+  left:8px;
+  bottom:6px;
+  width:23px;
+  height:23px;
+  color:#111;
+  filter:drop-shadow(0 0 1px white) drop-shadow(0 0 1px white);
 }

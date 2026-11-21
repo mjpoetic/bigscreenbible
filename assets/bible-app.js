@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.27": [
+      "Coloring Book adds Eraser and Fill cursor previews and recovers painting after interrupted touch gestures.",
+    ],
     "2026.11.21.26": [
       "Coloring Book silences game control sounds and previews brush color and size under the mouse.",
     ],
