@@ -5555,6 +5555,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.35": [
+      "Brush and Eraser size fields now show a rounded focus outline around the whole control.",
+    ],
+    "2026.11.21.34": [
+      "Coloring Book shares Reader zoom shortcuts and supports standard keyboard Undo and Redo.",
+    ],
     "2026.11.21.33": [
       "Coloring Book keeps Undo and Redo available when switching pages or syncing a different page.",
     ],
@@ -25259,9 +25265,11 @@ function shortcutOverlay() {
     ["↑ / ↓ in Focus Reading", "Move the reading guide one line"],
     ...(showsBrowserFullscreenControls() ? [["Shift + F", "Toggle fullscreen"]] : []),
     ["A", "Start or pause Reader / Parallel auto-scroll"],
-    ["Shift + +", "Increase text size in the current reading mode"],
-    ["Shift + −", "Decrease text size in the current reading mode"],
-    ["Shift + 0", "Reset text size in the current reading mode"],
+    ["Shift + +", "Increase text size or zoom in on the coloring page"],
+    ["Shift + −", "Decrease text size or zoom out on the coloring page"],
+    ["Shift + 0", "Reset text size or fit the coloring page"],
+    ["⌘ / Ctrl + Z", "Undo in Coloring Book"],
+    ["⌘ / Ctrl + Shift + Z or Ctrl + Y", "Redo in Coloring Book"],
     ["Shift + S", "Toggle Strong's lookups"],
     ["/", "Jump to reference search"],
     ["S", "Open search"],
@@ -34967,6 +34975,10 @@ function handleGlobalShortcuts(event) {
     }
     return;
   }
+
+  if (state.mode === "trivia" && !typing && !state.settingsOpen && !state.accountOpen
+      && !state.shortcutsOpen && !state.aboutMenuOpen && !state.tutorialActive && !state.tutorialIntroVisible
+      && globalThis.window?.BSBColoring?.handleShortcut?.(event)) return;
 
   if (modifiedSlash) {
     event.preventDefault();

@@ -195,6 +195,26 @@
  check(alphaCount()===0&&!redo.disabled,'Undo clears the stroke and enables Redo after page switch and sync');
  redo.click();await wait();
  check(alphaCount()>0&&!undo.disabled,'Redo restores the stroke after page switch and sync');
+ function shortcut(key,modifiers={},target=canvas){
+   const event=new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...modifiers});
+   target.addEventListener('keydown',BSBColoring.handleShortcut,{once:true});
+   target.dispatchEvent(event);
+   return event.defaultPrevented;
+ }
+ const percentage=()=>document.getElementById('coloringZoomLabel').textContent;
+ check(shortcut('+',{code:'Equal',shiftKey:true})&&percentage()==='125%','Reader zoom shortcut increases coloring zoom');
+ check(shortcut('_',{code:'Minus',shiftKey:true})&&percentage()==='100%','Reader zoom shortcut decreases coloring zoom');
+ shortcut('+',{code:'Equal',shiftKey:true});
+ check(shortcut(')',{code:'Digit0',shiftKey:true})&&percentage()==='100%','Reader reset shortcut fits the coloring page');
+ const sizeField=document.querySelector('[data-size-tool="brush"] input');
+ check(!shortcut('z',{metaKey:true},sizeField),'Editable size field keeps native Undo');
+ check(shortcut('z',{metaKey:true}),'Command Z handles coloring Undo');await wait();
+ check(alphaCount()===0,'Keyboard Undo clears the stroke');
+ shortcut('Z',{metaKey:true,shiftKey:true});await wait();
+ check(alphaCount()>0,'Command Shift Z restores the stroke');
+ shortcut('z',{ctrlKey:true});await wait();
+ shortcut('y',{ctrlKey:true});await wait();
+ check(alphaCount()>0,'Ctrl Z and Ctrl Y undo and redo the stroke');
 
  document.getElementById('results').textContent=results.join('\n');
 })().catch(e=>{document.getElementById('results').textContent+='\nFAIL: '+e.stack;}).finally(()=>{if(priorColoringData===null)localStorage.removeItem('bsb_coloring_v1');else localStorage.setItem('bsb_coloring_v1',priorColoringData);});

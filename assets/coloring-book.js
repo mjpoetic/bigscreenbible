@@ -328,11 +328,13 @@
       }else{await new Promise(requestAnimationFrame);window.print();}
     }catch{cleanup();status("Could not open printing. Please try again.");}
   }
-  let inkLifecycle;
+  let inkLifecycle, handleActiveShortcut;
+  function handleShortcut(event){return handleActiveShortcut?.(event) || false;}
   function bind(options) {
     viewportObserver?.disconnect();
     callbacks=options;
     refreshSyncedInk=null;
+    handleActiveShortcut=null;
     const root=document.getElementById("coloringBook"); if (!root) return;
     const activePage=page();
     const canvas = document.getElementById("coloringPixels"), ctx = canvas.getContext("2d");
@@ -776,6 +778,22 @@
       fitWidth=Math.max(1,Math.min(viewport.clientWidth,viewport.clientHeight));
       setZoom(1);viewport.scrollTop=0;viewport.scrollLeft=0;
     }
+    handleActiveShortcut=event=>{
+      if(!root.isConnected || event.defaultPrevented || event.isComposing || event.altKey
+        || event.target?.closest?.("input,textarea,select,[contenteditable]:not([contenteditable='false'])"))return false;
+      const modified=event.metaKey || event.ctrlKey;
+      const key=event.key.toLowerCase();
+      let action;
+      if(modified && key==="z")action=event.shiftKey?"redo":"undo";
+      else if(event.ctrlKey && !event.metaKey && !event.shiftKey && key==="y")action="redo";
+      else if(!modified && event.shiftKey){
+        action={Equal:"zoom-in",Minus:"zoom-out",Digit0:"fit"}[event.code];
+      }
+      if(!action)return false;
+      event.preventDefault();
+      if(!drawing)root.querySelector(`[data-coloring="${action}"]`)?.click();
+      return true;
+    };
     const stage=root.querySelector(".coloring-stage");
     const expandButton=root.querySelector('[data-coloring="expand"]');
     function toggleExpanded() {
@@ -870,5 +888,5 @@
       }
     });
   }
-  window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress};
+  window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};
 })();

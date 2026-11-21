@@ -29079,7 +29079,11 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   font-size:11px;
 }
 .coloring-size-arrows button:hover { background:color-mix(in srgb,var(--ink) 10%,transparent); }
-.coloring-studio .coloring-size-controls:focus-within { border-color:var(--teal); }
+.coloring-studio .coloring-size-controls input:focus { outline:none; box-shadow:none; }
+.coloring-studio .coloring-size-controls:focus-within {
+  border-color:var(--teal);
+  box-shadow:inset 0 0 0 1px var(--teal);
+}
 @media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls { padding:2px; gap:0; }
   .coloring-stage:not(.is-expanded) .coloring-size-unit { display:none; }

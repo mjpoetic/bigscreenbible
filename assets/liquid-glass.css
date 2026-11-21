@@ -1676,6 +1676,9 @@ html[data-control-material="glass"] .coloring-book :is(button, select, input):fo
   outline: 3px solid var(--teal);
   outline-offset: 3px;
 }
+html[data-control-material="glass"] .coloring-book .coloring-size-controls input:focus-visible {
+  outline:none;
+}
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   html[data-control-material="glass"] .coloring-book {
     --glass-fill: var(--panel);
