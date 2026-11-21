@@ -50,6 +50,7 @@ html[data-control-material="glass"] :is(
   .reader-selection-tools-button, .reader-return-button,
   .scroll-speed-toggle, .scroll-speed-popover, .scroll-speed-done,
   .reader-controls-fade-toggle, .reader-controls-fade-popover, .reader-controls-fade-popover > .ghost-btn,
+  .app-version-dialog, .app-version-dialog .ghost-btn,
   .mobile-floating-passage, .mobile-floating-settings, .mobile-floating-focus-tools,
   .search-field-tool-button, .mobile-focus-tool-option, .desktop-focus-tool-option,
   .settings-popover, .mobile-settings-popover, .primary-version-menu,
@@ -86,6 +87,7 @@ html[data-control-material="glass"] :is(
   .topbar .icon-btn, .topbar .search, .topbar .primary-version-toggle, .topbar .versions, .streak-chip,
   .focused-passage-actions .ghost-btn, .verse-of-day-reader .verse-of-day-read-button,
   .imported-reader-header .ghost-btn, .passage-import-dialog .ghost-btn,
+  .app-version-dialog form > button,
   .bottombar .nav-button, .bottombar .icon-btn, .bottombar .ghost-btn,
   .rail > button, .portrait-rail-actions > button,
   .presentation-nav-button, .presentation-continue-chapter, .presentation-search-toggle, .presentation-search-go,
@@ -205,6 +207,13 @@ html[data-control-material="glass"] :is(.scripture-reader-quick, .presentation-s
     .presentation-settings-popover, .games-drawer, .selection-bar)
   :is(.settings-choice-toggle, .ghost-btn, .icon-btn, .settings-destination-row,
     .presentation-settings-destination, .presentation-settings-back, .presentation-text-size-control > button, .book-sprint-sound-toggle) { background: var(--glass-solid); }
+}
+
+html[data-control-material="glass"] .app-version-dialog {
+  border-radius: 24px;
+}
+html[data-control-material="glass"] .app-version-dialog::backdrop {
+  background: rgb(0 0 0 / 0.22);
 }
 
 /* Panel interiors use an opaque finish: reflected edges and theme tint bring
