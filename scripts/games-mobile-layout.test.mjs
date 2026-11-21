@@ -22,7 +22,8 @@ function extractFunction(name) {
 assert.match(source, /gamesDrawerOpen: ""/);
 assert.match(source, /state\.mode === "trivia" \? "trivia-shell" : ""/);
 assert.match(source, /\["trivia", "Games", icons\.games\]/);
-assert.match(source, /data-trivia-mode="trivia"[\s\S]*?icons\.trivia/);
+const pickerMarkup=vm.runInNewContext(`(${extractFunction("gamesModePickerMarkup")})()`,{state:{triviaGameType:"trivia"},coloringBookSelected:false,icons:{trivia:"trivia-icon"}});
+assert.match(pickerMarkup,/data-trivia-mode="trivia"[^>]*>trivia-icon/);
 assert.match(source, /id="gameSocialToggle"[\s\S]*?aria-controls="gamesSocialDrawer"/);
 assert.match(source, /id="gameOptionsToggle"[\s\S]*?aria-controls="gamesOptionsDrawer"/);
 assert.match(source, /id="gameControlsToggle"[\s\S]*?aria-controls="gamesControlsDrawer"/);

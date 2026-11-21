@@ -5550,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.12": [
+      "Coloring Book now uses the standard Games preview and an Open Coloring Book button. Returning to Games restores its selection and preview; the Bible return button still returns directly to the coloring canvas.",
+    ],
     "2026.11.20.11": [
       "Games remembers your last activity, including reopening the Coloring Book directly. Scripture opened from coloring offers a Back to coloring book button, and the Games menu includes a partially colored preview.",
     ],
@@ -19667,39 +19670,65 @@ function rememberGamesArea(area){
   if(!gamesAreaCodes.includes(area))return;
   try{localStorage.setItem("lw_games_last_area",area);if(area!=="coloring")localStorage.setItem("lw_trivia_game_type",area);}catch{}
 }
-let coloringBookOpen=savedGamesArea()==="coloring";
+let coloringBookSelected=savedGamesArea()==="coloring";
+let coloringBookOpen=false;
 let gamesAreaInitialized=false;
 let coloringReaderReturn=false;
 try{coloringReaderReturn=sessionStorage.getItem("lw_coloring_reader_return")==="true";}catch{}
 function setColoringReaderReturn(value){coloringReaderReturn=value;try{if(value)sessionStorage.setItem("lw_coloring_reader_return","true");else sessionStorage.removeItem("lw_coloring_reader_return");}catch{}}
 function restoreLastGamesArea(respectLink=false){
-  if(state.triviaGame || activeGameChallenge()?.status==="pending"){coloringBookOpen=false;return;}
+  if(state.triviaGame || activeGameChallenge()?.status==="pending"){coloringBookOpen=false;coloringBookSelected=false;return;}
   const linked=respectLink?new URLSearchParams(window.location.search).get("game"):"";
   if(gamesAreaCodes.includes(linked))rememberGamesArea(linked);
   const area=gamesAreaCodes.includes(linked)?linked:savedGamesArea();
   if(!area)return;
-  coloringBookOpen=area==="coloring";
-  if(!coloringBookOpen&&state.triviaGameType!==area)switchGameDifficulty(area);
+  coloringBookSelected=area==="coloring";coloringBookOpen=false;
+  if(!coloringBookSelected&&state.triviaGameType!==area)switchGameDifficulty(area);
 }
 function openColoringBible(reference=""){
   rememberGamesArea("coloring");setColoringReaderReturn(true);
   if(reference)gotoReference(reference,{focusedPassage:true});else switchMode("reader",{audible:true});
 }
 function returnToColoringBook(){
-  rememberGamesArea("coloring");coloringBookOpen=true;setColoringReaderReturn(false);
-  switchMode("trivia",{audible:true});
+  rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen=true;gamesAreaInitialized=true;setColoringReaderReturn(false);
+  state.mode="trivia";state.sharedPassage=null;state.pendingVerseFocus=false;
+  try{localStorage.setItem("lw_last_used_mode","trivia");}catch{}
+  syncModeUrl();render();
 }
 function coloringReaderReturnButton(presentation=false){
   const classes=presentation?"ghost-btn presentation-nav-button presentation-return-button game-return-button":"reader-return-button game-return-button";
   return `<button class="${classes}" id="readerReturnButton" type="button" aria-label="Back to coloring book" data-tooltip="Back to coloring book">${icons.artistPalette}<span>Back to coloring book</span></button>`;
 }
-function coloringGamePreview(disabled=false){return `<button class="coloring-menu-preview" data-open-coloring type="button" ${disabled?"disabled":""} aria-label="Open Bible Coloring Book"><img src="./assets/coloring-pages/preview.webp" width="96" height="64" alt="Bible coloring page with some clothing and foliage already colored"/><span><strong>Coloring Book <small>BETA</small></strong><span>Paint, fill, and create at your own pace</span></span><span aria-hidden="true">→</span></button>`;}
+function gamesModePickerMarkup(challengeSetupLock="") {
+  const types=[["word-search","Word Search",icons.wordSearch],["crossword","Crossword",icons.crossword],["hidden-word","Hidden Word",icons.hiddenWord],["trivia","Trivia",icons.trivia],["verse-order","Verse Order",icons.book],["reference-rush","Reference Rush",icons.search],["book-sprint","Book Sprint",icons.timer],["who-said-it","Who Said It?",icons.quote]];
+  return `<div class="trivia-mode-picker">
+    <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
+    <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
+      <button class="${coloringBookSelected?"active":""}" data-select-coloring type="button" ${challengeSetupLock}>${icons.artistPalette}<span>Coloring Book</span><small class="game-new-badge">BETA</small></button>
+      ${types.map(([code,label,icon])=>`<button class="${!coloringBookSelected&&state.triviaGameType===code?"active":""}" data-trivia-mode="${code}" type="button" ${challengeSetupLock}>${icon}<span>${label}</span></button>`).join("")}
+    </div>
+    <button class="trivia-mode-scroll trivia-mode-scroll-next" type="button" data-trivia-mode-scroll="1" aria-label="Show more games" hidden>${icons.chevron}</button>
+  </div>`;
+}
+function coloringSetupView(){
+  return `<section class="reader trivia-reader is-setup"><article class="trivia-panel coloring-setup-panel">
+    <div class="trivia-header"><div class="trivia-header-copy"><div class="trivia-eyebrow">Coloring Book</div><h1>Games</h1><button class="text-btn" data-memory-games>Practice memory verses →</button></div><div class="trivia-header-actions"><div class="trivia-score-chip">Create at your own pace</div></div></div>
+    <div class="trivia-setup">${gamesModePickerMarkup()}
+      <div class="trivia-setup-main"><div class="trivia-setup-content">
+        <p class="trivia-setup-copy">Bring Bible stories to life with brush coloring, tap-to-fill colors, and a custom palette. Your progress saves on this device.</p>
+        <details class="game-preview"><summary aria-label="Coloring Book gameplay screenshot"><img src="./assets/coloring-pages/preview.webp" width="960" height="600" alt="Bible coloring page with some clothing and foliage already colored" decoding="async"/><span>Tap to enlarge</span></summary></details>
+      </div></div>
+      <div class="trivia-start-dock"><button class="primary-btn trivia-start" data-open-coloring type="button">${icons.artistPalette}<span>Open Coloring Book</span></button></div>
+    </div>
+  </article></section>`;
+}
 
 function triviaView() {
   if(state.mode==="trivia"&&coloringReaderReturn)setColoringReaderReturn(false);
   if(state.triviaGame && savedGamesArea()!==state.triviaGame.type)rememberGamesArea(state.triviaGame.type);
   if(!gamesAreaInitialized){restoreLastGamesArea(true);gamesAreaInitialized=true;}
   if (coloringBookOpen && !state.triviaGame) return window.BSBColoring.view();
+  if (coloringBookSelected && !state.triviaGame) return coloringSetupView();
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
   const waitingForLiveChallenge = currentChallenge?.status === "pending";
@@ -19796,7 +19825,6 @@ function triviaView() {
             <div class="trivia-eyebrow">${activePuzzleTitle ? "Games" : gameTitle}</div>
             <h1>${state.triviaGame && !state.triviaGame.complete ? gameTitle : activePuzzleTitle || "Games"}</h1>
             ${!state.triviaGame ? '<button class="text-btn" data-memory-games>Practice memory verses →</button>' : ""}
-            ${!state.triviaGame ? coloringGamePreview(waitingForLiveChallenge) : ""}
           </div>
           <div class="trivia-header-actions">
             ${state.triviaGame && !state.triviaGame.complete && state.triviaGame.type !== "crossword" ? '<div class="games-play-menu" id="gamesPlayMenu"></div>' : ""}
@@ -19846,21 +19874,7 @@ function triviaView() {
         ${liveGameChallengeScoreboard()}
         ${state.triviaGame ? triviaGameView() : `
           <div class="trivia-setup">
-            <div class="trivia-mode-picker">
-              <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
-              <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
-                <button data-open-coloring type="button" ${challengeSetupLock}>${icons.artistPalette}<span>Coloring Book</span><small class="game-new-badge">BETA</small></button>
-                <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
-                <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
-                <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span></button>
-                <button class="${state.triviaGameType === "trivia" ? "active" : ""}" data-trivia-mode="trivia" type="button" ${challengeSetupLock}>${icons.trivia}<span>Trivia</span></button>
-                <button class="${isVerseOrder ? "active" : ""}" data-trivia-mode="verse-order" type="button" ${challengeSetupLock}>${icons.book}<span>Verse Order</span></button>
-                <button class="${isReferenceRush ? "active" : ""}" data-trivia-mode="reference-rush" type="button" ${challengeSetupLock}>${icons.search}<span>Reference Rush</span></button>
-                <button class="${isBookSprint ? "active" : ""}" data-trivia-mode="book-sprint" type="button" ${challengeSetupLock}>${icons.timer}<span>Book Sprint</span></button>
-                <button class="${isWhoSaidIt ? "active" : ""}" data-trivia-mode="who-said-it" type="button" ${challengeSetupLock}>${icons.quote}<span>Who Said It?</span></button>
-              </div>
-              <button class="trivia-mode-scroll trivia-mode-scroll-next" type="button" data-trivia-mode-scroll="1" aria-label="Show more games" hidden>${icons.chevron}</button>
-            </div>
+            ${gamesModePickerMarkup(challengeSetupLock)}
             <div class="trivia-setup-main">
               <div class="trivia-setup-content">
               <p class="trivia-setup-copy">${setupCopy}</p>
@@ -24592,12 +24606,17 @@ function bindSettingsScrollContainment() {
 function bindEvents() {
   window.BSBColoring.bind({
     reader: () => openColoringBible(),
-    close: () => { coloringBookOpen = false; renderPreservingReaderScroll(); },
+    close: () => { coloringBookOpen = false;coloringBookSelected=true;renderPreservingReaderScroll(); },
     read: reference => openColoringBible(reference),
+  });
+  document.querySelector("[data-select-coloring]")?.addEventListener("click",()=>{
+    if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
+    rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen=false;setColoringReaderReturn(false);
+    renderPreservingReaderScroll();document.querySelector("[data-select-coloring]")?.focus({preventScroll:true});
   });
   document.querySelectorAll("[data-open-coloring]").forEach(button=>button.addEventListener("click", () => {
     if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
-    rememberGamesArea("coloring");coloringBookOpen = true;setColoringReaderReturn(false);
+    rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen = true;setColoringReaderReturn(false);
     renderPreservingReaderScroll();
     document.getElementById("coloringTitle")?.focus({preventScroll:true});
   }));
@@ -25691,8 +25710,9 @@ function bindEvents() {
         showToast("This setup is locked for the waiting room");
         return;
       }
+      const wasColoringSelected=coloringBookSelected;coloringBookSelected=false;coloringBookOpen=false;
       rememberGamesArea(button.dataset.triviaMode);
-      if (button.dataset.triviaMode === state.triviaGameType) return;
+      if (button.dataset.triviaMode === state.triviaGameType) {if(wasColoringSelected)renderPreservingReaderScroll();return;}
       const previousType = state.triviaGameType;
       animateBeforeRemoval(".trivia-setup-content, .trivia-setup .games-records, .trivia-start-dock", () => {
         if (state.mode !== "trivia" || state.triviaGameType !== previousType) return;
