@@ -180,6 +180,21 @@
  childrenPicker.value='jesus-children';childrenPicker.dispatchEvent(new Event('change'));
  await wait();
  check(document.querySelector('.coloring-reference').textContent.includes('Mark 10:13-16')&&localStorage.getItem('bsb_coloring_v1').includes('jesus-calms-storm'),'Switching pages retains separate Storm progress');
+ const stormPicker=document.getElementById('coloringPagePicker');
+ stormPicker.value='jesus-calms-storm';stormPicker.dispatchEvent(new Event('change'));
+ await wait();
+ canvas=document.getElementById('coloringPixels');ctx=canvas.getContext('2d');
+ const undo=document.querySelector('[data-coloring="undo"]');
+ const redo=document.querySelector('[data-coloring="redo"]');
+ check(!undo.disabled&&redo.disabled&&alphaCount()>0,'Returning to a page restores its available Undo actions');
+ const remote=BSBColoring.captureProgress();
+ remote['jesus-children']={ink:null,updatedAt:Date.now()+1000};
+ BSBColoring.applyProgress(remote,true);
+ check(!undo.disabled,'Syncing a different page leaves Undo available');
+ undo.click();await wait();
+ check(alphaCount()===0&&!redo.disabled,'Undo clears the stroke and enables Redo after page switch and sync');
+ redo.click();await wait();
+ check(alphaCount()>0&&!undo.disabled,'Redo restores the stroke after page switch and sync');
 
  document.getElementById('results').textContent=results.join('\n');
 })().catch(e=>{document.getElementById('results').textContent+='\nFAIL: '+e.stack;}).finally(()=>{if(priorColoringData===null)localStorage.removeItem('bsb_coloring_v1');else localStorage.setItem('bsb_coloring_v1',priorColoringData);});

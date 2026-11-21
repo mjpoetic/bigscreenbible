@@ -112,6 +112,8 @@
   let savePending = false;
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
   let selected = pages[0].id, color = palette[0], zoom = 1, history = [], redoHistory = [], callbacks;
+  const pageHistories=new Map();
+  let progressOwner;
   let withinLines = saved.__withinLines !== false;
   let tool = "brush", brushSize = 5, eraserSize = 10, erasing = false, expanded = false;
   const ink = () => saved.__ink?.[selected];
@@ -143,9 +145,12 @@
     }));
   }
   let refreshSyncedInk;
-  function applyProgress(snapshot, preserveStroke=false) {
+  function applyProgress(snapshot, preserveStroke=false, owner) {
+    const ownerChanged=owner!==undefined && owner!==progressOwner;
+    if(owner!==undefined)progressOwner=owner;
     const next=mergeProgress(snapshot);
-    if(JSON.stringify(next)===JSON.stringify(captureProgress()))return;
+    const current=captureProgress();
+    if(!ownerChanged && JSON.stringify(next)===JSON.stringify(current))return;
     if(preserveStroke && refreshSyncedInk?.("busy"))return;
     const images={...saved.__ink},updated={...saved.__artUpdatedAt};
     for(const {id} of visiblePages){
@@ -158,10 +163,14 @@
     }
     saved.__ink=images;
     saved.__artUpdatedAt=updated;
-    history=[];
-    redoHistory=[];
+    if(ownerChanged)pageHistories.clear();
+    for(const {id} of visiblePages){
+      if((next[id]?.ink || null)!==(current[id]?.ink || null))pageHistories.delete(id);
+    }
+    const activeChanged=ownerChanged || (next[selected]?.ink || null)!==(current[selected]?.ink || null);
+    if(activeChanged){history=[];redoHistory=[];}
     persist();
-    refreshSyncedInk?.();
+    if(activeChanged)refreshSyncedInk?.();
   }
   function persistArtwork(schedule=true) {
     if(page().art){
@@ -694,9 +703,11 @@
       const next=pagePicker.value;
       if(next===selected || !visiblePages.some(p=>p.id===next))return;
       if(drawing)finish({pointerId:drawing.id});
+      pageHistories.set(selected,{history,redoHistory});
       selected=next;
-      history=[];
-      redoHistory=[];
+      const previous=pageHistories.get(selected);
+      history=previous?.history || [];
+      redoHistory=previous?.redoHistory || [];
       zoom=1;
       refresh();
       document.getElementById("coloringPagePicker")?.focus({preventScroll:true});

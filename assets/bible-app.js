@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.33": [
+      "Coloring Book keeps Undo and Redo available when switching pages or syncing a different page.",
+    ],
     "2026.11.21.32": [
       "The Coloring Book adds Jesus Calms the Storm (Mark 4:35–41) with protected brush coloring, Fill, and a page picker.",
     ],
@@ -16031,7 +16034,7 @@ function persistCloudSnapshotLocally(snapshot) {
   const settings = migrateAppearanceSettings(snapshot.settings);
   const migratedSnapshot = { ...snapshot, settings };
   applyGameRecords(settings.gameRecords);
-  globalThis.window?.BSBColoring?.applyProgress(settings.coloringProgress);
+  globalThis.window?.BSBColoring?.applyProgress(settings.coloringProgress, false, accountDataOwner());
   localStorage.setItem("lw_annotation_dates", JSON.stringify(state.annotationDates));
   persistVersions();
   if (settings.appearance && typeof settings.appearance === "object") {
