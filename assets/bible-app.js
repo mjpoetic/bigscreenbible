@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.21": [
+      "Coloring menus use denser frosted glass for readability, and Save dims when autosave is current.",
+    ],
     "2026.11.21.20": [
       "Protected coloring follows your brush across shapes and reaches the edges of the line art. The page title and bold Scripture reference appear together below the drawing.",
     ],

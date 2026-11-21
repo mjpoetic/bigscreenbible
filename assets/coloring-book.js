@@ -104,6 +104,7 @@
   const artworkData = new Map();
   let viewportObserver;
   let saved = {};
+  let savePending = false;
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
   let selected = pages[0].id, color = palette[0], zoom = 1, history = [], callbacks;
   let withinLines = saved.__withinLines !== false;
@@ -171,7 +172,7 @@
             <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
           </div></div><div class="coloring-secondary-tools">
             <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
-            <button class="ghost-btn" type="button" data-coloring="save">${controlLabel("save","Save")}</button>
+            <button class="ghost-btn" type="button" data-coloring="save" data-autosaved="${!savePending}" title="Download artwork">${controlLabel("save","Save")}</button>
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Drag across the drawing to color each shape your brush passes through.</p>
               <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
@@ -188,7 +189,21 @@
       </dialog></article></section>`;
   }
   function status(message) { document.getElementById("coloringStatus").textContent = message; }
-  function persist() { try { localStorage.setItem(KEY,JSON.stringify(saved)); return true; } catch { return false; } }
+  function setSavePending(pending) {
+    savePending=pending;
+    const button=document.querySelector('#coloringBook [data-coloring="save"]');
+    if(button)button.dataset.autosaved=String(!pending);
+  }
+  function persist() {
+    try {
+      localStorage.setItem(KEY,JSON.stringify(saved));
+      setSavePending(false);
+      return true;
+    } catch {
+      setSavePending(true);
+      return false;
+    }
+  }
   function refresh() { const root = document.getElementById("coloringBook"); if (!root) return; root.closest("section").outerHTML = view(); bind(callbacks); }
   function paint(region) {
     const i = Number(region.dataset.region), previous = colors()[i] || "#ffffff";
@@ -391,6 +406,7 @@
         ctx.fill();
       }
       drawing.changed=true;
+      setSavePending(true);
       if(!checkpointTimer)checkpointTimer=setTimeout(checkpointStroke,1000);
     }
     let checkpointTimer=0;
@@ -452,6 +468,7 @@
           else delete saved.__ink[activePage.id];
           persist();
         }
+        else setSavePending(drawing.saveWasPending);
         drawing=null;
       }
       gesture=pinchState();
@@ -494,7 +511,7 @@
       if(tool!=="brush" || (e.pointerType!=="pen" && pointers.size>1))return;
       const p=point(e);
       e.preventDefault();try{canvas.setPointerCapture(e.pointerId);}catch{}
-      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,changed:false,
+      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,changed:false,saveWasPending:savePending,
         touchSnapshot:e.pointerType==="touch"?ctx.getImageData(0,0,canvas.width,canvas.height):null};
       markPoints([p],e);
     };
@@ -590,7 +607,11 @@
         case "close": if(expanded)toggleExpanded();options.close(); break;
         case "reader": if(expanded)toggleExpanded();options.reader();break;
         case "read": expanded=false;options.read(page().reference); break;
-        case "save": download(false); break;
+        case "save":
+          if(drawing)checkpointStroke();
+          else if(savePending && persist())status("Progress saved on this device.");
+          download(false);
+          break;
         case "outline": more.open=false;void printOutline(); break;
         case "erase-expanded":
         case "eraser": erasing=!erasing; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed",String(erasing))); break;

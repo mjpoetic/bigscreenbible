@@ -28967,3 +28967,10 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   cursor: wait;
   opacity: 0.68;
 }
+
+
+/* Keep the download action reachable while showing that autosave is current. */
+.coloring-studio [data-coloring="save"][data-autosaved="true"] {
+  opacity:.58;
+  filter:saturate(.15);
+}

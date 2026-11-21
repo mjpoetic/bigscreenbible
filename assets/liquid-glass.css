@@ -1691,6 +1691,21 @@ html[data-control-material="glass"] .coloring-studio :is(.coloring-options summa
   border:1px solid var(--glass-edge); box-shadow:var(--glass-shadow); color:var(--glass-ink);
   -webkit-backdrop-filter:var(--glass-blur); backdrop-filter:var(--glass-blur);
 }
+/* Frosted glass over detailed line art needs a denser tint for readable labels. */
+html[data-control-material="glass"] .coloring-studio :is(.coloring-options-body,.coloring-skin-tones) {
+  background:var(--panel);
+  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  color:var(--ink);
+  -webkit-backdrop-filter:blur(24px) saturate(120%);
+  backdrop-filter:blur(24px) saturate(120%);
+}
+@media (prefers-reduced-transparency:reduce), (prefers-contrast:more) {
+  html[data-control-material="glass"] .coloring-studio :is(.coloring-options-body,.coloring-skin-tones) {
+    background:var(--panel);
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+  }
+}
 html[data-control-material="glass"] .coloring-studio .coloring-view-controls { margin-bottom:0; padding:10px; }
 html[data-control-material="glass"] .coloring-studio [data-tool][aria-pressed="true"] { border-color:var(--teal); box-shadow:var(--glass-shadow),0 0 0 2px color-mix(in srgb,var(--teal) 40%,transparent); }
 @media(max-width:700px) { html[data-control-material="glass"] .coloring-studio .coloring-view-controls { padding:8px; } }
