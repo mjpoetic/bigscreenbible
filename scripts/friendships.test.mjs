@@ -274,4 +274,67 @@ assert.equal(outcome(null, { ...inviteProfile, allowFriendRequests: false }).tit
 assert.match(source, /data-friend-action="share-invite"[\s\S]*?<strong>My Friend QR<\/strong>/);
 assert.match(source, /friendRequest[\s\S]*?data-game-challenge-popup-dismiss[^>]*>Maybe later/);
 
+let pollQr;
+let qrClosedWith;
+let friendshipRefreshes = 0;
+const priorPopup = { kind: "reply", challengeId: "game" };
+const oldRequest = { id: "old", requesterId: "previous" };
+const newRequest = { id: "new", requesterId: "scanner" };
+let pendingRequests = [oldRequest];
+let loadedRequests = pendingRequests;
+const qrDialog = {
+  open: true,
+  addEventListener() {},
+  close(value) { qrClosedWith = value; this.open = false; },
+};
+const qrWatchContext = vm.createContext({
+  qrDialog,
+  state: { authUser: { id: "recipient" } },
+  canShareFriendInvite: () => true,
+  document: { visibilityState: "visible" },
+  window: { setTimeout(callback) { pollQr = callback; }, clearTimeout() {} },
+  friendshipTable: "friendships",
+  createSupabaseClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq(column, value) {
+          if (column === "addressee_id") {
+            assert.equal(value, "recipient");
+            return this;
+          }
+          assert.equal(column, "status");
+          assert.equal(value, "pending");
+          return Promise.resolve({ data: pendingRequests });
+        },
+      }),
+    }),
+  }),
+  async loadFriendships() { friendshipRefreshes += 1; loadedRequests = pendingRequests; },
+  friendshipCollections: () => ({ incoming: loadedRequests }),
+  gameChallengePopupNotice: priorPopup,
+  gameChallengePopupQueue: [],
+  gameChallengePopupNoticeKey: (notice) => notice?.friendshipId || notice?.challengeId,
+  gameChallengePopupNoticeIsValid: () => true,
+  dismissedGameChallengePopups: () => new Set(),
+  renderPreservingReaderScroll() {},
+});
+vm.runInContext(`
+  ${extractFunction("showNewRequestOverFriendQr")}
+  ${extractFunction("watchFriendQrRequests")}
+  watchFriendQrRequests(qrDialog, "recipient");
+`, qrWatchContext);
+await new Promise(setImmediate);
+assert.equal(qrDialog.open, true, "an existing request leaves the QR visible");
+assert.equal(friendshipRefreshes, 0);
+pendingRequests = [oldRequest, newRequest];
+await pollQr();
+assert.equal(friendshipRefreshes, 1);
+assert.equal(qrClosedWith, "incoming-request");
+assert.equal(qrWatchContext.gameChallengePopupNotice.friendshipId, "new");
+assert.equal(qrWatchContext.gameChallengePopupNotice.fromFriendQr, true);
+assert.equal(qrWatchContext.gameChallengePopupQueue[0], priorPopup);
+await pollQr();
+assert.equal(friendshipRefreshes, 1, "polling stops after the QR closes");
+assert.match(source, /notice\.fromFriendQr \? friendshipActionButton\("decline", "Decline"/);
+
 console.log("Friendship tests passed");

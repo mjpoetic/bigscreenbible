@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.7": [
+      "While My Friend QR is open, a new friend request replaces the code with a prompt to accept or decline.",
+    ],
     "2026.11.21.6": [
       "The My Friend QR checkmark uses a filled accent so it’s easier to spot.",
     ],
@@ -8428,6 +8431,7 @@ function gameChallengePopupShouldInterrupt(
 
 function gameChallengePopupIsVisible() {
   if (!gameChallengePopupNoticeIsValid(gameChallengePopupNotice)) return false;
+  if (gameChallengePopupNotice.fromFriendQr) return true;
   if (!gameChallengePopupShouldInterrupt(gameChallengePopupNotice)) return false;
   return !(
     state.pushPromptVisible
@@ -8523,7 +8527,8 @@ function gameChallengePopup() {
           ${friendRequest ? `
             <button class="primary-btn" id="gameChallengePopupPrimary" type="button"
               data-friend-action="accept" data-friendship-id="${escapeHtml(notice.friendshipId)}"
-              ${popupBusy ? "disabled" : ""}>${popupBusy ? "Accepting…" : "Accept"}</button>
+              ${popupBusy ? "disabled" : ""}>${state.friendshipActionBusyId === notice.friendshipId ? "Working…" : "Accept"}</button>
+            ${notice.fromFriendQr ? friendshipActionButton("decline", "Decline", { friendshipId: notice.friendshipId }) : ""}
           ` : primaryAction ? `
             <button
               class="primary-btn"
@@ -13737,6 +13742,58 @@ function showFriendInviteOutcome(inviteId, profile, relationship, userId) {
   dialog.showModal();
 }
 
+function showNewRequestOverFriendQr(dialog, userId, existingRequestIds) {
+  const request = friendshipCollections(userId).incoming.find((item) => !existingRequestIds.has(item.id));
+  if (!request) return false;
+  const notice = {
+    userId,
+    kind: "friend",
+    friendshipId: request.id,
+    actorUserId: request.requesterId,
+    status: "pending",
+    fromFriendQr: true,
+  };
+  const key = gameChallengePopupNoticeKey(notice);
+  if (!gameChallengePopupNoticeIsValid(notice) || dismissedGameChallengePopups().has(key)) return false;
+  gameChallengePopupQueue = gameChallengePopupQueue.filter((item) => gameChallengePopupNoticeKey(item) !== key);
+  if (gameChallengePopupNotice && gameChallengePopupNoticeKey(gameChallengePopupNotice) !== key) {
+    gameChallengePopupQueue.unshift(gameChallengePopupNotice);
+  }
+  gameChallengePopupNotice = notice;
+  dialog.close("incoming-request");
+  renderPreservingReaderScroll();
+  return true;
+}
+
+function watchFriendQrRequests(dialog, userId) {
+  const client = createSupabaseClient();
+  if (!client) return;
+  let timer;
+  let existingRequestIds;
+  const isActive = () => dialog.open && state.authUser?.id === userId && canShareFriendInvite();
+  async function check() {
+    if (!isActive()) return;
+    try {
+      if (document.visibilityState !== "visible") return;
+      const { data, error } = await client.from(friendshipTable).select("id")
+        .eq("addressee_id", userId).eq("status", "pending");
+      if (error || !isActive()) return;
+      if (!existingRequestIds) {
+        existingRequestIds = new Set(data.map((request) => request.id));
+      } else if (data.some((request) => !existingRequestIds.has(request.id))) {
+        await loadFriendships({ render: false });
+        if (isActive()) showNewRequestOverFriendQr(dialog, userId, existingRequestIds);
+      }
+    } catch (error) {
+      console.warn("Friend QR request check failed", error);
+    } finally {
+      if (isActive()) timer = window.setTimeout(check, 1500);
+    }
+  }
+  dialog.addEventListener("close", () => window.clearTimeout(timer), { once: true });
+  void check();
+}
+
 function openFriendInviteDialog(opener) {
   const profile = state.socialProfile;
   if (!canShareFriendInvite() || document.getElementById("friendInviteDialog")) return;
@@ -13791,10 +13848,11 @@ function openFriendInviteDialog(opener) {
   });
   dialog.addEventListener("close", () => {
     dialog.remove();
-    if (opener.isConnected) opener.focus({ preventScroll: true });
+    if (dialog.returnValue !== "incoming-request" && opener.isConnected) opener.focus({ preventScroll: true });
   }, { once: true });
   document.body.append(dialog);
   dialog.showModal();
+  watchFriendQrRequests(dialog, profile.userId);
 }
 
 async function searchFriends(event, prefix = "", inviteId = "") {
