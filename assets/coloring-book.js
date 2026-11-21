@@ -145,7 +145,7 @@
   }
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
-      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games</button></div>
+      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
       <div class="coloring-stage ${expanded ? "is-expanded" : ""}">
         <div class="coloring-view-controls" aria-label="Painting controls">

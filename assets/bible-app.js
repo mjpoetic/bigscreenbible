@@ -2860,6 +2860,8 @@ function switchMode(nextMode, options = {}) {
   const audible = Boolean(options.audible && state.modeTransitionSounds);
   if (audible) primeModeTransitionAudio();
   const previousMode = state.mode;
+  if(previousMode==="trivia"&&coloringBookOpen&&["reader","parallel","big"].includes(nextMode))setColoringReaderReturn(true);
+  if(nextMode==="trivia"&&previousMode!=="trivia"){restoreLastGamesArea();setColoringReaderReturn(false);}
   const previousScrollState = rememberModeScrollState();
   const revealPresentationVerse = previousMode === "big"
     && ["reader", "parallel"].includes(nextMode);
@@ -5548,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.11": [
+      "Games remembers your last activity, including reopening the Coloring Book directly. Scripture opened from coloring offers a Back to coloring book button, and the Games menu includes a partially colored preview.",
+    ],
     "2026.11.20.10": [
       "The Coloring Book More menu now appears above the coloring page, including when Liquid Glass is enabled and in full screen.",
     ],
@@ -9434,6 +9439,7 @@ function bindReaderReturnButton() {
   document.getElementById("readerForwardButton")?.addEventListener("click", () => restoreReaderReturnTarget(true));
   const button = document.getElementById("readerReturnButton");
   if (!button) return;
+  if(coloringReaderReturn){button.addEventListener("click",returnToColoringBook);return;}
   if (currentGameReferenceReturn()) {
     button.addEventListener("click", returnToTriviaGame);
     return;
@@ -11009,6 +11015,7 @@ function readerSelectionToolsButton() {
 }
 
 function readerReturnButton() {
+  if(coloringReaderReturn && state.mode!=="trivia")return coloringReaderReturnButton();
   if (currentGameReferenceReturn()) {
     return `
       <button class="reader-return-button game-return-button" id="readerReturnButton" type="button" aria-label="Return to game" data-tooltip="Return to game">
@@ -11051,6 +11058,7 @@ function applyReaderReturnButtonLabel(button, target = currentReaderReturnTarget
 }
 
 function presentationReturnButton() {
+  if(coloringReaderReturn)return coloringReaderReturnButton(true);
   if (currentGameReferenceReturn()) {
     return `<button class="ghost-btn presentation-nav-button presentation-return-button game-return-button" id="readerReturnButton" aria-label="Return to game" data-tooltip="Return to game">${icons.arrowLeft}<span>Return to game</span></button>`;
   }
@@ -19653,9 +19661,44 @@ function centerActiveTriviaMode(previousScroll = 0) {
   updateTriviaModeScrollControls();
 }
 
-let coloringBookOpen = false;
+const gamesAreaCodes=["coloring","trivia","word-search","crossword","hidden-word","verse-order","reference-rush","book-sprint","who-said-it"];
+function savedGamesArea(){try{const area=localStorage.getItem("lw_games_last_area");return gamesAreaCodes.includes(area)?area:"";}catch{return "";}}
+function rememberGamesArea(area){
+  if(!gamesAreaCodes.includes(area))return;
+  try{localStorage.setItem("lw_games_last_area",area);if(area!=="coloring")localStorage.setItem("lw_trivia_game_type",area);}catch{}
+}
+let coloringBookOpen=savedGamesArea()==="coloring";
+let gamesAreaInitialized=false;
+let coloringReaderReturn=false;
+try{coloringReaderReturn=sessionStorage.getItem("lw_coloring_reader_return")==="true";}catch{}
+function setColoringReaderReturn(value){coloringReaderReturn=value;try{if(value)sessionStorage.setItem("lw_coloring_reader_return","true");else sessionStorage.removeItem("lw_coloring_reader_return");}catch{}}
+function restoreLastGamesArea(respectLink=false){
+  if(state.triviaGame || activeGameChallenge()?.status==="pending"){coloringBookOpen=false;return;}
+  const linked=respectLink?new URLSearchParams(window.location.search).get("game"):"";
+  if(gamesAreaCodes.includes(linked))rememberGamesArea(linked);
+  const area=gamesAreaCodes.includes(linked)?linked:savedGamesArea();
+  if(!area)return;
+  coloringBookOpen=area==="coloring";
+  if(!coloringBookOpen&&state.triviaGameType!==area)switchGameDifficulty(area);
+}
+function openColoringBible(reference=""){
+  rememberGamesArea("coloring");setColoringReaderReturn(true);
+  if(reference)gotoReference(reference,{focusedPassage:true});else switchMode("reader",{audible:true});
+}
+function returnToColoringBook(){
+  rememberGamesArea("coloring");coloringBookOpen=true;setColoringReaderReturn(false);
+  switchMode("trivia",{audible:true});
+}
+function coloringReaderReturnButton(presentation=false){
+  const classes=presentation?"ghost-btn presentation-nav-button presentation-return-button game-return-button":"reader-return-button game-return-button";
+  return `<button class="${classes}" id="readerReturnButton" type="button" aria-label="Back to coloring book" data-tooltip="Back to coloring book">${icons.artistPalette}<span>Back to coloring book</span></button>`;
+}
+function coloringGamePreview(disabled=false){return `<button class="coloring-menu-preview" data-open-coloring type="button" ${disabled?"disabled":""} aria-label="Open Bible Coloring Book"><img src="./assets/coloring-pages/preview.webp" width="96" height="64" alt="Bible coloring page with some clothing and foliage already colored"/><span><strong>Coloring Book <small>BETA</small></strong><span>Paint, fill, and create at your own pace</span></span><span aria-hidden="true">→</span></button>`;}
 
 function triviaView() {
+  if(state.mode==="trivia"&&coloringReaderReturn)setColoringReaderReturn(false);
+  if(state.triviaGame && savedGamesArea()!==state.triviaGame.type)rememberGamesArea(state.triviaGame.type);
+  if(!gamesAreaInitialized){restoreLastGamesArea(true);gamesAreaInitialized=true;}
   if (coloringBookOpen && !state.triviaGame) return window.BSBColoring.view();
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
@@ -19753,6 +19796,7 @@ function triviaView() {
             <div class="trivia-eyebrow">${activePuzzleTitle ? "Games" : gameTitle}</div>
             <h1>${state.triviaGame && !state.triviaGame.complete ? gameTitle : activePuzzleTitle || "Games"}</h1>
             ${!state.triviaGame ? '<button class="text-btn" data-memory-games>Practice memory verses →</button>' : ""}
+            ${!state.triviaGame ? coloringGamePreview(waitingForLiveChallenge) : ""}
           </div>
           <div class="trivia-header-actions">
             ${state.triviaGame && !state.triviaGame.complete && state.triviaGame.type !== "crossword" ? '<div class="games-play-menu" id="gamesPlayMenu"></div>' : ""}
@@ -24547,15 +24591,16 @@ function bindSettingsScrollContainment() {
 
 function bindEvents() {
   window.BSBColoring.bind({
-    reader: () => { coloringBookOpen = false; switchMode("reader", { audible: true }); },
+    reader: () => openColoringBible(),
     close: () => { coloringBookOpen = false; renderPreservingReaderScroll(); },
-    read: reference => { coloringBookOpen = false; gotoReference(reference, { focusedPassage: true }); },
+    read: reference => openColoringBible(reference),
   });
-  document.querySelector("[data-open-coloring]")?.addEventListener("click", () => {
-    coloringBookOpen = true;
+  document.querySelectorAll("[data-open-coloring]").forEach(button=>button.addEventListener("click", () => {
+    if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
+    rememberGamesArea("coloring");coloringBookOpen = true;setColoringReaderReturn(false);
     renderPreservingReaderScroll();
-    document.getElementById("coloringTitle")?.focus();
-  });
+    document.getElementById("coloringTitle")?.focus({preventScroll:true});
+  }));
   bindSelectionTooltips();
   document.querySelector("[data-workspace-settings]")?.addEventListener("click", () => {
     closePortraitNavigation();
@@ -25646,6 +25691,7 @@ function bindEvents() {
         showToast("This setup is locked for the waiting room");
         return;
       }
+      rememberGamesArea(button.dataset.triviaMode);
       if (button.dataset.triviaMode === state.triviaGameType) return;
       const previousType = state.triviaGameType;
       animateBeforeRemoval(".trivia-setup-content, .trivia-setup .games-records, .trivia-start-dock", () => {
