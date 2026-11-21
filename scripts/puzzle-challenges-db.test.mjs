@@ -38,6 +38,9 @@ try {
  const closureMigration = read('supabase/migrations/20261121041432_game_room_closure_notices.sql');
  assert.ok(read('supabase/schema.sql').includes(closureMigration));
  await db.exec(closureMigration);
+ const departureMigration = read('supabase/migrations/20261121042039_live_challenge_departures.sql');
+ assert.ok(read('supabase/schema.sql').includes(departureMigration));
+ await db.exec(departureMigration);
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
@@ -103,6 +106,63 @@ try {
  await db.query(`update public.bsb_game_challenges set status='cancelled', responded_at=now() where id='${privateRoom}'`);
  await login(c);
  assert.equal((await db.query(`select status from public.bsb_game_challenges where id='${privateRoom}'`)).rows.length, 0);
+
+ const createLiveRoom = async (guests) => {
+  await login(a);
+  const { rows: [{ id }] } = await db.query(`select public.create_bsb_game_room(
+    $1::uuid[], 'trivia', 'Mixed', 'All', 5::smallint, 'BSB', false) as id`, [guests]);
+  for (const guest of guests) {
+   await login(guest);
+   await db.query(`update public.bsb_game_challenge_players set invite_status='accepted', ready=true
+     where challenge_id=$1 and user_id=$2`, [id, guest]);
+  }
+  await login(a);
+  await db.query('select public.start_bsb_game_room($1)', [id]);
+  return id;
+ };
+ const exitRoom = (id, endForEveryone = false) =>
+   db.query('select public.exit_bsb_game_room($1, $2)', [id, endForEveryone]);
+ const roomStatus = async (id) =>
+   (await db.query('select status from public.bsb_game_challenges where id=$1', [id])).rows[0]?.status;
+
+ const hostEnds = await createLiveRoom([b]);
+ await exitRoom(hostEnds, true);
+ await login(b);
+ assert.equal(await roomStatus(hostEnds), 'cancelled');
+
+ const guestLeaves = await createLiveRoom([b]);
+ await login(b);
+ await assert.rejects(exitRoom(guestLeaves, true), { code: '42501' });
+ await exitRoom(guestLeaves);
+ await exitRoom(guestLeaves);
+ assert.equal(await roomStatus(guestLeaves), undefined);
+ await login(a);
+ assert.equal(await roomStatus(guestLeaves), 'accepted');
+ assert.deepEqual((await db.query(`select invite_status from public.bsb_game_challenge_players
+   where challenge_id=$1 and user_id=$2`, [guestLeaves, b])).rows, [{ invite_status: 'left' }]);
+ await db.query(`update public.bsb_game_challenge_players set completed_at=now()
+   where challenge_id=$1 and user_id=$2`, [guestLeaves, a]);
+ assert.equal(await roomStatus(guestLeaves), 'completed');
+
+ const hostLeaves = await createLiveRoom([b]);
+ await exitRoom(hostLeaves);
+ await login(b);
+ assert.equal(await roomStatus(hostLeaves), 'accepted');
+ await exitRoom(hostLeaves, true);
+ assert.equal(await roomStatus(hostLeaves), 'cancelled');
+
+ const groupGame = await createLiveRoom([b, c]);
+ await exitRoom(groupGame);
+ await login(b);
+ assert.equal(await roomStatus(groupGame), 'accepted');
+ await assert.rejects(exitRoom(groupGame, true), { code: '42501' });
+ await db.query(`update public.bsb_game_challenge_players set completed_at=now()
+   where challenge_id=$1 and user_id=$2`, [groupGame, b]);
+ await login(c);
+ assert.equal(await roomStatus(groupGame), 'accepted');
+ await exitRoom(groupGame);
+ await login(b);
+ assert.equal(await roomStatus(groupGame), 'completed');
 
  for (const type of ['word-search','crossword','hidden-word']) {
   await login(a);

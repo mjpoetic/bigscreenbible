@@ -99,6 +99,7 @@ vm.runInContext(`
   ${extractFunction("gameChallengeResultLabel")}
   ${extractFunction("gameChallengeBookSprintElapsedMs")}
   ${extractFunction("activeGameChallenge")}
+  ${extractFunction("gameChallengeActionButton")}
   ${extractFunction("triviaExitControl")}
   globalThis.normalizeChallenge = normalizedGameChallenge;
   globalThis.normalizePlayer = normalizedGameChallengePlayer;
@@ -260,6 +261,49 @@ for (const [roomStatus, inviteStatus, heading] of [
   assert.match(markup, /data-game-challenge-popup-dismiss[^>]*>Got it/);
   assert.equal(pureContext.popupCandidates([room], [], "user-a", roster, {}).length, 0);
 }
+vm.runInContext(extractFunction("gameChallengeActionButton"), popupContext);
+vm.runInContext(extractFunction("gameChallengeDepartures"), popupContext);
+const liveRoom = popupContext.state.gameChallenges.find((room) => room.id === "live");
+const startingPlayers = state.gameChallengePlayers.live;
+const departurePlayers = startingPlayers.map((player) => player.userId === "user-d"
+  ? { ...player, inviteStatus: "left", respondedAt: "2026-07-29T12:00:03.000Z" } : player);
+const groupDepartures = popupContext.gameChallengeDepartures(liveRoom, startingPlayers, departurePlayers, "user-a");
+assert.equal(groupDepartures[0].headToHead, false);
+const headToHead = popupContext.gameChallengeDepartures(liveRoom, startingPlayers.slice(0, 2), departurePlayers.slice(0, 2), "user-a");
+assert.equal(headToHead[0].headToHead, true);
+popupContext.gameChallengePopupNotice = headToHead[0];
+const departurePopup = popupContext.gameChallengePopup();
+assert.match(departurePopup, /Friend left the challenge/);
+assert.match(departurePopup, /Continue game/);
+assert.match(departurePopup, /data-game-challenge-action="end-solo"[\s\S]*End challenge/);
+assert.equal(popupContext.gameChallengeDepartures(liveRoom, departurePlayers, departurePlayers, "user-a").length, 0);
+const watchedRoom = { id: "room", status: "accepted", updatedAt: "before" };
+let serverRoom = { status: "accepted", updated_at: "before" };
+let refreshes = 0;
+const roomPollQuery = {
+  select: () => roomPollQuery,
+  eq: () => roomPollQuery,
+  maybeSingle: async () => ({ data: serverRoom, error: null }),
+};
+const roomPoll = vm.createContext({
+  activeGameChallenge: () => watchedRoom,
+  activeGameRoomCheckInFlight: false,
+  gameChallengeRefreshInFlight: false,
+  gameChallengeTable: "rooms",
+  document: { visibilityState: "visible" },
+  createSupabaseClient: () => ({ from: () => roomPollQuery }),
+  refreshGameChallengesFromRealtime: async () => { refreshes++; },
+});
+vm.runInContext(extractFunction("checkActiveGameRoom"), roomPoll);
+await roomPoll.checkActiveGameRoom();
+assert.equal(refreshes, 0);
+serverRoom = { status: "cancelled", updated_at: "after" };
+await roomPoll.checkActiveGameRoom();
+assert.equal(refreshes, 1, "A missed Realtime closure must trigger a full room refresh");
+serverRoom = null;
+await roomPoll.checkActiveGameRoom();
+assert.equal(refreshes, 2, "A room that becomes unreadable must also trigger a refresh");
+
 const lobby = state.gameChallenges.find((challenge) => challenge.id === "outgoing");
 const host = { userId: "user-a", isHost: true, inviteStatus: "accepted" };
 const guest = { userId: "user-c", ready: true, inviteStatus: "accepted" };
@@ -279,14 +323,15 @@ for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomRo
 }
 const hostMarkup = lobbyContext.gameRoomLobbyCard(lobby);
 assert.match(hostMarkup, /data-game-challenge-action="start-room"[^>]*>Start game/);
-assert.doesNotMatch(hostMarkup, /disabled|data-game-challenge-action="cancel"/);
+assert.doesNotMatch(hostMarkup, /disabled/);
+assert.match(hostMarkup, /data-game-challenge-action="cancel"/);
 assert.match(hostMarkup, /data-game-challenge-action="remove"[^>]*aria-label="Remove Joined friend"/);
 assert.match(hostMarkup, /data-game-challenge-action="invite"[^>]*aria-label="Invite New friend"[^>]*>\+<\/button>/);
 assert.match(source, /id="challengeFriendForGame"[\s\S]*<span>Challenge a friend<\/span>/);
 lobbyContext.state.authUser.id = guest.userId;
 const guestMarkup = lobbyContext.gameRoomLobbyCard(lobby);
 assert.match(guestMarkup, /role="status"[\s\S]*loading-spinner[\s\S]*Waiting for the host to start the game/);
-assert.doesNotMatch(guestMarkup, /data-game-challenge-action/);
+assert.match(guestMarkup, /data-game-challenge-action="leave"/);
 guest.ready = false;
 assert.match(lobbyContext.gameRoomLobbyCard(lobby), /data-game-challenge-action="ready"/);
 assert.equal(
@@ -343,8 +388,8 @@ assert.match(
 state.authUser.id = "user-d";
 assert.match(
   pureContext.exitControl({ challengeId: "live", complete: false }),
-  /Live challenge in progress/,
-  "A guest must not receive a control that locally drops them out of a running room",
+  /data-game-challenge-action="leave"[\s\S]*Leave challenge/,
+  "A guest can leave a running room",
 );
 state.authUser.id = "user-a";
 assert.equal(
@@ -429,7 +474,7 @@ assert.match(source, /data-game-challenge-action="start-room"/);
 assert.match(source, /Start becomes available when a friend joins ready to play/);
 assert.match(source, /const challengeSetupLock = waitingForLiveChallenge/);
 assert.match(source, /End this live challenge for every player/);
-assert.match(extractFunction("exitTriviaGame"), /The host ends a live challenge for everyone/);
+assert.match(extractFunction("exitTriviaGame"), /exitGameChallengeRoom/);
 assert.match(source, /gameChallengeLoadSequence/);
 assert.match(source, /gameChallengeRefreshInFlight/);
 assert.match(source, /previousPopupKey === gameChallengePopupNoticeKey/);

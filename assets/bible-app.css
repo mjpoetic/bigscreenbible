@@ -9398,14 +9398,6 @@ select {
   color: #fff;
 }
 
-.trivia-live-lock {
-  align-self: center;
-  margin-right: auto;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .verse-order-game h2 {
   max-width: 760px;
 }
