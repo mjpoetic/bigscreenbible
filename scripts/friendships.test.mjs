@@ -335,6 +335,5 @@ assert.equal(qrWatchContext.gameChallengePopupNotice.fromFriendQr, true);
 assert.equal(qrWatchContext.gameChallengePopupQueue[0], priorPopup);
 await pollQr();
 assert.equal(friendshipRefreshes, 1, "polling stops after the QR closes");
-assert.match(source, /notice\.fromFriendQr \? friendshipActionButton\("decline", "Decline"/);
 
 console.log("Friendship tests passed");
