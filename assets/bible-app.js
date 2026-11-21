@@ -5555,11 +5555,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
-    "2026.11.21.15": [
-      "The Coloring Book page title is now easier to distinguish from the beta note.",
+    "2026.11.21.16": [
+      "Tap the site version in Help & Tour or About & Legal to check for updates.",
     ],
     "2026.11.21.15": [
-      "Tap the site version in Help & Tour or About & Legal to check for updates.",
+      "The Coloring Book page title is now easier to distinguish from the beta note.",
     ],
     "2026.11.21.14": [
       "The Coloring Book beta now lets players know more coloring pages are coming.",
@@ -6295,7 +6295,7 @@ function runAppUpdateAction() {
 }
 
 function appVersionButton(id) {
-  return `<button class="app-version-button" id="${id}" type="button" data-app-version-dialog aria-haspopup="dialog" aria-controls="appVersionDialog" aria-label="Site version ${escapeHtml(appVersion)}, check for updates">${escapeHtml(appVersion)}</button>`;
+  return `<button class="app-version-button" id="${id}" type="button" data-app-version-dialog aria-haspopup="dialog" aria-label="Site version ${escapeHtml(appVersion)}, check for updates">${escapeHtml(appVersion)}</button>`;
 }
 
 function syncAppVersionDialog(dialog = document.getElementById("appVersionDialog")) {
@@ -34802,6 +34802,7 @@ function cancelReaderTouchGesture() {
 }
 
 function handleGamesEscapeKeydown(event) {
+  if (document.getElementById("appVersionDialog")?.open) return;
   if (state.mode !== "trivia" || event.key !== "Escape"
     || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
   if (document.getElementById("gamesExitDialog")?.open) {

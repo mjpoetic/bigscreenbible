@@ -28958,6 +28958,10 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   min-height: 40px;
 }
 
+.app-version-dialog button[hidden] {
+  display: none;
+}
+
 .app-version-dialog button[aria-disabled="true"] {
   cursor: wait;
   opacity: 0.68;
