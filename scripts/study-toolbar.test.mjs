@@ -47,3 +47,18 @@ assert.deepEqual(edges(300.5, 300, 0), { previous: false, next: false });
 assert.match(source, /data-menu-highlight data-default-hidden="true"/);
 assert.match(selection, /id="memorizeSelection" data-default-hidden="true"/);
 console.log('Overflow cues cover both ends, middle, fractional layout and overscroll; revised defaults passed.');
+// Full-width menus are positioned back inside the viewport for edge verse numbers.
+const menu = { style: {}, getBoundingClientRect: () => ({ width: 155, height: 44 }) };
+const anchor = { getBoundingClientRect: () => ({ left: 375, width: 12, top: 200, bottom: 216 }) };
+const positioning = vm.createContext({ window: { innerWidth: 390 }, menu, anchor });
+vm.runInContext(extract('positionVerseActionMenu'), positioning);
+vm.runInContext('positionVerseActionMenu(anchor, menu)', positioning);
+assert.equal(menu.style.left, '227px');
+assert.equal(menu.style.top, '149px');
+anchor.getBoundingClientRect = () => ({ left: 2, width: 12, top: 200, bottom: 216 });
+vm.runInContext('positionVerseActionMenu(anchor, menu)', positioning);
+assert.equal(menu.style.left, '8px');
+menu.getBoundingClientRect = () => ({ width: 374, height: 44 });
+vm.runInContext('positionVerseActionMenu(anchor, menu)', positioning);
+assert.equal(menu.style.left, '8px');
+console.log('Verse toolbar positioning keeps left/right edge and viewport-wide menus in bounds.');

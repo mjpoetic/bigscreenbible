@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.12": [
+      "Verse toolbars stay on one row when opened near the screen edge. Larger custom layouts scroll horizontally while keeping their icons full size.",
+    ],
     "2026.11.21.11": [
       "Live challenge invitations and rematches sparkle on arrival, and players in the room count down to the same start time.",
     ],

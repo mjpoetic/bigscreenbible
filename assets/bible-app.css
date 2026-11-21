@@ -28286,7 +28286,17 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 
 /* Toolbar visibility must override the toolbar button display rules. */
 .verse-action-menu button[hidden], .selection-bar-actions button[hidden] { display: none; }
-.verse-action-menu { max-width: calc(100vw - 16px); flex-wrap: wrap; }
+/* Intrinsic width avoids fixed-position shrink-to-fit near the right edge.
+   Larger custom layouts scroll horizontally rather than wrapping or shrinking icons. */
+.verse-action-menu {
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.verse-action-menu > button { flex: 0 0 34px; }
 .toolbar-customizer {
   width: min(390px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
