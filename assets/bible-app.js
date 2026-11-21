@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.22": [
+      "Incoming friend requests now show a full invitation with the sender’s profile and buttons to accept or decide later.",
+    ],
     "2026.11.20.21": [
       "Open the lobby to see who’s in a challenge. Hosts can invite and remove players before starting, and multiplayer games now have a Challenge a friend button.",
     ],
@@ -8176,7 +8179,7 @@ function dismissedGameChallengePopups() {
 
 function gameChallengePopupNoticeKey(notice) {
   if (!notice) return "";
-  const parts = [notice.userId, notice.kind, notice.challengeId, notice.actorUserId || "", notice.status];
+  const parts = [notice.userId, notice.kind, notice.challengeId || notice.friendshipId, notice.actorUserId || "", notice.status];
   if (notice.invitedAt) parts.push(notice.invitedAt);
   return parts.join(":");
 }
@@ -8257,6 +8260,10 @@ function gameChallengePopupNoticeIsValid(
   userId = state.authUser?.id || "",
 ) {
   if (!notice || notice.userId !== userId) return false;
+  if (notice.kind === "friend") {
+    return Boolean(state.socialProfile && state.socialSafetyReady && state.socialConsent && state.socialAccessAllowed
+      && friendshipCollections(userId).incoming.some((request) => request.id === notice.friendshipId));
+  }
   const challenge = challenges.find((item) => item.id === notice.challengeId);
   if (!challenge) return false;
   if (notice.status === "rematch") {
@@ -8319,6 +8326,34 @@ function reconcileGameChallengePopupNotices(
   if (!gameChallengePopupNotice) showNextGameChallengePopup();
 }
 
+function reconcileFriendRequestPopups(userId) {
+  const current = gameChallengePopupNotice;
+  if (current?.kind === "friend" && !gameChallengePopupNoticeIsValid(current)) {
+    gameChallengePopupNotice = null;
+  }
+  const requests = friendshipCollections(userId).incoming;
+  for (const request of requests) {
+    const notice = {
+      userId,
+      kind: "friend",
+      friendshipId: request.id,
+      actorUserId: request.requesterId,
+      status: "pending",
+    };
+    if (gameChallengePopupNoticeIsValid(notice)) queueGameChallengePopupNotice(notice);
+  }
+  if (!gameChallengePopupNotice) showNextGameChallengePopup();
+  if (gameChallengePopupNotice && !gameChallengePopupShouldInterrupt(gameChallengePopupNotice)) {
+    const friendIndex = gameChallengePopupQueue.findIndex((notice) => notice.kind === "friend"
+      && gameChallengePopupNoticeIsValid(notice));
+    if (friendIndex >= 0) {
+      const [friendNotice] = gameChallengePopupQueue.splice(friendIndex, 1);
+      gameChallengePopupQueue.push(gameChallengePopupNotice);
+      gameChallengePopupNotice = friendNotice;
+    }
+  }
+}
+
 function gameChallengePopupShouldInterrupt(
   notice,
   challengeQuietMode = state.challengeQuietMode,
@@ -8362,8 +8397,9 @@ function gameChallengePopup() {
   const noticeKey = gameChallengePopupNoticeKey(notice);
   const continuingPopup = document.getElementById("gameChallengePopupDialog")
     ?.dataset.challengeNoticeKey === noticeKey;
+  const friendRequest = notice.kind === "friend";
   const challenge = state.gameChallenges.find((item) => item.id === notice.challengeId);
-  if (!challenge) return "";
+  if (!challenge && !friendRequest) return "";
   const profile = friendshipProfile(notice.actorUserId || gameChallengeOtherUserId(challenge));
   const person = profile || {
     username: "",
@@ -8375,24 +8411,24 @@ function gameChallengePopup() {
   const incoming = notice.kind === "incoming";
   const accepted = notice.status === "accepted";
   const rematch = notice.status === "rematch";
-  const waiting = challenge.status === "pending";
+  const waiting = challenge?.status === "pending";
   const canStart = accepted && waiting && gameRoomCanStart(gameChallengeAcceptedPlayers(challenge.id));
-  const title = rematch ? `${personName} started a rematch`
+  const title = friendRequest ? `${personName} sent you a friend request` : rematch ? `${personName} started a rematch`
     : incoming ? `${personName} invited you`
       : accepted ? `${personName} joined your room` : `${personName} may play later`;
-  const body = rematch ? "Jump back in with the same challenge and players."
+  const body = friendRequest ? "Add them as a friend to play games together." : rematch ? "Jump back in with the same challenge and players."
     : incoming ? "Join ready to play. The host will start the game."
       : accepted ? waiting ? canStart ? "Your friends are ready to play." : "See who’s ready to play." : "The game has already started."
         : "They passed on this room. You can invite them again another time.";
   const primaryAction = rematch ? "join" : incoming ? "accept" : canStart ? "start-room" : accepted ? "join" : "";
-  const primaryLabel = state.gameChallengeActionBusyId === challenge.id ? "Working…"
+  const primaryLabel = state.gameChallengeActionBusyId && state.gameChallengeActionBusyId === challenge?.id ? "Working…"
     : rematch ? "Join rematch" : incoming ? "I’m ready" : canStart ? "Start game"
       : accepted ? waiting ? "View room" : "Join game" : "Got it";
-  const popupBusy = Boolean(state.gameChallengeActionBusyId);
+  const popupBusy = Boolean(friendRequest ? state.friendshipActionBusyId : state.gameChallengeActionBusyId);
   return `
     <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}">
       <article
-        class="game-challenge-popup ${incoming ? "incoming" : `reply-${notice.status}`}"
+        class="game-challenge-popup ${incoming || friendRequest ? "incoming" : `reply-${notice.status}`}"
         id="gameChallengePopupDialog"
         data-challenge-notice-key="${escapeHtml(noticeKey)}"
         data-popup-continuing="${continuingPopup}"
@@ -8402,8 +8438,8 @@ function gameChallengePopup() {
         aria-describedby="gameChallengePopupDescription"
         tabindex="-1"
       >
-        <div class="game-challenge-popup-icon" aria-hidden="true">${icons.trivia}</div>
-        <div class="shortcut-eyebrow">${rematch ? "Rematch" : incoming ? "Game room invitation" : "Room update"}</div>
+        <div class="game-challenge-popup-icon" aria-hidden="true">${friendRequest ? icons.user : icons.trivia}</div>
+        <div class="shortcut-eyebrow">${friendRequest ? "Friend request" : rematch ? "Rematch" : incoming ? "Game room invitation" : "Room update"}</div>
         <div class="game-challenge-popup-person">
           ${socialProfileAvatarMarkup(person, "game-challenge-popup-avatar")}
           <div>
@@ -8413,9 +8449,13 @@ function gameChallengePopup() {
         </div>
         <h2 id="gameChallengePopupTitle">${escapeHtml(title)}</h2>
         <p id="gameChallengePopupDescription">${escapeHtml(body)}</p>
-        <div class="game-challenge-popup-summary">${escapeHtml(gameChallengeSummary(challenge))}</div>
+        ${friendRequest ? "" : `<div class="game-challenge-popup-summary">${escapeHtml(gameChallengeSummary(challenge))}</div>`}
         <div class="game-challenge-popup-actions">
-          ${primaryAction ? `
+          ${friendRequest ? `
+            <button class="primary-btn" id="gameChallengePopupPrimary" type="button"
+              data-friend-action="accept" data-friendship-id="${escapeHtml(notice.friendshipId)}"
+              ${popupBusy ? "disabled" : ""}>${popupBusy ? "Accepting…" : "Accept"}</button>
+          ` : primaryAction ? `
             <button
               class="primary-btn"
               id="gameChallengePopupPrimary"
@@ -8427,11 +8467,11 @@ function gameChallengePopup() {
           ` : `
             <button class="primary-btn" id="gameChallengePopupPrimary" type="button" data-game-challenge-popup-dismiss ${popupBusy ? "disabled" : ""}>${primaryLabel}</button>
           `}
-          ${incoming || accepted
+          ${incoming || accepted || friendRequest
             ? `<button class="ghost-btn" type="button" data-game-challenge-popup-dismiss ${popupBusy ? "disabled" : ""}>Maybe later</button>`
             : ""}
         </div>
-        ${incoming && !rematch ? '<p class="game-challenge-popup-note">Maybe later keeps this invitation waiting in Friends &amp; Challenges.</p>' : ""}
+        ${friendRequest ? '<p class="game-challenge-popup-note">Find this request later in Friends &amp; Challenges.</p>' : incoming && !rematch ? '<p class="game-challenge-popup-note">Maybe later keeps this invitation waiting in Friends &amp; Challenges.</p>' : ""}
       </article>
     </section>
   `;
@@ -13382,6 +13422,7 @@ async function loadFriendships({ render = true } = {}) {
       if (profilesError) throw profilesError;
       profileRows = profiles || [];
     }
+    if (state.authUser?.id !== userId) return;
     state.friendships = friendships;
     state.friendshipProfiles = Object.fromEntries(
       profileRows.map((row) => {
@@ -13390,6 +13431,7 @@ async function loadFriendships({ render = true } = {}) {
       }),
     );
     state.friendshipStatus = "ready";
+    reconcileFriendRequestPopups(userId);
   } catch (error) {
     console.warn("Friendships load failed", error);
     state.friendshipStatus = "error";
@@ -36314,10 +36356,17 @@ window.addEventListener("pageshow", () => {
 });
 let socialSafetyRefreshBusy = false;
 window.setInterval(async () => {
-  if (!state.authUser || document.visibilityState !== "visible" || socialSafetyRefreshBusy || (!state.accountOpen && !state.activeGameChallengeId)) return;
+  if (!state.authUser || document.visibilityState !== "visible" || socialSafetyRefreshBusy) return;
   socialSafetyRefreshBusy = true;
   const userId = state.authUser.id;
   try {
+    if (!state.accountOpen && !state.activeGameChallengeId) {
+      if (!state.socialProfile || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed) return;
+      const previousPopupKey = gameChallengePopupNoticeKey(gameChallengePopupNotice);
+      await loadFriendships({ render: false });
+      if (previousPopupKey !== gameChallengePopupNoticeKey(gameChallengePopupNotice)) renderPreservingReaderScroll();
+      return;
+    }
     const client = createSupabaseClient();
     const { data: access, error } = await client.rpc("bsb_social_access_allowed");
     if (error) throw error;
@@ -36332,9 +36381,11 @@ window.setInterval(async () => {
     }
     if (state.socialAccessAllowed) {
       const activeRoomId = state.activeGameChallengeId;
+      const popupKey = gameChallengePopupNoticeKey(gameChallengePopupNotice);
       await loadFriendships({ render: false });
       await loadGameChallenges({ render: false });
-      if (activeRoomId && state.activeGameChallengeId !== activeRoomId) renderPreservingReaderScroll();
+      if ((activeRoomId && state.activeGameChallengeId !== activeRoomId)
+        || popupKey !== gameChallengePopupNoticeKey(gameChallengePopupNotice)) renderPreservingReaderScroll();
     }
   } catch (error) {
     console.warn("Social safety refresh failed", error);

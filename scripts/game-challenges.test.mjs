@@ -239,6 +239,11 @@ for (const [kind, status, challengeId, action, label] of [
   const markup = popupContext.gameChallengePopup();
   assert.match(markup, new RegExp(`data-game-challenge-action="${action}"[\\s\\S]*>${label}</button>`));
 }
+popupContext.gameChallengePopupNotice = { kind: "friend", status: "pending", friendshipId: "request", actorUserId: "friend" };
+const friendPopup = popupContext.gameChallengePopup();
+assert.match(friendPopup, /Friend sent you a friend request/);
+assert.match(friendPopup, /data-friend-action="accept" data-friendship-id="request"/);
+assert.match(friendPopup, /data-game-challenge-popup-dismiss[^>]*>Maybe later/);
 const lobby = state.gameChallenges.find((challenge) => challenge.id === "outgoing");
 const host = { userId: "user-a", isHost: true, inviteStatus: "accepted" };
 const guest = { userId: "user-c", ready: true, inviteStatus: "accepted" };
