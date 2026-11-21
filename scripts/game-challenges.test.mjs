@@ -243,19 +243,25 @@ const lobby = state.gameChallenges.find((challenge) => challenge.id === "outgoin
 const host = { userId: "user-a", isHost: true, inviteStatus: "accepted" };
 const guest = { userId: "user-c", ready: true, inviteStatus: "accepted" };
 const lobbyContext = vm.createContext({
-  state: { authUser: { id: host.userId } },
+  state: { authUser: { id: host.userId }, gameRoomOnlineUserIds: [] },
   gameChallengePlayersFor: () => [host, guest],
   gameChallengePlayer: () => guest,
-  gameRoomLobbyPlayer: () => "",
+  gameChallengeFriends: () => [{ userId: "user-d", profile: { displayName: "New friend" } }],
+  socialProfileAvatarMarkup: () => "",
+  friendshipProfile: () => ({ displayName: "Joined friend" }),
+  friendshipActionButton: () => "",
   gameChallengeTitle: () => "Trivia",
   escapeHtml: String,
 });
-for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomLobbyCard"]) {
+for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomLobbyPlayer", "gameRoomLobbyCard"]) {
   vm.runInContext(extractFunction(name), lobbyContext);
 }
 const hostMarkup = lobbyContext.gameRoomLobbyCard(lobby);
 assert.match(hostMarkup, /data-game-challenge-action="start-room"[^>]*>Start game/);
 assert.doesNotMatch(hostMarkup, /disabled|data-game-challenge-action="cancel"/);
+assert.match(hostMarkup, /data-game-challenge-action="remove"[^>]*aria-label="Remove Joined friend"/);
+assert.match(hostMarkup, /data-game-challenge-action="invite"[^>]*aria-label="Invite New friend"[^>]*>\+<\/button>/);
+assert.match(source, /id="challengeFriendForGame"[\s\S]*<span>Challenge a friend<\/span>/);
 lobbyContext.state.authUser.id = guest.userId;
 const guestMarkup = lobbyContext.gameRoomLobbyCard(lobby);
 assert.match(guestMarkup, /role="status"[\s\S]*loading-spinner[\s\S]*Waiting for the host to start the game/);

@@ -32,6 +32,9 @@ try {
  const rematches=read("supabase/migrations/20261121031016_game_room_rematches.sql");
  assert.ok(read('supabase/schema.sql').includes(rematches));
  await db.exec(rematches);
+ const rosterMigration = read('supabase/migrations/20261121040551_game_room_roster.sql');
+ assert.ok(read('supabase/schema.sql').includes(rosterMigration));
+ await db.exec(rosterMigration);
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
@@ -51,6 +54,35 @@ try {
  await db.query(`insert into public.bsb_friendships(requester_id,addressee_id) values('${a}','${c}')`);
  await login(c);
  await db.query(`update public.bsb_friendships set status='accepted',responded_at=now() where requester_id='${a}' and addressee_id='${c}'`);
+
+ await login(a);
+ const { rows: [{ id: rosterRoom }] } = await db.query(`select public.create_bsb_game_room(
+   array['${b}'::uuid], 'trivia', 'Mixed', 'All', 5::smallint, 'BSB', false) as id`);
+ const changeRoster = (player, action) => db.query(
+   'select public.update_bsb_game_room_roster($1, $2, $3)', [rosterRoom, player, action]);
+ await login(b);
+ await assert.rejects(changeRoster(c, 'invite'), { code: '42501' });
+ await db.query(`update public.bsb_game_challenge_players set invite_status='accepted', ready=true
+   where challenge_id='${rosterRoom}' and user_id='${b}'`);
+ await login(a);
+ await assert.rejects(changeRoster(a, 'remove'), { code: '42501' });
+ await changeRoster(c, 'invite');
+ await changeRoster(c, 'invite');
+ assert.equal((await db.query(`select max_players from public.bsb_game_challenges where id='${rosterRoom}'`)).rows[0].max_players, 3);
+ await changeRoster(b, 'remove');
+ await login(b);
+ assert.equal((await db.query(`select id from public.bsb_game_challenges where id='${rosterRoom}'`)).rows.length, 0);
+ await login(a);
+ await changeRoster(b, 'invite');
+ await login(b);
+ assert.deepEqual((await db.query(`select invite_status, ready from public.bsb_game_challenge_players
+   where challenge_id='${rosterRoom}' and user_id='${b}'`)).rows, [{ invite_status: 'invited', ready: false }]);
+ await db.query(`update public.bsb_game_challenge_players set invite_status='accepted', ready=true
+   where challenge_id='${rosterRoom}' and user_id='${b}'`);
+ await login(a);
+ await db.query(`select public.start_bsb_game_room('${rosterRoom}')`);
+ await assert.rejects(changeRoster(b, 'remove'), { code: '23514' });
+ await assert.rejects(changeRoster(c, 'invite'), { code: '23514' });
 
  for (const type of ['word-search','crossword','hidden-word']) {
   await login(a);

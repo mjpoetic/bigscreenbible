@@ -7572,6 +7572,36 @@ select {
   gap: 8px;
 }
 
+.game-room-add-friends > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.game-room-add-friends ul {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.game-room-add-friends li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-room-add-friends .game-room-roster-button {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 1.25rem;
+}
+
+.challenge-friend-choice .challenge-friend-choice-mark {
+  font-size: 1.1rem;
+}
+
 .game-room-waiting-status {
   display: flex;
   align-items: center;
@@ -7689,6 +7719,19 @@ select {
 .trivia-start {
   justify-self: start;
   min-width: 180px;
+}
+
+.game-challenge-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-block-start: 6px;
+}
+
+.game-challenge-start svg {
+  width: 18px;
+  height: 18px;
 }
 
 .reference-rush-timer-option {
