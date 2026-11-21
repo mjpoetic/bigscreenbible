@@ -108,7 +108,7 @@
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
   let selected = pages[0].id, color = palette[0], zoom = 1, history = [], redoHistory = [], callbacks;
   let withinLines = saved.__withinLines !== false;
-  let tool = "brush", brushSize = 12, eraserSize = 12, erasing = false, expanded = false;
+  let tool = "brush", brushSize = 5, eraserSize = 10, erasing = false, expanded = false;
   const ink = () => saved.__ink?.[selected];
   const validInk = value => typeof value === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value);
   const page = () => pages.find(p => p.id === selected);
