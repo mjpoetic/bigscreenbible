@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.39": [
+      "The website store badges align at the same height, and the App Store artwork is dimmed while it is coming soon.",
+    ],
     "2026.11.21.38": [
       "Google Play and App Store badges now sit side by side at the bottom of Settings on the website.",
     ],

@@ -4996,8 +4996,9 @@ dialog.game-challenge-confirm {
 
 .settings-store-badges {
   display: grid;
-  grid-template-columns: minmax(0, 3.36fr) minmax(0, 3fr);
-  align-items: center;
+  /* Match the artwork's aspect ratios so both badges have the same height. */
+  grid-template-columns: minmax(0, 3.357143fr) minmax(0, 2.991602fr);
+  align-items: start;
   gap: 10px;
   width: 100%;
   max-width: 290px;
@@ -5024,6 +5025,10 @@ dialog.game-challenge-confirm {
 .settings-app-store-preview {
   position: relative;
   isolation: isolate;
+}
+
+.settings-app-store-preview img {
+  opacity: 0.55;
 }
 
 .settings-app-store-preview span {
