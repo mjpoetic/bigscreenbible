@@ -1,4 +1,4 @@
-/* Original vector illustrations. No external artwork or network requests. */
+/* Original approved artwork and vector pages; all assets are bundled locally. */
 (() => {
   "use strict";
   const KEY = "bsb_coloring_v1";
@@ -98,6 +98,8 @@
     ],
   };
   pages.forEach(p=>{p.shapes.push(...details[p.id]);p.level=["ark","creation","star"].includes(p.id)?"Detailed":"Intricate";});
+  pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png"});
+  const artworkData = new Map();
   let saved = {};
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
   let selected = pages[0].id, color = palette[0], zoom = 1, history = [], callbacks;
@@ -109,8 +111,9 @@
   const colors = () => saved[selected] && typeof saved[selected] === "object" ? saved[selected] : {};
   const validColor = value => /^#[0-9a-f]{6}$/i.test(value || "");
   const escape = value => String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
-  function svg(p, outline = false, interactive = false, includeInk = true) {
+  function svg(p, outline = false, interactive = false, includeInk = true, embed = false) {
     const fills = outline ? {} : saved[p.id] || {};
+    if(p.art) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}<image href="${embed ? artworkData.get(p.id) : p.art}" width="600" height="600"/></svg>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="group" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${p.shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="${validColor(fills[i]) ? fills[i] : "#ffffff"}" stroke="#293241" stroke-width="3" stroke-linejoin="round" ${interactive ? `data-region="${i}" tabindex="0" role="button" aria-label="Color ${escape(s.label)}"` : ""}/>`).join("")}${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}</svg>`;
   }
   function regionMask(pixels, x, y, size = 600) {
@@ -125,12 +128,12 @@
     return mask;
   }
   function view() {
-    return `<section class="reader trivia-reader is-setup"><article class="trivia-panel coloring-book" id="coloringBook">
+    return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book" id="coloringBook">
       <div class="coloring-heading"><div><div class="trivia-eyebrow">Games · Create at your own pace</div><h1 id="coloringTitle" tabindex="-1">Bible Coloring Book <small class="game-new-badge">BETA</small></h1></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       <p>Choose a page and a color. Fill a shape or draw with a finger, stylus, or mouse. No timer, no scores—just room to create.</p>
       <div class="coloring-pages" aria-label="Coloring pages">${pages.map(p=>`<button type="button" data-page="${p.id}" aria-pressed="${p.id === selected}">${svg(p)}<strong>${p.title}</strong><small>${p.level} · ${p.reference}</small></button>`).join("")}</div>
       <div class="coloring-workspace"><div class="coloring-tools"><h2>${page().title}</h2><button class="text-btn" data-coloring="read" type="button">Read ${page().reference} →</button>
-      <div class="coloring-actions" aria-label="Coloring mode"><button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">Fill</button><button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">Brush / pixels</button></div>
+      <div class="coloring-actions" aria-label="Coloring mode"><button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">Fill</button><button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">Brush / pixels</button><button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">Pan / scroll</button></div>
       <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label>
       <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
       <button type="button" class="ghost-btn" data-coloring="eraser" aria-pressed="${erasing}">Eraser</button>
@@ -139,14 +142,14 @@
       <div class="coloring-actions"><button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>Undo</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button></div>
       <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
       <div class="coloring-actions"><button class="ghost-btn" type="button" data-coloring="save">Save artwork</button><button class="ghost-btn" type="button" data-coloring="outline">Download outline</button></div>
-      <p id="coloringStatus" role="status">Progress saves on this device. Use two fingers to pan or pinch to zoom. Expand the page for more room. Download an SVG to keep or print.</p></div>
+      <p id="coloringStatus" role="status">Progress saves on this device. Fill: tap to color, swipe to scroll. Brush: draw with a finger or Pencil; use two fingers to pan or pinch. Pan mode lets you scroll with one finger. Expand the page for more room. Download an SVG to keep or print.</p></div>
       <div class="coloring-stage ${expanded ? "is-expanded" : ""}"><div class="coloring-view-controls" aria-label="Canvas view">
       <button class="ghost-btn" type="button" data-coloring="expand">${expanded ? "Exit full screen" : "Full screen"}</button>
       <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
       <button class="ghost-btn" type="button" data-coloring="fit">Fit page</button>
-      <button class="ghost-btn" type="button" data-coloring="mode">${tool==="fill" ? "Fill" : "Brush"}</button><select id="coloringStandardColor" aria-label="Standard colors">${palette.map((c,i)=>`<option value="${c}" ${c===color?"selected":""}>${colorNames[i]}</option>`).join("")}</select><label class="coloring-expanded-color">Custom <input id="coloringExpandedColor" type="color" value="${color}" aria-label="Color in expanded view" /></label>
+      <button class="ghost-btn" type="button" data-coloring="mode">${tool==="fill" ? "Fill" : tool==="pan" ? "Pan" : "Brush"}</button><select id="coloringStandardColor" aria-label="Standard colors">${palette.map((c,i)=>`<option value="${c}" ${c===color?"selected":""}>${colorNames[i]}</option>`).join("")}</select><label class="coloring-expanded-color">Custom <input id="coloringExpandedColor" type="color" value="${color}" aria-label="Color in expanded view" /></label>
       <label class="coloring-line-lock coloring-fullscreen-action"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="erase-expanded">Eraser</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="undo-expanded">Undo</button><select class="coloring-fullscreen-action" id="coloringExpandedSize" aria-label="Brush size in full screen">${[1,4,12,24,48,60].map(n=>`<option value="${n}" ${n===brushSize?"selected":""}>${n}px</option>`).join("")}</select><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="save">Save artwork</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="games">Games menu</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="reader">Back to Bible</button>
-      </div><div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" aria-label="Freehand coloring canvas. Use Fill mode for keyboard coloring."></canvas></div></div></div></div></article></section>`;
+      </div><div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div></div></div></article></section>`;
   }
   function status(message) { document.getElementById("coloringStatus").textContent = message; }
   function persist() { try { localStorage.setItem(KEY,JSON.stringify(saved)); return true; } catch { return false; } }
@@ -163,21 +166,24 @@
     status(stored ? "Progress saved on this device." : "Unable to save on this device. Download your artwork to keep it.");
   }
   function download(outline) {
-    const blob = new Blob([svg(page(), outline)],{type:"image/svg+xml"});
+    if(page().art && !artworkData.has(page().id)){status("Artwork is still loading. Try downloading again in a moment.");return;}
+    const blob = new Blob([svg(page(), outline, false, true, true)],{type:"image/svg+xml"});
     const url = URL.createObjectURL(blob), a = document.createElement("a");
     a.href=url; a.download=`bible-coloring-${selected}${outline?"-outline":""}.svg`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
   function bind(options) {
     callbacks=options;
     const root=document.getElementById("coloringBook"); if (!root) return;
+    const activePage=page();
     const canvas = document.getElementById("coloringPixels"), ctx = canvas.getContext("2d");
-    let drawing = null, gesture = null, suppressFillUntil = 0, ready = !validInk(ink());
+    let drawing = null, tap = null, gesture = null, suppressFillUntil = 0, ready = !validInk(ink());
     const pointers = new Map();
     const viewport = root.querySelector(".coloring-canvas");
     if (!ready) { const img = new Image(); img.onload=()=>{ctx.drawImage(img,0,0);ready=true;}; img.onerror=()=>{ready=true;status("Saved brush marks could not be loaded.");}; img.src=ink(); }
     function updateTool() {
       canvas.classList.toggle("is-drawing", tool === "brush");
-      root.querySelector('[data-coloring="mode"]').textContent=tool === "fill" ? "Fill" : "Brush";
+      root.querySelector('[data-coloring="mode"]').textContent=tool === "fill" ? "Fill" : tool === "pan" ? "Pan" : "Brush";
+      root.querySelector(".coloring-sheet").dataset.coloringTool=tool;
       root.querySelectorAll("[data-tool]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool === tool)));
     }
     root.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;updateTool();});
@@ -189,11 +195,37 @@
     maskCanvas.width=strokeCanvas.width=600;maskCanvas.height=strokeCanvas.height=600;
     const maskCtx=maskCanvas.getContext("2d",{willReadFrequently:true}), strokeCtx=strokeCanvas.getContext("2d");
     let regionPixels=null;
-    const mapImage=new Image();
-    mapImage.onload=()=>{maskCtx.drawImage(mapImage,0,0);regionPixels=maskCtx.getImageData(0,0,600,600).data;};
-    mapImage.onerror=()=>status("Line protection could not load. Reopen this page to try again.");
-    const regionSVG=`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">${page().shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="rgb(${(i+1)&255},${(i+1)>>8},127)" stroke="black" stroke-width="3" stroke-linejoin="round"/>`).join("")}</svg>`;
-    mapImage.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(regionSVG);
+    function readMap(){regionPixels=maskCtx.getImageData(0,0,600,600).data;}
+    if(page().regions){
+      const mapImage=new Image();mapImage.onload=()=>{maskCtx.drawImage(mapImage,0,0,600,600);readMap();};
+      mapImage.onerror=()=>status("Line protection could not load. Reopen this page to try again.");mapImage.src=page().regions;
+      const artImage=new Image();artImage.onload=()=>{const output=document.createElement("canvas");output.width=output.height=1200;output.getContext("2d").drawImage(artImage,0,0,1200,1200);artworkData.set(activePage.id,output.toDataURL("image/png"));};artImage.src=page().art;
+    } else {
+      // Draw native geometry directly. Safari need not rasterize an SVG data URL
+      // before accepting touch or Pencil input on the vector pages.
+      page().shapes.forEach((s,i)=>{
+        maskCtx.save();const a=s.attrs;const rotation=/rotate\(([-.0-9]+)/.exec(a.transform || "");
+        if(rotation){maskCtx.translate(a.cx,a.cy);maskCtx.rotate(Number(rotation[1])*Math.PI/180);maskCtx.translate(-a.cx,-a.cy);}
+        const geometry=new Path2D();
+        if(s.tag==="path")geometry.addPath(new Path2D(a.d));
+        else if(s.tag==="circle")geometry.arc(a.cx,a.cy,a.r,0,Math.PI*2);
+        else if(s.tag==="ellipse")geometry.ellipse(a.cx,a.cy,a.rx,a.ry,0,0,Math.PI*2);
+        else if(a.rx && geometry.roundRect)geometry.roundRect(a.x,a.y,a.width,a.height,a.rx);
+        else geometry.rect(a.x,a.y,a.width,a.height);
+        maskCtx.fillStyle=`rgb(${(i+1)&255},${(i+1)>>8},127)`;maskCtx.strokeStyle="black";maskCtx.lineWidth=3;maskCtx.lineJoin="round";maskCtx.fill(geometry);maskCtx.stroke(geometry);maskCtx.restore();
+      });readMap();
+    }
+    function fillAt(p){
+      if(!regionPixels){status("Preparing this page. Please try again in a moment.");return;}
+      const alpha=regionMask(regionPixels,p.x,p.y);if(!alpha)return;
+      const offset=(Math.floor(p.y)*600+Math.floor(p.x))*4;
+      if(!page().art){const i=regionPixels[offset]+(regionPixels[offset+1]<<8)-1;const region=root.querySelector(`[data-region="${i}"]`);if(region)paint(region);return;}
+      const before=ink() || null, pixels=maskCtx.createImageData(600,600),hex=erasing ? "#ffffff" : color;
+      const rgb=[1,3,5].map(start=>parseInt(hex.slice(start,start+2),16));
+      for(let i=0;i<alpha.length;i+=4)if(alpha[i+3]){pixels.data.set(rgb,i);pixels.data[i+3]=255;}
+      strokeCtx.globalCompositeOperation="source-over";strokeCtx.putImageData(pixels,0,0);ctx.globalCompositeOperation="source-over";ctx.drawImage(strokeCanvas,0,0);
+      saveInk(before);
+    }
     function startRegion(p) {
       if(!withinLines)return true;
       if(!regionPixels){status("Preparing line protection. Try again in a moment.");return false;}
@@ -220,26 +252,30 @@
         ctx.globalCompositeOperation=erasing ? "destination-out" : "source-over";ctx.drawImage(strokeCanvas,0,0);
       }
     }
-    function finish(e) {
-      if (!drawing || e.pointerId !== drawing.id) return;
-      history.push({kind:"ink",previous:drawing.before});if(history.length>30)history.shift();
-      drawing=null; ctx.globalCompositeOperation="source-over";
+    function saveInk(before){
+      history.push({kind:"ink",previous:before});if(history.length>30)history.shift();
+      ctx.globalCompositeOperation="source-over";
       if (!saved.__ink || typeof saved.__ink !== "object") saved.__ink={};
       saved.__ink[selected]=canvas.toDataURL("image/png");
       const stored=persist();root.querySelector('[data-coloring="undo"]').disabled=false;
       status(stored ? "Progress saved on this device." : "Storage is full or unavailable. Download your artwork to keep it.");
+    }
+    function finish(e) {
+      if(tap && e.pointerId===tap.id){const start=tap;tap=null;if(e.type!=="pointercancel" && tool==="fill" && Date.now()>suppressFillUntil && Math.hypot(e.clientX-start.x,e.clientY-start.y)<10)fillAt(point(e));}
+      if(!drawing || e.pointerId!==drawing.id)return;
+      const before=drawing.before;drawing=null;saveInk(before);
     }
     function pinchState() { const [a,b]=[...pointers.values()];return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,d:Math.hypot(a.x-b.x,a.y-b.y)}; }
     const sheet=root.querySelector(".coloring-sheet");
     sheet.addEventListener("pointerdown",e=>{
       if(e.pointerType!=="touch")return;
       pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pointers.size===2) { suppressFillUntil=Date.now()+700;if(drawing)finish({pointerId:drawing.id});gesture=pinchState(); }
+      if(pointers.size===2) { tap=null;suppressFillUntil=Date.now()+700;if(drawing)finish({pointerId:drawing.id});gesture=pinchState(); }
     },true);
     sheet.addEventListener("pointermove",e=>{
       if(!pointers.has(e.pointerId))return;
       pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pointers.size!==2||!gesture)return;
+      if(tool!=="brush" || pointers.size!==2||!gesture)return;
       e.preventDefault();const next=pinchState();
       const before=zoom;setZoom(zoom*next.d/Math.max(gesture.d,1));
       const r=viewport.getBoundingClientRect(),ratio=zoom/before;
@@ -250,15 +286,34 @@
     function releaseTouch(e){pointers.delete(e.pointerId);if(pointers.size<2)gesture=null;}
     sheet.addEventListener("pointerup",releaseTouch);sheet.addEventListener("pointercancel",releaseTouch);
     canvas.onpointerdown=e=>{
-      if(tool!=="brush" || !ready || drawing || pointers.size>1 || e.button !== 0 || !e.isPrimary) return;
-      e.preventDefault();canvas.setPointerCapture(e.pointerId);
-      const p=point(e);if(!startRegion(p))return;drawing={id:e.pointerId,last:p,before:ink() || null};mark(p,p,e);
+      // Safari touch/Pencil events do not consistently supply mouse button or
+      // primary-pointer metadata. Only filter mouse buttons; use pointer IDs
+      // to own the active stroke and allow Pencil even while a palm is present.
+      if(e.pointerType==="pen" && drawing && drawing.pointerType!=="pen")finish({pointerId:drawing.id});
+      if(!ready || drawing || (e.pointerType==="mouse" && e.button!==0))return;
+      if(tool==="fill"){tap={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
+      if(tool!=="brush" || (e.pointerType!=="pen" && pointers.size>1))return;
+      const p=point(e);if(!startRegion(p))return;
+      e.preventDefault();try{canvas.setPointerCapture(e.pointerId);}catch{}
+      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null};mark(p,p,e);
     };
+    let keyboardPoint={x:300,y:300};
+    canvas.onkeydown=e=>{
+      if(tool!=="fill")return;
+      if(e.key==="Enter"||e.key===" "){e.preventDefault();fillAt(keyboardPoint);return;}
+      const step=e.shiftKey ? 1 : 10;
+      if(e.key==="ArrowLeft")keyboardPoint.x-=step;else if(e.key==="ArrowRight")keyboardPoint.x+=step;
+      else if(e.key==="ArrowUp")keyboardPoint.y-=step;else if(e.key==="ArrowDown")keyboardPoint.y+=step;else return;
+      e.preventDefault();keyboardPoint.x=Math.max(0,Math.min(599,keyboardPoint.x));keyboardPoint.y=Math.max(0,Math.min(599,keyboardPoint.y));
+      const cursor=root.querySelector(".coloring-keyboard-target");cursor.style.left=keyboardPoint.x/6+"%";cursor.style.top=keyboardPoint.y/6+"%";
+    };
+    canvas.addEventListener("touchmove",e=>{if(tool==="brush" && e.cancelable)e.preventDefault();},{passive:false});
+    canvas.addEventListener("contextmenu",e=>e.preventDefault());
     canvas.onpointermove=e=>{
       if(!drawing || e.pointerId!==drawing.id)return;
       e.preventDefault(); const samples=e.getCoalescedEvents?.();for(const sample of samples?.length ? samples : [e]) {const p=point(sample);mark(drawing.last,p,sample);drawing.last=p;}
     };
-    canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=finish;
+    canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=e=>{tap=null;if(drawing?.id===e.pointerId)finish(e);};
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
     root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];zoom=1;refresh();});
     function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;document.getElementById("coloringExpandedColor").value=c;document.getElementById("coloringStandardColor").value=c; }
@@ -268,16 +323,17 @@
     document.getElementById("coloringStandardColor").onchange=e=>selectColor(e.target.value);
     document.getElementById("coloringExpandedSize").onchange=e=>{brushSize=Number(e.target.value);document.getElementById("coloringBrushSize").value=brushSize;document.getElementById("coloringBrushValue").textContent=brushSize+"px";};
     root.querySelectorAll("[data-region]").forEach(r=>{r.onclick=()=>{if(tool==="fill" && Date.now()>suppressFillUntil)paint(r);};r.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();paint(r);}};});
+    let fitWidth=0;
     function setZoom(value) {
       zoom=Math.max(1,Math.min(4,value));
-      sheet.style.width=`${zoom*100}%`;
+      sheet.style.width=fitWidth ? `${fitWidth*zoom}px` : `${zoom*100}%`;
       document.getElementById("coloringZoom").value=zoom;
       document.getElementById("coloringZoomLabel").textContent=Math.round(zoom*100)+"%";
     }
     document.getElementById("coloringZoom").oninput=e=>setZoom(Number(e.target.value));
     function fit() {
-      setZoom(1);const size=Math.max(240,Math.min(viewport.clientWidth,viewport.clientHeight));
-      sheet.style.width=size+"px";viewport.scrollTop=0;viewport.scrollLeft=0;
+      fitWidth=Math.max(1,Math.min(viewport.clientWidth,viewport.clientHeight));
+      setZoom(1);viewport.scrollTop=0;viewport.scrollLeft=0;
     }
     const stage=root.querySelector(".coloring-stage");
     function expandedState() {
@@ -302,7 +358,7 @@
         case "zoom-in": setZoom(zoom+.25);break;
         case "zoom-out": setZoom(zoom-.25);break;
         case "fit": fit();break;
-        case "mode": tool=tool==="fill"?"brush":"fill";updateTool();break;
+        case "mode": tool=tool==="fill"?"brush":tool==="brush"?"pan":"fill";updateTool();break;
         case "games":
         case "close": expanded=false;options.close(); break;
         case "reader": expanded=false;options.reader();break;
