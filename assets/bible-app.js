@@ -5548,6 +5548,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.9": [
+      "Parallel Study’s landscape header control now sits flush against the upper-right edge, clear of the Focus verse picker and bookmark control.",
+    ],
     "2026.11.20.8": [
       "Coloring Book now opens directly to the approved illustration with Brush selected and a compact painting dock, including a collapsible palette in full screen. Line protection accepts starts on outlines and batches Pencil strokes smoothly. Undo preserves the canvas, zoom, and scroll position; older draft pages are hidden, and the Games entry uses an artist’s palette icon.",
     ],
