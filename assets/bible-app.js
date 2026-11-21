@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.26": [
+      "Coloring Book silences game control sounds and previews brush color and size under the mouse.",
+    ],
     "2026.11.21.25": [
       "The Coloring Book eraser starts at 10 px.",
     ],
@@ -19045,6 +19048,7 @@ function handleGamesInteractionSound(event) {
   if (state.mode !== "trivia" || !state.wordSearchSounds || state.gameVolume <= 0 || document.hidden) return;
   const control = event.target.closest?.("button, summary, select, input[type=checkbox]");
   if (!control || control.disabled || control.getAttribute("aria-disabled") === "true"
+    || control.closest(".coloring-reader") || control.matches("[data-select-coloring], [data-open-coloring]")
     || !control.closest(".trivia-reader, #bestTimeCelebration")
     || control.matches("[data-hidden-word-key], [data-crossword-key], [data-word-search-cell]")) return;
   const navigation = control.matches("[data-trivia-mode], #gameOptionsToggle, #gameControlsToggle, #gameSocialToggle, #gameHintsToggle");

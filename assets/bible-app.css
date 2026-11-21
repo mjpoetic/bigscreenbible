@@ -29073,3 +29073,18 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   .coloring-stage:not(.is-expanded) .coloring-size-unit { display:none; }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { width:12px; min-width:0; }
 }
+
+.coloring-reader #coloringPixels.has-brush-preview { cursor:none; }
+.coloring-brush-preview {
+  position:absolute;
+  z-index:3;
+  pointer-events:none;
+  box-sizing:border-box;
+  min-width:3px;
+  aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:var(--brush-fill);
+  outline:1px solid var(--brush-outline);
+  box-shadow:0 0 0 2px var(--brush-contrast);
+}
