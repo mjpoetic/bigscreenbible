@@ -284,12 +284,13 @@ for (const difficulty of api.crosswordDifficulties()) {
 }
 
 const triviaViewSource = extractFunction("triviaView");
+const gamesModePickerSource = extractFunction("gamesModePickerMarkup");
 assert.ok(
-  triviaViewSource.indexOf('data-trivia-mode="word-search"') < triviaViewSource.indexOf('data-trivia-mode="crossword"'),
+  gamesModePickerSource.indexOf('["word-search","Word Search"') < gamesModePickerSource.indexOf('["crossword","Crossword"'),
   "Crossword should follow Word Search in the Games list",
 );
 assert.ok(
-  triviaViewSource.indexOf('data-trivia-mode="crossword"') < triviaViewSource.indexOf('data-trivia-mode="trivia"'),
+  gamesModePickerSource.indexOf('["crossword","Crossword"') < gamesModePickerSource.indexOf('["trivia","Trivia"'),
   "Crossword should be prominent before Trivia",
 );
 assert.doesNotMatch(triviaViewSource, /aria-label="Crossword, new"/);

@@ -7,8 +7,9 @@ let removed = false, retry = 0, menu = 0;
 const buttons = [{ disabled: false, focus() {} }, { disabled: false }];
 const events = {};
 const status = {};
-const dialog = { setAttribute() {}, addEventListener(name, fn) { events[name] = fn; }, showModal() {}, close() {}, remove() { removed = true; }, querySelectorAll() { return buttons; }, querySelector(selector) { return selector === 'button' ? buttons[0] : status; } };
-const context = vm.createContext({ document: { createElement: () => dialog, body: { append() {} } }, window: { setInterval() { assert.fail("Record actions must not wait for a timer"); } }, icons: { timer: '' }, formatGameTime: () => '1:05', crosswordHintLimit: 3, playGameOutcomeSound() {}, gameMusicTrackKey: 'outcome:perfect', gameMusicAudio: { paused: false, ended: false }, state: {}, cleanupTriviaCelebration() { vm.runInContext('bestTimeCelebrationCleanup()', context); }, exitTriviaGame() { menu++; }, restartPuzzleAtDifficulty() { retry++; }, requestGameMusicRestart() {}, startTriviaGame() { retry++; } });
+const actions = { querySelector: () => buttons[0] };
+const dialog = { setAttribute() {}, addEventListener(name, fn) { events[name] = fn; }, showModal() {}, close() {}, remove() { removed = true; }, querySelectorAll() { return buttons; }, querySelector(selector) { return selector === 'button' ? buttons[0] : selector === '.best-time-actions' ? actions : status; } };
+const context = vm.createContext({ requestAnimationFrame() {}, document: { createElement: () => dialog, body: { append() {} } }, window: { setInterval() { assert.fail("Record actions must not wait for a timer"); } }, icons: { timer: '' }, formatGameTime: () => '1:05', crosswordHintLimit: 3, playGameOutcomeSound() {}, gameMusicTrackKey: 'outcome:perfect', gameMusicAudio: { paused: false, ended: false }, state: {}, cleanupTriviaCelebration() { vm.runInContext('bestTimeCelebrationCleanup()', context); }, exitTriviaGame() { menu++; }, restartPuzzleAtDifficulty() { retry++; }, requestGameMusicRestart() {}, startTriviaGame() { retry++; } });
 vm.runInContext(source.slice(source.indexOf("function isQuizPointsGame("), source.indexOf("function quizScoreKey(")), context);
 vm.runInContext(source.slice(source.indexOf("function triviaRoundLength("), source.indexOf("function completeTriviaGame(")), context);
 vm.runInContext(section, context);
@@ -28,7 +29,16 @@ let prevented = false; events.cancel({ preventDefault() { prevented = true; } })
 assert.doesNotMatch(dialog.innerHTML, /data-best-time-action="(?:retry|menu)" disabled/);
 assert.equal(removed, false, 'The popup remains until user input');
 assert.equal(context.gameMusicAudio.ended, false, 'Exercise dismissal while audio is still playing');
-events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'retry' } }) } });
+const clickAction = bestTimeAction => events.click({ target: { closest: () => ({ dataset: { bestTimeAction } }) } });
+clickAction('retry');
+assert.match(actions.innerHTML, /Play same mode/);
+assert.match(actions.innerHTML, /Change game or mode/);
+assert.equal(removed, false, 'The results dialog stays open while choosing how to replay');
+assert.equal(retry, 0);
+clickAction('back');
+assert.match(actions.innerHTML, /Try again/);
+clickAction('retry');
+clickAction('replay');
 assert.equal(retry, 1); assert(removed);
 context.showBestTimeCelebration({ type: 'book-sprint' }, { elapsedMs: 65000 });
 events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'menu' } }) } });
@@ -39,7 +49,7 @@ context.showBestTimeCelebration({ type: 'hidden-word', difficulty: 'Hard' }, { p
 assert.match(dialog.innerHTML, /New High Score!/);
 assert.match(dialog.innerHTML, /8,500 pts/);
 assert.doesNotMatch(dialog.innerHTML, /New Best Time!/);
-events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'retry' } }) } });
+events.click({ target: { closest: () => ({ disabled: false, dataset: { bestTimeAction: 'replay' } }) } });
 assert.equal(retry, 2);
 
 vm.runInContext(source.slice(source.indexOf('function triviaRoundLength('), source.indexOf('function completeTriviaGame(')), context);
@@ -48,7 +58,7 @@ for (const type of ['trivia', 'who-said-it', 'book-sprint', 'reference-rush']) {
   round[type === 'trivia' || type === 'who-said-it' ? 'questions' : 'puzzles'] = [{}, {}, {}, {}];
   context.showBestTimeCelebration(round, { points: 7000, elapsedMs: 65000 });
   const before = retry;
-  events.click({ target: { closest: () => ({ dataset: { bestTimeAction: 'retry' } }) } });
+  events.click({ target: { closest: () => ({ dataset: { bestTimeAction: 'replay' } }) } });
   assert.equal(retry, before + 1);
   assert.equal(context.state.triviaCount, 4);
   assert.equal(context.state.triviaDifficulty, 'Easy');
@@ -68,3 +78,10 @@ for (const type of ['trivia','who-said-it','hidden-word','verse-order','referenc
   context.showBestTimeCelebration(round, null);
   assert.match(dialog.innerHTML, /Games menu/);
 }
+
+const completed = { type: 'word-search', complete: true, bestTimeCelebrationShown: true };
+context.showBestTimeCelebration(completed, null, { chooseReplay: true });
+assert.match(dialog.innerHTML, /Play same mode/);
+removed = false;
+clickAction('back');
+assert.equal(removed, true, 'Back returns to the completed board when opened from there');

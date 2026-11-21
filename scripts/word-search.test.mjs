@@ -225,8 +225,9 @@ assert.doesNotMatch(source, /data-trivia-mode="hidden-word"[^\n]*game-new-badge/
 assert.doesNotMatch(source, /aria-label="Crossword, new"/);
 assert.doesNotMatch(source, /aria-label="Word Search, new"/);
 const triviaViewSource = extractFunction("triviaView");
+const gamesModePickerSource = extractFunction("gamesModePickerMarkup");
 assert.ok(
-  triviaViewSource.indexOf('data-trivia-mode="word-search"') < triviaViewSource.indexOf('data-trivia-mode="trivia"'),
+  gamesModePickerSource.indexOf('["word-search","Word Search"') < gamesModePickerSource.indexOf('["trivia","Trivia"'),
   "Word Search must be first in the Games list",
 );
 assert.match(triviaViewSource, /isWordSearch \? wordSearchDifficulties\(\) : isCrossword \? crosswordDifficulties\(\) : isHiddenWord \? hiddenWordDifficulties\(\) : triviaDifficulties\(\)/);

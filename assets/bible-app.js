@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.30": [
+      "Try again lets you replay with the same settings or change games and modes. Word Search reshuffles fixed categories and picks a different category when set to Random.",
+    ],
     "2026.11.21.29": [
       "Challenge a friend now uses a gold accent to distinguish it from the teal game start button.",
     ],
@@ -21987,8 +21990,15 @@ function gameResultPresentation(game) {
   return { tier: "retry", emoji: "😅", title: "Another try?", accuracy, sound: "low" };
 }
 
-function showBestTimeCelebration(game, best) {
-  if (game.bestTimeCelebrationShown) return;
+function gameReplayActionsMarkup() {
+  return `
+    <button type="button" class="primary-btn" data-best-time-action="replay">Play same mode</button>
+    <button type="button" class="ghost-btn" data-best-time-action="menu">Change game or mode</button>
+    <button type="button" class="ghost-btn" data-best-time-action="back">Back to results</button>`;
+}
+
+function showBestTimeCelebration(game, best, { chooseReplay = false } = {}) {
+  if (game.bestTimeCelebrationShown && !chooseReplay) return;
   game.bestTimeCelebrationShown = true;
   const dialog = document.createElement("dialog");
   dialog.id = "bestTimeCelebration";
@@ -22000,6 +22010,10 @@ function showBestTimeCelebration(game, best) {
   const highScore = game.type === "hidden-word" || isQuizPointsGame(game);
   const assisted = game.type === "crossword" && (best?.hintCount || game.hintCount) > 0;
   const roundTime = game.elapsedMs ?? (game.finishedAt && game.startedAt ? Math.max(0, game.finishedAt - game.startedAt) : null);
+  const resultActions = `
+    ${game.type === "word-search" && game.wordSearchMode === "categories" ? '<button type="button" class="primary-btn" data-best-time-action="review">Explore answers</button>' : ""}
+    <button type="button" class="primary-btn" data-best-time-action="retry">Try again</button>
+    <button type="button" class="ghost-btn" data-best-time-action="menu">${icons.returnBack}<span>Games menu</span></button>`;
   dialog.innerHTML = `
     <div class="best-time-art">
       ${recordArtwork || outcome.tier === "perfect" ? bestTimeFireworksMarkup() : ""}${outcome.tier === "perfect" ? `<div class="result-confetti" aria-hidden="true">${Array.from({length: 24}, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div>` : ""}
@@ -22013,19 +22027,15 @@ function showBestTimeCelebration(game, best) {
     </div>
     <div class="best-time-footer">
       <p id="bestTimeDescription">${assisted ? `* Assisted with ${Number(best?.hintCount || game.hintCount)} of ${crosswordHintLimit} letter hints. ` : ""}${outcome.accuracy}% ${["word-search", "crossword"].includes(game.type) ? "completed" : "accuracy"}. ${best ? (highScore ? "That’s your highest score yet!" : "That’s your fastest yet!") : outcome.tier === "perfect" ? "Every one correct — wonderful work!" : "Every round is a chance to learn. Try again!"}${game.timeBonus ? ` Perfect Time Bonus +${game.timeBonus}.` : ""}${roundTime != null ? ` ${highScore ? "Solving time" : "Round time"}: ${formatGameTime(roundTime)}.` : ""}</p>
-      <p class="best-time-status" role="status">Ready for another round?</p>
-      <div class="best-time-actions">
-        ${game.type === "word-search" && game.wordSearchMode === "categories" ? '<button type="button" class="primary-btn" data-best-time-action="review">Explore answers</button>' : ""}
-        <button type="button" class="primary-btn" data-best-time-action="retry">Try again</button>
-        <button type="button" class="ghost-btn" data-best-time-action="menu">${icons.returnBack}<span>Games menu</span></button>
-      </div>
+      <p class="best-time-status" role="status">${chooseReplay ? "Choose how to play again." : "Ready for another round?"}</p>
+      <div class="best-time-actions">${chooseReplay ? gameReplayActionsMarkup() : resultActions}</div>
     </div>`;
   document.body.append(dialog);
   // Native modality keeps pointer and keyboard input inside the celebration.
   dialog.addEventListener("cancel", (event) => event.preventDefault());
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   dialog.showModal();
-  playGameOutcomeSound(outcome.sound);
+  if (!chooseReplay) playGameOutcomeSound(outcome.sound);
   dialog.querySelector("button")?.focus({ preventScroll: true });
   bestTimeCelebrationCleanup = () => {
     dialog.close();
@@ -22036,18 +22046,32 @@ function showBestTimeCelebration(game, best) {
     const button = event.target.closest("[data-best-time-action]");
     if (!button || button.disabled) return;
     const action = button.dataset.bestTimeAction;
+    if (action === "back" && chooseReplay) {
+      cleanupTriviaCelebration();
+      return;
+    }
+    if (action === "retry" || action === "back") {
+      const choosingReplay = action === "retry";
+      const actions = dialog.querySelector(".best-time-actions");
+      actions.innerHTML = choosingReplay ? gameReplayActionsMarkup() : resultActions;
+      dialog.querySelector(".best-time-status").textContent = choosingReplay ? "Choose how to play again." : "Ready for another round?";
+      actions.querySelector(`[data-best-time-action="${choosingReplay ? "replay" : "retry"}"]`)?.focus({ preventScroll: true });
+      return;
+    }
     cleanupTriviaCelebration();
     if (action === "review") {
       renderPreservingReaderScroll();
       requestAnimationFrame(() => document.querySelector("[data-word-search-reference]")?.focus({ preventScroll: true }));
     } else if (action === "menu") {
       exitTriviaGame();
+      requestAnimationFrame(() => document.querySelector(".trivia-mode-tabs > button.active")?.focus({ preventScroll: true }));
     } else {
       state.activeGameChallengeId = "";
       state.triviaGameType = game.type;
+      if (game.type === "hidden-word") state.triviaCount = triviaRoundLength(game);
       if (["word-search", "crossword", "hidden-word"].includes(game.type)) restartPuzzleAtDifficulty(game.difficulty);
       else {
-        state.triviaDifficulty = game.difficulty;
+        if (game.difficulty) state.triviaDifficulty = game.difficulty;
         state.triviaCount = triviaRoundLength(game);
         if (game.category) state.triviaCategory = game.category;
         if (game.type === "reference-rush") state.referenceRushTimed = game.timed;
@@ -26779,6 +26803,7 @@ function bindEvents() {
   });
   document.getElementById("puzzleRestartDialog")?.addEventListener("keydown", trapPuzzleRestartDialog);
   document.getElementById("restartTriviaGame")?.addEventListener("click", () => {
+    if (state.triviaGame?.complete) return showBestTimeCelebration(state.triviaGame, newBestTimeResult(state.triviaGame), { chooseReplay: true });
     if (state.triviaGame?.challengeId) return showToast("Live challenge rounds cannot be restarted");
     if (["word-search", "crossword", "hidden-word"].includes(state.triviaGame?.type)) return openPuzzleRestartPrompt();
     requestGameMusicRestart();
@@ -27974,7 +27999,11 @@ function startWordSearchGame({ render = true } = {}) {
   const difficulty = state.triviaDifficulty === "All" ? "Medium" : state.triviaDifficulty;
   const categoryMode = state.wordSearchMode === "categories";
   const categoryChoice = normalizedWordSearchCategory(state.wordSearchCategory);
-  const categoryChoices = wordSearchCategories().filter(({ value }) => value !== "random");
+  const previousGame = state.triviaGame;
+  const previousCategory = previousGame?.type === "word-search" && previousGame.complete
+    ? previousGame.wordSearchCategory
+    : null;
+  const categoryChoices = wordSearchCategories().filter(({ value }) => value !== "random" && value !== previousCategory);
   const category = categoryMode && categoryChoice === "random"
     ? categoryChoices[Math.floor(triviaRandomSource() * categoryChoices.length)].value
     : categoryChoice;
@@ -28010,6 +28039,10 @@ function startWordSearchGame({ render = true } = {}) {
         const alternateWords = shuffleItems(customEvaluation.candidates).slice(0, config.wordCount);
         generated = createWordSearchGrid(alternateWords, config.size, difficulty);
       }
+    }
+    if (categoryMode && category === previousCategory && generated
+      && JSON.stringify(generated.cells) === JSON.stringify(previousGame.cells)) {
+      generated = null;
     }
     if (generated) {
       selected = option;

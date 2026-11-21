@@ -102,6 +102,12 @@ assert.equal(ctx.state.triviaGame.wordSearchMode, 'categories');
 assert.equal(ctx.state.triviaGame.wordSearchCategory, 'books');
 assert.equal(ctx.state.triviaGame.wordSearchTestament, 'nt');
 assert.equal(ctx.state.triviaGame.difficulty, 'Easy');
+const fixedReplay = ctx.state.triviaGame;
+fixedReplay.complete = true;
+ctx.restartPuzzleAtDifficulty('Easy');
+assert.equal(ctx.state.triviaGame.wordSearchCategory, 'books');
+assert.equal(ctx.state.triviaGame.wordSearchTestament, 'nt');
+assert.notEqual(JSON.stringify(ctx.state.triviaGame.cells), JSON.stringify(fixedReplay.cells));
 console.log(`Word Search category tests passed (800 generated puzzles; maximum ${maximumMs.toFixed(1)}ms)`);
 
 const randomCategories = new Set();
@@ -117,7 +123,10 @@ for (let run = 1; run <= 100; run++) {
   randomCategories.add(randomGame.wordSearchCategory);
 }
 assert.equal(randomCategories.size, 8, 'Random chooses every theme');
+const previousRandom = ctx.state.triviaGame;
+previousRandom.complete = true;
 ctx.restartPuzzleAtDifficulty('Hard');
+assert.notEqual(ctx.state.triviaGame.wordSearchCategory, previousRandom.wordSearchCategory);
 assert.equal(ctx.state.wordSearchCategory, 'random', 'New puzzle keeps random selection');
 assert.equal(ctx.state.triviaGame.wordSearchCategoryChoice, 'random');
 console.log('Random categories passed: all eight themes, actual-category records, random restart');
