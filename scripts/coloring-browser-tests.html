@@ -14,9 +14,13 @@
  const eraserSize=document.querySelector('[data-size-tool="eraser"]');
  check(!brushSize.hidden&&eraserSize.hidden,'Only the active tool shows its size');
  brushSize.querySelector('[data-size-step="1"]').click();
- check(brushSize.querySelector('output').textContent==='13px','Brush size arrows change the size');
+ check(brushSize.querySelector('input').value==='13','Brush size arrows change the size');
+ const sizeInput=brushSize.querySelector('input');
+ sizeInput.value='74';sizeInput.dispatchEvent(new Event('input'));sizeInput.dispatchEvent(new Event('blur'));
+ check(sizeInput.value==='60','Typed brush size is clamped to the supported range');
+ sizeInput.value='13';sizeInput.dispatchEvent(new Event('input'));
  document.querySelector('[data-coloring="eraser"]').click();
- check(brushSize.hidden&&!eraserSize.hidden&&eraserSize.querySelector('output').textContent==='12px','Eraser exposes its own independent size');
+ check(brushSize.hidden&&!eraserSize.hidden&&eraserSize.querySelector('input').value==='12','Eraser exposes its own independent size');
  document.querySelector('[data-tool="brush"]').click();
  brushSize.querySelector('[data-size-step="-1"]').click();
 

@@ -102,7 +102,7 @@
   pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png?v=2"});
   const visiblePages=pages.filter(p=>p.art);
   const artworkData = new Map();
-  let viewportObserver;
+  let viewportObserver, zoomAudio;
   let saved = {};
   let savePending = false;
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
@@ -158,10 +158,10 @@
   function controlLabel(glyph,label){return `<svg class="coloring-tool-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${controlGlyphs[glyph]}</svg><span class="coloring-tool-label">${label}</span>`;}
   function sizeControls(name,size,active){
     return `<div class="coloring-size-controls" data-size-tool="${name}" role="group" aria-label="${name} size" ${active?"":"hidden"}>
-      <output>${size}px</output>
+      <input type="text" inputmode="numeric" value="${size}" aria-label="${name} size in pixels"><span class="coloring-size-unit" aria-hidden="true">px</span>
       <span class="coloring-size-arrows">
-        <button class="ghost-btn" type="button" data-size-step="1" aria-label="Increase ${name} size">▴</button>
-        <button class="ghost-btn" type="button" data-size-step="-1" aria-label="Decrease ${name} size">▾</button>
+        <button type="button" data-size-step="1" aria-label="Increase ${name} size">▴</button>
+        <button type="button" data-size-step="-1" aria-label="Decrease ${name} size">▾</button>
       </span>
     </div>`;
   }
@@ -321,13 +321,26 @@
       erasing=false;
       updateTool();
     });
-    root.querySelectorAll("[data-size-step]").forEach(button=>button.onclick=()=>{
-      const group=button.closest("[data-size-tool]");
+    root.querySelectorAll("[data-size-tool]").forEach(group=>{
+      const input=group.querySelector("input");
       const isEraser=group.dataset.sizeTool==="eraser";
-      const size=Math.max(1,Math.min(60,(isEraser?eraserSize:brushSize)+Number(button.dataset.sizeStep)));
-      if(isEraser)eraserSize=size;
-      else brushSize=size;
-      group.querySelector("output").textContent=size+"px";
+      const currentSize=()=>isEraser?eraserSize:brushSize;
+      function applySize(value){
+        const size=Math.max(1,Math.min(60,value));
+        if(isEraser)eraserSize=size;
+        else brushSize=size;
+        return size;
+      }
+      input.oninput=()=>{
+        if(/^\d+$/.test(input.value))applySize(Number(input.value));
+      };
+      input.onblur=()=>{input.value=currentSize();};
+      input.onkeydown=event=>{
+        if(event.key==="Enter"){event.preventDefault();input.blur();}
+      };
+      group.querySelectorAll("[data-size-step]").forEach(button=>button.onclick=()=>{
+        input.value=applySize(currentSize()+Number(button.dataset.sizeStep));
+      });
     });
     function point(e) { const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*600/r.width,y:(e.clientY-r.top)*600/r.height}; }
     // A region map respects paint order: nested details and foreground objects
@@ -585,6 +598,49 @@
       document.getElementById("coloringZoom").value=zoom;
       document.getElementById("coloringZoomLabel").textContent=Math.round(zoom*100)+"%";
     }
+    let zoomTimer=0, suppressZoomClick=false;
+    function stopZoomHold(){
+      clearTimeout(zoomTimer);
+      zoomTimer=0;
+    }
+    function playZoomLimit(){
+      if(zoomAudio?.state!=="running")return;
+      const tone=zoomAudio.createOscillator(),gain=zoomAudio.createGain(),now=zoomAudio.currentTime;
+      tone.frequency.value=540;
+      gain.gain.setValueAtTime(.055,now);
+      gain.gain.exponentialRampToValueAtTime(.001,now+.09);
+      tone.connect(gain);
+      gain.connect(zoomAudio.destination);
+      tone.start(now);
+      tone.stop(now+.09);
+    }
+    root.querySelectorAll('[data-coloring="zoom-in"],[data-coloring="zoom-out"]').forEach(button=>{
+      button.onpointerdown=event=>{
+        if(!event.isPrimary || event.button!==0)return;
+        stopZoomHold();
+        suppressZoomClick=false;
+        button.setPointerCapture(event.pointerId);
+        try{
+          const Audio=window.AudioContext || window.webkitAudioContext;
+          if(Audio)zoomAudio ||= new Audio();
+          if(zoomAudio?.state==="suspended")void zoomAudio.resume().catch(()=>{});
+        }catch{}
+        const delta=button.dataset.coloring==="zoom-in"?.25:-.25;
+        const limit=delta>0?4:1;
+        function repeatZoom(){
+          if(!root.isConnected)return;
+          suppressZoomClick=true;
+          setZoom(zoom+delta);
+          if(zoom===limit){playZoomLimit();return;}
+          zoomTimer=setTimeout(repeatZoom,65);
+        }
+        zoomTimer=setTimeout(repeatZoom,250);
+      };
+      button.onpointerup=button.onpointercancel=button.onlostpointercapture=stopZoomHold;
+    });
+    document.addEventListener("visibilitychange",()=>{
+      if(document.hidden)stopZoomHold();
+    },{signal:lifecycle.signal});
     document.getElementById("coloringZoom").oninput=e=>setZoom(Number(e.target.value));
     function fit() {
       fitWidth=Math.max(1,Math.min(viewport.clientWidth,viewport.clientHeight));
@@ -633,8 +689,11 @@
       switch(b.dataset.coloring) {
         case "skin-tones": skinPanel.hidden=!skinPanel.hidden;b.setAttribute("aria-expanded",String(!skinPanel.hidden));more.open=false;break;
         case "expand": toggleExpanded();break;
-        case "zoom-in": setZoom(zoom+.25);break;
-        case "zoom-out": setZoom(zoom-.25);break;
+        case "zoom-in":
+        case "zoom-out":
+          if(!suppressZoomClick || e.detail===0)setZoom(zoom+(b.dataset.coloring==="zoom-in"?.25:-.25));
+          suppressZoomClick=false;
+          break;
         case "fit": fit();break;
         case "games":
         case "close": if(expanded)toggleExpanded();options.close(); break;
