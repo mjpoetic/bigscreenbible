@@ -411,6 +411,46 @@ html[data-control-material="glass"] :is(.trivia-actions .primary-btn, #checkVers
   color: var(--accent-ink);
   box-shadow: inset 0 1px 0 var(--glass-light);
 }
+/* Challenge invitations, departures, and confirmation dialogs use one glass surface. */
+html[data-control-material="glass"] .game-challenge-popup {
+  border-radius: 24px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .42), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--glass-ink);
+}
+
+html[data-control-material="glass"] .game-challenge-popup :is(.game-challenge-popup-summary, .ghost-btn) {
+  border-radius: 999px;
+  border-color: var(--glass-edge);
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  color: var(--glass-ink);
+}
+
+html[data-control-material="glass"] .game-challenge-popup .primary-btn {
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--teal);
+  box-shadow: var(--glass-shadow);
+  color: var(--accent-ink);
+}
+
+html[data-control-material="glass"] :is(button.trivia-end-challenge, .game-challenge-popup button[data-game-challenge-action="end-solo"]) {
+  border-radius: 999px;
+  border-color: color-mix(in srgb, var(--red-letter) 65%, var(--glass-edge));
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--red-letter) 18%, var(--glass-fill));
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  color: var(--red-letter);
+}
+
+html[data-control-material="glass"] :is(button.trivia-end-challenge, .game-challenge-popup button[data-game-challenge-action="end-solo"]):is(:hover, :focus-visible) {
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--red-letter) 30%, var(--glass-fill));
+}
+
 html[data-control-material="glass"] :is(.hidden-word-keyboard, .crossword-keyboard) button {
   border-radius: 12px;
   border-color: var(--glass-edge);

@@ -3700,6 +3700,18 @@ label.social-terms-consent {
   animation: dialogIn var(--motion-slow) var(--motion-ease) both;
 }
 
+dialog.game-challenge-confirm {
+  position: fixed;
+  inset: 0;
+  width: min(500px, calc(100% - 44px));
+  margin: auto;
+}
+
+.game-challenge-confirm::backdrop {
+  background: rgba(7, 12, 20, 0.66);
+  backdrop-filter: blur(12px);
+}
+
 .game-challenge-popup-overlay.continuing,
 .game-challenge-popup-overlay.continuing .game-challenge-popup {
   animation: none;

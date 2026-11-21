@@ -41,6 +41,9 @@ try {
  const departureMigration = read('supabase/migrations/20261121042039_live_challenge_departures.sql');
  assert.ok(read('supabase/schema.sql').includes(departureMigration));
  await db.exec(departureMigration);
+ const expertMigration = read('supabase/migrations/20261121042839_expert_puzzle_rooms.sql');
+ assert.ok(read('supabase/schema.sql').includes(expertMigration));
+ await db.exec(expertMigration);
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
@@ -166,11 +169,12 @@ try {
 
  for (const type of ['word-search','crossword','hidden-word']) {
   await login(a);
-  const puzzle={type,words:['FAITH'],cells:[['F']],difficulty:'Medium',version:'BSB'};
+  const difficulty = type === 'hidden-word' ? 'Medium' : 'Expert';
+  const puzzle={type,words:['FAITH'],cells:[['F']],difficulty,version:'BSB'};
   const invitees = type === 'hidden-word' ? [b, c] : [b];
-  const create=()=>db.query(`select public.create_bsb_puzzle_room($3::uuid[],$1,'Mixed','Medium',5::smallint,'BSB',false,$2::jsonb) id`,[type,JSON.stringify(puzzle),invitees]);
+  const create=()=>db.query(`select public.create_bsb_puzzle_room($3::uuid[],$1,'Mixed',$4,5::smallint,'BSB',false,$2::jsonb) id`,[type,JSON.stringify(puzzle),invitees,difficulty]);
   const room=(await create()).rows[0].id;
-  assert.deepEqual((await db.query(`select puzzle from public.bsb_game_challenges where id='${room}'`)).rows[0].puzzle,puzzle);
+  assert.deepEqual((await db.query(`select puzzle, difficulty from public.bsb_game_challenges where id='${room}'`)).rows[0], { puzzle, difficulty });
   await denied(`update public.bsb_game_challenge_players set puzzle_state='{"score":1}' where challenge_id='${room}' and user_id='${a}'`,'23514');
   await login(c);
   if (invitees.includes(c)) {

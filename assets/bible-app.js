@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.25": [
+      "Expert Word Search and Crossword now support live challenges. Challenge dialogs and End challenge controls follow the Liquid Glass setting.",
+    ],
     "2026.11.20.24": [
       "Players can leave live challenges. In head-to-head games, the remaining player can continue or end the challenge. Group games continue and announce departures.",
     ],
@@ -13072,7 +13075,12 @@ async function exitGameChallengeRoom(challengeId, endForEveryone = false) {
     showToast(error?.message || "Could not leave this challenge");
     await loadGameChallenges({ render: false });
     if (!endForEveryone && state.activeGameChallengeId === challengeId
-      && window.confirm("The room couldn’t be updated. Leave the game on this device anyway?")) {
+      && await confirmGameChallengeAction({
+        title: "Leave on this device?",
+        message: "The room couldn’t be updated. You can still return to the Games menu.",
+        confirmLabel: "Leave game",
+      })
+      && state.activeGameChallengeId === challengeId) {
       clearActiveGameChallenge();
     }
   } finally {
@@ -13386,12 +13394,44 @@ function maybeStartActiveGameChallenge({ render = true } = {}) {
   startLoadedGameChallenge(challenge, { render });
 }
 
-function handleGameChallengeAction(button) {
+function confirmGameChallengeAction({ title, message, confirmLabel, opener }) {
+  if (document.getElementById("gameChallengeConfirmDialog")) return Promise.resolve(false);
+  const dialog = document.createElement("dialog");
+  dialog.id = "gameChallengeConfirmDialog";
+  dialog.className = "game-challenge-popup game-challenge-confirm";
+  dialog.setAttribute("aria-labelledby", "gameChallengeConfirmTitle");
+  dialog.setAttribute("aria-describedby", "gameChallengeConfirmDescription");
+  dialog.innerHTML = `
+    <div class="game-challenge-popup-icon" aria-hidden="true">${icons.trivia}</div>
+    <h2 id="gameChallengeConfirmTitle">${escapeHtml(title)}</h2>
+    <p id="gameChallengeConfirmDescription">${escapeHtml(message)}</p>
+    <form method="dialog" class="game-challenge-popup-actions">
+      <button class="ghost-btn" value="cancel" autofocus>Keep playing</button>
+      <button class="ghost-btn trivia-end-challenge" value="confirm">${escapeHtml(confirmLabel)}</button>
+    </form>`;
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => {
+      const confirmed = dialog.returnValue === "confirm";
+      dialog.remove();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      resolve(confirmed);
+    }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
+async function handleGameChallengeAction(button) {
   const action = button.dataset.gameChallengeAction;
   const challengeId = button.dataset.gameChallengeId || "";
   if (["accept", "decline"].includes(action)) return updateGameChallengeResponse(challengeId, action);
   if (["leave", "end", "end-solo", "cancel"].includes(action)) {
-    if (action === "end" && !window.confirm("End this live challenge for every player?")) return;
+    if (action === "end" && !await confirmGameChallengeAction({
+      title: "End this live challenge for every player?",
+      message: "Everyone will return to the Games menu.",
+      confirmLabel: "End challenge",
+      opener: button,
+    })) return;
     return exitGameChallengeRoom(challengeId, action !== "leave");
   }
   if (action === "invite" || action === "remove") {

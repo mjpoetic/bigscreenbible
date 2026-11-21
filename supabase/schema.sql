@@ -3251,3 +3251,12 @@ returns void language sql security invoker set search_path = '' as $$
 $$;
 revoke all on function public.exit_bsb_game_room(uuid, boolean) from public, anon, service_role;
 grant execute on function public.exit_bsb_game_room(uuid, boolean) to authenticated;
+
+-- Expert puzzle rooms migration 20261121042839
+alter table public.bsb_game_challenges
+  drop constraint bsb_game_challenges_difficulty_check,
+  add constraint bsb_game_challenges_difficulty_check
+  check (
+    difficulty in ('All', 'Easy', 'Medium', 'Hard')
+    or (game_type in ('word-search', 'crossword') and difficulty = 'Expert')
+  );
