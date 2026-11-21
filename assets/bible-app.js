@@ -5555,6 +5555,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.38": [
+      "Google Play and App Store badges now sit side by side at the bottom of Settings on the website.",
+    ],
+    "2026.11.21.37": [
+      "The website adds a Google Play download link and an App Store coming-soon spot under About & Legal. Store downloads are hidden inside the mobile apps.",
+    ],
     "2026.11.21.36": [
       "Coloring Book visibly dims Undo and Redo whenever those actions are unavailable.",
     ],
@@ -7267,6 +7273,17 @@ function mainSettingsRootMarkup(prefix = "") {
       ${settingsDestinationRow("startup", "Startup & Notifications", startupSummary, "startup reminders notifications morning evening friend requests game challenges streak quiet mode verse of the day")}
       ${window.bsbOffline ? settingsDestinationRow("offline", "Offline Bibles", "6 Bibles included on this iPhone", "offline download downloaded internet storage airplane BSB KJV WEB ASV BBE YLT") : ""}
       ${settingsDestinationRow("app", "App, Help & Legal", `Version ${appVersion}`, "app updates check refresh help tour keyboard shortcuts about support contact email legal privacy terms")}
+      ${window.Capacitor?.isNativePlatform?.() ? "" : `
+        <div class="settings-store-badges" role="group" aria-label="Mobile app downloads">
+          <a href="https://play.google.com/store/apps/details?id=com.bigscreenbible.app">
+            <img src="./assets/google-play-download-badge.png" width="564" height="168" alt="Get Big Screen Bible on Google Play" />
+          </a>
+          <div class="settings-app-store-preview">
+            <img src="./assets/app-store-download-badge.svg" width="120" height="40" alt="App Store" />
+            <span>Coming Soon!</span>
+          </div>
+        </div>
+      `}
     </nav>
     ${settingsDeepSearchResultsMarkup(prefix)}
   `;
