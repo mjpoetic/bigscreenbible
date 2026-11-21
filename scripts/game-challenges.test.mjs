@@ -226,17 +226,42 @@ const popupContext = vm.createContext({
   gameChallengeSummary: () => "Trivia",
   gameChallengePopupIsVisible: () => true,
   gameChallengePopupNoticeKey: () => "notice",
+  gameChallengeAcceptedPlayers: () => [{ isHost: true }, { ready: true }],
 });
+vm.runInContext(extractFunction("gameRoomCanStart"), popupContext);
 vm.runInContext(extractFunction("gameChallengePopup"), popupContext);
 for (const [kind, status, challengeId, action, label] of [
   ["incoming", "invited", "incoming", "accept", "I’m ready"],
-  ["reply", "accepted", "outgoing", "ready-open", "I’m ready"],
+  ["reply", "accepted", "outgoing", "start-room", "Start game"],
   ["incoming", "rematch", "rematch", "join", "Join rematch"],
 ]) {
   popupContext.gameChallengePopupNotice = { kind, status, challengeId, actorUserId: "friend" };
   const markup = popupContext.gameChallengePopup();
   assert.match(markup, new RegExp(`data-game-challenge-action="${action}"[\\s\\S]*>${label}</button>`));
 }
+const lobby = state.gameChallenges.find((challenge) => challenge.id === "outgoing");
+const host = { userId: "user-a", isHost: true, inviteStatus: "accepted" };
+const guest = { userId: "user-c", ready: true, inviteStatus: "accepted" };
+const lobbyContext = vm.createContext({
+  state: { authUser: { id: host.userId } },
+  gameChallengePlayersFor: () => [host, guest],
+  gameChallengePlayer: () => guest,
+  gameRoomLobbyPlayer: () => "",
+  gameChallengeTitle: () => "Trivia",
+  escapeHtml: String,
+});
+for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomLobbyCard"]) {
+  vm.runInContext(extractFunction(name), lobbyContext);
+}
+const hostMarkup = lobbyContext.gameRoomLobbyCard(lobby);
+assert.match(hostMarkup, /data-game-challenge-action="start-room"[^>]*>Start game/);
+assert.doesNotMatch(hostMarkup, /disabled|data-game-challenge-action="cancel"/);
+lobbyContext.state.authUser.id = guest.userId;
+const guestMarkup = lobbyContext.gameRoomLobbyCard(lobby);
+assert.match(guestMarkup, /role="status"[\s\S]*loading-spinner[\s\S]*Waiting for the host to start the game/);
+assert.doesNotMatch(guestMarkup, /data-game-challenge-action/);
+guest.ready = false;
+assert.match(lobbyContext.gameRoomLobbyCard(lobby), /data-game-challenge-action="ready"/);
 assert.equal(
   pureContext.popupShouldInterrupt({ kind: "incoming" }, true, "reader"),
   false,

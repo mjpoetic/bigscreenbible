@@ -5550,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.20": [
+      "Ready guests see a waiting indicator while the host sees Start game as soon as the room is ready.",
+    ],
     "2026.11.20.19": [
       "The offline reader now shows a more prominent notice with a Return online button.",
     ],
@@ -8199,7 +8202,8 @@ function gameChallengePopupCandidates(
       .filter((player) => (
         !player.isHost
         && previousByUser.get(player.userId)?.inviteStatus === "invited"
-        && ["accepted", "declined"].includes(player.inviteStatus)
+        && (player.inviteStatus === "declined"
+          || (player.inviteStatus === "accepted" && state.activeGameChallengeId !== challenge.id))
       ))
       .map((player) => ({
         userId,
@@ -8364,17 +8368,18 @@ function gameChallengePopup() {
   const accepted = notice.status === "accepted";
   const rematch = notice.status === "rematch";
   const waiting = challenge.status === "pending";
+  const canStart = accepted && waiting && gameRoomCanStart(gameChallengeAcceptedPlayers(challenge.id));
   const title = rematch ? `${personName} started a rematch`
     : incoming ? `${personName} invited you`
       : accepted ? `${personName} joined your room` : `${personName} may play later`;
   const body = rematch ? "Jump back in with the same challenge and players."
     : incoming ? "Join ready to play. The host will start the game."
-      : accepted ? waiting ? "Get ready and see who’s ready to play." : "The game has already started."
+      : accepted ? waiting ? canStart ? "Your friends are ready to play." : "See who’s ready to play." : "The game has already started."
         : "They passed on this room. You can invite them again another time.";
-  const primaryAction = rematch ? "join" : incoming ? "accept" : accepted ? waiting ? "ready-open" : "join" : "";
+  const primaryAction = rematch ? "join" : incoming ? "accept" : canStart ? "start-room" : accepted ? "join" : "";
   const primaryLabel = state.gameChallengeActionBusyId === challenge.id ? "Working…"
-    : rematch ? "Join rematch" : incoming || (accepted && waiting) ? "I’m ready"
-      : accepted ? "Join game" : "Got it";
+    : rematch ? "Join rematch" : incoming ? "I’m ready" : canStart ? "Start game"
+      : accepted ? waiting ? "View room" : "Join game" : "Got it";
   const popupBusy = Boolean(state.gameChallengeActionBusyId);
   return `
     <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}">
@@ -12941,7 +12946,7 @@ async function joinGameChallenge(challengeId) {
     .catch((error) => console.warn("Game room presence failed", error));
 }
 
-async function setGameRoomReady(challengeId, ready, { openRoom = false } = {}) {
+async function setGameRoomReady(challengeId, ready) {
   const client = createSupabaseClient();
   if (!client || !challengeId || state.gameChallengeActionBusyId) return;
   state.gameChallengeActionBusyId = challengeId;
@@ -12960,13 +12965,7 @@ async function setGameRoomReady(challengeId, ready, { openRoom = false } = {}) {
     if (!data?.challenge_id) throw new Error("That waiting room is no longer available.");
     state.gameChallengeActionBusyId = "";
     await loadGameChallenges({ render: false });
-    if (openRoom) {
-      clearMatchingGameChallengePopup(challengeId);
-      if (!gameChallengePopupNotice) showNextGameChallengePopup();
-      await joinGameChallenge(challengeId);
-    } else {
-      await trackActiveGameRoomPresence();
-    }
+    await trackActiveGameRoomPresence();
     state.gameChallengeMessage = ready ? "You’re ready." : "Ready state cleared.";
   } catch (error) {
     console.warn("Game room ready update failed", error);
@@ -12989,10 +12988,9 @@ async function startGameRoom(challengeId) {
     if (error) throw error;
     if (!data) throw new Error("That waiting room could not start.");
     state.gameChallengeActionBusyId = "";
+    clearMatchingGameChallengePopup(challengeId);
     await loadGameChallenges({ render: false });
-    state.activeGameChallengeId = challengeId;
-    const challenge = activeGameChallenge();
-    if (challenge) startLoadedGameChallenge(challenge);
+    await joinGameChallenge(challengeId);
     showToast("Game started");
   } catch (error) {
     console.warn("Game room start failed", error);
@@ -13210,7 +13208,6 @@ function handleGameChallengeAction(button) {
     return updateGameChallengeResponse(challengeId, action);
   }
   if (action === "rematch") return rematchGameRoom(challengeId);
-  if (action === "ready-open") return setGameRoomReady(challengeId, true, { openRoom: true });
   if (action === "ready") return setGameRoomReady(challengeId, true);
   if (action === "not-ready") return setGameRoomReady(challengeId, false);
   if (action === "start-room") return startGameRoom(challengeId);
@@ -19231,6 +19228,10 @@ function gameRoomLobbyPlayer(challenge, player) {
   `;
 }
 
+function gameRoomCanStart(acceptedPlayers) {
+  return acceptedPlayers.length >= 2 && acceptedPlayers.every((player) => player.isHost || player.ready);
+}
+
 function gameRoomLobbyCard(challenge) {
   const players = gameChallengePlayersFor(challenge.id)
     .filter((player) => ["accepted", "invited"].includes(player.inviteStatus))
@@ -19243,8 +19244,7 @@ function gameRoomLobbyCard(challenge) {
   const invitedPlayers = players.filter((player) => player.inviteStatus === "invited");
   const selfPlayer = gameChallengePlayer(challenge.id);
   const isHost = challenge.challengerId === state.authUser?.id;
-  const canStart = acceptedPlayers.length >= 2
-    && acceptedPlayers.every((player) => player.isHost || player.ready);
+  const canStart = gameRoomCanStart(acceptedPlayers);
   const busy = Boolean(state.gameChallengeActionBusyId);
   return `
     <section class="challenge-setup-card game-room-lobby" aria-labelledby="gameRoomLobbyTitle">
@@ -19265,16 +19265,17 @@ function gameRoomLobbyCard(challenge) {
             data-game-challenge-id="${escapeHtml(challenge.id)}"
             ${!canStart || busy ? "disabled" : ""}
           >${state.gameChallengeActionBusyId === challenge.id ? "Starting…" : "Start game"}</button>
-          ${gameChallengeActionButton("cancel", "Cancel room", challenge, { danger: true })}
+          ${canStart ? "" : gameChallengeActionButton("cancel", "Cancel room", challenge, { danger: true })}
         ` : selfPlayer?.ready
-          ? gameChallengeActionButton("not-ready", "Not ready", challenge)
+          ? `<div class="game-room-waiting-status" role="status">
+              <span class="loading-spinner" aria-hidden="true"></span>
+              Waiting for the host to start the game
+            </div>`
           : gameChallengeActionButton("ready", "I’m ready", challenge, { primary: true })}
       </div>
-      <small>${isHost
-        ? canStart ? "Your friends are ready. Start the game when you’re ready."
-          : acceptedPlayers.length < 2 ? "Start becomes available when a friend joins ready to play."
-            : "Waiting for joined players to mark themselves ready."
-        : selfPlayer?.ready ? "You’re ready. The host will start the game." : "Tap I’m ready when you’re set to play."}</small>
+      ${isHost && !canStart ? `<small>${acceptedPlayers.length < 2
+        ? "Start becomes available when a friend joins ready to play."
+        : "Waiting for joined players to mark themselves ready."}</small>` : ""}
     </section>
   `;
 }
