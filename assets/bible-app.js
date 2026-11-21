@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.3": [
+      "Two-finger zoom works with Fill and cancels accidental Brush marks when the second finger touches the page.",
+    ],
     "2026.11.21.2": [
       "Move mode in Coloring Book supports two-finger pinch zoom and one-finger panning.",
     ],

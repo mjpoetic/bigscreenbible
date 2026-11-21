@@ -243,6 +243,7 @@
     const canvas = document.getElementById("coloringPixels"), ctx = canvas.getContext("2d");
     let drawing = null, tap = null, gesture = null, suppressFillUntil = 0, ready = !validInk(ink());
     const pointers = new Map();
+    let touchGesture = false;
     const viewport = root.querySelector(".coloring-canvas");
     let drag = null;
     viewport.onpointerdown = event => {
@@ -378,7 +379,7 @@
       flushStroke();
       clearTimeout(checkpointTimer);
       checkpointTimer=0;
-      if(drawing.changed)storeInk();
+      if(drawing.changed){drawing.checkpointed=true;storeInk();}
     }
     const lifecycle = new AbortController();
     inkLifecycle?.abort();
@@ -388,7 +389,7 @@
       if(document.hidden)checkpointStroke();
     },{signal:lifecycle.signal});
     function finish(e) {
-      if(tap && e.pointerId===tap.id){const start=tap;tap=null;if(e.type!=="pointercancel" && tool==="fill" && Date.now()>suppressFillUntil && Math.hypot(e.clientX-start.x,e.clientY-start.y)<10)fillAt(point(e));}
+      if(tap && e.pointerId===tap.id){const start=tap;tap=null;if(e.type!=="pointercancel" && tool==="fill" && Math.hypot(e.clientX-start.x,e.clientY-start.y)<10)fillAt(point(e));}
       if(!drawing || e.pointerId!==drawing.id)return;
       flushStroke();clearTimeout(checkpointTimer);checkpointTimer=0;const completed=drawing;drawing=null;pendingPoints=[];if(completed.changed)saveInk(completed.before);
     }
@@ -397,18 +398,37 @@
     sheet.addEventListener("pointerdown",e=>{
       if(e.pointerType!=="touch" || drawing?.pointerType==="pen")return;
       pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pointers.size===2) { tap=null;suppressFillUntil=Date.now()+700;if(drawing)finish({pointerId:drawing.id});gesture=pinchState(); }
+      if(pointers.size!==2)return;
+      touchGesture=true;
+      tap=null;
+      if(drawing?.pointerType==="touch"){
+        // The first finger may have started a stroke before the second arrived.
+        // Restore its exact starting pixels without adding an Undo entry.
+        cancelAnimationFrame(strokeFrame);
+        clearTimeout(checkpointTimer);
+        strokeFrame=checkpointTimer=0;
+        pendingPoints=[];
+        ctx.putImageData(drawing.touchSnapshot,0,0);
+        if(drawing.checkpointed){
+          if(drawing.before)saved.__ink[activePage.id]=drawing.before;
+          else delete saved.__ink[activePage.id];
+          persist();
+        }
+        drawing=null;
+      }
+      gesture=pinchState();
     },true);
     sheet.addEventListener("pointermove",e=>{
       const previous=pointers.get(e.pointerId);
       if(!previous)return;
       pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(tool==="pan" && pointers.size===1){
+      if(tool==="fill" && tap?.id===e.pointerId && Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>=10)tap=null;
+      if((tool==="pan" || (tool==="fill" && !tap)) && pointers.size===1){
         viewport.scrollLeft+=previous.x-e.clientX;
         viewport.scrollTop+=previous.y-e.clientY;
         return;
       }
-      if((tool!=="brush" && tool!=="pan") || pointers.size!==2 || !gesture)return;
+      if(pointers.size!==2 || !gesture)return;
       e.preventDefault();const next=pinchState();
       const before=zoom;setZoom(zoom*next.d/Math.max(gesture.d,1));
       const r=viewport.getBoundingClientRect(),ratio=zoom/before;
@@ -416,7 +436,14 @@
       viewport.scrollTop=(viewport.scrollTop+gesture.y-r.top)*ratio-(next.y-r.top);
       gesture=next;
     },true);
-    function releaseTouch(e){pointers.delete(e.pointerId);if(pointers.size<2)gesture=null;}
+    function releaseTouch(e){
+      if(!pointers.delete(e.pointerId))return;
+      if(pointers.size<2)gesture=null;
+      if(touchGesture && !pointers.size){
+        touchGesture=false;
+        suppressFillUntil=Date.now()+700;
+      }
+    }
     sheet.addEventListener("pointerup",releaseTouch);sheet.addEventListener("pointercancel",releaseTouch);
     canvas.onpointerdown=e=>{
       // Safari touch/Pencil events do not consistently supply mouse button or
@@ -424,11 +451,14 @@
       // to own the active stroke and allow Pencil even while a palm is present.
       if(e.pointerType==="pen" && drawing && drawing.pointerType!=="pen")finish({pointerId:drawing.id});
       if(!ready || drawing || (e.pointerType==="mouse" && e.button!==0))return;
+      if(e.pointerType==="touch" && touchGesture)return;
       if(tool==="fill"){tap={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
       if(tool!=="brush" || (e.pointerType!=="pen" && pointers.size>1))return;
       const p=point(e);
       e.preventDefault();try{canvas.setPointerCapture(e.pointerId);}catch{}
-      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,maskReady:!withinLines,changed:false};markPoints([p],e);
+      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,maskReady:!withinLines,changed:false,
+        touchSnapshot:e.pointerType==="touch"?ctx.getImageData(0,0,canvas.width,canvas.height):null};
+      markPoints([p],e);
     };
     let keyboardPoint={x:300,y:300};
     canvas.onkeydown=e=>{
@@ -458,7 +488,7 @@
 
 
 
-    root.querySelectorAll("[data-region]").forEach(r=>{r.onclick=()=>{if(tool==="fill" && Date.now()>suppressFillUntil)paint(r);};r.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();paint(r);}};});
+    root.querySelectorAll("[data-region]").forEach(r=>{r.onclick=()=>{if(tool==="fill" && !touchGesture && Date.now()>suppressFillUntil)paint(r);};r.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();paint(r);}};});
     let fitWidth=0;
     function setZoom(value) {
       zoom=Math.max(1,Math.min(4,value));

@@ -45,6 +45,19 @@
  URL.createObjectURL=createURL;HTMLAnchorElement.prototype.click=anchorClick;
  const exportedText=await exported.text();
  check(exportedText.includes('data:image/png;base64,')&&!exportedText.includes('href="./assets/'),'Saved SVG embeds the illustration for standalone viewing');
+ for(const tool of ['brush','fill']){
+   document.querySelector('[data-tool="'+tool+'"]').click();
+   document.querySelector('[data-coloring="fit"]').click();
+   const beforePinch=canvas.toDataURL();
+   event('pointerdown',180,340,'touch',31);
+   event('pointerdown',230,340,'touch',32);
+   event('pointermove',300,340,'touch',32);
+   event('pointerup',300,340,'touch',32);
+   event('pointerup',180,340,'touch',31);
+   check(Number.parseInt(document.querySelector('#coloringZoomLabel').textContent)>100,tool+' allows pinch zoom');
+   check(canvas.toDataURL()===beforePinch,tool+' leaves the art unchanged after a pinch');
+ }
+ document.querySelector('[data-coloring="fit"]').click();
  const viewport=document.querySelector('.coloring-canvas'),sheet=document.querySelector('.coloring-sheet');
  document.querySelector('[data-coloring="zoom-in"]').click();viewport.scrollTop=70;viewport.scrollLeft=30;
  const width=sheet.style.width,top=viewport.scrollTop,left=viewport.scrollLeft;
