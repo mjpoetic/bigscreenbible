@@ -28664,6 +28664,8 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-studio .coloring-heading { margin:0 0 10px; gap:8px; }
 .coloring-studio .coloring-heading h1 { margin:0; font-size:24px; }
 .coloring-studio .coloring-heading p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+.coloring-studio .coloring-heading .coloring-page-title { color:var(--teal); font-weight:700; }
+.coloring-studio .coloring-heading .coloring-beta-note { margin-top:6px; font-style:italic; }
 .coloring-studio .coloring-stage { display:flex; flex-direction:column; height:calc(100dvh - 106px); min-height:400px; gap:8px; }
 .coloring-studio .coloring-canvas { position:relative; z-index:0; flex:1; min-height:0; max-height:none; }
 .coloring-studio .coloring-view-controls { position:relative; z-index:2; display:flex; flex-direction:column; flex-wrap:nowrap; gap:8px; margin:0; padding:10px; border:1px solid var(--line); border-radius:20px; background:var(--panel); overflow:visible; }
@@ -28905,4 +28907,58 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   .coloring-studio .coloring-stage:not(.is-expanded) #coloringStatus {
     grid-area:3 / 1;
   }
+}
+
+.app-version-button {
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.app-version-dialog {
+  box-sizing: border-box;
+  width: min(360px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.app-version-dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.app-version-dialog h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.app-version-dialog p {
+  margin: 10px 0 16px;
+}
+
+.app-version-dialog form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.app-version-dialog button {
+  width: auto;
+  min-height: 40px;
+}
+
+.app-version-dialog button[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.68;
 }

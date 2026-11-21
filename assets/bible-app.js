@@ -5555,6 +5555,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.15": [
+      "The Coloring Book page title is now easier to distinguish from the beta note.",
+    ],
+    "2026.11.21.15": [
+      "Tap the site version in Help & Tour or About & Legal to check for updates.",
+    ],
     "2026.11.21.14": [
       "The Coloring Book beta now lets players know more coloring pages are coming.",
     ],
@@ -6264,19 +6270,69 @@ function appUpdateControls(prefix = "") {
     `;
   }
   const buttonId = prefix ? `${prefix}AppUpdateButton` : "appUpdateButton";
-  const buttonLabel = state.appUpdateBusy
-    ? state.appUpdateRefreshing ? "Refreshing…" : "Checking…"
-    : state.appUpdateAvailable
-      ? "Update now"
-      : state.appUpdateRefreshOffered ? "Refresh app" : "Check for updates";
   const buttonClass = state.appUpdateAvailable ? "primary-btn" : "ghost-btn";
   return `
     <div class="setting-group app-update-settings ${state.appUpdateAvailable ? "update-available" : ""}">
-      <button class="${buttonClass} app-update-button" id="${buttonId}" type="button" ${state.appUpdateBusy ? "disabled" : ""}>${buttonLabel}</button>
+      <button class="${buttonClass} app-update-button" id="${buttonId}" type="button" ${state.appUpdateBusy ? "disabled" : ""}>${appUpdateButtonLabel()}</button>
       <p class="setting-help" aria-live="polite">${escapeHtml(state.appUpdateStatus)}</p>
       ${appReleaseNotesMarkup()}
     </div>
   `;
+}
+
+function appUpdateButtonLabel() {
+  return state.appUpdateBusy
+    ? state.appUpdateRefreshing ? "Refreshing…" : "Checking…"
+    : state.appUpdateAvailable
+      ? "Update now"
+      : state.appUpdateRefreshOffered ? "Refresh app" : "Check for updates";
+}
+
+function runAppUpdateAction() {
+  if (state.appUpdateBusy) return;
+  if (state.appUpdateAvailable || state.appUpdateRefreshOffered) applyAppUpdate();
+  else checkForAppUpdate({ manual: true });
+}
+
+function appVersionButton(id) {
+  return `<button class="app-version-button" id="${id}" type="button" data-app-version-dialog aria-haspopup="dialog" aria-controls="appVersionDialog" aria-label="Site version ${escapeHtml(appVersion)}, check for updates">${escapeHtml(appVersion)}</button>`;
+}
+
+function syncAppVersionDialog(dialog = document.getElementById("appVersionDialog")) {
+  if (!dialog) return;
+  const localBuild = isLocalNativeAppBuild();
+  const button = dialog.querySelector(".app-update-button");
+  button.hidden = localBuild;
+  button.setAttribute("aria-disabled", String(state.appUpdateBusy));
+  button.classList.toggle("primary-btn", state.appUpdateAvailable);
+  button.classList.toggle("ghost-btn", !state.appUpdateAvailable);
+  button.textContent = appUpdateButtonLabel();
+  dialog.querySelector("[role=status]").textContent = localBuild
+    ? localNativeAppUpdateMessage()
+    : state.appUpdateStatus;
+}
+
+function openAppVersionDialog(trigger) {
+  if (document.getElementById("appVersionDialog")) return;
+  const dialog = document.createElement("dialog");
+  dialog.id = "appVersionDialog";
+  dialog.className = "app-version-dialog";
+  dialog.setAttribute("aria-labelledby", "appVersionDialogTitle");
+  dialog.innerHTML = `
+    <h2 id="appVersionDialogTitle">Version ${escapeHtml(appVersion)}</h2>
+    <p role="status"></p>
+    <form method="dialog">
+      <button class="ghost-btn" type="submit" autofocus>Close</button>
+      <button class="app-update-button" type="button"></button>
+    </form>`;
+  dialog.querySelector(".app-update-button").addEventListener("click", runAppUpdateAction);
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    document.getElementById(trigger.id)?.focus({ preventScroll: true });
+  });
+  syncAppVersionDialog(dialog);
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 function appUpdateSettings(prefix = "", options = {}) {
@@ -6420,6 +6476,7 @@ function syncAppUpdateNotification() {
 }
 
 function renderAppUpdateStatus() {
+  syncAppVersionDialog();
   syncAppUpdateNotification();
   if (dataLoading || dataError) return;
   if (state.mode === "big" && state.presentationSettingsOpen) {
@@ -25123,6 +25180,7 @@ function shortcutOverlay() {
           <div>
             <div class="shortcut-eyebrow">Help center</div>
             <h2 id="shortcutTitle">Big Screen Bible Help</h2>
+            ${appVersionButton("helpAppVersionButton")}
           </div>
           <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="help" aria-hidden="true" title="Drag to move help"></span>
           <button class="icon-btn glass-close-control" id="closeShortcuts" aria-label="Close help" data-tooltip="Close">${icons.clear}</button>
@@ -25299,6 +25357,7 @@ function aboutMenuOverlay() {
           <div>
             <div class="shortcut-eyebrow">Big Screen Bible</div>
             <h2 id="aboutMenuTitle">About &amp; Legal</h2>
+            ${appVersionButton("aboutAppVersionButton")}
           </div>
           <button class="icon-btn glass-close-control" id="closeAboutMenu" type="button" aria-label="Close About and legal information" data-tooltip="Close">${icons.clear}</button>
         </div>
@@ -25801,10 +25860,10 @@ function bindEvents() {
     submitFocusReference(event.currentTarget.value, { sourceInputId: "mobileFocusPassageInput" });
   });
   ["appUpdateButton", "mobileAppUpdateButton", "presentationAppUpdateButton"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("click", () => {
-      if (state.appUpdateAvailable || state.appUpdateRefreshOffered) applyAppUpdate();
-      else checkForAppUpdate({ manual: true });
-    });
+    document.getElementById(id)?.addEventListener("click", runAppUpdateAction);
+  });
+  document.querySelectorAll("[data-app-version-dialog]").forEach((button) => {
+    button.addEventListener("click", () => openAppVersionDialog(button));
   });
   document.querySelectorAll(".app-release-notes").forEach(bindDisclosureAnimation);
   document.querySelectorAll("[data-settings-section]").forEach((section) => {
@@ -34759,6 +34818,7 @@ function handleGamesEscapeKeydown(event) {
 }
 
 function handleGlobalShortcuts(event) {
+  if (document.getElementById("appVersionDialog")?.open) return;
   if (event.shiftKey && event.key.toLowerCase() === "i" && handleScriptureReaderShortcut(event)) return;
   const noButtonsToggle = state.mode === "big" && event.shiftKey && event.key.toLowerCase() === "n"
     && !event.ctrlKey && !event.metaKey && !event.altKey && !isTypingTarget(event.target);

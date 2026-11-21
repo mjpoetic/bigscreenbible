@@ -160,7 +160,7 @@
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <dialog class="coloring-stage" open aria-label="Coloring canvas">
-      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p><p class="coloring-beta-note">More coloring pages are coming.</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
+      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-page-title">${page().title}</p><p class="coloring-beta-note">More coloring pages are coming.</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
