@@ -28439,73 +28439,75 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   }
 }
 
-/* Canvas-first studio. The same dock and palette travel into full screen. */
-.app-shell .coloring-reader > .coloring-studio { width:min(1400px,100%); margin:0 auto; padding:12px; border:0; background:transparent; box-shadow:none; }
+/* Canvas-first studio: one tool row and one persistent color row. */
+.app-shell .coloring-reader > .coloring-studio { width:min(1400px,100%); margin:0 auto; padding:12px; }
 .coloring-studio .coloring-heading { margin:0 0 10px; gap:8px; }
 .coloring-studio .coloring-heading h1 { margin:0; font-size:24px; }
 .coloring-studio .coloring-heading p { margin:3px 0 0; color:var(--muted); font-size:13px; }
 .coloring-studio .coloring-stage { display:flex; flex-direction:column; height:calc(100dvh - 166px); min-height:340px; gap:8px; }
-.coloring-studio .coloring-canvas { flex:1; min-height:0; max-height:none; }
-.coloring-studio .coloring-view-controls { position:relative; display:flex; flex-direction:column; gap:8px; margin:0; padding:10px; border:1px solid var(--line); border-radius:20px; background:var(--panel); }
-.coloring-primary-tools,.coloring-secondary-tools { display:flex; align-items:center; gap:6px; flex-wrap:wrap; width:100%; }
-.coloring-studio .coloring-view-controls button,.coloring-studio summary { font-size:13px; min-height:44px; padding:7px 12px; }
+.coloring-studio .coloring-canvas { position:relative; z-index:0; flex:1; min-height:0; max-height:none; }
+.coloring-studio .coloring-view-controls { position:relative; z-index:2; display:flex; flex-direction:column; flex-wrap:nowrap; gap:8px; margin:0; padding:10px; border:1px solid var(--line); border-radius:20px; background:var(--panel); overflow:visible; }
+.coloring-toolbar-row { display:flex; align-items:center; gap:8px; width:100%; min-width:0; }
+.coloring-tool-strip { min-width:0; flex:1; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; }
+.coloring-primary-tools,.coloring-secondary-tools { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; width:auto; }
+.coloring-primary-tools { width:max-content; min-width:100%; }
+.coloring-secondary-tools { flex:none; }
+.coloring-studio .coloring-view-controls button,.coloring-studio summary { font-size:13px; min-height:44px; padding:7px 10px; }
+.coloring-studio :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) { display:flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; white-space:nowrap; }
 .coloring-studio [data-coloring="expand"] { margin-left:auto; }
-.coloring-studio .coloring-palette { display:flex; flex-wrap:wrap; align-items:center; gap:8px; width:100%; }
-.coloring-studio .coloring-palette[hidden] { display:none; }
-.coloring-studio .coloring-palette > button { flex:0 0 36px; width:36px; min-width:36px; height:36px; min-height:36px; padding:0; border-radius:50%; }
-.coloring-studio .coloring-custom { display:flex; align-items:center; gap:6px; margin-left:auto; font-size:12px; }
-.coloring-studio .coloring-custom input { width:44px; height:36px; padding:2px; border-radius:10px; }
-.coloring-current-color { width:14px; height:14px; border-radius:50%; background:var(--swatch); border:1px solid var(--ink); display:inline-block; margin-left:4px; }
-.coloring-studio .coloring-options { position:relative; margin-left:auto; }
-.coloring-studio .coloring-options summary { list-style:none; cursor:pointer; display:flex; align-items:center; }
+#coloringBook .coloring-tool-glyph { display:block; width:18px; height:18px; min-width:18px; flex:0 0 18px; }
+.coloring-tool-label { line-height:1.15; }
+.coloring-studio .coloring-palette { display:flex; flex-wrap:nowrap; align-items:center; gap:8px; width:100%; min-width:0; }
+.coloring-standard-colors { display:flex; align-items:center; gap:8px; padding:5px; min-width:0; overflow-x:auto; scrollbar-width:thin; overscroll-behavior-x:contain; }
+.coloring-studio :is(.coloring-standard-colors,.coloring-skin-tones) > button { flex:0 0 36px; width:36px; min-width:36px; height:36px; min-height:36px; padding:0; border:2px solid #657080; border-radius:50%; background:var(--swatch); color:#111; font-size:22px; text-shadow:0 0 3px white,0 0 3px white; cursor:pointer; }
+.coloring-studio [data-color][aria-pressed="true"] { outline:3px solid var(--gold,#d8ac48); outline-offset:2px; }
+.coloring-studio .coloring-custom { position:relative; display:flex; align-items:center; flex:none; gap:6px; margin:0; min-height:44px; padding:5px 8px; cursor:pointer; font-size:12px; border-radius:12px; }
+.coloring-studio .coloring-custom input { width:28px; height:30px; padding:0; border:0; background:transparent; cursor:pointer; }
+.coloring-studio .coloring-palette .coloring-skin-toggle { display:flex; align-items:center; gap:6px; flex:none; min-width:0; width:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); color:var(--ink); font-size:12px; text-shadow:none; }
+.coloring-skin-sample { width:22px; height:22px; border-radius:50%; background:conic-gradient(#f6dfd0 0deg 90deg,#ce9873 90deg 180deg,#925536 180deg 270deg,#40271e 270deg); }
+.coloring-skin-tones { position:absolute; top:calc(100% + 6px); left:10px; z-index:5; display:flex; flex-wrap:wrap; gap:10px; width:min(252px,calc(100vw - 60px)); padding:16px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); animation:surfaceIn var(--motion-base) var(--motion-ease) both; }
+.coloring-skin-tones[hidden] { display:none; }
+.coloring-studio .coloring-options { position:relative; margin:0; }
+.coloring-studio .coloring-options summary { list-style:none; cursor:pointer; }
 .coloring-studio .coloring-options summary::-webkit-details-marker { display:none; }
 .coloring-options-body { position:absolute; top:calc(100% + 8px); right:0; z-index:4; width:min(310px,calc(100vw - 48px)); max-height:55dvh; overflow:auto; overscroll-behavior:contain; display:grid; gap:12px; padding:16px; border:1px solid var(--line); border-radius:20px; background:var(--panel); box-shadow:var(--shadow); }
 .coloring-options-body label { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .coloring-options-body input[type="range"] { flex:1; min-width:100px; }
-.coloring-studio #coloringStatus { margin:0; font-size:12px; }
-.coloring-studio .coloring-stage.is-expanded { height:auto; min-height:0; gap:8px; }
-.coloring-studio .coloring-stage.is-expanded .coloring-view-controls { max-height:none; overflow:visible; }
-@media (max-width:700px) {
-  .app-shell .coloring-reader > .coloring-studio { padding:8px; }
-  .coloring-studio .coloring-heading h1 { font-size:20px; }
-  .coloring-studio .coloring-stage { height:calc(100dvh - 145px); min-height:320px; }
-  .coloring-studio .coloring-view-controls { padding:8px; gap:6px; }
-  .coloring-studio .coloring-primary-tools { gap:4px; flex-wrap:nowrap; }
-  .coloring-studio .coloring-primary-tools button { padding:6px; font-size:12px; min-width:38px; flex:1; }
-  .coloring-studio .coloring-primary-tools [data-coloring="expand"] { flex:1.6; }
-  .coloring-studio .coloring-palette { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:6px; }
-  .coloring-studio .coloring-palette > button { width:100%; min-width:0; height:32px; min-height:32px; }
-  .coloring-studio .coloring-custom { grid-column:7 / 9; margin:0; justify-content:center; }
-  .coloring-studio .coloring-custom input { width:32px; height:32px; }
-  .coloring-studio .coloring-custom span { font-size:10px; }
-  .coloring-studio .coloring-secondary-tools { gap:4px; flex-wrap:nowrap; }
-  .coloring-studio .coloring-secondary-tools button,.coloring-studio summary { padding:6px 8px; font-size:12px; min-width:36px; }
-  .coloring-studio .coloring-view-controls output { min-width:36px; font-size:12px; }
-  .coloring-studio #coloringStatus { font-size:11px; }
-}
-@media (orientation:landscape) and (max-height:560px) {
-  .coloring-studio .coloring-view-controls { flex-direction:row; flex-wrap:wrap; }
-  .coloring-studio .coloring-primary-tools,.coloring-studio .coloring-secondary-tools { width:auto; flex:1; }
-  .coloring-studio .coloring-palette { gap:6px; }
-  .coloring-studio .coloring-palette > button { width:28px; min-width:28px; flex-basis:28px; height:28px; min-height:28px; }
-}
 .coloring-line-help { margin:0; font-size:12px; color:var(--muted); line-height:1.4; }
 .coloring-studio :is([data-tool],[data-coloring="eraser"])[aria-pressed="true"] { border-color:var(--teal); background:color-mix(in srgb,var(--teal) 14%,var(--panel)); box-shadow:inset 0 0 0 1px var(--teal); }
-@media (orientation:landscape) and (max-height:560px) {
-  .coloring-studio .coloring-primary-tools,.coloring-studio .coloring-secondary-tools { flex-wrap:nowrap; gap:4px; }
-  .coloring-studio .coloring-view-controls button,.coloring-studio summary { padding:6px 8px; font-size:12px; }
-  .coloring-studio .coloring-view-controls output { min-width:36px; font-size:12px; }
+.coloring-reference { align-self:center; flex:none; color:var(--teal); text-decoration:underline; text-underline-offset:3px; padding:6px 10px; font-size:14px; }
+.coloring-studio #coloringStatus { flex:none; margin:0; font-size:12px; min-height:2.6em; height:2.6em; line-height:1.3; overflow:hidden; }
+.coloring-studio .coloring-stage.is-expanded { height:auto; min-height:0; gap:8px; }
+.coloring-studio .coloring-stage.is-expanded .coloring-view-controls { max-height:none; overflow:visible; }
+.coloring-stage.is-expanded .coloring-reference { display:none; }
+@media(max-width:700px) {
+ .app-shell .coloring-reader > .coloring-studio { padding:8px; }
+ .coloring-studio .coloring-heading h1 { font-size:20px; }
+ .coloring-studio .coloring-stage { height:calc(100dvh - 145px); min-height:320px; }
+ .coloring-studio .coloring-view-controls { padding:6px; gap:4px; }
+ .coloring-toolbar-row { gap:4px; }
+ .coloring-primary-tools,.coloring-secondary-tools { gap:3px; }
+ .coloring-studio :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) { flex-direction:column; gap:2px; padding:4px 6px; min-width:44px; min-height:48px; font-size:10px; }
+ .coloring-studio .coloring-primary-tools [data-coloring="expand"] { margin-left:6px; }
+ .coloring-studio .coloring-view-controls output { min-width:32px; font-size:11px; }
+ .coloring-studio .coloring-palette { gap:4px; }
+ .coloring-standard-colors { gap:7px; }
+ .coloring-studio .coloring-custom { flex-direction:column; gap:0; padding:2px 5px; font-size:10px; }
+ .coloring-studio .coloring-palette .coloring-skin-toggle { flex-direction:column; gap:1px; padding:3px 6px; font-size:10px; }
+ .coloring-studio #coloringStatus { font-size:11px; }
 }
-.coloring-studio #coloringStatus { min-height:2.6em; height:2.6em; line-height:1.3; overflow:hidden; }
-
-/* Glass creates a stacking context: raise the entire dock above the artwork,
-   rather than only raising the popup inside that context. */
-.coloring-studio .coloring-view-controls { z-index:2; overflow:visible; }
-.coloring-studio .coloring-canvas { position:relative; z-index:0; }
-
 /* Coloring uses the same preview and launch dock as the other Games. */
 .coloring-setup-panel .trivia-setup-main { display:block; flex:1; min-height:0; }
 .coloring-setup-panel .trivia-setup-content { display:flex; flex-direction:column; gap:12px; align-items:center; }
 .coloring-setup-panel .trivia-setup-copy { align-self:stretch; }
 .coloring-setup-panel .game-preview { width:min(100%,720px); }
 @media(max-width:840px) { .coloring-setup-panel .game-preview { width:min(100%,420px); } .coloring-setup-panel .trivia-score-chip { font-size:11px; } }
+#coloringPrintSheet { display:none; }
+@media print {
+ body[data-coloring-print] { display:block !important; margin:0 !important; padding:0 !important; height:auto !important; overflow:visible !important; }
+ body[data-coloring-print] > :not(#coloringPrintSheet) { display:none !important; }
+ body[data-coloring-print] #coloringPrintSheet { display:block !important; color:#000 !important; background:#fff !important; text-align:center; break-inside:avoid; font:12pt system-ui; }
+ #coloringPrintSheet h1 { font-size:18pt; margin:0 0 6pt; }
+ #coloringPrintSheet p { margin:0 0 12pt; }
+ #coloringPrintSheet svg { display:block; width:min(100%,7in); height:auto; max-height:8.5in; margin:auto; }
+}

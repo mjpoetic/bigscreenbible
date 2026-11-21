@@ -2860,7 +2860,7 @@ function switchMode(nextMode, options = {}) {
   const audible = Boolean(options.audible && state.modeTransitionSounds);
   if (audible) primeModeTransitionAudio();
   const previousMode = state.mode;
-  if(previousMode==="trivia"&&coloringBookOpen&&["reader","parallel","big"].includes(nextMode))setColoringReaderReturn(true);
+  if(nextMode!==previousMode)setColoringReaderReturn(false);
   if(nextMode==="trivia"&&previousMode!=="trivia"){restoreLastGamesArea();setColoringReaderReturn(false);}
   const previousScrollState = rememberModeScrollState();
   const revealPresentationVerse = previousMode === "big"
@@ -5550,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.13": [
+      "Coloring controls now include brush, fill, eraser, undo, move, save, fit, full-screen, and ellipsis glyphs, with labels retained for clarity. Black now sits directly before White in the palette. A two-row dock adds a skin-tone palette and custom picker, with zoom and Fit beside full screen and Save beside More. The Bible reference is below the drawing, with a return button only for that link. Print outline opens native printing or Save as PDF.",
+    ],
     "2026.11.20.12": [
       "Coloring Book now uses the standard Games preview and an Open Coloring Book button. Returning to Games restores its selection and preview; the Bible return button still returns directly to the coloring canvas.",
     ],
@@ -19686,7 +19689,7 @@ function restoreLastGamesArea(respectLink=false){
   if(!coloringBookSelected&&state.triviaGameType!==area)switchGameDifficulty(area);
 }
 function openColoringBible(reference=""){
-  rememberGamesArea("coloring");setColoringReaderReturn(true);
+  rememberGamesArea("coloring");setColoringReaderReturn(Boolean(reference));
   if(reference)gotoReference(reference,{focusedPassage:true});else switchMode("reader",{audible:true});
 }
 function returnToColoringBook(){

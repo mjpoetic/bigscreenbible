@@ -2,8 +2,9 @@
 (() => {
   "use strict";
   const KEY = "bsb_coloring_v1";
-  const colorNames = ["Red","Black","Rose","Orange","Yellow","Green","Teal","Sky blue","Blue","Purple","Pink","Brown","Slate","White"];
-  const palette = ["#e53935", "#111111", "#e85d75", "#f28c45", "#f4cc4c", "#86bc66", "#329d8f", "#58b8d8", "#527bd1", "#9167b1", "#df91b6", "#ab7959", "#586174", "#ffffff"];
+  const colorNames = ["Red","Rose","Orange","Yellow","Green","Teal","Sky blue","Blue","Purple","Pink","Brown","Slate","Black","White"];
+  const palette = ["#e53935", "#e85d75", "#f28c45", "#f4cc4c", "#86bc66", "#329d8f", "#58b8d8", "#527bd1", "#9167b1", "#df91b6", "#ab7959", "#586174", "#111111", "#ffffff"];
+  const skinTones = ["#f6dfd0","#edc7ad","#dfb18f","#ce9873","#bb815d","#a86c4b","#925536","#77432c","#5e3525","#40271e"];
   const shape = (tag, attrs, label) => ({ tag, attrs, label });
   const path = (d, label) => shape("path", { d }, label);
   const circle = (cx, cy, r, label) => shape("circle", { cx, cy, r }, label);
@@ -143,36 +144,48 @@
     }
     return mask;
   }
+  const controlGlyphs={
+    brush:'<path d="m14 6 4 4M4 20c4 0 6-1 6-4a3 3 0 0 0-6 0c0 2-1 3-2 4h2Z"/><path d="m9 14 9-11a2.1 2.1 0 0 1 3 3L11 16"/>',
+    fill:'<path d="m5 9 7-7 9 9-7 7a3 3 0 0 1-4 0l-5-5a3 3 0 0 1 0-4Z"/><path d="m8 3 7 7M4 11h17M20 16c0 0-2 2.6-2 4a2 2 0 0 0 4 0c0-1.4-2-4-2-4Z"/>',
+    eraser:'<path d="m4 14 9-10a2 2 0 0 1 3 0l5 5a2 2 0 0 1 0 3l-8 9H8l-4-4a2 2 0 0 1 0-3Z"/><path d="m9 9 8 8M12 21h9"/>',
+    undo:'<path d="M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -3)"/><path d="m8 3-4 4 4 4"/>',
+    move:'<path d="M12 3v18M3 12h18m-12-6 3-3 3 3m3 3 3 3-3 3m-3 3-3 3-3-3m-3-3-3-3 3-3"/>',
+    save:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
+    fit:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><rect x="7" y="7" width="10" height="10" rx="1"/>',
+    expand:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
+    collapse:'<path d="M3 8h5V3m13 5h-5V3M3 16h5v5m13-5h-5v5"/>',
+    more:'<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>',
+  };
+  function controlLabel(glyph,label){return `<svg class="coloring-tool-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${controlGlyphs[glyph]}</svg><span class="coloring-tool-label">${label}</span>`;}
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
       <div class="coloring-stage ${expanded ? "is-expanded" : ""}">
         <div class="coloring-view-controls" aria-label="Painting controls">
-          <div class="coloring-primary-tools">
-            <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">Brush</button>
-            <button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">Fill</button>
-            <button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">Move</button>
-            <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">Eraser</button>
-            <button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>Undo</button>
-            <button class="ghost-btn" type="button" data-coloring="expand">${expanded ? "Exit full screen" : "Full screen"}</button>
-          </div>
-          <div class="coloring-secondary-tools">
-            <button class="ghost-btn" type="button" data-coloring="palette" aria-expanded="true" aria-controls="coloringPalette">Colors <span class="coloring-current-color" style="--swatch:${color}" aria-hidden="true"></span></button>
+          <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
+            <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">${controlLabel("brush","Brush")}</button>
+            <button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">${controlLabel("fill","Fill")}</button>
+            <button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">${controlLabel("move","Move")}</button>
+            <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">${controlLabel("eraser","Eraser")}</button>
+            <button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>${controlLabel("undo","Undo")}</button>
+            <button class="ghost-btn" type="button" data-coloring="expand">${controlLabel(expanded?"collapse":"expand",expanded?"Exit full screen":"Full screen")}</button>
+            <button class="ghost-btn" type="button" data-coloring="fit">${controlLabel("fit","Fit")}</button>
             <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
-            <button class="ghost-btn" type="button" data-coloring="fit">Fit</button>
-            <button class="ghost-btn" type="button" data-coloring="save">Save</button>
-            <details class="coloring-options"><summary class="ghost-btn">More</summary><div class="coloring-options-body">
+          </div></div><div class="coloring-secondary-tools">
+            <button class="ghost-btn" type="button" data-coloring="save">${controlLabel("save","Save")}</button>
+            <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Each stroke stays in its starting shape. Lift your finger or Pencil before coloring another shape.</p>
               <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
               <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
-              <button class="ghost-btn" type="button" data-coloring="outline">Download outline</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
-              <button class="ghost-btn" type="button" data-coloring="read">Read ${page().reference}</button><button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
+              <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
+              <button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
             </div></details>
-          </div>
-          <div id="coloringPalette" class="coloring-palette" aria-label="Color palette">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}<label class="coloring-custom" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label></div>
+          </div></div>
+          <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
         </div>
         <div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
+        <a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a>
         <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
       </div></article></section>`;
   }
@@ -195,6 +208,31 @@
     const blob = new Blob([svg(page(), outline, false, true, true)],{type:"image/svg+xml"});
     const url = URL.createObjectURL(blob), a = document.createElement("a");
     a.href=url; a.download=`bible-coloring-${selected}${outline?"-outline":""}.svg`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }
+  let cleanupOutlinePrint=()=>{};
+  async function printOutline() {
+    cleanupOutlinePrint();
+    if(page().art && !artworkData.has(page().id)){status("Artwork is still loading. Try printing again in a moment.");return;}
+    document.getElementById("coloringPrintSheet")?.remove();
+    const printSheet=document.createElement("section");printSheet.id="coloringPrintSheet";
+    printSheet.innerHTML=`<h1>${page().title}</h1><p>${page().reference} · Big Screen Bible</p>${svg(page(),true,false,true,true)}`;
+    document.body.append(printSheet);document.body.setAttribute("data-coloring-print","");
+    const cleanup=()=>{printSheet.remove();document.body.removeAttribute("data-coloring-print");window.removeEventListener("afterprint",cleanup);document.removeEventListener("pointerdown",cleanup,true);document.removeEventListener("keydown",cleanup,true);};
+    cleanupOutlinePrint=cleanup;
+    window.addEventListener("afterprint",cleanup,{once:true});
+    // Android resolves when its dialog opens, before the WebView is rendered.
+    // Retain the print document until afterprint or the next user interaction.
+    document.addEventListener("pointerdown",cleanup,{once:true,capture:true});
+    document.addEventListener("keydown",cleanup,{once:true,capture:true});
+    try {
+      await Promise.all([...printSheet.querySelectorAll("image")].map(image=>new Promise((resolve,reject)=>{const img=new Image();img.onload=resolve;img.onerror=reject;img.src=image.getAttribute("href");})));
+      const capacitor=window.Capacitor,platform=capacitor?.getPlatform?.();
+      if(["ios","android"].includes(platform)){
+        if(!capacitor.isPluginAvailable?.("BSBPrint")){cleanup();status("Update the app to enable printing.");return;}
+        const printer=capacitor.Plugins?.BSBPrint||capacitor.registerPlugin("BSBPrint");
+        await printer.print();if(platform==="ios")cleanup();
+      }else{await new Promise(requestAnimationFrame);window.print();}
+    }catch{cleanup();status("Could not open printing. Please try again.");}
   }
   function bind(options) {
     viewportObserver?.disconnect();
@@ -365,7 +403,9 @@
     canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=e=>{tap=null;if(drawing?.id===e.pointerId)finish(e);};
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
     root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];zoom=1;refresh();});
-    function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;root.querySelector(".coloring-current-color").style.setProperty("--swatch",c); }
+    const skinPanel=root.querySelector("#coloringSkinTones"),skinToggle=root.querySelector('[data-coloring="skin-tones"]');
+    function closeSkinTones(){skinPanel.hidden=true;skinToggle.setAttribute("aria-expanded","false");}
+    function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;closeSkinTones(); }
     root.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>selectColor(b.dataset.color));
     document.getElementById("coloringCustom").oninput=e=>selectColor(e.target.value);
 
@@ -395,21 +435,23 @@
     viewportObserver=new ResizeObserver(()=>{if(zoom===1)fit();});viewportObserver.observe(viewport);
     requestAnimationFrame(()=>{if(root.isConnected)fit();});
     const more=root.querySelector(".coloring-options");
-    stage.addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false;},true);
+    stage.addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false;if(!skinPanel.contains(e.target)&&!skinToggle.contains(e.target))closeSkinTones();},true);
     stage.onkeydown=e=>{
+      if(e.key==="Escape"&&!skinPanel.hidden){e.preventDefault();e.stopPropagation();closeSkinTones();skinToggle.focus({preventScroll:true});return;}
       if(e.key==="Escape"&&more.open){e.preventDefault();e.stopPropagation();more.open=false;more.querySelector("summary").focus({preventScroll:true});return;}
       if(!expanded)return;
       if(e.key==="Escape"){e.preventDefault();e.stopPropagation();root.querySelector('[data-coloring="expand"]').click();return;}
       if(e.key!=="Tab")return;
-      const controls=[...stage.querySelectorAll('button:not(:disabled),select,input,[tabindex="0"]')].filter(el=>el.getBoundingClientRect().width>0);
+      const controls=[...stage.querySelectorAll('button:not(:disabled),summary,a[href],select,input,[tabindex="0"]')].filter(el=>el.getBoundingClientRect().width>0);
       const first=controls[0],last=controls[controls.length-1];
       if(e.shiftKey && document.activeElement===first){e.preventDefault();last.focus();}
       else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus();}
     };
-    root.querySelectorAll("[data-coloring]").forEach(b=>b.onclick=()=>{
+    root.querySelectorAll("[data-coloring]").forEach(b=>b.onclick=e=>{
+      e.preventDefault();
       switch(b.dataset.coloring) {
-        case "palette": {const panel=document.getElementById("coloringPalette");panel.hidden=!panel.hidden;b.setAttribute("aria-expanded",String(!panel.hidden));break;}
-        case "expand": expanded=!expanded;root.querySelector(".coloring-stage").classList.toggle("is-expanded",expanded);b.textContent=expanded ? "Exit full screen" : "Full screen";expandedState();fit();b.focus();break;
+        case "skin-tones": skinPanel.hidden=!skinPanel.hidden;b.setAttribute("aria-expanded",String(!skinPanel.hidden));more.open=false;break;
+        case "expand": expanded=!expanded;root.querySelector(".coloring-stage").classList.toggle("is-expanded",expanded);b.innerHTML=controlLabel(expanded?"collapse":"expand",expanded?"Exit full screen":"Full screen");expandedState();fit();b.focus();break;
         case "zoom-in": setZoom(zoom+.25);break;
         case "zoom-out": setZoom(zoom-.25);break;
         case "fit": fit();break;
@@ -419,7 +461,7 @@
         case "reader": expanded=false;options.reader();break;
         case "read": expanded=false;options.read(page().reference); break;
         case "save": download(false); break;
-        case "outline": download(true); break;
+        case "outline": more.open=false;void printOutline(); break;
         case "erase-expanded":
         case "eraser": erasing=!erasing; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed",String(erasing))); break;
         case "undo-expanded":

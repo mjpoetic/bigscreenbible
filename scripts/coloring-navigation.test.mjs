@@ -20,3 +20,6 @@ ctx.state.triviaGame={type:'trivia'};ctx.restoreLastGamesArea();assert.equal(vm.
 assert.match(ctx.coloringSetupView(),/class="game-preview"/);assert.match(ctx.coloringSetupView(),/preview.webp/);assert.match(ctx.coloringSetupView(),/Open Coloring Book/);assert.doesNotMatch(ctx.coloringSetupView(),/coloring-menu-preview/);
 assert.match(source,/if\(wasColoringSelected\)renderPreservingReaderScroll\(\)/);
 console.log('Coloring Scripture return, refresh recovery, last game selection, active-round priority, and preview passed');
+
+ctx.openColoringBible();assert.equal(session.has("lw_coloring_reader_return"),false,"Generic Bible navigation does not offer coloring return");
+assert.doesNotMatch(source,/previousMode==="trivia"&&coloringBookOpen&&/);

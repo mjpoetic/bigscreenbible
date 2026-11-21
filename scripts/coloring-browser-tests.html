@@ -52,7 +52,22 @@
  check(canvas===document.getElementById('coloringPixels')&&sheet.style.width===width&&viewport.scrollTop===top&&viewport.scrollLeft===left,'Undo preserves zoom, pan, and canvas identity');
  document.querySelector('[data-coloring="expand"]').click();
  check(document.querySelector('.coloring-stage.is-expanded #coloringPalette')!==null,'Full screen includes the full color palette');
- document.querySelector('[data-coloring="palette"]').click();check(document.getElementById('coloringPalette').hidden,'Palette can collapse without leaving the canvas');
+ document.querySelector('[data-coloring="skin-tones"]').click();check(!document.getElementById('coloringSkinTones').hidden,'Skin tone palette opens over the canvas');
+ document.querySelector('#coloringSkinTones [data-color]').click();check(document.getElementById('coloringSkinTones').hidden,'Choosing a skin tone closes the palette');
+ check(document.getElementById('coloringCustom').value==='#f6dfd0','Skin tone becomes the selected brush color');
+ let printCalls=0;window.print=()=>{printCalls++;};
+ document.querySelector('[data-coloring="outline"]').click();await wait();
+ const printSheet=document.getElementById('coloringPrintSheet');
+ check(printCalls===1&&printSheet?.querySelectorAll('image').length===1,'Print outline opens printing with embedded line art and no colored ink');
+ window.dispatchEvent(new Event('afterprint'));check(!document.getElementById('coloringPrintSheet')&&!document.body.hasAttribute('data-coloring-print'),'Closing print restores the document');
+ for(const platform of ['ios','android']){
+   let nativeCalls=0;window.Capacitor={getPlatform:()=>platform,isPluginAvailable:()=>true,Plugins:{BSBPrint:{print:async()=>{nativeCalls++;}}}};
+   document.querySelector('[data-coloring="outline"]').click();await wait();
+   check(nativeCalls===1&&printCalls===1,platform+' outline uses native print support');
+   if(platform==='android')check(!!document.getElementById('coloringPrintSheet'),'Android retains outline until printing finishes');
+   window.dispatchEvent(new Event('afterprint'));
+ }
+ delete window.Capacitor;
  document.getElementById('results').textContent=results.join('\n');
 })().catch(e=>{document.getElementById('results').textContent+='\nFAIL: '+e.stack;}).finally(()=>{if(priorColoringData===null)localStorage.removeItem('bsb_coloring_v1');else localStorage.setItem('bsb_coloring_v1',priorColoringData);});
 </script></body></html>

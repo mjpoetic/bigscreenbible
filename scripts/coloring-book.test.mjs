@@ -12,7 +12,7 @@ assert.match(initial, /game-new-badge">BETA<\/small>/);
 const appSource=readFileSync(new URL("../assets/bible-app.js",import.meta.url),"utf8");
 assert.match(appSource, /<span>Coloring Book<\/span><small class="game-new-badge">BETA<\/small>/);
 assert.equal((initial.match(/data-page=/g)||[]).length,0,"Only the approved page is shown; a one-page gallery is unnecessary");
-assert.equal((initial.match(/data-color=/g)||[]).length,14);
+assert.equal((initial.match(/data-color=/g)||[]).length,24);
 assert.match(initial,/type="color"/);
 assert.match(initial,/data-tool="fill"/);
 assert.match(initial,/data-tool="brush"/);
@@ -60,3 +60,8 @@ assert.match(appSource,/icons\.artistPalette/);
 const art=JSON.parse(readFileSync(new URL('../assets/coloring-pages/jesus-welcomes-children.json',import.meta.url),'utf8'));
 assert.ok(art.regions>500);
 console.log('Illustrated regions, portrait scroll scope, artist palette glyph and touch/Pencil metadata regression checks passed');
+
+assert.match(initial,/coloring-skin-tones[^>]*hidden/);
+assert.match(initial,/class="coloring-reference"[^>]*data-coloring="read"/);
+assert.doesNotMatch(initial,/data-coloring="palette"|Download outline/);
+assert.match(initial,/Print outline \/ Save PDF/);
