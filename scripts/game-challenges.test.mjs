@@ -224,7 +224,7 @@ const popupContext = vm.createContext({
   escapeHtml: String,
   icons: { trivia: "" },
   friendshipProfile: () => ({ displayName: "Friend" }),
-  socialProfileAvatarMarkup: () => "",
+  socialProfileAvatarMarkup: (_profile, className) => `<span class="${className}"></span>`,
   gameChallengeSummary: () => "Trivia",
   gameChallengePopupIsVisible: () => true,
   gameChallengePopupNoticeKey: () => "notice",
@@ -239,11 +239,14 @@ for (const [kind, status, challengeId, action, label] of [
 ]) {
   popupContext.gameChallengePopupNotice = { kind, status, challengeId, actorUserId: "friend" };
   const markup = popupContext.gameChallengePopup();
+  assert.equal(markup.includes("challenge-invite-sparks"), kind === "incoming");
   assert.match(markup, new RegExp(`data-game-challenge-action="${action}"[\\s\\S]*>${label}</button>`));
 }
 popupContext.gameChallengePopupNotice = { kind: "friend", status: "pending", friendshipId: "request", actorUserId: "friend" };
 const friendPopup = popupContext.gameChallengePopup();
 assert.match(friendPopup, /Friend sent you a friend request/);
+assert.match(friendPopup, /friend-invite-spotlight/);
+assert.doesNotMatch(friendPopup, /challenge-invite-sparks/);
 assert.match(friendPopup, /data-friend-action="accept" data-friendship-id="request"/);
 assert.match(friendPopup, /data-game-challenge-popup-dismiss[^>]*>Maybe later/);
 for (const [roomStatus, inviteStatus, heading] of [
@@ -497,5 +500,90 @@ assert.match(styles, /\.live-challenge-scoreboard/);
 assert.match(styles, /\.live-status-dot/);
 assert.match(styles, /\.trivia-end-challenge/);
 assert.match(styles, /\.game-challenge-popup-overlay\.continuing/);
+
+const room = { id: "countdown-room", status: "accepted", startedAt: "2026-11-21T12:00:00Z", gameType: "trivia" };
+const serverStart = Date.parse(room.startedAt);
+const expectedStart = serverStart + 5000;
+
+function countdownClient(userId, receiptTime) {
+  let now = receiptTime;
+  let scheduled;
+  let timerCount = 0;
+  let dialogs = 0;
+  let markup;
+  const started = [];
+  const number = { textContent: "" };
+  const state = { authUser: { id: userId }, mode: "trivia" };
+  const context = vm.createContext({
+    state,
+    room: { ...room },
+    Date: { now: () => now, parse: Date.parse },
+    document: {
+      body: { append() { dialogs += 1; } },
+      createElement: () => ({
+        dataset: {},
+        setAttribute() {},
+        addEventListener() {},
+        showModal() { markup = this.innerHTML; },
+        remove() { dialogs -= 1; },
+        querySelector: (selector) => selector === "strong" ? number : {},
+      }),
+    },
+    window: {
+      setTimeout(callback, delay) { scheduled = { callback, at: now + delay }; return ++timerCount; },
+      clearTimeout() { scheduled = null; },
+    },
+    activeGameChallenge: () => context.room,
+    startLoadedGameChallenge: (challenge, options) => started.push([challenge.id, options.startsAt, now]),
+    playGameCountdownTone() {},
+    gameChallengeTitle: () => "Trivia",
+    renderPreservingReaderScroll() {},
+  });
+  vm.runInContext(`
+    ${source.slice(source.indexOf("const liveChallengeStartDelay"), source.indexOf("function animateSocialPopupExit"))}
+    openStartedGameChallenge(room);
+  `, context);
+  return {
+    number, started, context,
+    get dialogs() { return dialogs; },
+    get markup() { return markup; },
+    advance(time) {
+      while (scheduled && scheduled.at <= time) {
+        now = scheduled.at;
+        const { callback } = scheduled;
+        scheduled = null;
+        callback();
+      }
+      now = time;
+    },
+  };
+}
+
+const hostCountdown = countdownClient("host", serverStart + 200);
+const guestCountdown = countdownClient("guest", serverStart + 2400);
+assert.equal(hostCountdown.number.textContent, "Ready?");
+assert.equal(guestCountdown.number.textContent, "3");
+assert.doesNotMatch(hostCountdown.markup, /<button/);
+vm.runInContext("openStartedGameChallenge(room)", hostCountdown.context);
+assert.equal(hostCountdown.dialogs, 1, "room refreshes keep the same countdown");
+for (const [offset, label] of [[3000, "2"], [4000, "1"]]) {
+  hostCountdown.advance(serverStart + offset);
+  guestCountdown.advance(serverStart + offset);
+  assert.equal(hostCountdown.number.textContent, label);
+  assert.equal(guestCountdown.number.textContent, label);
+}
+hostCountdown.advance(expectedStart);
+guestCountdown.advance(expectedStart);
+assert.deepEqual(hostCountdown.started, [[room.id, expectedStart, expectedStart]]);
+assert.deepEqual(guestCountdown.started, hostCountdown.started);
+assert.equal(guestCountdown.dialogs, 0);
+const late = countdownClient("late", expectedStart + 100);
+assert.equal(late.dialogs, 0);
+assert.deepEqual(late.started, [[room.id, expectedStart, expectedStart + 100]]);
+const cancelled = countdownClient("guest", serverStart + 500);
+cancelled.context.room.status = "cancelled";
+cancelled.advance(expectedStart);
+assert.equal(cancelled.dialogs, 0);
+assert.equal(cancelled.started.length, 0);
 
 console.log("Game challenge tests passed");

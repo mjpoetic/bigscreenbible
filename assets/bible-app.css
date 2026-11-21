@@ -3759,6 +3759,69 @@ dialog.game-challenge-confirm {
   height: 24px;
 }
 
+.challenge-invite-spotlight {
+  position: relative;
+  isolation: isolate;
+}
+
+.challenge-invite-spotlight::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--teal) 36%, transparent), transparent 72%);
+  pointer-events: none;
+}
+
+.friend-invite-spotlight {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--teal) 28%, transparent);
+}
+
+.challenge-invite-sparks {
+  position: absolute;
+  inset: 50%;
+  pointer-events: none;
+}
+
+.challenge-invite-sparks span {
+  position: absolute;
+  display: none;
+  color: var(--gold);
+  font-size: 18px;
+  line-height: 1;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.challenge-invite-sparks span:nth-child(1) { --spark-x: -74px; --spark-y: -28px; }
+.challenge-invite-sparks span:nth-child(2) { --spark-x: -52px; --spark-y: 12px; font-size: 13px; color: var(--teal); }
+.challenge-invite-sparks span:nth-child(3) { --spark-x: 54px; --spark-y: -25px; }
+.challenge-invite-sparks span:nth-child(4) { --spark-x: 40px; --spark-y: 16px; font-size: 13px; color: var(--teal); }
+.challenge-invite-sparks span:nth-child(5) { --spark-x: 76px; --spark-y: 4px; font-size: 11px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .game-challenge-popup-overlay.open:not(.continuing) .challenge-invite-spotlight::before {
+    animation: challenge-spotlight-in 720ms var(--motion-ease) both;
+  }
+
+  .game-challenge-popup-overlay.open:not(.continuing) .challenge-invite-sparks span {
+    display: block;
+    animation: challenge-spark 730ms var(--motion-ease) 90ms both;
+  }
+
+  @keyframes challenge-spotlight-in {
+    0% { opacity: 0; transform: scale(.5); }
+    45% { opacity: 1; transform: scale(1.18); }
+    100% { opacity: .8; transform: scale(1); }
+  }
+
+  @keyframes challenge-spark {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+    32% { opacity: 1; }
+    65% { opacity: .9; }
+    100% { opacity: 0; transform: translate(var(--spark-x), var(--spark-y)) rotate(35deg) scale(.7); }
+  }
+}
+
 .game-challenge-popup.reply-accepted .game-challenge-popup-icon {
   background: color-mix(in srgb, var(--teal) 18%, var(--panel));
 }
@@ -26085,6 +26148,23 @@ html.scripture-reader-open, html.scripture-reader-open body { overflow: hidden !
   z-index: -1;
   background: var(--teal);
   clip-path: polygon(50.0% 0.0%, 60.1% 12.3%, 75.0% 6.7%, 77.6% 22.4%, 93.3% 25.0%, 87.7% 39.9%, 100.0% 50.0%, 87.7% 60.1%, 93.3% 75.0%, 77.6% 77.6%, 75.0% 93.3%, 60.1% 87.7%, 50.0% 100.0%, 39.9% 87.7%, 25.0% 93.3%, 22.4% 77.6%, 6.7% 75.0%, 12.3% 60.1%, 0.0% 50.0%, 12.3% 39.9%, 6.7% 25.0%, 22.4% 22.4%, 25.0% 6.7%, 39.9% 12.3%);
+}
+
+.game-start-countdown.live-challenge-countdown {
+  min-width: min(300px, calc(100vw - 32px));
+  padding: 26px 20px 18px;
+}
+
+.live-challenge-countdown small { font-weight: 700; }
+.live-challenge-countdown[data-step="ready"] strong {
+  display: grid;
+  place-items: center;
+  min-height: 1.65em;
+  font-size: clamp(48px, 10vw, 82px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .live-challenge-countdown[open] { animation: dialogIn 240ms var(--motion-ease) both; }
 }
 
 .game-countdown-actions { display: flex; justify-content: center; gap: 12px; }
