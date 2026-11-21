@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.28": [
+      "Light mode Coloring Book menus now have an opaque backing so the drawing cannot show through.",
+    ],
     "2026.11.21.27": [
       "Coloring Book adds Eraser and Fill cursor previews and recovers painting after interrupted touch gestures.",
     ],

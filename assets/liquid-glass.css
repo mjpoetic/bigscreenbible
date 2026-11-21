@@ -1706,6 +1706,11 @@ html[data-control-material="glass"] .coloring-studio :is(.coloring-options-body,
     backdrop-filter:none;
   }
 }
+/* Light theme panel tokens can carry alpha. Use their tint at full opacity. */
+html[data-control-material="glass"][data-theme="light"] .coloring-studio :is(.coloring-options-body,.coloring-skin-tones) {
+  background-color:#fafafa;
+  background-color:rgb(from var(--panel) r g b / 1);
+}
 html[data-control-material="glass"] .coloring-studio .coloring-view-controls { margin-bottom:0; padding:10px; }
 html[data-control-material="glass"] .coloring-studio [data-tool][aria-pressed="true"] { border-color:var(--teal); box-shadow:var(--glass-shadow),0 0 0 2px color-mix(in srgb,var(--teal) 40%,transparent); }
 @media(max-width:700px) { html[data-control-material="glass"] .coloring-studio .coloring-view-controls { padding:8px; } }
