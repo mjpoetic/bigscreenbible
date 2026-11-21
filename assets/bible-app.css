@@ -29012,6 +29012,11 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   padding:4px 6px;
 }
 .coloring-studio .coloring-history-controls button { position:relative; }
+.coloring-studio .coloring-history-controls button:disabled {
+  opacity:.38;
+  filter:saturate(0);
+  cursor:default;
+}
 .coloring-history-controls .coloring-tool-label {
   position:absolute;
   width:1px;

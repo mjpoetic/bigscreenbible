@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.36": [
+      "Coloring Book visibly dims Undo and Redo whenever those actions are unavailable.",
+    ],
     "2026.11.21.35": [
       "Brush and Eraser size fields now show a rounded focus outline around the whole control.",
     ],
