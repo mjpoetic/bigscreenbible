@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.8": [
+      "Sending and accepting friend requests now use matching Liquid Glass pop-ups.",
+    ],
     "2026.11.21.7": [
       "While My Friend QR is open, a new friend request replaces the code with a prompt to accept or decline.",
     ],
@@ -8499,7 +8502,7 @@ function gameChallengePopup() {
       : accepted ? waiting ? "View room" : "Join game" : "Got it";
   const popupBusy = !closure && Boolean(friendRequest ? state.friendshipActionBusyId : state.gameChallengeActionBusyId);
   return `
-    <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}">
+    <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}${friendRequest ? " friend-request-overlay" : ""}">
       <article
         class="game-challenge-popup ${incoming || friendRequest ? "incoming" : `reply-${notice.status}`}"
         id="gameChallengePopupDialog"
