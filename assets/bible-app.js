@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.2": [
+      "Move mode in Coloring Book supports two-finger pinch zoom and one-finger panning.",
+    ],
     "2026.11.21.1": [
       "Friends now shows a QR preview you can enlarge. Opening an invite shows a pop-up to add the person or see your existing connection.",
     ],

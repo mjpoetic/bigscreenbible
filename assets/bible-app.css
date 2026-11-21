@@ -28417,7 +28417,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-reader .coloring-sheet[data-coloring-tool="brush"] { touch-action:none; }
 .coloring-reader #coloringPixels { pointer-events:auto; touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 .coloring-reader .coloring-sheet[data-coloring-tool="brush"] #coloringPixels { touch-action:none; }
-.coloring-reader .coloring-sheet[data-coloring-tool="pan"], .coloring-reader .coloring-sheet[data-coloring-tool="pan"] #coloringPixels { touch-action:pan-x pan-y; cursor:grab; }
+.coloring-reader .coloring-sheet[data-coloring-tool="pan"], .coloring-reader .coloring-sheet[data-coloring-tool="pan"] #coloringPixels { touch-action:none; cursor:grab; }
 .coloring-art-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; user-select:none; }
 .coloring-reader .coloring-pages { grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); }
 @media (max-width:700px) { .coloring-reader .coloring-pages { grid-template-columns:repeat(3,minmax(0,1fr)); } }

@@ -400,9 +400,15 @@
       if(pointers.size===2) { tap=null;suppressFillUntil=Date.now()+700;if(drawing)finish({pointerId:drawing.id});gesture=pinchState(); }
     },true);
     sheet.addEventListener("pointermove",e=>{
-      if(!pointers.has(e.pointerId))return;
+      const previous=pointers.get(e.pointerId);
+      if(!previous)return;
       pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(tool!=="brush" || pointers.size!==2||!gesture)return;
+      if(tool==="pan" && pointers.size===1){
+        viewport.scrollLeft+=previous.x-e.clientX;
+        viewport.scrollTop+=previous.y-e.clientY;
+        return;
+      }
+      if((tool!=="brush" && tool!=="pan") || pointers.size!==2 || !gesture)return;
       e.preventDefault();const next=pinchState();
       const before=zoom;setZoom(zoom*next.d/Math.max(gesture.d,1));
       const r=viewport.getBoundingClientRect(),ratio=zoom/before;
