@@ -27280,7 +27280,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .trivia-reader.is-setup .trivia-setup {
     position: relative;
     grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(190px, 1.35fr) auto;
-    grid-template-rows: auto 66px 32px auto auto auto;
+    grid-template-rows: auto minmax(66px, auto) 32px auto auto auto;
     gap: 12px;
     align-items: start;
   }
@@ -27363,6 +27363,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   .trivia-reader.is-setup .trivia-start-dock {
     grid-column: 5;
     grid-row: 2;
+    display: grid;
     align-self: start;
     border: 0;
     padding: 20px 0 0;
@@ -27370,7 +27371,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
     max-width: 210px;
   }
   .trivia-reader.is-setup .trivia-start { min-height: 40px; padding: 8px 12px; font-size: 12px; }
-  .trivia-reader.is-setup .games-setup-help-menu { position: relative; grid-column: 1 / -1; grid-row: 3; }
+  .trivia-reader.is-setup .games-setup-help-menu { position: relative; grid-column: 1 / 5; grid-row: 3; }
+  .trivia-reader.is-setup .games-setup-help-menu > summary { width: fit-content; }
   .trivia-reader.is-setup .games-setup-help-menu > div,
   .trivia-reader.is-setup .puzzle-passage-popover {
     position: absolute;

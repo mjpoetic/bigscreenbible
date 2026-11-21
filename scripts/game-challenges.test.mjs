@@ -89,6 +89,7 @@ vm.runInContext(`
   ${extractFunction("gameChallengeIsExpired")}
   ${extractFunction("gameChallengeCollections")}
   ${extractFunction("gameChallengeErrorMessage")}
+  ${extractFunction("gameChallengeClosureNotice")}
   ${extractFunction("gameChallengePopupCandidates")}
   ${extractFunction("gameChallengePopupShouldInterrupt")}
   ${extractFunction("seededTriviaRandom")}
@@ -244,6 +245,21 @@ const friendPopup = popupContext.gameChallengePopup();
 assert.match(friendPopup, /Friend sent you a friend request/);
 assert.match(friendPopup, /data-friend-action="accept" data-friendship-id="request"/);
 assert.match(friendPopup, /data-game-challenge-popup-dismiss[^>]*>Maybe later/);
+for (const [roomStatus, inviteStatus, heading] of [
+  ["pending", "invited", "Challenge cancelled"],
+  ["accepted", "accepted", "Challenge ended"],
+]) {
+  const room = { id: "closed", challengerId: "user-b", status: roomStatus };
+  const roster = { closed: [{ userId: "user-a", inviteStatus }] };
+  const notices = pureContext.popupCandidates([room], [{ ...room, status: "cancelled" }], "user-a", roster, {});
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].kind, "closure");
+  popupContext.gameChallengePopupNotice = notices[0];
+  const markup = popupContext.gameChallengePopup();
+  assert.match(markup, new RegExp(heading));
+  assert.match(markup, /data-game-challenge-popup-dismiss[^>]*>Got it/);
+  assert.equal(pureContext.popupCandidates([room], [], "user-a", roster, {}).length, 0);
+}
 const lobby = state.gameChallenges.find((challenge) => challenge.id === "outgoing");
 const host = { userId: "user-a", isHost: true, inviteStatus: "accepted" };
 const guest = { userId: "user-c", ready: true, inviteStatus: "accepted" };

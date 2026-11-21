@@ -35,6 +35,9 @@ try {
  const rosterMigration = read('supabase/migrations/20261121040551_game_room_roster.sql');
  assert.ok(read('supabase/schema.sql').includes(rosterMigration));
  await db.exec(rosterMigration);
+ const closureMigration = read('supabase/migrations/20261121041432_game_room_closure_notices.sql');
+ assert.ok(read('supabase/schema.sql').includes(closureMigration));
+ await db.exec(closureMigration);
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
@@ -83,6 +86,23 @@ try {
  await db.query(`select public.start_bsb_game_room('${rosterRoom}')`);
  await assert.rejects(changeRoster(b, 'remove'), { code: '23514' });
  await assert.rejects(changeRoster(c, 'invite'), { code: '23514' });
+
+ for (const roomId of [rosterRoom, (await db.query(`select public.create_bsb_game_room(
+   array['${b}'::uuid], 'trivia', 'Mixed', 'All', 5::smallint, 'BSB', false) as id`)).rows[0].id]) {
+  const close = await db.query(`update public.bsb_game_challenges set status='cancelled', responded_at=now()
+    where id='${roomId}' returning status`);
+  assert.deepEqual(close.rows, [{ status: 'cancelled' }]);
+  await login(b);
+  assert.deepEqual((await db.query(`select status from public.bsb_game_challenges where id='${roomId}'`)).rows, [{ status: 'cancelled' }]);
+  assert.equal((await db.query(`select user_id from public.bsb_game_challenge_players where challenge_id='${roomId}'`)).rows.length, 0);
+  await login(a);
+ }
+ // A friend who was never invited cannot read a cancelled room.
+ const { rows: [{ id: privateRoom }] } = await db.query(`select public.create_bsb_game_room(
+   array['${b}'::uuid], 'trivia', 'Mixed', 'All', 5::smallint, 'BSB', false) as id`);
+ await db.query(`update public.bsb_game_challenges set status='cancelled', responded_at=now() where id='${privateRoom}'`);
+ await login(c);
+ assert.equal((await db.query(`select status from public.bsb_game_challenges where id='${privateRoom}'`)).rows.length, 0);
 
  for (const type of ['word-search','crossword','hidden-word']) {
   await login(a);

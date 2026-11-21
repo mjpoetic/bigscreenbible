@@ -32,6 +32,10 @@ assert.match(source, /controls: '<svg[\s\S]*?<circle cx="15" cy="12" r="2"\/>/);
 assert.match(source, /returnBack: '<svg[\s\S]*?M4 12h9a7 7 0 0 1 7 7/);
 assert.match(source, /id="gameHintsToggle"[\s\S]*?aria-controls="gamesHintsDrawer"/);
 assert.match(source, /class="trivia-start-dock"[\s\S]*?id="startTriviaGame"/);
+// The desktop help disclosure cannot cover the second button in the start dock.
+assert.match(styles, /grid-template-rows: auto minmax\(66px, auto\) 32px auto auto auto;/);
+assert.match(styles, /\.trivia-reader\.is-setup \.games-setup-help-menu \{[^}]*grid-column: 1 \/ 5;/);
+assert.match(styles, /\.trivia-reader\.is-setup \.games-setup-help-menu > summary \{ width: fit-content; \}/);
 assert.match(source, /class="games-drawer games-options-drawer"[\s\S]*?role="dialog"/);
 assert.match(source, /class="games-drawer games-social-drawer"[^>]*?role="dialog" aria-modal="true"/);
 assert.match(source, /class="games-drawer games-controls-drawer"[\s\S]*?role="dialog"/);

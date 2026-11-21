@@ -5551,6 +5551,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.23": [
+      "Challenge a friend now opens the invite picker without interference from the desktop How to play disclosure.",
+      "Players now see a full-size notice when the host ends or cancels a challenge.",
+    ],
     "2026.11.20.22": [
       "Incoming friend requests now show a full invitation with the sender’s profile and buttons to accept or decide later.",
     ],
@@ -8251,7 +8255,24 @@ function gameChallengePopupCandidates(
       challengeId: challenge.id,
       status: "rematch",
     }));
-  return [...replies, ...rematches, ...incoming];
+  const cancelledRooms = new Set(challenges.filter((challenge) => challenge.status === "cancelled").map((challenge) => challenge.id));
+  const closures = previousChallenges
+    .filter((challenge) => cancelledRooms.has(challenge.id) && ["pending", "accepted"].includes(challenge.status)
+      && (previousPlayers[challenge.id] || []).some((player) => player.userId === userId
+        && (player.inviteStatus === "accepted" || (challenge.status === "pending" && player.inviteStatus === "invited"))))
+    .map((challenge) => gameChallengeClosureNotice(challenge, userId));
+  return [...closures, ...replies, ...rematches, ...incoming];
+}
+
+function gameChallengeClosureNotice(challenge, userId) {
+  return {
+    userId,
+    kind: "closure",
+    challengeId: challenge.id,
+    actorUserId: challenge.challengerId,
+    status: challenge.startedAt || challenge.status === "accepted" ? "ended" : "cancelled",
+    challenge,
+  };
 }
 
 function gameChallengePopupNoticeIsValid(
@@ -8260,6 +8281,7 @@ function gameChallengePopupNoticeIsValid(
   userId = state.authUser?.id || "",
 ) {
   if (!notice || notice.userId !== userId) return false;
+  if (notice.kind === "closure") return Boolean(notice.challenge);
   if (notice.kind === "friend") {
     return Boolean(state.socialProfile && state.socialSafetyReady && state.socialConsent && state.socialAccessAllowed
       && friendshipCollections(userId).incoming.some((request) => request.id === notice.friendshipId));
@@ -8398,7 +8420,8 @@ function gameChallengePopup() {
   const continuingPopup = document.getElementById("gameChallengePopupDialog")
     ?.dataset.challengeNoticeKey === noticeKey;
   const friendRequest = notice.kind === "friend";
-  const challenge = state.gameChallenges.find((item) => item.id === notice.challengeId);
+  const closure = notice.kind === "closure";
+  const challenge = closure ? notice.challenge : state.gameChallenges.find((item) => item.id === notice.challengeId);
   if (!challenge && !friendRequest) return "";
   const profile = friendshipProfile(notice.actorUserId || gameChallengeOtherUserId(challenge));
   const person = profile || {
@@ -8413,10 +8436,13 @@ function gameChallengePopup() {
   const rematch = notice.status === "rematch";
   const waiting = challenge?.status === "pending";
   const canStart = accepted && waiting && gameRoomCanStart(gameChallengeAcceptedPlayers(challenge.id));
-  const title = friendRequest ? `${personName} sent you a friend request` : rematch ? `${personName} started a rematch`
+  const closureLabel = notice.status === "ended" ? "Challenge ended" : "Challenge cancelled";
+  const title = closure ? closureLabel : friendRequest ? `${personName} sent you a friend request` : rematch ? `${personName} started a rematch`
     : incoming ? `${personName} invited you`
       : accepted ? `${personName} joined your room` : `${personName} may play later`;
-  const body = friendRequest ? "Add them as a friend to play games together." : rematch ? "Jump back in with the same challenge and players."
+  const body = closure
+    ? notice.actorUserId === notice.userId ? "You closed this challenge for everyone." : "The host closed this challenge."
+    : friendRequest ? "Add them as a friend to play games together." : rematch ? "Jump back in with the same challenge and players."
     : incoming ? "Join ready to play. The host will start the game."
       : accepted ? waiting ? canStart ? "Your friends are ready to play." : "See who’s ready to play." : "The game has already started."
         : "They passed on this room. You can invite them again another time.";
@@ -8424,7 +8450,7 @@ function gameChallengePopup() {
   const primaryLabel = state.gameChallengeActionBusyId && state.gameChallengeActionBusyId === challenge?.id ? "Working…"
     : rematch ? "Join rematch" : incoming ? "I’m ready" : canStart ? "Start game"
       : accepted ? waiting ? "View room" : "Join game" : "Got it";
-  const popupBusy = Boolean(friendRequest ? state.friendshipActionBusyId : state.gameChallengeActionBusyId);
+  const popupBusy = !closure && Boolean(friendRequest ? state.friendshipActionBusyId : state.gameChallengeActionBusyId);
   return `
     <section class="game-challenge-popup-overlay open ${continuingPopup ? "continuing" : ""}">
       <article
@@ -8440,13 +8466,13 @@ function gameChallengePopup() {
       >
         <div class="game-challenge-popup-icon" aria-hidden="true">${friendRequest ? icons.user : icons.trivia}</div>
         <div class="shortcut-eyebrow">${friendRequest ? "Friend request" : rematch ? "Rematch" : incoming ? "Game room invitation" : "Room update"}</div>
-        <div class="game-challenge-popup-person">
+        ${closure ? "" : `<div class="game-challenge-popup-person">
           ${socialProfileAvatarMarkup(person, "game-challenge-popup-avatar")}
           <div>
             <strong>${escapeHtml(personName)}</strong>
             ${personHandle ? `<span>${escapeHtml(personHandle)}</span>` : ""}
           </div>
-        </div>
+        </div>`}
         <h2 id="gameChallengePopupTitle">${escapeHtml(title)}</h2>
         <p id="gameChallengePopupDescription">${escapeHtml(body)}</p>
         ${friendRequest ? "" : `<div class="game-challenge-popup-summary">${escapeHtml(gameChallengeSummary(challenge))}</div>`}
@@ -12611,7 +12637,10 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
     const challengeIds = [...new Set((memberships || []).map((player) => player.challenge_id).filter(Boolean))];
     let challengeRows = [];
     let playerRows = [];
-    if (challengeIds.length) {
+    const roomIds = [...new Set([...challengeIds, ...previousChallenges
+      .filter((challenge) => ["pending", "accepted"].includes(challenge.status))
+      .map((challenge) => challenge.id)])];
+    if (roomIds.length) {
       const [
         { data: rooms, error: roomsError },
         { data: players, error: playersError },
@@ -12619,12 +12648,12 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
         client
           .from(gameChallengeTable)
           .select("id, challenger_id, challenged_id, game_type, category, difficulty, round_count, version, timed, max_players, seed, puzzle, rematch_of, status, responded_at, started_at, completed_at, expires_at, created_at, updated_at")
-          .in("id", challengeIds)
+          .in("id", roomIds)
           .order("updated_at", { ascending: false }),
         client
           .from(gameChallengePlayerTable)
           .select("challenge_id, user_id, is_host, invite_status, responded_at, score, progress, ready, completed_at, elapsed_ms, puzzle_state, created_at, updated_at")
-          .in("challenge_id", challengeIds),
+          .in("challenge_id", roomIds),
       ]);
       if (roomsError) throw roomsError;
       if (playersError) throw playersError;
@@ -12678,7 +12707,9 @@ async function loadGameChallenges({ render = true, announce = false } = {}) {
       if (state.gamesDrawerOpen === "social") state.gamesDrawerOpen = "";
       teardownGameRoomPresence();
       const previousRoom = previousChallenges.find((challenge) => challenge.id === previousActiveChallengeId);
-      showToast(previousRoom?.status === "pending" ? "This waiting room is no longer available" : "The live challenge ended");
+      if (refreshedActiveChallenge?.status !== "cancelled") {
+        showToast(previousRoom?.status === "pending" ? "This waiting room is no longer available" : "The live challenge ended");
+      }
     }
     state.gameChallengeStatus = "ready";
     state.gameChallengeMessage = "";
@@ -12945,20 +12976,13 @@ async function updateGameChallengeResponse(challengeId, action) {
     }
     if (action === "accept") queueSocialPushDelivery();
     state.gameChallengeActionBusyId = "";
-    if (action === "end") {
-      state.activeGameChallengeId = "";
-      if (state.triviaGame?.challengeId === challengeId) state.triviaGame = null;
-    }
     await loadGameChallenges({ render: false });
     if (action === "accept") {
       await joinGameChallenge(challengeId);
       showToast("You’re ready to play");
-    } else if (action === "end") {
-      state.gameChallengeMessage = "Game room ended.";
-      showToast("Game room ended");
-    } else {
-      state.gameChallengeMessage = action === "cancel" ? "Game room cancelled." : "Invitation declined.";
-      showToast(action === "cancel" ? "Game room cancelled" : "Maybe another time");
+    } else if (action === "decline") {
+      state.gameChallengeMessage = "Invitation declined.";
+      showToast("Maybe another time");
     }
   } catch (error) {
     console.warn("Game room response failed", error);
