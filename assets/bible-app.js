@@ -823,6 +823,7 @@ const state = {
   focusControlsHide: localStorage.getItem("lw_focus_controls_hide") === "true",
   focusControlsHideSeconds: normalizedFocusControlsHideSeconds(localStorage.getItem("lw_focus_controls_hide_seconds")),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
+  parallelHeaderCollapsed: false,
   portraitSearchCollapsed: localStorage.getItem("lw_portrait_search_collapsed") === "true",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   footerChapterArrows: localStorage.getItem("lw_footer_chapter_arrows") !== "false",
@@ -2121,9 +2122,10 @@ function render({ preserveAutoScroll = false } = {}) {
   const previousToast = document.querySelector(".status-toast-region");
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
   app.innerHTML = `
-    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
+      ${state.mode === "parallel" ? `<button class="parallel-header-toggle" id="parallelHeaderToggle" type="button" aria-controls="appHeader" aria-expanded="${!state.parallelHeaderCollapsed}" aria-label="${state.parallelHeaderCollapsed ? "Show" : "Hide"} header"><span aria-hidden="true">${state.parallelHeaderCollapsed ? "⌄" : "⌃"}</span> ${state.parallelHeaderCollapsed ? "Show" : "Hide"} header</button>` : ""}
       <section class="${mainGridClass()}" style="${textFontVars()}">
         ${state.focusMode || ["trivia", "memorize"].includes(state.mode) ? "" : rail()}
         ${state.focusMode || ["trivia", "memorize"].includes(state.mode) || !state.libraryOpen ? "" : library()}
@@ -5546,6 +5548,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.6": [
+      "Parallel Study adds Hide header and Show header controls in mobile landscape for more Scripture viewing space while keeping your place in the passage.",
+    ],
     "2026.11.20.5": [
       "Coloring Book adds the approved Jesus Welcomes the Children illustration, with hundreds of fillable details and a paintbrush icon. Portrait scrolling and touch/Pencil input handling are improved, with an explicit Pan mode for moving around a page.",
     ],
@@ -7196,7 +7201,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const notesSearchSource = normalizedSearchSource(state.searchSource) === "notes";
   const activeSearchLabel = activeSearchSourceLabel();
   return `
-    <header class="topbar">
+    <header class="topbar" id="appHeader">
       <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day${focusBrandVersionHoldEnabled() ? ". Double-tap or double-click for Big Screen with the selected verse. Press and hold to choose Bible versions" : ""}">
         <img class="brand-mark-image" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
@@ -25456,6 +25461,14 @@ function bindEvents() {
   document.getElementById("tutorialBack")?.addEventListener("click", retreatTutorial);
   document.getElementById("tutorialSkip")?.addEventListener("click", finishTutorial);
   document.getElementById("focusToggle")?.addEventListener("click", toggleFocusMode);
+  document.getElementById("parallelHeaderToggle")?.addEventListener("click", () => {
+    state.parallelHeaderCollapsed = !state.parallelHeaderCollapsed;
+    state.headerVersionMenuOpen = false;
+    state.portraitNavigationOpen = false;
+    state.mobileControlsOpen = false;
+    renderPreservingReaderScroll();
+    document.getElementById("parallelHeaderToggle")?.focus({ preventScroll: true });
+  });
   document.getElementById("portraitSearchCollapseToggle")?.addEventListener("click", () => {
     state.portraitSearchCollapsed = !state.portraitSearchCollapsed;
     localStorage.setItem("lw_portrait_search_collapsed", String(state.portraitSearchCollapsed));
