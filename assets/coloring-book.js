@@ -126,7 +126,7 @@
   }
   function view() {
     return `<section class="reader trivia-reader is-setup"><article class="trivia-panel coloring-book" id="coloringBook">
-      <div class="coloring-heading"><div><div class="trivia-eyebrow">Games · Create at your own pace</div><h1 id="coloringTitle" tabindex="-1">Bible Coloring Book <small class="game-new-badge">NEW</small></h1></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
+      <div class="coloring-heading"><div><div class="trivia-eyebrow">Games · Create at your own pace</div><h1 id="coloringTitle" tabindex="-1">Bible Coloring Book <small class="game-new-badge">BETA</small></h1></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       <p>Choose a page and a color. Fill a shape or draw with a finger, stylus, or mouse. No timer, no scores—just room to create.</p>
       <div class="coloring-pages" aria-label="Coloring pages">${pages.map(p=>`<button type="button" data-page="${p.id}" aria-pressed="${p.id === selected}">${svg(p)}<strong>${p.title}</strong><small>${p.level} · ${p.reference}</small></button>`).join("")}</div>
       <div class="coloring-workspace"><div class="coloring-tools"><h2>${page().title}</h2><button class="text-btn" data-coloring="read" type="button">Read ${page().reference} →</button>

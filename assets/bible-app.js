@@ -5545,6 +5545,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.4": [
+      "The Coloring Book is now marked BETA in Games and in its header while the illustration collection is being improved.",
+    ],
     "2026.11.20.3": [
       "Coloring Book brush strokes stay inside the starting shape by default, with an optional freehand setting in normal and full-screen views. All six pages have richer animal, nature, architectural, and decorative details, preserving existing saved colors.",
     ],
@@ -19781,7 +19784,7 @@ function triviaView() {
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
-                <button data-open-coloring type="button" ${challengeSetupLock}>${icons.highlight || icons.book}<span>Coloring Book</span><small class="game-new-badge">NEW</small></button>
+                <button data-open-coloring type="button" ${challengeSetupLock}>${icons.highlight || icons.book}<span>Coloring Book</span><small class="game-new-badge">BETA</small></button>
                 <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
                 <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
                 <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span></button>

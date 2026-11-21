@@ -8,6 +8,9 @@ function view(value, fail = false) {
   return window.BSBColoring.view();
 }
 const initial = view(null);
+assert.match(initial, /game-new-badge">BETA<\/small>/);
+const appSource=readFileSync(new URL("../assets/bible-app.js",import.meta.url),"utf8");
+assert.match(appSource, /<span>Coloring Book<\/span><small class="game-new-badge">BETA<\/small>/);
 assert.equal((initial.match(/data-page=/g)||[]).length,6);
 assert.equal((initial.match(/data-color=/g)||[]).length,14);
 assert.match(initial,/type="color"/);
