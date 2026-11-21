@@ -25006,6 +25006,11 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .friend-invite-person { display: flex; align-items: center; gap: 10px; }
 
 .friend-invite-dialog { box-sizing: border-box; }
+#friendInviteDialog { width: min(380px, calc(100vw - 32px)); padding: 14px 18px 18px; }
+.friend-invite-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.friend-invite-header h2 { margin: 0; }
+.friend-invite-header .friend-invite-done { display: grid; place-items: center; width: 44px; min-width: 44px; padding: 0; border-radius: 50%; font-size: 22px; line-height: 1; }
+#friendInviteDialog > p { margin: 4px 0 12px; }
 .friend-invite-dialog > img { display: block; width: min(100%, 216px); height: auto; margin: 0 auto 16px; background: #fff; image-rendering: pixelated; }
 .friend-invite-dialog .account-actions { margin-top: 12px; }
 .friend-invite-dialog [role="status"]:empty { display: none; }
@@ -28151,9 +28156,22 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 
 .account-signed-in-heading {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
   overflow-wrap: anywhere;
 }
+
+.account-signed-in-identity { display: grid; gap: 4px; }
+.account-signed-in-heading .account-friend-qr {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 10px;
+}
+.account-friend-qr img { display: block; border-radius: 4px; background: #fff; image-rendering: pixelated; }
 
 .account-popover .social-profile-form button.social-profile-save,
 .presentation .presentation-account-popover .social-profile-form button.social-profile-save {

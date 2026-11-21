@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.5": [
+      "Open My Friend QR from the mini code next to your signed-in address. A checkmark closes the smaller sharing pop-up.",
+    ],
     "2026.11.21.4": [
       "My Friend QR has a translucent Liquid Glass pop-up with glass share controls.",
     ],
@@ -8839,7 +8842,7 @@ function friendsCard(prefix = "") {
         </div>
         ${requestCount ? `<span class="friend-request-count" aria-label="${requestCount} incoming friend ${requestCount === 1 ? "request" : "requests"}">${requestCount}</span>` : ""}
       </div>
-      ${state.socialProfile.isDiscoverable && state.socialProfile.allowFriendRequests
+      ${canShareFriendInvite()
         ? friendInvitePreview(state.socialProfile)
         : ""}
       <div class="friends-navigation">
@@ -9036,8 +9039,11 @@ function accountPanel(prefix = "") {
       `;
     return `
       <section class="account-card account-signed-in-heading">
-        <span class="setting-label">Signed in as</span>
-        <strong>${escapeHtml(email)}</strong>
+        <div class="account-signed-in-identity">
+          <span class="setting-label">Signed in as</span>
+          <strong>${escapeHtml(email)}</strong>
+        </div>
+        ${canShareFriendInvite() ? friendInvitePreview(state.socialProfile, { compact: true }) : ""}
       </section>
       ${socialProfileCard(prefix)}
       ${streakCard(prefix)}
@@ -13658,8 +13664,19 @@ function friendInviteQr(profileId) {
   return src;
 }
 
-function friendInvitePreview(profile) {
+function canShareFriendInvite() {
+  const profile = state.socialProfile;
+  return Boolean(state.authUser && state.socialSafetyReady && state.socialConsent && state.socialAccessAllowed
+    && profile?.isDiscoverable && profile.allowFriendRequests && profile.userId === state.authUser.id
+    && friendInviteIdPattern.test(profile.userId));
+}
+
+function friendInvitePreview(profile, { compact = false } = {}) {
   const qr = friendInviteQr(profile.userId);
+  if (compact) {
+    return qr ? `<button type="button" class="ghost-btn account-friend-qr" data-friend-action="share-invite"
+      aria-label="My Friend QR" title="My Friend QR"><img src="${qr}" alt="" width="36" height="36" /></button>` : "";
+  }
   return `<button type="button" class="ghost-btn friend-invite-preview" data-friend-action="share-invite">
     ${qr ? `<img src="${qr}" alt="" width="64" height="64" />` : ""}
     <span><strong>My Friend QR</strong><small>${qr ? "Tap to enlarge or share" : "Share your invite link"}</small></span>
@@ -13719,9 +13736,7 @@ function showFriendInviteOutcome(inviteId, profile, relationship, userId) {
 
 function openFriendInviteDialog(opener) {
   const profile = state.socialProfile;
-  if (!state.authUser || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed
-    || !profile?.isDiscoverable || !profile.allowFriendRequests || profile.userId !== state.authUser.id
-    || !friendInviteIdPattern.test(profile.userId) || document.getElementById("friendInviteDialog")) return;
+  if (!canShareFriendInvite() || document.getElementById("friendInviteDialog")) return;
 
   const url = friendInviteUrl(profile.userId);
   const dialog = document.createElement("dialog");
@@ -13731,13 +13746,17 @@ function openFriendInviteDialog(opener) {
   const shareData = { url };
   const canShare = typeof navigator.share === "function" && (!navigator.canShare || navigator.canShare(shareData));
   dialog.innerHTML = `
-    <h2 id="friendInviteTitle">My Friend QR</h2>
-    <p>Have someone scan this code with their camera to find @${escapeHtml(profile.username)} and send you a friend request.</p>
+    <header class="friend-invite-header">
+      <h2 id="friendInviteTitle">My Friend QR</h2>
+      <form method="dialog">
+        <button type="submit" class="ghost-btn friend-invite-done" aria-label="Done" title="Done" autofocus><span aria-hidden="true">✓</span></button>
+      </form>
+    </header>
+    <p>Scan to find @${escapeHtml(profile.username)} and send a friend request.</p>
     <label>Invite link <input readonly value="${escapeHtml(url)}" /></label>
     <div class="account-actions">
       <button type="button" class="ghost-btn" data-copy-friend-invite>Copy Invite Link</button>
       ${canShare ? '<button type="button" class="ghost-btn" data-share-friend-invite>Share Invite</button>' : ""}
-      <form method="dialog"><button class="primary-btn" autofocus>Done</button></form>
     </div>
     <p role="status" data-friend-invite-status></p>`;
 
