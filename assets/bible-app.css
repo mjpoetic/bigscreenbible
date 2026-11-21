@@ -28351,7 +28351,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-view-controls button { min-width:44px; min-height:44px; }
 .coloring-view-controls output { min-width:45px; text-align:center; }
 .coloring-expanded-color { display:flex; align-items:center; gap:6px; }
-.coloring-stage.is-expanded { position:fixed; inset:0; z-index:10000; display:flex; flex-direction:column; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:var(--bg,#172132); color:var(--text,#fff); }
+.coloring-stage.is-expanded { position:fixed; inset:0; z-index:10000; display:flex; flex-direction:column; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:var(--paper); color:var(--ink); }
 .coloring-stage.is-expanded .coloring-canvas { flex:1; min-height:0; max-height:none; }
 .coloring-sheet { touch-action:none; margin-inline:auto; }
 #coloringPixels.is-drawing { touch-action:none; }
@@ -28361,3 +28361,6 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 #coloringBook .coloring-sheet > svg, #coloringBook .coloring-pages svg { width:100%; height:auto; aspect-ratio:1; max-height:none; }
 .coloring-view-controls select { min-height:44px; max-width:140px; }
 @media (max-width:700px) { .coloring-palette { grid-template-columns:repeat(7,minmax(0,1fr)); } .coloring-palette button { min-height:44px; } .coloring-stage.is-expanded .coloring-view-controls { max-height:35dvh; overflow:auto; } }
+.coloring-line-lock { display:flex; align-items:center; gap:8px; min-height:44px; font-size:14px; }
+.coloring-line-lock input { width:20px; height:20px; accent-color:var(--teal); flex-shrink:0; }
+.coloring-tools > .coloring-line-lock { grid-column:1 / -1; }

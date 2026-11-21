@@ -45,9 +45,63 @@
       ...[130,270,410].flatMap((y,i)=>[ellipse(i%2?385:210,y,70,32,"Vine leaf",i%2?-30:30),ellipse(i%2?210:385,y+55,65,29,"Vine leaf",i%2?30:-30)]),
       ...[[145,245],[435,375],[180,490]].flatMap(([x,y])=>[...Array.from({length:3},(_,row)=>Array.from({length:3-row},(_,col)=>circle(x+col*27+row*13,y+row*25,17,"Grape"))).flat()])] },
   ];
+  // Append details so existing saved fill indexes remain attached to their shapes.
+  const cloud = (x,y) => [path(`M${x-35} ${y+12} Q${x-55} ${y-8} ${x-25} ${y-15} Q${x-15} ${y-45} ${x+10} ${y-20} Q${x+45} ${y-30} ${x+45} ${y+12} Z`, "Cloud")];
+  const butterfly = (x,y) => [ellipse(x-12,y-8,12,18,"Butterfly wing",-25),ellipse(x+12,y-8,12,18,"Butterfly wing",25),ellipse(x-10,y+14,10,12,"Butterfly wing",25),ellipse(x+10,y+14,10,12,"Butterfly wing",-25),ellipse(x,y,4,21,"Butterfly body")];
+  const details = {
+    ark: [
+      ...cloud(105,115), ...cloud(490,240),
+      ...[0,1,2].flatMap(row=>Array.from({length:5-row},(_,col)=>rect(125+row*22+col*54,380+row*25,50,22,"Wooden hull plank",3))),
+      ...[210,285,360].flatMap(x=>[ellipse(x+12,318,10,14,"Animal face"),ellipse(x+4,302,4,8,"Animal ear",-25),ellipse(x+20,302,4,8,"Animal ear",25),circle(x+9,316,2,"Animal eye"),circle(x+16,316,2,"Animal eye")]),
+      ...Array.from({length:5},(_,i)=>path(`M${220+i*30} 258 L${230+i*30} 242 L${250+i*30} 258 Z`,"Roof tile")),
+      ...[505,540].flatMap((y,row)=>Array.from({length:7},(_,i)=>ellipse(65+i*77+row*10,y,24,6,"Water ripple"))),
+      ellipse(95,240,22,11,"Dove body"),ellipse(90,226,13,25,"Dove wing",-35),circle(115,234,9,"Dove head"),path("M122 232 L136 236 L122 240 Z","Dove beak"),ellipse(145,242,16,5,"Olive leaf",-25),
+    ],
+    creation: [
+      ...cloud(300,95), ...cloud(495,260),
+      ...[[90,220],[135,185],[175,230],[125,260],[175,180]].map(([x,y])=>circle(x,y,12,"Tree fruit")),
+      ...[[105,170],[170,270],[95,265]].map(([x,y])=>ellipse(x,y,14,7,"Tree leaf",-25)),
+      ...Array.from({length:7},(_,i)=>circle(347+i*13,421+(i%2)*13,13,"Wool curl")),
+      ellipse(466,414,8,16,"Sheep ear",35),circle(457,431,3,"Sheep eye"),ellipse(462,450,7,4,"Sheep nose"),
+      ...[[90,520],[200,465],[290,535],[510,520]].flatMap(([x,y])=>flower(x,y,16,6)),
+      ...butterfly(270,250),...butterfly(480,340),
+      ...[[280,400],[460,555],[160,540]].flatMap(([x,y])=>[ellipse(x,y,7,21,"Meadow grass",-20),ellipse(x+12,y,7,23,"Meadow grass",20)]),
+    ],
+    star: [
+      ...[[65,180],[155,75],[445,200],[530,155],[75,330],[510,365],[385,70],[205,310]].map(([x,y])=>path(`M${x} ${y-9} L${x+3} ${y-3} L${x+9} ${y} L${x+3} ${y+3} L${x} ${y+9} L${x-3} ${y+3} L${x-9} ${y} L${x-3} ${y-3} Z`,"Twinkling star")),
+      ...[0,1,2].flatMap(row=>Array.from({length:5-row},(_,i)=>rect(200+i*40+row*20,402+row*35,36,29,"Stable stone",3))).filter((_,i)=>i!==7),
+      ...[0,1,2].map(i=>path(`M${190+i*35} 380 L${220+i*30} 355 L${250+i*30} 380 Z`,"Roof thatch")),
+      path("M268 494 H332 L320 517 H280 Z","Manger"),ellipse(300,490,27,10,"Manger bedding"),
+      ...[[80,425],[470,440]].flatMap(([x,y])=>[rect(x,y,45,40,"Bethlehem house",3),path(`M${x-5} ${y} L${x+22} ${y-24} L${x+50} ${y} Z`,"House roof"),rect(x+15,y+15,14,25,"House doorway",5)]),
+      ...Array.from({length:8},(_,i)=>ellipse(60+i*65,555,18,8,"Path stone",i%2?15:-15)),
+    ],
+    garden: [
+      ...[[155,160],[420,165],[300,300],[145,435],[440,440]].flatMap(([x,y])=>[circle(x,y,9,"Flower center jewel"),...[0,1,2,3,4,5].map(i=>circle(x+Math.cos(i*Math.PI/3)*19,y+Math.sin(i*Math.PI/3)*19,4,"Flower seed"))]),
+      ...[[70,65],[525,70],[75,535],[530,535],[300,190],[300,415]].flatMap(([x,y])=>flower(x,y,16,6)),
+      ...butterfly(295,75),...butterfly(70,400),...butterfly(525,220),
+      ...[[200,300],[390,320],[300,540],[70,210]].flatMap(([x,y])=>[ellipse(x,y,9,23,"Small leaf",-35),ellipse(x+22,y+10,9,23,"Small leaf",35)]),
+    ],
+    waters: [
+      ...cloud(100,85),...cloud(500,195),
+      ...Array.from({length:6},(_,i)=>ellipse(265+(i%2)*25,400+i*25,18+i*2,4,"Water reflection")),
+      ...[[210,370],[405,480],[180,525],[460,550]].map(([x,y])=>ellipse(x,y,16,9,"Riverbank stone",-15)),
+      ...[[190,460],[400,550],[530,480]].flatMap(([x,y])=>[rect(x,y-40,4,40,"Reed stem"),ellipse(x+2,y-40,6,15,"Reed head"),ellipse(x-7,y-10,5,20,"Reed leaf",-25)]),
+      ...[[110,535],[475,520]].flatMap(([x,y])=>[circle(x,y,5,"Flower seed"),ellipse(x+25,y-10,8,20,"Wildflower leaf",30)]),
+      ...[[185,330],[440,350]].flatMap(([x,y])=>[ellipse(x,y,28,18,"Distant sheep"),circle(x+27,y,11,"Sheep head"),rect(x-18,y+13,7,15,"Sheep leg",2),rect(x+10,y+13,7,15,"Sheep leg",2)]),
+    ],
+    vine: [
+      ...[130,270,410].flatMap((y,i)=>[ellipse(i%2?385:210,y,45,9,"Leaf center",i%2?-30:30),ellipse(i%2?210:385,y+55,40,8,"Leaf center",i%2?30:-30)]),
+      ...[[75,90],[500,120],[95,380],[510,520]].flatMap(([x,y])=>flower(x,y,22,7)),
+      ...[[145,245],[435,375],[180,490]].flatMap(([x,y])=>[ellipse(x+12,y-30,22,9,"Grape leaf",-25),circle(x+2,y-3,5,"Grape highlight"),circle(x+29,y+22,5,"Grape highlight")]),
+      ...Array.from({length:10},(_,i)=>[circle(45+i*55,45,6,"Border berry"),circle(45+i*55,555,6,"Border berry")]).flat(),
+      ...butterfly(450,250),
+    ],
+  };
+  pages.forEach(p=>{p.shapes.push(...details[p.id]);p.level=["ark","creation","star"].includes(p.id)?"Detailed":"Intricate";});
   let saved = {};
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
   let selected = pages[0].id, color = palette[0], zoom = 1, history = [], callbacks;
+  let withinLines = saved.__withinLines !== false;
   let tool = "fill", brushSize = 12, erasing = false, expanded = false;
   const ink = () => saved.__ink?.[selected];
   const validInk = value => typeof value === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value);
@@ -59,6 +113,17 @@
     const fills = outline ? {} : saved[p.id] || {};
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="group" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${p.shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="${validColor(fills[i]) ? fills[i] : "#ffffff"}" stroke="#293241" stroke-width="3" stroke-linejoin="round" ${interactive ? `data-region="${i}" tabindex="0" role="button" aria-label="Color ${escape(s.label)}"` : ""}/>`).join("")}${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}</svg>`;
   }
+  function regionMask(pixels, x, y, size = 600) {
+    x=Math.floor(x);y=Math.floor(y);
+    if(x<0||x>=size||y<0||y>=size)return null;
+    const offset=(y*size+x)*4,red=pixels[offset],green=pixels[offset+1];
+    if(pixels[offset+2]!==127 || pixels[offset+3]!==255)return null;
+    const mask=new Uint8ClampedArray(pixels.length);
+    for(let i=0;i<pixels.length;i+=4) {
+      if(pixels[i]===red && pixels[i+1]===green && pixels[i+2]===127 && pixels[i+3]===255)mask[i+3]=255;
+    }
+    return mask;
+  }
   function view() {
     return `<section class="reader trivia-reader is-setup"><article class="trivia-panel coloring-book" id="coloringBook">
       <div class="coloring-heading"><div><div class="trivia-eyebrow">Games · Create at your own pace</div><h1 id="coloringTitle" tabindex="-1">Bible Coloring Book <small class="game-new-badge">NEW</small></h1></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
@@ -66,6 +131,7 @@
       <div class="coloring-pages" aria-label="Coloring pages">${pages.map(p=>`<button type="button" data-page="${p.id}" aria-pressed="${p.id === selected}">${svg(p)}<strong>${p.title}</strong><small>${p.level} · ${p.reference}</small></button>`).join("")}</div>
       <div class="coloring-workspace"><div class="coloring-tools"><h2>${page().title}</h2><button class="text-btn" data-coloring="read" type="button">Read ${page().reference} →</button>
       <div class="coloring-actions" aria-label="Coloring mode"><button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">Fill</button><button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">Brush / pixels</button></div>
+      <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label>
       <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
       <button type="button" class="ghost-btn" data-coloring="eraser" aria-pressed="${erasing}">Eraser</button>
       <div class="coloring-palette" aria-label="Color palette">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${["Red","Black","Rose","Orange","Yellow","Green","Teal","Sky blue","Blue","Purple","Pink","Brown","Slate","White / eraser"][i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div>
@@ -79,7 +145,7 @@
       <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
       <button class="ghost-btn" type="button" data-coloring="fit">Fit page</button>
       <button class="ghost-btn" type="button" data-coloring="mode">${tool==="fill" ? "Fill" : "Brush"}</button><select id="coloringStandardColor" aria-label="Standard colors">${palette.map((c,i)=>`<option value="${c}" ${c===color?"selected":""}>${colorNames[i]}</option>`).join("")}</select><label class="coloring-expanded-color">Custom <input id="coloringExpandedColor" type="color" value="${color}" aria-label="Color in expanded view" /></label>
-      <button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="erase-expanded">Eraser</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="undo-expanded">Undo</button><select class="coloring-fullscreen-action" id="coloringExpandedSize" aria-label="Brush size in full screen">${[1,4,12,24,48,60].map(n=>`<option value="${n}" ${n===brushSize?"selected":""}>${n}px</option>`).join("")}</select><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="save">Save artwork</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="games">Games menu</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="reader">Back to Bible</button>
+      <label class="coloring-line-lock coloring-fullscreen-action"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="erase-expanded">Eraser</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="undo-expanded">Undo</button><select class="coloring-fullscreen-action" id="coloringExpandedSize" aria-label="Brush size in full screen">${[1,4,12,24,48,60].map(n=>`<option value="${n}" ${n===brushSize?"selected":""}>${n}px</option>`).join("")}</select><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="save">Save artwork</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="games">Games menu</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="reader">Back to Bible</button>
       </div><div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" aria-label="Freehand coloring canvas. Use Fill mode for keyboard coloring."></canvas></div></div></div></div></article></section>`;
   }
   function status(message) { document.getElementById("coloringStatus").textContent = message; }
@@ -117,12 +183,42 @@
     root.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;updateTool();});
     document.getElementById("coloringBrushSize").oninput=e=>{brushSize=Number(e.target.value);document.getElementById("coloringBrushValue").textContent=brushSize+"px";};
     function point(e) { const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*600/r.width,y:(e.clientY-r.top)*600/r.height}; }
+    // A region map respects paint order: nested details and foreground objects
+    // cut holes out of the containing shape, so a sky stroke cannot cover them.
+    const maskCanvas=document.createElement("canvas"), strokeCanvas=document.createElement("canvas");
+    maskCanvas.width=strokeCanvas.width=600;maskCanvas.height=strokeCanvas.height=600;
+    const maskCtx=maskCanvas.getContext("2d",{willReadFrequently:true}), strokeCtx=strokeCanvas.getContext("2d");
+    let regionPixels=null;
+    const mapImage=new Image();
+    mapImage.onload=()=>{maskCtx.drawImage(mapImage,0,0);regionPixels=maskCtx.getImageData(0,0,600,600).data;};
+    mapImage.onerror=()=>status("Line protection could not load. Reopen this page to try again.");
+    const regionSVG=`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">${page().shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="rgb(${(i+1)&255},${(i+1)>>8},127)" stroke="black" stroke-width="3" stroke-linejoin="round"/>`).join("")}</svg>`;
+    mapImage.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(regionSVG);
+    function startRegion(p) {
+      if(!withinLines)return true;
+      if(!regionPixels){status("Preparing line protection. Try again in a moment.");return false;}
+      const alpha=regionMask(regionPixels,p.x,p.y);
+      if(!alpha)return false;
+      const mask=maskCtx.createImageData(600,600);mask.data.set(alpha);
+      maskCtx.putImageData(mask,0,0);return true;
+    }
+    root.querySelectorAll("[data-within-lines]").forEach(input=>input.onchange=()=>{
+      withinLines=input.checked;saved.__withinLines=withinLines;
+      root.querySelectorAll("[data-within-lines]").forEach(other=>other.checked=withinLines);
+      if(!persist())status("Unable to save this preference on this device.");
+    });
     function mark(a,b,e) {
-      ctx.globalCompositeOperation=erasing ? "destination-out" : "source-over";
-      ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineCap="round";ctx.lineJoin="round";
-      ctx.lineWidth=brushSize*(e.pointerType === "pen" && e.pressure > 0 ? .35+e.pressure*.9 : 1);
-      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
-      ctx.beginPath();ctx.arc(b.x,b.y,ctx.lineWidth/2,0,Math.PI*2);ctx.fill();
+      const target=withinLines ? strokeCtx : ctx;
+      if(withinLines){strokeCtx.clearRect(0,0,600,600);strokeCtx.globalCompositeOperation="source-over";}
+      target.globalCompositeOperation=!withinLines && erasing ? "destination-out" : "source-over";
+      target.strokeStyle=color;target.fillStyle=color;target.lineCap="round";target.lineJoin="round";
+      target.lineWidth=brushSize*(e.pointerType === "pen" && e.pressure > 0 ? .35+e.pressure*.9 : 1);
+      target.beginPath();target.moveTo(a.x,a.y);target.lineTo(b.x,b.y);target.stroke();
+      target.beginPath();target.arc(b.x,b.y,target.lineWidth/2,0,Math.PI*2);target.fill();
+      if(withinLines){
+        strokeCtx.globalCompositeOperation="destination-in";strokeCtx.drawImage(maskCanvas,0,0);
+        ctx.globalCompositeOperation=erasing ? "destination-out" : "source-over";ctx.drawImage(strokeCanvas,0,0);
+      }
     }
     function finish(e) {
       if (!drawing || e.pointerId !== drawing.id) return;
@@ -156,7 +252,7 @@
     canvas.onpointerdown=e=>{
       if(tool!=="brush" || !ready || drawing || pointers.size>1 || e.button !== 0 || !e.isPrimary) return;
       e.preventDefault();canvas.setPointerCapture(e.pointerId);
-      const p=point(e);drawing={id:e.pointerId,last:p,before:ink() || null};mark(p,p,e);
+      const p=point(e);if(!startRegion(p))return;drawing={id:e.pointerId,last:p,before:ink() || null};mark(p,p,e);
     };
     canvas.onpointermove=e=>{
       if(!drawing || e.pointerId!==drawing.id)return;

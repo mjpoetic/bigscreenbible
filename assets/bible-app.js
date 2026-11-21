@@ -5545,6 +5545,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.3": [
+      "Coloring Book brush strokes stay inside the starting shape by default, with an optional freehand setting in normal and full-screen views. All six pages have richer animal, nature, architectural, and decorative details, preserving existing saved colors.",
+    ],
+    "2026.11.20.2": [
+      "The Coloring Book now uses Liquid Glass page cards, tool panels, and full-screen controls, with theme-aware canvas surroundings and accessible solid-material fallbacks.",
+    ],
     "2026.11.20.1": [
       "Games now includes a Bible Coloring Book marked NEW: six simple and detailed pages, tap-to-fill and touch, stylus, or mouse brush coloring, custom colors, undo, zoom, saved progress on this device, full-screen coloring with zoom and return controls, and downloadable artwork and outlines.",
     ],
