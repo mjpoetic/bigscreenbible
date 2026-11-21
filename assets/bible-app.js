@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.19": [
+      "The Coloring Book returns to free coloring while Color by Number is deferred.",
+    ],
     "2026.11.21.18": [
       "Coloring Book adds optional Color by Number for Jesus Welcomes the Children, with a separate autosave from free coloring.",
     ],

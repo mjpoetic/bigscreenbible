@@ -4,12 +4,6 @@
   const KEY = "bsb_coloring_v1";
   const colorNames = ["Red","Rose","Orange","Yellow","Green","Teal","Sky blue","Blue","Purple","Pink","Brown","Slate","Black","White"];
   const palette = ["#e53935", "#e85d75", "#f28c45", "#f4cc4c", "#86bc66", "#329d8f", "#58b8d8", "#527bd1", "#9167b1", "#df91b6", "#ab7959", "#586174", "#111111", "#ffffff"];
-  const numberColors = [
-    ["Sky blue","#9dd4ef"], ["Leaf green","#89b76d"], ["Warm brown","#aa7452"],
-    ["Warm tan","#ca916b"], ["Blue","#6298d0"], ["Gold","#eac164"],
-    ["Rose","#d98ba1"], ["Lilac","#aa93c8"]
-  ];
-  let numbered = false, selectedNumber = 1, freeTool = "brush";
   const skinTones = ["#f6dfd0","#edc7ad","#dfb18f","#ce9873","#bb815d","#a86c4b","#925536","#77432c","#5e3525","#40271e"];
   const shape = (tag, attrs, label) => ({ tag, attrs, label });
   const path = (d, label) => shape("path", { d }, label);
@@ -105,7 +99,7 @@
     ],
   };
   pages.forEach(p=>{p.shapes.push(...details[p.id]);p.level=["ark","creation","star"].includes(p.id)?"Detailed":"Intricate";});
-  pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png",numbers:"./assets/coloring-pages/jesus-welcomes-children-numbers.json"});
+  pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png"});
   const visiblePages=pages.filter(p=>p.art);
   const artworkData = new Map();
   let viewportObserver;
@@ -120,9 +114,9 @@
   const colors = () => saved[selected] && typeof saved[selected] === "object" ? saved[selected] : {};
   const validColor = value => /^#[0-9a-f]{6}$/i.test(value || "");
   const escape = value => String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
-  function svg(p, outline = false, interactive = false, includeInk = true, embed = false, exportInk = saved.__ink?.[p.id]) {
+  function svg(p, outline = false, interactive = false, includeInk = true, embed = false) {
     const fills = outline ? {} : saved[p.id] || {};
-    if(p.art) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${!outline && includeInk && validInk(exportInk) ? `<image href="${exportInk}" width="600" height="600"/>` : ""}<image href="${embed ? artworkData.get(p.id) : p.art}" width="600" height="600"/></svg>`;
+    if(p.art) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}<image href="${embed ? artworkData.get(p.id) : p.art}" width="600" height="600"/></svg>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="group" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${p.shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="${validColor(fills[i]) ? fills[i] : "#ffffff"}" stroke="#293241" stroke-width="3" stroke-linejoin="round" ${interactive ? `data-region="${i}" tabindex="0" role="button" aria-label="Color ${escape(s.label)}"` : ""}/>`).join("")}${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}</svg>`;
   }
   // A Pencil often lands on an outline rather than a white pixel. Choose the
@@ -164,7 +158,7 @@
   };
   function controlLabel(glyph,label){return `<svg class="coloring-tool-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${controlGlyphs[glyph]}</svg><span class="coloring-tool-label">${label}</span>`;}
   function view() {
-    return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook" data-numbered="${numbered && Boolean(page().numbers)}">
+    return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <dialog class="coloring-stage" open aria-label="Coloring canvas">
       <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-page-title">${page().title}</p><p class="coloring-beta-note">More coloring pages are coming.</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
@@ -188,13 +182,9 @@
               <button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
             </div></details>
           </div></div>
-          <div id="coloringPalette" class="coloring-palette" aria-label="Color palette">${page().numbers ? `<button class="ghost-btn coloring-number-toggle" type="button" data-coloring="numbers" aria-pressed="${numbered}" aria-label="Color by Number" title="Color by Number"><span aria-hidden="true">123</span><span class="coloring-number-toggle-label">Color by Number</span></button>` : ""}<label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div>
-          <div class="coloring-number-palette" role="group" aria-label="Numbered colors">
-            ${numberColors.map(([name,hex],index)=>`<button type="button" data-number="${index+1}" style="--swatch:${hex}" aria-label="${index+1}, ${name}" aria-pressed="${selectedNumber===index+1}">${index+1}</button>`).join("")}
-          </div></div>
-          <div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
+          <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
         </div>
-        <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}<svg class="coloring-number-labels" viewBox="0 0 600 600" aria-hidden="true"></svg></div></div>
+        <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
         <a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a>
         <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
       </dialog></article></section>`;
@@ -213,11 +203,11 @@
     document.querySelector('[data-coloring="undo"]').disabled = false;
     status(stored ? "Progress saved on this device." : "Unable to save on this device. Download your artwork to keep it.");
   }
-  function download(outline, exportInk) {
+  function download(outline) {
     if(page().art && !artworkData.has(page().id)){status("Artwork is still loading. Try downloading again in a moment.");return;}
-    const blob = new Blob([svg(page(), outline, false, true, true, exportInk)],{type:"image/svg+xml"});
+    const blob = new Blob([svg(page(), outline, false, true, true)],{type:"image/svg+xml"});
     const url = URL.createObjectURL(blob), a = document.createElement("a");
-    a.href=url; a.download=`bible-coloring-${selected}${numbered && !outline?"-by-number":""}${outline?"-outline":""}.svg`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
+    a.href=url; a.download=`bible-coloring-${selected}${outline?"-outline":""}.svg`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
   let cleanupOutlinePrint=()=>{};
   async function printOutline() {
@@ -275,79 +265,23 @@
       viewport.classList.remove("is-panning");
     };
 
-    let regionPixels=null;
-    const numberLabels=root.querySelector(".coloring-number-labels");
-    const numberHistory=[];
-    const storedNumbers=saved.__numbered?.[activePage.id];
-    const completedNumbers=new Set(Array.isArray(storedNumbers)?storedNumbers.filter(Number.isInteger):[]);
-    let numberRegions=null, numberLoad=null;
-    function saveNumbers(){
-      saved.__numbered={...saved.__numbered,[activePage.id]:[...completedNumbers]};
-      const stored=persist();
-      renderNumbers();
-      if(!stored)status("Storage is unavailable. Use Save to keep your artwork.");
-    }
-    function renderNumbers(){
-      if(!numbered || !root.isConnected)return;
-      if(!numberRegions || !regionPixels){
-        status(numberLoad ? "Preparing Color by Number…" : "Color by Number could not load. Switch back and try again.");
-        return;
-      }
-      const pigment=ctx.createImageData(600,600);
-      const rgb=numberColors.map(([,hex])=>[1,3,5].map(start=>parseInt(hex.slice(start,start+2),16)));
-      for(let i=0;i<regionPixels.length;i+=4){
-        if(regionPixels[i+2]!==127)continue;
-        const id=regionPixels[i]+(regionPixels[i+1]<<8);
-        if(!completedNumbers.has(id) || !numberRegions[id])continue;
-        pigment.data.set(rgb[numberRegions[id][0]-1],i);
-        pigment.data[i+3]=255;
-      }
-      ctx.putImageData(pigment,0,0);
-      let remaining=0;
-      numberLabels.innerHTML=Object.entries(numberRegions).map(([id,[number,x,y,size]])=>{
-        if(completedNumbers.has(Number(id)))return "";
-        remaining++;
-        return `<text x="${x}" y="${y}" font-size="${Math.max(10,size)}" class="${number===selectedNumber?"is-matching":""}">${number}</text>`;
-      }).join("");
-      status(remaining ? `Color by Number · Tap ${selectedNumber} on the page. ${remaining} left.` : "Color by Number complete!");
-      updateUndo();
-    }
-    function loadNumbers(){
-      if(numberRegions || numberLoad || !activePage.numbers)return;
-      numberLoad=fetch(activePage.numbers).then(response=>{
-        if(!response.ok)throw new Error("Number guide unavailable");
-        return response.json();
-      }).then(regions=>{
-        numberRegions=Object.fromEntries(Object.entries(regions).filter(([id,entry])=>
-          /^\d+$/.test(id) && Array.isArray(entry) && entry.length===4 && entry.every(Number.isInteger)
-          && entry[0]>=1 && entry[0]<=numberColors.length));
-        if(!Object.keys(numberRegions).length)numberRegions=null;
-      }).catch(()=>{}).finally(()=>{
-        numberLoad=null;
-        renderNumbers();
-      });
-    }
     let restoreGeneration=0;
     function restoreInk(){
       const generation=++restoreGeneration;
-      if(numbered){ready=true;ctx.clearRect(0,0,600,600);renderNumbers();return;}
       const image=ink();ready=!validInk(image);
       if(ready){ctx.clearRect(0,0,600,600);return;}
       const img=new Image();img.onload=()=>{if(generation!==restoreGeneration)return;ctx.globalCompositeOperation="source-over";ctx.clearRect(0,0,600,600);ctx.drawImage(img,0,0);ready=true;};
       img.onerror=()=>{ready=true;status("Saved brush marks could not be loaded.");};img.src=image;
     }
-    function updateUndo(){root.querySelectorAll('[data-coloring="undo"], [data-coloring="undo-expanded"]').forEach(b=>b.disabled=(numbered?numberHistory:history).length===0);}
+    restoreInk();
+    function updateUndo(){root.querySelectorAll('[data-coloring="undo"], [data-coloring="undo-expanded"]').forEach(b=>b.disabled=history.length===0);}
     function updateTool() {
-      root.querySelector('[data-tool="brush"]').disabled=numbered;
-      root.querySelector('[data-coloring="eraser"]').disabled=numbered;
       canvas.classList.toggle("is-drawing", tool === "brush");
 
       root.querySelector(".coloring-sheet").dataset.coloringTool=tool;viewport.dataset.coloringTool=tool;
       root.querySelectorAll("[data-tool]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool === tool)));
     }
     root.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;updateTool();});
-    if(numbered){loadNumbers();updateTool();}
-    restoreInk();
     document.getElementById("coloringBrushSize").oninput=e=>{brushSize=Number(e.target.value);document.getElementById("coloringBrushValue").textContent=brushSize+"px";};
     function point(e) { const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*600/r.width,y:(e.clientY-r.top)*600/r.height}; }
     // A region map respects paint order: nested details and foreground objects
@@ -355,8 +289,8 @@
     const maskCanvas=document.createElement("canvas"), strokeCanvas=document.createElement("canvas");
     maskCanvas.width=strokeCanvas.width=600;maskCanvas.height=strokeCanvas.height=600;
     const maskCtx=maskCanvas.getContext("2d",{willReadFrequently:true}), strokeCtx=strokeCanvas.getContext("2d");
-
-    function readMap(){regionPixels=maskCtx.getImageData(0,0,600,600).data;renderNumbers();}
+    let regionPixels=null;
+    function readMap(){regionPixels=maskCtx.getImageData(0,0,600,600).data;}
     if(page().regions){
       const mapImage=new Image();mapImage.onload=()=>{maskCtx.drawImage(mapImage,0,0,600,600);readMap();};
       mapImage.onerror=()=>status("Line protection could not load. Reopen this page to try again.");mapImage.src=page().regions;
@@ -378,20 +312,6 @@
     }
     function fillAt(p){
       if(!regionPixels){status("Preparing this page. Please try again in a moment.");return;}
-      if(numbered){
-        const x=Math.floor(p.x),y=Math.floor(p.y);
-        if(x<0 || x>=600 || y<0 || y>=600 || !numberRegions)return;
-        const offset=(y*600+x)*4;
-        if(regionPixels[offset+2]!==127)return;
-        const id=regionPixels[offset]+(regionPixels[offset+1]<<8);
-        const region=numberRegions[id];
-        if(!region || completedNumbers.has(id))return;
-        if(region[0]!==selectedNumber){status(`This area is ${region[0]}. Choose swatch ${region[0]} to fill it.`);return;}
-        completedNumbers.add(id);
-        numberHistory.push(id);
-        saveNumbers();
-        return;
-      }
       const alpha=regionMask(regionPixels,p.x,p.y);if(!alpha)return;
       const offset=(Math.floor(p.y)*600+Math.floor(p.x))*4;
       if(!page().art){const i=regionPixels[offset]+(regionPixels[offset+1]<<8)-1;const region=root.querySelector(`[data-region="${i}"]`);if(region)paint(region);return;}
@@ -562,13 +482,6 @@
     root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];zoom=1;refresh();});
     const skinPanel=root.querySelector("#coloringSkinTones"),skinToggle=root.querySelector('[data-coloring="skin-tones"]');
     function closeSkinTones(){skinPanel.hidden=true;skinToggle.setAttribute("aria-expanded","false");}
-    root.querySelectorAll("[data-number]").forEach(button=>button.onclick=()=>{
-      selectedNumber=Number(button.dataset.number);
-      tool="fill";
-      updateTool();
-      root.querySelectorAll("[data-number]").forEach(swatch=>swatch.setAttribute("aria-pressed",String(swatch===button)));
-      renderNumbers();
-    });
     function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;closeSkinTones(); }
     root.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>selectColor(b.dataset.color));
     document.getElementById("coloringCustom").oninput=e=>selectColor(e.target.value);
@@ -639,55 +552,16 @@
         case "close": if(expanded)toggleExpanded();options.close(); break;
         case "reader": if(expanded)toggleExpanded();options.reader();break;
         case "read": expanded=false;options.read(page().reference); break;
-        case "numbers":
-          if(numbered){
-            numbered=false;
-            tool=freeTool;
-            status("Free coloring · Progress saves on this device.");
-          }else{
-            freeTool=tool;
-            numbered=true;
-            tool="fill";
-            closeSkinTones();
-            loadNumbers();
-          }
-          root.dataset.numbered=String(numbered);
-          b.setAttribute("aria-pressed",String(numbered));
-          updateTool();
-          restoreInk();
-          updateUndo();
-          break;
-        case "save":
-          if(numbered && (!numberRegions || !regionPixels)){
-            status("The numbered page is still loading. Try Save again in a moment.");
-            break;
-          }
-          download(false,numbered?canvas.toDataURL("image/png"):undefined);
-          break;
+        case "save": download(false); break;
         case "outline": more.open=false;void printOutline(); break;
         case "erase-expanded":
         case "eraser": erasing=!erasing; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed",String(erasing))); break;
         case "undo-expanded":
-        case "undo": {
-          if(numbered){
-            const id=numberHistory.pop();
-            if(id!==undefined){completedNumbers.delete(id);saveNumbers();}
-            break;
-          }
-          const step=history.pop();if(!step)break;
+        case "undo": { const step=history.pop();if(!step)break;
           if(step.kind==="ink") { if(step.previous) saved.__ink[selected]=step.previous; else delete saved.__ink[selected]; }
           else saved[selected]={...colors(),[step.i]:step.previous};
           const stored=persist();if(step.kind==="ink")restoreInk();else root.querySelector(`[data-region="${step.i}"]`)?.setAttribute("fill",step.previous);updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");break; }
-        case "reset":
-          if(numbered){
-            if(window.confirm("Clear your Color by Number progress?")){
-              completedNumbers.clear();
-              numberHistory.length=0;
-              saveNumbers();
-            }
-            break;
-          }
-          if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];const stored=persist();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
+        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];const stored=persist();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
       }
     });
   }
