@@ -210,7 +210,8 @@ const inviteId = "12345678-abcd-1234-abcd-123456789abc";
 const pendingInvite = new Map();
 let landingUrl = `https://bigscreenbible.com/?friend=${inviteId}&nativeLink=1`;
 const inviteFilters = [];
-const inviteProfile = { userId: inviteId, username: "inviter" };
+const invitePopups = [];
+const inviteProfile = { userId: inviteId, username: "inviter", allowFriendRequests: true };
 const inviteState = {
   authUser: { id: "recipient" },
   socialProfile: { username: "recipient" },
@@ -232,6 +233,8 @@ const inviteContext = vm.createContext({
   normalizedSocialProfile: (value) => value,
   authenticatedSupabaseSession: async () => ({ user: inviteState.authUser }),
   socialProfileTable: "profiles",
+  invitePopups,
+  friendshipForUser: () => null,
   renderPreservingReaderScroll() {},
   createSupabaseClient() {
     return { from: () => ({
@@ -244,6 +247,7 @@ const inviteContext = vm.createContext({
 });
 vm.runInContext(`
   ${source.slice(source.indexOf("const friendInviteStorageKey"), source.indexOf("\nasync function finishFriendshipAction"))}
+  showFriendInviteOutcome = (...args) => invitePopups.push(friendInviteOutcome(...args));
   captureFriendInvite();
 `, inviteContext);
 assert.equal(landingUrl, "https://bigscreenbible.com/?nativeLink=1");
@@ -256,5 +260,18 @@ assert.deepEqual(inviteFilters, [
 ]);
 assert.equal(inviteState.friendSearchResults[0], inviteProfile);
 assert.equal(vm.runInContext("pendingFriendInvite()", inviteContext), "");
+
+assert.equal(invitePopups[0].action, "Add Friend");
+assert.equal(invitePopups[0].title, "Add @inviter as a friend?");
+const outcome = (relationship, profile = inviteProfile) => vm.runInContext("friendInviteOutcome", inviteContext)(
+  inviteId, profile, relationship, "recipient",
+);
+assert.equal(outcome({ status: "accepted" }).title, "You’re already friends");
+assert.equal(outcome({ status: "pending", requesterId: "recipient" }).title, "Friend request already sent");
+assert.equal(outcome({ status: "pending", requesterId: inviteId }).action, "Accept");
+assert.equal(outcome(null, null).title, "This friend invite is unavailable");
+assert.equal(outcome(null, { ...inviteProfile, allowFriendRequests: false }).title, "Friend requests are turned off");
+assert.match(source, /data-friend-action="share-invite"[\s\S]*?<strong>My Friend QR<\/strong>/);
+assert.match(source, /friendRequest[\s\S]*?data-game-challenge-popup-dismiss[^>]*>Maybe later/);
 
 console.log("Friendship tests passed");

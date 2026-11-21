@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.1": [
+      "Friends now shows a QR preview you can enlarge. Opening an invite shows a pop-up to add the person or see your existing connection.",
+    ],
     "2026.11.20.30": [
       "Share your friend QR code or invite link so someone can find your profile and send a friend request.",
     ],
@@ -8664,7 +8667,7 @@ function friendshipActionButton(action, label, { friendshipId = "", profileId = 
       ${friendshipId ? `data-friendship-id="${escapeHtml(friendshipId)}"` : ""}
       ${profileId ? `data-friend-profile-id="${escapeHtml(profileId)}"` : ""}
       ${isBusy ? "disabled" : ""}
-    >${state.friendshipActionBusyId === busyKey ? "Working…" : escapeHtml(label)}</button>
+    >${busyKey && state.friendshipActionBusyId === busyKey ? "Working…" : escapeHtml(label)}</button>
   `;
 }
 
@@ -8828,7 +8831,7 @@ function friendsCard(prefix = "") {
         ${requestCount ? `<span class="friend-request-count" aria-label="${requestCount} incoming friend ${requestCount === 1 ? "request" : "requests"}">${requestCount}</span>` : ""}
       </div>
       ${state.socialProfile.isDiscoverable && state.socialProfile.allowFriendRequests
-        ? friendshipActionButton("share-invite", "My Friend QR")
+        ? friendInvitePreview(state.socialProfile)
         : ""}
       <div class="friends-navigation">
         <label for="${prefix ? `${prefix}-` : ""}friendsViewToggle">View</label>
@@ -13633,6 +13636,78 @@ function friendInviteUrl(profileId) {
   return `https://bigscreenbible.com/?friend=${encodeURIComponent(profileId)}`;
 }
 
+let friendInviteQrCache;
+
+function friendInviteQr(profileId) {
+  if (!friendInviteIdPattern.test(profileId) || typeof window.qrcode !== "function") return "";
+  if (friendInviteQrCache?.profileId === profileId) return friendInviteQrCache.src;
+  const code = window.qrcode(0, "M");
+  code.addData(friendInviteUrl(profileId));
+  code.make();
+  const src = code.createDataURL(6, 24);
+  friendInviteQrCache = { profileId, src };
+  return src;
+}
+
+function friendInvitePreview(profile) {
+  const qr = friendInviteQr(profile.userId);
+  return `<button type="button" class="ghost-btn friend-invite-preview" data-friend-action="share-invite">
+    ${qr ? `<img src="${qr}" alt="" width="64" height="64" />` : ""}
+    <span><strong>My Friend QR</strong><small>${qr ? "Tap to enlarge or share" : "Share your invite link"}</small></span>
+  </button>`;
+}
+
+function friendInviteOutcome(inviteId, profile, relationship, userId) {
+  if (inviteId === userId) return { title: "This is your own invite link" };
+  const name = profile?.displayName || (profile?.username ? `@${profile.username}` : "This person");
+  if (relationship?.status === "accepted") return { title: "You’re already friends", message: `You and ${name} are already connected.` };
+  if (relationship?.requesterId === userId) return { title: "Friend request already sent", message: `Your request to ${name} is waiting for a response.` };
+  if (relationship) return { title: `${name} sent you a friend request`, message: "You can also accept it later from Friends.", action: "Accept" };
+  if (!profile) return { title: "This friend invite is unavailable" };
+  if (!profile.allowFriendRequests) return { title: "Friend requests are turned off", message: `${name} is currently unavailable for new requests.` };
+  return { title: `Add ${name} as a friend?`, message: "They’ll see your request and can accept it when they’re ready.", action: "Add Friend" };
+}
+
+function showFriendInviteOutcome(inviteId, profile, relationship, userId) {
+  const outcome = friendInviteOutcome(inviteId, profile, relationship, userId);
+  const dialog = document.createElement("dialog");
+  dialog.className = "delete-account-dialog friend-invite-dialog";
+  dialog.setAttribute("aria-labelledby", "friendInviteOutcomeTitle");
+  dialog.innerHTML = `
+    <h2 id="friendInviteOutcomeTitle">${escapeHtml(outcome.title)}</h2>
+    ${profile?.username ? `<div class="friend-invite-person">
+      ${socialProfileAvatarMarkup(profile, "game-challenge-popup-avatar")}
+      <span>@${escapeHtml(profile.username)}</span>
+    </div>` : ""}
+    ${outcome.message ? `<p>${escapeHtml(outcome.message)}</p>` : ""}
+    <div class="account-actions">
+      ${outcome.action ? `<button type="button" class="primary-btn" data-submit-friend-invite>${outcome.action}</button>` : ""}
+      <form method="dialog"><button class="${outcome.action ? "ghost-btn" : "primary-btn"}" autofocus>${outcome.action ? "Maybe later" : "OK"}</button></form>
+    </div>
+    <p role="status"></p>`;
+  const submit = dialog.querySelector("[data-submit-friend-invite]");
+  submit?.addEventListener("click", async () => {
+    if (state.authUser?.id !== userId) {
+      dialog.close();
+      return;
+    }
+    if (state.friendshipActionBusyId) return;
+    submit.disabled = true;
+    dialog.querySelector("[role=status]").textContent = "Working…";
+    const succeeded = relationship ? await acceptFriendRequest(relationship.id) : await sendFriendRequest(inviteId);
+    if (!dialog.open) return;
+    if (succeeded) {
+      dialog.close();
+    } else {
+      submit.disabled = false;
+      dialog.querySelector("[role=status]").textContent = state.friendshipMessage;
+    }
+  });
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 function openFriendInviteDialog(opener) {
   const profile = state.socialProfile;
   if (!state.authUser || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed
@@ -13657,12 +13732,10 @@ function openFriendInviteDialog(opener) {
     </div>
     <p role="status" data-friend-invite-status></p>`;
 
-  if (typeof window.qrcode === "function") {
-    const code = window.qrcode(0, "M");
-    code.addData(url);
-    code.make();
+  const qr = friendInviteQr(profile.userId);
+  if (qr) {
     const image = document.createElement("img");
-    image.src = code.createDataURL(6, 24);
+    image.src = qr;
     image.alt = `Friend invite QR code for @${profile.username}`;
     dialog.querySelector("label").before(image);
   }
@@ -13735,9 +13808,10 @@ async function searchFriends(event, prefix = "", inviteId = "") {
     state.friendSearchStatus = "ready";
     if (inviteId) {
       sessionStorage.removeItem(friendInviteStorageKey);
-      state.friendSearchMessage = state.friendSearchResults.length
-        ? "Friend invite"
-        : inviteId === userId ? "This is your own invite link." : "This friend invite is unavailable.";
+      const relationship = friendshipForUser(inviteId, userId);
+      const profile = state.friendSearchResults[0] || (relationship ? friendshipProfile(inviteId) : null);
+      state.friendSearchMessage = "";
+      showFriendInviteOutcome(inviteId, profile, relationship, userId);
     } else {
       state.friendSearchMessage = state.friendSearchResults.length
         ? `${state.friendSearchResults.length} ${state.friendSearchResults.length === 1 ? "profile" : "profiles"} found.`
@@ -13781,6 +13855,7 @@ async function sendFriendRequest(profileId) {
     queueSocialPushDelivery();
     await finishFriendshipAction("Friend request sent.");
     showToast("Friend request sent");
+    return true;
   } catch (error) {
     console.warn("Friend request send failed", error);
     state.friendshipActionBusyId = "";
@@ -13812,6 +13887,7 @@ async function acceptFriendRequest(friendshipId) {
     if (!data?.id) throw new Error("That request is no longer pending.");
     await finishFriendshipAction("Friend request accepted.");
     showToast("Friend added");
+    return true;
   } catch (error) {
     console.warn("Friend request accept failed", error);
     state.friendshipActionBusyId = "";
