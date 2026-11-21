@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.4": [
+      "My Friend QR has a translucent Liquid Glass pop-up with glass share controls.",
+    ],
     "2026.11.21.3": [
       "Two-finger zoom works with Fill and cancels accidental Brush marks when the second finger touches the page.",
     ],
