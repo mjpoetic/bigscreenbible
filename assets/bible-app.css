@@ -28660,10 +28660,61 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     grid-area:2 / 1;
     min-width:0;
   }
-  .coloring-stage:not(.is-expanded) .coloring-toolbar-row { flex-wrap:wrap; }
-  .coloring-stage:not(.is-expanded) .coloring-tool-strip { flex:1 0 100%; overflow:visible; }
-  .coloring-stage:not(.is-expanded) .coloring-primary-tools { width:100%; flex-wrap:wrap; }
-  .coloring-stage:not(.is-expanded) .coloring-secondary-tools { margin-left:auto; }
+  .coloring-stage:not(.is-expanded) .coloring-toolbar-row {
+    display:grid;
+    grid-template-columns:repeat(6, minmax(0, 1fr));
+    gap:4px;
+  }
+  .coloring-stage:not(.is-expanded) :is(.coloring-tool-strip,.coloring-primary-tools,.coloring-secondary-tools,.coloring-standard-colors) {
+    display:contents;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) {
+    box-sizing:border-box;
+    width:100%;
+    min-width:0;
+    min-height:40px;
+    padding:4px;
+    margin:0;
+  }
+  .coloring-stage:not(.is-expanded) #coloringZoomLabel {
+    min-width:0;
+    align-self:center;
+    font-size:11px;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-palette {
+    display:grid;
+    grid-template-columns:repeat(8, minmax(0, 1fr));
+    gap:4px;
+    padding:3px;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-palette :is(label,button) {
+    box-sizing:border-box;
+    display:grid;
+    place-items:center;
+    justify-self:center;
+    width:100%;
+    max-width:34px;
+    min-width:0;
+    height:32px;
+    min-height:32px;
+    padding:0;
+    margin:0;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-palette [data-color] {
+    aspect-ratio:1;
+    height:auto;
+    min-height:0;
+    font-size:16px;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) :is(.coloring-tool-label,.coloring-custom > span,.coloring-skin-toggle > span:last-child) {
+    position:absolute;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    clip-path:inset(50%);
+    white-space:nowrap;
+  }
+  .coloring-stage:not(.is-expanded) .coloring-skin-sample { width:18px; height:18px; }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-canvas {
     grid-area:1 / 2 / 4;
     min-width:0;

@@ -5554,6 +5554,9 @@ function appReleaseNotesMarkup(label = "Installed version") {
     "2026.11.20.30": [
       "Share your friend QR code or invite link so someone can find your profile and send a friend request.",
     ],
+    "2026.11.20.29": [
+      "Coloring Book uses a compact tool grid and shows all palette colors in phone landscape.",
+    ],
     "2026.11.20.27": [
       "Phone landscape now gives the coloring page more room by moving the title and tools into a sidebar.",
     ],
