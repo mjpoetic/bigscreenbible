@@ -28429,3 +28429,62 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     top: var(--app-safe-area-top, env(safe-area-inset-top, 0px));
   }
 }
+
+/* Canvas-first studio. The same dock and palette travel into full screen. */
+.app-shell .coloring-reader > .coloring-studio { width:min(1400px,100%); margin:0 auto; padding:12px; border:0; background:transparent; box-shadow:none; }
+.coloring-studio .coloring-heading { margin:0 0 10px; gap:8px; }
+.coloring-studio .coloring-heading h1 { margin:0; font-size:24px; }
+.coloring-studio .coloring-heading p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+.coloring-studio .coloring-stage { display:flex; flex-direction:column; height:calc(100dvh - 166px); min-height:340px; gap:8px; }
+.coloring-studio .coloring-canvas { flex:1; min-height:0; max-height:none; }
+.coloring-studio .coloring-view-controls { position:relative; display:flex; flex-direction:column; gap:8px; margin:0; padding:10px; border:1px solid var(--line); border-radius:20px; background:var(--panel); }
+.coloring-primary-tools,.coloring-secondary-tools { display:flex; align-items:center; gap:6px; flex-wrap:wrap; width:100%; }
+.coloring-studio .coloring-view-controls button,.coloring-studio summary { font-size:13px; min-height:44px; padding:7px 12px; }
+.coloring-studio [data-coloring="expand"] { margin-left:auto; }
+.coloring-studio .coloring-palette { display:flex; flex-wrap:wrap; align-items:center; gap:8px; width:100%; }
+.coloring-studio .coloring-palette[hidden] { display:none; }
+.coloring-studio .coloring-palette > button { flex:0 0 36px; width:36px; min-width:36px; height:36px; min-height:36px; padding:0; border-radius:50%; }
+.coloring-studio .coloring-custom { display:flex; align-items:center; gap:6px; margin-left:auto; font-size:12px; }
+.coloring-studio .coloring-custom input { width:44px; height:36px; padding:2px; border-radius:10px; }
+.coloring-current-color { width:14px; height:14px; border-radius:50%; background:var(--swatch); border:1px solid var(--ink); display:inline-block; margin-left:4px; }
+.coloring-studio .coloring-options { position:relative; margin-left:auto; }
+.coloring-studio .coloring-options summary { list-style:none; cursor:pointer; display:flex; align-items:center; }
+.coloring-studio .coloring-options summary::-webkit-details-marker { display:none; }
+.coloring-options-body { position:absolute; top:calc(100% + 8px); right:0; z-index:4; width:min(310px,calc(100vw - 48px)); max-height:55dvh; overflow:auto; overscroll-behavior:contain; display:grid; gap:12px; padding:16px; border:1px solid var(--line); border-radius:20px; background:var(--panel); box-shadow:var(--shadow); }
+.coloring-options-body label { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.coloring-options-body input[type="range"] { flex:1; min-width:100px; }
+.coloring-studio #coloringStatus { margin:0; font-size:12px; }
+.coloring-studio .coloring-stage.is-expanded { height:auto; min-height:0; gap:8px; }
+.coloring-studio .coloring-stage.is-expanded .coloring-view-controls { max-height:none; overflow:visible; }
+@media (max-width:700px) {
+  .app-shell .coloring-reader > .coloring-studio { padding:8px; }
+  .coloring-studio .coloring-heading h1 { font-size:20px; }
+  .coloring-studio .coloring-stage { height:calc(100dvh - 145px); min-height:320px; }
+  .coloring-studio .coloring-view-controls { padding:8px; gap:6px; }
+  .coloring-studio .coloring-primary-tools { gap:4px; flex-wrap:nowrap; }
+  .coloring-studio .coloring-primary-tools button { padding:6px; font-size:12px; min-width:38px; flex:1; }
+  .coloring-studio .coloring-primary-tools [data-coloring="expand"] { flex:1.6; }
+  .coloring-studio .coloring-palette { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:6px; }
+  .coloring-studio .coloring-palette > button { width:100%; min-width:0; height:32px; min-height:32px; }
+  .coloring-studio .coloring-custom { grid-column:7 / 9; margin:0; justify-content:center; }
+  .coloring-studio .coloring-custom input { width:32px; height:32px; }
+  .coloring-studio .coloring-custom span { font-size:10px; }
+  .coloring-studio .coloring-secondary-tools { gap:4px; flex-wrap:nowrap; }
+  .coloring-studio .coloring-secondary-tools button,.coloring-studio summary { padding:6px 8px; font-size:12px; min-width:36px; }
+  .coloring-studio .coloring-view-controls output { min-width:36px; font-size:12px; }
+  .coloring-studio #coloringStatus { font-size:11px; }
+}
+@media (orientation:landscape) and (max-height:560px) {
+  .coloring-studio .coloring-view-controls { flex-direction:row; flex-wrap:wrap; }
+  .coloring-studio .coloring-primary-tools,.coloring-studio .coloring-secondary-tools { width:auto; flex:1; }
+  .coloring-studio .coloring-palette { gap:6px; }
+  .coloring-studio .coloring-palette > button { width:28px; min-width:28px; flex-basis:28px; height:28px; min-height:28px; }
+}
+.coloring-line-help { margin:0; font-size:12px; color:var(--muted); line-height:1.4; }
+.coloring-studio :is([data-tool],[data-coloring="eraser"])[aria-pressed="true"] { border-color:var(--teal); background:color-mix(in srgb,var(--teal) 14%,var(--panel)); box-shadow:inset 0 0 0 1px var(--teal); }
+@media (orientation:landscape) and (max-height:560px) {
+  .coloring-studio .coloring-primary-tools,.coloring-studio .coloring-secondary-tools { flex-wrap:nowrap; gap:4px; }
+  .coloring-studio .coloring-view-controls button,.coloring-studio summary { padding:6px 8px; font-size:12px; }
+  .coloring-studio .coloring-view-controls output { min-width:36px; font-size:12px; }
+}
+.coloring-studio #coloringStatus { min-height:2.6em; height:2.6em; line-height:1.3; overflow:hidden; }

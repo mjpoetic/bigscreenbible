@@ -99,12 +99,14 @@
   };
   pages.forEach(p=>{p.shapes.push(...details[p.id]);p.level=["ark","creation","star"].includes(p.id)?"Detailed":"Intricate";});
   pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png"});
+  const visiblePages=pages.filter(p=>p.art);
   const artworkData = new Map();
+  let viewportObserver;
   let saved = {};
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
   let selected = pages[0].id, color = palette[0], zoom = 1, history = [], callbacks;
   let withinLines = saved.__withinLines !== false;
-  let tool = "fill", brushSize = 12, erasing = false, expanded = false;
+  let tool = "brush", brushSize = 12, erasing = false, expanded = false;
   const ink = () => saved.__ink?.[selected];
   const validInk = value => typeof value === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value);
   const page = () => pages.find(p => p.id === selected);
@@ -115,6 +117,20 @@
     const fills = outline ? {} : saved[p.id] || {};
     if(p.art) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}<image href="${embed ? artworkData.get(p.id) : p.art}" width="600" height="600"/></svg>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="group" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${p.shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="${validColor(fills[i]) ? fills[i] : "#ffffff"}" stroke="#293241" stroke-width="3" stroke-linejoin="round" ${interactive ? `data-region="${i}" tabindex="0" role="button" aria-label="Color ${escape(s.label)}"` : ""}/>`).join("")}${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}</svg>`;
+  }
+  // A Pencil often lands on an outline rather than a white pixel. Choose the
+  // closest enclosed region nearby, or defer the lock until the stroke enters
+  // one. A rejected first sample must never discard the whole gesture.
+  function regionSeed(pixels,x,y,size=600,radius=6){
+    x=Math.floor(x);y=Math.floor(y);if(x<0||y<0||x>=size||y>=size)return null;
+    const valid=(a,b)=>{const i=(b*size+a)*4;return pixels[i+2]===127&&pixels[i+3]===255;};
+    if(valid(x,y))return {x,y};
+    let best=null,distance=Infinity;
+    for(let dy=-Math.ceil(radius);dy<=radius;dy++)for(let dx=-Math.ceil(radius);dx<=radius;dx++){
+      const a=x+dx,b=y+dy,d=dx*dx+dy*dy;if(a<0||b<0||a>=size||b>=size||d>radius*radius||d>=distance)continue;
+      if(valid(a,b)){best={x:a,y:b};distance=d;}
+    }
+    return best;
   }
   function regionMask(pixels, x, y, size = 600) {
     x=Math.floor(x);y=Math.floor(y);
@@ -128,28 +144,37 @@
     return mask;
   }
   function view() {
-    return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book" id="coloringBook">
-      <div class="coloring-heading"><div><div class="trivia-eyebrow">Games · Create at your own pace</div><h1 id="coloringTitle" tabindex="-1">Bible Coloring Book <small class="game-new-badge">BETA</small></h1></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
-      <p>Choose a page and a color. Fill a shape or draw with a finger, stylus, or mouse. No timer, no scores—just room to create.</p>
-      <div class="coloring-pages" aria-label="Coloring pages">${pages.map(p=>`<button type="button" data-page="${p.id}" aria-pressed="${p.id === selected}">${svg(p)}<strong>${p.title}</strong><small>${p.level} · ${p.reference}</small></button>`).join("")}</div>
-      <div class="coloring-workspace"><div class="coloring-tools"><h2>${page().title}</h2><button class="text-btn" data-coloring="read" type="button">Read ${page().reference} →</button>
-      <div class="coloring-actions" aria-label="Coloring mode"><button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">Fill</button><button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">Brush / pixels</button><button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">Pan / scroll</button></div>
-      <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label>
-      <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
-      <button type="button" class="ghost-btn" data-coloring="eraser" aria-pressed="${erasing}">Eraser</button>
-      <div class="coloring-palette" aria-label="Color palette">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${["Red","Black","Rose","Orange","Yellow","Green","Teal","Sky blue","Blue","Purple","Pink","Brown","Slate","White / eraser"][i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div>
-      <label class="coloring-custom">Custom color <input type="color" value="${color}" aria-label="Custom color" id="coloringCustom"></label>
-      <div class="coloring-actions"><button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>Undo</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button></div>
-      <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
-      <div class="coloring-actions"><button class="ghost-btn" type="button" data-coloring="save">Save artwork</button><button class="ghost-btn" type="button" data-coloring="outline">Download outline</button></div>
-      <p id="coloringStatus" role="status">Progress saves on this device. Fill: tap to color, swipe to scroll. Brush: draw with a finger or Pencil; use two fingers to pan or pinch. Pan mode lets you scroll with one finger. Expand the page for more room. Download an SVG to keep or print.</p></div>
-      <div class="coloring-stage ${expanded ? "is-expanded" : ""}"><div class="coloring-view-controls" aria-label="Canvas view">
-      <button class="ghost-btn" type="button" data-coloring="expand">${expanded ? "Exit full screen" : "Full screen"}</button>
-      <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
-      <button class="ghost-btn" type="button" data-coloring="fit">Fit page</button>
-      <button class="ghost-btn" type="button" data-coloring="mode">${tool==="fill" ? "Fill" : tool==="pan" ? "Pan" : "Brush"}</button><select id="coloringStandardColor" aria-label="Standard colors">${palette.map((c,i)=>`<option value="${c}" ${c===color?"selected":""}>${colorNames[i]}</option>`).join("")}</select><label class="coloring-expanded-color">Custom <input id="coloringExpandedColor" type="color" value="${color}" aria-label="Color in expanded view" /></label>
-      <label class="coloring-line-lock coloring-fullscreen-action"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="erase-expanded">Eraser</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="undo-expanded">Undo</button><select class="coloring-fullscreen-action" id="coloringExpandedSize" aria-label="Brush size in full screen">${[1,4,12,24,48,60].map(n=>`<option value="${n}" ${n===brushSize?"selected":""}>${n}px</option>`).join("")}</select><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="save">Save artwork</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="games">Games menu</button><button class="ghost-btn coloring-fullscreen-action" type="button" data-coloring="reader">Back to Bible</button>
-      </div><div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div></div></div></article></section>`;
+    return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
+      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games</button></div>
+      ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
+      <div class="coloring-stage ${expanded ? "is-expanded" : ""}">
+        <div class="coloring-view-controls" aria-label="Painting controls">
+          <div class="coloring-primary-tools">
+            <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">Brush</button>
+            <button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">Fill</button>
+            <button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">Move</button>
+            <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">Eraser</button>
+            <button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>Undo</button>
+            <button class="ghost-btn" type="button" data-coloring="expand">${expanded ? "Exit full screen" : "Full screen"}</button>
+          </div>
+          <div class="coloring-secondary-tools">
+            <button class="ghost-btn" type="button" data-coloring="palette" aria-expanded="true" aria-controls="coloringPalette">Colors <span class="coloring-current-color" style="--swatch:${color}" aria-hidden="true"></span></button>
+            <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
+            <button class="ghost-btn" type="button" data-coloring="fit">Fit</button>
+            <button class="ghost-btn" type="button" data-coloring="save">Save</button>
+            <details class="coloring-options"><summary class="ghost-btn">More</summary><div class="coloring-options-body">
+              <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Each stroke stays in its starting shape. Lift your finger or Pencil before coloring another shape.</p>
+              <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
+              <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
+              <button class="ghost-btn" type="button" data-coloring="outline">Download outline</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
+              <button class="ghost-btn" type="button" data-coloring="read">Read ${page().reference}</button><button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
+            </div></details>
+          </div>
+          <div id="coloringPalette" class="coloring-palette" aria-label="Color palette">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}<label class="coloring-custom" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label></div>
+        </div>
+        <div class="coloring-canvas" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
+        <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
+      </div></article></section>`;
   }
   function status(message) { document.getElementById("coloringStatus").textContent = message; }
   function persist() { try { localStorage.setItem(KEY,JSON.stringify(saved)); return true; } catch { return false; } }
@@ -172,6 +197,7 @@
     a.href=url; a.download=`bible-coloring-${selected}${outline?"-outline":""}.svg`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
   function bind(options) {
+    viewportObserver?.disconnect();
     callbacks=options;
     const root=document.getElementById("coloringBook"); if (!root) return;
     const activePage=page();
@@ -179,10 +205,19 @@
     let drawing = null, tap = null, gesture = null, suppressFillUntil = 0, ready = !validInk(ink());
     const pointers = new Map();
     const viewport = root.querySelector(".coloring-canvas");
-    if (!ready) { const img = new Image(); img.onload=()=>{ctx.drawImage(img,0,0);ready=true;}; img.onerror=()=>{ready=true;status("Saved brush marks could not be loaded.");}; img.src=ink(); }
+    let restoreGeneration=0;
+    function restoreInk(){
+      const generation=++restoreGeneration;
+      const image=ink();ready=!validInk(image);
+      if(ready){ctx.clearRect(0,0,600,600);return;}
+      const img=new Image();img.onload=()=>{if(generation!==restoreGeneration)return;ctx.globalCompositeOperation="source-over";ctx.clearRect(0,0,600,600);ctx.drawImage(img,0,0);ready=true;};
+      img.onerror=()=>{ready=true;status("Saved brush marks could not be loaded.");};img.src=image;
+    }
+    restoreInk();
+    function updateUndo(){root.querySelectorAll('[data-coloring="undo"], [data-coloring="undo-expanded"]').forEach(b=>b.disabled=history.length===0);}
     function updateTool() {
       canvas.classList.toggle("is-drawing", tool === "brush");
-      root.querySelector('[data-coloring="mode"]').textContent=tool === "fill" ? "Fill" : tool === "pan" ? "Pan" : "Brush";
+
       root.querySelector(".coloring-sheet").dataset.coloringTool=tool;
       root.querySelectorAll("[data-tool]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool === tool)));
     }
@@ -226,49 +261,62 @@
       strokeCtx.globalCompositeOperation="source-over";strokeCtx.putImageData(pixels,0,0);ctx.globalCompositeOperation="source-over";ctx.drawImage(strokeCanvas,0,0);
       saveInk(before);
     }
+    let lockedRegion=0;
+    const masks=new Map();
     function startRegion(p) {
       if(!withinLines)return true;
       if(!regionPixels){status("Preparing line protection. Try again in a moment.");return false;}
-      const alpha=regionMask(regionPixels,p.x,p.y);
-      if(!alpha)return false;
-      const mask=maskCtx.createImageData(600,600);mask.data.set(alpha);
-      maskCtx.putImageData(mask,0,0);return true;
+      const seed=regionSeed(regionPixels,p.x,p.y,600,Math.min(8,Math.max(3,brushSize/4)));
+      if(!seed)return false;
+      const offset=(seed.y*600+seed.x)*4,id=regionPixels[offset]+(regionPixels[offset+1]<<8);
+      if(lockedRegion===id)return true;
+      let mask=masks.get(id);
+      if(!mask){const alpha=regionMask(regionPixels,seed.x,seed.y);mask=maskCtx.createImageData(600,600);mask.data.set(alpha);if(masks.size>=8)masks.delete(masks.keys().next().value);masks.set(id,mask);}
+      maskCtx.putImageData(mask,0,0);lockedRegion=id;return true;
     }
     root.querySelectorAll("[data-within-lines]").forEach(input=>input.onchange=()=>{
       withinLines=input.checked;saved.__withinLines=withinLines;
       root.querySelectorAll("[data-within-lines]").forEach(other=>other.checked=withinLines);
       if(!persist())status("Unable to save this preference on this device.");
     });
-    function mark(a,b,e) {
+    function markPoints(points,e){
+      if(withinLines && !drawing.maskReady){
+        for(const p of points)if(startRegion(p)){drawing.maskReady=true;break;}
+        if(!drawing.maskReady)return;
+      }
       const target=withinLines ? strokeCtx : ctx;
       if(withinLines){strokeCtx.clearRect(0,0,600,600);strokeCtx.globalCompositeOperation="source-over";}
       target.globalCompositeOperation=!withinLines && erasing ? "destination-out" : "source-over";
       target.strokeStyle=color;target.fillStyle=color;target.lineCap="round";target.lineJoin="round";
-      target.lineWidth=brushSize*(e.pointerType === "pen" && e.pressure > 0 ? .35+e.pressure*.9 : 1);
-      target.beginPath();target.moveTo(a.x,a.y);target.lineTo(b.x,b.y);target.stroke();
-      target.beginPath();target.arc(b.x,b.y,target.lineWidth/2,0,Math.PI*2);target.fill();
-      if(withinLines){
-        strokeCtx.globalCompositeOperation="destination-in";strokeCtx.drawImage(maskCanvas,0,0);
-        ctx.globalCompositeOperation=erasing ? "destination-out" : "source-over";ctx.drawImage(strokeCanvas,0,0);
-      }
+      target.lineWidth=brushSize*(e.pointerType==="pen" && e.pressure>0 ? .35+e.pressure*.9 : 1);
+      target.beginPath();target.moveTo(points[0].x,points[0].y);for(const p of points.slice(1))target.lineTo(p.x,p.y);target.stroke();
+      const end=points[points.length-1];target.beginPath();target.arc(end.x,end.y,target.lineWidth/2,0,Math.PI*2);target.fill();
+      if(withinLines){strokeCtx.globalCompositeOperation="destination-in";strokeCtx.drawImage(maskCanvas,0,0);ctx.globalCompositeOperation=erasing?"destination-out":"source-over";ctx.drawImage(strokeCanvas,0,0);}
+      drawing.changed=true;
+    }
+    let strokeFrame=0,pendingPoints=[],pendingEvent;
+    function flushStroke(){
+      if(strokeFrame)cancelAnimationFrame(strokeFrame);strokeFrame=0;
+      if(!drawing||!pendingPoints.length)return;
+      markPoints([drawing.last,...pendingPoints],pendingEvent);drawing.last=pendingPoints[pendingPoints.length-1];pendingPoints=[];
     }
     function saveInk(before){
       history.push({kind:"ink",previous:before});if(history.length>30)history.shift();
       ctx.globalCompositeOperation="source-over";
       if (!saved.__ink || typeof saved.__ink !== "object") saved.__ink={};
       saved.__ink[selected]=canvas.toDataURL("image/png");
-      const stored=persist();root.querySelector('[data-coloring="undo"]').disabled=false;
+      const stored=persist();updateUndo();
       status(stored ? "Progress saved on this device." : "Storage is full or unavailable. Download your artwork to keep it.");
     }
     function finish(e) {
       if(tap && e.pointerId===tap.id){const start=tap;tap=null;if(e.type!=="pointercancel" && tool==="fill" && Date.now()>suppressFillUntil && Math.hypot(e.clientX-start.x,e.clientY-start.y)<10)fillAt(point(e));}
       if(!drawing || e.pointerId!==drawing.id)return;
-      const before=drawing.before;drawing=null;saveInk(before);
+      flushStroke();const completed=drawing;drawing=null;pendingPoints=[];if(completed.changed)saveInk(completed.before);
     }
     function pinchState() { const [a,b]=[...pointers.values()];return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,d:Math.hypot(a.x-b.x,a.y-b.y)}; }
     const sheet=root.querySelector(".coloring-sheet");
     sheet.addEventListener("pointerdown",e=>{
-      if(e.pointerType!=="touch")return;
+      if(e.pointerType!=="touch" || drawing?.pointerType==="pen")return;
       pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
       if(pointers.size===2) { tap=null;suppressFillUntil=Date.now()+700;if(drawing)finish({pointerId:drawing.id});gesture=pinchState(); }
     },true);
@@ -293,9 +341,9 @@
       if(!ready || drawing || (e.pointerType==="mouse" && e.button!==0))return;
       if(tool==="fill"){tap={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
       if(tool!=="brush" || (e.pointerType!=="pen" && pointers.size>1))return;
-      const p=point(e);if(!startRegion(p))return;
+      const p=point(e);
       e.preventDefault();try{canvas.setPointerCapture(e.pointerId);}catch{}
-      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null};mark(p,p,e);
+      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,maskReady:!withinLines,changed:false};markPoints([p],e);
     };
     let keyboardPoint={x:300,y:300};
     canvas.onkeydown=e=>{
@@ -311,17 +359,18 @@
     canvas.addEventListener("contextmenu",e=>e.preventDefault());
     canvas.onpointermove=e=>{
       if(!drawing || e.pointerId!==drawing.id)return;
-      e.preventDefault(); const samples=e.getCoalescedEvents?.();for(const sample of samples?.length ? samples : [e]) {const p=point(sample);mark(drawing.last,p,sample);drawing.last=p;}
+      e.preventDefault();const samples=e.getCoalescedEvents?.();for(const sample of samples?.length?samples:[e])pendingPoints.push(point(sample));pendingEvent=e;
+      if(!strokeFrame)strokeFrame=requestAnimationFrame(flushStroke);
     };
     canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=e=>{tap=null;if(drawing?.id===e.pointerId)finish(e);};
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
     root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];zoom=1;refresh();});
-    function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;document.getElementById("coloringExpandedColor").value=c;document.getElementById("coloringStandardColor").value=c; }
+    function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;root.querySelector(".coloring-current-color").style.setProperty("--swatch",c); }
     root.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>selectColor(b.dataset.color));
     document.getElementById("coloringCustom").oninput=e=>selectColor(e.target.value);
-    document.getElementById("coloringExpandedColor").oninput=e=>selectColor(e.target.value);
-    document.getElementById("coloringStandardColor").onchange=e=>selectColor(e.target.value);
-    document.getElementById("coloringExpandedSize").onchange=e=>{brushSize=Number(e.target.value);document.getElementById("coloringBrushSize").value=brushSize;document.getElementById("coloringBrushValue").textContent=brushSize+"px";};
+
+
+
     root.querySelectorAll("[data-region]").forEach(r=>{r.onclick=()=>{if(tool==="fill" && Date.now()>suppressFillUntil)paint(r);};r.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();paint(r);}};});
     let fitWidth=0;
     function setZoom(value) {
@@ -340,10 +389,15 @@
       stage.setAttribute("role", expanded ? "dialog" : "region");
       stage.setAttribute("aria-label","Coloring canvas");
       if(expanded)stage.setAttribute("aria-modal","true");else stage.removeAttribute("aria-modal");
-      root.querySelectorAll(".coloring-heading, .coloring-pages, .coloring-tools, :scope > p").forEach(el=>el.inert=expanded);
+      root.querySelectorAll(".coloring-heading, .coloring-pages").forEach(el=>el.inert=expanded);
     }
     expandedState();
+    viewportObserver=new ResizeObserver(()=>{if(zoom===1)fit();});viewportObserver.observe(viewport);
+    requestAnimationFrame(()=>{if(root.isConnected)fit();});
+    const more=root.querySelector(".coloring-options");
+    stage.addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false;},true);
     stage.onkeydown=e=>{
+      if(e.key==="Escape"&&more.open){e.preventDefault();e.stopPropagation();more.open=false;more.querySelector("summary").focus({preventScroll:true});return;}
       if(!expanded)return;
       if(e.key==="Escape"){e.preventDefault();e.stopPropagation();root.querySelector('[data-coloring="expand"]').click();return;}
       if(e.key!=="Tab")return;
@@ -354,6 +408,7 @@
     };
     root.querySelectorAll("[data-coloring]").forEach(b=>b.onclick=()=>{
       switch(b.dataset.coloring) {
+        case "palette": {const panel=document.getElementById("coloringPalette");panel.hidden=!panel.hidden;b.setAttribute("aria-expanded",String(!panel.hidden));break;}
         case "expand": expanded=!expanded;root.querySelector(".coloring-stage").classList.toggle("is-expanded",expanded);b.textContent=expanded ? "Exit full screen" : "Full screen";expandedState();fit();b.focus();break;
         case "zoom-in": setZoom(zoom+.25);break;
         case "zoom-out": setZoom(zoom-.25);break;
@@ -371,8 +426,8 @@
         case "undo": { const step=history.pop();if(!step)break;
           if(step.kind==="ink") { if(step.previous) saved.__ink[selected]=step.previous; else delete saved.__ink[selected]; }
           else saved[selected]={...colors(),[step.i]:step.previous};
-          const stored=persist();refresh();if(!stored)status("Unable to save. Download your artwork to keep it.");break; }
-        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];const stored=persist();refresh();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
+          const stored=persist();if(step.kind==="ink")restoreInk();else root.querySelector(`[data-region="${step.i}"]`)?.setAttribute("fill",step.previous);updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");break; }
+        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];const stored=persist();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
       }
     });
   }

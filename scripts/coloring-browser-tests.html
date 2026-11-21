@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><base href="../"><title>Coloring input regression checks</title><style>body{font:16px system-ui}#fixture{position:absolute;left:0;top:200px;width:600px} .coloring-sheet{position:relative;width:600px!important;height:600px}.coloring-sheet>svg{width:600px;height:600px}#coloringPixels{position:absolute;inset:0;width:600px;height:600px}.coloring-art-lines{display:none}.coloring-pages{display:none}#fixture{visibility:hidden}</style></head><body><h1>Coloring input regression checks</h1><pre id="results">Running…</pre><div id="fixture"></div><script>const priorColoringData=localStorage.getItem("bsb_coloring_v1");localStorage.removeItem("bsb_coloring_v1");</script><script src="assets/coloring-book.js"></script><script>
+<!doctype html><html><head><meta charset="utf-8"><base href="../"><title>Coloring input regression checks</title><style>body{font:16px system-ui}#fixture{position:absolute;left:0;top:200px;width:600px} .coloring-sheet{position:relative;width:600px!important;height:600px}.coloring-sheet>svg{width:600px;height:600px}#coloringPixels{position:absolute;inset:0;width:600px;height:600px}.coloring-art-lines{display:none}.coloring-pages{display:none}.coloring-canvas{width:300px;height:300px;overflow:auto}#fixture{visibility:hidden}</style></head><body><h1>Coloring input regression checks</h1><pre id="results">Running…</pre><div id="fixture"></div><script>const priorColoringData=localStorage.getItem("bsb_coloring_v1");localStorage.removeItem("bsb_coloring_v1");</script><script src="assets/coloring-book.js"></script><script>
 (async()=>{
  const results=[], fixture=document.getElementById('fixture');
  const check=(condition,name)=>{results.push((condition?'PASS: ':'FAIL: ')+name);if(!condition)throw Error(name);};
@@ -8,6 +8,21 @@
  let canvas=document.getElementById('coloringPixels'),ctx=canvas.getContext('2d');
  const event=(type,x,y,pointerType='touch',id=7)=>{const r=canvas.getBoundingClientRect();canvas.dispatchEvent(new PointerEvent(type,{bubbles:true,cancelable:true,clientX:r.left+x,clientY:r.top+y,pointerId:id,pointerType,button:-1,buttons:type==='pointerup'?0:1,isPrimary:false,pressure:.6}));};
  const alphaCount=()=>{const pixels=ctx.getImageData(0,0,600,600).data;let n=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i])n++;return n;};
+ check(document.querySelector('[data-tool="brush"]').getAttribute('aria-pressed')==='true','Brush is selected by default');
+ check(!document.querySelector('[data-page]'),'Draft illustrations are hidden');
+ event('pointerdown',180,360);event('pointermove',250,360);event('pointerup',250,360);
+ check(alphaCount()>0,'Protected finger stroke can start on an outline');
+ const map=new Image();map.src='assets/coloring-pages/jesus-welcomes-children-regions.png';await map.decode();
+ const mapCanvas=document.createElement('canvas');mapCanvas.width=mapCanvas.height=600;const mapContext=mapCanvas.getContext('2d');mapContext.drawImage(map,0,0);
+ const labels=mapContext.getImageData(0,0,600,600).data,ink=ctx.getImageData(0,0,600,600).data,paintedRegions=new Set();
+ for(let i=0;i<ink.length;i+=4)if(ink[i+3])paintedRegions.add(labels[i]+(labels[i+1]<<8));
+ check(paintedRegions.size===1&&!paintedRegions.has(0),'Protected stroke stays inside one region and off outlines');
+ const sameCanvas=canvas;document.querySelector('[data-coloring="undo"]').click();await wait();
+ check(canvas===document.getElementById('coloringPixels')&&alphaCount()===0,'Undo clears the stroke in place without rebuilding the canvas');
+ event('pointerdown',-50,-50,'pen',9);event('pointermove',170,380,'pen',9);event('pointerup',170,380,'pen',9);
+ check(alphaCount()>0,'Pencil gesture starting outside a region recovers when it enters one');
+ document.querySelector('[data-coloring="undo"]').click();await wait();
+ document.querySelector('[data-tool="fill"]').click();
  event('pointerdown',170,380);event('pointerup',170,380);
  check(alphaCount()>0,'Touch tap fills the illustrated region without mouse button/primary metadata');
  const baseline=alphaCount();event('pointerdown',170,380);event('pointercancel',170,380);
@@ -16,8 +31,8 @@
  document.querySelector('[data-within-lines]').checked=false;document.querySelector('[data-within-lines]').dispatchEvent(new Event('change'));
  const before=alphaCount();event('pointerdown',50,100);event('pointermove',150,100);event('pointerup',150,100);
  check(alphaCount()>before,'Finger brush accepts non-primary touch and draws a stroke');
- const beforePenData=canvas.toDataURL(),penBefore=alphaCount();event('pointerdown',250,80,'pen',9);event('pointermove',350,80,'pen',9);event('pointerup',350,80,'pen',9);
- check(alphaCount()>penBefore,'Pencil-style pointer accepts button -1 and isPrimary false');
+ const beforePenData=canvas.toDataURL(),penBefore=alphaCount();event('pointerdown',250,80,'pen',9);event('pointerdown',300,300,'touch',21);event('pointerdown',310,310,'touch',22);event('pointermove',350,80,'pen',9);event('pointerup',350,80,'pen',9);event('pointerup',300,300,'touch',21);event('pointerup',310,310,'touch',22);
+ check(alphaCount()>penBefore,'Pencil stroke continues with palm touches and non-mouse pointer metadata');
  const data=canvas.toDataURL();check(data.startsWith('data:image/png;base64,'),'Raster coloring can be serialized for save and export');
  document.querySelector('[data-tool="pan"]').click();const panBefore=alphaCount();event('pointerdown',100,250);event('pointermove',200,250);event('pointerup',200,250);
  check(alphaCount()===panBefore,'Pan mode never paints');
@@ -30,10 +45,14 @@
  URL.createObjectURL=createURL;HTMLAnchorElement.prototype.click=anchorClick;
  const exportedText=await exported.text();
  check(exportedText.includes('data:image/png;base64,')&&!exportedText.includes('href="./assets/'),'Saved SVG embeds the illustration for standalone viewing');
- document.querySelector('[data-page="ark"]').click();await wait();
- document.querySelector('[data-tool="fill"]').click();canvas=document.getElementById('coloringPixels');ctx=canvas.getContext('2d');
- event('pointerdown',485,110);event('pointerup',485,110);
- check(document.querySelector('[data-region="1"]').getAttribute('fill')==='#e53935','Touch fill still works on vector pages through native canvas region geometry');
+ const viewport=document.querySelector('.coloring-canvas'),sheet=document.querySelector('.coloring-sheet');
+ document.querySelector('[data-coloring="zoom-in"]').click();viewport.scrollTop=70;viewport.scrollLeft=30;
+ const width=sheet.style.width,top=viewport.scrollTop,left=viewport.scrollLeft;
+ document.querySelector('[data-coloring="undo"]').click();await wait();
+ check(canvas===document.getElementById('coloringPixels')&&sheet.style.width===width&&viewport.scrollTop===top&&viewport.scrollLeft===left,'Undo preserves zoom, pan, and canvas identity');
+ document.querySelector('[data-coloring="expand"]').click();
+ check(document.querySelector('.coloring-stage.is-expanded #coloringPalette')!==null,'Full screen includes the full color palette');
+ document.querySelector('[data-coloring="palette"]').click();check(document.getElementById('coloringPalette').hidden,'Palette can collapse without leaving the canvas');
  document.getElementById('results').textContent=results.join('\n');
 })().catch(e=>{document.getElementById('results').textContent+='\nFAIL: '+e.stack;}).finally(()=>{if(priorColoringData===null)localStorage.removeItem('bsb_coloring_v1');else localStorage.setItem('bsb_coloring_v1',priorColoringData);});
 </script></body></html>

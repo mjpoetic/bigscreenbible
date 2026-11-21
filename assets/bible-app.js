@@ -1481,7 +1481,7 @@ function recordReadingStreak(date = new Date()) {
 }
 
 const icons = {
-  paintbrush: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6 4 4M4 20c4 0 6-1 6-4a3 3 0 0 0-6 0c0 2-1 3-2 4h2Z"/><path d="m9 14 9-11a2.1 2.1 0 0 1 3 3L11 16"/></svg>`,
+  artistPalette: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1a2.5 2.5 0 0 0 1.8-4.2 1.6 1.6 0 0 1 1.1-2.8H18a3 3 0 0 0 3-3c0-4.4-4-8-9-8Z"/><circle cx="7" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="7" cy="15" r="1"/></svg>`,
   email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></svg>',
   done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
   memorize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v19l-6-4-6 4V3Z"/><path d="M12 13.5 8.8 10.4a2 2 0 0 1 3.2-2.3 2 2 0 0 1 3.2 2.3L12 13.5Z"/></svg>',
@@ -5548,6 +5548,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.8": [
+      "Coloring Book now opens directly to the approved illustration with Brush selected and a compact painting dock, including a collapsible palette in full screen. Line protection accepts starts on outlines and batches Pencil strokes smoothly. Undo preserves the canvas, zoom, and scroll position; older draft pages are hidden, and the Games entry uses an artist’s palette icon.",
+    ],
     "2026.11.20.7": [
       "Collapsing the Parallel Study header in mobile landscape now expands the reading area to fill the freed height instead of leaving empty space below Scripture.",
     ],
@@ -19796,7 +19799,7 @@ function triviaView() {
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
-                <button data-open-coloring type="button" ${challengeSetupLock}>${icons.paintbrush}<span>Coloring Book</span><small class="game-new-badge">BETA</small></button>
+                <button data-open-coloring type="button" ${challengeSetupLock}>${icons.artistPalette}<span>Coloring Book</span><small class="game-new-badge">BETA</small></button>
                 <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
                 <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
                 <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span></button>
