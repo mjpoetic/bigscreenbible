@@ -28966,3 +28966,66 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   cursor: wait;
   opacity: 0.68;
 }
+
+.coloring-studio .coloring-palette .coloring-number-toggle {
+  flex:none;
+  border-radius:12px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink);
+  text-shadow:none;
+  white-space:nowrap;
+}
+.coloring-studio .coloring-number-palette { display:none; }
+.coloring-studio[data-numbered="true"] .coloring-number-palette {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  overflow-x:auto;
+  padding:5px;
+}
+.coloring-studio .coloring-number-palette > button {
+  flex:none;
+  width:36px;
+  min-width:36px;
+  min-height:36px;
+  padding:0;
+  background:var(--swatch);
+  color:#161616;
+  font-weight:700;
+  text-shadow:none;
+  box-shadow:none;
+}
+.coloring-studio[data-numbered="true"] :is(.coloring-custom,.coloring-skin-toggle,.coloring-standard-colors) { display:none; }
+#coloringBook .coloring-number-labels {
+  display:none;
+  position:absolute;
+  inset:0;
+  z-index:1;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  user-select:none;
+}
+#coloringBook[data-numbered="true"] .coloring-number-labels { display:block; }
+.coloring-number-labels text {
+  fill:#263348;
+  stroke:white;
+  stroke-width:2.6;
+  paint-order:stroke;
+  font-weight:700;
+  text-anchor:middle;
+  dominant-baseline:central;
+}
+.coloring-number-labels text.is-matching { fill:#004bbd; stroke-width:3.5; font-weight:900; }
+
+@media (max-width:700px), (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
+  .coloring-number-toggle-label { display:none; }
+}
+@media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-palette {
+    grid-template-columns:repeat(9,minmax(0,1fr));
+  }
+  .coloring-studio[data-numbered="true"] .coloring-stage:not(.is-expanded) .coloring-number-palette { display:contents; }
+}

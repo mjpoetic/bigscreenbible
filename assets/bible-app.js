@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.18": [
+      "Coloring Book adds optional Color by Number for Jesus Welcomes the Children, with a separate autosave from free coloring.",
+    ],
     "2026.11.21.17": [
       "The update dialog in Help & Tour and About & Legal now follows the Liquid Glass setting.",
     ],
