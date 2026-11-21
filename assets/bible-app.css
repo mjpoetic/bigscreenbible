@@ -28407,6 +28407,8 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     cursor: pointer;
   }
   .app-shell.parallel-header-collapsed {
+    /* The reader also subtracts this value when sizing its scroll area. */
+    --topbar-height: 0px;
     grid-template-rows: 0 minmax(0, 1fr) var(--reader-chrome-height);
   }
   .app-shell.parallel-header-collapsed.footer-collapsed {

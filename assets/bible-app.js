@@ -5548,6 +5548,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.7": [
+      "Collapsing the Parallel Study header in mobile landscape now expands the reading area to fill the freed height instead of leaving empty space below Scripture.",
+    ],
     "2026.11.20.6": [
       "Parallel Study adds Hide header and Show header controls in mobile landscape for more Scripture viewing space while keeping your place in the passage.",
     ],

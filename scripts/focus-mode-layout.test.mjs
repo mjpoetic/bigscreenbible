@@ -24,4 +24,11 @@ assert.match(
   /padding-right:\s*max\(18px,\s*calc\(var\(--app-safe-area-right, env\(safe-area-inset-right,\s*0px\)\)\s*\+\s*18px\)\);/,
 );
 
+// Collapsing the grid row alone leaves the reader's explicit height unchanged.
+// Its shared header-height input must also shrink so the scroll area grows.
+const collapsedParallelRule = styles.match(/\.app-shell\.parallel-header-collapsed \{([^}]*)\}/)?.[1] || "";
+assert.match(collapsedParallelRule, /--topbar-height:\s*0px;/);
+assert.match(styles, /\.main-grid\s*\{[^}]*height:\s*calc\(100vh - var\(--topbar-height\) - var\(--reader-chrome-height\)\)/);
+assert.match(styles, /\.main-grid\.focus-mode,[^}]*height:\s*calc\(100vh - var\(--topbar-height\)\)/);
+
 console.log("Focus Mode layout regression checks passed.");
