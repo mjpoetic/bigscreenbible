@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.13": [
+      "Open Study Insights from a verse’s cross references to read it alongside the surrounding verses.",
+    ],
     "2026.11.21.12": [
       "Verse toolbars stay on one row when opened near the screen edge. Larger custom layouts scroll horizontally while keeping their icons full size.",
     ],
@@ -22861,10 +22864,14 @@ function openCrossReferencePopup(anchor) {
   bindCrossReferencePreviewLinks(popup);
   const requestId = referencePreviewRequestId;
   pending?.then(() => {
-    if (requestId !== referencePreviewRequestId || !popup.isConnected || !anchor.isConnected) return;
+    if (!popup.isConnected || anchor.getAttribute("aria-controls") !== popup.id) return;
+    const insightsLink = popup.querySelector("[data-study-insights]");
+    if (requestId !== referencePreviewRequestId && !insightsLink) return;
+    const restoreInsightsFocus = document.activeElement === insightsLink;
     setStudyPopupContent(popup, crossReferencePopupMarkup(reference), "Cross references");
     bindCrossReferencePreviewLinks(popup);
     positionStudyPopup(anchor, popup);
+    if (restoreInsightsFocus) popup.querySelector("[data-study-insights]")?.focus({ preventScroll: true });
   });
 }
 
@@ -22945,6 +22952,7 @@ function suppressCrossReferenceContextMenu(event) {
 function crossReferencePopupMarkup(reference, refs = crossReferenceItems(reference)) {
   return `
     <div class="ref-title">${escapeHtml(reference)} cross references</div>
+    <button class="reference-preview-back study-insights-link" type="button" data-study-insights>Study Insights</button>
     <div class="popup-ref-list">
       ${refs.length
         ? refs.map((ref) => `<button class="ref-item" type="button" data-popup-preview="${escapeHtml(ref.label)}" data-popup-navigation="${escapeHtml(ref.goto)}" aria-label="Preview ${escapeHtml(ref.label)}" aria-haspopup="dialog"><div class="ref-title">${escapeHtml(ref.label)}</div><div class="ref-copy">${escapeHtml(ref.preview)}</div></button>`).join("")
@@ -22955,6 +22963,8 @@ function crossReferencePopupMarkup(reference, refs = crossReferenceItems(referen
 }
 
 function bindCrossReferencePreviewLinks(popup) {
+  const insights = popup.querySelector("[data-study-insights]");
+  insights?.addEventListener("click", () => openStudyInsights(popup));
   popup.querySelectorAll("[data-popup-preview]").forEach((button) => {
     if (button.dataset.popupPreviewBound === "true") return;
     button.dataset.popupPreviewBound = "true";
@@ -22976,6 +22986,81 @@ function bindCrossReferencePreviewLinks(popup) {
         },
       );
     });
+  });
+}
+
+async function openStudyInsights(popup) {
+  const verseNumber = Number(popup.dataset.crossRefVerse);
+  const chapterKey = state.reference;
+  const reference = `${chapterKey}:${verseNumber}`;
+  const version = state.versions[0] || "BSB";
+  const chapterVerses = bibleData[chapterKey]?.verses || [];
+  const selectedVerse = chapterVerses.find((verse) => verse.n === verseNumber);
+  const selectedRange = selectedVerse?.verseRanges?.[version];
+  const first = selectedRange?.start || verseNumber;
+  const last = selectedRange?.end || verseNumber;
+  const context = uniqueVersionVerses(chapterVerses, version)
+    .filter((verse) => verse.n >= first - 2 && verse.n <= last + 2 && verse[version])
+    .map((verse) => ({
+      number: verse.n,
+      label: versionVerseLabel(verse, version),
+      text: verse[version],
+    }));
+  const hasPassage = context.some((verse) => verse.number === first);
+  const previousScroll = popup.scrollTop;
+  const requestId = ++referencePreviewRequestId;
+  const isCurrent = () => popup.isConnected && requestId === referencePreviewRequestId;
+  const titleReference = selectedRange ? `${chapterKey}:${versionVerseLabel(selectedVerse, version)}` : reference;
+  const contextMarkup = hasPassage ? `
+    <ol class="study-insights-context" aria-label="Surrounding verses">
+      ${context.map((verse) => `<li${verse.number === first ? ' class="study-insights-selected" aria-current="true"' : ""}><strong>${escapeHtml(verse.label)}</strong><span>${escapeHtml(verse.text)}</span></li>`).join("")}
+    </ol>
+  ` : '<p class="ref-copy">Passage text is unavailable in this translation.</p>';
+  setStudyPopupContent(popup, `
+    <button class="reference-preview-back" type="button" data-reference-preview-back>← Cross references</button>
+    <div class="ref-title">${escapeHtml(titleReference)} · ${escapeHtml(translationDisplayCode(version))}</div>
+    ${contextMarkup}
+    <button class="ghost-btn" type="button" data-generate-study-insight hidden>Generate study note</button>
+    <div class="study-insights-result" role="status"></div>
+  `, "Study Insights");
+  popup.scrollTop = 0;
+  bindReferencePreviewBack(popup, () => {
+    restoreCrossReferencePopup(popup);
+    popup.scrollTop = previousScroll;
+    popup.querySelector("[data-study-insights]")?.focus({ preventScroll: true });
+  });
+  positionStudyPopup(popup.studyPopupAnchor, popup);
+  popup.querySelector("[data-reference-preview-back]")?.focus({ preventScroll: true });
+
+  // The native bridge can be added to a later app build. The web view always
+  // provides the passage context, even when the bridge or model is unavailable.
+  const capacitor = window.Capacitor;
+  if (!hasPassage || !capacitor?.isNativePlatform?.() || !capacitor.isPluginAvailable?.("BSBStudyInsights")) return;
+  const provider = capacitor.Plugins?.BSBStudyInsights;
+  const availability = await Promise.resolve().then(() => provider?.getAvailability()).catch(() => null);
+  if (!isCurrent() || availability?.available !== true) return;
+  const button = popup.querySelector("[data-generate-study-insight]");
+  const result = popup.querySelector(".study-insights-result");
+  button.hidden = false;
+  positionStudyPopup(popup.studyPopupAnchor, popup);
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    result.textContent = "Generating study note…";
+    try {
+      const relatedReferences = crossReferenceItems(reference).slice(0, 5).map(({ label }) => label);
+      const { text } = await provider.generate({ reference: titleReference, version, context, relatedReferences });
+      if (!isCurrent()) return;
+      if (typeof text !== "string" || !text.trim()) throw new Error("Empty study note");
+      result.innerHTML = '<p class="source-note">AI-generated study note</p><p class="ref-copy study-insights-note"></p>';
+      result.querySelector(".study-insights-note").textContent = text.trim();
+    } catch {
+      if (isCurrent()) result.textContent = "Couldn’t generate a study note. Try again.";
+    } finally {
+      if (isCurrent()) {
+        button.disabled = false;
+        positionStudyPopup(popup.studyPopupAnchor, popup);
+      }
+    }
   });
 }
 

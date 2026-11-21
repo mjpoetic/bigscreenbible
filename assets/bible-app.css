@@ -12021,6 +12021,46 @@ select {
   font-weight: 800;
 }
 
+.study-insights-link {
+  margin: 4px 0 10px;
+}
+
+.study-insights-context {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+
+.study-insights-context li {
+  display: grid;
+  grid-template-columns: minmax(2ch, auto) 1fr;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: calc(14px * var(--popup-text-scale, 1));
+  line-height: 1.5;
+}
+
+.study-insights-selected {
+  border-inline-start: 2px solid var(--teal);
+  border-radius: 4px;
+  background: var(--soft);
+}
+
+[data-generate-study-insight][hidden] {
+  display: none;
+}
+
+.study-insights-result:not(:empty) {
+  margin-top: 10px;
+}
+
+.study-insights-note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .reference-preview-popup {
   width: min(440px, calc(100vw - 24px));
   max-height: none;
