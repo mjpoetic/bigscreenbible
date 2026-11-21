@@ -5548,6 +5548,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.10": [
+      "The Coloring Book More menu now appears above the coloring page, including when Liquid Glass is enabled and in full screen.",
+    ],
     "2026.11.20.9": [
       "Parallel Study’s landscape header control now sits flush against the upper-right edge, clear of the Focus verse picker and bookmark control.",
     ],

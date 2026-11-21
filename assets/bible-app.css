@@ -28497,3 +28497,8 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   .coloring-studio .coloring-view-controls output { min-width:36px; font-size:12px; }
 }
 .coloring-studio #coloringStatus { min-height:2.6em; height:2.6em; line-height:1.3; overflow:hidden; }
+
+/* Glass creates a stacking context: raise the entire dock above the artwork,
+   rather than only raising the popup inside that context. */
+.coloring-studio .coloring-view-controls { z-index:2; overflow:visible; }
+.coloring-studio .coloring-canvas { position:relative; z-index:0; }
