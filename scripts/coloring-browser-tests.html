@@ -130,10 +130,16 @@
  const printSheet=document.getElementById('coloringPrintSheet');
  check(printCalls===1&&printSheet?.querySelectorAll('image').length===1,'Print outline opens printing with embedded line art and no colored ink');
  window.dispatchEvent(new Event('afterprint'));check(!document.getElementById('coloringPrintSheet')&&!document.body.hasAttribute('data-coloring-print'),'Closing print restores the document');
+ document.querySelector('[data-tool="brush"]').click();
+ event('pointerdown',180,360);
+ event('pointerup',180,360);
+ document.querySelector('[data-coloring="print-artwork"]').click();await wait();
+ check(printCalls===2&&document.querySelectorAll('#coloringPrintSheet image').length===2,'Print artwork embeds both colored ink and line art');
+ window.dispatchEvent(new Event('afterprint'));
  for(const platform of ['ios','android']){
    let nativeCalls=0;window.Capacitor={getPlatform:()=>platform,isPluginAvailable:()=>true,Plugins:{BSBPrint:{print:async()=>{nativeCalls++;}}}};
    document.querySelector('[data-coloring="outline"]').click();await wait();
-   check(nativeCalls===1&&printCalls===1,platform+' outline uses native print support');
+   check(nativeCalls===1&&printCalls===2,platform+' outline uses native print support');
    if(platform==='android')check(!!document.getElementById('coloringPrintSheet'),'Android retains outline until printing finishes');
    window.dispatchEvent(new Event('afterprint'));
  }

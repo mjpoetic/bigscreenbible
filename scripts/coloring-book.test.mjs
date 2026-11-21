@@ -35,7 +35,7 @@ console.log("Coloring book catalog, saved colors, raster restoration, input safe
 assert.equal((initial.match(/data-within-lines checked/g)||[]).length,1,"One shared line-protection control travels into full screen");
 assert.doesNotMatch(view('{"__withinLines":false}'),/data-within-lines checked/);
 const testWindow={};
-vm.runInNewContext(source.replace("window.BSBColoring={view,bind};", "window.BSBColoring={view,bind};window.testRegionMask=regionMask;window.testRegionSeed=regionSeed;"),{window:testWindow,localStorage:{getItem:()=>null}});
+vm.runInNewContext(source.replace("window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress};", "window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress};window.testRegionMask=regionMask;window.testRegionSeed=regionSeed;"),{window:testWindow,localStorage:{getItem:()=>null}});
 // Two regions, an opaque outline, and an antialiased edge. Only the starting
 // region is paintable; a foreground detail remains excluded from its parent.
 const pixels=new Uint8ClampedArray([1,0,127,255, 2,0,127,255, 0,0,0,255, 1,0,127,128]);

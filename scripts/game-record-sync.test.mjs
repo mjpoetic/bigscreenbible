@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+const coloringSource = readFileSync(new URL('../assets/coloring-book.js', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 function extract(name) {
   const match = new RegExp(`(?:async )?function ${name}\\(`).exec(source);
@@ -38,7 +39,7 @@ const client = { from() {
 function device() {
   const storage = new Map();
   const ctx = vm.createContext({
-    console, state: { authUser: {id: 'a'}, versions: ['BSB'] }, cloudSyncTable: 'bsb_user_sync',
+    console, window:{}, document:{querySelector:()=>null}, state: { authUser: {id: 'a'}, versions: ['BSB'] }, cloudSyncTable: 'bsb_user_sync',
     localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) },
     createSupabaseClient: () => client,
     authenticatedSupabaseSession: async () => ({user: {id: 'a'}}),
@@ -49,6 +50,7 @@ function device() {
     latestSettingsSectionSettings: () => ({}), latestAppearanceSettings: () => ({}),
     mergeWordSearchRecentPassages: () => [], mergeHistory: () => [], mergeStreaks: () => ({}),
   });
+  vm.runInContext(coloringSource,ctx);
   for (const name of ['gameRecordStorageKeys','compareGamePoints','mergeGameRecords',
     'captureGameRecords','applyGameRecords','captureCloudSnapshot','normalizeCloudRow',
     'mergeAnnotationDates','normalizedScriptureFontWeights','mergeScriptureFontWeights','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
@@ -115,6 +117,24 @@ await phone.upsertCloudSnapshot();
 assert.equal(row.settings.scriptureFontWeights["font:lora"].weight, 600);
 assert.equal(row.settings.scriptureFontWeights["custom:georgia"].weight, 800);
 console.log("Concurrent font preferences merge by font and update time");
+
+const page = 'jesus-children';
+const firstDrawing = { [page]: { ink: 'data:image/png;base64,AAAA', updatedAt: 10 } };
+const secondDrawing = { [page]: { ink: 'data:image/png;base64,BBBB', updatedAt: 20 } };
+mac.window.BSBColoring.applyProgress(firstDrawing);
+await mac.upsertCloudSnapshot();
+await phone.upsertCloudSnapshot();
+assert.deepEqual(clone(phone.window.BSBColoring.captureProgress()), firstDrawing, 'drawing syncs to a second device');
+phone.window.BSBColoring.applyProgress(secondDrawing);
+await phone.upsertCloudSnapshot();
+await mac.upsertCloudSnapshot();
+assert.deepEqual(clone(mac.window.BSBColoring.captureProgress()), secondDrawing, 'a stale device adopts the newer drawing');
+const reset = { [page]: { ink: null, updatedAt: 30 } };
+mac.window.BSBColoring.applyProgress(reset);
+await mac.upsertCloudSnapshot();
+await phone.upsertCloudSnapshot();
+assert.deepEqual(clone(phone.window.BSBColoring.captureProgress()), reset, 'reset syncs without resurrecting an older drawing');
+assert.deepEqual(clone(mac.blankLocalSnapshot().settings.coloringProgress), {}, 'a different account begins without the current account drawing');
 
 const beforeSwitch = clone(row);
 mac.authenticatedSupabaseSession = async () => { mac.state.authUser = {id: 'b'}; return {user: {id: 'b'}}; };

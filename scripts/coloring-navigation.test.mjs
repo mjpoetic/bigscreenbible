@@ -6,7 +6,7 @@ const start=source.indexOf('const gamesAreaCodes='),end=source.indexOf('\nfuncti
 const block=source.slice(start,end),local=new Map(),session=new Map();
 const storage=map=>({getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)});
 function context(){const ctx=vm.createContext({localStorage:storage(local),sessionStorage:storage(session),URLSearchParams,window:{location:{search:''}},state:{mode:'reader',triviaGame:null,triviaGameType:'trivia'},icons:{artistPalette:'palette'},activeGameChallenge:()=>null});
-vm.runInContext(`function switchGameDifficulty(area){state.triviaGameType=area;}function switchMode(mode){state.mode=mode;}function syncModeUrl(){}function render(){}function gotoReference(ref){state.reference=ref;state.mode='reader';}\n${block}`,ctx);return ctx;}
+vm.runInContext(`function switchGameDifficulty(area){state.triviaGameType=area;}function switchMode(mode){state.mode=mode;}function syncModeUrl(){}function render(){}function syncColoringOnOpen(){}function gotoReference(ref){state.reference=ref;state.mode='reader';}\n${block}`,ctx);return ctx;}
 const ctx=context();
 ctx.rememberGamesArea('crossword');assert.equal(local.get('lw_trivia_game_type'),'crossword');ctx.restoreLastGamesArea();assert.equal(ctx.state.triviaGameType,'crossword');
 ctx.rememberGamesArea('coloring');ctx.restoreLastGamesArea();assert.equal(vm.runInContext('coloringBookSelected',ctx),true);assert.equal(vm.runInContext('coloringBookOpen',ctx),false,'Games restores the preview, not the coloring canvas');

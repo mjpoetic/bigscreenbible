@@ -115,6 +115,57 @@
   const colors = () => saved[selected] && typeof saved[selected] === "object" ? saved[selected] : {};
   const validColor = value => /^#[0-9a-f]{6}$/i.test(value || "");
   const escape = value => String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
+  function mergeProgress(...snapshots) {
+    const merged={};
+    for(const snapshot of snapshots){
+      for(const {id} of visiblePages){
+        const entry=snapshot?.[id];
+        if(!entry || !Number.isSafeInteger(entry.updatedAt) || entry.updatedAt<0)continue;
+        if(merged[id] && merged[id].updatedAt>=entry.updatedAt)continue;
+        if(entry.ink!==null && !validInk(entry.ink))continue;
+        merged[id]={updatedAt:entry.updatedAt,ink:entry.ink};
+      }
+    }
+    return merged;
+  }
+  function captureProgress() {
+    return Object.fromEntries(visiblePages.flatMap(({id})=>{
+      const image=saved.__ink?.[id];
+      const updatedAt=saved.__artUpdatedAt?.[id];
+      return validInk(image) || Number.isSafeInteger(updatedAt)
+        ? [[id,{ink:validInk(image)?image:null,updatedAt:Number.isSafeInteger(updatedAt)?updatedAt:0}]]
+        : [];
+    }));
+  }
+  let refreshSyncedInk;
+  function applyProgress(snapshot, preserveStroke=false) {
+    const next=mergeProgress(snapshot);
+    if(JSON.stringify(next)===JSON.stringify(captureProgress()))return;
+    if(preserveStroke && refreshSyncedInk?.("busy"))return;
+    const images={...saved.__ink},updated={...saved.__artUpdatedAt};
+    for(const {id} of visiblePages){
+      delete images[id];
+      delete updated[id];
+      if(next[id]){
+        if(next[id].ink)images[id]=next[id].ink;
+        updated[id]=next[id].updatedAt;
+      }
+    }
+    saved.__ink=images;
+    saved.__artUpdatedAt=updated;
+    history=[];
+    redoHistory=[];
+    persist();
+    refreshSyncedInk?.();
+  }
+  function persistArtwork(schedule=true) {
+    if(page().art){
+      const previous=saved.__artUpdatedAt?.[selected] || 0;
+      saved.__artUpdatedAt={...saved.__artUpdatedAt,[selected]:Math.max(Date.now(),previous+1)};
+      if(schedule)callbacks?.syncProgress?.();
+    }
+    return persist();
+  }
   function svg(p, outline = false, interactive = false, includeInk = true, embed = false) {
     const fills = outline ? {} : saved[p.id] || {};
     if(p.art) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}<image href="${embed ? artworkData.get(p.id) : p.art}" width="600" height="600"/></svg>`;
@@ -191,7 +242,7 @@
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Drag across the drawing to color each shape your brush passes through.</p>
               <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
-              <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
+              <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="print-artwork">Print artwork / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
               <button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
             </div></details>
           </div></div>
@@ -238,16 +289,16 @@
     const url = URL.createObjectURL(blob), a = document.createElement("a");
     a.href=url; a.download=`bible-coloring-${selected}${outline?"-outline":""}.svg`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
-  let cleanupOutlinePrint=()=>{};
-  async function printOutline() {
-    cleanupOutlinePrint();
+  let cleanupColoringPrint=()=>{};
+  async function printColoring(outline) {
+    cleanupColoringPrint();
     if(page().art && !artworkData.has(page().id)){status("Artwork is still loading. Try printing again in a moment.");return;}
     document.getElementById("coloringPrintSheet")?.remove();
     const printSheet=document.createElement("section");printSheet.id="coloringPrintSheet";
-    printSheet.innerHTML=`<h1>${page().title}</h1><p>${page().reference} · Big Screen Bible</p>${svg(page(),true,false,true,true)}`;
+    printSheet.innerHTML=`<h1>${page().title}</h1><p>${page().reference} · Big Screen Bible</p>${svg(page(),outline,false,true,true)}`;
     document.body.append(printSheet);document.body.setAttribute("data-coloring-print","");
     const cleanup=()=>{printSheet.remove();document.body.removeAttribute("data-coloring-print");window.removeEventListener("afterprint",cleanup);document.removeEventListener("pointerdown",cleanup,true);document.removeEventListener("keydown",cleanup,true);};
-    cleanupOutlinePrint=cleanup;
+    cleanupColoringPrint=cleanup;
     window.addEventListener("afterprint",cleanup,{once:true});
     // Android resolves when its dialog opens, before the WebView is rendered.
     // Retain the print document until afterprint or the next user interaction.
@@ -267,6 +318,7 @@
   function bind(options) {
     viewportObserver?.disconnect();
     callbacks=options;
+    refreshSyncedInk=null;
     const root=document.getElementById("coloringBook"); if (!root) return;
     const activePage=page();
     const canvas = document.getElementById("coloringPixels"), ctx = canvas.getContext("2d");
@@ -303,6 +355,21 @@
       img.onerror=()=>{ready=true;status("Saved brush marks could not be loaded.");};img.src=image;
     }
     restoreInk();
+    refreshSyncedInk=action=>{
+      if(action==="busy")return root.isConnected && Boolean(drawing);
+      if(!root.isConnected)return;
+      if(drawing){
+        clearTimeout(checkpointTimer);
+        cancelAnimationFrame(strokeFrame);
+        checkpointTimer=strokeFrame=0;
+        pendingPoints=[];
+        drawing=null;
+      }
+      tap=null;
+      restoreInk();
+      updateUndo();
+      status("Coloring progress updated from your account.");
+    };
     function updateUndo(){
       root.querySelector('[data-coloring="undo"]').disabled=!history.length;
       root.querySelector('[data-coloring="redo"]').disabled=!redoHistory.length;
@@ -498,10 +565,10 @@
       const stored=storeInk();updateUndo();
       status(stored ? "Progress saved on this device." : "Storage is full or unavailable. Download your artwork to keep it.");
     }
-    function storeInk(){
+    function storeInk(schedule=true){
       if (!saved.__ink || typeof saved.__ink !== "object") saved.__ink={};
       saved.__ink[selected]=canvas.toDataURL("image/png");
-      return persist();
+      return persistArtwork(schedule);
     }
     function checkpointStroke(){
       clearTimeout(checkpointTimer);
@@ -510,7 +577,7 @@
       flushStroke();
       clearTimeout(checkpointTimer);
       checkpointTimer=0;
-      if(drawing.changed){drawing.checkpointed=true;storeInk();}
+      if(drawing.changed){drawing.checkpointed=true;storeInk(false);}
     }
     const lifecycle = new AbortController();
     inkLifecycle?.abort();
@@ -543,7 +610,7 @@
         if(drawing.checkpointed){
           if(drawing.before)saved.__ink[activePage.id]=drawing.before;
           else delete saved.__ink[activePage.id];
-          persist();
+          persistArtwork();
         }
         else setSavePending(drawing.saveWasPending);
         drawing=null;
@@ -740,7 +807,12 @@
           else if(savePending && persist())status("Progress saved on this device.");
           download(false);
           break;
-        case "outline": more.open=false;void printOutline(); break;
+        case "outline":
+        case "print-artwork":
+          if(drawing)finish({pointerId:drawing.id});
+          more.open=false;
+          void printColoring(b.dataset.coloring==="outline");
+          break;
         case "eraser":
           erasing=!erasing;
           tool="brush";
@@ -762,14 +834,14 @@
             saved[selected]={...colors(),[step.i]:step.previous};
             root.querySelector(`[data-region="${step.i}"]`)?.setAttribute("fill",step.previous);
           }
-          const stored=persist();
+          const stored=persistArtwork();
           updateUndo();
           if(!stored)status("Unable to save. Download your artwork to keep it.");
           break;
         }
-        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];redoHistory=[];const stored=persist();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
+        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];redoHistory=[];const stored=persistArtwork();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
       }
     });
   }
-  window.BSBColoring={view,bind};
+  window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress};
 })();

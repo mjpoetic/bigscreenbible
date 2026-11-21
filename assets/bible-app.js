@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.31": [
+      "Coloring Book syncs artwork across signed-in devices, prints colored or blank artwork, and uses a softly blurred glass menu.",
+    ],
     "2026.11.21.30": [
       "Try again lets you replay with the same settings or change games and modes. Word Search reshuffles fixed categories and picks a different category when set to Random.",
     ],
@@ -7689,6 +7692,7 @@ function blankLocalSnapshot(sourceSnapshot = captureCloudSnapshot()) {
     settings: {
       ...(sourceSnapshot?.settings || {}),
       gameRecords: {},
+      coloringProgress: {},
       annotationDates: {},
       versionsUpdatedAt: "",
     },
@@ -15633,6 +15637,7 @@ function captureCloudSnapshot() {
     settings: {
       annotationDates: state.annotationDates,
       gameRecords: captureGameRecords(),
+      coloringProgress: globalThis.window?.BSBColoring?.captureProgress(),
       versions: persistentVersions(),
       versionsUpdatedAt: state.versionsUpdatedAt,
       ...appearanceSnapshotSettings(state.appearance),
@@ -15739,6 +15744,7 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       presentationScriptureFontWeights: mergeScriptureFontWeights(cloud.settings.presentationScriptureFontWeights, localSnapshot.settings.presentationScriptureFontWeights),
       annotationDates: mergeAnnotationDates(cloud.settings.annotationDates, localSnapshot.settings.annotationDates),
       gameRecords: mergeGameRecords(cloud.settings.gameRecords, localSnapshot.settings.gameRecords),
+      coloringProgress: globalThis.window?.BSBColoring?.mergeProgress(cloud.settings.coloringProgress, localSnapshot.settings.coloringProgress),
       wordSearchRecentPassages: mergeWordSearchRecentPassages(
         cloud.settings.wordSearchRecentPassages,
         localSnapshot.settings.wordSearchRecentPassages,
@@ -16022,6 +16028,7 @@ function persistCloudSnapshotLocally(snapshot) {
   const settings = migrateAppearanceSettings(snapshot.settings);
   const migratedSnapshot = { ...snapshot, settings };
   applyGameRecords(settings.gameRecords);
+  globalThis.window?.BSBColoring?.applyProgress(settings.coloringProgress);
   localStorage.setItem("lw_annotation_dates", JSON.stringify(state.annotationDates));
   persistVersions();
   if (settings.appearance && typeof settings.appearance === "object") {
@@ -16164,7 +16171,7 @@ function applyOfflineChanges(merged, base, local) {
     const before = base[field] || {};
     const after = local[field] || {};
     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (["gameRecords", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
+      if (["gameRecords", "coloringProgress", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
       if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
       if (Object.hasOwn(after, key)) result[field][key] = after[key];
       else delete result[field][key];
@@ -16219,6 +16226,10 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
       scriptureFontWeights: mergeScriptureFontWeights(current?.settings?.scriptureFontWeights, snapshot.settings?.scriptureFontWeights),
       presentationScriptureFontWeights: mergeScriptureFontWeights(current?.settings?.presentationScriptureFontWeights, snapshot.settings?.presentationScriptureFontWeights),
       gameRecords: mergeGameRecords(current?.settings?.gameRecords, snapshot.settings?.gameRecords, captureGameRecords()),
+      coloringProgress: globalThis.window?.BSBColoring?.mergeProgress(
+        current?.settings?.coloringProgress, snapshot.settings?.coloringProgress,
+        globalThis.window?.BSBColoring?.captureProgress(),
+      ),
     } };
     const result = current
       ? await client.from(cloudSyncTable).update(next).eq("user_id", userId)
@@ -16231,9 +16242,31 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
   if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
   saveSnapshotForOwner(userId, savedSnapshot);
   applyGameRecords(mergeGameRecords(savedSnapshot.settings.gameRecords, captureGameRecords()));
+  const coloring=globalThis.window?.BSBColoring;
+  coloring?.applyProgress(coloring.mergeProgress(savedSnapshot.settings.coloringProgress,coloring.captureProgress()), true);
   state.syncStatus = "synced";
   state.syncMessage = "Synced across your signed-in devices.";
   state.lastCloudSyncAt = new Date().toISOString();
+}
+
+async function syncColoringOnOpen() {
+  const userId=state.authUser?.id;
+  const coloring=window.BSBColoring;
+  if(!userId || accountDataOwner()!==userId || !coloring || window.bsbOffline?.active)return;
+  const client=createSupabaseClient();
+  if(!client)return;
+  try{
+    const {data,error}=await client.from(cloudSyncTable)
+      .select("coloring_progress:settings->coloringProgress").eq("user_id",userId).maybeSingle();
+    if(error)throw error;
+    if(state.authUser?.id!==userId || accountDataOwner()!==userId)return;
+    const remote=coloring.mergeProgress(data?.coloring_progress);
+    const merged=coloring.mergeProgress(remote,coloring.captureProgress());
+    coloring.applyProgress(merged,true);
+    if(JSON.stringify(remote)!==JSON.stringify(merged))scheduleCloudSync();
+  }catch(error){
+    console.warn("Coloring sync could not refresh",error);
+  }
 }
 
 async function syncNowAccount() {
@@ -20542,6 +20575,7 @@ function returnToColoringBook(){
   state.mode="trivia";state.sharedPassage=null;state.pendingVerseFocus=false;
   try{localStorage.setItem("lw_last_used_mode","trivia");}catch{}
   syncModeUrl();render();
+  void syncColoringOnOpen();
 }
 function coloringReaderReturnButton(presentation=false){
   const classes=presentation?"ghost-btn presentation-nav-button presentation-return-button game-return-button":"reader-return-button game-return-button";
@@ -25559,6 +25593,9 @@ function bindEvents() {
     reader: () => openColoringBible(),
     close: () => { coloringBookOpen = false;coloringBookSelected=true;renderPreservingReaderScroll(); },
     read: reference => openColoringBible(reference),
+    syncProgress: () => {
+      if(!state.authUser || accountDataOwner()===state.authUser.id)scheduleCloudSync();
+    },
   });
   document.querySelector("[data-select-coloring]")?.addEventListener("click",()=>{
     if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
@@ -25570,6 +25607,7 @@ function bindEvents() {
     rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen = true;setColoringReaderReturn(false);
     renderPreservingReaderScroll();
     document.getElementById("coloringTitle")?.focus({preventScroll:true});
+    void syncColoringOnOpen();
   }));
   bindSelectionTooltips();
   document.querySelector("[data-workspace-settings]")?.addEventListener("click", () => {
@@ -37106,6 +37144,9 @@ window.setInterval(() => {
     renderPreservingReaderScroll();
   }
 }, 60 * 1000);
+window.addEventListener("online",()=>{
+  if(document.getElementById("coloringBook"))void syncColoringOnOpen();
+});
 document.addEventListener("visibilitychange", () => {
   syncNativeWidgetSnapshot();
   if (pruneExpiredRemoteVersionData()) {
