@@ -100,6 +100,11 @@
   };
   pages.forEach(p=>{p.shapes.push(...details[p.id]);p.level=["ark","creation","star"].includes(p.id)?"Detailed":"Intricate";});
   pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png?v=2"});
+  pages.splice(1,0,{
+    id:"jesus-calms-storm",title:"Jesus Calms the Storm",level:"Storybook",reference:"Mark 4:35-41",shapes:[],
+    art:"./assets/coloring-pages/jesus-calms-the-storm.png",
+    regions:"./assets/coloring-pages/jesus-calms-the-storm-regions.png"
+  });
   const visiblePages=pages.filter(p=>p.art);
   const artworkData = new Map();
   let viewportObserver, zoomAudio;
@@ -219,8 +224,8 @@
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <dialog class="coloring-stage" open aria-label="Coloring canvas">
-      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-beta-note">More coloring pages are coming.</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
-      ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
+      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-beta-note">More coloring pages are coming.</p>${visiblePages.length>1 ? `<select id="coloringPagePicker" class="ghost-btn" aria-label="Coloring page">${visiblePages.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>${p.title}</option>`).join("")}</select>` : ""}</div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
+
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
             <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush' && !erasing}">${controlLabel("brush","Brush")}</button>
@@ -684,7 +689,18 @@
       if(drawing?.id===e.pointerId)finish(e);
     };
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
-    root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];redoHistory=[];zoom=1;refresh();});
+    const pagePicker=root.querySelector("#coloringPagePicker");
+    if(pagePicker)pagePicker.onchange=()=>{
+      const next=pagePicker.value;
+      if(next===selected || !visiblePages.some(p=>p.id===next))return;
+      if(drawing)finish({pointerId:drawing.id});
+      selected=next;
+      history=[];
+      redoHistory=[];
+      zoom=1;
+      refresh();
+      document.getElementById("coloringPagePicker")?.focus({preventScroll:true});
+    };
     const skinPanel=root.querySelector("#coloringSkinTones"),skinToggle=root.querySelector('[data-coloring="skin-tones"]');
     function closeSkinTones(){skinPanel.hidden=true;skinToggle.setAttribute("aria-expanded","false");}
     function selectColor(c) { color=c; erasing=false; updateTool(); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;closeSkinTones(); }

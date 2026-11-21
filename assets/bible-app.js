@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.32": [
+      "The Coloring Book adds Jesus Calms the Storm (Mark 4:35–41) with protected brush coloring, Fill, and a page picker.",
+    ],
     "2026.11.21.31": [
       "Coloring Book syncs artwork across signed-in devices, prints colored or blank artwork, and uses a softly blurred glass menu.",
     ],

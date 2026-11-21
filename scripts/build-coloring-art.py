@@ -7,6 +7,7 @@ from pathlib import Path
 from PIL import Image, ImageFilter, ImageOps
 
 source, destination = map(Path, sys.argv[1:3])
+stem = sys.argv[3] if len(sys.argv) > 3 else "jesus-welcomes-children"
 destination.mkdir(parents=True, exist_ok=True)
 size = 600
 
@@ -18,7 +19,7 @@ with Image.open(source) as image:
 
 lines = Image.new("RGBA", gray.size)
 lines.putalpha(ImageOps.invert(gray))
-lines.save(destination / "jesus-welcomes-children.png", optimize=True)
+lines.save(destination / f"{stem}.png", optimize=True)
 
 small = gray.resize((size, size), Image.Resampling.LANCZOS)
 barrier = small.point(lambda value: 255 if value < 210 else 0)
@@ -83,7 +84,7 @@ while queue:
 if not all(labels):
     raise ValueError("No colorable regions found")
 rgb = bytes(channel for label in labels for channel in (label & 255, label >> 8, 127))
-Image.frombytes("RGB", (size, size), rgb).save(destination / "jesus-welcomes-children-regions.png", optimize=True)
+Image.frombytes("RGB", (size, size), rgb).save(destination / f"{stem}-regions.png", optimize=True)
 counts = Counter(labels)
 metadata = {
     "width": size,
@@ -93,5 +94,5 @@ metadata = {
     "source": "Original AI-generated illustration approved by the project owner.",
     "regionSizes": [counts[label] for label in range(1, region + 1)],
 }
-(destination / "jesus-welcomes-children.json").write_text(json.dumps(metadata, indent=2) + "\n")
+(destination / f"{stem}.json").write_text(json.dumps(metadata, indent=2) + "\n")
 print(f"{region} colorable regions covering {sum(counts.values())} pixels prepared")

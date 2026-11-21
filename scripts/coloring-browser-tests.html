@@ -144,6 +144,43 @@
    window.dispatchEvent(new Event('afterprint'));
  }
  delete window.Capacitor;
+ document.querySelector('[data-coloring="expand"]').click();
+ const picker=document.getElementById('coloringPagePicker');
+ picker.value='jesus-calms-storm';
+ picker.dispatchEvent(new Event('change'));
+ await wait();
+ canvas=document.getElementById('coloringPixels');ctx=canvas.getContext('2d');
+ check(document.querySelector('.coloring-reference').textContent.includes('Mark 4:35-41')&&alphaCount()===0,'Storm page opens with its own artwork and Scripture reference');
+ const stormMap=new Image();stormMap.src='assets/coloring-pages/jesus-calms-the-storm-regions.png';await stormMap.decode();
+ mapContext.drawImage(stormMap,0,0);
+ const stormLabels=mapContext.getImageData(0,0,600,600).data;
+ check(stormLabels.every((value,i)=>i%4!==2||value===127),'Storm region map covers every canvas pixel');
+ const regionAt=(x,y)=>{const i=(y*600+x)*4;return stormLabels[i]+(stormLabels[i+1]<<8);};
+ function coloredStormRegions(){
+   const pixels=ctx.getImageData(0,0,600,600).data;
+   const regions=new Set();
+   for(let i=0;i<pixels.length;i+=4)if(pixels[i+3])regions.add(stormLabels[i]+(stormLabels[i+1]<<8));
+   return regions;
+ }
+ document.querySelector('[data-within-lines]').checked=true;
+ document.querySelector('[data-within-lines]').dispatchEvent(new Event('change'));
+ document.querySelector('[data-tool="fill"]').click();
+ event('pointerdown',160,100);event('pointerup',160,100);
+ const sail=regionAt(160,100);
+ const filled=coloredStormRegions();
+ check(filled.size===1&&filled.has(sail)&&alphaCount()>1000,'Fill colors only the tapped sail panel');
+ document.querySelector('[data-coloring="undo"]').click();await wait();
+ document.querySelector('[data-tool="brush"]').click();
+ event('pointerdown',160,100);event('pointermove',215,100);event('pointerup',215,100);
+ const crossedSail=new Set();
+ for(let x=160;x<=215;x++)crossedSail.add(regionAt(x,100));
+ const brushed=coloredStormRegions();
+ check(brushed.has(sail)&&brushed.has(regionAt(215,100))&&[...brushed].every(id=>crossedSail.has(id)),'Protected brush crosses sail panels without leaking into untouched regions');
+ const childrenPicker=document.getElementById('coloringPagePicker');
+ childrenPicker.value='jesus-children';childrenPicker.dispatchEvent(new Event('change'));
+ await wait();
+ check(document.querySelector('.coloring-reference').textContent.includes('Mark 10:13-16')&&localStorage.getItem('bsb_coloring_v1').includes('jesus-calms-storm'),'Switching pages retains separate Storm progress');
+
  document.getElementById('results').textContent=results.join('\n');
 })().catch(e=>{document.getElementById('results').textContent+='\nFAIL: '+e.stack;}).finally(()=>{if(priorColoringData===null)localStorage.removeItem('bsb_coloring_v1');else localStorage.setItem('bsb_coloring_v1',priorColoringData);});
 </script></body></html>

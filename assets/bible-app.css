@@ -28668,6 +28668,17 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-caption { align-self:center; flex:none; text-align:center; }
 .coloring-caption .coloring-page-title { margin:0 0 3px; color:var(--teal); font-size:17px; font-weight:700; }
 .coloring-studio .coloring-heading .coloring-beta-note { margin-top:6px; font-style:italic; }
+#coloringPagePicker {
+  max-width:100%;
+  min-height:36px;
+  margin-top:5px;
+  padding:4px 6px;
+  font-size:13px;
+  color:var(--ink);
+  background:var(--panel);
+}
+.coloring-studio .coloring-heading > div { min-width:0; }
+
 .coloring-studio .coloring-stage { display:flex; flex-direction:column; height:calc(100dvh - 106px); min-height:400px; gap:8px; }
 .coloring-studio .coloring-canvas { position:relative; z-index:0; flex:1; min-height:0; max-height:none; }
 .coloring-studio .coloring-view-controls { position:relative; z-index:2; display:flex; flex-direction:column; flex-wrap:nowrap; gap:8px; margin:0; padding:10px; border:1px solid var(--line); border-radius:20px; background:var(--panel); overflow:visible; }

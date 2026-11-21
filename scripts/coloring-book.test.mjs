@@ -11,7 +11,7 @@ const initial = view(null);
 assert.match(initial, /game-new-badge">BETA<\/small>/);
 const appSource=readFileSync(new URL("../assets/bible-app.js",import.meta.url),"utf8");
 assert.match(appSource, /<span>Coloring Book<\/span><small class="game-new-badge">BETA<\/small>/);
-assert.equal((initial.match(/data-page=/g)||[]).length,0,"Only the approved page is shown; a one-page gallery is unnecessary");
+assert.deepEqual([...initial.matchAll(/<option value="([^"]+)"/g)].map(match=>match[1]),["jesus-children","jesus-calms-storm"],"Only approved coloring pages are listed");
 assert.equal((initial.match(/data-color=/g)||[]).length,24);
 assert.match(initial,/type="color"/);
 assert.match(initial,/data-tool="fill"/);
