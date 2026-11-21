@@ -28395,12 +28395,15 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     z-index: 45;
     top: calc(var(--topbar-height) - 1px);
     left: auto;
-    right: var(--app-safe-area-right, env(safe-area-inset-right, 0px));
+    /* Extend the surface to the edge; only its content needs the safe inset. */
+    --header-tab-safe-right: var(--app-safe-area-right, env(safe-area-inset-right, 0px));
+    right: 0;
     transform: none;
     min-height: 32px;
     box-sizing: border-box;
-    width: 112px;
+    width: calc(112px + var(--header-tab-safe-right));
     padding: 2px 12px;
+    padding-right: calc(12px + var(--header-tab-safe-right));
     border: 1px solid var(--line);
     border-top: 0;
     border-right: 0;

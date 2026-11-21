@@ -5550,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.17": [
+      "The landscape Parallel Study header tab now extends seamlessly to the screen edge on iPhone while keeping its label inside the safe area.",
+    ],
     "2026.11.20.16": [
       "Coloring Book adds mouse dragging in Move mode, a more compact phone toolbar, a visible full screen exit, and automatic saves during longer strokes.",
     ],

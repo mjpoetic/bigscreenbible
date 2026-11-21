@@ -31,4 +31,10 @@ assert.match(collapsedParallelRule, /--topbar-height:\s*0px;/);
 assert.match(styles, /\.main-grid\s*\{[^}]*height:\s*calc\(100vh - var\(--topbar-height\) - var\(--reader-chrome-height\)\)/);
 assert.match(styles, /\.main-grid\.focus-mode,[^}]*height:\s*calc\(100vh - var\(--topbar-height\)\)/);
 
+// The safe area belongs inside the tab, so its surface reaches the screen edge.
+const headerTabRule = styles.match(/\.app-shell \.parallel-header-toggle \{([^}]*)\}/)?.[1] || "";
+assert.match(headerTabRule, /right:\s*0;/);
+assert.match(headerTabRule, /width:\s*calc\(112px \+ var\(--header-tab-safe-right\)\)/);
+assert.match(headerTabRule, /padding-right:\s*calc\(12px \+ var\(--header-tab-safe-right\)\)/);
+
 console.log("Focus Mode layout regression checks passed.");
