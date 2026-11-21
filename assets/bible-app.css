@@ -3717,6 +3717,30 @@ dialog.game-challenge-confirm {
   animation: none;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .game-challenge-popup-overlay.open:not(.continuing),
+  .social-dialog-motion[open]::backdrop {
+    animation: backdropIn var(--motion-base) ease-out both;
+  }
+
+  .game-challenge-popup-overlay.open:not(.continuing) > .game-challenge-popup,
+  .social-dialog-motion[open] {
+    animation: dialogIn 280ms var(--motion-ease) both;
+  }
+
+  .game-challenge-popup-overlay.open.social-popup-exit,
+  .social-dialog-motion[open].social-popup-exit::backdrop {
+    animation: backdropOut 190ms ease-in both;
+  }
+
+  .game-challenge-popup-overlay.open.social-popup-exit > .game-challenge-popup,
+  .social-dialog-motion[open].social-popup-exit {
+    animation: dialogOut 190ms ease-in both;
+  }
+
+  .social-popup-exit { pointer-events: none; }
+}
+
 .game-challenge-popup-icon {
   display: grid;
   place-items: center;

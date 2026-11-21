@@ -285,6 +285,7 @@ let loadedRequests = pendingRequests;
 const qrDialog = {
   open: true,
   addEventListener() {},
+  classList: { contains: () => false },
   close(value) { qrClosedWith = value; this.open = false; },
 };
 const qrWatchContext = vm.createContext({
@@ -316,6 +317,7 @@ const qrWatchContext = vm.createContext({
   gameChallengePopupNoticeKey: (notice) => notice?.friendshipId || notice?.challengeId,
   gameChallengePopupNoticeIsValid: () => true,
   dismissedGameChallengePopups: () => new Set(),
+  closeSocialDialog(dialog, result, onClose) { dialog.close(result); onClose(); },
   renderPreservingReaderScroll() {},
 });
 vm.runInContext(`

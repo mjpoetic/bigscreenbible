@@ -1845,7 +1845,7 @@ function isSideToolbarAutoPositioned() {
 }
 
 function animateBeforeRemoval(selector, callback, { className = "motion-exit", duration = 240, settleFrames = 0, waitForAnimation = false } = {}) {
-  const visibleElements = Array.from(document.querySelectorAll(selector))
+  const visibleElements = (typeof selector === "string" ? Array.from(document.querySelectorAll(selector)) : [selector])
     .filter((element) => element.getClientRects().length);
   if (visibleElements.some((element) => element.classList.contains(className))) return;
   const elements = visibleElements.filter((element) => !element.classList.contains(className));
@@ -2122,6 +2122,7 @@ function render({ preserveAutoScroll = false } = {}) {
   previousVideo?.remove();
   const previousToast = document.querySelector(".status-toast-region");
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
+  const previousSocialPopup = document.getElementById("gameChallengePopupDialog")?.parentElement;
   app.innerHTML = `
     <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
@@ -2174,6 +2175,9 @@ function render({ preserveAutoScroll = false } = {}) {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  if (previousSocialPopup && !document.getElementById("gameChallengePopupDialog")) {
+    animateSocialPopupExit(previousSocialPopup, shell);
+  }
   restoreAccountFormDraft(accountFormDraft);
   void window.BSBImportedReader?.afterRender();
   syncBibleReturnMessage();
@@ -5551,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.10": [
+      "Friend and challenge pop-ups now ease in and out, including the handoff from My Friend QR to an incoming request.",
+    ],
     "2026.11.21.9": [
       "The incoming friend request pop-up has two choices: Accept or Maybe later.",
     ],
@@ -13444,6 +13451,38 @@ function maybeStartActiveGameChallenge({ render = true } = {}) {
   startLoadedGameChallenge(challenge, { render });
 }
 
+function animateSocialPopupExit(overlay, shell) {
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+  overlay.inert = true;
+  overlay.setAttribute("aria-hidden", "true");
+  overlay.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+  shell.append(overlay);
+  animateBeforeRemoval(overlay, () => overlay.remove(), { className: "social-popup-exit", duration: 190 });
+}
+
+function closeSocialDialog(dialog, result = "", onClose) {
+  if (!dialog.open || dialog.classList.contains("social-popup-exit")) return;
+  animateBeforeRemoval(dialog, () => {
+    dialog.close(result);
+    onClose?.();
+  }, { className: "social-popup-exit", duration: 190 });
+}
+
+function showSocialDialog(dialog) {
+  dialog.classList.add("social-dialog-motion");
+  dialog.addEventListener("submit", (event) => {
+    if (event.defaultPrevented || event.target.method !== "dialog") return;
+    event.preventDefault();
+    closeSocialDialog(dialog, event.submitter?.value || "");
+  });
+  dialog.addEventListener("cancel", (event) => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    closeSocialDialog(dialog);
+  });
+  dialog.showModal();
+}
+
 function confirmGameChallengeAction({ title, message, confirmLabel, opener }) {
   if (document.getElementById("gameChallengeConfirmDialog")) return Promise.resolve(false);
   const dialog = document.createElement("dialog");
@@ -13467,7 +13506,7 @@ function confirmGameChallengeAction({ title, message, confirmLabel, opener }) {
       resolve(confirmed);
     }, { once: true });
     document.body.append(dialog);
-    dialog.showModal();
+    showSocialDialog(dialog);
   });
 }
 
@@ -13727,7 +13766,7 @@ function showFriendInviteOutcome(inviteId, profile, relationship, userId) {
   const submit = dialog.querySelector("[data-submit-friend-invite]");
   submit?.addEventListener("click", async () => {
     if (state.authUser?.id !== userId) {
-      dialog.close();
+      closeSocialDialog(dialog);
       return;
     }
     if (state.friendshipActionBusyId) return;
@@ -13736,7 +13775,7 @@ function showFriendInviteOutcome(inviteId, profile, relationship, userId) {
     const succeeded = relationship ? await acceptFriendRequest(relationship.id) : await sendFriendRequest(inviteId);
     if (!dialog.open) return;
     if (succeeded) {
-      dialog.close();
+      closeSocialDialog(dialog);
     } else {
       submit.disabled = false;
       dialog.querySelector("[role=status]").textContent = state.friendshipMessage;
@@ -13744,7 +13783,7 @@ function showFriendInviteOutcome(inviteId, profile, relationship, userId) {
   });
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
   document.body.append(dialog);
-  dialog.showModal();
+  showSocialDialog(dialog);
 }
 
 function showNewRequestOverFriendQr(dialog, userId, existingRequestIds) {
@@ -13765,8 +13804,7 @@ function showNewRequestOverFriendQr(dialog, userId, existingRequestIds) {
     gameChallengePopupQueue.unshift(gameChallengePopupNotice);
   }
   gameChallengePopupNotice = notice;
-  dialog.close("incoming-request");
-  renderPreservingReaderScroll();
+  closeSocialDialog(dialog, "incoming-request", renderPreservingReaderScroll);
   return true;
 }
 
@@ -13775,7 +13813,8 @@ function watchFriendQrRequests(dialog, userId) {
   if (!client) return;
   let timer;
   let existingRequestIds;
-  const isActive = () => dialog.open && state.authUser?.id === userId && canShareFriendInvite();
+  const isActive = () => dialog.open && !dialog.classList.contains("social-popup-exit")
+    && state.authUser?.id === userId && canShareFriendInvite();
   async function check() {
     if (!isActive()) return;
     try {
@@ -13856,7 +13895,7 @@ function openFriendInviteDialog(opener) {
     if (dialog.returnValue !== "incoming-request" && opener.isConnected) opener.focus({ preventScroll: true });
   }, { once: true });
   document.body.append(dialog);
-  dialog.showModal();
+  showSocialDialog(dialog);
   watchFriendQrRequests(dialog, profile.userId);
 }
 
@@ -14058,7 +14097,7 @@ function openSocialSafetyDialog(action, profileId, opener) {
     <div class="account-actions"><button class="ghost-btn" type="button" data-safety-cancel>Cancel</button><button class="primary-btn" type="submit">${reporting ? 'Send report' : action === 'block' ? 'Block person' : 'Unblock person'}</button></div></form>`;
   document.body.append(dialog);
   let busy = false;
-  dialog.querySelector("[data-safety-cancel]").onclick = () => dialog.close();
+  dialog.querySelector("[data-safety-cancel]").onclick = () => closeSocialDialog(dialog);
   dialog.addEventListener("cancel", event => { if (busy) event.preventDefault(); });
   dialog.addEventListener("close", () => { dialog.remove(); if (opener?.isConnected) opener.focus(); });
   dialog.querySelector("form").onsubmit = async event => {
@@ -14075,7 +14114,7 @@ function openSocialSafetyDialog(action, profileId, opener) {
       else if (action === "block") result = await client.from("bsb_user_blocks").insert({ blocker_id: userId, blocked_id: profileId });
       else result = await client.from("bsb_user_blocks").delete().eq("blocker_id", userId).eq("blocked_id", profileId);
       if (result.error) throw result.error;
-      if (state.authUser?.id !== userId) return dialog.close();
+      if (state.authUser?.id !== userId) return closeSocialDialog(dialog);
       if (!reporting) {
         state.friendSearchResults = [];
         state.challengeOpponentIds = [];
@@ -14083,7 +14122,7 @@ function openSocialSafetyDialog(action, profileId, opener) {
         await loadFriendships({ render: false });
         await loadGameChallenges();
       }
-      dialog.close();
+      closeSocialDialog(dialog);
       showToast(reporting ? "Report submitted for review" : action === "block" ? "Person blocked" : "Person unblocked");
     } catch (error) {
       dialog.querySelector("#socialSafetyError").textContent = error?.message || "This action could not be completed. Try again.";
@@ -14092,7 +14131,7 @@ function openSocialSafetyDialog(action, profileId, opener) {
       dialog.querySelectorAll("button").forEach(button => button.disabled = false);
     }
   };
-  dialog.showModal();
+  showSocialDialog(dialog);
   dialog.querySelector("[data-safety-cancel]").focus();
 }
 
