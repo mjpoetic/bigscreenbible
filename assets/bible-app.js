@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.26": [
+      "Coloring Book keeps controls inside the phone safe area and places the toolbar beside a larger drawing in landscape.",
+    ],
     "2026.11.20.25": [
       "Expert Word Search and Crossword now support live challenges. Challenge dialogs and End challenge controls follow the Liquid Glass setting.",
     ],

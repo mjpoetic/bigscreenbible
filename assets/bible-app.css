@@ -28624,3 +28624,38 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     align-items:center;
   }
 }
+
+/* Keep the embedded studio clear of camera cutouts on either side. */
+.app-shell .trivia-grid > .coloring-reader {
+  box-sizing:border-box;
+  padding-left:max(var(--app-safe-area-left, 0px), env(safe-area-inset-left, 0px));
+  padding-right:max(var(--app-safe-area-right, 0px), env(safe-area-inset-right, 0px));
+  padding-bottom:max(var(--app-safe-area-bottom, 0px), env(safe-area-inset-bottom, 0px));
+}
+
+@media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
+  /* Put the dock beside the drawing so both can use the same vertical space. */
+  .coloring-studio dialog.coloring-stage:not(.is-expanded) {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows:auto minmax(0, 1fr) auto;
+    height:max(280px, calc(100dvh - 125px));
+    min-height:0;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-view-controls {
+    grid-area:1 / 1;
+    min-width:0;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-canvas {
+    grid-area:1 / 2 / 3;
+    min-width:0;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-reference {
+    grid-area:3 / 2;
+    justify-self:center;
+    text-align:center;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) #coloringStatus {
+    grid-area:2 / 1;
+  }
+}
