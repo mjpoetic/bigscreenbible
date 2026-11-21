@@ -82,4 +82,29 @@ assert.match(styles, /animation: bible-version-loading-spin 900ms linear infinit
 assert.match(styles, /\.scripture\.bible-version-loading > \*/);
 assert.match(styles, /\.presentation\.bible-version-loading \.presentation-passage/);
 
+const scripts = new Map();
+const bundleContext = vm.createContext({
+  appVersion: "test",
+  window: { bsbOffline: { active: false, open: () => assert.fail("A failed translation must leave the live reader open") } },
+  document: {
+    getElementById: id => scripts.get(id),
+    createElement: () => Object.assign(new EventTarget(), {
+      remove() { scripts.delete(this.id); },
+    }),
+    head: { appendChild: script => scripts.set(script.id, script) },
+  },
+});
+vm.runInContext(extractFunction("loadBibleBundleScript"), bundleContext);
+const failed = vm.runInContext('loadBibleBundleScript("KJV")', bundleContext);
+const failedScript = scripts.get("bible-data-KJV");
+failedScript.dispatchEvent(new Event("error"));
+await assert.rejects(failed, /KJV Bible data failed to load/);
+
+const retry = vm.runInContext('loadBibleBundleScript("KJV")', bundleContext);
+const retriedScript = scripts.get("bible-data-KJV");
+assert.ok(retriedScript);
+assert.notEqual(retriedScript, failedScript);
+retriedScript.dispatchEvent(new Event("load"));
+await retry;
+
 console.log("Bible version loading tests passed");

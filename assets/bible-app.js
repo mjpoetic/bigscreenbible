@@ -5550,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.18": [
+      "A failed translation download can be retried without sending an open reader into offline mode.",
+    ],
     "2026.11.20.17": [
       "The landscape Parallel Study header tab now extends seamlessly to the screen edge on iPhone while keeping its label inside the safe area.",
     ],
@@ -35385,6 +35388,7 @@ async function initializeBibleData() {
     ]);
     bibleIndex = window.BIGSCREEN_BIBLE_INDEX;
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
+    if (!loadedVersionData.has("BSB")) throw new Error("Base Bible text could not be loaded");
     rebuildBibleData();
     await applyStartupExperience({ updateReload: new URL(window.location.href).searchParams.has(appUpdateQueryKey) });
     let offlineRestoreState = null;
@@ -35844,13 +35848,13 @@ function loadBibleBundleScript(name, options = {}) {
     script.async = true;
     script.addEventListener("load", () => resolve(), { once: true });
     script.addEventListener("error", () => {
+      script.remove();
       const error = new Error(`${name} Bible data failed to load`);
       if (options.optional) {
         console.info(error.message);
         resolve();
         return;
       }
-      if (window.bsbOffline && !window.bsbOffline.active) window.bsbOffline.open();
       reject(error);
     }, { once: true });
     document.head.appendChild(script);
