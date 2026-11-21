@@ -5550,6 +5550,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.19": [
+      "The offline reader now shows a more prominent notice with a Return online button.",
+    ],
     "2026.11.20.18": [
       "A failed translation download can be retried without sending an open reader into offline mode.",
     ],
@@ -6224,9 +6227,8 @@ function syncOfflineStatus() {
   if (!status) {
     status = document.createElement("div");
     status.id = "offlineReaderStatus";
-    status.className = "offline-reader-status";
-    status.setAttribute("role", "status");
-    status.innerHTML = '<span>Offline reader</span><button type="button" data-offline-reconnect>Return online</button>';
+    status.className = "app-update-notice offline-reader-status";
+    status.innerHTML = '<p role="status">Offline reader</p><div class="app-update-notice-actions"><button type="button" class="primary-btn" data-offline-reconnect>Return online</button></div>';
     document.body.appendChild(status);
   }
   status.hidden = Boolean(state.settingsOpen || state.presentationSettingsOpen || state.accountOpen
