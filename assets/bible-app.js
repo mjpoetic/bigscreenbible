@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.14": [
+      "The Coloring Book beta now lets players know more coloring pages are coming.",
+    ],
     "2026.11.21.13": [
       "Open Study Insights from a verse’s cross references to read it alongside the surrounding verses.",
     ],
