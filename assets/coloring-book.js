@@ -159,9 +159,9 @@
   function controlLabel(glyph,label){return `<svg class="coloring-tool-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${controlGlyphs[glyph]}</svg><span class="coloring-tool-label">${label}</span>`;}
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
+      <dialog class="coloring-stage" open aria-label="Coloring canvas">
       <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p>${page().title}</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
-      <dialog class="coloring-stage" open aria-label="Coloring canvas">
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
             <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">${controlLabel("brush","Brush")}</button>
