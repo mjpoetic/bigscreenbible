@@ -99,7 +99,7 @@
     ],
   };
   pages.forEach(p=>{p.shapes.push(...details[p.id]);p.level=["ark","creation","star"].includes(p.id)?"Detailed":"Intricate";});
-  pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png"});
+  pages.unshift({id:"jesus-children",title:"Jesus Welcomes the Children",level:"Storybook",reference:"Mark 10:13-16",shapes:[],art:"./assets/coloring-pages/jesus-welcomes-children.png",regions:"./assets/coloring-pages/jesus-welcomes-children-regions.png?v=2"});
   const visiblePages=pages.filter(p=>p.art);
   const artworkData = new Map();
   let viewportObserver;
@@ -119,9 +119,7 @@
     if(p.art) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}<image href="${embed ? artworkData.get(p.id) : p.art}" width="600" height="600"/></svg>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="group" aria-label="${escape(p.title)} coloring page"><rect width="600" height="600" fill="white"/>${p.shapes.map((s,i)=>`<${s.tag} ${Object.entries(s.attrs).map(([k,v])=>`${k}="${escape(v)}"`).join(" ")} fill="${validColor(fills[i]) ? fills[i] : "#ffffff"}" stroke="#293241" stroke-width="3" stroke-linejoin="round" ${interactive ? `data-region="${i}" tabindex="0" role="button" aria-label="Color ${escape(s.label)}"` : ""}/>`).join("")}${!outline && includeInk && validInk(saved.__ink?.[p.id]) ? `<image href="${saved.__ink[p.id]}" width="600" height="600"/>` : ""}</svg>`;
   }
-  // A Pencil often lands on an outline rather than a white pixel. Choose the
-  // closest enclosed region nearby, or defer the lock until the stroke enters
-  // one. A rejected first sample must never discard the whole gesture.
+  // When a touch starts directly on an uncovered vector outline, find a nearby interior.
   function regionSeed(pixels,x,y,size=600,radius=6){
     x=Math.floor(x);y=Math.floor(y);if(x<0||y<0||x>=size||y>=size)return null;
     const valid=(a,b)=>{const i=(b*size+a)*4;return pixels[i+2]===127&&pixels[i+3]===255;};
@@ -160,7 +158,7 @@
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <dialog class="coloring-stage" open aria-label="Coloring canvas">
-      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-page-title">${page().title}</p><p class="coloring-beta-note">More coloring pages are coming.</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
+      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-beta-note">More coloring pages are coming.</p></div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
@@ -175,7 +173,7 @@
             <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
             <button class="ghost-btn" type="button" data-coloring="save">${controlLabel("save","Save")}</button>
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
-              <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Each stroke stays in its starting shape. Lift your finger or Pencil before coloring another shape.</p>
+              <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Drag across the drawing to color each shape your brush passes through.</p>
               <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
               <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
               <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
@@ -185,7 +183,7 @@
           <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
         </div>
         <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
-        <a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a>
+        <div class="coloring-caption"><h2 class="coloring-page-title">${page().title}</h2><a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a></div>
         <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
       </dialog></article></section>`;
   }
@@ -321,18 +319,53 @@
       strokeCtx.globalCompositeOperation="source-over";strokeCtx.putImageData(pixels,0,0);ctx.globalCompositeOperation="source-over";ctx.drawImage(strokeCanvas,0,0);
       saveInk(before);
     }
-    let lockedRegion=0;
-    const masks=new Map();
-    function startRegion(p) {
-      if(!withinLines)return true;
-      if(!regionPixels){status("Preparing line protection. Try again in a moment.");return false;}
-      const seed=regionSeed(regionPixels,p.x,p.y,600,Math.min(8,Math.max(3,brushSize/4)));
-      if(!seed)return false;
-      const offset=(seed.y*600+seed.x)*4,id=regionPixels[offset]+(regionPixels[offset+1]<<8);
-      if(lockedRegion===id)return true;
-      let mask=masks.get(id);
-      if(!mask){const alpha=regionMask(regionPixels,seed.x,seed.y);mask=maskCtx.createImageData(600,600);mask.data.set(alpha);if(masks.size>=8)masks.delete(masks.keys().next().value);masks.set(id,mask);}
-      maskCtx.putImageData(mask,0,0);lockedRegion=id;return true;
+    let clippedPixels;
+    function paintAcrossRegions(points, radius){
+      if(!regionPixels)return false;
+      if(!clippedPixels)clippedPixels=strokeCtx.createImageData(600,600);
+      const pixels=clippedPixels.data;
+      pixels.fill(0);
+      const rgb=[1,3,5].map(start=>parseInt(color.slice(start,start+2),16));
+      let changed=false;
+      const solidRadiusSquared=Math.max(0,radius-.5)**2;
+      const edgeRadiusSquared=(radius+.5)**2;
+      function stamp(x,y){
+        const centerX=Math.floor(x),centerY=Math.floor(y);
+        if(centerX<0 || centerX>=600 || centerY<0 || centerY>=600)return;
+        const center=(centerY*600+centerX)*4;
+        if(regionPixels[center+2]!==127 || regionPixels[center+3]!==255)return;
+        const red=regionPixels[center],green=regionPixels[center+1];
+        for(let row=Math.max(0,Math.floor(y-radius-.5));row<Math.min(600,Math.ceil(y+radius+.5));row++){
+          for(let col=Math.max(0,Math.floor(x-radius-.5));col<Math.min(600,Math.ceil(x+radius+.5));col++){
+            const i=(row*600+col)*4;
+            if(regionPixels[i]!==red || regionPixels[i+1]!==green || regionPixels[i+2]!==127 || regionPixels[i+3]!==255)continue;
+            const distanceSquared=(col+.5-x)**2+(row+.5-y)**2;
+            if(distanceSquared>=edgeRadiusSquared)continue;
+            const alpha=distanceSquared<=solidRadiusSquared ? 255 : Math.round(255*(radius+.5-Math.sqrt(distanceSquared)));
+            if(alpha<=pixels[i+3])continue;
+            pixels.set(rgb,i);
+            pixels[i+3]=alpha;
+            changed=true;
+          }
+        }
+      }
+      const first=points[0];
+      const seed=points.length===1 && regionSeed(regionPixels,first.x,first.y,600,Math.min(6,radius));
+      if(seed)stamp(seed.x+.5,seed.y+.5);
+      else stamp(first.x,first.y);
+      for(let i=1;i<points.length;i++){
+        const from=points[i-1],to=points[i];
+        const dx=to.x-from.x,dy=to.y-from.y;
+        const steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)*2));
+        for(let step=1;step<=steps;step++){
+          stamp(from.x+dx*step/steps,from.y+dy*step/steps);
+        }
+      }
+      if(!changed)return false;
+      strokeCtx.putImageData(clippedPixels,0,0);
+      ctx.globalCompositeOperation=erasing?"destination-out":"source-over";
+      ctx.drawImage(strokeCanvas,0,0);
+      return true;
     }
     root.querySelectorAll("[data-within-lines]").forEach(input=>input.onchange=()=>{
       withinLines=input.checked;saved.__withinLines=withinLines;
@@ -340,18 +373,23 @@
       if(!persist())status("Unable to save this preference on this device.");
     });
     function markPoints(points,e){
-      if(withinLines && !drawing.maskReady){
-        for(const p of points)if(startRegion(p)){drawing.maskReady=true;break;}
-        if(!drawing.maskReady)return;
+      const width=brushSize*(e.pointerType==="pen" && e.pressure>0 ? .35+e.pressure*.9 : 1);
+      if(withinLines){
+        if(!regionPixels){status("Preparing line protection. Try again in a moment.");return;}
+        if(!paintAcrossRegions(points,width/2))return;
+      }else{
+        ctx.globalCompositeOperation=erasing?"destination-out":"source-over";
+        ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineCap="round";ctx.lineJoin="round";
+        ctx.lineWidth=width;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x,points[0].y);
+        for(const p of points.slice(1))ctx.lineTo(p.x,p.y);
+        ctx.stroke();
+        const end=points[points.length-1];
+        ctx.beginPath();
+        ctx.arc(end.x,end.y,width/2,0,Math.PI*2);
+        ctx.fill();
       }
-      const target=withinLines ? strokeCtx : ctx;
-      if(withinLines){strokeCtx.clearRect(0,0,600,600);strokeCtx.globalCompositeOperation="source-over";}
-      target.globalCompositeOperation=!withinLines && erasing ? "destination-out" : "source-over";
-      target.strokeStyle=color;target.fillStyle=color;target.lineCap="round";target.lineJoin="round";
-      target.lineWidth=brushSize*(e.pointerType==="pen" && e.pressure>0 ? .35+e.pressure*.9 : 1);
-      target.beginPath();target.moveTo(points[0].x,points[0].y);for(const p of points.slice(1))target.lineTo(p.x,p.y);target.stroke();
-      const end=points[points.length-1];target.beginPath();target.arc(end.x,end.y,target.lineWidth/2,0,Math.PI*2);target.fill();
-      if(withinLines){strokeCtx.globalCompositeOperation="destination-in";strokeCtx.drawImage(maskCanvas,0,0);ctx.globalCompositeOperation=erasing?"destination-out":"source-over";ctx.drawImage(strokeCanvas,0,0);}
       drawing.changed=true;
       if(!checkpointTimer)checkpointTimer=setTimeout(checkpointStroke,1000);
     }
@@ -456,7 +494,7 @@
       if(tool!=="brush" || (e.pointerType!=="pen" && pointers.size>1))return;
       const p=point(e);
       e.preventDefault();try{canvas.setPointerCapture(e.pointerId);}catch{}
-      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,maskReady:!withinLines,changed:false,
+      drawing={id:e.pointerId,pointerType:e.pointerType,last:p,before:ink() || null,changed:false,
         touchSnapshot:e.pointerType==="touch"?ctx.getImageData(0,0,canvas.width,canvas.height):null};
       markPoints([p],e);
     };

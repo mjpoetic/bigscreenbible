@@ -12,11 +12,17 @@
  check(!document.querySelector('[data-page]'),'Draft illustrations are hidden');
  event('pointerdown',180,360);event('pointermove',250,360);event('pointerup',250,360);
  check(alphaCount()>0,'Protected finger stroke can start on an outline');
- const map=new Image();map.src='assets/coloring-pages/jesus-welcomes-children-regions.png';await map.decode();
+ const map=new Image();map.src='assets/coloring-pages/jesus-welcomes-children-regions.png?v=2';await map.decode();
  const mapCanvas=document.createElement('canvas');mapCanvas.width=mapCanvas.height=600;const mapContext=mapCanvas.getContext('2d');mapContext.drawImage(map,0,0);
  const labels=mapContext.getImageData(0,0,600,600).data,ink=ctx.getImageData(0,0,600,600).data,paintedRegions=new Set();
  for(let i=0;i<ink.length;i+=4)if(ink[i+3])paintedRegions.add(labels[i]+(labels[i+1]<<8));
- check(paintedRegions.size===1&&!paintedRegions.has(0),'Protected stroke stays inside one region and off outlines');
+ const crossedRegions=new Set();
+ for(let x=180;x<=250;x++){
+   const i=(360*600+x)*4;
+   crossedRegions.add(labels[i]+(labels[i+1]<<8));
+ }
+ check(paintedRegions.size>1&&[...paintedRegions].every(id=>crossedRegions.has(id)),'Protected drag colors each crossed region without spilling into neighboring shapes');
+ check(labels.every((value,index)=>index%4!==2||value===127),'Every pixel in the region map can receive protected color');
  const sameCanvas=canvas;document.querySelector('[data-coloring="undo"]').click();await wait();
  check(canvas===document.getElementById('coloringPixels')&&alphaCount()===0,'Undo clears the stroke in place without rebuilding the canvas');
  event('pointerdown',-50,-50,'pen',9);event('pointermove',170,380,'pen',9);event('pointerup',170,380,'pen',9);
