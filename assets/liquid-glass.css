@@ -1694,7 +1694,7 @@ html[data-control-material="glass"] .coloring-studio :is(.coloring-options summa
 /* Frosted glass over detailed line art needs a denser tint for readable labels. */
 html[data-control-material="glass"] .coloring-studio :is(.coloring-options-body,.coloring-skin-tones) {
   background:var(--panel);
-  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  background:linear-gradient(145deg,var(--glass-reflection),transparent 66%),var(--panel);
   color:var(--ink);
   -webkit-backdrop-filter:blur(24px) saturate(120%);
   backdrop-filter:blur(24px) saturate(120%);

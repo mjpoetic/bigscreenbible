@@ -28974,3 +28974,56 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   opacity:.58;
   filter:saturate(.15);
 }
+
+
+.coloring-size-controls,.coloring-history-controls,.coloring-zoom-controls {
+  display:flex;
+  align-items:center;
+  gap:3px;
+  flex:none;
+}
+.coloring-size-controls[hidden] { display:none; }
+.coloring-studio .coloring-size-controls output { min-width:0; font-size:11px; white-space:nowrap; }
+.coloring-size-arrows { display:grid; }
+.coloring-studio .coloring-size-arrows button {
+  min-width:26px;
+  min-height:23px;
+  padding:0 4px;
+  line-height:1;
+}
+.coloring-studio .coloring-history-controls button,
+.coloring-studio .coloring-zoom-controls button {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:36px;
+  padding:4px 6px;
+}
+.coloring-studio .coloring-history-controls button { position:relative; }
+.coloring-history-controls .coloring-tool-label {
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip-path:inset(50%);
+  white-space:nowrap;
+}
+.coloring-studio .coloring-primary-tools .coloring-zoom-controls { margin-left:auto; }
+.coloring-studio #coloringZoomLabel { font-size:12px; white-space:nowrap; }
+
+@media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
+  .coloring-stage:not(.is-expanded) .coloring-toolbar-row { grid-template-columns:repeat(7,minmax(0,1fr)); }
+  .coloring-stage:not(.is-expanded) [data-coloring="save"] { grid-area:1 / 6; }
+  .coloring-stage:not(.is-expanded) .coloring-options { grid-area:1 / 7; }
+  .coloring-stage:not(.is-expanded) .coloring-zoom-controls { grid-column:span 3; }
+  .coloring-stage:not(.is-expanded) .coloring-history-controls { grid-column:span 2; }
+  .coloring-studio .coloring-stage:not(.is-expanded) :is(.coloring-history-controls,.coloring-zoom-controls) button {
+    flex:1;
+    min-width:0;
+    min-height:40px;
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-primary-tools .coloring-zoom-controls { margin:0; }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls { gap:2px; }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { min-width:17px; padding:0; }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls output { font-size:9px; }
+}

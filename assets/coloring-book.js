@@ -106,9 +106,9 @@
   let saved = {};
   let savePending = false;
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
-  let selected = pages[0].id, color = palette[0], zoom = 1, history = [], callbacks;
+  let selected = pages[0].id, color = palette[0], zoom = 1, history = [], redoHistory = [], callbacks;
   let withinLines = saved.__withinLines !== false;
-  let tool = "brush", brushSize = 12, erasing = false, expanded = false;
+  let tool = "brush", brushSize = 12, eraserSize = 12, erasing = false, expanded = false;
   const ink = () => saved.__ink?.[selected];
   const validInk = value => typeof value === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(value);
   const page = () => pages.find(p => p.id === selected);
@@ -150,12 +150,21 @@
     undo:'<path d="M4 10h10a6 6 0 0 1 0 12" transform="translate(0 -3)"/><path d="m8 3-4 4 4 4"/>',
     move:'<path d="M12 3v18M3 12h18m-12-6 3-3 3 3m3 3 3 3-3 3m-3 3-3 3-3-3m-3-3-3-3 3-3"/>',
     save:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
-    fit:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><rect x="7" y="7" width="10" height="10" rx="1"/>',
+    redo:'<path d="M20 7H10a6 6 0 0 0 0 12m6-16 4 4-4 4"/>',
     expand:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     collapse:'<path d="M3 8h5V3m13 5h-5V3M3 16h5v5m13-5h-5v5"/>',
     more:'<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>',
   };
   function controlLabel(glyph,label){return `<svg class="coloring-tool-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${controlGlyphs[glyph]}</svg><span class="coloring-tool-label">${label}</span>`;}
+  function sizeControls(name,size,active){
+    return `<div class="coloring-size-controls" data-size-tool="${name}" role="group" aria-label="${name} size" ${active?"":"hidden"}>
+      <output>${size}px</output>
+      <span class="coloring-size-arrows">
+        <button class="ghost-btn" type="button" data-size-step="1" aria-label="Increase ${name} size">▴</button>
+        <button class="ghost-btn" type="button" data-size-step="-1" aria-label="Decrease ${name} size">▾</button>
+      </span>
+    </div>`;
+  }
   function view() {
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <dialog class="coloring-stage" open aria-label="Coloring canvas">
@@ -163,19 +172,24 @@
       ${visiblePages.length>1 ? `<div class="coloring-pages">${visiblePages.map(p=>`<button type="button" data-page="${p.id}">${svg(p)}${p.title}</button>`).join("")}</div>` : ""}
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
-            <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush'}">${controlLabel("brush","Brush")}</button>
+            <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush' && !erasing}">${controlLabel("brush","Brush")}</button>
+            ${sizeControls("brush",brushSize,tool==="brush" && !erasing)}
             <button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">${controlLabel("fill","Fill")}</button>
             <button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">${controlLabel("move","Move")}</button>
             <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">${controlLabel("eraser","Eraser")}</button>
-            <button class="ghost-btn" type="button" data-coloring="undo" ${history.length ? "" : "disabled"}>${controlLabel("undo","Undo")}</button>
-            <button class="ghost-btn" type="button" data-coloring="fit">${controlLabel("fit","Fit")}</button>
-            <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><output id="coloringZoomLabel">${Math.round(zoom*100)}%</output><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
+            ${sizeControls("eraser",eraserSize,erasing)}
+            <div class="coloring-zoom-controls" role="group" aria-label="Zoom">
+            <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><button class="ghost-btn" type="button" data-coloring="fit" id="coloringZoomLabel" aria-label="Fit drawing" title="Fit drawing">${Math.round(zoom*100)}%</button><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
+            </div>
           </div></div><div class="coloring-secondary-tools">
             <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
+            <div class="coloring-history-controls" role="group" aria-label="Undo and redo">
+              <button class="ghost-btn" type="button" data-coloring="undo" title="Undo" ${history.length?"":"disabled"}>${controlLabel("undo","Undo")}</button>
+              <button class="ghost-btn" type="button" data-coloring="redo" title="Redo" ${redoHistory.length?"":"disabled"}>${controlLabel("redo","Redo")}</button>
+            </div>
             <button class="ghost-btn" type="button" data-coloring="save" data-autosaved="${!savePending}" title="Download artwork">${controlLabel("save","Save")}</button>
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Drag across the drawing to color each shape your brush passes through.</p>
-              <label>Brush size <input id="coloringBrushSize" type="range" min="1" max="60" value="${brushSize}" /><output id="coloringBrushValue">${brushSize}px</output></label>
               <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
               <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
               <button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
@@ -209,11 +223,13 @@
     const i = Number(region.dataset.region), previous = colors()[i] || "#ffffff";
     const fillColor = erasing ? "#ffffff" : color;
     if (previous === fillColor) return;
+    redoHistory.length=0;
     history.push({kind:"fill",i,previous}); if (history.length > 150) history.shift();
     saved[selected] = {...colors(),[i]:fillColor};
     region.setAttribute("fill",fillColor);
     const stored = persist();
     document.querySelector('[data-coloring="undo"]').disabled = false;
+    document.querySelector('[data-coloring="redo"]').disabled = true;
     status(stored ? "Progress saved on this device." : "Unable to save on this device. Download your artwork to keep it.");
   }
   function download(outline) {
@@ -287,15 +303,32 @@
       img.onerror=()=>{ready=true;status("Saved brush marks could not be loaded.");};img.src=image;
     }
     restoreInk();
-    function updateUndo(){root.querySelectorAll('[data-coloring="undo"], [data-coloring="undo-expanded"]').forEach(b=>b.disabled=history.length===0);}
-    function updateTool() {
-      canvas.classList.toggle("is-drawing", tool === "brush");
-
-      root.querySelector(".coloring-sheet").dataset.coloringTool=tool;viewport.dataset.coloringTool=tool;
-      root.querySelectorAll("[data-tool]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool === tool)));
+    function updateUndo(){
+      root.querySelector('[data-coloring="undo"]').disabled=!history.length;
+      root.querySelector('[data-coloring="redo"]').disabled=!redoHistory.length;
     }
-    root.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;updateTool();});
-    document.getElementById("coloringBrushSize").oninput=e=>{brushSize=Number(e.target.value);document.getElementById("coloringBrushValue").textContent=brushSize+"px";};
+    function updateTool() {
+      canvas.classList.toggle("is-drawing",tool==="brush");
+      root.querySelector(".coloring-sheet").dataset.coloringTool=tool;
+      viewport.dataset.coloringTool=tool;
+      root.querySelectorAll("[data-tool]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.tool===tool && !erasing)));
+      root.querySelector('[data-coloring="eraser"]').setAttribute("aria-pressed",String(erasing));
+      root.querySelector('[data-size-tool="brush"]').hidden=tool!=="brush" || erasing;
+      root.querySelector('[data-size-tool="eraser"]').hidden=!erasing;
+    }
+    root.querySelectorAll("[data-tool]").forEach(button=>button.onclick=()=>{
+      tool=button.dataset.tool;
+      erasing=false;
+      updateTool();
+    });
+    root.querySelectorAll("[data-size-step]").forEach(button=>button.onclick=()=>{
+      const group=button.closest("[data-size-tool]");
+      const isEraser=group.dataset.sizeTool==="eraser";
+      const size=Math.max(1,Math.min(60,(isEraser?eraserSize:brushSize)+Number(button.dataset.sizeStep)));
+      if(isEraser)eraserSize=size;
+      else brushSize=size;
+      group.querySelector("output").textContent=size+"px";
+    });
     function point(e) { const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*600/r.width,y:(e.clientY-r.top)*600/r.height}; }
     // A region map respects paint order: nested details and foreground objects
     // cut holes out of the containing shape, so a sky stroke cannot cover them.
@@ -388,7 +421,7 @@
       if(!persist())status("Unable to save this preference on this device.");
     });
     function markPoints(points,e){
-      const width=brushSize*(e.pointerType==="pen" && e.pressure>0 ? .35+e.pressure*.9 : 1);
+      const width=(erasing?eraserSize:brushSize)*(e.pointerType==="pen" && e.pressure>0 ? .35+e.pressure*.9 : 1);
       if(withinLines){
         if(!regionPixels){status("Preparing line protection. Try again in a moment.");return;}
         if(!paintAcrossRegions(points,width/2))return;
@@ -417,6 +450,7 @@
       markPoints([drawing.last,...pendingPoints],pendingEvent);drawing.last=pendingPoints[pendingPoints.length-1];pendingPoints=[];
     }
     function saveInk(before){
+      redoHistory.length=0;
       history.push({kind:"ink",previous:before});if(history.length>30)history.shift();
       const stored=storeInk();updateUndo();
       status(stored ? "Progress saved on this device." : "Storage is full or unavailable. Download your artwork to keep it.");
@@ -534,10 +568,10 @@
     };
     canvas.onpointerup=finish;canvas.onpointercancel=finish;canvas.onlostpointercapture=e=>{tap=null;if(drawing?.id===e.pointerId)finish(e);};
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
-    root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];zoom=1;refresh();});
+    root.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{selected=b.dataset.page;history=[];redoHistory=[];zoom=1;refresh();});
     const skinPanel=root.querySelector("#coloringSkinTones"),skinToggle=root.querySelector('[data-coloring="skin-tones"]');
     function closeSkinTones(){skinPanel.hidden=true;skinToggle.setAttribute("aria-expanded","false");}
-    function selectColor(c) { color=c; erasing=false; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed","false")); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;closeSkinTones(); }
+    function selectColor(c) { color=c; erasing=false; updateTool(); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;closeSkinTones(); }
     root.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>selectColor(b.dataset.color));
     document.getElementById("coloringCustom").oninput=e=>selectColor(e.target.value);
 
@@ -602,7 +636,6 @@
         case "zoom-in": setZoom(zoom+.25);break;
         case "zoom-out": setZoom(zoom-.25);break;
         case "fit": fit();break;
-        case "mode": tool=tool==="fill"?"brush":tool==="brush"?"pan":"fill";updateTool();break;
         case "games":
         case "close": if(expanded)toggleExpanded();options.close(); break;
         case "reader": if(expanded)toggleExpanded();options.reader();break;
@@ -613,14 +646,33 @@
           download(false);
           break;
         case "outline": more.open=false;void printOutline(); break;
-        case "erase-expanded":
-        case "eraser": erasing=!erasing; root.querySelectorAll('[data-coloring="eraser"], [data-coloring="erase-expanded"]').forEach(b=>b.setAttribute("aria-pressed",String(erasing))); break;
-        case "undo-expanded":
-        case "undo": { const step=history.pop();if(!step)break;
-          if(step.kind==="ink") { if(step.previous) saved.__ink[selected]=step.previous; else delete saved.__ink[selected]; }
-          else saved[selected]={...colors(),[step.i]:step.previous};
-          const stored=persist();if(step.kind==="ink")restoreInk();else root.querySelector(`[data-region="${step.i}"]`)?.setAttribute("fill",step.previous);updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");break; }
-        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];const stored=persist();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
+        case "eraser":
+          erasing=!erasing;
+          tool="brush";
+          updateTool();
+          break;
+        case "undo":
+        case "redo": {
+          const undoing=b.dataset.coloring==="undo";
+          const from=undoing?history:redoHistory,to=undoing?redoHistory:history;
+          const step=from.pop();
+          if(!step)break;
+          if(step.kind==="ink"){
+            to.push({...step,previous:ink()});
+            if(step.previous)saved.__ink[selected]=step.previous;
+            else delete saved.__ink[selected];
+            restoreInk();
+          }else{
+            to.push({...step,previous:colors()[step.i] || "#ffffff"});
+            saved[selected]={...colors(),[step.i]:step.previous};
+            root.querySelector(`[data-region="${step.i}"]`)?.setAttribute("fill",step.previous);
+          }
+          const stored=persist();
+          updateUndo();
+          if(!stored)status("Unable to save. Download your artwork to keep it.");
+          break;
+        }
+        case "reset": if(window.confirm("Clear the colors on this page?")){saved[selected]={};if(saved.__ink)delete saved.__ink[selected];history=[];redoHistory=[];const stored=persist();restoreInk();updateUndo();if(!stored)status("Unable to save. Download your artwork to keep it.");} break;
       }
     });
   }

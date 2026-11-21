@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.22": [
+      "Coloring Book adds Redo, inline brush and eraser size controls, tap-to-fit zoom, and a stronger frosted finish on its menus.",
+    ],
     "2026.11.21.21": [
       "Coloring menus use denser frosted glass for readability, and Save dims when autosave is current.",
     ],

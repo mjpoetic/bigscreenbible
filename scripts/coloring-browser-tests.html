@@ -10,6 +10,16 @@
  const alphaCount=()=>{const pixels=ctx.getImageData(0,0,600,600).data;let n=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i])n++;return n;};
  check(document.querySelector('[data-tool="brush"]').getAttribute('aria-pressed')==='true','Brush is selected by default');
  check(!document.querySelector('[data-page]'),'Draft illustrations are hidden');
+ const brushSize=document.querySelector('[data-size-tool="brush"]');
+ const eraserSize=document.querySelector('[data-size-tool="eraser"]');
+ check(!brushSize.hidden&&eraserSize.hidden,'Only the active tool shows its size');
+ brushSize.querySelector('[data-size-step="1"]').click();
+ check(brushSize.querySelector('output').textContent==='13px','Brush size arrows change the size');
+ document.querySelector('[data-coloring="eraser"]').click();
+ check(brushSize.hidden&&!eraserSize.hidden&&eraserSize.querySelector('output').textContent==='12px','Eraser exposes its own independent size');
+ document.querySelector('[data-tool="brush"]').click();
+ brushSize.querySelector('[data-size-step="-1"]').click();
+
  event('pointerdown',180,360);event('pointermove',250,360);event('pointerup',250,360);
  check(alphaCount()>0,'Protected finger stroke can start on an outline');
  const map=new Image();map.src='assets/coloring-pages/jesus-welcomes-children-regions.png?v=2';await map.decode();
@@ -25,6 +35,9 @@
  check(labels.every((value,index)=>index%4!==2||value===127),'Every pixel in the region map can receive protected color');
  const sameCanvas=canvas;document.querySelector('[data-coloring="undo"]').click();await wait();
  check(canvas===document.getElementById('coloringPixels')&&alphaCount()===0,'Undo clears the stroke in place without rebuilding the canvas');
+ document.querySelector('[data-coloring="redo"]').click();await wait();
+ check(alphaCount()>0,'Redo restores the undone stroke');
+ document.querySelector('[data-coloring="undo"]').click();await wait();
  event('pointerdown',-50,-50,'pen',9);event('pointermove',170,380,'pen',9);event('pointerup',170,380,'pen',9);
  check(alphaCount()>0,'Pencil gesture starting outside a region recovers when it enters one');
  document.querySelector('[data-coloring="undo"]').click();await wait();
@@ -65,6 +78,9 @@
  }
  document.querySelector('[data-coloring="fit"]').click();
  const viewport=document.querySelector('.coloring-canvas'),sheet=document.querySelector('.coloring-sheet');
+ document.querySelector('[data-coloring="zoom-in"]').click();
+ document.getElementById('coloringZoomLabel').click();
+ check(document.getElementById('coloringZoomLabel').textContent==='100%','Tapping the zoom percentage fits the drawing');
  document.querySelector('[data-coloring="zoom-in"]').click();viewport.scrollTop=70;viewport.scrollLeft=30;
  const width=sheet.style.width,top=viewport.scrollTop,left=viewport.scrollLeft;
  document.querySelector('[data-coloring="undo"]').click();await wait();
