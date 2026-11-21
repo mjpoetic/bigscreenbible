@@ -28307,3 +28307,57 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .reader-controls-fade-toggle[aria-expanded="true"] { opacity: 1; }
 
 .reader-controls-fade-toggle { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* Coloring book: original scalable pages and comfortable touch targets. */
+.coloring-book { display: block; padding: clamp(16px, 3vw, 32px); }
+.coloring-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.coloring-heading h1 { display:flex; align-items:center; gap:12px; }
+.coloring-heading .game-new-badge { position:static; font-size:10px; }
+.coloring-pages { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin:20px 0; }
+.coloring-pages button { min-width:0; border:2px solid transparent; border-radius:14px; padding:8px; background:var(--panel, #ffffff14); color:inherit; cursor:pointer; text-align:left; }
+.coloring-pages button[aria-pressed="true"] { border-color:var(--gold, #d8ac48); }
+.coloring-pages svg { width:100%; display:block; border-radius:8px; }
+.coloring-pages strong, .coloring-pages small { display:block; margin-top:6px; }
+.coloring-workspace { display:grid; grid-template-columns:minmax(210px,280px) minmax(0,1fr); gap:24px; align-items:start; }
+.coloring-tools { display:grid; gap:16px; }
+.coloring-tools h2, .coloring-tools p { margin:0; }
+.coloring-tools label { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.coloring-tools input[type="range"] { min-width:100px; flex:1; }
+.coloring-palette { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+.coloring-palette button { background:var(--swatch); border:2px solid #657080; border-radius:50%; min-width:32px; min-height:40px; color:#111; font-size:22px; text-shadow:0 0 3px white,0 0 3px white; cursor:pointer; }
+.coloring-palette button[aria-pressed="true"] { outline:3px solid var(--gold,#d8ac48); outline-offset:2px; }
+.coloring-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.coloring-actions button, .coloring-heading button { min-height:44px; }
+.coloring-canvas { overflow:auto; max-height:75vh; background:#e7e9ed; border-radius:16px; border:1px solid #8b919a; }
+.coloring-canvas svg { display:block; width:100%; min-width:280px; }
+.coloring-canvas [data-region] { cursor:crosshair; }
+.coloring-canvas [data-region]:focus-visible { stroke:#0075ff; stroke-width:6px; outline:none; }
+#coloringStatus { font-size:13px; opacity:.8; }
+@media (max-width:700px) {
+  .coloring-pages { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .coloring-workspace { grid-template-columns:1fr; gap:16px; }
+  .coloring-tools { grid-template-columns:1fr 1fr; gap:12px; }
+  .coloring-tools h2, .coloring-tools > .text-btn, .coloring-palette, #coloringStatus { grid-column:1 / -1; }
+  .coloring-palette { grid-template-columns:repeat(12,minmax(0,1fr)); gap:5px; }
+  .coloring-palette button { min-width:0; min-height:32px; }
+  .coloring-canvas { max-height:65vh; }
+}
+.coloring-sheet { position:relative; }
+#coloringPixels { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+#coloringPixels.is-drawing { pointer-events:auto; touch-action:pinch-zoom; cursor:crosshair; }
+.coloring-actions [aria-pressed="true"], .coloring-tools > [aria-pressed="true"] { outline:2px solid var(--gold,#d8ac48); }
+.coloring-stage { min-width:0; }
+.coloring-view-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:0 0 12px; }
+.coloring-view-controls button { min-width:44px; min-height:44px; }
+.coloring-view-controls output { min-width:45px; text-align:center; }
+.coloring-expanded-color { display:flex; align-items:center; gap:6px; }
+.coloring-stage.is-expanded { position:fixed; inset:0; z-index:10000; display:flex; flex-direction:column; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:var(--bg,#172132); color:var(--text,#fff); }
+.coloring-stage.is-expanded .coloring-canvas { flex:1; min-height:0; max-height:none; }
+.coloring-sheet { touch-action:none; margin-inline:auto; }
+#coloringPixels.is-drawing { touch-action:none; }
+.coloring-fullscreen-action { display:none; }
+.coloring-stage.is-expanded .coloring-fullscreen-action { display:inline-flex; }
+.coloring-view-controls { flex-shrink:0; }
+#coloringBook .coloring-sheet > svg, #coloringBook .coloring-pages svg { width:100%; height:auto; aspect-ratio:1; max-height:none; }
+.coloring-view-controls select { min-height:44px; max-width:140px; }
+@media (max-width:700px) { .coloring-palette { grid-template-columns:repeat(7,minmax(0,1fr)); } .coloring-palette button { min-height:44px; } .coloring-stage.is-expanded .coloring-view-controls { max-height:35dvh; overflow:auto; } }

@@ -5545,6 +5545,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.1": [
+      "Games now includes a Bible Coloring Book marked NEW: six simple and detailed pages, tap-to-fill and touch, stylus, or mouse brush coloring, custom colors, undo, zoom, saved progress on this device, full-screen coloring with zoom and return controls, and downloadable artwork and outlines.",
+    ],
     "2026.11.19.2": [
       "Floating reading options match Liquid Glass styling. Hold the moon / sun button to toggle fading directly; tap to open its options.",
     ],
@@ -19620,7 +19623,10 @@ function centerActiveTriviaMode(previousScroll = 0) {
   updateTriviaModeScrollControls();
 }
 
+let coloringBookOpen = false;
+
 function triviaView() {
+  if (coloringBookOpen && !state.triviaGame) return window.BSBColoring.view();
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
   const waitingForLiveChallenge = currentChallenge?.status === "pending";
@@ -19769,6 +19775,7 @@ function triviaView() {
             <div class="trivia-mode-picker">
               <button class="trivia-mode-scroll trivia-mode-scroll-previous" type="button" data-trivia-mode-scroll="-1" aria-label="Show previous games" hidden>${icons.chevronLeft}</button>
               <div class="trivia-mode-tabs" role="tablist" aria-label="Game type">
+                <button data-open-coloring type="button" ${challengeSetupLock}>${icons.highlight || icons.book}<span>Coloring Book</span><small class="game-new-badge">NEW</small></button>
                 <button class="${isWordSearch ? "active" : ""}" data-trivia-mode="word-search" type="button" ${challengeSetupLock}>${icons.wordSearch}<span>Word Search</span></button>
                 <button class="${isCrossword ? "active" : ""}" data-trivia-mode="crossword" type="button" ${challengeSetupLock}>${icons.crossword}<span>Crossword</span></button>
                 <button class="${isHiddenWord ? "active" : ""}" data-trivia-mode="hidden-word" type="button" ${challengeSetupLock}>${icons.hiddenWord}<span>Hidden Word</span></button>
@@ -24509,6 +24516,16 @@ function bindSettingsScrollContainment() {
 }
 
 function bindEvents() {
+  window.BSBColoring.bind({
+    reader: () => { coloringBookOpen = false; switchMode("reader", { audible: true }); },
+    close: () => { coloringBookOpen = false; renderPreservingReaderScroll(); },
+    read: reference => { coloringBookOpen = false; gotoReference(reference, { focusedPassage: true }); },
+  });
+  document.querySelector("[data-open-coloring]")?.addEventListener("click", () => {
+    coloringBookOpen = true;
+    renderPreservingReaderScroll();
+    document.getElementById("coloringTitle")?.focus();
+  });
   bindSelectionTooltips();
   document.querySelector("[data-workspace-settings]")?.addEventListener("click", () => {
     closePortraitNavigation();
