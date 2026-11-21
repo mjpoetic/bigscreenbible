@@ -206,4 +206,55 @@ assert.match(styles, /\.friend-search-form/);
 assert.match(styles, /\.account-friend-request-badge/);
 assert.match(styles, /\.account-popover\.open\.account-panel-rerender/);
 
+const inviteId = "12345678-abcd-1234-abcd-123456789abc";
+const pendingInvite = new Map();
+let landingUrl = `https://bigscreenbible.com/?friend=${inviteId}&nativeLink=1`;
+const inviteFilters = [];
+const inviteProfile = { userId: inviteId, username: "inviter" };
+const inviteState = {
+  authUser: { id: "recipient" },
+  socialProfile: { username: "recipient" },
+  socialConsent: true,
+  socialSafetyReady: true,
+};
+const inviteContext = vm.createContext({
+  URL,
+  state: inviteState,
+  window: { location: { href: landingUrl } },
+  history: { replaceState(_state, _title, href) { landingUrl = href; } },
+  sessionStorage: {
+    getItem: (key) => pendingInvite.get(key),
+    setItem: (key, value) => pendingInvite.set(key, value),
+    removeItem: (key) => pendingInvite.delete(key),
+  },
+  document: { getElementById: () => null },
+  normalizeProfileUsername: (value) => value,
+  normalizedSocialProfile: (value) => value,
+  authenticatedSupabaseSession: async () => ({ user: inviteState.authUser }),
+  socialProfileTable: "profiles",
+  renderPreservingReaderScroll() {},
+  createSupabaseClient() {
+    return { from: () => ({
+      select() { return this; },
+      eq(key, value) { inviteFilters.push(["eq", key, value]); return this; },
+      neq(key, value) { inviteFilters.push(["neq", key, value]); return this; },
+      async limit(count) { assert.equal(count, 1); return { data: [inviteProfile] }; },
+    }) };
+  },
+});
+vm.runInContext(`
+  ${source.slice(source.indexOf("const friendInviteStorageKey"), source.indexOf("\nasync function finishFriendshipAction"))}
+  captureFriendInvite();
+`, inviteContext);
+assert.equal(landingUrl, "https://bigscreenbible.com/?nativeLink=1");
+assert.equal(vm.runInContext("pendingFriendInvite()", inviteContext), inviteId);
+await vm.runInContext('searchFriends(null, "quick", pendingFriendInvite())', inviteContext);
+assert.deepEqual(inviteFilters, [
+  ["eq", "is_discoverable", true],
+  ["neq", "user_id", "recipient"],
+  ["eq", "user_id", inviteId],
+]);
+assert.equal(inviteState.friendSearchResults[0], inviteProfile);
+assert.equal(vm.runInContext("pendingFriendInvite()", inviteContext), "");
+
 console.log("Friendship tests passed");

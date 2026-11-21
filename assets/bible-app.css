@@ -24999,6 +24999,10 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 .delete-account-dialog input { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
 .delete-account-dialog .account-actions { flex-wrap: wrap; }
 .delete-account-dialog button { min-height: 44px; }
+.friend-invite-dialog { box-sizing: border-box; }
+.friend-invite-dialog img { display: block; width: min(100%, 216px); height: auto; margin: 0 auto 16px; background: #fff; image-rendering: pixelated; }
+.friend-invite-dialog .account-actions { margin-top: 12px; }
+.friend-invite-dialog [role="status"]:empty { display: none; }
 
 .account-card-signed-in button.delete-account-button {
   margin-top: 4px;

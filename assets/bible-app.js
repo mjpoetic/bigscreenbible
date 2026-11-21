@@ -5551,6 +5551,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.20.30": [
+      "Share your friend QR code or invite link so someone can find your profile and send a friend request.",
+    ],
     "2026.11.20.27": [
       "Phone landscape now gives the coloring page more room by moving the title and tools into a sidebar.",
     ],
@@ -8751,6 +8754,9 @@ function friendsPanelContent(prefix = "") {
       ? "Searching…"
       : state.friendSearchMessage || "Search by username. Enter at least two characters.";
     return `
+      ${pendingFriendInvite() && state.friendSearchStatus !== "loading"
+        ? friendshipActionButton("view-invite", "View friend invite", { primary: true })
+        : ""}
       <form class="friend-search-form" id="${suffix}friendSearchForm" role="search">
         <label for="${suffix}friendSearchInput">Find people</label>
         <div>
@@ -8818,6 +8824,9 @@ function friendsCard(prefix = "") {
         </div>
         ${requestCount ? `<span class="friend-request-count" aria-label="${requestCount} incoming friend ${requestCount === 1 ? "request" : "requests"}">${requestCount}</span>` : ""}
       </div>
+      ${state.socialProfile.isDiscoverable && state.socialProfile.allowFriendRequests
+        ? friendshipActionButton("share-invite", "My Friend QR")
+        : ""}
       <div class="friends-navigation">
         <label for="${prefix ? `${prefix}-` : ""}friendsViewToggle">View</label>
         ${settingsChoiceMarkup(`${prefix ? `${prefix}-` : ""}friendsView`, state.friendsPanelTab,
@@ -12356,10 +12365,11 @@ async function initializeSupabaseAuth() {
       await Promise.all([loadCloudSync(), loadSocialProfile(), loadFriendships(), loadGameChallenges()]);
       subscribeToGameChallenges();
       notePushVisit(true);
-      applySocialNotificationDeepLink();
+      if (!openPendingFriendInvite()) applySocialNotificationDeepLink();
       maybeOfferPushNotifications();
       if (showInitialAccountSwitch) showAccountSwitchNotification(session.user);
     }
+    if (!session?.user) openPendingFriendInvite();
     resumeAccountDeletion(session);
     client.auth.onAuthStateChange((event, session) => {
       const previousUserId = state.authUser?.id || "";
@@ -12386,7 +12396,7 @@ async function initializeSupabaseAuth() {
           .then(() => {
             subscribeToGameChallenges();
             notePushVisit(true);
-            applySocialNotificationDeepLink();
+            if (!openPendingFriendInvite()) applySocialNotificationDeepLink();
             maybeOfferPushNotifications();
           })
           .catch((error) => {
@@ -13599,8 +13609,90 @@ async function loadFriendships({ render = true } = {}) {
   }
 }
 
-async function searchFriends(event, prefix = "") {
-  event.preventDefault();
+const friendInviteStorageKey = "bsb-pending-friend-invite";
+const friendInviteIdPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+
+function pendingFriendInvite() {
+  const id = sessionStorage.getItem(friendInviteStorageKey) || "";
+  return friendInviteIdPattern.test(id) ? id : "";
+}
+
+function captureFriendInvite() {
+  const url = new URL(window.location.href);
+  const id = url.searchParams.get("friend") || "";
+  if (!friendInviteIdPattern.test(id)) return;
+  sessionStorage.setItem(friendInviteStorageKey, id.toLowerCase());
+  url.searchParams.delete("friend");
+  history.replaceState(history.state, "", url.href);
+}
+
+function friendInviteUrl(profileId) {
+  return `https://bigscreenbible.com/?friend=${encodeURIComponent(profileId)}`;
+}
+
+function openFriendInviteDialog(opener) {
+  const profile = state.socialProfile;
+  if (!state.authUser || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed
+    || !profile?.isDiscoverable || !profile.allowFriendRequests || profile.userId !== state.authUser.id
+    || !friendInviteIdPattern.test(profile.userId) || document.getElementById("friendInviteDialog")) return;
+
+  const url = friendInviteUrl(profile.userId);
+  const dialog = document.createElement("dialog");
+  dialog.id = "friendInviteDialog";
+  dialog.className = "delete-account-dialog friend-invite-dialog";
+  dialog.setAttribute("aria-labelledby", "friendInviteTitle");
+  const shareData = { url };
+  const canShare = typeof navigator.share === "function" && (!navigator.canShare || navigator.canShare(shareData));
+  dialog.innerHTML = `
+    <h2 id="friendInviteTitle">My Friend QR</h2>
+    <p>Have someone scan this code with their camera to find @${escapeHtml(profile.username)} and send you a friend request.</p>
+    <label>Invite link <input readonly value="${escapeHtml(url)}" /></label>
+    <div class="account-actions">
+      <button type="button" class="ghost-btn" data-copy-friend-invite>Copy Invite Link</button>
+      ${canShare ? '<button type="button" class="ghost-btn" data-share-friend-invite>Share Invite</button>' : ""}
+      <form method="dialog"><button class="primary-btn" autofocus>Done</button></form>
+    </div>
+    <p role="status" data-friend-invite-status></p>`;
+
+  if (typeof window.qrcode === "function") {
+    const code = window.qrcode(0, "M");
+    code.addData(url);
+    code.make();
+    const image = document.createElement("img");
+    image.src = code.createDataURL(6, 24);
+    image.alt = `Friend invite QR code for @${profile.username}`;
+    dialog.querySelector("label").before(image);
+  }
+
+  const status = dialog.querySelector("[data-friend-invite-status]");
+  const input = dialog.querySelector("input");
+  dialog.querySelector("[data-copy-friend-invite]").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      status.textContent = "Invite link copied.";
+    } catch {
+      input.select();
+      status.textContent = document.execCommand("copy") ? "Invite link copied." : "Copy the selected invite link.";
+    }
+  });
+  dialog.querySelector("[data-share-friend-invite]")?.addEventListener("click", async () => {
+    try {
+      await navigator.share(shareData);
+    } catch (error) {
+      if (error?.name !== "AbortError") status.textContent = "Sharing is unavailable. Try Copy Invite Link.";
+    }
+  });
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (opener.isConnected) opener.focus({ preventScroll: true });
+  }, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+async function searchFriends(event, prefix = "", inviteId = "") {
+  event?.preventDefault();
+  if (state.friendSearchStatus === "loading") return;
   if (!state.socialConsent || !state.socialSafetyReady) return showToast("Accept the Community Standards in your profile first");
   if (!state.socialProfile) return showToast("Create your social profile first");
   const suffix = prefix ? `${prefix}-` : "";
@@ -13608,7 +13700,7 @@ async function searchFriends(event, prefix = "") {
   const query = normalizeProfileUsername(input?.value || "").replace(/[^a-z0-9_]/g, "").slice(0, 20);
   state.friendSearchQuery = query;
   state.friendSearchResults = [];
-  if (query.length < 2) {
+  if (!inviteId && query.length < 2) {
     state.friendSearchStatus = "idle";
     state.friendSearchMessage = "Enter at least two username characters.";
     renderPreservingReaderScroll();
@@ -13616,6 +13708,7 @@ async function searchFriends(event, prefix = "") {
   }
   const client = createSupabaseClient();
   if (!client) return showToast("Supabase is not connected yet");
+  const searchUserId = state.authUser?.id;
   state.friendSearchStatus = "loading";
   state.friendSearchMessage = "";
   renderPreservingReaderScroll();
@@ -13623,22 +13716,32 @@ async function searchFriends(event, prefix = "") {
     const session = await authenticatedSupabaseSession(client);
     const userId = session?.user?.id;
     if (!userId) throw new Error("Sign in again before searching for people.");
-    const { data, error } = await client
+    if (state.authUser?.id !== searchUserId) return;
+    if (userId !== searchUserId) throw new Error("Sign in again before searching for people.");
+    const profiles = client
       .from(socialProfileTable)
       .select("user_id, username, display_name, avatar_key, is_discoverable, allow_friend_requests, created_at, updated_at")
-      .gte("username", query)
-      .lt("username", `${query}\uffff`)
       .eq("is_discoverable", true)
-      .neq("user_id", userId)
-      .order("username", { ascending: true })
-      .limit(20);
+      .neq("user_id", userId);
+    const { data, error } = await (inviteId
+      ? profiles.eq("user_id", inviteId).limit(1)
+      : profiles.gte("username", query).lt("username", `${query}\uffff`).order("username", { ascending: true }).limit(20));
+    if (state.authUser?.id !== userId) return;
     if (error) throw error;
     state.friendSearchResults = (data || []).map(normalizedSocialProfile);
     state.friendSearchStatus = "ready";
-    state.friendSearchMessage = state.friendSearchResults.length
-      ? `${state.friendSearchResults.length} ${state.friendSearchResults.length === 1 ? "profile" : "profiles"} found.`
-      : `No discoverable profiles begin with @${query}.`;
+    if (inviteId) {
+      sessionStorage.removeItem(friendInviteStorageKey);
+      state.friendSearchMessage = state.friendSearchResults.length
+        ? "Friend invite"
+        : inviteId === userId ? "This is your own invite link." : "This friend invite is unavailable.";
+    } else {
+      state.friendSearchMessage = state.friendSearchResults.length
+        ? `${state.friendSearchResults.length} ${state.friendSearchResults.length === 1 ? "profile" : "profiles"} found.`
+        : `No discoverable profiles begin with @${query}.`;
+    }
   } catch (error) {
+    if (state.authUser?.id !== searchUserId) return;
     console.warn("Friend search failed", error);
     state.friendSearchStatus = "error";
     state.friendSearchMessage = friendshipErrorMessage(error);
@@ -13759,6 +13862,8 @@ function handleFriendAction(button) {
     return;
   }
   if (["report", "block", "unblock"].includes(action)) return openSocialSafetyDialog(action, profileId, button);
+  if (action === "share-invite") return openFriendInviteDialog(button);
+  if (action === "view-invite") return openPendingFriendInvite();
   if (action === "send") return sendFriendRequest(profileId);
   if (action === "accept") return acceptFriendRequest(friendshipId);
   if (["cancel", "decline", "remove"].includes(action)) return deleteFriendship(friendshipId, action);
@@ -13875,7 +13980,7 @@ async function saveSocialProfile(event, prefix = "") {
     showToast("Profile not saved");
   } finally {
     state.socialProfileBusy = false;
-    renderPreservingReaderScroll();
+    if (state.socialProfileStatus !== "ready" || !openPendingFriendInvite()) renderPreservingReaderScroll();
   }
 }
 
@@ -31653,6 +31758,28 @@ function openGameChallengeNotificationDestination(challenge, player) {
   return true;
 }
 
+function openPendingFriendInvite() {
+  const inviteId = pendingFriendInvite();
+  if (!inviteId) return false;
+  state.focusMode = false;
+  state.settingsOpen = false;
+  state.accountOpen = true;
+  if (!state.authUser) {
+    state.authMessage = "Sign in to view your friend invite.";
+  } else {
+    setSocialConnectionsOpen(true);
+    state.friendsPanelTab = "find";
+    if (state.socialProfile && state.socialSafetyReady && state.socialConsent && state.socialAccessAllowed) {
+      void searchFriends(null, "quick", inviteId);
+    }
+  }
+  renderPreservingReaderScroll();
+  if (state.authUser) {
+    requestAnimationFrame(() => document.querySelector(".friends-card")?.scrollIntoView?.({ block: "nearest" }));
+  }
+  return true;
+}
+
 function applySocialNotificationDeepLink() {
   if (!state.authUser) return false;
   const params = new URLSearchParams(window.location.search);
@@ -36560,6 +36687,7 @@ if (startupLoaderPreview) {
     if (!dataLoading && !dataError) renderPreservingReaderScroll();
     maybeOfferPushNotifications();
   });
+  captureFriendInvite();
   supabaseAuthInitialization = initializeSupabaseAuth();
   const signupLandingUrl = new URL(window.location.href);
   const signupToken = new URLSearchParams(signupLandingUrl.hash.slice(1)).get("token_hash");

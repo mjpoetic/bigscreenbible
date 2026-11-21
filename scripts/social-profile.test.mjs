@@ -106,6 +106,7 @@ const context = {
     return { user: { id: "user-123" } };
   },
   renderPreservingReaderScroll() {},
+  openPendingFriendInvite: () => false,
   rememberAuthenticatedAccount() {},
   showToast(message) {
     toasts.push(message);
