@@ -264,7 +264,9 @@
       <div class="coloring-heading"><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><button type="button" class="ghost-btn" data-coloring="close">← Coloring pages</button></div>
 
         <div class="coloring-view-controls" aria-label="Painting controls">
-          <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
+          <div class="coloring-toolbar-row">
+            <button type="button" class="ghost-btn coloring-portrait-toggle" id="coloringToolsToggle" aria-label="Coloring tools" aria-expanded="false" aria-controls="coloringDrawingTools"></button>
+            <div class="coloring-tool-strip"><div class="coloring-primary-tools" id="coloringDrawingTools">
             <div class="coloring-sized-tool">
               <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush' && !erasing}">${controlLabel("brush","Brush")}</button>
               ${sizeControls("brush",brushSize,tool==="brush" && !erasing)}
@@ -280,7 +282,9 @@
               <button type="button" data-coloring="fit" id="coloringZoomLabel" aria-label="Fit drawing, current zoom ${Math.round(zoom*100)}%" title="Fit drawing">${Math.round(zoom*100)}%</button>
               <button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
             </div>
-          </div></div><div class="coloring-secondary-tools">
+          </div></div>
+            <button type="button" class="ghost-btn coloring-portrait-toggle" id="coloringColorsToggle" aria-expanded="false" aria-controls="coloringColors"><span class="coloring-current-swatch" aria-hidden="true"></span>Color</button>
+          <div class="coloring-secondary-tools">
             <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
             <div class="coloring-history-controls" role="group" aria-label="Undo and redo">
               <button class="ghost-btn" type="button" data-coloring="undo" title="Undo" ${history.length?"":"disabled"}>${controlLabel("undo","Undo")}</button>
@@ -288,13 +292,15 @@
             </div>
             <button class="ghost-btn" type="button" data-coloring="save" data-autosaved="${!savePending}" title="Download artwork">${controlLabel("save","Save")}</button>
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
+              <label class="coloring-fade-setting"><input type="checkbox" id="coloringFadeControls" /> Fade idle controls</label>
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Drag across the drawing to color each shape your brush passes through.</p>
               <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
               <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="print-artwork">Print artwork / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
               <button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
             </div></details>
           </div></div>
-          <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
+          <div class="coloring-colors" id="coloringColors"><div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
+          </div>
         </div>
         <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span><span class="coloring-pointer-preview" aria-hidden="true" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${controlGlyphs.fill}</svg></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
         <div class="coloring-size-hud" hidden>
@@ -458,6 +464,7 @@
     updatePointerPreview();
     function updateTool() {
       updatePointerPreview();
+      updatePortraitTools();
       canvas.classList.toggle("is-drawing",tool==="brush");
       root.querySelector(".coloring-sheet").dataset.coloringTool=tool;
       viewport.dataset.coloringTool=tool;
@@ -847,6 +854,75 @@
     };
     const stage=root.querySelector(".coloring-stage");
     const expandButton=root.querySelector('[data-coloring="expand"]');
+    const more=root.querySelector(".coloring-options");
+    const controls=root.querySelector(".coloring-view-controls");
+    const toolsToggle=root.querySelector("#coloringToolsToggle");
+    const colorsToggle=root.querySelector("#coloringColorsToggle");
+    const fadeToggle=root.querySelector("#coloringFadeControls");
+    const portrait=window.matchMedia("(orientation: portrait) and (max-width: 700px)");
+    const optionsBody=more.querySelector(".coloring-options-body");
+    const movedControls=[
+      [expandButton,controls],
+      [root.querySelector(".coloring-zoom-controls"),optionsBody],
+      [root.querySelector('[data-coloring="redo"]'),optionsBody],
+      [root.querySelector('[data-coloring="save"]'),optionsBody],
+    ].map(([control,destination])=>{
+      const home=document.createComment("Coloring control position");
+      control.before(home);
+      return {control,destination,home};
+    });
+    let portraitPanel="";
+    let fadeTimer;
+    const fadeKey="lw_coloring_controls_fade";
+    fadeToggle.checked=localStorage.getItem(fadeKey)!=="false";
+    function updatePortraitTools(){
+      const activeTool=erasing?"eraser":tool;
+      const label={brush:"Brush",eraser:"Eraser",fill:"Fill",pan:"Move"}[activeTool];
+      toolsToggle.innerHTML=controlLabel(activeTool==="pan"?"move":activeTool,"Tools");
+      toolsToggle.setAttribute("aria-label",`Coloring tools, ${label} selected`);
+      colorsToggle.style.setProperty("--current-color",color);
+    }
+    function wakePortraitControls(){
+      clearTimeout(fadeTimer);
+      controls.classList.remove("is-idle");
+      if(portrait.matches && fadeToggle.checked && !portraitPanel && !more.open){
+        fadeTimer=setTimeout(()=>controls.classList.add("is-idle"),3200);
+      }
+    }
+    function setPortraitPanel(panel){
+      if(panel)more.open=false;
+      portraitPanel=panel;
+      controls.dataset.portraitPanel=panel;
+      toolsToggle.setAttribute("aria-expanded",String(panel==="tools"));
+      colorsToggle.setAttribute("aria-expanded",String(panel==="colors"));
+      if(panel!=="colors")closeSkinTones();
+      wakePortraitControls();
+    }
+    function syncPortraitControls(){
+      setPortraitPanel("");
+      more.open=false;
+      for(const {control,destination,home} of movedControls){
+        if(portrait.matches)destination.prepend(control);
+        else home.after(control);
+      }
+      wakePortraitControls();
+    }
+    portrait.addEventListener("change",syncPortraitControls,{signal:lifecycle.signal});
+    toolsToggle.onclick=()=>setPortraitPanel(portraitPanel==="tools"?"":"tools");
+    colorsToggle.onclick=()=>setPortraitPanel(portraitPanel==="colors"?"":"colors");
+    fadeToggle.onchange=()=>{
+      localStorage.setItem(fadeKey,String(fadeToggle.checked));
+      wakePortraitControls();
+    };
+    more.addEventListener("toggle",()=>{
+      if(portrait.matches && more.open)setPortraitPanel("");
+      else wakePortraitControls();
+    });
+    controls.addEventListener("focusin",wakePortraitControls);
+    controls.addEventListener("click",wakePortraitControls);
+    lifecycle.signal.addEventListener("abort",()=>clearTimeout(fadeTimer),{once:true});
+    syncPortraitControls();
+    updatePortraitTools();
     function toggleExpanded() {
       if (expanded) {
         stage.close();
@@ -870,11 +946,22 @@
     };
     viewportObserver=new ResizeObserver(()=>{if(zoom===1)fit();});viewportObserver.observe(viewport);
     requestAnimationFrame(()=>{if(root.isConnected)fit();});
-    const more=root.querySelector(".coloring-options");
-    stage.addEventListener("pointerdown",e=>{if(more.open&&!more.contains(e.target))more.open=false;if(!skinPanel.contains(e.target)&&!skinToggle.contains(e.target))closeSkinTones();},true);
+    stage.addEventListener("pointerdown",e=>{
+      if(more.open&&!more.contains(e.target))more.open=false;
+      if(portrait.matches && !controls.contains(e.target))setPortraitPanel("");
+      if(!skinPanel.contains(e.target)&&!skinToggle.contains(e.target))closeSkinTones();
+    },true);
     stage.onkeydown=e=>{
       if(e.key==="Escape"&&!skinPanel.hidden){e.preventDefault();e.stopPropagation();closeSkinTones();skinToggle.focus({preventScroll:true});return;}
       if(e.key==="Escape"&&more.open){e.preventDefault();e.stopPropagation();more.open=false;more.querySelector("summary").focus({preventScroll:true});return;}
+      if(e.key==="Escape"&&portraitPanel){
+        e.preventDefault();
+        e.stopPropagation();
+        const toggle=portraitPanel==="tools"?toolsToggle:colorsToggle;
+        setPortraitPanel("");
+        toggle.focus({preventScroll:true});
+        return;
+      }
       if(!expanded)return;
       if(e.key==="Escape"){e.preventDefault();e.stopPropagation();root.querySelector('[data-coloring="expand"]').click();return;}
       if(e.key!=="Tab")return;
@@ -887,7 +974,11 @@
       e.preventDefault();
       switch(b.dataset.coloring) {
         case "skin-tones": skinPanel.hidden=!skinPanel.hidden;b.setAttribute("aria-expanded",String(!skinPanel.hidden));more.open=false;break;
-        case "expand": toggleExpanded();break;
+        case "expand":
+          more.open=false;
+          setPortraitPanel("");
+          toggleExpanded();
+          break;
         case "zoom-in":
         case "zoom-out":
           if(!suppressZoomClick || e.detail===0)setZoom(zoom+(b.dataset.coloring==="zoom-in"?.25:-.25));

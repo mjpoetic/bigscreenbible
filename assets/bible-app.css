@@ -29305,3 +29305,143 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
   color:#111;
   filter:drop-shadow(0 0 1px white) drop-shadow(0 0 1px white);
 }
+
+.coloring-studio .coloring-portrait-toggle,
+.coloring-studio .coloring-fade-setting { display:none; }
+.coloring-colors { display:contents; }
+
+@media (orientation:portrait) and (max-width:700px) {
+  .coloring-studio .coloring-stage .coloring-view-controls {
+    position:absolute;
+    inset:52px 8px 48px;
+    display:block;
+    padding:0;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+    pointer-events:none;
+  }
+  .coloring-studio .coloring-stage.is-expanded .coloring-view-controls {
+    inset:max(16px,calc(var(--app-safe-area-top,env(safe-area-inset-top)) + 8px))
+      max(16px,calc(env(safe-area-inset-right) + 8px))
+      max(48px,calc(var(--app-safe-area-bottom,env(safe-area-inset-bottom)) + 40px))
+      max(16px,calc(env(safe-area-inset-left) + 8px));
+  }
+  .coloring-studio .coloring-view-controls [data-coloring="expand"] {
+    position:absolute;
+    top:0;
+    right:0;
+    display:grid;
+    place-items:center;
+    min-width:44px;
+    pointer-events:auto;
+  }
+  .coloring-studio .coloring-toolbar-row {
+    position:absolute;
+    bottom:0;
+    left:0;
+    display:flex;
+    gap:6px;
+    width:100%;
+  }
+  .coloring-studio :is(.coloring-secondary-tools,.coloring-history-controls) { display:contents; }
+  .coloring-studio :is(.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary) {
+    display:flex;
+    align-items:center;
+    gap:5px;
+    min-width:44px;
+    pointer-events:auto;
+  }
+  .coloring-studio .coloring-options { margin-inline-start:auto; }
+  .coloring-studio .coloring-options-body {
+    top:auto;
+    bottom:calc(100% + 8px);
+    box-sizing:border-box;
+    pointer-events:auto;
+  }
+  .coloring-studio .coloring-fade-setting { display:flex; }
+  .coloring-studio .coloring-current-swatch {
+    width:18px;
+    height:18px;
+    border:1px solid var(--muted);
+    border-radius:50%;
+    background:var(--current-color);
+  }
+  .coloring-studio :is(.coloring-tool-strip,.coloring-colors) { display:none; }
+  .coloring-studio [data-portrait-panel="tools"] .coloring-tool-strip {
+    position:absolute;
+    bottom:calc(100% + 8px);
+    left:0;
+    display:block;
+    overflow:visible;
+    padding:0;
+  }
+  .coloring-studio .coloring-primary-tools {
+    display:grid;
+    justify-items:start;
+    gap:6px;
+  }
+  .coloring-studio .coloring-primary-tools > :nth-child(1) { margin-inline-start:4px; }
+  .coloring-studio .coloring-primary-tools > :nth-child(2) { margin-inline-start:24px; }
+  .coloring-studio .coloring-primary-tools > :nth-child(3) { margin-inline-start:24px; }
+  .coloring-studio .coloring-primary-tools > :nth-child(4) { margin-inline-start:4px; }
+  .coloring-studio .coloring-primary-tools > button,
+  .coloring-studio .coloring-sized-tool { pointer-events:auto; }
+  .coloring-studio .coloring-sized-tool:has(> [aria-pressed="true"]) { min-height:44px; }
+  .coloring-studio :is(.coloring-primary-tools,.coloring-portrait-toggle,.coloring-options-body) .coloring-tool-label {
+    position:static;
+    width:auto;
+    height:auto;
+    clip-path:none;
+  }
+  .coloring-studio [data-portrait-panel="colors"] .coloring-colors {
+    position:absolute;
+    right:0;
+    bottom:52px;
+    left:0;
+    display:grid;
+    gap:6px;
+    max-height:55dvh;
+    overflow:auto;
+    overscroll-behavior:contain;
+    padding:8px;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:var(--panel);
+    box-shadow:var(--shadow);
+    pointer-events:auto;
+  }
+  .coloring-studio .coloring-palette {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(44px,1fr));
+    gap:5px;
+    padding:0;
+  }
+  .coloring-studio .coloring-standard-colors { display:contents; }
+  .coloring-studio :is(.coloring-standard-colors,.coloring-skin-tones) > button {
+    justify-self:center;
+    width:100%;
+    min-width:44px;
+    max-width:48px;
+    height:44px;
+    min-height:44px;
+  }
+  .coloring-studio .coloring-skin-tones {
+    position:static;
+    width:auto;
+    padding:6px;
+    box-shadow:none;
+  }
+  .coloring-studio .coloring-view-controls :is(
+    [data-coloring="expand"],.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary
+  ) { transition:opacity 250ms ease; }
+  .coloring-studio .coloring-view-controls.is-idle :is(
+    [data-coloring="expand"],.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary
+  ):not(:focus-visible,:disabled) { opacity:.55; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .coloring-studio .coloring-view-controls :is(button,summary) { transition:none; }
+}
