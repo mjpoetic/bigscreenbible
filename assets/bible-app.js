@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.43": [
+      "The Coloring Book eraser now starts at 5 pixels.",
+    ],
     "2026.11.21.42": [
       "Added two deeper skin tones and tightened the swatch layout in Coloring Book.",
     ],

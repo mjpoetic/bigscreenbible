@@ -57,7 +57,7 @@
  check(sizeInput.value==='60','Typed brush size is clamped to the supported range');
  sizeInput.value='6';sizeInput.dispatchEvent(new Event('input'));
  document.querySelector('[data-coloring="eraser"]').click();
- check(brushSize.hidden&&!eraserSize.hidden&&eraserSize.querySelector('input').value==='10','Eraser exposes its own independent size');
+ check(brushSize.hidden&&!eraserSize.hidden&&eraserSize.querySelector('input').value==='5','Eraser exposes its own independent size');
  document.querySelector('[data-tool="brush"]').click();
  brushSize.querySelector('[data-size-step="-1"]').click();
 
