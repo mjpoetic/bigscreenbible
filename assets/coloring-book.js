@@ -252,8 +252,8 @@
     return `<div class="coloring-size-controls" data-size-tool="${name}" role="group" aria-label="${name} size" ${active?"":"hidden"}>
       <input type="text" inputmode="numeric" value="${size}" aria-label="${name} size in pixels"><span class="coloring-size-unit" aria-hidden="true">px</span>
       <span class="coloring-size-arrows">
-        <button type="button" data-size-step="1" aria-label="Increase ${name} size">▴</button>
-        <button type="button" data-size-step="-1" aria-label="Decrease ${name} size">▾</button>
+        <button type="button" data-size-step="1" aria-label="Increase ${name} size"><span aria-hidden="true">▴</span></button>
+        <button type="button" data-size-step="-1" aria-label="Decrease ${name} size"><span aria-hidden="true">▾</span></button>
       </span>
     </div>`;
   }
@@ -265,12 +265,16 @@
 
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
-            <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush' && !erasing}">${controlLabel("brush","Brush")}</button>
-            ${sizeControls("brush",brushSize,tool==="brush" && !erasing)}
+            <div class="coloring-sized-tool">
+              <button class="ghost-btn" type="button" data-tool="brush" aria-pressed="${tool==='brush' && !erasing}">${controlLabel("brush","Brush")}</button>
+              ${sizeControls("brush",brushSize,tool==="brush" && !erasing)}
+            </div>
             <button class="ghost-btn" type="button" data-tool="fill" aria-pressed="${tool==='fill'}">${controlLabel("fill","Fill")}</button>
             <button class="ghost-btn" type="button" data-tool="pan" aria-pressed="${tool==='pan'}">${controlLabel("move","Move")}</button>
-            <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">${controlLabel("eraser","Eraser")}</button>
-            ${sizeControls("eraser",eraserSize,erasing)}
+            <div class="coloring-sized-tool">
+              <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">${controlLabel("eraser","Eraser")}</button>
+              ${sizeControls("eraser",eraserSize,erasing)}
+            </div>
             <div class="coloring-zoom-controls" role="group" aria-label="Zoom">
               <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button>
               <button type="button" data-coloring="fit" id="coloringZoomLabel" aria-label="Fit drawing, current zoom ${Math.round(zoom*100)}%" title="Fit drawing">${Math.round(zoom*100)}%</button>
@@ -293,6 +297,11 @@
           <div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
         </div>
         <div class="coloring-canvas" data-coloring-tool="${tool}" aria-label="Scrollable coloring canvas" tabindex="0"><div class="coloring-sheet" data-coloring-tool="${tool}" style="width:${zoom*100}%">${svg(page(), false, true, false)}<canvas id="coloringPixels" class="${tool === "brush" ? "is-drawing" : ""}" width="600" height="600" tabindex="0" role="group" aria-label="Coloring canvas. In Fill mode use arrow keys to move and Enter to color."></canvas><span class="coloring-keyboard-target" aria-hidden="true"></span><span class="coloring-pointer-preview" aria-hidden="true" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${controlGlyphs.fill}</svg></span>${page().art ? `<img class="coloring-art-lines" src="${page().art}" alt="" draggable="false" />` : ""}</div></div>
+        <div class="coloring-size-hud" hidden>
+          <span class="coloring-size-sample" aria-hidden="true"></span>
+          <span class="coloring-size-value" role="status"></span>
+          <span class="coloring-size-meter" aria-hidden="true">${"<i></i>".repeat(12)}</span>
+        </div>
         <div class="coloring-caption"><h2 class="coloring-page-title">${page().title}</h2><a class="coloring-reference" href="?reference=${encodeURIComponent(page().reference)}" data-coloring="read">Read ${page().reference} ↗</a></div>
         <p id="coloringStatus" role="status">Brush to color. Move to pan. Two fingers pan and zoom. Saved on this device.</p>
       </dialog></article></section>`;
@@ -462,6 +471,21 @@
       erasing=false;
       updateTool();
     });
+    const sizeHud=root.querySelector(".coloring-size-hud");
+    const sizeValue=sizeHud.querySelector(".coloring-size-value");
+    const sizeSegments=[...sizeHud.querySelectorAll(".coloring-size-meter i")];
+    let sizeHudTimer;
+    function showSizePreview(size,isEraser){
+      sizeHud.dataset.toolPreview=isEraser?"eraser":"brush";
+      sizeHud.style.setProperty("--stroke-size",size+"px");
+      sizeHud.style.setProperty("--stroke-color",color);
+      sizeHud.hidden=false;
+      sizeValue.textContent=`${isEraser?"Eraser":"Brush"} ${size} px`;
+      const filled=Math.ceil(size*sizeSegments.length/60);
+      sizeSegments.forEach((segment,index)=>segment.classList.toggle("is-filled",index<filled));
+      clearTimeout(sizeHudTimer);
+      sizeHudTimer=setTimeout(()=>{sizeHud.hidden=true;},950);
+    }
     root.querySelectorAll("[data-size-tool]").forEach(group=>{
       const input=group.querySelector("input");
       const isEraser=group.dataset.sizeTool==="eraser";
@@ -474,14 +498,19 @@
         return size;
       }
       input.oninput=()=>{
-        if(/^\d+$/.test(input.value))applySize(Number(input.value));
+        if(/^\d+$/.test(input.value))showSizePreview(applySize(Number(input.value)),isEraser);
       };
       input.onblur=()=>{input.value=currentSize();};
       input.onkeydown=event=>{
         if(event.key==="Enter"){event.preventDefault();input.blur();}
+        if(event.key==="ArrowUp" || event.key==="ArrowDown"){
+          event.preventDefault();
+          group.querySelector(`[data-size-step="${event.key==="ArrowUp"?1:-1}"]`).click();
+        }
       };
       group.querySelectorAll("[data-size-step]").forEach(button=>button.onclick=()=>{
         input.value=applySize(currentSize()+Number(button.dataset.sizeStep));
+        showSizePreview(currentSize(),isEraser);
       });
     });
     function point(e) { const r=canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*600/r.width,y:(e.clientY-r.top)*600/r.height}; }
@@ -800,6 +829,11 @@
         || event.target?.closest?.("input,textarea,select,[contenteditable]:not([contenteditable='false'])"))return false;
       const modified=event.metaKey || event.ctrlKey;
       const key=event.key.toLowerCase();
+      if(!modified && !event.shiftKey && tool==="brush" && (key==="[" || key==="]")){
+        event.preventDefault();
+        if(!drawing)root.querySelector(`[data-size-tool="${erasing?"eraser":"brush"}"] [data-size-step="${key==="]"?1:-1}"]`).click();
+        return true;
+      }
       let action;
       if(modified && key==="z")action=event.shiftKey?"redo":"undo";
       else if(event.ctrlKey && !event.metaKey && !event.shiftKey && key==="y")action="redo";

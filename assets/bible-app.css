@@ -28754,7 +28754,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-primary-tools { width:max-content; min-width:100%; }
 .coloring-secondary-tools { flex:none; }
 .coloring-studio .coloring-view-controls button,.coloring-studio summary { font-size:13px; min-height:44px; padding:7px 10px; }
-.coloring-studio :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) { display:flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; white-space:nowrap; }
+.coloring-studio :is(.coloring-primary-tools > button,.coloring-sized-tool > button,.coloring-secondary-tools > button,.coloring-options > summary) { display:flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; white-space:nowrap; }
 .coloring-studio [data-coloring="expand"] { margin-left:auto; }
 #coloringBook .coloring-tool-glyph { display:block; width:18px; height:18px; min-width:18px; flex:0 0 18px; }
 .coloring-tool-label { line-height:1.15; }
@@ -28791,7 +28791,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
  .coloring-studio .coloring-view-controls { padding:6px; gap:4px; }
  .coloring-toolbar-row { gap:4px; }
  .coloring-primary-tools,.coloring-secondary-tools { gap:3px; }
- .coloring-studio :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) { flex-direction:column; gap:2px; padding:4px 6px; min-width:44px; min-height:48px; font-size:10px; }
+ .coloring-studio :is(.coloring-primary-tools > button,.coloring-sized-tool > button,.coloring-secondary-tools > button,.coloring-options > summary) { flex-direction:column; gap:2px; padding:4px 6px; min-width:44px; min-height:48px; font-size:10px; }
  .coloring-studio .coloring-primary-tools [data-coloring="expand"] { margin-left:6px; }
  .coloring-studio .coloring-view-controls output { min-width:32px; font-size:11px; }
  .coloring-studio .coloring-palette { gap:4px; }
@@ -28825,7 +28825,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   max-height:none;
 }
 .coloring-studio dialog.coloring-stage:not(.is-expanded) {
-  position:static;
+  position:relative;
   padding:0;
   background:transparent;
   color:inherit;
@@ -28839,7 +28839,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-canvas.is-panning, .coloring-reader .coloring-canvas.is-panning #coloringPixels { cursor:grabbing; }
 
 @media (orientation:portrait) and (max-width:700px), (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
-  .coloring-studio :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) {
+  .coloring-studio :is(.coloring-primary-tools > button,.coloring-sized-tool > button,.coloring-secondary-tools > button,.coloring-options > summary) {
     flex-direction:row;
     padding:4px 7px;
     min-height:44px;
@@ -28927,7 +28927,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   .coloring-stage:not(.is-expanded) :is(.coloring-tool-strip,.coloring-primary-tools,.coloring-secondary-tools,.coloring-standard-colors) {
     display:contents;
   }
-  .coloring-studio .coloring-stage:not(.is-expanded) :is(.coloring-primary-tools > button,.coloring-secondary-tools > button,.coloring-options > summary) {
+  .coloring-studio .coloring-stage:not(.is-expanded) :is(.coloring-primary-tools > button,.coloring-sized-tool > button,.coloring-secondary-tools > button,.coloring-options > summary) {
     box-sizing:border-box;
     width:100%;
     min-width:0;
@@ -29056,14 +29056,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   flex:none;
 }
 .coloring-size-controls[hidden] { display:none; }
-.coloring-studio .coloring-size-controls output { min-width:0; font-size:11px; white-space:nowrap; }
 .coloring-size-arrows { display:grid; }
-.coloring-studio .coloring-size-arrows button {
-  min-width:26px;
-  min-height:23px;
-  padding:0 4px;
-  line-height:1;
-}
 .coloring-studio .coloring-history-controls button {
   display:flex;
   align-items:center;
@@ -29132,22 +29125,43 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     min-height:40px;
   }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-zoom-controls { margin:0; }
-  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls { gap:2px; }
-  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { min-width:17px; padding:0; }
-  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls output { font-size:9px; }
 }
 
 .coloring-tool-strip {
   box-sizing:border-box;
   padding:3px 4px;
 }
-.coloring-studio .coloring-size-controls {
-  box-sizing:border-box;
-  gap:2px;
-  padding:2px 4px;
-  border:1px solid var(--line);
+.coloring-sized-tool { display:contents; }
+.coloring-sized-tool:has(> [aria-pressed="true"]) {
+  display:flex;
+  align-items:center;
+  flex:none;
+  overflow:clip;
+  border:1px solid var(--teal);
   border-radius:999px;
-  background:var(--panel);
+  background:color-mix(in srgb,var(--teal) 14%,var(--panel));
+}
+#coloringBook .coloring-sized-tool > button[aria-pressed="true"] {
+  flex:1 1 auto;
+  width:auto;
+  min-width:0;
+  border-color:transparent;
+  background:transparent;
+  box-shadow:none;
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+#coloringBook .coloring-sized-tool > button[aria-pressed="true"]:focus-visible {
+  outline:none;
+}
+#coloringBook .coloring-sized-tool > button[aria-pressed="true"]:focus-visible .coloring-tool-glyph {
+  outline:2px solid currentColor;
+  outline-offset:2px;
+  border-radius:3px;
+}
+.coloring-studio .coloring-size-controls {
+  gap:3px;
+  padding-inline:4px;
 }
 .coloring-size-controls input {
   box-sizing:border-box;
@@ -29164,28 +29178,99 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 }
 .coloring-size-unit { color:var(--muted); font-size:10px; }
 .coloring-studio .coloring-size-arrows button {
-  width:15px;
+  display:grid;
+  place-items:center;
+  width:28px;
   min-width:0;
-  min-height:17px;
+  min-height:22px;
   padding:0;
   border:0;
-  border-radius:8px;
   background:transparent;
   box-shadow:none;
   color:var(--ink);
   font-size:11px;
 }
-.coloring-size-arrows button:hover { background:color-mix(in srgb,var(--ink) 10%,transparent); }
+html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) {
+  box-shadow:none;
+  outline:none;
+}
+.coloring-size-arrows button > span {
+  display:grid;
+  place-items:center;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  line-height:1;
+}
+@media (hover:hover) {
+  .coloring-size-arrows button:hover > span { background:color-mix(in srgb,currentColor 12%,transparent); }
+}
+.coloring-size-arrows button:active > span { background:color-mix(in srgb,currentColor 24%,transparent); }
+.coloring-size-arrows button:focus-visible > span {
+  outline:2px solid currentColor;
+  outline-offset:-2px;
+}
+@media (forced-colors:active) {
+  .coloring-size-arrows button:active > span {
+    outline:2px solid Highlight;
+    outline-offset:-2px;
+  }
+}
 .coloring-studio .coloring-size-controls input:focus { outline:none; box-shadow:none; }
-.coloring-studio .coloring-size-controls:focus-within {
-  border-color:var(--teal);
-  box-shadow:inset 0 0 0 1px var(--teal);
+.coloring-studio .coloring-size-controls input:focus-visible {
+  outline:2px solid var(--teal);
+  outline-offset:2px;
 }
 @media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
-  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls { padding:2px; gap:0; }
+  .coloring-stage:not(.is-expanded) .coloring-sized-tool { grid-column:span 2; }
+  .coloring-studio .coloring-sized-tool > [aria-pressed="true"] .coloring-tool-label {
+    position:absolute;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    clip-path:inset(50%);
+  }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls { padding-inline:2px; gap:0; }
   .coloring-stage:not(.is-expanded) .coloring-size-unit { display:none; }
-  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { width:12px; min-width:0; }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { width:20px; }
+  .coloring-size-hud { grid-area:1 / 2 / -1 / -1; }
 }
+
+.coloring-size-hud {
+  position:absolute;
+  inset:0;
+  margin:auto;
+  z-index:3;
+  display:grid;
+  grid-template-rows:64px auto auto;
+  place-items:center;
+  gap:8px;
+  width:max-content;
+  height:max-content;
+  min-width:144px;
+  padding:12px;
+  border:1px solid rgb(255 255 255 / .28);
+  border-radius:22px;
+  background:rgb(24 27 33 / .86);
+  color:white;
+  box-shadow:0 8px 24px rgb(0 0 0 / .24);
+  backdrop-filter:blur(12px);
+  pointer-events:none;
+}
+.coloring-size-hud[hidden] { display:none; }
+.coloring-size-sample {
+  box-sizing:border-box;
+  width:var(--stroke-size);
+  height:var(--stroke-size);
+  border-radius:50%;
+  background:var(--stroke-color);
+  box-shadow:0 0 0 1px rgb(255 255 255 / .65);
+}
+.coloring-size-hud[data-tool-preview="eraser"] .coloring-size-sample { background:transparent; }
+.coloring-size-value { font-size:13px; font-weight:700; }
+.coloring-size-meter { display:flex; gap:2px; }
+.coloring-size-meter i { width:7px; height:5px; border-radius:1px; background:rgb(255 255 255 / .24); }
+.coloring-size-meter .is-filled { background:white; }
 
 .coloring-reader #coloringPixels.has-pointer-preview { cursor:none; }
 .coloring-pointer-preview {

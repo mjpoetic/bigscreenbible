@@ -209,6 +209,17 @@
  shortcut('+',{code:'Equal',shiftKey:true});
  check(shortcut(')',{code:'Digit0',shiftKey:true})&&percentage()==='100%','Reader reset shortcut fits the coloring page');
  const sizeField=document.querySelector('[data-size-tool="brush"] input');
+ const sizeBeforeShortcut=Number(sizeField.value);
+ const sizeHud=document.querySelector('.coloring-size-hud');
+ check(shortcut(']')&&Number(sizeField.value)===sizeBeforeShortcut+1,'Right bracket grows the brush');
+ check(!sizeHud.hidden&&sizeHud.dataset.toolPreview==='brush'&&sizeHud.style.getPropertyValue('--stroke-size')===sizeField.value+'px','Brush HUD shows the new diameter');
+ check(shortcut('[')&&Number(sizeField.value)===sizeBeforeShortcut,'Left bracket shrinks the brush');
+ check(!shortcut(']',{},sizeField)&&Number(sizeField.value)===sizeBeforeShortcut,'Size input retains normal text entry');
+ document.querySelector('[data-coloring="eraser"]').click();
+ const eraserField=document.querySelector('[data-size-tool="eraser"] input');
+ check(shortcut(']')&&eraserField.value==='6'&&Number(sizeField.value)===sizeBeforeShortcut,'Right bracket resizes the eraser independently');
+ check(sizeHud.dataset.toolPreview==='eraser','Eraser HUD shows the eraser sample');
+ document.querySelector('[data-tool="brush"]').click();
  check(!shortcut('z',{metaKey:true},sizeField),'Editable size field keeps native Undo');
  check(shortcut('z',{metaKey:true}),'Command Z handles coloring Undo');await wait();
  check(alphaCount()===0,'Keyboard Undo clears the stroke');

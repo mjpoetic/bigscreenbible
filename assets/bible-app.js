@@ -5555,6 +5555,15 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.22.3": [
+      "Coloring Book size arrows keep hover, press, and keyboard focus feedback inside the tool pill.",
+    ],
+    "2026.11.22.2": [
+      "The active Coloring Book Brush and Eraser pills now use one continuous surface and outline.",
+    ],
+    "2026.11.22.1": [
+      "Brush and Eraser now include size controls in the active pill. Use [ and ] to resize and see a stroke-size preview.",
+    ],
     "2026.11.21.44": [
       "Grouped the Coloring Book zoom buttons and percentage into a single pill.",
     ],
@@ -25308,6 +25317,7 @@ function shortcutOverlay() {
     ["Shift + +", "Increase text size or zoom in on the coloring page"],
     ["Shift + −", "Decrease text size or zoom out on the coloring page"],
     ["Shift + 0", "Reset text size or fit the coloring page"],
+    ["[ / ]", "Decrease or increase Brush or Eraser size in Coloring Book"],
     ["⌘ / Ctrl + Z", "Undo in Coloring Book"],
     ["⌘ / Ctrl + Shift + Z or Ctrl + Y", "Redo in Coloring Book"],
     ["Shift + S", "Toggle Strong's lookups"],
