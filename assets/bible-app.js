@@ -4637,19 +4637,21 @@ function bindPassageComboboxes() {
       document.getElementById(focusId)?.focus({ preventScroll: true });
     };
     const show = (all = false) => {
-      closeSettingsChoiceMenu();
-      visible = passageChoiceMatches(select.options, all ? "" : input.value);
+      const existingMenu = activeSettingsChoiceMenu?.trigger === root
+        ? activeSettingsChoiceMenu.menu : null;
+      const matches = passageChoiceMatches(select.options, all ? "" : input.value);
+      if (existingMenu && activeIndex === -1 && matches.length === visible.length
+        && matches.every((option, index) => option === visible[index])) return;
+      visible = matches;
       activeIndex = -1;
-      const menu = document.createElement("div");
-      menu.id = input.getAttribute("aria-controls");
-      menu.className = "settings-choice-menu bible-picker-choice-menu";
-      menu.setAttribute("role", "listbox");
-      menu.setAttribute("aria-label", input.getAttribute("aria-label"));
+      input.removeAttribute("aria-activedescendant");
+      // Keep the open surface mounted so filtering doesn't replay its entrance.
+      const options = document.createDocumentFragment();
       visible.forEach((option, index) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "settings-choice-option";
-        button.id = `${menu.id}Option${index}`;
+        button.id = `${input.getAttribute("aria-controls")}Option${index}`;
         button.tabIndex = -1;
         button.setAttribute("role", "option");
         button.setAttribute("aria-selected", "false");
@@ -4660,16 +4662,29 @@ function bindPassageComboboxes() {
           commit(option.value, usesInlineList() ? "" : input.id);
           if (usesInlineList()) input.blur();
         });
-        menu.appendChild(button);
+        options.appendChild(button);
       });
       if (!visible.length) {
         const empty = document.createElement("div");
         empty.className = "passage-combobox-empty";
         empty.setAttribute("role", "status");
         empty.textContent = "No matches";
-        menu.appendChild(empty);
+        options.appendChild(empty);
       }
       const inline = usesInlineList();
+      if (existingMenu) {
+        existingMenu.replaceChildren(options);
+        existingMenu.scrollTop = 0;
+        if (!inline) positionSettingsChoiceMenu(root, existingMenu);
+        return;
+      }
+      closeSettingsChoiceMenu();
+      const menu = document.createElement("div");
+      menu.id = input.getAttribute("aria-controls");
+      menu.className = "settings-choice-menu bible-picker-choice-menu";
+      menu.setAttribute("role", "listbox");
+      menu.setAttribute("aria-label", input.getAttribute("aria-label"));
+      menu.appendChild(options);
       if (inline) menu.classList.add("passage-combobox-list");
       (inline ? form : document.body).appendChild(menu);
       input.setAttribute("aria-expanded", "true");
@@ -5579,6 +5594,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.22.7": [
+      "Verse Picker suggestions stay open and filter without flashing as you type.",
+    ],
     "2026.11.22.6": [
       "The Verse Picker stays open when choosing a book as the keyboard closes, and updates chapter and verse choices without redrawing the reader.",
     ],
