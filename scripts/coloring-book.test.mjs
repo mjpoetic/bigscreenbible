@@ -78,4 +78,6 @@ console.log('Illustrated regions, portrait scroll scope, artist palette glyph an
 assert.match(initial,/coloring-skin-tones[^>]*hidden/);
 assert.match(initial,/class="coloring-reference"[^>]*data-coloring="read"/);
 assert.doesNotMatch(initial,/data-coloring="palette"|Download outline/);
-assert.match(initial,/Print outline \/ Save PDF/);
+assert.match(initial,/>Print outline<\/span>/);
+assert.match(initial,/>Print artwork<\/span>/);
+assert.doesNotMatch(initial,/Save PDF/);

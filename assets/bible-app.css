@@ -29306,42 +29306,51 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
   filter:drop-shadow(0 0 1px white) drop-shadow(0 0 1px white);
 }
 
+.coloring-options-body > button {
+  gap:8px;
+}
+.coloring-studio .coloring-options-body .coloring-tool-label {
+  position:static;
+  width:auto;
+  height:auto;
+  clip-path:none;
+}
+
+.coloring-studio .coloring-portrait-view,
 .coloring-studio .coloring-portrait-toggle,
 .coloring-studio .coloring-fade-setting { display:none; }
 .coloring-colors { display:contents; }
 
 @media (orientation:portrait) and (max-width:700px) {
-  .coloring-studio .coloring-stage .coloring-view-controls {
-    position:absolute;
-    inset:52px 8px 48px;
-    display:block;
-    padding:0;
-    border:0;
-    background:transparent;
-    box-shadow:none;
-    -webkit-backdrop-filter:none;
-    backdrop-filter:none;
-    pointer-events:none;
-  }
-  .coloring-studio .coloring-stage.is-expanded .coloring-view-controls {
-    inset:max(16px,calc(var(--app-safe-area-top,env(safe-area-inset-top)) + 8px))
-      max(16px,calc(env(safe-area-inset-right) + 8px))
-      max(48px,calc(var(--app-safe-area-bottom,env(safe-area-inset-bottom)) + 40px))
-      max(16px,calc(env(safe-area-inset-left) + 8px));
-  }
-  .coloring-studio .coloring-view-controls [data-coloring="expand"] {
-    position:absolute;
-    top:0;
-    right:0;
+  .coloring-studio dialog.coloring-stage {
     display:grid;
-    place-items:center;
-    min-width:44px;
-    pointer-events:auto;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:"heading" "view" "canvas" "toolbar" "caption" "status";
+    grid-template-rows:auto auto minmax(0,1fr) auto auto auto;
   }
+  .coloring-studio dialog.coloring-stage.is-expanded {
+    grid-template-areas:"view" "canvas" "toolbar" "status";
+    grid-template-rows:auto minmax(0,1fr) auto auto;
+  }
+  .coloring-studio .coloring-heading { grid-area:heading; }
+  .coloring-studio .coloring-canvas { grid-area:canvas; }
+  .coloring-studio .coloring-caption { grid-area:caption; }
+  .coloring-studio #coloringStatus { grid-area:status; }
+  .coloring-studio .coloring-stage .coloring-view-controls { display:contents; }
+  .coloring-studio .coloring-portrait-view {
+    grid-area:view;
+    justify-self:end;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .coloring-studio .coloring-portrait-view [data-coloring="expand"],
+  .coloring-studio .coloring-portrait-view .coloring-zoom-controls button { min-width:44px; }
+  .coloring-studio .coloring-portrait-view [data-coloring="expand"] { justify-content:center; }
   .coloring-studio .coloring-toolbar-row {
-    position:absolute;
-    bottom:0;
-    left:0;
+    grid-area:toolbar;
+    position:relative;
+    z-index:2;
     display:flex;
     gap:6px;
     width:100%;
@@ -29361,7 +29370,8 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
     box-sizing:border-box;
     pointer-events:auto;
   }
-  .coloring-studio .coloring-fade-setting { display:flex; }
+  .coloring-studio .coloring-options-body .coloring-fade-setting { display:flex; }
+  .coloring-studio .coloring-options-body .coloring-zoom-setting { display:none; }
   .coloring-studio .coloring-current-swatch {
     width:18px;
     height:18px;
@@ -29383,14 +29393,10 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
     justify-items:start;
     gap:6px;
   }
-  .coloring-studio .coloring-primary-tools > :nth-child(1) { margin-inline-start:4px; }
-  .coloring-studio .coloring-primary-tools > :nth-child(2) { margin-inline-start:24px; }
-  .coloring-studio .coloring-primary-tools > :nth-child(3) { margin-inline-start:24px; }
-  .coloring-studio .coloring-primary-tools > :nth-child(4) { margin-inline-start:4px; }
   .coloring-studio .coloring-primary-tools > button,
   .coloring-studio .coloring-sized-tool { pointer-events:auto; }
   .coloring-studio .coloring-sized-tool:has(> [aria-pressed="true"]) { min-height:44px; }
-  .coloring-studio :is(.coloring-primary-tools,.coloring-portrait-toggle,.coloring-options-body) .coloring-tool-label {
+  .coloring-studio .coloring-primary-tools .coloring-tool-label {
     position:static;
     width:auto;
     height:auto;
@@ -29398,8 +29404,10 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
   }
   .coloring-studio [data-portrait-panel="colors"] .coloring-colors {
     position:absolute;
+    grid-area:toolbar;
+    z-index:3;
     right:0;
-    bottom:52px;
+    bottom:calc(100% + 8px);
     left:0;
     display:grid;
     gap:6px;
@@ -29435,13 +29443,13 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
     box-shadow:none;
   }
   .coloring-studio .coloring-view-controls :is(
-    [data-coloring="expand"],.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary
+    .coloring-portrait-view,.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary
   ) { transition:opacity 250ms ease; }
   .coloring-studio .coloring-view-controls.is-idle :is(
-    [data-coloring="expand"],.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary
-  ):not(:focus-visible,:disabled) { opacity:.55; }
+    .coloring-portrait-view,.coloring-portrait-toggle,.coloring-history-controls button,.coloring-options summary
+  ):not(:focus-visible,:has(:focus-visible),:disabled) { opacity:.55; }
 }
 
 @media (prefers-reduced-motion:reduce) {
-  .coloring-studio .coloring-view-controls :is(button,summary) { transition:none; }
+  .coloring-studio .coloring-view-controls :is(button,summary,.coloring-portrait-view) { transition:none; }
 }

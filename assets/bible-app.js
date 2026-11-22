@@ -5555,6 +5555,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.22.5": [
+      "Portrait Coloring Book keeps the canvas and page title clear of the toolbar, puts Redo beside Undo, and places fading zoom controls beside Full screen.",
+      "Coloring Book’s More menu has action icons, matching checkboxes, and shorter print labels.",
+    ],
     "2026.11.22.4": [
       "Coloring Book in phone portrait has a floating tool fan, color palette, Undo, and a dedicated Full screen button.",
       "Floating coloring controls fade when idle. Turn fading off in More.",

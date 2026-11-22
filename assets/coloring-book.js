@@ -245,6 +245,10 @@
     redo:'<path d="M20 7H10a6 6 0 0 0 0 12m6-16 4 4-4 4"/>',
     expand:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     collapse:'<path d="M3 8h5V3m13 5h-5V3M3 16h5v5m13-5h-5v5"/>',
+    print:'<path d="M6 8V3h12v5M6 17H3v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7h-3M6 14h12v7H6zM17 11h1"/>',
+    reset:'<path d="M3 11a9 9 0 1 1 2 7M3 5v6h6"/>',
+    games:'<path d="M7 7h10a4 4 0 0 1 4 3l1 5a3 3 0 0 1-5 3l-2-2H9l-2 2a3 3 0 0 1-5-3l1-5a4 4 0 0 1 4-3zM6 12h4m-2-2v4m8-2h.01m3 2h.01"/>',
+    bible:'<path d="M12 6c-3-3-7-3-10-2v15c4-1 7 0 10 2 3-2 6-3 10-2V4c-3-1-7-1-10 2zm0 0v15"/>',
     more:'<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>',
   };
   function controlLabel(glyph,label){return `<svg class="coloring-tool-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${controlGlyphs[glyph]}</svg><span class="coloring-tool-label">${label}</span>`;}
@@ -264,6 +268,7 @@
       <div class="coloring-heading"><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><button type="button" class="ghost-btn" data-coloring="close">← Coloring pages</button></div>
 
         <div class="coloring-view-controls" aria-label="Painting controls">
+          <div class="coloring-portrait-view"></div>
           <div class="coloring-toolbar-row">
             <button type="button" class="ghost-btn coloring-portrait-toggle" id="coloringToolsToggle" aria-label="Coloring tools" aria-expanded="false" aria-controls="coloringDrawingTools"></button>
             <div class="coloring-tool-strip"><div class="coloring-primary-tools" id="coloringDrawingTools">
@@ -283,7 +288,7 @@
               <button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
             </div>
           </div></div>
-            <button type="button" class="ghost-btn coloring-portrait-toggle" id="coloringColorsToggle" aria-expanded="false" aria-controls="coloringColors"><span class="coloring-current-swatch" aria-hidden="true"></span>Color</button>
+            <button type="button" class="ghost-btn coloring-portrait-toggle" id="coloringColorsToggle" aria-label="Color palette" aria-expanded="false" aria-controls="coloringColors"><span class="coloring-current-swatch" aria-hidden="true"></span></button>
           <div class="coloring-secondary-tools">
             <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
             <div class="coloring-history-controls" role="group" aria-label="Undo and redo">
@@ -292,11 +297,11 @@
             </div>
             <button class="ghost-btn" type="button" data-coloring="save" data-autosaved="${!savePending}" title="Download artwork">${controlLabel("save","Save")}</button>
             <details class="coloring-options"><summary class="ghost-btn">${controlLabel("more","More")}</summary><div class="coloring-options-body">
-              <label class="coloring-fade-setting"><input type="checkbox" id="coloringFadeControls" /> Fade idle controls</label>
+              <label class="coloring-line-lock coloring-fade-setting"><input type="checkbox" id="coloringFadeControls" /> Fade idle controls</label>
               <label class="coloring-line-lock"><input type="checkbox" data-within-lines ${withinLines ? "checked" : ""} /> Color within the lines</label><p class="coloring-line-help">Drag across the drawing to color each shape your brush passes through.</p>
-              <label>Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
-              <button class="ghost-btn" type="button" data-coloring="outline">Print outline / Save PDF</button><button class="ghost-btn" type="button" data-coloring="print-artwork">Print artwork / Save PDF</button><button class="ghost-btn" type="button" data-coloring="reset">Reset page</button>
-              <button class="ghost-btn" type="button" data-coloring="games">Games menu</button><button class="ghost-btn" type="button" data-coloring="reader">Back to Bible</button>
+              <label class="coloring-zoom-setting">Zoom <input id="coloringZoom" type="range" min="1" max="4" step=".25" value="${zoom}" /></label>
+              <button class="ghost-btn" type="button" data-coloring="outline">${controlLabel("print","Print outline")}</button><button class="ghost-btn" type="button" data-coloring="print-artwork">${controlLabel("print","Print artwork")}</button><button class="ghost-btn" type="button" data-coloring="reset">${controlLabel("reset","Reset page")}</button>
+              <button class="ghost-btn" type="button" data-coloring="games">${controlLabel("games","Games menu")}</button><button class="ghost-btn" type="button" data-coloring="reader">${controlLabel("bible","Back to Bible")}</button>
             </div></details>
           </div></div>
           <div class="coloring-colors" id="coloringColors"><div id="coloringPalette" class="coloring-palette" aria-label="Color palette"><label class="coloring-custom ghost-btn" title="Custom color"><input type="color" value="${color}" aria-label="Custom color" id="coloringCustom" /><span>Custom</span></label><button class="ghost-btn coloring-skin-toggle" type="button" data-coloring="skin-tones" aria-expanded="false" aria-controls="coloringSkinTones"><span class="coloring-skin-sample" aria-hidden="true"></span><span>Skin tones</span></button><div class="coloring-standard-colors">${palette.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="${colorNames[i]}" aria-pressed="${c===color}">${c===color ? "✓" : ""}</button>`).join("")}</div></div><div id="coloringSkinTones" class="coloring-skin-tones" role="group" aria-label="Skin tones" hidden>${skinTones.map((c,i)=>`<button type="button" data-color="${c}" style="--swatch:${c}" aria-label="Skin tone ${i+1}, light to deep" aria-pressed="${c===color}">${c===color?"✓":""}</button>`).join("")}</div>
@@ -861,10 +866,10 @@
     const fadeToggle=root.querySelector("#coloringFadeControls");
     const portrait=window.matchMedia("(orientation: portrait) and (max-width: 700px)");
     const optionsBody=more.querySelector(".coloring-options-body");
+    const portraitView=controls.querySelector(".coloring-portrait-view");
     const movedControls=[
-      [expandButton,controls],
-      [root.querySelector(".coloring-zoom-controls"),optionsBody],
-      [root.querySelector('[data-coloring="redo"]'),optionsBody],
+      [expandButton,portraitView],
+      [root.querySelector(".coloring-zoom-controls"),portraitView],
       [root.querySelector('[data-coloring="save"]'),optionsBody],
     ].map(([control,destination])=>{
       const home=document.createComment("Coloring control position");
