@@ -28935,11 +28935,6 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     padding:4px;
     margin:0;
   }
-  .coloring-stage:not(.is-expanded) #coloringZoomLabel {
-    min-width:0;
-    align-self:center;
-    font-size:11px;
-  }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-palette {
     display:grid;
     grid-template-columns:repeat(8, minmax(0, 1fr));
@@ -29069,8 +29064,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   padding:0 4px;
   line-height:1;
 }
-.coloring-studio .coloring-history-controls button,
-.coloring-studio .coloring-zoom-controls button {
+.coloring-studio .coloring-history-controls button {
   display:flex;
   align-items:center;
   justify-content:center;
@@ -29091,8 +29085,40 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   clip-path:inset(50%);
   white-space:nowrap;
 }
-.coloring-studio .coloring-primary-tools .coloring-zoom-controls { margin-left:auto; }
-.coloring-studio #coloringZoomLabel { font-size:12px; white-space:nowrap; }
+.coloring-studio .coloring-zoom-controls {
+  margin-left:auto;
+  padding:2px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--panel);
+}
+.coloring-studio .coloring-zoom-controls > button {
+  display:grid;
+  place-items:center;
+  min-width:0;
+  min-height:40px;
+  padding:0;
+  border-radius:999px;
+  line-height:1;
+}
+.coloring-studio .coloring-zoom-controls > .ghost-btn {
+  width:40px;
+  font-size:18px;
+}
+.coloring-studio #coloringZoomLabel {
+  min-width:44px;
+  border:0;
+  background:transparent;
+  color:var(--ink);
+  font-size:12px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.coloring-studio #coloringZoomLabel:hover {
+  background:color-mix(in srgb,var(--ink) 8%,transparent);
+}
 
 @media (orientation:landscape) and (max-height:560px) and (max-width:1050px) {
   .coloring-stage:not(.is-expanded) .coloring-toolbar-row { grid-template-columns:repeat(7,minmax(0,1fr)); }
@@ -29105,7 +29131,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
     min-width:0;
     min-height:40px;
   }
-  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-primary-tools .coloring-zoom-controls { margin:0; }
+  .coloring-studio .coloring-stage:not(.is-expanded) .coloring-zoom-controls { margin:0; }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls { gap:2px; }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-arrows button { min-width:17px; padding:0; }
   .coloring-studio .coloring-stage:not(.is-expanded) .coloring-size-controls output { font-size:9px; }

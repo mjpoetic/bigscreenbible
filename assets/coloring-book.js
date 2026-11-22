@@ -272,7 +272,9 @@
             <button class="ghost-btn" type="button" data-coloring="eraser" aria-pressed="${erasing}">${controlLabel("eraser","Eraser")}</button>
             ${sizeControls("eraser",eraserSize,erasing)}
             <div class="coloring-zoom-controls" role="group" aria-label="Zoom">
-            <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button><button class="ghost-btn" type="button" data-coloring="fit" id="coloringZoomLabel" aria-label="Fit drawing" title="Fit drawing">${Math.round(zoom*100)}%</button><button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
+              <button class="ghost-btn" type="button" data-coloring="zoom-out" aria-label="Zoom out">−</button>
+              <button type="button" data-coloring="fit" id="coloringZoomLabel" aria-label="Fit drawing, current zoom ${Math.round(zoom*100)}%" title="Fit drawing">${Math.round(zoom*100)}%</button>
+              <button class="ghost-btn" type="button" data-coloring="zoom-in" aria-label="Zoom in">+</button>
             </div>
           </div></div><div class="coloring-secondary-tools">
             <button class="ghost-btn" type="button" data-coloring="expand" aria-label="Full screen">${controlLabel("expand","Full screen")}</button>
@@ -741,7 +743,9 @@
       zoom=Math.max(1,Math.min(4,value));
       sheet.style.width=fitWidth ? `${fitWidth*zoom}px` : `${zoom*100}%`;
       document.getElementById("coloringZoom").value=zoom;
-      document.getElementById("coloringZoomLabel").textContent=Math.round(zoom*100)+"%";
+      const zoomLabel=document.getElementById("coloringZoomLabel");
+      zoomLabel.textContent=Math.round(zoom*100)+"%";
+      zoomLabel.setAttribute("aria-label", "Fit drawing, current zoom "+zoomLabel.textContent);
     }
     let zoomTimer=0, suppressZoomClick=false;
     function stopZoomHold(){
