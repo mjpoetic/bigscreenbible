@@ -23,3 +23,37 @@ console.log('Coloring Scripture return, refresh recovery, last game selection, a
 
 ctx.openColoringBible();assert.equal(session.has("lw_coloring_reader_return"),false,"Generic Bible navigation does not offer coloring return");
 assert.doesNotMatch(source,/previousMode==="trivia"&&coloringBookOpen&&/);
+
+const clickHandlers=new Map(), selectedPages=[];
+const actions={"[data-open-coloring]":{},"[data-close-coloring-gallery]":{},"[data-coloring-page]":{coloringPage:"jesus-calms-storm"}};
+for(const [selector,dataset] of Object.entries(actions)){
+  actions[selector]={dataset,focus(){},addEventListener(type,handler){clickHandlers.set(selector,handler);}};
+}
+const galleryContext=context();
+let coloringCallbacks;
+galleryContext.window.BSBColoring={
+  bind(options){coloringCallbacks=options;},
+  selectPage(id){selectedPages.push(id);return true;}
+};
+galleryContext.document={
+  querySelector:selector=>actions[selector] ?? null,
+  querySelectorAll:selector=>actions[selector] ? [actions[selector]] : [],
+  getElementById:()=>null
+};
+const bindStart=source.indexOf("function bindEvents() {");
+const bindEnd=source.indexOf("  bindSelectionTooltips();",bindStart);
+vm.runInContext(`function renderPreservingReaderScroll() {}
+${source.slice(bindStart,bindEnd)}}
+bindEvents();`,galleryContext);
+const coloringScreen=()=>vm.runInContext('coloringBookOpen ? "canvas" : coloringGalleryOpen ? "gallery" : "preview"',galleryContext);
+clickHandlers.get("[data-open-coloring]")();
+assert.equal(coloringScreen(),"gallery");
+assert.deepEqual(selectedPages,[]);
+clickHandlers.get("[data-coloring-page]")();
+assert.equal(coloringScreen(),"canvas");
+assert.deepEqual(selectedPages,["jesus-calms-storm"]);
+coloringCallbacks.close(true);
+assert.equal(coloringScreen(),"gallery");
+clickHandlers.get("[data-close-coloring-gallery]")();
+assert.equal(coloringScreen(),"preview");
+console.log("Open Coloring Book shows the gallery, and page and back controls navigate between screens");

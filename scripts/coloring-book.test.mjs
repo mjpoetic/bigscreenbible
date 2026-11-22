@@ -2,16 +2,30 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 const source = readFileSync(new URL("../assets/coloring-book.js", import.meta.url), "utf8");
-function view(value, fail = false, vector = false) {
+function coloring(value, fail = false, vector = false) {
   const window = {};
-  vm.runInNewContext(vector ? source.replace("let selected = pages[0].id",'let selected = "ark"') : source, { window, localStorage: {getItem(){if(fail)throw Error("Storage denied");return value;}} });
-  return window.BSBColoring.view();
+  vm.runInNewContext(vector ? source.replace("let selected = null",'let selected = "ark"') : source, { window, localStorage: {getItem(){if(fail)throw Error("Storage denied");return value;}} });
+  return window.BSBColoring;
 }
+const view=(...args)=>coloring(...args).view();
 const initial = view(null);
 assert.match(initial, /game-new-badge">BETA<\/small>/);
 const appSource=readFileSync(new URL("../assets/bible-app.js",import.meta.url),"utf8");
 assert.match(appSource, /<span>Coloring Book<\/span><small class="game-new-badge">BETA<\/small>/);
-assert.deepEqual([...initial.matchAll(/<option value="([^"]+)"/g)].map(match=>match[1]),["jesus-children","jesus-calms-storm"],"Only approved coloring pages are listed");
+const gallery=coloring(null).galleryView();
+assert.deepEqual([...gallery.matchAll(/data-coloring-page="([^"]+)"/g)].map(match=>match[1]),["jesus-children","jesus-calms-storm"],"Only approved coloring pages are listed");
+assert.doesNotMatch(gallery,/Continue coloring/);
+assert.doesNotMatch(initial,/coloringPagePicker/);
+const resumed=coloring(JSON.stringify({
+  __ink:{"jesus-calms-storm":"data:image/png;base64,AAAA"},
+  __artUpdatedAt:{"jesus-children":10,"jesus-calms-storm":20,"ark":30}
+}));
+assert.match(resumed.galleryView(),/data-coloring-page="jesus-calms-storm"[\s\S]*data:image\/png;base64,AAAA[\s\S]*Continue coloring/);
+assert.match(resumed.view(),/coloring-page-title">Jesus Calms the Storm/);
+assert.equal(resumed.selectPage("ark"),false);
+assert.equal(resumed.selectPage("jesus-children"),true);
+assert.match(resumed.view(),/coloring-page-title">Jesus Welcomes the Children/);
+assert.match(resumed.galleryView(),/data-coloring-page="jesus-calms-storm"[\s\S]*Continue coloring/);
 assert.equal((initial.match(/data-color=/g)||[]).length,24);
 assert.match(initial,/type="color"/);
 assert.match(initial,/data-tool="fill"/);
@@ -22,7 +36,7 @@ assert.match(initial,/data-coloring="games"/);
 assert.match(initial,/width="600" height="600"/);
 assert.match(initial,/jesus-welcomes-children.png/);
 assert.match(initial,/data-tool="pan"/);
-const vectorWindow={};vm.runInNewContext(source.replace("let selected = pages[0].id",'let selected = "ark"'),{window:vectorWindow,localStorage:{getItem:()=>null}});
+const vectorWindow={};vm.runInNewContext(source.replace("let selected = null",'let selected = "ark"'),{window:vectorWindow,localStorage:{getItem:()=>null}});
 assert.match(vectorWindow.BSBColoring.view(),/data-region="0" tabindex="0" role="button"/);
 assert.match(view('{"ark":{"1":"#123456"}}',false,true),/fill="#123456"/);
 assert.doesNotMatch(view('{"ark":{"1":"red onclick=evil"}}'),/onclick=evil/);
@@ -35,7 +49,7 @@ console.log("Coloring book catalog, saved colors, raster restoration, input safe
 assert.equal((initial.match(/data-within-lines checked/g)||[]).length,1,"One shared line-protection control travels into full screen");
 assert.doesNotMatch(view('{"__withinLines":false}'),/data-within-lines checked/);
 const testWindow={};
-vm.runInNewContext(source.replace("window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};", "window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};window.testRegionMask=regionMask;window.testRegionSeed=regionSeed;"),{window:testWindow,localStorage:{getItem:()=>null}});
+vm.runInNewContext(source.replace("window.BSBColoring={view,galleryView,selectPage,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};", "window.BSBColoring={view,galleryView,selectPage,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};window.testRegionMask=regionMask;window.testRegionSeed=regionSeed;"),{window:testWindow,localStorage:{getItem:()=>null}});
 // Two regions, an opaque outline, and an antialiased edge. Only the starting
 // region is paintable; a foreground detail remains excluded from its parent.
 const pixels=new Uint8ClampedArray([1,0,127,255, 2,0,127,255, 0,0,0,255, 1,0,127,128]);

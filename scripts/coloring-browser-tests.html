@@ -3,6 +3,12 @@
  const results=[], fixture=document.getElementById('fixture');
  const check=(condition,name)=>{results.push((condition?'PASS: ':'FAIL: ')+name);if(!condition)throw Error(name);};
  const mount=()=>{fixture.innerHTML=BSBColoring.view();BSBColoring.bind({close(){},reader(){},read(){}});};
+ const openGalleryPage=id=>{
+   fixture.innerHTML=BSBColoring.galleryView();
+   const card=fixture.querySelector(`[data-coloring-page="${id}"]`);
+   check(card && BSBColoring.selectPage(card.dataset.coloringPage),'Gallery offers '+id);
+   mount();
+ };
  const wait=()=>new Promise(r=>setTimeout(r,500));
  mount();await wait();
  let canvas=document.getElementById('coloringPixels'),ctx=canvas.getContext('2d');
@@ -145,9 +151,7 @@
  }
  delete window.Capacitor;
  document.querySelector('[data-coloring="expand"]').click();
- const picker=document.getElementById('coloringPagePicker');
- picker.value='jesus-calms-storm';
- picker.dispatchEvent(new Event('change'));
+ openGalleryPage('jesus-calms-storm');
  await wait();
  canvas=document.getElementById('coloringPixels');ctx=canvas.getContext('2d');
  check(document.querySelector('.coloring-reference').textContent.includes('Mark 4:35-41')&&alphaCount()===0,'Storm page opens with its own artwork and Scripture reference');
@@ -176,12 +180,10 @@
  for(let x=160;x<=215;x++)crossedSail.add(regionAt(x,100));
  const brushed=coloredStormRegions();
  check(brushed.has(sail)&&brushed.has(regionAt(215,100))&&[...brushed].every(id=>crossedSail.has(id)),'Protected brush crosses sail panels without leaking into untouched regions');
- const childrenPicker=document.getElementById('coloringPagePicker');
- childrenPicker.value='jesus-children';childrenPicker.dispatchEvent(new Event('change'));
+ openGalleryPage('jesus-children');
  await wait();
  check(document.querySelector('.coloring-reference').textContent.includes('Mark 10:13-16')&&localStorage.getItem('bsb_coloring_v1').includes('jesus-calms-storm'),'Switching pages retains separate Storm progress');
- const stormPicker=document.getElementById('coloringPagePicker');
- stormPicker.value='jesus-calms-storm';stormPicker.dispatchEvent(new Event('change'));
+ openGalleryPage('jesus-calms-storm');
  await wait();
  canvas=document.getElementById('coloringPixels');ctx=canvas.getContext('2d');
  const undo=document.querySelector('[data-coloring="undo"]');

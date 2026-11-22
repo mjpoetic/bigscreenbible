@@ -28717,20 +28717,33 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .app-shell .coloring-reader > .coloring-studio { width:min(1400px,100%); margin:0 auto; padding:12px; }
 .coloring-studio .coloring-heading { margin:0 0 10px; gap:8px; }
 .coloring-studio .coloring-heading h1 { margin:0; font-size:24px; }
-.coloring-studio .coloring-heading p { margin:3px 0 0; color:var(--muted); font-size:13px; }
 .coloring-caption { align-self:center; flex:none; text-align:center; }
 .coloring-caption .coloring-page-title { margin:0 0 3px; color:var(--teal); font-size:17px; font-weight:700; }
-.coloring-studio .coloring-heading .coloring-beta-note { margin-top:6px; font-style:italic; }
-#coloringPagePicker {
-  max-width:100%;
-  min-height:36px;
-  margin-top:5px;
-  padding:4px 6px;
-  font-size:13px;
-  color:var(--ink);
-  background:var(--panel);
+.coloring-gallery .coloring-heading { margin-bottom:16px; }
+.coloring-gallery .coloring-heading h1 { margin:0; }
+.coloring-gallery-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),260px));
+  gap:16px;
 }
-.coloring-studio .coloring-heading > div { min-width:0; }
+.coloring-gallery-card {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+  gap:6px;
+  padding:12px;
+  border-radius:12px;
+  background:transparent;
+  cursor:pointer;
+  text-align:left;
+}
+.coloring-gallery-card:hover > strong { text-decoration:underline; }
+.coloring-gallery-card:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+.coloring-gallery-art { display:block; width:100%; overflow:hidden; border-radius:8px; }
+.coloring-gallery-art svg { display:block; width:100%; height:auto; }
+.coloring-gallery-card > span:not(.coloring-gallery-art) { font-size:.875em; }
+.coloring-gallery-resume { font-weight:700; color:var(--teal); }
 
 .coloring-studio .coloring-stage { display:flex; flex-direction:column; height:calc(100dvh - 106px); min-height:400px; gap:8px; }
 .coloring-studio .coloring-canvas { position:relative; z-index:0; flex:1; min-height:0; max-height:none; }

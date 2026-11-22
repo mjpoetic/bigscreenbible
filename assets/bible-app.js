@@ -5555,6 +5555,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.41": [
+      "Removed the rounded button borders around Coloring Book gallery previews.",
+    ],
+    "2026.11.21.40": [
+      "Open Coloring Book to browse illustrated page previews and continue the last page you worked on.",
+    ],
     "2026.11.21.39": [
       "The website store badges align at the same height, and the App Store artwork is dimmed while it is coming soon.",
     ],
@@ -20588,17 +20594,18 @@ function rememberGamesArea(area){
 }
 let coloringBookSelected=savedGamesArea()==="coloring";
 let coloringBookOpen=false;
+let coloringGalleryOpen=false;
 let gamesAreaInitialized=false;
 let coloringReaderReturn=false;
 try{coloringReaderReturn=sessionStorage.getItem("lw_coloring_reader_return")==="true";}catch{}
 function setColoringReaderReturn(value){coloringReaderReturn=value;try{if(value)sessionStorage.setItem("lw_coloring_reader_return","true");else sessionStorage.removeItem("lw_coloring_reader_return");}catch{}}
 function restoreLastGamesArea(respectLink=false){
-  if(state.triviaGame || activeGameChallenge()?.status==="pending"){coloringBookOpen=false;coloringBookSelected=false;return;}
+  if(state.triviaGame || activeGameChallenge()?.status==="pending"){coloringBookOpen=false;coloringGalleryOpen=false;coloringBookSelected=false;return;}
   const linked=respectLink?new URLSearchParams(window.location.search).get("game"):"";
   if(gamesAreaCodes.includes(linked))rememberGamesArea(linked);
   const area=gamesAreaCodes.includes(linked)?linked:savedGamesArea();
   if(!area)return;
-  coloringBookSelected=area==="coloring";coloringBookOpen=false;
+  coloringBookSelected=area==="coloring";coloringBookOpen=false;coloringGalleryOpen=false;
   if(!coloringBookSelected&&state.triviaGameType!==area)switchGameDifficulty(area);
 }
 function openColoringBible(reference=""){
@@ -20645,6 +20652,7 @@ function triviaView() {
   if(state.triviaGame && savedGamesArea()!==state.triviaGame.type)rememberGamesArea(state.triviaGame.type);
   if(!gamesAreaInitialized){restoreLastGamesArea(true);gamesAreaInitialized=true;}
   if (coloringBookOpen && !state.triviaGame) return window.BSBColoring.view();
+  if (coloringGalleryOpen && !state.triviaGame) return window.BSBColoring.galleryView();
   if (coloringBookSelected && !state.triviaGame) return coloringSetupView();
   const questions = triviaQuestions();
   const currentChallenge = activeGameChallenge();
@@ -25628,7 +25636,11 @@ function bindSettingsScrollContainment() {
 function bindEvents() {
   window.BSBColoring.bind({
     reader: () => openColoringBible(),
-    close: () => { coloringBookOpen = false;coloringBookSelected=true;renderPreservingReaderScroll(); },
+    close: toGallery => {
+      coloringBookOpen=false;coloringGalleryOpen=toGallery;coloringBookSelected=true;
+      renderPreservingReaderScroll();
+      document.querySelector(toGallery?"#coloringGalleryTitle":"[data-open-coloring]")?.focus({preventScroll:true});
+    },
     read: reference => openColoringBible(reference),
     syncProgress: () => {
       if(!state.authUser || accountDataOwner()===state.authUser.id)scheduleCloudSync();
@@ -25636,12 +25648,24 @@ function bindEvents() {
   });
   document.querySelector("[data-select-coloring]")?.addEventListener("click",()=>{
     if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
-    rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen=false;setColoringReaderReturn(false);
+    rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen=false;coloringGalleryOpen=false;setColoringReaderReturn(false);
     renderPreservingReaderScroll();document.querySelector("[data-select-coloring]")?.focus({preventScroll:true});
   });
   document.querySelectorAll("[data-open-coloring]").forEach(button=>button.addEventListener("click", () => {
     if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
-    rememberGamesArea("coloring");coloringBookSelected=true;coloringBookOpen = true;setColoringReaderReturn(false);
+    rememberGamesArea("coloring");coloringBookSelected=true;coloringGalleryOpen=true;setColoringReaderReturn(false);
+    renderPreservingReaderScroll();
+    document.getElementById("coloringGalleryTitle")?.focus({preventScroll:true});
+  }));
+  document.querySelector("[data-close-coloring-gallery]")?.addEventListener("click",()=>{
+    coloringGalleryOpen=false;
+    renderPreservingReaderScroll();
+    document.querySelector("[data-open-coloring]")?.focus({preventScroll:true});
+  });
+  document.querySelectorAll("[data-coloring-page]").forEach(button=>button.addEventListener("click",()=>{
+    if(activeGameChallenge()?.status==="pending")return showToast("This setup is locked for the waiting room");
+    if(!window.BSBColoring.selectPage(button.dataset.coloringPage))return;
+    coloringBookOpen=true;coloringGalleryOpen=false;
     renderPreservingReaderScroll();
     document.getElementById("coloringTitle")?.focus({preventScroll:true});
     void syncColoringOnOpen();
@@ -26740,7 +26764,7 @@ function bindEvents() {
         showToast("This setup is locked for the waiting room");
         return;
       }
-      const wasColoringSelected=coloringBookSelected;coloringBookSelected=false;coloringBookOpen=false;
+      const wasColoringSelected=coloringBookSelected;coloringBookSelected=false;coloringBookOpen=false;coloringGalleryOpen=false;
       rememberGamesArea(button.dataset.triviaMode);
       if (button.dataset.triviaMode === state.triviaGameType) {if(wasColoringSelected)renderPreservingReaderScroll();return;}
       const previousType = state.triviaGameType;

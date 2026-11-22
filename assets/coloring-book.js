@@ -111,7 +111,7 @@
   let saved = {};
   let savePending = false;
   try { const value = JSON.parse(localStorage.getItem(KEY) || "{}"); if (value && typeof value === "object" && !Array.isArray(value)) saved = value; } catch {}
-  let selected = pages[0].id, color = palette[0], zoom = 1, history = [], redoHistory = [], callbacks;
+  let selected = null, color = palette[0], zoom = 1, history = [], redoHistory = [], callbacks;
   const pageHistories=new Map();
   let progressOwner;
   let withinLines = saved.__withinLines !== false;
@@ -122,6 +122,33 @@
   const colors = () => saved[selected] && typeof saved[selected] === "object" ? saved[selected] : {};
   const validColor = value => /^#[0-9a-f]{6}$/i.test(value || "");
   const escape = value => String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
+  function lastWorkedPage() {
+    return visiblePages.filter(p=>Number.isSafeInteger(saved.__artUpdatedAt?.[p.id]) || validInk(saved.__ink?.[p.id]))
+      .sort((a,b)=>(saved.__artUpdatedAt?.[b.id] || 0)-(saved.__artUpdatedAt?.[a.id] || 0))[0];
+  }
+  function selectPage(id) {
+    if(!visiblePages.some(p=>p.id===id))return false;
+    if(id!==selected){
+      if(selected)pageHistories.set(selected,{history,redoHistory});
+      selected=id;
+      const previous=pageHistories.get(id);
+      history=previous?.history || [];
+      redoHistory=previous?.redoHistory || [];
+    }
+    zoom=1;
+    return true;
+  }
+  function galleryView() {
+    const lastWorked=lastWorkedPage();
+    return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-gallery">
+      <div class="coloring-heading"><h1 id="coloringGalleryTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><button class="ghost-btn" type="button" data-close-coloring-gallery>← Games menu</button></div>
+      <div class="coloring-gallery-grid">${visiblePages.map(p=>`<button class="coloring-gallery-card" type="button" data-coloring-page="${p.id}">
+        <span class="coloring-gallery-art" aria-hidden="true">${svg(p)}</span>
+        <strong>${p.title}</strong><span>${p.reference}</span>
+        ${p===lastWorked?`<span class="coloring-gallery-resume">Continue coloring</span>`:""}
+      </button>`).join("")}</div>
+    </article></section>`;
+  }
   function mergeProgress(...snapshots) {
     const merged={};
     for(const snapshot of snapshots){
@@ -174,7 +201,7 @@
   }
   function persistArtwork(schedule=true) {
     if(page().art){
-      const previous=saved.__artUpdatedAt?.[selected] || 0;
+      const previous=Math.max(0,...visiblePages.map(({id})=>saved.__artUpdatedAt?.[id] || 0));
       saved.__artUpdatedAt={...saved.__artUpdatedAt,[selected]:Math.max(Date.now(),previous+1)};
       if(schedule)callbacks?.syncProgress?.();
     }
@@ -231,9 +258,10 @@
     </div>`;
   }
   function view() {
+    selected ||= lastWorkedPage()?.id || visiblePages[0].id;
     return `<section class="reader trivia-reader coloring-reader"><article class="trivia-panel coloring-book coloring-studio" id="coloringBook">
       <dialog class="coloring-stage" open aria-label="Coloring canvas">
-      <div class="coloring-heading"><div><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><p class="coloring-beta-note">More coloring pages are coming.</p>${visiblePages.length>1 ? `<select id="coloringPagePicker" class="ghost-btn" aria-label="Coloring page">${visiblePages.map(p=>`<option value="${p.id}" ${p.id===selected?"selected":""}>${p.title}</option>`).join("")}</select>` : ""}</div><button type="button" class="ghost-btn" data-coloring="close">← Games menu</button></div>
+      <div class="coloring-heading"><h1 id="coloringTitle" tabindex="-1">Coloring Book <small class="game-new-badge">BETA</small></h1><button type="button" class="ghost-btn" data-coloring="close">← Coloring pages</button></div>
 
         <div class="coloring-view-controls" aria-label="Painting controls">
           <div class="coloring-toolbar-row"><div class="coloring-tool-strip"><div class="coloring-primary-tools">
@@ -283,7 +311,6 @@
       return false;
     }
   }
-  function refresh() { const root = document.getElementById("coloringBook"); if (!root) return; root.closest("section").outerHTML = view(); bind(callbacks); }
   function paint(region) {
     const i = Number(region.dataset.region), previous = colors()[i] || "#ffffff";
     const fillColor = erasing ? "#ffffff" : color;
@@ -700,20 +727,6 @@
       if(drawing?.id===e.pointerId)finish(e);
     };
     root.querySelector(".coloring-sheet > svg").addEventListener("click",e=>{if(tool!=="fill")e.stopPropagation();},true);
-    const pagePicker=root.querySelector("#coloringPagePicker");
-    if(pagePicker)pagePicker.onchange=()=>{
-      const next=pagePicker.value;
-      if(next===selected || !visiblePages.some(p=>p.id===next))return;
-      if(drawing)finish({pointerId:drawing.id});
-      pageHistories.set(selected,{history,redoHistory});
-      selected=next;
-      const previous=pageHistories.get(selected);
-      history=previous?.history || [];
-      redoHistory=previous?.redoHistory || [];
-      zoom=1;
-      refresh();
-      document.getElementById("coloringPagePicker")?.focus({preventScroll:true});
-    };
     const skinPanel=root.querySelector("#coloringSkinTones"),skinToggle=root.querySelector('[data-coloring="skin-tones"]');
     function closeSkinTones(){skinPanel.hidden=true;skinToggle.setAttribute("aria-expanded","false");}
     function selectColor(c) { color=c; erasing=false; updateTool(); root.querySelectorAll("[data-color]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.color===c));b.textContent=b.dataset.color===c?"✓":"";}); document.getElementById("coloringCustom").value=c;closeSkinTones(); }
@@ -844,7 +857,11 @@
           break;
         case "fit": fit();break;
         case "games":
-        case "close": if(expanded)toggleExpanded();options.close(); break;
+        case "close":
+          if(drawing)finish({pointerId:drawing.id});
+          if(expanded)toggleExpanded();
+          options.close(b.dataset.coloring==="close");
+          break;
         case "reader": if(expanded)toggleExpanded();options.reader();break;
         case "read": expanded=false;options.read(page().reference); break;
         case "save":
@@ -888,5 +905,5 @@
       }
     });
   }
-  window.BSBColoring={view,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};
+  window.BSBColoring={view,galleryView,selectPage,bind,captureProgress,applyProgress,mergeProgress,handleShortcut};
 })();
