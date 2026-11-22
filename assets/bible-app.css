@@ -28162,6 +28162,19 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .passage-combobox-empty { padding: 12px; color: var(--muted); }
 
 @media (pointer: coarse) {
+  #app .app-shell .passage-picker-workspace.passage-picker-over-notch {
+    z-index: 142;
+  }
+  #app .app-shell .passage-picker-workspace {
+    background: linear-gradient(var(--panel), var(--panel)), var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .app-shell.focus-shell:has(.passage-picker-workspace) > .focus-backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition-property: opacity;
+  }
   :root {
     --passage-picker-safe-top: env(safe-area-inset-top, 0px);
     --passage-picker-safe-right: env(safe-area-inset-right, 0px);

@@ -46,3 +46,24 @@ for (const selector of ['input[type="checkbox"]', 'input[type="range"]', 'button
   assert.equal(context.deferViewportRefreshForActiveInput(), false, `${selector} must not defer layout`);
 }
 console.log('All-editor keyboard insets, queued refreshes, focus transfers, and blur recovery passed.');
+
+context.state.mode = 'reader';
+document.activeElement = null;
+context.renderAfterViewportChangePreservingReaderScroll();
+const beforePicker = renders;
+const queuedRefresh = queued;
+let pickerPositions = 0;
+context.positionFocusWorkspacePanel = () => { pickerPositions++; };
+context.state.focusWorkspacePanel = 'Verse';
+queuedRefresh();
+assert.equal(queued, null, 'Opening the picker cancels a pending viewport redraw');
+context.renderAfterViewportChangePreservingReaderScroll();
+assert.equal(context.deferViewportRefreshForActiveInput(), true,
+  'A keyboard-driven breakpoint must leave the picker open even after book input blur');
+assert.equal(renders, beforePicker);
+assert.equal(pickerPositions, 3);
+context.state.focusWorkspacePanel = '';
+context.renderAfterViewportChangePreservingReaderScroll();
+queued();
+assert.equal(renders, beforePicker + 1, 'Viewport redraws resume after the picker closes');
+console.log('Passage picker survives viewport changes after keyboard blur.');

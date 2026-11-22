@@ -2497,6 +2497,13 @@ function scrollTriviaAnswerActionsIntoView() {
 }
 
 function deferViewportRefreshForActiveInput() {
+  // Closing the picker renders the reader with the settled layout. While it
+  // is open, keyboard and fold changes only need to reposition the panel.
+  if (state.focusWorkspacePanel === "Verse") {
+    clearTimeout(presentationResizeTimer);
+    positionFocusWorkspacePanel();
+    return true;
+  }
   if (scriptureSearchOwnsViewport()) return true;
   // Crossword already fits its existing grid to viewport changes. Rebuilding
   // it on Android IME inset events detaches the input and closes the keyboard.
@@ -3737,6 +3744,23 @@ function focusVersePickerPanel() {
   `;
 }
 
+function updateFocusVersePickerChoices() {
+  const picker = focusVersePickerData();
+  state.focusVersePickerBook = picker.book;
+  state.focusVersePickerChapter = picker.chapter;
+  state.focusVersePickerVerse = picker.verse;
+  for (const [field, values, value] of [
+    ["Chapter", picker.chapters, picker.chapter],
+    ["Verse", picker.verses, picker.verse],
+  ]) {
+    const select = document.getElementById(`focusMini${field}Select`);
+    select.replaceChildren(...values.map(number => new Option(String(number), String(number))));
+    select.value = String(value);
+    document.getElementById(`${select.id}Input`).value = select.value;
+  }
+  document.getElementById("focusMiniPickerGo").textContent = `Go to ${picker.chapterKey}:${picker.verse}`;
+}
+
 function mobileFocusSearchResults() {
   if (!state.focusMode || !state.focusSearchResultsOpen || !state.searchResultsQuery) return "";
   return `
@@ -3821,11 +3845,6 @@ function positionFocusWorkspacePanel() {
   updateFocusPassageNotch();
   const panel = document.getElementById("mobileFocusWorkspace");
   if (!panel) return;
-  panel.style.removeProperty("left");
-  panel.style.removeProperty("top");
-  panel.style.removeProperty("width");
-  panel.style.removeProperty("bottom");
-  panel.style.removeProperty("max-height");
   const versePicker = state.focusWorkspacePanel === "Verse";
   const touchPicker = versePicker && window.matchMedia("(pointer: coarse)").matches;
   if (touchPicker) {
@@ -3839,6 +3858,7 @@ function positionFocusWorkspacePanel() {
     // Reserve space for choices even when the list is closed so tapping
     // another control cannot move it between pointerdown and click.
     const top = Math.max(bounds.top, Math.min((rect?.bottom ?? bounds.top) + 8, bounds.top + bounds.height - 340));
+    panel.classList.toggle("passage-picker-over-notch", Boolean(notch && top < rect.bottom));
     panel.style.left = `${Math.min(Math.max(bounds.left, anchorLeft), bounds.left + bounds.width - width)}px`;
     panel.style.top = `${top}px`;
     panel.style.bottom = "auto";
@@ -3846,7 +3866,10 @@ function positionFocusWorkspacePanel() {
     panel.style.maxHeight = `${Math.max(0, bounds.top + bounds.height - top)}px`;
     return;
   }
-  panel.classList.remove("passage-picker-compact");
+  for (const property of ["left", "top", "width", "bottom", "max-height"]) {
+    panel.style.removeProperty(property);
+  }
+  panel.classList.remove("passage-picker-compact", "passage-picker-over-notch");
   if (isCompactScreen() && !versePicker) return;
   const notchAnchor = versePicker && state.focusMode ? document.getElementById("focusPassageNotch") : null;
   const anchor = notchAnchor || (versePicker && state.focusVersePickerAnchor
@@ -4632,7 +4655,8 @@ function bindPassageComboboxes() {
         button.setAttribute("aria-selected", "false");
         button.textContent = option.label;
         button.addEventListener("pointerdown", (event) => event.preventDefault());
-        button.addEventListener("click", () => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
           commit(option.value, usesInlineList() ? "" : input.id);
           if (usesInlineList()) input.blur();
         });
@@ -5555,6 +5579,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.22.6": [
+      "The Verse Picker stays open when choosing a book as the keyboard closes, and updates chapter and verse choices without redrawing the reader.",
+    ],
     "2026.11.22.5": [
       "Portrait Coloring Book keeps the canvas and page title clear of the toolbar, puts Redo beside Undo, and places fading zoom controls beside Full screen.",
       "Coloring Book’s More menu has action icons, matching checkboxes, and shorter print labels.",
@@ -25997,16 +26024,16 @@ function bindEvents() {
     state.focusVersePickerBook = event.currentTarget.value;
     state.focusVersePickerChapter = focusVersePickerChapterNumbers(state.focusVersePickerBook)[0] || 1;
     state.focusVersePickerVerse = 1;
-    renderPreservingReaderScroll();
+    updateFocusVersePickerChoices();
   });
   document.getElementById("focusMiniChapterSelect")?.addEventListener("change", (event) => {
     state.focusVersePickerChapter = Number(event.currentTarget.value) || 1;
     state.focusVersePickerVerse = 1;
-    renderPreservingReaderScroll();
+    updateFocusVersePickerChoices();
   });
   document.getElementById("focusMiniVerseSelect")?.addEventListener("change", (event) => {
     state.focusVersePickerVerse = Number(event.currentTarget.value) || 1;
-    renderPreservingReaderScroll();
+    updateFocusVersePickerChoices();
   });
   document.getElementById("focusMiniVersePickerForm")?.addEventListener("submit", (event) => {
     event.preventDefault();

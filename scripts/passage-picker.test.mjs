@@ -132,4 +132,43 @@ assert.equal(styles.top, '108px');
 assert.equal(styles.maxHeight, '484px', 'Portrait picker can keep its normal anchor and use the space above the keyboard');
 assert.equal(styles.width, '424px');
 assert.ok(!classes.has('passage-picker-compact'));
+context.state.focusMode = true;
+const notch = { getBoundingClientRect: () => ({ left: 155, width: 130, bottom: 100 }) };
+context.document.getElementById = id => id === 'focusPassageNotch' ? notch : panel;
+context.window.visualViewport.height = 360;
+context.positionFocusWorkspacePanel();
+assert.ok(classes.has('passage-picker-over-notch'), 'The keyboard can move the picker in front of the notch');
+context.window.visualViewport.height = 600;
+context.positionFocusWorkspacePanel();
+assert.ok(!classes.has('passage-picker-over-notch'), 'The notch is available again once the picker fits below it');
 console.log('Touch passage picker keyboard viewport checks passed');
+
+const controls = Object.fromEntries(
+  ['ChapterSelect', 'ChapterSelectInput', 'VerseSelect', 'VerseSelectInput', 'PickerGo']
+    .map(suffix => {
+      const id = `focusMini${suffix}`;
+      return [id, { id, replaceChildren(...options) { this.options = options; } }];
+    }),
+);
+context.document.getElementById = id => controls[id];
+context.Option = function (label, value) { Object.assign(this, { label, value }); };
+context.books.push('Acts');
+context.bibleData['Acts 1'] = { verses: [{ n: 1 }, { n: 2 }] };
+context.bibleData['Acts 2'] = { verses: [{ n: 1 }] };
+Object.assign(context.state, {
+  focusVersePickerBook: 'Acts',
+  focusVersePickerChapter: 1,
+  focusVersePickerVerse: 1,
+});
+vm.runInContext(extract('updateFocusVersePickerChoices'), context);
+context.updateFocusVersePickerChoices();
+assert.deepEqual(controls.focusMiniChapterSelect.options.map(option => option.value), ['1', '2']);
+assert.equal(controls.focusMiniVerseSelectInput.value, '1');
+assert.equal(controls.focusMiniPickerGo.textContent, 'Go to Acts 1:1');
+context.state.focusVersePickerChapter = 2;
+context.updateFocusVersePickerChoices();
+assert.deepEqual(controls.focusMiniVerseSelect.options.map(option => option.value), ['1']);
+assert.equal(controls.focusMiniChapterSelectInput.value, '2');
+assert.equal(controls.focusMiniPickerGo.textContent, 'Go to Acts 2:1');
+
+console.log('Passage picker in-place updates passed');
