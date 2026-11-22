@@ -5555,6 +5555,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.21.42": [
+      "Added two deeper skin tones and tightened the swatch layout in Coloring Book.",
+    ],
     "2026.11.21.41": [
       "Removed the rounded button borders around Coloring Book gallery previews.",
     ],

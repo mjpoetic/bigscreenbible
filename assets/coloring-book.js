@@ -4,7 +4,7 @@
   const KEY = "bsb_coloring_v1";
   const colorNames = ["Red","Rose","Orange","Yellow","Green","Teal","Sky blue","Blue","Purple","Pink","Brown","Slate","Black","White"];
   const palette = ["#e53935", "#e85d75", "#f28c45", "#f4cc4c", "#86bc66", "#329d8f", "#58b8d8", "#527bd1", "#9167b1", "#df91b6", "#ab7959", "#586174", "#111111", "#ffffff"];
-  const skinTones = ["#f6dfd0","#edc7ad","#dfb18f","#ce9873","#bb815d","#a86c4b","#925536","#77432c","#5e3525","#40271e"];
+  const skinTones = ["#f6dfd0","#edc7ad","#dfb18f","#ce9873","#bb815d","#a86c4b","#925536","#77432c","#5e3525","#4f2e22","#40271e","#2c1a14"];
   const shape = (tag, attrs, label) => ({ tag, attrs, label });
   const path = (d, label) => shape("path", { d }, label);
   const circle = (cx, cy, r, label) => shape("circle", { cx, cy, r }, label);

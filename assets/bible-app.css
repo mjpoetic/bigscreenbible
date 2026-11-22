@@ -28769,7 +28769,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .coloring-studio .coloring-custom input::-moz-color-swatch { border:0; border-radius:50%; }
 .coloring-studio .coloring-palette .coloring-skin-toggle { display:flex; align-items:center; gap:6px; flex:none; min-width:0; width:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel); color:var(--ink); font-size:12px; text-shadow:none; }
 .coloring-skin-sample { width:22px; height:22px; border-radius:50%; background:conic-gradient(#f6dfd0 0deg 90deg,#ce9873 90deg 180deg,#925536 180deg 270deg,#40271e 270deg); }
-.coloring-skin-tones { position:absolute; top:calc(100% + 6px); left:10px; z-index:5; display:flex; flex-wrap:wrap; gap:10px; width:min(252px,calc(100vw - 60px)); padding:16px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); animation:surfaceIn var(--motion-base) var(--motion-ease) both; }
+.coloring-skin-tones { position:absolute; top:calc(100% + 6px); left:10px; z-index:5; display:flex; flex-wrap:wrap; gap:10px; box-sizing:border-box; width:min(208px,calc(100vw - 60px)); padding:16px; border:1px solid var(--line); border-radius:22px; background:var(--panel); box-shadow:var(--shadow); animation:surfaceIn var(--motion-base) var(--motion-ease) both; }
 .coloring-skin-tones[hidden] { display:none; }
 .coloring-studio .coloring-options { position:relative; margin:0; }
 .coloring-studio .coloring-options summary { list-style:none; cursor:pointer; }

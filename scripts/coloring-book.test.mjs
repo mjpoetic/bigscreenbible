@@ -26,7 +26,7 @@ assert.equal(resumed.selectPage("ark"),false);
 assert.equal(resumed.selectPage("jesus-children"),true);
 assert.match(resumed.view(),/coloring-page-title">Jesus Welcomes the Children/);
 assert.match(resumed.galleryView(),/data-coloring-page="jesus-calms-storm"[\s\S]*Continue coloring/);
-assert.equal((initial.match(/data-color=/g)||[]).length,24);
+assert.equal((initial.match(/data-color=/g)||[]).length,26);
 assert.match(initial,/type="color"/);
 assert.match(initial,/data-tool="fill"/);
 assert.match(initial,/data-tool="brush"/);
