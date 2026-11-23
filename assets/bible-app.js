@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.15": [
+      "In Memorize practice, tap My passages or swipe right from the left edge to return to your saved passages.",
+    ],
     "2026.11.23.14": [
       "On iOS, opening directly to Memorize or another mode now confirms that the live app has loaded.",
     ],
@@ -11190,7 +11193,7 @@ function memoryLibraryMarkup(items) {
         : '<h2 id="memoryNextTitle">Start with one verse</h2><p>Save a verse or passage below to start practicing.</p><a class="memory-add-link" href="#memoryReference">Add a passage</a>'}
     </section>
     <aside class="memory-card memory-library" aria-labelledby="memoryLibraryTitle">
-      <div class="memory-heading"><h2 id="memoryLibraryTitle">My passages <small>${items.length}</small></h2>${next ? '<a class="memory-add-link" href="#memoryReference">Add a passage</a>' : ""}</div>
+      <div class="memory-heading"><h2 id="memoryLibraryTitle" tabindex="-1">My passages <small>${items.length}</small></h2>${next ? '<a class="memory-add-link" href="#memoryReference">Add a passage</a>' : ""}</div>
       ${next ? sorted.map((entry) => `<details class="memory-saved">
         <summary><span class="memory-swipe-practice" aria-hidden="true">Practice</span><span class="memory-swipe-remove" aria-hidden="true">Remove</span><span class="memory-saved-face"><span><strong>${escapeHtml(entry.reference)}</strong><small>${escapeHtml(translationDisplayCode(entry.version))} · ${!entry.due || entry.due <= now ? "Ready to review" : `Due ${new Date(entry.due).toLocaleDateString()}`}</small></span></span></summary>
         <div class="memory-saved-expansion"><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Put in order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></div>
@@ -11208,7 +11211,7 @@ function memorizationView() {
   return `<section class="reader memorize-reader" data-memory-view="${item ? escapeHtml(`${item.id}:${practice.stage}`) : "library"}" aria-labelledby="memoryTitle"><div class="memory-workspace">
     <header class="memory-heading"><h1 id="memoryTitle">Memorize Scripture</h1></header>
     <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
-    ${item ? `<article class="memory-card memory-practice-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
+    ${item ? `<article class="memory-card memory-practice-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" type="button" data-memory-library><span aria-hidden="true">${icons.chevronLeft}</span>My passages</button></div>
       <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
       <div class="memory-practice-exercise">
       <p class="memory-help">${practice.stage === "order" ? `Tap the ${practice.sequence.unit === "phrase" ? "phrases" : "words"} in the order they appear in Scripture.` : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results." + (item.version === "AMP" ? " You can leave out brackets. Type the words inside them when prompted." : "")}</p>
@@ -11268,6 +11271,50 @@ function bindMemoryPassageSwipe(summary) {
     if (suppressClick && event.detail > 0) event.preventDefault();
     suppressClick = false;
   });
+}
+
+function returnToMemoryLibrary() {
+  if (!state.memoryPractice) return;
+  transitionMemoryView("memory-back", () => {
+    state.memoryPractice = null;
+    render();
+    const heading = document.getElementById("memoryLibraryTitle");
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function bindMemoryBackSwipe(surface) {
+  let start;
+  surface.addEventListener("touchstart", (event) => {
+    start = null;
+    if (event.touches.length !== 1 || event.target.closest("input, textarea, select, [contenteditable]")) return;
+    const touch = event.touches[0];
+    if (touch.clientX - surface.getBoundingClientRect().left > 32) return;
+    start = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: Date.now() };
+  }, { passive: true });
+  surface.addEventListener("touchmove", (event) => {
+    if (!start) return;
+    const touch = event.touches[0];
+    if (event.touches.length !== 1 || touch.identifier !== start.id) {
+      start = null;
+      return;
+    }
+    const dx = touch.clientX - start.x;
+    const dy = Math.abs(touch.clientY - start.y);
+    if (dy > 10 && dy >= dx) {
+      start = null;
+    } else if (dx > 10 && dx > dy * horizontalSwipeDominance && event.cancelable) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+  surface.addEventListener("touchend", (event) => {
+    const touch = event.changedTouches[0];
+    const shouldGoBack = start && touch?.identifier === start.id && horizontalSwipeDirection(start, touch) === -1;
+    start = null;
+    if (shouldGoBack) returnToMemoryLibrary();
+  }, { passive: true });
+  surface.addEventListener("touchcancel", () => { start = null; });
 }
 
 function bindMemorization() {
@@ -11361,10 +11408,11 @@ function bindMemorization() {
     await addMemoryPassage(document.querySelector("#memoryReference").value.trim(), document.querySelector("#memoryVersion").value, { submitButton: button, audioContext });
     if (button.isConnected) button.disabled = false;
   });
-  document.querySelector("[data-memory-library]")?.addEventListener("click", () => transitionMemoryView("memory-back", () => {
-    state.memoryPractice = null;
-    render();
-  }));
+  const libraryButton = document.querySelector("[data-memory-library]");
+  if (libraryButton) {
+    libraryButton.addEventListener("click", returnToMemoryLibrary);
+    bindMemoryBackSwipe(libraryButton.closest(".memorize-reader"));
+  }
   document.querySelectorAll("[data-memory-practice], [data-memory-order]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(button.dataset.memoryPractice || button.dataset.memoryOrder, button.hasAttribute("data-memory-order") ? "order" : "read")));
   document.querySelectorAll("[data-memory-stage]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(state.memoryPractice.id, button.dataset.memoryStage)));
   document.querySelector("[data-memory-reveal]")?.addEventListener("click", () => { state.memoryPractice.revealed = !state.memoryPractice.revealed; render(); });

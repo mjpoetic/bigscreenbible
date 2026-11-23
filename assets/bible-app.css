@@ -27198,6 +27198,8 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .memory-heading h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); margin: 8px 0; }
 .memory-heading h2, .memory-heading h3 { margin: 0; }
+.memory-heading [data-memory-library] { display: inline-flex; align-items: center; gap: 6px; }
+.memory-heading [data-memory-library] svg { display: block; width: 1em; height: 1em; }
 .memory-card { border: 1px solid var(--memory-card-edge, var(--line)); background: var(--memory-card-fill, var(--panel)); border-radius: 20px; padding: clamp(16px, 3vw, 28px); margin: 16px 0; }
 .memory-dashboard { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; gap: 16px; margin: 16px 0; }
 .memory-dashboard > .memory-card { margin: 0; }

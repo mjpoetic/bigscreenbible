@@ -6,6 +6,7 @@ const storage = new Map();
 const notices = [];
 const chapter = { verses: [{ n: 16, BSB: 'For God so loved the world.', KJV: 'For God so loved the world,' }, { n: 17, BSB: 'For God did not send His Son.' }] };
 const context = {
+  icons: { chevronLeft: '<svg></svg>' },
   accountDataOwner: () => 'guest',
   localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
   state: { versions: ['BSB'], mode: 'memorize', memoryPractice: null },
@@ -35,6 +36,7 @@ const id = context.memoryPassages()[0].id;
 context.startMemoryPractice(id, 'read');
 const readMarkup = context.memorizationView();
 assert.ok(readMarkup.includes(context.memoryPassages()[0].text));
+assert.match(readMarkup, /data-memory-library>.*My passages<\/button>/);
 assert.doesNotMatch(readMarkup, /data-memory-reveal/);
 assert.match(readMarkup, /data-memory-review="again"/);
 assert.match(readMarkup, /data-memory-review="recalled"/);
@@ -125,3 +127,38 @@ assert.equal(context.memoryAnswerResult('believes', '[believes'), true);
 assert.equal(context.memoryAnswerResult('Him', 'Him]'), true);
 assert.equal(context.memoryAnswerResult(']', 'Him]'), null);
 assert.equal(context.memoryAnswerResult('wrong', 'world'), false);
+
+const swipeConstants = source.match(/^const horizontalSwipe(?:MaxMs|MinPx|Dominance) = .*;$/gm).join('\n');
+vm.runInContext(swipeConstants + '\n' + source.slice(
+  source.indexOf('function horizontalSwipeDirection('),
+  source.indexOf('\n}', source.indexOf('function horizontalSwipeDirection(')) + 2,
+), context);
+let libraryFocusCount = 0;
+context.document = { getElementById: () => ({ focus: () => libraryFocusCount++, scrollIntoView() {} }) };
+context.window = { matchMedia: () => ({ matches: true }) };
+const listeners = new Map();
+context.bindMemoryBackSwipe({
+  addEventListener: (type, listener) => listeners.set(type, listener),
+  getBoundingClientRect: () => ({ left: 0 }),
+});
+const touch = (clientX, clientY) => ({ identifier: 1, clientX, clientY });
+const swipe = (start, end, { editing = false, canceled = false } = {}) => {
+  listeners.get('touchstart')({ touches: [start], target: { closest: () => editing } });
+  listeners.get('touchmove')({ touches: [end] });
+  if (canceled) listeners.get('touchcancel')();
+  listeners.get('touchend')({ changedTouches: [end] });
+};
+context.startMemoryPractice(id, 'read');
+for (const [start, end, options] of [
+  [touch(80, 100), touch(165, 100)],
+  [touch(18, 100), touch(25, 200)],
+  [touch(18, 100), touch(40, 105)],
+  [touch(18, 100), touch(105, 105), { editing: true }],
+  [touch(18, 100), touch(105, 105), { canceled: true }],
+]) {
+  swipe(start, end, options);
+  assert.equal(context.state.memoryPractice.id, id);
+}
+swipe(touch(18, 100), touch(105, 105));
+assert.equal(context.state.memoryPractice, null);
+assert.equal(libraryFocusCount, 1);
