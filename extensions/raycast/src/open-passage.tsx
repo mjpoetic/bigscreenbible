@@ -51,13 +51,36 @@ function CrossReferences({ reference, version, items }: { reference: string; ver
   </List>;
 }
 
+const passageSizes = [
+  { value: 'standard', title: 'Standard Text', prefix: '' },
+  { value: 'large', title: 'Large Text', prefix: '### ' },
+  { value: 'extra-large', title: 'Extra Large Text', prefix: '## ' },
+];
+
 function PassageView({ passage }: { passage: Passage }) {
+  const preferences = getPreferenceValues<{ passageSize?: string; passageLayout?: string }>();
+  const [size, setSize] = useState(() => passageSizes.find(option => option.value === preferences.passageSize) ?? passageSizes[1]);
+  const [singleVerse, setSingleVerse] = useState(preferences.passageLayout === 'verse');
+  const [verseIndex, setVerseIndex] = useState(0);
   const url = passageUrl(passage.reference, passage.version);
-  const markdown = `# ${escapeMarkdown(passage.reference)}\n\n${escapeMarkdown(passage.name)} (${passage.version})\n\n${passage.verses.map(({ n, text }) => `**${n}** ${escapeMarkdown(text)}`).join('\n\n')}\n\n---\n\n${escapeMarkdown(passage.copyright || '')}\n\n[Translation source and rights](${passage.source})`;
+  const visibleVerses = singleVerse ? passage.verses.slice(verseIndex, verseIndex + 1) : passage.verses;
+  const position = singleVerse && passage.verses.length > 1 ? ` · Verse ${verseIndex + 1} of ${passage.verses.length}` : '';
+  const scripture = visibleVerses.map(({ n, text }) =>
+    `${size.prefix}**${n}** ${escapeMarkdown(text).replace(/\s*\r?\n\s*/g, ' ')}`
+  ).join('\n\n');
+  const markdown = `# ${escapeMarkdown(passage.reference)}\n\n${escapeMarkdown(passage.name)} (${passage.version})${position}\n\n${scripture}\n\n---\n\n${escapeMarkdown(passage.copyright || '')}\n\n[Translation source and rights](${passage.source})`;
   return <Detail navigationTitle={passage.reference} markdown={markdown} actions={<ActionPanel>
     <Action.CopyToClipboard title="Copy Scripture Text" content={passage.text} />
     <CrossReferenceAction reference={passage.reference} version={passage.version} />
     <Action.OpenInBrowser title="Open in Big Screen Bible" icon={Icon.Globe} url={url} shortcut={openShortcut} />
+    <ActionPanel.Submenu title="Passage Display">
+      {passageSizes.map(option => <Action key={option.value} title={option.title} onAction={() => setSize(option)} />)}
+      <Action title={singleVerse ? 'Show Full Passage' : 'Show One Verse at a Time'} onAction={() => setSingleVerse(!singleVerse)} />
+    </ActionPanel.Submenu>
+    {singleVerse && verseIndex < passage.verses.length - 1 &&
+      <Action title="Next Verse" icon={Icon.ArrowRight} shortcut={{ modifiers: ['cmd'], key: 'arrowRight' }} onAction={() => setVerseIndex(verseIndex + 1)} />}
+    {singleVerse && verseIndex > 0 &&
+      <Action title="Previous Verse" icon={Icon.ArrowLeft} shortcut={{ modifiers: ['cmd'], key: 'arrowLeft' }} onAction={() => setVerseIndex(verseIndex - 1)} />}
     <ModeActions reference={passage.reference} version={passage.version} />
     <Action.CopyToClipboard title="Copy Passage Link" icon={Icon.Link} content={url} shortcut={{ modifiers: ['cmd', 'shift'], key: 'c' }} />
   </ActionPanel>} />;

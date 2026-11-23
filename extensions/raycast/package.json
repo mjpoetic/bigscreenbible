@@ -3,7 +3,7 @@
   "name": "big-screen-bible",
   "title": "Big Screen Bible",
   "description": "Search Scripture offline or online inside Raycast, copy text, and open passages in Big Screen Bible modes.",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "icon": "big-screen-bible-squircle.png",
   "author": "danehurst",
   "license": "UNLICENSED",
@@ -37,6 +37,46 @@
       "type": "textfield",
       "required": false,
       "default": "BSB"
+    },
+    {
+      "name": "passageSize",
+      "title": "Passage Text Size",
+      "description": "Default text size for the passage view.",
+      "type": "dropdown",
+      "required": false,
+      "default": "large",
+      "data": [
+        {
+          "title": "Standard",
+          "value": "standard"
+        },
+        {
+          "title": "Large",
+          "value": "large"
+        },
+        {
+          "title": "Extra Large",
+          "value": "extra-large"
+        }
+      ]
+    },
+    {
+      "name": "passageLayout",
+      "title": "Passage Layout",
+      "description": "Read the entire passage or show one verse at a time.",
+      "type": "dropdown",
+      "required": false,
+      "default": "passage",
+      "data": [
+        {
+          "title": "Full Passage",
+          "value": "passage"
+        },
+        {
+          "title": "One Verse at a Time",
+          "value": "verse"
+        }
+      ]
     }
   ],
   "scripts": {

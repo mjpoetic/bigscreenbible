@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.10": [
+      "Raycast opens passages with larger text and offers adjustable text size and a one-verse-at-a-time view.",
+    ],
     "2026.11.23.9": [
       "The Raycast extension accepts the same book abbreviations as the reader, such as Jn 3:16 and 1 Cor 13.",
     ],
