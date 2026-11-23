@@ -27202,13 +27202,34 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-dashboard { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; gap: 16px; margin: 16px 0; }
 .memory-dashboard > .memory-card { margin: 0; }
 @media (prefers-contrast: no-preference) and (forced-colors: none) {
-  html:not([data-theme-preset="contrast"]) .memory-card:is(.memory-next, .memory-library, .memory-add) {
+  .memory-workspace {
+    --memory-blue: light-dark(#176e8e, #78cce9);
+    --memory-violet: light-dark(#7145a5, #c5a4f4);
+    --memory-amber: light-dark(#a34d14, #ffab72);
+  }
+  html:not([data-theme-preset="contrast"]) .memory-card:is(.memory-next, .memory-library, .memory-add, .memory-practice-card) {
     --memory-card-fill: color-mix(in srgb, var(--memory-card-accent) 13%, var(--panel));
     --memory-card-edge: color-mix(in srgb, var(--memory-card-accent) 42%, var(--line));
   }
-  .memory-next { --memory-card-accent: light-dark(#176e8e, #78cce9); }
-  .memory-library { --memory-card-accent: light-dark(#7145a5, #c5a4f4); }
-  .memory-add { --memory-card-accent: light-dark(#a34d14, #ffab72); }
+  :is(.memory-next, .memory-practice-card) { --memory-card-accent: var(--memory-blue); }
+  .memory-library { --memory-card-accent: var(--memory-violet); }
+  .memory-add { --memory-card-accent: var(--memory-amber); }
+  html:not([data-theme-preset="contrast"]) .memory-exercise-body {
+    background: color-mix(in srgb, var(--memory-blue) 5%, var(--panel));
+    border: 1px solid var(--memory-card-edge);
+    border-inline-start: 4px solid var(--memory-blue);
+    border-radius: 14px;
+    padding: 8px clamp(12px, 2.5vw, 24px);
+  }
+  .memory-practice-card [data-memory-library] { --memory-button-accent: var(--memory-violet); }
+  .memory-practice-card [data-memory-review="again"] { --memory-button-accent: var(--memory-amber); }
+  html:not([data-theme-preset="contrast"]) .memory-practice-card :is([data-memory-library], [data-memory-review="again"]) {
+    --memory-button-fill: color-mix(in srgb, var(--memory-button-accent) 20%, var(--panel));
+    --memory-button-edge: color-mix(in srgb, var(--memory-button-accent) 50%, var(--line));
+    background: var(--memory-button-fill);
+    border-color: var(--memory-button-edge);
+    color: var(--ink);
+  }
 }
 .memory-next-header { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; color: var(--ink); font-weight: 650; }
 .memory-count { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; background: var(--panel); font-size: .85rem; }

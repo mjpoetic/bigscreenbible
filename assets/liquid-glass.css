@@ -1532,9 +1532,9 @@ html[data-control-material="glass"] .memorize-shell .memory-card {
 html[data-control-material="glass"] .memorize-shell :is(.memory-count, .memory-mark),
 html[data-control-material="glass"] .memorize-shell .memory-workspace :is(.ghost-btn, .primary-btn, .settings-choice-toggle),
 html[data-control-material="glass"] .memorize-shell .memory-saved .text-btn {
-  border: 1px solid color-mix(in srgb, var(--ink) 32%, var(--glass-edge));
+  border: 1px solid var(--memory-button-edge, color-mix(in srgb, var(--ink) 32%, var(--glass-edge)));
   border-radius: 999px;
-  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), color-mix(in srgb, var(--glass-fill) 85%, var(--panel));
+  background: linear-gradient(145deg, var(--glass-reflection), transparent 62%), var(--memory-button-fill, color-mix(in srgb, var(--glass-fill) 85%, var(--panel)));
   color: var(--ink);
   box-shadow: var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur);
