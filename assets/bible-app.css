@@ -27236,6 +27236,32 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 @media (max-width: 680px) { .memory-dashboard { grid-template-columns: minmax(0, 1fr); } }
 .memory-add { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
 .memory-add h2, .memory-add > p { flex-basis: 100%; margin: 0; }
+.memory-add button[type="submit"] { position: relative; }
+.memory-save-sparkle {
+  position: absolute;
+  inset-block-end: 100%;
+  inset-inline: 0;
+  color: var(--teal);
+  text-align: center;
+  font-size: 1.2rem;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .app-shell.memorize-shell .memorize-reader:has(.memory-practice-enter) { overflow-x: hidden; }
+  .memory-practice-enter { animation: memory-practice-enter 360ms cubic-bezier(.2, .75, .25, 1) both; }
+  .memory-saved[open] > .memory-actions { animation: memory-actions-reveal 200ms ease-out; }
+  @keyframes memory-practice-enter {
+    from { transform: translateX(100%); opacity: .5; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes memory-actions-reveal {
+    from { transform: translateY(-6px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .memory-save-sparkle { display: none; }
+}
 .memory-add :is(label, .memory-translation-field) { display: grid; gap: 8px; flex: 1 1 180px; }
 .memory-add input, .memory-add select { width: 100%; min-width: 0; min-height: 44px; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 .memory-stages, .memory-actions, .memory-word-bank { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }

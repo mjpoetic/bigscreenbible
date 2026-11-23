@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.7": [
+      "Memorize slides into practice, reveals saved passage actions with motion, and adds a sparkle when you save a passage.",
+    ],
     "2026.11.23.6": [
       "Memorize gives Next review, My passages, and Add a passage distinct card colors that adapt to your theme.",
     ],
@@ -10831,7 +10834,7 @@ function saveMemoryPassages(items) {
   return true;
 }
 
-async function addMemoryPassage(reference, version = state.versions[0] || "BSB") {
+async function addMemoryPassage(reference, version = state.versions[0] || "BSB", submitButton = null) {
   const owner = accountDataOwner();
   const parsed = parsePassageReference(reference);
   if (!parsed || !bibleData[parsed.key] || !/:/.test(reference)) {
@@ -10868,10 +10871,33 @@ async function addMemoryPassage(reference, version = state.versions[0] || "BSB")
       const savedAt = previous ? Math.max(Date.now(), previous.updatedAt + 1, previous.savedAt + 1) : 0;
       if (!saveMemoryPassages([{ id, savedAt, updatedAt: savedAt, reference: label, chapter: parsed.key, version,
         text: verseTexts.join(" "), verseTexts, copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 }])) return;
+      if (submitButton?.isConnected && !window.matchMedia("(prefers-reduced-motion: reduce)").matches && submitButton.animate) {
+        await sparkleMemorySave(submitButton);
+      }
     }
+    if (submitButton && (state.mode !== "memorize" || state.memoryPractice || accountDataOwner() !== owner)) return;
     startMemoryPractice(id);
   } catch {
     showToast("This passage could not be saved. Please try again.");
+  }
+}
+
+async function sparkleMemorySave(button) {
+  const sparkle = document.createElement("span");
+  sparkle.className = "memory-save-sparkle";
+  sparkle.setAttribute("aria-hidden", "true");
+  sparkle.textContent = "✦ ✧ ✦";
+  button.append(sparkle);
+  try {
+    await sparkle.animate([
+      { opacity: 0, transform: "translateY(6px) scale(.65)" },
+      { opacity: 1, transform: "translateY(-4px) scale(1.15)", offset: .4 },
+      { opacity: 0, transform: "translateY(-16px) scale(1)" },
+    ], { duration: 300, easing: "ease-out" }).finished;
+  } catch {
+    // The animation can be canceled when the form leaves the screen.
+  } finally {
+    sparkle.remove();
   }
 }
 
@@ -10911,6 +10937,7 @@ function memoryOrderTiles(item) {
 function startMemoryPractice(id, stage = "read") {
   const item = memoryPassages().find((entry) => entry.id === id);
   if (!item) return;
+  const fromLibrary = state.mode === "memorize" && !state.memoryPractice;
   const sequence = stage === "order" ? memoryOrderTiles(item) : null;
   const order = sequence?.tiles.map((tile, index) => index) || [];
   for (let i = order.length - 1; i > 0; i--) {
@@ -10925,6 +10952,11 @@ function startMemoryPractice(id, stage = "read") {
   state.memoryPractice = { id, stage, revealed: false, sequence, order, chosen: [], answers: {}, results: {}, feedback: "" };
   if (state.mode !== "memorize") switchMode("memorize", { immediate: true });
   else render();
+  if (fromLibrary && typeof document !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const card = document.querySelector(".memory-practice-card");
+    card?.addEventListener("animationend", () => card.classList.remove("memory-practice-enter"), { once: true });
+    card?.classList.add("memory-practice-enter");
+  }
 }
 
 function memoryWordHint(word, index, stage) {
@@ -11119,7 +11151,7 @@ function memorizationView() {
   return `<section class="reader memorize-reader" data-memory-view="${item ? escapeHtml(`${item.id}:${practice.stage}`) : "library"}" aria-labelledby="memoryTitle"><div class="memory-workspace">
     <header class="memory-heading"><h1 id="memoryTitle">Memorize Scripture</h1></header>
     <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
-    ${item ? `<article class="memory-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
+    ${item ? `<article class="memory-card memory-practice-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
       <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
       <p class="memory-help">${practice.stage === "order" ? `Tap the ${practice.sequence.unit === "phrase" ? "phrases" : "words"} in the order they appear in Scripture.` : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results." + (item.version === "AMP" ? " You can leave out brackets. Type the words inside them when prompted." : "")}</p>
       ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-order-practice"><p class="memory-order-status" data-memory-feedback role="status"></p><div data-memory-sequence>${memoryOrderMarkup(practice)}</div></div>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
@@ -11264,7 +11296,7 @@ function bindMemorization() {
     event.preventDefault();
     const button = event.currentTarget.querySelector("[type=submit]");
     button.disabled = true;
-    await addMemoryPassage(document.querySelector("#memoryReference").value.trim(), document.querySelector("#memoryVersion").value);
+    await addMemoryPassage(document.querySelector("#memoryReference").value.trim(), document.querySelector("#memoryVersion").value, button);
     if (button.isConnected) button.disabled = false;
   });
   document.querySelector("[data-memory-library]")?.addEventListener("click", () => { state.memoryPractice = null; render(); });
