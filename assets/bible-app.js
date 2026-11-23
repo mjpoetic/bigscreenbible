@@ -4667,7 +4667,7 @@ function bindPassageComboboxes() {
         button.id = `${input.getAttribute("aria-controls")}Option${index}`;
         button.tabIndex = -1;
         button.setAttribute("role", "option");
-        button.setAttribute("aria-selected", "false");
+        button.setAttribute("aria-selected", String(option.value === select.value));
         button.textContent = option.label;
         button.addEventListener("pointerdown", (event) => event.preventDefault());
         button.addEventListener("click", (event) => {
@@ -4689,6 +4689,7 @@ function bindPassageComboboxes() {
         existingMenu.replaceChildren(options);
         existingMenu.scrollTop = 0;
         if (!inline) positionSettingsChoiceMenu(root, existingMenu);
+        if (all) centerSelectedMenuOption(existingMenu);
         return;
       }
       closeSettingsChoiceMenu();
@@ -4715,6 +4716,7 @@ function bindPassageComboboxes() {
         window.visualViewport?.addEventListener("resize", reposition);
       }
       reposition();
+      if (all) centerSelectedMenuOption(menu);
     };
     input.addEventListener("focus", () => { input.select(); });
     input.addEventListener("click", () => show(input.value === select.value));
@@ -4738,12 +4740,16 @@ function bindPassageComboboxes() {
       } else if (["ArrowDown", "ArrowUp"].includes(event.key)) {
         event.preventDefault();
         if (activeSettingsChoiceMenu?.trigger !== root) show(input.value === select.value);
-        activeIndex = Math.max(0, Math.min(visible.length - 1,
-          activeIndex < 0 ? (event.key === "ArrowDown" ? 0 : visible.length - 1) : activeIndex + (event.key === "ArrowDown" ? 1 : -1)));
+        if (!visible.length) return;
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const currentIndex = activeIndex >= 0 ? activeIndex
+          : input.value === select.value ? visible.findIndex((option) => option.value === select.value) : -1;
+        const nextIndex = currentIndex >= 0 ? currentIndex + direction
+          : direction > 0 ? 0 : visible.length - 1;
+        activeIndex = Math.max(0, Math.min(visible.length - 1, nextIndex));
         const buttons = activeSettingsChoiceMenu.menu.querySelectorAll('[role="option"]');
         buttons.forEach((button, index) => {
-          button.setAttribute("aria-selected", String(index === activeIndex));
-          button.classList.toggle("active", index === activeIndex);
+          button.classList.toggle("keyboard-active", index === activeIndex);
         });
         const active = buttons[activeIndex];
         if (active) {
@@ -5607,6 +5613,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.3": [
+      "The Focus Mode verse picker opens each book, chapter, and verse list at the current choice and highlights it with the theme’s alternate accent.",
+    ],
     "2026.11.23.2": [
       "Memorize shows Reveal passage only in practice methods that hide the passage.",
     ],

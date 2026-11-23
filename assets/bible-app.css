@@ -2435,6 +2435,11 @@ button {
   background: color-mix(in srgb, var(--settings-choice-menu-accent) 15%, transparent);
 }
 
+.bible-picker-choice-menu .settings-choice-option.keyboard-active {
+  outline: 2px solid var(--settings-choice-menu-accent);
+  outline-offset: -2px;
+}
+
 .settings-choice-option:disabled {
   cursor: default;
   opacity: 0.78;
@@ -26605,7 +26610,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 /* Use the theme's alternate accent to distinguish the current Bible choice. */
 .primary-version-menu .primary-version-option.active,
 .parallel-version-menu .parallel-version-menu-option.active,
-.bible-picker-choice-menu .settings-choice-option.active,
+.bible-picker-choice-menu .settings-choice-option:is(.active, [aria-selected="true"]),
 .mobile-verse-nav-menu .mobile-verse-nav-option.active,
 .presentation .presentation-reference-menu .presentation-reference-option.active {
   background: color-mix(in srgb, var(--gold) 24%, var(--panel));
@@ -26622,11 +26627,15 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 @media (forced-colors: active) {
   .primary-version-menu .primary-version-option.active,
   .parallel-version-menu .parallel-version-menu-option.active,
-  .bible-picker-choice-menu .settings-choice-option.active,
+  .bible-picker-choice-menu .settings-choice-option:is(.active, [aria-selected="true"]),
   .mobile-verse-nav-menu .mobile-verse-nav-option.active,
   .presentation .presentation-reference-menu .presentation-reference-option.active {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+
+  .bible-picker-choice-menu .settings-choice-option.keyboard-active {
+    outline-color: CanvasText;
   }
 }
 
