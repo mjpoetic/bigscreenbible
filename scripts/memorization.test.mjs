@@ -31,6 +31,18 @@ assert.equal(context.memoryPassages().length, 2, 'Missing verses never save a pa
 await context.addMemoryPassage('John 3:16', 'NIV');
 assert.equal(context.memoryPassages().length, 2, 'Unavailable translation never falls back to another wording');
 const id = context.memoryPassages()[0].id;
+context.startMemoryPractice(id, 'read');
+const readMarkup = context.memorizationView();
+assert.ok(readMarkup.includes(context.memoryPassages()[0].text));
+assert.doesNotMatch(readMarkup, /data-memory-reveal/);
+assert.match(readMarkup, /data-memory-review="again"/);
+assert.match(readMarkup, /data-memory-review="recalled"/);
+for (const stage of ['recall', 'order', 'hide', 'letters']) {
+  context.startMemoryPractice(id, stage);
+  assert.match(context.memorizationView(), /data-memory-reveal>Reveal passage/);
+  context.state.memoryPractice.revealed = true;
+  assert.match(context.memorizationView(), /data-memory-reveal>Hide passage again/);
+}
 context.startMemoryPractice(id, 'order');
 const orderPractice = context.state.memoryPractice;
 assert.equal(orderPractice.sequence.unit, 'phrase');

@@ -5607,6 +5607,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.2": [
+      "Memorize shows Reveal passage only in practice methods that hide the passage.",
+    ],
     "2026.11.23.1": [
       "Swipe right on a saved memory passage to practice or left to remove it with confirmation.",
     ],
@@ -11057,7 +11060,11 @@ function memorizationView() {
       <p class="memory-help">${practice.stage === "order" ? `Tap the ${practice.sequence.unit === "phrase" ? "phrases" : "words"} in the order they appear in Scripture.` : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results." + (item.version === "AMP" ? " You can leave out brackets. Type the words inside them when prompted." : "")}</p>
       ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-order-practice"><p class="memory-order-status" data-memory-feedback role="status"></p><div data-memory-sequence>${memoryOrderMarkup(practice)}</div></div>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
       ${practice.stage === "order" && !practice.revealed ? "" : `<p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>`}
-      <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
+      <div class="memory-actions">
+        ${practice.stage === "read" ? "" : `<button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button>`}
+        <button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button>
+        <button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button>
+      </div>
       <p class="memory-help">Reviews are self-assessed. Successful recall gradually extends the review interval, up to 30 days.</p>${item.copyright ? `<p class="memory-help">${escapeHtml(item.copyright)}</p>` : ""}
     </article>` : `${memoryLibraryMarkup(items)}<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" value="${escapeHtml(state.memoryDraftReference || "")}" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>`}
     <p class="memory-help">Passages and progress are saved on this device, in this browser. Each passage keeps the translation you chose.</p>
