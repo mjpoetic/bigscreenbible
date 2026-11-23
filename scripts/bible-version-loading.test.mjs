@@ -107,4 +107,52 @@ assert.notEqual(retriedScript, failedScript);
 retriedScript.dispatchEvent(new Event("load"));
 await retry;
 
+const startupEvents = [];
+const startup = vm.createContext({
+  URL, URLSearchParams,
+  state: { mode: "memorize", versions: [] },
+  window: {
+    location: new URL("https://bigscreenbible.com/"),
+    BIGSCREEN_BIBLE_INDEX: {},
+    bsbOffline: {
+      active: false,
+      ready: () => startupEvents.push("ready"),
+      open: () => startupEvents.push("offline"),
+    },
+    setTimeout() {},
+  },
+  localStorage: { getItem: () => null, removeItem() {} },
+  console: { error() {} },
+  dataLoading: true,
+  dataError: "",
+  bibleIndex: null,
+  loadedVersionData: new Set(["BSB"]),
+  appUpdateQueryKey: "update",
+  isBundledTranslation: () => true,
+  loadBibleBundleScript() {},
+  loadBibleParagraphMetadata() {},
+  loadBibleSectionHeadingMetadata() {},
+  loadBibleRedLetterMetadata() {},
+  loadBibleFootnoteMetadata() {},
+  loadBibleVersion() {},
+  rebuildBibleData() {},
+  applyStartupExperience() {},
+  consumeAppUpdateRestoreState() {},
+  applyAppUpdateRestoreState() {},
+  stageAppUpdatePositionRestore() {},
+  restoreSavedReaderPositionAfterStartup() {},
+  maybeOfferPushNotifications() {},
+  maybeCheckForAppUpdate() {},
+});
+startup.render = () => startupEvents.push(startup.dataLoading ? "loading" : startup.dataError ? "error" : startup.state.mode);
+vm.runInContext(extractFunction("initializeBibleData"), startup);
+await vm.runInContext("initializeBibleData()", startup);
+assert.deepEqual(startupEvents, ["loading", "memorize", "ready"]);
+
+startupEvents.length = 0;
+startup.dataLoading = true;
+startup.loadedVersionData.clear();
+await vm.runInContext("initializeBibleData()", startup);
+assert.deepEqual(startupEvents, ["loading", "offline", "error"]);
+
 console.log("Bible version loading tests passed");

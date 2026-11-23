@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.14": [
+      "On iOS, opening directly to Memorize or another mode now confirms that the live app has loaded.",
+    ],
     "2026.11.23.13": [
       "The Memorize practice screen now carries the same blue, violet, and amber palette as the dashboard.",
     ],
@@ -36934,6 +36937,8 @@ async function initializeBibleData() {
     stageAppUpdatePositionRestore(updateScrollState, updateRestoreState?.targetVersion || "");
     dataLoading = false;
     render();
+    // The bundled bridge's legacy DOM check only recognizes Reader and Big Screen.
+    if (!window.bsbOffline?.active) window.bsbOffline?.ready();
     if (!updateScrollState && !state.sharedPassage) restoreSavedReaderPositionAfterStartup();
     maybeOfferPushNotifications();
     window.setTimeout(maybeCheckForAppUpdate, 1200);
