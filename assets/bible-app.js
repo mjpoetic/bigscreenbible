@@ -5616,6 +5616,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.18": [
+      "The verse picker gives three-digit chapter and verse numbers more room.",
+    ],
     "2026.11.23.17": [
       "Book names in the verse picker stay on one line, with an ellipsis when space runs out.",
     ],
