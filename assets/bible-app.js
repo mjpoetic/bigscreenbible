@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.6": [
+      "Memorize gives Next review, My passages, and Add a passage distinct card colors that adapt to your theme.",
+    ],
     "2026.11.23.5": [
       "The iOS reader now waits for brief connection interruptions to clear before switching to the offline reader.",
     ],
