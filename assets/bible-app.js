@@ -4633,6 +4633,16 @@ function passageChoiceMatches(options, query) {
   });
 }
 
+function passageScrollRow(menu) {
+  const first = menu.firstElementChild;
+  const second = first?.nextElementSibling;
+  if (!second) return 0;
+  const rowStep = second.offsetTop - first.offsetTop;
+  // Safari can report offsets beyond the scroll range during elastic overscroll.
+  const offset = Math.max(0, Math.min(menu.scrollTop, menu.scrollHeight - menu.clientHeight));
+  return rowStep > 0 ? Math.round(offset / rowStep) : 0;
+}
+
 function bindPassageComboboxes() {
   document.querySelectorAll("[data-passage-combobox]").forEach((input) => {
     const root = input.closest("[data-settings-choice]");
@@ -4640,6 +4650,8 @@ function bindPassageComboboxes() {
     const arrow = root.querySelector("[data-passage-arrow]");
     const form = root.closest(".focus-mini-verse-picker");
     const usesInlineList = () => form && window.matchMedia("(pointer: coarse)").matches;
+    const scrollHaptics = form && nativeHapticsPlugin();
+    let scrollRow = 0;
     let activeIndex = -1;
     let visible = [];
     const commit = (value, focusId = input.id) => {
@@ -4693,6 +4705,7 @@ function bindPassageComboboxes() {
         existingMenu.scrollTop = 0;
         if (!inline) positionSettingsChoiceMenu(root, existingMenu);
         if (all) centerSelectedMenuOption(existingMenu);
+        if (scrollHaptics) scrollRow = passageScrollRow(existingMenu);
         return;
       }
       closeSettingsChoiceMenu();
@@ -4720,6 +4733,17 @@ function bindPassageComboboxes() {
       }
       reposition();
       if (all) centerSelectedMenuOption(menu);
+      if (scrollHaptics) {
+        scrollRow = passageScrollRow(menu);
+        menu.addEventListener("scroll", () => {
+          if (activeSettingsChoiceMenu?.menu !== menu) return;
+          const row = passageScrollRow(menu);
+          if (row === scrollRow) return;
+          scrollRow = row;
+          // Fast flings can cross multiple rows in one event. Play one live tick.
+          playNativeHaptic("tick");
+        }, { passive: true });
+      }
     };
     input.addEventListener("focus", () => { input.select(); });
     input.addEventListener("click", () => show(input.value === select.value));
@@ -4758,6 +4782,7 @@ function bindPassageComboboxes() {
         if (active) {
           input.setAttribute("aria-activedescendant", active.id);
           active.scrollIntoView({ block: "nearest" });
+          if (scrollHaptics) scrollRow = passageScrollRow(activeSettingsChoiceMenu.menu);
         }
       } else if (event.key === "Enter") {
         event.preventDefault();
@@ -5616,6 +5641,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.19": [
+      "On supported devices, scrolling through books, chapters, and verses in the verse picker gives light haptic ticks.",
+    ],
     "2026.11.23.18": [
       "The verse picker gives three-digit chapter and verse numbers more room.",
     ],

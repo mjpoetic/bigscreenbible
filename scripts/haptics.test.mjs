@@ -42,6 +42,20 @@ event();
 await new Promise(resolve => setImmediate(resolve));
 console.log('Haptics: activation, preference, platform guards, deduplication and failures passed.');
 
+vm.runInContext(extract("passageScrollRow"), context);
+context.menu = {
+  firstElementChild: { offsetTop: 6, nextElementSibling: { offsetTop: 52 } },
+  scrollHeight: 470,
+  clientHeight: 240,
+};
+for (const [offset, expected] of [[-20, 0], [22, 0], [24, 1], [48, 1], [116, 3], [69, 2], [270, 5]]) {
+  context.menu.scrollTop = offset;
+  assert.equal(run("passageScrollRow(menu)"), expected);
+}
+context.menu.firstElementChild = null;
+assert.equal(run("passageScrollRow(menu)"), 0);
+console.log("Verse picker haptics: row crossings, reverse scrolling, empty lists and overscroll passed.");
+
 // Exercise the actual native-intensity path and real Scripture gesture handlers.
 const pulses = [];
 context.window.Capacitor.isPluginAvailable = () => available;
