@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.11": [
+      "Raycast adds an icon to Passage Display and styles verse numbers as links to individual verses.",
+    ],
     "2026.11.23.10": [
       "Raycast opens passages with larger text and offers adjustable text size and a one-verse-at-a-time view.",
     ],

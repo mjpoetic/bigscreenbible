@@ -1,6 +1,6 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.8. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.9. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
@@ -10,6 +10,8 @@ Version 0.3.8. Look up and read Scripture inside Raycast without an account or A
 - **Open Big Screen Bible** opens the website directly.
 
 Set **Preferred Translation** in extension preferences. Use NASB2020 or NIRV as the preference codes. NLT, NKJV, and CEV use API.Bible’s documented native HTTP usage reporting. A random device identifier is saved in Raycast’s extension storage and a random session identifier is generated for each command execution. No account, email, or hardware identifiers are sent. Reporting must succeed before API.Bible text is displayed; a failed report shows an error so you can retry. No remote Scripture is saved to disk. Full chapters are supported; cross-chapter ranges are not.
+
+Each verse number links to that verse on Big Screen Bible in the selected translation.
 
 ## Words and phrases
 
