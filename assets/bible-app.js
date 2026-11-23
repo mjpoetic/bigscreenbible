@@ -5607,6 +5607,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.1": [
+      "Swipe right on a saved memory passage to practice or left to remove it with confirmation.",
+    ],
     "2026.11.22.15": [
       "The Focus Mode Bible version control now matches the other verse picker fields.",
     ],
@@ -11033,7 +11036,7 @@ function memoryLibraryMarkup(items) {
     <aside class="memory-card memory-library" aria-labelledby="memoryLibraryTitle">
       <div class="memory-heading"><h2 id="memoryLibraryTitle">My passages <small>${items.length}</small></h2>${next ? '<a class="memory-add-link" href="#memoryReference">Add a passage</a>' : ""}</div>
       ${next ? sorted.map((entry) => `<details class="memory-saved">
-        <summary><span><strong>${escapeHtml(entry.reference)}</strong><small>${escapeHtml(translationDisplayCode(entry.version))} · ${!entry.due || entry.due <= now ? "Ready to review" : `Due ${new Date(entry.due).toLocaleDateString()}`}</small></span></summary>
+        <summary><span class="memory-swipe-practice" aria-hidden="true">Practice</span><span class="memory-swipe-remove" aria-hidden="true">Remove</span><span class="memory-saved-face"><span><strong>${escapeHtml(entry.reference)}</strong><small>${escapeHtml(translationDisplayCode(entry.version))} · ${!entry.due || entry.due <= now ? "Ready to review" : `Due ${new Date(entry.due).toLocaleDateString()}`}</small></span></span></summary>
         <div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Put in order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div>
       </details>`).join("") : "<p>Saved passages will appear here.</p>"}
     </aside>
@@ -11061,7 +11064,50 @@ function memorizationView() {
   </div></section>`;
 }
 
+function bindMemoryPassageSwipe(summary) {
+  let gesture;
+  let suppressClick = false;
+  const reset = () => {
+    gesture = null;
+    delete summary.dataset.memorySwipe;
+    summary.style.removeProperty("--memory-swipe-offset");
+  };
+  summary.addEventListener("pointerdown", (event) => {
+    if (!event.isPrimary) return;
+    suppressClick = false;
+    if (event.pointerType === "touch") gesture = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  });
+  summary.addEventListener("pointermove", (event) => {
+    if (gesture?.id !== event.pointerId) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    if (!gesture.horizontal) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) return reset();
+      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
+      gesture.horizontal = true;
+      suppressClick = true;
+    }
+    summary.dataset.memorySwipe = dx >= 0 ? "practice" : "remove";
+    summary.style.setProperty("--memory-swipe-offset", `${Math.max(-100, Math.min(100, dx))}px`);
+  });
+  summary.addEventListener("pointerup", (event) => {
+    if (gesture?.id !== event.pointerId) return;
+    const dx = event.clientX - gesture.x;
+    const activate = gesture.horizontal && Math.abs(dx) >= 64 && Math.abs(dx) >= Math.abs(event.clientY - gesture.y) * 1.35;
+    reset();
+    if (activate) summary.closest(".memory-saved").querySelector(dx > 0 ? "[data-memory-practice]" : "[data-memory-delete]").click();
+  });
+  for (const type of ["pointercancel", "lostpointercapture"]) {
+    summary.addEventListener(type, (event) => { if (gesture?.id === event.pointerId) reset(); });
+  }
+  summary.addEventListener("click", (event) => {
+    if (suppressClick && event.detail > 0) event.preventDefault();
+    suppressClick = false;
+  });
+}
+
 function bindMemorization() {
+  document.querySelectorAll(".memory-saved summary").forEach(bindMemoryPassageSwipe);
   document.querySelector("#memoryVersion")?.addEventListener("change", (event) => {
     const translation = translations.find((item) => item.code === event.target.value);
     const trigger = document.getElementById("memoryVersionToggle");

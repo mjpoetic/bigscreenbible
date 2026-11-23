@@ -27202,13 +27202,20 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .memory-library .memory-heading { margin-bottom: 10px; }
 .memory-add-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .memory-saved + .memory-saved { border-top: 1px solid var(--line); }
-.memory-saved summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 2px; list-style: none; cursor: pointer; overflow-wrap: anywhere; }
+.memory-saved summary { position: relative; overflow: hidden; list-style: none; cursor: pointer; touch-action: pan-y pinch-zoom; }
 .memory-saved summary::-webkit-details-marker { display: none; }
-.memory-saved summary::after { content: ""; width: 7px; height: 7px; flex-shrink: 0; margin-inline-end: 6px; border-inline-end: 2px solid var(--muted); border-block-end: 2px solid var(--muted); transform: rotate(45deg); }
-.memory-saved[open] summary::after { transform: rotate(225deg); }
+.memory-saved-face { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 2px; overflow-wrap: anywhere; }
+.memory-saved-face::after { content: ""; width: 7px; height: 7px; flex-shrink: 0; margin-inline-end: 6px; border-inline-end: 2px solid var(--muted); border-block-end: 2px solid var(--muted); transform: rotate(45deg); }
+.memory-saved[open] .memory-saved-face::after { transform: rotate(225deg); }
+.memory-saved summary[data-memory-swipe] .memory-saved-face { background: var(--panel); transform: translateX(var(--memory-swipe-offset)); }
+.memory-swipe-practice, .memory-swipe-remove { display: none; position: absolute; inset: 0; align-items: center; padding-inline: 14px; font-size: .85rem; font-weight: 700; }
+.memory-swipe-practice { background: var(--teal); color: var(--accent-ink); justify-content: left; }
+.memory-swipe-remove { background: #ac2338; color: #fff; justify-content: right; }
+[data-memory-swipe="practice"] .memory-swipe-practice, [data-memory-swipe="remove"] .memory-swipe-remove { display: flex; }
 .memory-saved summary small { display: block; margin-top: 2px; color: var(--muted); }
 .memory-saved .memory-actions { margin: 0 0 12px; }
 .memory-saved .memory-actions > button { padding-inline: 12px; }
+html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memory-delete] { color: var(--memory-retry-text); border-color: var(--memory-retry-edge); background: color-mix(in srgb, var(--memory-retry-edge) 10%, var(--panel)); }
 @media (max-width: 680px) { .memory-dashboard { grid-template-columns: minmax(0, 1fr); } }
 .memory-add { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
 .memory-add h2, .memory-add > p { flex-basis: 100%; margin: 0; }
