@@ -776,6 +776,7 @@ function normalizeStartupMode(value, legacyBigScreen) {
 const state = {
   memoryPractice: null,
   memoryNotice: "",
+  memorySearch: "",
   mode: "reader",
   reference: "John 3",
   verse: 16,
@@ -5614,6 +5615,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.16": [
+      "Memorize keeps the dashboard cards aligned, lets you scroll and search saved passages by reference or Scripture text, and adds a brief poof when you remove a passage.",
+    ],
     "2026.11.23.15": [
       "In Memorize practice, tap My passages or swipe right from the left edge to return to your saved passages.",
     ],
@@ -7849,6 +7853,7 @@ function setAccountDataOwner(owner = guestDataOwner) {
   if (accountDataOwner() !== normalizedOwner) {
     state.memoryPractice = null;
     state.memoryNotice = "";
+    state.memorySearch = "";
   }
   localStorage.setItem(accountDataOwnerStorageKey, normalizedOwner);
   return normalizedOwner;
@@ -11175,6 +11180,10 @@ function updateMemoryOrderFeedback(status, practice) {
   status.textContent = `${memoryResultLabel(result === "correct")} · ${practice.feedback}`;
 }
 
+function normalizeMemorySearch(text) {
+  return text.toLowerCase().replace(/['’]/g, "").replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim();
+}
+
 function memoryLibraryMarkup(items) {
   const now = Date.now();
   const sorted = [...items].sort((a, b) => (a.due || 0) - (b.due || 0));
@@ -11194,10 +11203,11 @@ function memoryLibraryMarkup(items) {
     </section>
     <aside class="memory-card memory-library" aria-labelledby="memoryLibraryTitle">
       <div class="memory-heading"><h2 id="memoryLibraryTitle" tabindex="-1">My passages <small>${items.length}</small></h2>${next ? '<a class="memory-add-link" href="#memoryReference">Add a passage</a>' : ""}</div>
-      ${next ? sorted.map((entry) => `<details class="memory-saved">
+      ${next ? `<input class="memory-search" type="search" aria-label="Search passages by reference or Scripture text" placeholder="Search passages" autocomplete="off" value="${escapeHtml(state.memorySearch || "")}">
+      <div class="memory-passage-list" role="region" aria-label="Saved passages" tabindex="0">${sorted.map((entry) => `<details class="memory-saved">
         <summary><span class="memory-swipe-practice" aria-hidden="true">Practice</span><span class="memory-swipe-remove" aria-hidden="true">Remove</span><span class="memory-saved-face"><span><strong>${escapeHtml(entry.reference)}</strong><small>${escapeHtml(translationDisplayCode(entry.version))} · ${!entry.due || entry.due <= now ? "Ready to review" : `Due ${new Date(entry.due).toLocaleDateString()}`}</small></span></span></summary>
         <div class="memory-saved-expansion"><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Put in order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></div>
-      </details>`).join("") : "<p>Saved passages will appear here.</p>"}
+      </details>`).join("")}<p class="memory-no-results" role="status" hidden>No matching passages.</p></div>` : "<p>Saved passages will appear here.</p>"}
     </aside>
   </div>`;
 }
@@ -11317,7 +11327,79 @@ function bindMemoryBackSwipe(surface) {
   surface.addEventListener("touchcancel", () => { start = null; });
 }
 
+function bindMemorySearch() {
+  const search = document.querySelector(".memory-search");
+  if (!search) return;
+  const list = document.querySelector(".memory-passage-list");
+  const passages = new Map(memoryPassages().map((item) => [item.id, item]));
+  const rows = Array.from(list.querySelectorAll(".memory-saved"), (row) => {
+    const item = passages.get(row.querySelector("[data-memory-delete]").dataset.memoryDelete);
+    return { row, reference: normalizeMemorySearch(item.reference), text: normalizeMemorySearch(item.text) };
+  });
+  const filter = () => {
+    const query = normalizeMemorySearch(search.value);
+    let matches = 0;
+    for (const { row, reference, text } of rows) {
+      row.hidden = !reference.includes(query) && !text.includes(query);
+      if (!row.hidden) matches++;
+    }
+    list.querySelector(".memory-no-results").hidden = matches > 0;
+  };
+  search.addEventListener("input", () => {
+    state.memorySearch = search.value;
+    filter();
+    list.scrollTop = 0;
+  });
+  filter();
+}
+
+async function removeMemoryPassage(button, event) {
+  const item = memoryPassages().find((entry) => entry.id === button.dataset.memoryDelete);
+  if (!item || !window.confirm(`Remove ${item.reference} (${item.version}) and its review progress?`)) return;
+  if (!saveMemoryPassages([{ id: item.id, savedAt: item.savedAt, updatedAt: Date.now(), deleted: true }])) return;
+  const row = button.closest(".memory-saved");
+  const list = row.closest(".memory-passage-list");
+  const summary = row.querySelector("summary");
+  if (event.detail === 0 && row.contains(document.activeElement)) {
+    document.getElementById("memoryLibraryTitle")?.focus({ preventScroll: true });
+  }
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && summary.animate) {
+    row.inert = true;
+    const face = summary.querySelector(".memory-saved-face");
+    const puff = document.createElement("span");
+    puff.className = "memory-removal-puff";
+    puff.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 8; index++) {
+      const angle = index * Math.PI / 4;
+      const particle = document.createElement("i");
+      particle.style.setProperty("--puff-x", `${Math.cos(angle) * (22 + index % 3 * 8)}px`);
+      particle.style.setProperty("--puff-y", `${Math.sin(angle) * 20}px`);
+      puff.appendChild(particle);
+    }
+    summary.appendChild(puff);
+    row.querySelector(".memory-saved-expansion").style.visibility = "hidden";
+    const dissolve = face.animate([
+      { opacity: 1, transform: "scale(1)" },
+      { opacity: 0, transform: "scale(.92)", filter: "blur(4px)", offset: .65 },
+      { opacity: 0, transform: "scale(.92)", filter: "blur(4px)" },
+    ], { duration: 300, easing: "ease-out", fill: "forwards" });
+    await dissolve.finished.catch(() => {});
+  }
+  if (!row.isConnected) return;
+  const scrollTop = list.scrollTop;
+  const focused = document.activeElement;
+  const restoreHeading = focused?.id === "memoryLibraryTitle";
+  const restoreSearch = focused?.classList.contains("memory-search");
+  if (!memoryPassages().length) state.memorySearch = "";
+  render();
+  const remaining = document.querySelector(".memory-passage-list");
+  if (remaining) remaining.scrollTop = scrollTop;
+  if (restoreSearch) (document.querySelector(".memory-search") || document.getElementById("memoryLibraryTitle"))?.focus({ preventScroll: true });
+  if (restoreHeading) document.getElementById("memoryLibraryTitle")?.focus({ preventScroll: true });
+}
+
 function bindMemorization() {
+  bindMemorySearch();
   document.querySelectorAll(".memory-saved summary").forEach(bindMemoryPassageSwipe);
   document.querySelector("#memoryVersion")?.addEventListener("change", (event) => {
     const translation = translations.find((item) => item.code === event.target.value);
@@ -11422,12 +11504,9 @@ function bindMemorization() {
     event.preventDefault();
     document.getElementById("memoryReference")?.focus();
   }));
-  document.querySelectorAll("[data-memory-delete]").forEach((button) => button.addEventListener("click", () => {
-    const items = memoryPassages();
-    const item = items.find((entry) => entry.id === button.dataset.memoryDelete);
-    if (!item || !window.confirm(`Remove ${item.reference} (${item.version}) and its review progress?`)) return;
-    if (saveMemoryPassages([{ id: item.id, savedAt: item.savedAt, updatedAt: Date.now(), deleted: true }])) render();
-  }));
+  document.querySelectorAll("[data-memory-delete]").forEach((button) => {
+    button.addEventListener("click", (event) => removeMemoryPassage(button, event));
+  });
   const orderStatus = document.querySelector(".memory-order-status");
   if (orderStatus && state.memoryPractice.feedback) updateMemoryOrderFeedback(orderStatus, state.memoryPractice);
   document.querySelector("[data-memory-sequence]")?.addEventListener("click", (event) => {
