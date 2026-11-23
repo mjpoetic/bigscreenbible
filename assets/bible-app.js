@@ -2884,6 +2884,10 @@ function switchMode(nextMode, options = {}) {
     ? [...state.sharedPassage.verses]
     : null;
   const applyModeChange = () => {
+    if (previousMode === "memorize") {
+      document.querySelector(".memory-celebration")?.remove();
+      stopGameOutcomeSound();
+    }
     if (nextMode === "trivia" && previousMode !== "trivia") requestGameMusicRestart();
     state.mode = nextMode;
     localStorage.setItem("lw_last_used_mode", nextMode);
@@ -4949,7 +4953,7 @@ function soundsSettings(prefix = "", options = {}) {
     <div class="setting-group settings-section-subgroup sounds-settings">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("GameMusicToggle")}" ${state.gameMusicEnabled ? "checked" : ""} />
-        <span>Game music and result sounds</span>
+        <span>Game music and result sounds, including Memorize celebrations</span>
       </label>
       ${soundVolumeControlMarkup("game", prefix)}
     </div>
@@ -5594,6 +5598,24 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.22.13": [
+      "Put in order shows a green Correct cue or a red Try again cue immediately after each choice.",
+    ],
+    "2026.11.22.12": [
+      "Memorize plays the Joyful Joyful celebration cue after successful practice when result sounds are enabled.",
+    ],
+    "2026.11.22.11": [
+      "Successful Memorize practice celebrates with colorful confetti bursts from the center and both sides of the screen.",
+    ],
+    "2026.11.22.10": [
+      "Memorize puts your next review up front and keeps your saved passages alongside it on wider screens.",
+    ],
+    "2026.11.22.9": [
+      "Memorize celebrates successful practice, puts Recall beside Read, and keeps typed words aligned as feedback appears.",
+    ],
+    "2026.11.22.8": [
+      "Memorize’s Put in order practice uses words for a single verse and phrases for longer passages, with instant confirmation for each correct choice.",
+    ],
     "2026.11.22.7": [
       "Verse Picker suggestions stay open and filter without flashing as you type.",
     ],
@@ -10759,7 +10781,8 @@ async function addMemoryPassage(reference, version = state.versions[0] || "BSB")
     const items = memoryPassages();
     if (!items.some((item) => item.id === id)) {
       const payload = remoteVersionData.get(remoteVersionLoadKey(version, parsed.key));
-      items.push({ id, reference: label, chapter: parsed.key, version, text: verses.map((verse) => verse[version]).join(" "), copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 });
+      const verseTexts = verses.map((verse) => verse[version]);
+      items.push({ id, reference: label, chapter: parsed.key, version, text: verseTexts.join(" "), verseTexts, copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 });
       if (!saveMemoryPassages(items)) return;
     }
     startMemoryPractice(id);
@@ -10768,17 +10791,54 @@ async function addMemoryPassage(reference, version = state.versions[0] || "BSB")
   }
 }
 
+function memoryOrderTiles(item) {
+  const isPassage = !/^\d+$/.test(item.reference.split(":").at(-1).trim());
+  if (!isPassage) return { unit: "word", tiles: item.text.trim().split(/\s+/) };
+
+  // Older saved passages have the original wording but no verse boundaries.
+  const verses = Array.isArray(item.verseTexts) && item.verseTexts.length ? item.verseTexts : [item.text];
+  const tiles = verses.flatMap((verse) => {
+    const words = verse.trim().split(/\s+/);
+    const phrases = [];
+    let start = 0;
+    for (let end = 1; end < words.length - 1; end++) {
+      const length = end - start;
+      const punctuation = /[,;:.!?…—][”’"')\]]*$/.test(words[end - 1]);
+      const connector = /^(and|but|for|so|when|because|that|though|yet)$/i.test(words[end]);
+      if ((length >= 2 && punctuation) || (length >= 5 && connector) || length >= 12) {
+        phrases.push(words.slice(start, end).join(" "));
+        start = end;
+      }
+    }
+    phrases.push(words.slice(start).join(" "));
+    return phrases;
+  });
+  // An unpunctuated legacy passage can still supply two tiles.
+  if (tiles.length === 1) {
+    const words = tiles[0].split(" ");
+    if (words.length >= 4) {
+      const middle = Math.ceil(words.length / 2);
+      return { unit: "phrase", tiles: [words.slice(0, middle).join(" "), words.slice(middle).join(" ")] };
+    }
+  }
+  return { unit: "phrase", tiles };
+}
+
 function startMemoryPractice(id, stage = "read") {
   const item = memoryPassages().find((entry) => entry.id === id);
   if (!item) return;
-  const words = item.text.trim().split(/\s+/);
-  const order = words.map((word, index) => index);
+  const sequence = stage === "order" ? memoryOrderTiles(item) : null;
+  const order = sequence?.tiles.map((tile, index) => index) || [];
   for (let i = order.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [order[i], order[j]] = [order[j], order[i]];
   }
+  if (sequence && order.every((index, position) => sequence.tiles[index] === sequence.tiles[position])) {
+    const different = order.findIndex((index) => sequence.tiles[index] !== sequence.tiles[0]);
+    if (different > 0) [order[0], order[different]] = [order[different], order[0]];
+  }
   state.memoryNotice = "";
-  state.memoryPractice = { id, stage, revealed: false, order, chosen: [], answers: {}, results: {}, feedback: "" };
+  state.memoryPractice = { id, stage, revealed: false, sequence, order, chosen: [], answers: {}, results: {}, feedback: "" };
   if (state.mode !== "memorize") switchMode("memorize", { immediate: true });
   else render();
 }
@@ -10856,6 +10916,39 @@ function checkMemoryAnswers() {
     ? `You filled in all ${missing.length} missing words correctly!${Object.values(practice.results).includes("close") ? " Review the spelling cues for close answers." : ""}`
     : `${correct} of ${missing.length} missing words correct. Keep trying, or reveal the passage to check.`;
   render();
+  if (missing.length && missing.every(({ index }) => practice.results[index] === true)) celebrateMemoryPractice(practice);
+}
+
+function celebrateMemoryPractice(practice) {
+  if (practice?.celebrated) return;
+  if (practice) practice.celebrated = true;
+  if (typeof document === "undefined") return;
+  playGameOutcomeSound("perfect", "memorize");
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  document.querySelector(".memory-celebration")?.remove();
+  const burst = document.createElement("div");
+  burst.className = "memory-celebration";
+  burst.setAttribute("aria-hidden", "true");
+  const volleys = [
+    { origin: 50, direction: 0, count: 30, delay: 0 },
+    { origin: 0, direction: 1, count: 27, delay: 100 },
+    { origin: 100, direction: -1, count: 27, delay: 180 },
+    { origin: 0, direction: 1, count: 12, delay: 480 },
+    { origin: 100, direction: -1, count: 12, delay: 550 },
+  ];
+  burst.innerHTML = volleys.map(({ origin, direction, count, delay }) =>
+    Array.from({ length: count }, () => {
+      const travel = direction ? direction * (15 + Math.random() * 45) : (Math.random() - .5) * 85;
+      const lift = 16 + Math.random() * 46;
+      const spin = Math.round((Math.random() - .5) * 1200);
+      const size = 5 + Math.random() * 6;
+      const duration = 1250 + Math.random() * 700;
+      const start = delay + Math.random() * 140;
+      return `<i style="--origin:${origin}%;--travel:${travel.toFixed(1)}vw;--lift:${lift.toFixed(1)}dvh;--spin:${spin}deg;--size:${size.toFixed(1)}px;--duration:${Math.round(duration)}ms;--delay:${Math.round(start)}ms"></i>`;
+    }).join("")
+  ).join("");
+  document.body.appendChild(burst);
+  setTimeout(() => burst.remove(), 2800);
 }
 
 function reviewMemoryPassage(id, recalled) {
@@ -10866,30 +10959,89 @@ function reviewMemoryPassage(id, recalled) {
   item.interval = recalled ? Math.min(30, Math.max(1, (Number(item.interval) || 0) * 2)) : 1;
   item.due = Date.now() + item.interval * 86400000;
   if (!saveMemoryPassages(items)) return;
+  const practice = state.memoryPractice;
   state.memoryPractice = null;
-  state.memoryNotice = `Review saved. ${item.reference} is due in ${item.interval} ${item.interval === 1 ? "day" : "days"}.`;
+  state.memoryNotice = `${recalled ? "Well done! " : ""}Review saved. ${item.reference} is due in ${item.interval} ${item.interval === 1 ? "day" : "days"}.`;
   render();
+  if (recalled) celebrateMemoryPractice(practice);
+}
+
+function memoryOrderMarkup(practice) {
+  const { tiles, unit } = practice.sequence;
+  const label = unit === "phrase" ? "phrases" : "words";
+  return `<div class="memory-answer" aria-label="Confirmed ${label}">${practice.chosen.length
+    ? practice.chosen.map((index) => `<span class="memory-order-confirmed">${escapeHtml(tiles[index])} <span aria-hidden="true">✓</span></span>`).join(" ")
+    : ""}</div>
+    <div class="memory-word-bank ${unit === "phrase" ? "memory-phrase-bank" : ""}" role="group" aria-label="Available ${label}">${practice.order.filter((index) => !practice.chosen.includes(index)).map((index) => `<button class="ghost-btn" data-memory-tile="${index}" ${practice.retryTile === index ? 'data-memory-result="retry"' : ""}><span>${escapeHtml(tiles[index])}</span><small class="memory-order-retry">× Try again</small></button>`).join("")}</div>
+    ${practice.chosen.length === tiles.length ? '<button class="ghost-btn" data-memory-restart>Practice again</button>' : ""}`;
+}
+
+function placeMemoryOrderTile(practice, index) {
+  const { tiles, unit } = practice.sequence;
+  if (!practice.order.includes(index) || practice.chosen.includes(index)) return false;
+  if (tiles[index] !== tiles[practice.chosen.length]) {
+    practice.retryTile = index;
+    practice.feedback = `Try a different ${unit} for this spot.`;
+    return false;
+  }
+  practice.retryTile = null;
+  practice.chosen.push(index);
+  practice.feedback = practice.chosen.length === tiles.length
+    ? "You put the whole passage in order!"
+    : `${practice.chosen.length} of ${tiles.length} placed`;
+  return true;
+}
+
+function updateMemoryOrderFeedback(status, practice) {
+  const result = practice.retryTile != null ? "retry" : "correct";
+  status.dataset.memoryResult = result;
+  status.textContent = `${memoryResultLabel(result === "correct")} · ${practice.feedback}`;
+}
+
+function memoryLibraryMarkup(items) {
+  const now = Date.now();
+  const sorted = [...items].sort((a, b) => (a.due || 0) - (b.due || 0));
+  const dueCount = sorted.filter((entry) => !entry.due || entry.due <= now).length;
+  const next = sorted[0];
+  const preview = next?.verseTexts?.[0] || next?.text || "";
+  const excerpt = preview.length > 130 ? (preview.slice(0, 131).match(/^.*\s/)?.[0].trimEnd() || preview.slice(0, 130)) + "…" : preview;
+  return `<div class="memory-dashboard">
+    <section class="memory-card memory-next" aria-labelledby="memoryNextTitle">
+      <div class="memory-next-header"><span>${dueCount ? "Next review" : next ? "Upcoming review" : "Get started"}</span><span class="memory-count">${dueCount} due for review</span></div>
+      ${next ? `<h2 id="memoryNextTitle">${escapeHtml(next.reference)}</h2>
+        <p class="memory-meta">${escapeHtml(translationDisplayCode(next.version))} · ${dueCount ? "Ready to review" : `Due ${new Date(next.due).toLocaleDateString()}`}</p>
+        <blockquote class="memory-preview-text">${escapeHtml(excerpt)}</blockquote>
+        <button class="primary-btn" ${dueCount ? `data-memory-due="${escapeHtml(next.id)}"` : `data-memory-practice="${escapeHtml(next.id)}"`}>${dueCount ? "Start review" : "Practice now"}</button>
+        ${next.copyright ? `<p class="memory-meta">${escapeHtml(next.copyright)}</p>` : ""}`
+        : '<h2 id="memoryNextTitle">Start with one verse</h2><p>Save a verse or passage below to start practicing.</p><a class="memory-add-link" href="#memoryReference">Add a passage</a>'}
+    </section>
+    <aside class="memory-card memory-library" aria-labelledby="memoryLibraryTitle">
+      <div class="memory-heading"><h2 id="memoryLibraryTitle">My passages <small>${items.length}</small></h2>${next ? '<a class="memory-add-link" href="#memoryReference">Add a passage</a>' : ""}</div>
+      ${next ? sorted.map((entry) => `<details class="memory-saved">
+        <summary><span><strong>${escapeHtml(entry.reference)}</strong><small>${escapeHtml(translationDisplayCode(entry.version))} · ${!entry.due || entry.due <= now ? "Ready to review" : `Due ${new Date(entry.due).toLocaleDateString()}`}</small></span></summary>
+        <div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Put in order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div>
+      </details>`).join("") : "<p>Saved passages will appear here.</p>"}
+    </aside>
+  </div>`;
 }
 
 function memorizationView() {
   const items = memoryPassages();
   const practice = state.memoryPractice;
   const item = items.find((entry) => entry.id === practice?.id);
-  const stages = [["read", "Read"], ["hide", "Hide words"], ["letters", "First letters"], ["recall", "Recall"], ["order", "Word order"]];
+  const stages = [["read", "Read"], ["recall", "Recall"], ["order", "Put in order"], ["hide", "Hide words"], ["letters", "First letters"]];
   const words = item?.text.trim().split(/\s+/) || [];
-  const due = items.filter((entry) => !entry.due || entry.due <= Date.now());
   return `<section class="reader memorize-reader" data-memory-view="${item ? escapeHtml(`${item.id}:${practice.stage}`) : "library"}" aria-labelledby="memoryTitle"><div class="memory-workspace">
-    <header class="memory-heading"><div><span class="memory-eyebrow"><span class="memory-mark" aria-hidden="true">${icons.memorize}</span> A little practice, every day</span><h1 id="memoryTitle">Memorize Scripture</h1><p>Keep God’s Word close. Learn a passage, then return to review it.</p></div><div class="memory-review-summary"><span class="memory-count">${due.length} due for review</span>${due.length ? '<button class="ghost-btn" data-memory-due>Review next due</button>' : ""}</div></header>
+    <header class="memory-heading"><h1 id="memoryTitle">Memorize Scripture</h1></header>
     <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
     ${item ? `<article class="memory-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
       <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
-      <p class="memory-help">${practice.stage === "order" ? "Tap the words in order. Tap your last word to undo it." : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results."}</p>
-      ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-answer" aria-label="Your word order"><button class="text-btn" data-memory-undo ${!practice.chosen.length ? "disabled" : ""}>${escapeHtml(practice.chosen.map((index) => words[index]).join(" ") || "Your words will appear here")}</button></div><div class="memory-word-bank">${practice.order.filter((index) => !practice.chosen.includes(index)).map((index) => `<button class="ghost-btn" data-memory-word="${index}">${escapeHtml(words[index])}</button>`).join("")}</div><button class="primary-btn" data-memory-check ${practice.chosen.length !== words.length ? "disabled" : ""}>Check word order</button>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
-      <p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>
+      <p class="memory-help">${practice.stage === "order" ? `Tap the ${practice.sequence.unit === "phrase" ? "phrases" : "words"} in the order they appear in Scripture.` : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results." + (item.version === "AMP" ? " You can leave out brackets. Type the words inside them when prompted." : "")}</p>
+      ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-order-practice"><p class="memory-order-status" data-memory-feedback role="status"></p><div data-memory-sequence>${memoryOrderMarkup(practice)}</div></div>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
+      ${practice.stage === "order" && !practice.revealed ? "" : `<p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>`}
       <div class="memory-actions"><button class="ghost-btn" data-memory-reveal>${practice.revealed ? "Hide passage again" : "Reveal passage"}</button><button class="ghost-btn" data-memory-review="again">Keep practicing · review tomorrow</button><button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button></div>
       <p class="memory-help">Reviews are self-assessed. Successful recall gradually extends the review interval, up to 30 days.</p>${item.copyright ? `<p class="memory-help">${escapeHtml(item.copyright)}</p>` : ""}
-    </article>` : `<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" value="${escapeHtml(state.memoryDraftReference || "")}" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>
-    <section class="memory-library" aria-label="Saved memory passages"><div class="memory-heading"><h2>My passages <small>${items.length}</small></h2></div>${!items.length ? '<p>Your collection starts with one verse. Try John 3:16 or Psalm 23:1–6.</p>' : [...items].sort((a, b) => (a.due || 0) - (b.due || 0)).map((entry) => `<article class="memory-card memory-saved"><div><h3>${escapeHtml(entry.reference)} · ${escapeHtml(translationDisplayCode(entry.version))}</h3><p>${!entry.due || entry.due <= Date.now() ? "Ready to review" : `Next review ${new Date(entry.due).toLocaleDateString()}`} · ${Number(entry.reviews) || 0} ${(Number(entry.reviews) || 0) === 1 ? "review" : "reviews"}</p></div><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Word order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></article>`).join("")}</section>`}
+    </article>` : `${memoryLibraryMarkup(items)}<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" value="${escapeHtml(state.memoryDraftReference || "")}" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>`}
     <p class="memory-help">Passages and progress are saved on this device, in this browser. Each passage keeps the translation you chose.</p>
   </div></section>`;
 }
@@ -10916,6 +11068,7 @@ function bindMemorization() {
   };
   const updateAnswer = (input, settled = false) => {
     const practice = state.memoryPractice;
+    if (!input.isConnected || !practice || !["hide", "letters"].includes(practice.stage)) return;
     const index = input.dataset.memoryInput;
     const word = practiceWords[index];
     const result = memoryAnswerResult(input.value, word);
@@ -10938,11 +11091,14 @@ function bindMemorization() {
       input.setAttribute("aria-describedby", label.id);
       if (result === false) input.setAttribute("aria-invalid", "true");
     }
-    practice.feedback = "";
-    document.querySelector("[data-memory-feedback]").textContent = "";
+    const complete = result === true && typingInputs.every((field) => practice.results[field.dataset.memoryInput] === true);
+    practice.feedback = complete ? "You filled in every missing word correctly!" : "";
+    document.querySelector("[data-memory-feedback]").textContent = practice.feedback;
+    if (complete) celebrateMemoryPractice(practice);
     sizeAnswer(input);
   };
-  document.querySelectorAll("[data-memory-input]").forEach((input) => {
+  const typingInputs = Array.from(document.querySelectorAll("[data-memory-input]"));
+  typingInputs.forEach((input) => {
     sizeAnswer(input);
     input.addEventListener("input", event => { if (!event.isComposing) updateAnswer(input); });
     input.addEventListener("compositionend", () => updateAnswer(input));
@@ -10951,8 +11107,7 @@ function bindMemorization() {
       if (event.key !== "Enter" || event.isComposing) return;
       event.preventDefault();
       updateAnswer(input, true);
-      const inputs = Array.from(document.querySelectorAll("[data-memory-input]"));
-      const next = inputs[inputs.indexOf(input) + 1];
+      const next = typingInputs[typingInputs.indexOf(input) + 1];
       if (next) next.focus();
     });
   });
@@ -10985,20 +11140,42 @@ function bindMemorization() {
   document.querySelectorAll("[data-memory-stage]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(state.memoryPractice.id, button.dataset.memoryStage)));
   document.querySelector("[data-memory-reveal]")?.addEventListener("click", () => { state.memoryPractice.revealed = !state.memoryPractice.revealed; render(); });
   document.querySelectorAll("[data-memory-review]").forEach((button) => button.addEventListener("click", () => reviewMemoryPassage(state.memoryPractice.id, button.dataset.memoryReview === "recalled")));
-  document.querySelector("[data-memory-due]")?.addEventListener("click", () => { const next = memoryPassages().filter((item) => !item.due || item.due <= Date.now()).sort((a, b) => (a.due || 0) - (b.due || 0))[0]; if (next) startMemoryPractice(next.id); });
+  document.querySelector("[data-memory-due]")?.addEventListener("click", (event) => startMemoryPractice(event.currentTarget.dataset.memoryDue, "recall"));
+  document.querySelectorAll(".memory-add-link").forEach((link) => link.addEventListener("click", (event) => {
+    event.preventDefault();
+    document.getElementById("memoryReference")?.focus();
+  }));
   document.querySelectorAll("[data-memory-delete]").forEach((button) => button.addEventListener("click", () => {
     const items = memoryPassages();
     const item = items.find((entry) => entry.id === button.dataset.memoryDelete);
     if (!item || !window.confirm(`Remove ${item.reference} (${item.version}) and its review progress?`)) return;
     if (saveMemoryPassages(items.filter((entry) => entry.id !== item.id))) render();
   }));
-  document.querySelectorAll("[data-memory-word]").forEach((button) => button.addEventListener("click", () => { state.memoryPractice.chosen.push(Number(button.dataset.memoryWord)); state.memoryPractice.feedback = ""; render(); }));
-  document.querySelector("[data-memory-undo]")?.addEventListener("click", () => { state.memoryPractice.chosen.pop(); state.memoryPractice.feedback = ""; render(); });
-  document.querySelector("[data-memory-check]")?.addEventListener("click", () => {
+  const orderStatus = document.querySelector(".memory-order-status");
+  if (orderStatus && state.memoryPractice.feedback) updateMemoryOrderFeedback(orderStatus, state.memoryPractice);
+  document.querySelector("[data-memory-sequence]")?.addEventListener("click", (event) => {
+    const sequence = event.currentTarget;
     const practice = state.memoryPractice;
-    const words = memoryPassages().find((item) => item.id === practice.id).text.trim().split(/\s+/);
-    practice.feedback = practice.chosen.map((index) => words[index]).join(" ") === words.join(" ") ? "You put every word in order!" : "Some words are out of order. Undo words to try again, or reveal the passage.";
-    render();
+    if (event.target.closest("[data-memory-restart]")) {
+      startMemoryPractice(practice.id, "order");
+      document.querySelector("[data-memory-tile]")?.focus();
+      return;
+    }
+    const button = event.target.closest("[data-memory-tile]");
+    if (!button) return;
+    const focusIndex = Array.from(sequence.querySelectorAll("[data-memory-tile]")).indexOf(button);
+    const placed = placeMemoryOrderTile(practice, Number(button.dataset.memoryTile));
+    if (placed) {
+      sequence.innerHTML = memoryOrderMarkup(practice);
+      const remaining = sequence.querySelectorAll("[data-memory-tile]");
+      const next = remaining[Math.min(focusIndex, remaining.length - 1)] || sequence.querySelector("[data-memory-restart]");
+      if (event.detail === 0) next?.focus();
+      if (practice.chosen.length === practice.sequence.tiles.length) celebrateMemoryPractice(practice);
+    } else {
+      sequence.querySelector('[data-memory-result="retry"]')?.removeAttribute("data-memory-result");
+      button.dataset.memoryResult = "retry";
+    }
+    updateMemoryOrderFeedback(orderStatus, practice);
   });
 }
 
@@ -19481,6 +19658,8 @@ function requestGameMusicRestart() {
 }
 
 function syncGameMusicPlayback() {
+  if (state.mode === "memorize" && gameMusicTrackKey === "outcome:perfect"
+    && state.gameMusicEnabled && !document.hidden && !window.bsbAmbient?.active()) return;
   const game = state.triviaGame;
   const track = gameMusicTrackForGame(game);
   const shouldPlay = Boolean(
@@ -19541,16 +19720,16 @@ function gameOutcomeSoundKey(game) {
 
 let lastPerfectCelebration = "";
 
-function playGameOutcomeSound(key) {
-  if (key === "perfect") {
+function playGameOutcomeSound(key, mode = "trivia") {
+  if (mode === "trivia" && key === "perfect") {
     key = lastPerfectCelebration === "perfect" ? "heaven" : "perfect";
   }
   const sound = gameOutcomeSounds[key];
-  if (!sound || !state.gameMusicEnabled || state.mode !== "trivia" || document.hidden || window.bsbAmbient?.active()) return;
+  if (!sound || !state.gameMusicEnabled || state.mode !== mode || document.hidden || window.bsbAmbient?.active()) return;
   const audio = primeGameMusicAudio();
   if (!audio) return;
   stopGameMusicLoop({ reset: true });
-  if (key === "perfect" || key === "heaven") lastPerfectCelebration = key;
+  if (mode === "trivia" && (key === "perfect" || key === "heaven")) lastPerfectCelebration = key;
   cancelGameMusicFade();
   audio.pause();
   audio.loop = false;

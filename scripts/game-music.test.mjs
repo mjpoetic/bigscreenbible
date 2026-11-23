@@ -78,7 +78,7 @@ assert.match(appSource, /track\.volume \* soundVolumeScalar\(state\.gameVolume\)
 assert.match(appSource, /sound\.volume \* soundVolumeScalar\(state\.gameVolume\)/, "Game result sounds must honor the shared game volume");
 assert.match(appSource, /function gameOutcomeSoundKey\(game\)[\s\S]*game\.lost \|\| game\.timedOut[\s\S]*accuracy >= 1[\s\S]*accuracy < 0\.5/, "Completion sounds must distinguish perfect, ordinary, and low or lost results");
 assert.match(appSource, /game\.outcomeSoundPending = gameOutcomeSoundKey\(game\)/, "Every completed game must queue its matching outcome sound");
-assert.match(appSource, /function playGameOutcomeSound\(key\)[\s\S]*!state\.gameMusicEnabled[\s\S]*audio\.loop = false/, "Outcome sounds must honor the game music switch and play once");
+assert.match(appSource, /function playGameOutcomeSound\(key, mode = "trivia"\)[\s\S]*!state\.gameMusicEnabled[\s\S]*audio\.loop = false/, "Outcome sounds must honor the game music switch and play once");
 assert.match(appSource, /cleanupTriviaCelebration\(\{ stopAudio: false \}\)/, "Visual celebration cleanup must allow the outcome cue to finish");
 
 const pendingCelebrationSource = appSource.slice(
