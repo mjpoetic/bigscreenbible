@@ -5614,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.5": [
+      "The iOS reader now waits for brief connection interruptions to clear before switching to the offline reader.",
+    ],
     "2026.11.23.4": [
       "Memorize syncs saved passages and review progress across your signed-in devices.",
     ],

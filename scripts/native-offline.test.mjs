@@ -19,13 +19,25 @@ function boot({ url = "capacitor://localhost/offline.html", seed = null, initial
     const location = new URL(url);
     const localStorage = Object.assign(new Storage(), initial);
     const sessionStorage = new Storage();
+    const navigator = { onLine: true };
+    const timers = new Map();
+    let nextTimer = 0;
     const window = { location, localStorage, webkit: { messageHandlers: { bsbOffline: {
       postMessage(message) { messages.push(JSON.parse(JSON.stringify(message))); }
     } } }, addEventListener(name, fn) { (listeners[name] ||= []).push(fn); },
+      setTimeout(fn, delay) { timers.set(++nextTimer, { fn, delay }); return nextTimer; },
+      clearTimeout(id) { timers.delete(id); },
       dispatchEvent(event) { for (const fn of listeners[event.type] || []) fn(event); } };
     window.top = window;
     const queueMicrotask = fn => tasks.push(fn);
     function flush() { while (tasks.length) tasks.shift()(); }
+    function setOnline(online) {
+      navigator.onLine = online;
+      window.dispatchEvent(new Event(online ? "online" : "offline"));
+    }
+    function expireTimers() {
+      for (const [id, { fn }] of timers) { timers.delete(id); fn(); }
+    }
   `, context);
   vm.runInContext(bridgeSource.replace("__BSB_OFFLINE_MANIFEST__", '{"versions":[]}')
     .replace("__BSB_OFFLINE_SEED__", () => JSON.stringify(seed)), context);
@@ -42,6 +54,18 @@ const seed = JSON.parse(page.run("JSON.stringify(messages.at(-1).values)"));
 assert.equal(seed.lw_account_data_owner, "alice");
 assert.equal(Object.keys(seed).length, 2);
 assert.equal(page.run("window.bsbOffline.active"), false);
+
+page.run("setOnline(false); setOnline(false)");
+assert.equal(page.run("timers.size"), 1, "Repeated disconnect events share one grace period");
+assert.equal(page.run("timers.values().next().value.delay"), 5000);
+assert.equal(page.run("messages.some(message => message.action === 'offline')"), false);
+page.run("setOnline(true); expireTimers()");
+assert.equal(page.run("messages.some(message => message.action === 'offline')"), false);
+page.run("setOnline(false); window.dispatchEvent(new Event('pagehide')); expireTimers()");
+assert.equal(page.run("messages.some(message => message.action === 'offline')"), false);
+page.run("setOnline(false); expireTimers()");
+assert.equal(page.run("messages.at(-2).action"), "snapshot");
+assert.equal(page.run("messages.at(-1).action"), "offline");
 
 // Live -> offline: overwrite stale local-origin account data, including deletions.
 page = boot({ seed, initial: { lw_account_data_owner: "bob", lw_notes: "Bob notes", lw_stale: "old" } });
