@@ -3729,7 +3729,7 @@ function focusVersePickerPanel() {
   return `
     <form class="focus-mini-verse-picker" id="focusMiniVersePickerForm">
       <p>Choose a book, chapter, and verse.</p>
-      <div class="focus-mini-verse-picker-grid">
+      <div class="focus-mini-verse-picker-grid ${state.focusMode ? "with-version" : ""}">
         <div class="focus-picker-field">
           <span>Book</span>
           ${settingsChoiceMarkup("focusMiniBookSelect", picker.book, picker.availableBooks.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Book", editable: true })}
@@ -3742,6 +3742,15 @@ function focusVersePickerPanel() {
           <span>Verse</span>
           ${settingsChoiceMarkup("focusMiniVerseSelect", picker.verse, picker.verses.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Verse", editable: true })}
         </div>
+        ${state.focusMode ? `
+          <div class="focus-picker-field focus-picker-version">
+            <span>Version</span>
+            ${settingsChoiceMarkup("focusMiniVersionSelect", state.versions[0] || "BSB", bibleVersionSettingsChoices(), {
+              ariaLabel: "Bible version",
+              wide: true,
+            })}
+          </div>
+        ` : ""}
       </div>
       <button id="focusMiniPickerGo" type="submit">Go to ${escapeHtml(`${picker.chapterKey}:${picker.verse}`)}</button>
     </form>
@@ -5598,6 +5607,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.22.15": [
+      "The Focus Mode Bible version control now matches the other verse picker fields.",
+    ],
+    "2026.11.22.14": [
+      "Change Bible versions directly from the Focus Mode verse picker.",
+    ],
     "2026.11.22.13": [
       "Put in order shows a green Correct cue or a red Try again cue immediately after each choice.",
     ],
@@ -26231,6 +26246,12 @@ function bindEvents() {
   document.getElementById("focusMiniVerseSelect")?.addEventListener("change", (event) => {
     state.focusVersePickerVerse = Number(event.currentTarget.value) || 1;
     updateFocusVersePickerChoices();
+  });
+  document.getElementById("focusMiniVersionSelect")?.addEventListener("change", async (event) => {
+    await setPrimaryVersion(event.currentTarget.value, { preserveScroll: true, keepPresentationSettings: true });
+    if (document.activeElement === document.body) {
+      document.getElementById("focusMiniVersionSelectToggle")?.focus({ preventScroll: true });
+    }
   });
   document.getElementById("focusMiniVersePickerForm")?.addEventListener("submit", (event) => {
     event.preventDefault();

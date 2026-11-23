@@ -4359,6 +4359,7 @@ dialog.game-challenge-confirm {
   display: grid;
   gap: 14px;
   padding: 3px;
+  container-type: inline-size;
 }
 
 .focus-mini-verse-picker > p {
@@ -4374,6 +4375,28 @@ dialog.game-challenge-confirm {
   gap: 8px;
 }
 
+.focus-mini-verse-picker-grid.with-version {
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(62px, 0.65fr)) minmax(84px, 0.8fr);
+}
+
+@container (width < 350px) {
+  .focus-mini-verse-picker-grid.with-version {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .focus-mini-verse-picker-grid.with-version > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.focus-picker-version .settings-choice-option-content-version {
+  display: block;
+}
+
+.focus-picker-version .settings-choice-option-label {
+  display: none;
+}
+
 .focus-mini-verse-picker .focus-picker-field {
   display: grid;
   min-width: 0;
@@ -4386,6 +4409,18 @@ dialog.game-challenge-confirm {
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.focus-mini-verse-picker .settings-choice-toggle {
+  box-sizing: border-box;
+  min-height: 50px;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  gap: 4px;
+  padding-inline: 8px;
+}
+
+.focus-mini-verse-picker .settings-choice-chevron {
+  justify-self: center;
 }
 
 .focus-mini-verse-picker select {
@@ -28188,7 +28223,6 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 
 /* Editable passage choices retain the existing picker surface and arrow. */
 .focus-mini-verse-picker .passage-combobox {
-  grid-template-columns: minmax(0, 1fr) 32px;
   cursor: text;
 }
 .passage-combobox input {
@@ -28209,7 +28243,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 .passage-combobox-arrow {
   display: grid;
   place-items: center;
-  width: 32px;
+  width: 100%;
   min-height: 36px;
   border: 0;
   padding: 0;
