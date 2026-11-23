@@ -53,6 +53,8 @@ function device() {
   vm.runInContext(coloringSource,ctx);
   for (const name of ['gameRecordStorageKeys','compareGamePoints','mergeGameRecords',
     'captureGameRecords','applyGameRecords','captureCloudSnapshot','normalizeCloudRow',
+    'captureMemoryPassages','mergeMemoryPassages','applyMemoryPassages','applySyncedMemoryPassages',
+    'memoryPassages','syncMemoryOnOpen',
     'mergeAnnotationDates','normalizedScriptureFontWeights','mergeScriptureFontWeights','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
   ctx.state.bookmarks = []; ctx.state.notes = {}; ctx.state.highlights = {}; ctx.state.history = [];
   return ctx;
@@ -135,6 +137,42 @@ await mac.upsertCloudSnapshot();
 await phone.upsertCloudSnapshot();
 assert.deepEqual(clone(phone.window.BSBColoring.captureProgress()), reset, 'reset syncs without resurrecting an older drawing');
 assert.deepEqual(clone(mac.blankLocalSnapshot().settings.coloringProgress), {}, 'a different account begins without the current account drawing');
+
+// Import legacy saves, refresh a second device, and reconcile edits after going offline.
+const passage = { id: 'BSB:John 3:16', reference: 'John 3:16', version: 'BSB', text: 'For God so loved the world.',
+  verseTexts: ['For God so loved the world.'], reviews: 2, interval: 4, due: 500000000 };
+const secondPassage = { ...passage, id: 'BSB:John 3:17', reference: 'John 3:17' };
+mac.localStorage.setItem('lw_memory_passages', JSON.stringify([passage]));
+phone.localStorage.setItem('lw_memory_passages', JSON.stringify([secondPassage]));
+await Promise.all([mac.upsertCloudSnapshot(), phone.upsertCloudSnapshot()]);
+// The stub serves the same JSON projection used by the Memorize view refresh.
+const savedRow = clone(row);
+phone.localStorage.setItem('lw_memory_passages', JSON.stringify([secondPassage]));
+phone.createSupabaseClient = () => ({ from: () => ({
+  select(columns) { assert.equal(columns, 'memory_passages:settings->memoryPassages'); return this; },
+  eq(column, id) { assert.equal(column, 'user_id'); assert.equal(id, 'a'); return this; },
+  async maybeSingle() { return { data: { memory_passages: savedRow.settings.memoryPassages } }; },
+}) });
+await phone.syncMemoryOnOpen();
+phone.createSupabaseClient = () => client;
+assert.equal(phone.memoryPassages().length, 2, 'Concurrent additions survive the account merge');
+const oldReview = clone(phone.memoryPassages().find(item => item.id === passage.id));
+assert.equal(oldReview.reviews, 2);
+assert.deepEqual(oldReview.verseTexts, passage.verseTexts);
+mac.applyMemoryPassages([{ ...oldReview, reviews: 3, interval: 8, due: 900000000, updatedAt: 600000000 }, secondPassage]);
+await mac.upsertCloudSnapshot();
+await phone.upsertCloudSnapshot();
+assert.equal(phone.memoryPassages().find(item => item.id === passage.id).due, 900000000);
+mac.applyMemoryPassages([{ id: passage.id, savedAt: 0, updatedAt: 700000000, deleted: true }, secondPassage]);
+phone.applyMemoryPassages([{ ...oldReview, updatedAt: 800000000 }, secondPassage]);
+await mac.upsertCloudSnapshot();
+await phone.upsertCloudSnapshot();
+assert.deepEqual(clone(phone.memoryPassages()).map(item => item.id), [secondPassage.id], 'A stale offline review cannot undo a deletion');
+phone.applyMemoryPassages([{ ...passage, savedAt: 900000000, updatedAt: 900000000, reviews: 0 }, secondPassage]);
+await phone.upsertCloudSnapshot();
+await mac.upsertCloudSnapshot();
+assert.equal(mac.memoryPassages().find(item => item.id === passage.id).reviews, 0, 'An explicit re-add replaces the tombstone');
+assert.equal(mac.blankLocalSnapshot().settings.memoryPassages.length, 0, 'A new owner starts with a clean library');
 
 const beforeSwitch = clone(row);
 mac.authenticatedSupabaseSession = async () => { mac.state.authUser = {id: 'b'}; return {user: {id: 'b'}}; };

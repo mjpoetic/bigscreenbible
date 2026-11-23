@@ -2890,6 +2890,7 @@ function switchMode(nextMode, options = {}) {
     }
     if (nextMode === "trivia" && previousMode !== "trivia") requestGameMusicRestart();
     state.mode = nextMode;
+    if (nextMode === "memorize") void syncMemoryOnOpen();
     localStorage.setItem("lw_last_used_mode", nextMode);
     state.sharedPassage = null;
     if (presentationPassage) {
@@ -5613,6 +5614,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.4": [
+      "Memorize syncs saved passages and review progress across your signed-in devices.",
+    ],
     "2026.11.23.3": [
       "The Focus Mode verse picker opens each book, chapter, and verse list at the current choice and highlights it with the theme’s alternate accent.",
     ],
@@ -7809,6 +7813,10 @@ function accountDataOwner() {
 
 function setAccountDataOwner(owner = guestDataOwner) {
   const normalizedOwner = String(owner || guestDataOwner).trim() || guestDataOwner;
+  if (accountDataOwner() !== normalizedOwner) {
+    state.memoryPractice = null;
+    state.memoryNotice = "";
+  }
   localStorage.setItem(accountDataOwnerStorageKey, normalizedOwner);
   return normalizedOwner;
 }
@@ -7857,6 +7865,7 @@ function blankLocalSnapshot(sourceSnapshot = captureCloudSnapshot()) {
       ...(sourceSnapshot?.settings || {}),
       gameRecords: {},
       coloringProgress: {},
+      memoryPassages: [],
       annotationDates: {},
       versionsUpdatedAt: "",
     },
@@ -10763,25 +10772,61 @@ function bindFocusReading() {
   schedule();
 }
 
-// Memorization saves exact translation text locally, independently of reading position.
+// Keep the existing storage key so previously saved passages join account sync.
 function memoryPassages() {
+  return captureMemoryPassages().filter((item) => !item.deleted);
+}
+
+function captureMemoryPassages() {
   try {
-    const items = JSON.parse(localStorage.getItem("lw_memory_passages") || "[]");
-    return Array.isArray(items) ? items.filter((item) => item && typeof item.id === "string" && typeof item.text === "string" && typeof item.reference === "string" && typeof item.version === "string") : [];
+    return mergeMemoryPassages(JSON.parse(localStorage.getItem("lw_memory_passages") || "[]"));
   } catch { return []; }
+}
+
+function mergeMemoryPassages(...sources) {
+  const records = new Map();
+  for (const source of sources) {
+    if (!Array.isArray(source)) continue;
+    for (const item of source) {
+      if (typeof item?.id !== "string") continue;
+      if (item.deleted !== true && ![item.text, item.reference, item.version].every((field) => typeof field === "string")) continue;
+      // Legacy reviews can be dated from their existing schedule.
+      const updatedAt = Number(item.updatedAt) || Math.max(0, (Number(item.due) || 0) - (Number(item.interval) || 0) * 86400000);
+      const savedAt = Number(item.savedAt) || 0;
+      const previous = records.get(item.id);
+      // A review from a stale device cannot undo a removal. Explicit re-adds can.
+      const isNewer = !previous || savedAt > previous.savedAt
+        || (savedAt === previous.savedAt && (item.deleted === true
+          ? !previous.deleted || updatedAt > previous.updatedAt
+          : !previous.deleted && updatedAt > previous.updatedAt));
+      if (isNewer) records.set(item.id, item.deleted === true
+        ? { id: item.id, savedAt, updatedAt, deleted: true }
+        : { ...item, savedAt, updatedAt });
+    }
+  }
+  return [...records.values()];
+}
+
+function applyMemoryPassages(items) {
+  localStorage.setItem("lw_memory_passages", JSON.stringify(items));
+  if (state.memoryPractice && !items.some((item) => item.id === state.memoryPractice.id && !item.deleted)) {
+    state.memoryPractice = null;
+  }
 }
 
 function saveMemoryPassages(items) {
   try {
-    localStorage.setItem("lw_memory_passages", JSON.stringify(items));
-    return true;
+    applyMemoryPassages(mergeMemoryPassages(captureMemoryPassages(), items));
   } catch {
     showToast("Could not save memory passages. Device storage may be full.");
     return false;
   }
+  if (state.authUser || globalThis.window?.bsbOffline?.active) scheduleCloudSync();
+  return true;
 }
 
 async function addMemoryPassage(reference, version = state.versions[0] || "BSB") {
+  const owner = accountDataOwner();
   const parsed = parsePassageReference(reference);
   if (!parsed || !bibleData[parsed.key] || !/:/.test(reference)) {
     showToast("Choose a verse or range, such as John 3:16–17.");
@@ -10808,12 +10853,15 @@ async function addMemoryPassage(reference, version = state.versions[0] || "BSB")
     }
     const label = formatReferenceLabel(parsed.key, verses.map((verse) => verse.n));
     const id = `${version}:${label}`;
+    if (accountDataOwner() !== owner) return;
     const items = memoryPassages();
     if (!items.some((item) => item.id === id)) {
       const payload = remoteVersionData.get(remoteVersionLoadKey(version, parsed.key));
       const verseTexts = verses.map((verse) => verse[version]);
-      items.push({ id, reference: label, chapter: parsed.key, version, text: verseTexts.join(" "), verseTexts, copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 });
-      if (!saveMemoryPassages(items)) return;
+      const previous = captureMemoryPassages().find((item) => item.id === id);
+      const savedAt = previous ? Math.max(Date.now(), previous.updatedAt + 1, previous.savedAt + 1) : 0;
+      if (!saveMemoryPassages([{ id, savedAt, updatedAt: savedAt, reference: label, chapter: parsed.key, version,
+        text: verseTexts.join(" "), verseTexts, copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 }])) return;
     }
     startMemoryPractice(id);
   } catch {
@@ -10987,8 +11035,9 @@ function reviewMemoryPassage(id, recalled) {
   if (!item) return;
   item.reviews = (Number(item.reviews) || 0) + 1;
   item.interval = recalled ? Math.min(30, Math.max(1, (Number(item.interval) || 0) * 2)) : 1;
+  item.updatedAt = Math.max(Date.now(), item.updatedAt + 1);
   item.due = Date.now() + item.interval * 86400000;
-  if (!saveMemoryPassages(items)) return;
+  if (!saveMemoryPassages([item])) return;
   const practice = state.memoryPractice;
   state.memoryPractice = null;
   state.memoryNotice = `${recalled ? "Well done! " : ""}Review saved. ${item.reference} is due in ${item.interval} ${item.interval === 1 ? "day" : "days"}.`;
@@ -11226,7 +11275,7 @@ function bindMemorization() {
     const items = memoryPassages();
     const item = items.find((entry) => entry.id === button.dataset.memoryDelete);
     if (!item || !window.confirm(`Remove ${item.reference} (${item.version}) and its review progress?`)) return;
-    if (saveMemoryPassages(items.filter((entry) => entry.id !== item.id))) render();
+    if (saveMemoryPassages([{ id: item.id, savedAt: item.savedAt, updatedAt: Date.now(), deleted: true }])) render();
   }));
   const orderStatus = document.querySelector(".memory-order-status");
   if (orderStatus && state.memoryPractice.feedback) updateMemoryOrderFeedback(orderStatus, state.memoryPractice);
@@ -16003,6 +16052,7 @@ function captureCloudSnapshot() {
     settings: {
       annotationDates: state.annotationDates,
       gameRecords: captureGameRecords(),
+      memoryPassages: captureMemoryPassages(),
       coloringProgress: globalThis.window?.BSBColoring?.captureProgress(),
       versions: persistentVersions(),
       versionsUpdatedAt: state.versionsUpdatedAt,
@@ -16110,6 +16160,7 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       presentationScriptureFontWeights: mergeScriptureFontWeights(cloud.settings.presentationScriptureFontWeights, localSnapshot.settings.presentationScriptureFontWeights),
       annotationDates: mergeAnnotationDates(cloud.settings.annotationDates, localSnapshot.settings.annotationDates),
       gameRecords: mergeGameRecords(cloud.settings.gameRecords, localSnapshot.settings.gameRecords),
+      memoryPassages: mergeMemoryPassages(cloud.settings.memoryPassages, localSnapshot.settings.memoryPassages),
       coloringProgress: globalThis.window?.BSBColoring?.mergeProgress(cloud.settings.coloringProgress, localSnapshot.settings.coloringProgress),
       wordSearchRecentPassages: mergeWordSearchRecentPassages(
         cloud.settings.wordSearchRecentPassages,
@@ -16394,6 +16445,7 @@ function persistCloudSnapshotLocally(snapshot) {
   const settings = migrateAppearanceSettings(snapshot.settings);
   const migratedSnapshot = { ...snapshot, settings };
   applyGameRecords(settings.gameRecords);
+  applyMemoryPassages(mergeMemoryPassages(settings.memoryPassages));
   globalThis.window?.BSBColoring?.applyProgress(settings.coloringProgress, false, accountDataOwner());
   localStorage.setItem("lw_annotation_dates", JSON.stringify(state.annotationDates));
   persistVersions();
@@ -16537,7 +16589,7 @@ function applyOfflineChanges(merged, base, local) {
     const before = base[field] || {};
     const after = local[field] || {};
     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (["gameRecords", "coloringProgress", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
+      if (["gameRecords", "coloringProgress", "memoryPassages", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
       if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
       if (Object.hasOwn(after, key)) result[field][key] = after[key];
       else delete result[field][key];
@@ -16592,6 +16644,7 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
       scriptureFontWeights: mergeScriptureFontWeights(current?.settings?.scriptureFontWeights, snapshot.settings?.scriptureFontWeights),
       presentationScriptureFontWeights: mergeScriptureFontWeights(current?.settings?.presentationScriptureFontWeights, snapshot.settings?.presentationScriptureFontWeights),
       gameRecords: mergeGameRecords(current?.settings?.gameRecords, snapshot.settings?.gameRecords, captureGameRecords()),
+      memoryPassages: mergeMemoryPassages(current?.settings?.memoryPassages, snapshot.settings?.memoryPassages, captureMemoryPassages()),
       coloringProgress: globalThis.window?.BSBColoring?.mergeProgress(
         current?.settings?.coloringProgress, snapshot.settings?.coloringProgress,
         globalThis.window?.BSBColoring?.captureProgress(),
@@ -16608,11 +16661,40 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
   if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
   saveSnapshotForOwner(userId, savedSnapshot);
   applyGameRecords(mergeGameRecords(savedSnapshot.settings.gameRecords, captureGameRecords()));
+  applySyncedMemoryPassages(savedSnapshot.settings.memoryPassages);
   const coloring=globalThis.window?.BSBColoring;
   coloring?.applyProgress(coloring.mergeProgress(savedSnapshot.settings.coloringProgress,coloring.captureProgress()), true);
   state.syncStatus = "synced";
   state.syncMessage = "Synced across your signed-in devices.";
   state.lastCloudSyncAt = new Date().toISOString();
+}
+
+function applySyncedMemoryPassages(remote) {
+  const local = captureMemoryPassages();
+  const merged = mergeMemoryPassages(local, remote);
+  if (JSON.stringify(local) === JSON.stringify(merged)) return;
+  applyMemoryPassages(merged);
+  if (state.mode === "memorize" && !state.memoryPractice) renderPreservingReaderScroll();
+}
+
+async function syncMemoryOnOpen() {
+  const userId = state.authUser?.id;
+  if (!userId || accountDataOwner() !== userId || window.bsbOffline?.active) return;
+  const client = createSupabaseClient();
+  if (!client) return;
+  try {
+    const { data, error } = await client.from(cloudSyncTable)
+      .select("memory_passages:settings->memoryPassages").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    applySyncedMemoryPassages(data?.memory_passages);
+    const remote = new Map(mergeMemoryPassages(data?.memory_passages).map((item) => [item.id, item]));
+    if (captureMemoryPassages().some((item) => JSON.stringify(item) !== JSON.stringify(remote.get(item.id)))) {
+      scheduleCloudSync();
+    }
+  } catch (error) {
+    console.warn("Memorize sync could not refresh", error);
+  }
 }
 
 async function syncColoringOnOpen() {
@@ -37545,6 +37627,7 @@ window.setInterval(() => {
 }, 60 * 1000);
 window.addEventListener("online",()=>{
   if(document.getElementById("coloringBook"))void syncColoringOnOpen();
+  void syncMemoryOnOpen();
 });
 document.addEventListener("visibilitychange", () => {
   syncNativeWidgetSnapshot();

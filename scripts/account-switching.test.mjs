@@ -59,6 +59,7 @@ const context = {
       storage.delete(key);
     },
   },
+  state: { memoryPractice: null, memoryNotice: "" },
   normalizeCloudRow(value = {}) {
     return JSON.parse(JSON.stringify({
       settings: value.settings && typeof value.settings === "object" ? value.settings : {},

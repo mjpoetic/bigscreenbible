@@ -6,6 +6,7 @@ const storage = new Map();
 const notices = [];
 const chapter = { verses: [{ n: 16, BSB: 'For God so loved the world.', KJV: 'For God so loved the world,' }, { n: 17, BSB: 'For God did not send His Son.' }] };
 const context = {
+  accountDataOwner: () => 'guest',
   localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
   state: { versions: ['BSB'], mode: 'memorize', memoryPractice: null },
   escapeHtml: value => String(value), showToast: text => notices.push(text), render() {}, switchMode() {},
