@@ -28367,6 +28367,13 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 }
 .passage-combobox-empty { padding: 12px; color: var(--muted); }
 
+#focusMiniBookSelectMenu .settings-choice-option {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (pointer: coarse) {
   #app .app-shell .passage-picker-workspace.passage-picker-over-notch {
     z-index: 142;

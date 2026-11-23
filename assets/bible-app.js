@@ -4671,6 +4671,7 @@ function bindPassageComboboxes() {
         button.setAttribute("role", "option");
         button.setAttribute("aria-selected", String(option.value === select.value));
         button.textContent = option.label;
+        if (select.id === "focusMiniBookSelect") button.title = option.label;
         button.addEventListener("pointerdown", (event) => event.preventDefault());
         button.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -5615,6 +5616,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.17": [
+      "Book names in the verse picker stay on one line, with an ellipsis when space runs out.",
+    ],
     "2026.11.23.16": [
       "Memorize keeps the dashboard cards aligned, lets you scroll and search saved passages by reference or Scripture text, and adds a brief poof when you remove a passage.",
     ],
