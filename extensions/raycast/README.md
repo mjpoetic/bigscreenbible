@@ -1,12 +1,12 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.9. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.10. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
 - **Look Up Bible Passage**: enter a full or abbreviated book name with a chapter, verse, or range, such as `Jn 3:16-18`, `Psalm 23`, or `1 Corinthians 13:4-7`. Choose offline BSB, KJV, WEB, ASV, BBE, or YLT, or online ESV, NIV, NASB, AMP, NIrV, NKJV, NLT, or CEV. Enter runs the search. Read the passage in Raycast and press Escape to return to lookup.
 - On the passage screen, press Enter to **Copy Scripture Text**. The Actions menu also offers **Open in Big Screen Bible**, **Open in Big Screen Mode**, and **Copy Passage Link** (Command-Shift-C). Command-Enter opens the passage on the website. The Open in Mode submenu offers Reader, Big Screen, Parallel Study, Memorize, and setup for Word Search, Crossword, or Hidden Word. Memorize prefills the Save & practice form; games prefill custom passage setup and still require Start. Online game translations fall back to BSB with a notice because passage puzzles use bundled texts. Opening the website is optional. HTTPS links use the default browser; native app routing depends on the operating system and installed app.
-- **Passage Display** in the Actions menu lets you choose Standard, Large, or Extra Large text and switch between the full passage and one verse at a time. Use Command–Right Arrow and Command–Left Arrow to move between verses. Set your defaults under **Passage Text Size** and **Passage Layout** in extension preferences.
+- **Passage Display** in the Actions menu lets you choose Automatic, Standard, Large, Extra Large, or Largest text and switch between the full passage and one verse at a time. Automatic uses the largest native size for a single verse and Extra Large for full passages. Use Command–Right Arrow and Command–Left Arrow to move between verses. Set your defaults under **Passage Text Size** and **Passage Layout** in extension preferences.
 - **Open Big Screen Bible** opens the website directly.
 
 Set **Preferred Translation** in extension preferences. Use NASB2020 or NIRV as the preference codes. NLT, NKJV, and CEV use API.Bible’s documented native HTTP usage reporting. A random device identifier is saved in Raycast’s extension storage and a random session identifier is generated for each command execution. No account, email, or hardware identifiers are sent. Reporting must succeed before API.Bible text is displayed; a failed report shows an error so you can retry. No remote Scripture is saved to disk. Full chapters are supported; cross-chapter ranges are not.

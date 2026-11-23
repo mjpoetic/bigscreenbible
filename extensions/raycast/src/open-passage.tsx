@@ -52,24 +52,28 @@ function CrossReferences({ reference, version, items }: { reference: string; ver
 }
 
 const passageSizes = [
+  { value: 'auto', title: 'Automatic Text Size', prefix: '## ' },
   { value: 'standard', title: 'Standard Text', prefix: '' },
   { value: 'large', title: 'Large Text', prefix: '### ' },
   { value: 'extra-large', title: 'Extra Large Text', prefix: '## ' },
+  { value: 'largest', title: 'Largest Text', prefix: '# ' },
 ];
 
 function PassageView({ passage }: { passage: Passage }) {
   const preferences = getPreferenceValues<{ passageSize?: string; passageLayout?: string }>();
-  const [size, setSize] = useState(() => passageSizes.find(option => option.value === preferences.passageSize) ?? passageSizes[1]);
+  const [size, setSize] = useState(() => passageSizes.find(option => option.value === preferences.passageSize) ?? passageSizes[0]);
   const [singleVerse, setSingleVerse] = useState(preferences.passageLayout === 'verse');
   const [verseIndex, setVerseIndex] = useState(0);
   const url = passageUrl(passage.reference, passage.version);
   const chapter = passage.reference.split(':')[0];
   const visibleVerses = singleVerse ? passage.verses.slice(verseIndex, verseIndex + 1) : passage.verses;
   const position = singleVerse && passage.verses.length > 1 ? ` · Verse ${verseIndex + 1} of ${passage.verses.length}` : '';
+  const prefix = size.value === 'auto' && visibleVerses.length === 1 ? '# ' : size.prefix;
+  const referencePrefix = prefix === '# ' ? '### ' : '# ';
   const scripture = visibleVerses.map(({ n, text }) =>
-    `${size.prefix}[${n}](${passageUrl(chapter + ':' + n, passage.version)}) ${escapeMarkdown(text).replace(/\s*\r?\n\s*/g, ' ')}`
+    `${prefix}[${n}](${passageUrl(chapter + ':' + n, passage.version)}) ${escapeMarkdown(text).replace(/\s*\r?\n\s*/g, ' ')}`
   ).join('\n\n');
-  const markdown = `# ${escapeMarkdown(passage.reference)}\n\n${escapeMarkdown(passage.name)} (${passage.version})${position}\n\n${scripture}\n\n---\n\n${escapeMarkdown(passage.copyright || '')}\n\n[Translation source and rights](${passage.source})`;
+  const markdown = `${referencePrefix}${escapeMarkdown(passage.reference)}\n\n${escapeMarkdown(passage.name)} (${passage.version})${position}\n\n${scripture}\n\n---\n\n${escapeMarkdown(passage.copyright || '')}\n\n[Translation source and rights](${passage.source})`;
   return <Detail navigationTitle={passage.reference} markdown={markdown} actions={<ActionPanel>
     <Action.CopyToClipboard title="Copy Scripture Text" content={passage.text} />
     <CrossReferenceAction reference={passage.reference} version={passage.version} />
