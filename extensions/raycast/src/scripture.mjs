@@ -1,14 +1,14 @@
+import { normalizeBookName } from './book-aliases.mjs';
+
 export const translations = ['BSB', 'KJV', 'WEB', 'ASV', 'BBE', 'YLT'];
 const normalize = (value) => value.toLowerCase().replace(/[\s.]/g, '');
 export function lookupPassage(bible, input) {
   const value = input.trim().replace(/[–—]/g, '-');
   const match = value.length <= 200 && value.match(/^([1-3]?\s*[a-zA-Z .]+?)\s*(\d{1,3})(?:\s*:\s*(\d{1,3})(?:\s*-\s*(\d{1,3}))?)?$/);
   if (!match) throw new Error('Enter a reference such as John 3:16-18 or Psalm 23. Use one chapter at a time.');
-  let book = normalize(match[1]);
-  if (book === 'psalms') book = 'psalm';
-  if (book === 'songofsolomon') book = 'songofsongs';
-  const key = Object.keys(bible.chapters).find((key) => normalize(key).replace(/^psalms/, 'psalm').replace(/^songofsolomon/, 'songofsongs') === `${book}${Number(match[2])}`);
-  if (!key) throw new Error('Book or chapter not found. Use the full book name, such as 1 Corinthians 13.');
+  const book = normalizeBookName(match[1]);
+  const key = book && Object.keys(bible.chapters).find((key) => normalize(key).replace(/^psalms/, 'psalm').replace(/^songofsolomon/, 'songofsongs') === `${normalize(book)}${Number(match[2])}`);
+  if (!key) throw new Error('Book or chapter not found. Try a reference such as 1 Cor 13.');
   const first = match[3] ? Number(match[3]) : undefined;
   const last = Number(match[4] || first);
   const verses = bible.chapters[key].filter(({ n }) => first === undefined || (n >= first && n <= last));

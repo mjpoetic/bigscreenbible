@@ -15,6 +15,20 @@ for (const code of translations) {
     assert.equal(new URL(passageUrl(result.reference, result.version)).searchParams.get('version'), code);
     assert.ok(result.text.includes(`John 3:16-18 (${code})`));
   });
+  test(`${code}: resolves website book abbreviations`, () => {
+    for (const [alias, full] of [
+      ['Jn3:16', 'John 3:16'],
+      ['1 Cor. 13:4–7', '1 Corinthians 13:4-7'],
+      ['2Th1', '2 Thessalonians 1'],
+      ['Ps 23', 'Psalm 23'],
+      ['SoS 2:1', 'Song of Songs 2:1'],
+      ['Revel 1:1', 'Revelation 1:1'],
+    ]) {
+      assert.deepEqual(lookupPassage(bible, alias), lookupPassage(bible, full), alias);
+    }
+    assert.throws(() => lookupPassage(bible, 'Jo 1:1'), /Book or chapter not found/);
+    assert.throws(() => lookupPassage(bible, 'Zep 4:1'), /Book or chapter not found/);
+  });
   test(`${code}: chapter, numbered book, and invalid inputs`, () => {
     assert.equal(lookupPassage(bible, 'Psalms 23').verses.length, 6);
     assert.equal(lookupPassage(bible, '1 Corinthians 13:4-7').verses.length, 4);

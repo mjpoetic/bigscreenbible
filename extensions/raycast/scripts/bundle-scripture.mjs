@@ -13,3 +13,23 @@ const crossScope = { window: {} };
 vm.runInNewContext(readFileSync(new URL('../../../assets/crossrefs.js', import.meta.url), 'utf8'), crossScope);
 writeFileSync(new URL('../assets/crossrefs.json.gz', import.meta.url), gzipSync(JSON.stringify(crossScope.window.BIGSCREEN_CROSS_REFS)));
 console.log('Bundled OpenBible CC-BY cross-reference catalog.');
+
+const readerSource = readFileSync(new URL('../../../assets/bible-app.js', import.meta.url), 'utf8');
+function readerSection(start, end) {
+  const from = readerSource.indexOf(start);
+  const to = readerSource.indexOf(end, from);
+  if (from < 0 || to < 0) throw new Error(`Could not find ${start} in the reader source.`);
+  return readerSource.slice(from, to).trim();
+}
+const bookDefinitions = readerSection('const bookDefinitions =', 'const oldTestamentBooks =');
+const aliasBuilder = readerSection('function buildBookAliases()', 'async function initializeBibleData()');
+const normalizeBookName = readerSection('function normalizeBookName(value)', 'function spotlightReaderPassage(');
+writeFileSync(new URL('../src/book-aliases.mjs', import.meta.url),
+  `// Generated from the website reader by npm run bundle:scripture.
+${bookDefinitions}
+const bookAliases = buildBookAliases();
+
+${aliasBuilder}
+
+export ${normalizeBookName}
+`);

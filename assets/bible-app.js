@@ -5614,6 +5614,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.9": [
+      "The Raycast extension accepts the same book abbreviations as the reader, such as Jn 3:16 and 1 Cor 13.",
+    ],
+    "2026.11.23.8": [
+      "Memorize slides between review and My passages, animates practice method changes, and plays a chime when you save a new passage.",
+    ],
     "2026.11.23.7": [
       "Memorize slides into practice, reveals saved passage actions with motion, and adds a sparkle when you save a passage.",
     ],
@@ -10834,7 +10840,7 @@ function saveMemoryPassages(items) {
   return true;
 }
 
-async function addMemoryPassage(reference, version = state.versions[0] || "BSB", submitButton = null) {
+async function addMemoryPassage(reference, version = state.versions[0] || "BSB", { submitButton, audioContext } = {}) {
   const owner = accountDataOwner();
   const parsed = parsePassageReference(reference);
   if (!parsed || !bibleData[parsed.key] || !/:/.test(reference)) {
@@ -10871,15 +10877,34 @@ async function addMemoryPassage(reference, version = state.versions[0] || "BSB",
       const savedAt = previous ? Math.max(Date.now(), previous.updatedAt + 1, previous.savedAt + 1) : 0;
       if (!saveMemoryPassages([{ id, savedAt, updatedAt: savedAt, reference: label, chapter: parsed.key, version,
         text: verseTexts.join(" "), verseTexts, copyright: String(payload?.copyright || ""), reviews: 0, interval: 0, due: 0 }])) return;
-      if (submitButton?.isConnected && !window.matchMedia("(prefers-reduced-motion: reduce)").matches && submitButton.animate) {
-        await sparkleMemorySave(submitButton);
+      if (submitButton?.isConnected) {
+        playMemorySaveChime(audioContext);
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && submitButton.animate) {
+          await sparkleMemorySave(submitButton);
+        }
       }
     }
     if (submitButton && (state.mode !== "memorize" || state.memoryPractice || accountDataOwner() !== owner)) return;
-    startMemoryPractice(id);
+    await startMemoryPractice(id);
   } catch {
     showToast("This passage could not be saved. Please try again.");
   }
+}
+
+function playMemorySaveChime(context) {
+  if (context?.state !== "running" || !state.wordSearchSounds || state.gameVolume <= 0 || document.hidden) return;
+  const start = context.currentTime + .008;
+  const volume = soundVolumeScalar(state.gameVolume);
+  [1046.5, 1318.51, 1760].forEach((frequency, index) => {
+    playModeTone(context, {
+      startAt: start + index * .076,
+      duration: .22,
+      startFrequency: frequency,
+      peakGain: .035 - index * .005,
+      volume,
+      type: "sine",
+    });
+  });
 }
 
 async function sparkleMemorySave(button) {
@@ -10890,10 +10915,11 @@ async function sparkleMemorySave(button) {
   button.append(sparkle);
   try {
     await sparkle.animate([
-      { opacity: 0, transform: "translateY(6px) scale(.65)" },
-      { opacity: 1, transform: "translateY(-4px) scale(1.15)", offset: .4 },
-      { opacity: 0, transform: "translateY(-16px) scale(1)" },
-    ], { duration: 300, easing: "ease-out" }).finished;
+      { opacity: 0, transform: "translateY(8px) scale(.55)" },
+      { opacity: 1, transform: "translateY(-9px) scale(1.25)", offset: .35 },
+      { opacity: 1, transform: "translateY(-15px) scale(1.12)", offset: .65 },
+      { opacity: 0, transform: "translateY(-31px) scale(.9)" },
+    ], { duration: 560, easing: "ease-out" }).finished;
   } catch {
     // The animation can be canceled when the form leaves the screen.
   } finally {
@@ -10934,10 +10960,29 @@ function memoryOrderTiles(item) {
   return { unit: "phrase", tiles };
 }
 
+function transitionMemoryView(direction, update) {
+  if (!direction || typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    update();
+    return;
+  }
+  if (direction !== "memory-method" && modeViewTransitionAvailable()) {
+    return runLayoutViewTransition(direction, () => {
+      if (state.mode === "memorize") update();
+    })?.updateCallbackDone;
+  }
+  update();
+  const surface = document.querySelector(direction === "memory-method" ? ".memory-practice-exercise" : ".memorize-reader");
+  if (!surface) return;
+  surface.dataset.memoryMotion = direction;
+  surface.getAnimations?.().find((animation) => animation.animationName === "memory-content-enter")
+    ?.finished.then(() => delete surface.dataset.memoryMotion, () => delete surface.dataset.memoryMotion);
+}
+
 function startMemoryPractice(id, stage = "read") {
   const item = memoryPassages().find((entry) => entry.id === id);
   if (!item) return;
-  const fromLibrary = state.mode === "memorize" && !state.memoryPractice;
+  const previous = state.memoryPractice;
+  const direction = !previous || previous.id !== id ? "memory-forward" : previous.stage !== stage ? "memory-method" : "";
   const sequence = stage === "order" ? memoryOrderTiles(item) : null;
   const order = sequence?.tiles.map((tile, index) => index) || [];
   for (let i = order.length - 1; i > 0; i--) {
@@ -10948,15 +10993,12 @@ function startMemoryPractice(id, stage = "read") {
     const different = order.findIndex((index) => sequence.tiles[index] !== sequence.tiles[0]);
     if (different > 0) [order[0], order[different]] = [order[different], order[0]];
   }
-  state.memoryNotice = "";
-  state.memoryPractice = { id, stage, revealed: false, sequence, order, chosen: [], answers: {}, results: {}, feedback: "" };
-  if (state.mode !== "memorize") switchMode("memorize", { immediate: true });
-  else render();
-  if (fromLibrary && typeof document !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    const card = document.querySelector(".memory-practice-card");
-    card?.addEventListener("animationend", () => card.classList.remove("memory-practice-enter"), { once: true });
-    card?.classList.add("memory-practice-enter");
-  }
+  return transitionMemoryView(state.mode === "memorize" ? direction : "", () => {
+    state.memoryNotice = "";
+    state.memoryPractice = { id, stage, revealed: false, sequence, order, chosen: [], answers: {}, results: {}, feedback: "" };
+    if (state.mode !== "memorize") switchMode("memorize", { immediate: true });
+    else render();
+  });
 }
 
 function memoryWordHint(word, index, stage) {
@@ -11136,7 +11178,7 @@ function memoryLibraryMarkup(items) {
       <div class="memory-heading"><h2 id="memoryLibraryTitle">My passages <small>${items.length}</small></h2>${next ? '<a class="memory-add-link" href="#memoryReference">Add a passage</a>' : ""}</div>
       ${next ? sorted.map((entry) => `<details class="memory-saved">
         <summary><span class="memory-swipe-practice" aria-hidden="true">Practice</span><span class="memory-swipe-remove" aria-hidden="true">Remove</span><span class="memory-saved-face"><span><strong>${escapeHtml(entry.reference)}</strong><small>${escapeHtml(translationDisplayCode(entry.version))} · ${!entry.due || entry.due <= now ? "Ready to review" : `Due ${new Date(entry.due).toLocaleDateString()}`}</small></span></span></summary>
-        <div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Put in order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div>
+        <div class="memory-saved-expansion"><div class="memory-actions"><button class="primary-btn" data-memory-practice="${escapeHtml(entry.id)}">Practice</button><button class="ghost-btn" data-memory-order="${escapeHtml(entry.id)}">Put in order</button><button class="ghost-btn" data-memory-delete="${escapeHtml(entry.id)}" aria-label="Remove ${escapeHtml(entry.reference)} from memory passages">Remove</button></div></div>
       </details>`).join("") : "<p>Saved passages will appear here.</p>"}
     </aside>
   </div>`;
@@ -11151,8 +11193,9 @@ function memorizationView() {
   return `<section class="reader memorize-reader" data-memory-view="${item ? escapeHtml(`${item.id}:${practice.stage}`) : "library"}" aria-labelledby="memoryTitle"><div class="memory-workspace">
     <header class="memory-heading"><h1 id="memoryTitle">Memorize Scripture</h1></header>
     <p class="memory-notice" role="status">${escapeHtml(state.memoryNotice)}</p>
-    ${item ? `<article class="memory-card memory-practice-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
+    ${item ? `<article class="memory-card"><div class="memory-heading"><h2>${escapeHtml(item.reference)} <small>${escapeHtml(translationDisplayCode(item.version))}</small></h2><button class="ghost-btn" data-memory-library>My passages</button></div>
       <div class="memory-stages" aria-label="Practice method">${stages.map(([value, label]) => `<button class="ghost-btn ${practice.stage === value ? "active" : ""}" data-memory-stage="${value}" aria-pressed="${practice.stage === value}">${label}</button>`).join("")}</div>
+      <div class="memory-practice-exercise">
       <p class="memory-help">${practice.stage === "order" ? `Tap the ${practice.sequence.unit === "phrase" ? "phrases" : "words"} in the order they appear in Scripture.` : practice.stage === "recall" ? "Say the passage aloud or write it from memory. Reveal it when you are ready to check." : practice.stage === "read" ? "Read slowly. Notice the meaning and rhythm of the words." : "Correct words light up as you type. Close spellings are recognized when you leave a field. Use a hint when you need one. Capitalization and punctuation do not affect your results." + (item.version === "AMP" ? " You can leave out brackets. Type the words inside them when prompted." : "")}</p>
       ${["hide", "letters"].includes(practice.stage) && !practice.revealed ? memoryTypingMarkup(words, practice) : practice.stage === "order" && !practice.revealed ? `<div class="memory-order-practice"><p class="memory-order-status" data-memory-feedback role="status"></p><div data-memory-sequence>${memoryOrderMarkup(practice)}</div></div>` : `<div class="memory-scripture" ${practice.stage === "recall" && !practice.revealed ? 'aria-label="Passage hidden for recall"' : ""}>${practice.revealed || practice.stage === "read" ? escapeHtml(item.text) : practice.stage === "recall" ? "Take your time. You can do this." : words.map((word, index) => escapeHtml(memoryWordHint(word, index, practice.stage))).join(" ")}</div>`}
       ${practice.stage === "order" && !practice.revealed ? "" : `<p data-memory-feedback role="status">${escapeHtml(practice.feedback)}</p>`}
@@ -11162,6 +11205,7 @@ function memorizationView() {
         <button class="primary-btn" data-memory-review="recalled">I recalled it · schedule review</button>
       </div>
       <p class="memory-help">Reviews are self-assessed. Successful recall gradually extends the review interval, up to 30 days.</p>${item.copyright ? `<p class="memory-help">${escapeHtml(item.copyright)}</p>` : ""}
+      </div>
     </article>` : `${memoryLibraryMarkup(items)}<form id="memoryAddForm" class="memory-card memory-add"><h2>Add a passage</h2><p>Select verses in Reader and choose Memorize, or enter a reference here.</p><label>Passage<input id="memoryReference" value="${escapeHtml(state.memoryDraftReference || "")}" required placeholder="John 3:16–17" autocomplete="off"></label><div class="memory-translation-field"><span>Translation</span>${settingsChoiceMarkup("memoryVersion", state.versions[0], translations.map((translation) => ({ value: translation.code, code: translationDisplayCode(translation.code), label: translation.name })), { ariaLabel: "Translation", wide: true })}</div><button class="primary-btn" type="submit">Save & practice</button></form>`}
     <p class="memory-help">Passages and progress are saved on this device, in this browser. Each passage keeps the translation you chose.</p>
   </div></section>`;
@@ -11296,10 +11340,14 @@ function bindMemorization() {
     event.preventDefault();
     const button = event.currentTarget.querySelector("[type=submit]");
     button.disabled = true;
-    await addMemoryPassage(document.querySelector("#memoryReference").value.trim(), document.querySelector("#memoryVersion").value, button);
+    const audioContext = state.wordSearchSounds && state.gameVolume > 0 ? primeGameAudioPlayback() : null;
+    await addMemoryPassage(document.querySelector("#memoryReference").value.trim(), document.querySelector("#memoryVersion").value, { submitButton: button, audioContext });
     if (button.isConnected) button.disabled = false;
   });
-  document.querySelector("[data-memory-library]")?.addEventListener("click", () => { state.memoryPractice = null; render(); });
+  document.querySelector("[data-memory-library]")?.addEventListener("click", () => transitionMemoryView("memory-back", () => {
+    state.memoryPractice = null;
+    render();
+  }));
   document.querySelectorAll("[data-memory-practice], [data-memory-order]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(button.dataset.memoryPractice || button.dataset.memoryOrder, button.hasAttribute("data-memory-order") ? "order" : "read")));
   document.querySelectorAll("[data-memory-stage]").forEach((button) => button.addEventListener("click", () => startMemoryPractice(state.memoryPractice.id, button.dataset.memoryStage)));
   document.querySelector("[data-memory-reveal]")?.addEventListener("click", () => { state.memoryPractice.revealed = !state.memoryPractice.revealed; render(); });

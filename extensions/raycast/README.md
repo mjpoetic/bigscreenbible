@@ -1,6 +1,6 @@
 # Big Screen Bible for Raycast
 
-Version 0.3.6. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
+Version 0.3.7. Look up and read Scripture inside Raycast without an account or API key. Six bundled translations work offline; online translations use Big Screen Bible’s existing Scripture services.
 
 ## Commands
 
