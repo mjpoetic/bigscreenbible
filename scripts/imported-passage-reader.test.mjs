@@ -74,12 +74,10 @@ console.log('Imported Reader: multiple chapters, full text, version changes/fall
 // Scripture rendering must use each imported chapter, rather than the current one.
 const strongStart = app.indexOf('function renderStrongText(');
 const strongEnd = app.indexOf('\nfunction versionVerseLabel(', strongStart);
-let textChapter, searchedQuery;
+let textChapter;
 Object.assign(ctx, {
   getVerseText(verse, version, key) { textChapter = key; return verse[version]; },
   wordsOfJesusRanges: () => [], lineBreaksForVerse: () => [],
-  inlineSearchRangesForText(text, query) { searchedQuery = query; return []; },
-  activeInlineSearchQuery: () => 'first chapter only',
   renderScriptureText: text => text,
   renderTextWithStrongNumbers: (...args) => args.at(-1),
   getStrongEntries: () => [],
@@ -88,11 +86,10 @@ vm.runInContext(app.slice(strongStart, strongEnd), ctx);
 ctx.state.strongNumbers = false;
 assert.equal(ctx.renderStrongText(chapters['John 3'].verses[0], 'BSB', 'John 3'), 'God so loved the world.');
 assert.equal(textChapter, 'John 3');
-assert.equal(searchedQuery, '');
 ctx.state.strongNumbers = true;
 const strongVerse = { ...chapters['John 3'].verses[0], strong: [] };
 assert.equal(ctx.renderStrongText(strongVerse, 'BSB', 'John 3'), 'John 3:16');
-console.log('Imported Scripture rendering preserves chapter-specific text, search ranges, and Strong\'s references.');
+console.log('Imported Scripture rendering preserves chapter-specific text and Strong\'s references.');
 
 reader.open({ title: 'Keep my list', refs: ['Luke 1:37'] });
 const switchStart = app.indexOf('function switchMode(');

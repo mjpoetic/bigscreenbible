@@ -28107,7 +28107,7 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 }
 @media (max-width: 840px) and (orientation: portrait) {
   .app-shell.focus-shell:has(
-    .mobile-focus-tools-control.expanded, .mobile-focus-passage-popover, #mobileFocusSearchResults
+    .mobile-focus-tools-control.expanded, .mobile-focus-passage-popover, #mobileFocusSearchResults:not(.chapter-find-open)
   ) {
     --focus-backdrop-open: 1;
     --focus-backdrop-events: auto;
@@ -29678,4 +29678,52 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
 
 @media (prefers-reduced-motion:reduce) {
   .coloring-studio .coloring-view-controls :is(button,summary,.coloring-portrait-view) { transition:none; }
+}
+
+.chapter-find-controls:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.chapter-find-controls output {
+  padding-inline: 4px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chapter-find-controls button {
+  min-inline-size: 32px;
+  min-block-size: 32px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.chapter-find-controls button:disabled {
+  opacity: 0.4;
+}
+
+.topbar .chapter-find-controls:not([hidden]) {
+  position: absolute;
+  z-index: 2;
+  inset: calc(100% + 4px) 0 auto auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.mobile-focus-passage-popover .chapter-find-controls {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+.focus-portrait-search .chapter-find-controls:not([hidden]) {
+  display: flex;
+  justify-content: end;
 }

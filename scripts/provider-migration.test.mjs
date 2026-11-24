@@ -130,9 +130,9 @@ Object.assign(cacheContext, {
   remoteVersionRerenders: new Set(), loadingVersions: new Set(),
   translationProvider: () => ({}), remoteFunctionUrl: (_version, chapter) => chapter,
   trackApiBibleView: () => {}, renderPreservingReaderScroll: () => {}, console,
-  fetch: url => new Promise(resolve => pendingFetches.push({url, resolve})),
+  fetch: (url, options) => new Promise(resolve => pendingFetches.push({url, options, resolve})),
 });
-vm.runInContext(extractProviderFunction('ensureRemoteBibleVersion'), cacheContext);
+vm.runInContext('async ' + extractProviderFunction('ensureRemoteBibleVersion'), cacheContext);
 cacheEval('remoteVersionData.clear()');
 const first = cacheEval("ensureRemoteBibleVersion('NLT', 'John 1')");
 const duplicate = cacheEval("ensureRemoteBibleVersion('NLT', 'John 1')");
@@ -155,6 +155,30 @@ await reload;
 assert.equal(cacheEval("bibleData['John 3'].verses[0].NLT"), 'Fresh text');
 console.log('Concurrent remote loads, active-chapter retention, and expired refetch passed');
 
+const reportedViews = [];
+cacheContext.translationProvider = () => ({ tracksFums: true });
+cacheContext.trackApiBibleView = token => reportedViews.push(token);
+const preload = cacheEval("ensureRemoteBibleVersion('NLT', 'John 4', {rerender:false, preload:true})");
+assert.equal(pendingFetches.at(-1).options.priority, 'low');
+pendingFetches.at(-1).resolve({
+  ok: true, json: async () => ({verses:[{n:1,text:'Preloaded text'}], fumsToken:'preload-token'}),
+});
+await preload;
+assert.deepEqual(reportedViews, [], 'Preloading does not record a Scripture view');
+const requestCount = pendingFetches.length;
+await cacheEval("ensureRemoteBibleVersion('NLT', 'John 4')");
+assert.equal(pendingFetches.length, requestCount, 'The next chapter reuses the preload');
+assert.deepEqual(reportedViews, ['preload-token']);
+
+const failedPreload = cacheEval("ensureRemoteBibleVersion('NLT', 'John 2', {rerender:false, preload:true})");
+const foreground = cacheEval("ensureRemoteBibleVersion('NLT', 'John 2')");
+pendingFetches.at(-1).resolve({ok:false,json: async () => ({error:'Transient preload error'})});
+await failedPreload;
+assert.equal(pendingFetches.at(-1).options.priority, 'auto', 'Foreground reading retries a failed preload');
+pendingFetches.at(-1).resolve({ok:true,json: async () => ({verses:[{n:1,text:'Retried text'}]})});
+assert.equal((await foreground).verses[0].text, 'Retried text');
+console.log('Low-priority preloading, deferred view reporting, and foreground retry passed');
+
 // Exercise the actual browser request path: all four YouVersion translations
 // must be searched even when the reader currently displays a bundled Bible.
 const searchContext = vm.createContext({
@@ -174,7 +198,7 @@ const searchContext = vm.createContext({
 });
 vm.runInContext(source.slice(start, end), searchContext);
 vm.runInContext("translationCodes.splice(0, translationCodes.length, 'BSB', 'NIV', 'NIRV', 'NASB2020', 'AMP')", searchContext);
-vm.runInContext(['searchRemoteVersions', 'searchRemoteVersion'].map(name => 'async ' + extractProviderFunction(name)).join('\n'), searchContext);
+vm.runInContext(['searchRemoteVersions', 'searchRemoteVersion', 'searchScriptureTranslation'].map(name => 'async ' + extractProviderFunction(name)).join('\n'), searchContext);
 const searchResults = await vm.runInContext("searchRemoteVersions('alive and active', {exactRequested: false})", searchContext);
 assert.deepEqual(Array.from(searchResults, result => result.version).sort(), ['AMP', 'NASB2020', 'NIRV', 'NIV']);
 assert.ok(searchResults.every(result => result.ref === 'Hebrews 4:12'));

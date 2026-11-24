@@ -691,6 +691,7 @@ let handledSocialNotificationDeepLink = "";
 const loadedVersionData = new Map();
 const loadingVersions = new Set();
 const remoteVersionData = new Map();
+let onlineChapterPreloadKey = "";
 const remoteVersionCacheMaxAgeMs = 24 * 60 * 60 * 1000;
 const remoteVersionErrors = new Map();
 const remoteVersionRequests = new Map();
@@ -947,12 +948,8 @@ const state = {
   scriptureSearch: null,
   inlineSearchQuery: "",
   inlineSearchChapter: "",
-  inlineSearchPhraseOnly: false,
   inlineSearchHitIndex: -1,
   inlineSearchMatchCount: 0,
-  inlineSearchWrapPending: false,
-  pendingInlineSearchFocus: false,
-  pendingInlineSearchInputFocus: "",
   pendingPanelFocus: null,
   pendingVerseFocus: false,
   pendingLibraryScrollRestore: false,
@@ -2052,6 +2049,9 @@ function restoreAccountFormDraft(drafts) {
 
 function render({ preserveAutoScroll = false } = {}) {
   const focusPickerMotion = captureFocusPickerMotion();
+  const activeElement = document.activeElement;
+  const chapterFindInput = activeInlineSearchQuery() && activeElement?.matches("#referenceInput, #mobileFocusPassageInput")
+    ? { id: activeElement.id, start: activeElement.selectionStart, end: activeElement.selectionEnd } : null;
   scheduleNativeWidgetSync();
   const previousMemorySurface = document.querySelector(".memorize-reader");
   const memoryViewKey = state.memoryPractice ? `${state.memoryPractice.id}:${state.memoryPractice.stage}` : "library";
@@ -2176,6 +2176,25 @@ function render({ preserveAutoScroll = false } = {}) {
   syncAppUpdateNotification();
   syncOfflineStatus();
   bindEvents();
+  if (activeInlineSearchQuery()) {
+    const hadMatches = state.inlineSearchMatchCount > 0;
+    paintInlineChapterSearch();
+    if (!hadMatches && state.inlineSearchMatchCount) {
+      const query = state.inlineSearchQuery;
+      const chapter = state.reference;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (state.reference === chapter && activeInlineSearchQuery() === query && state.inlineSearchHitIndex === 0) {
+          scrollInlineSearchHitIntoView(0);
+        }
+      }));
+    }
+    if (chapterFindInput) {
+      const input = document.getElementById(chapterFindInput.id);
+      input?.focus({ preventScroll: true });
+      if (input && chapterFindInput.start !== null) input.setSelectionRange(chapterFindInput.start, chapterFindInput.end);
+    }
+  }
+  scheduleOnlineChapterPreload();
   if (previousSocialPopup && !document.getElementById("gameChallengePopupDialog")) {
     animateSocialPopupExit(previousSocialPopup, shell);
   }
@@ -2248,16 +2267,6 @@ function render({ preserveAutoScroll = false } = {}) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (!["reader", "parallel"].includes(state.mode) || state.reference !== focusReference || state.verse !== focusVerse) return;
       scrollSelectedVerseIntoView({ block: focusMode === "nearest" ? "nearest" : "center", halo });
-    }));
-  }
-  if (state.pendingInlineSearchFocus || state.pendingInlineSearchInputFocus) {
-    const shouldScrollToFirstHit = state.pendingInlineSearchFocus;
-    const inputId = state.pendingInlineSearchInputFocus;
-    state.pendingInlineSearchFocus = false;
-    state.pendingInlineSearchInputFocus = "";
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (shouldScrollToFirstHit) scrollFirstInlineSearchHitIntoView();
-      restoreInlineSearchInputFocus(inputId);
     }));
   }
   if (state.pendingPanelFocus) {
@@ -3536,7 +3545,7 @@ function focusSearchPanelMarkup() {
     : source === "notes" ? "Search saved notes" : "Passage, phrase, or question";
   const query = state.searchQuery;
   return `
-    <section class="mobile-focus-search-results focus-portrait-search" id="mobileFocusSearchResults" role="dialog" aria-labelledby="focusSearchTitle">
+    <section class="mobile-focus-search-results focus-portrait-search ${canFindInChapter() ? "chapter-find-open" : ""}" id="mobileFocusSearchResults" role="dialog" aria-labelledby="focusSearchTitle">
       <form class="quick-action-search-form" id="mobileFocusPassagePopover" role="search">
         <label id="focusSearchTitle" for="mobileFocusPassageInput">Search the Bible</label>
         <button class="quick-action-search-close glass-close-control" id="mobileFocusSearchResultsClose" type="button" aria-label="Close search">${icons.clear}</button>
@@ -3545,6 +3554,7 @@ function focusSearchPanelMarkup() {
           <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
         </div>
         ${searchScopeControls({ showResults: state.focusSearchResultsOpen, showClear: state.focusSearchResultsOpen && Boolean(state.searchResultsQuery) })}
+        ${chapterFindControls()}
       </form>
       ${state.focusSearchResultsOpen && state.searchResultsQuery ? `
         <div class="mobile-focus-search-results-body" aria-live="polite" aria-busy="${state.searchPending}">
@@ -3596,6 +3606,7 @@ function mobileFocusOverlayControls() {
               enterkeyhint="go"
             />
             ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
+            ${chapterFindControls()}
             <button class="mobile-focus-search-scope" id="mobileFocusSearchScope" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose Focus search source, current ${escapeHtml(activeSearchLabel)}" aria-haspopup="listbox" aria-expanded="false" title="Search in: ${escapeHtml(activeSearchLabel)}">
               <span class="mobile-focus-search-scope-code" data-search-scope-short aria-hidden="true">${escapeHtml(activeSearchSourceShortLabel())}</span>
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
@@ -5656,6 +5667,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.21": [
+      "Find words and phrases as you type in Current chapter, with highlighted hits and previous and next controls.",
+      "Current chapter search uses loaded Scripture in online translations, including NLT. The next chapter can load in the background once the current chapter is ready.",
+    ],
     "2026.11.23.20": [
       "Verse picker scroll ticks are easier to feel on iOS, and a firmer tap marks either end of the list.",
     ],
@@ -7702,6 +7717,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         </button>
         <input id="referenceInput" value="${escapeHtml(state.searchQuery || ((state.libraryOpen && state.activeRail === "Search" || state.focusSearchResultsOpen) ? state.searchResultsQuery : state.searchReturnAvailable ? referenceLabel() : ""))}" aria-label="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search your saved notes" : "Search or go to a passage"}" placeholder="${strongSearchSource ? "Search Strong’s words or numbers" : notesSearchSource ? "Search saved notes" : window.matchMedia("(max-width: 699px) and (orientation: portrait)").matches ? "Search the Bible" : "Search reference, words, or topic"}" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
         ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
+        ${chapterFindControls()}
         ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
         ${desktopFocusTools()}
       </div>
@@ -12236,22 +12252,23 @@ function closeMobileVerseNavMenu(options = {}) {
   if (options.restoreFocus && trigger.isConnected) trigger.focus();
 }
 
+function chapterFindTextMarkup(verse, version) {
+  const unavailable = isRemoteTranslation(version) && (!verse[version] || window.bsbOffline?.active);
+  const attribute = unavailable ? "" : " data-chapter-find-text";
+  return `<span${attribute}>${renderStrongText(verse, version, state.reference)}</span>`;
+}
+
 function renderStrongText(verse, version, chapterKey = state.reference) {
   const text = getVerseText(verse, version, chapterKey);
   const redLetterRanges = wordsOfJesusRanges(verse, version);
   const lineBreaks = lineBreaksForVerse(verse, version);
-  const searchRanges = inlineSearchRangesForText(
-    text,
-    chapterKey === state.reference ? activeInlineSearchQuery() : "",
-    state.inlineSearchPhraseOnly,
-  );
-  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
+  if (!state.strongNumbers) return renderScriptureText(text, redLetterRanges, 0, version, [], lineBreaks);
   return renderTextWithStrongNumbers(
     text,
     getStrongEntries(verse, version),
     redLetterRanges,
     version,
-    searchRanges,
+    [],
     lineBreaks,
     // Capture the rendered verse, not state.verse (which need not be clicked).
     !verse.verseRanges?.[version] && (Array.isArray(verse.strong?.[version]) || Array.isArray(verse.strong))
@@ -12286,7 +12303,7 @@ function parallelVerseMarkup(verse, version) {
   const range = verse.verseRanges?.[version];
   if (range && verse.n !== range.start) return `<small class="combined-verse-notice">Included in verses ${versionVerseLabel(verse, version)}.</small>`;
   const label = range ? `<small class="combined-verse-notice">${versionVerseLabel(verse, version)} </small>` : "";
-  return label + renderStrongText(verse, version) + publisherFootnoteButtonMarkup(verse, version);
+  return label + chapterFindTextMarkup(verse, version) + publisherFootnoteButtonMarkup(verse, version);
 }
 
 function publisherFootnotesForVerse(verse, version) {
@@ -12369,7 +12386,12 @@ function getVerseText(verse, version, chapterKey = state.reference) {
   if (window.bsbOffline?.active && isRemoteTranslation(version)) {
     return `${translationDisplayCode(version)} requires internet. Choose an included offline Bible in Settings.`;
   }
-  if (verse[version]) return verse[version];
+  if (verse[version]) {
+    if (translationProvider(version).tracksFums) {
+      trackApiBibleView(remoteVersionData.get(remoteVersionLoadKey(version, chapterKey))?.fumsToken);
+    }
+    return verse[version];
+  }
   if (isRemoteTranslation(version)) {
     ensureRemoteBibleVersion(version, chapterKey);
     const loadKey = remoteVersionLoadKey(version, chapterKey);
@@ -12387,41 +12409,6 @@ function activeInlineSearchQuery() {
   return normalizedSearchChapter(state.inlineSearchChapter) === normalizedSearchChapter(state.reference)
     ? state.inlineSearchQuery
     : "";
-}
-
-function inlineSearchRangesForText(text, query, phraseOnly = false) {
-  const value = String(text || "");
-  const criteria = parseSearchQuery(query);
-  if (!value || (!criteria.tokens.length && !criteria.exactPhrase)) return [];
-
-  const phraseWords = String(criteria.exactPhrase || criteria.phrase || "").split(" ").filter(Boolean);
-  if (phraseWords.length) {
-    const phrasePattern = phraseWords.map(escapeRegExp).join("[^A-Za-z0-9]+");
-    const phraseRegex = new RegExp(`\\b${phrasePattern}\\b`, "gi");
-    const phraseRanges = [];
-    let phraseMatch;
-    while ((phraseMatch = phraseRegex.exec(value))) {
-      phraseRanges.push({ start: phraseMatch.index, end: phraseMatch.index + phraseMatch[0].length });
-      if (!phraseMatch[0].length) phraseRegex.lastIndex += 1;
-    }
-    if (phraseRanges.length) return phraseRanges;
-  }
-
-  if (phraseOnly) return [];
-
-  const terms = uniqueList([...(criteria.highlightTerms || []), ...criteria.tokens])
-    .flatMap((term) => normalizeSearchText(term).split(" "))
-    .filter(Boolean);
-  if (!terms.length) return [];
-  const ranges = [];
-  const wordPattern = /[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)*/g;
-  let wordMatch;
-  while ((wordMatch = wordPattern.exec(value))) {
-    const normalizedWord = normalizeSearchText(wordMatch[0]);
-    if (!terms.some((term) => wordsCloseEnough(term, normalizedWord))) continue;
-    ranges.push({ start: wordMatch.index, end: wordMatch.index + wordMatch[0].length });
-  }
-  return ranges;
 }
 
 function getStrongEntries(verse, version) {
@@ -17037,7 +17024,7 @@ function readerView() {
           <button class="verse-num cross-ref-trigger" data-cross-ref-verse="${verse.n}" aria-label="Show cross references for ${state.reference}:${verse.n}">${versionVerseLabel(verse, version)}</button>
           ${verseNoteIndicatorsMarkup(verse.n)}
         </span>
-        <span class="verse-text">${renderStrongText(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</span>
+        <span class="verse-text">${chapterFindTextMarkup(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</span>
         ${verseCopyButton(verse.n)}
       </p>
     `).join("")}
@@ -17197,7 +17184,7 @@ function paragraphReaderView(verses, version) {
               <button class="verse-num paragraph-verse-num" data-verse-actions="${verse.n}" data-cross-ref-hold="${verse.n}" aria-label="Actions for ${state.reference}:${verse.n}. Press and hold for cross references" aria-expanded="false">${versionVerseLabel(verse, version)}</button>
               ${verseNoteIndicatorsMarkup(verse.n)}
             </span>
-            <span class="verse-text">${renderStrongText(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</span>
+            <span class="verse-text">${chapterFindTextMarkup(verse, version)}${publisherFootnoteButtonMarkup(verse, version)}</span>
           </span>
         `).join(" ")}
       </p>
@@ -27895,7 +27882,7 @@ function bindEvents() {
     button.addEventListener("click", () => activateWorkspace(button.dataset.rail));
   });
   document.getElementById("referenceInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && !event.isComposing) {
       event.preventDefault();
       runReferenceOrPhraseSearch(event.currentTarget.value, { sourceInputId: "referenceInput" });
     }
@@ -27917,11 +27904,25 @@ function bindEvents() {
     });
   });
   document.querySelectorAll("#referenceInput, #mobileFocusPassageInput, #presentationSearchInput").forEach((input) => {
-    input.addEventListener("input", () => {
+    input.addEventListener("input", (event) => {
       state.searchQuery = input.value;
+      if (!event.isComposing && input.id !== "presentationSearchInput") updateChapterFindDraft(input.value);
       const clear = input.parentElement.querySelector(".unified-search-clear");
       if (clear) clear.hidden = !input.value;
     });
+    input.addEventListener("compositionend", () => {
+      if (input.id !== "presentationSearchInput") updateChapterFindDraft(input.value);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.isComposing || !event.shiftKey || event.key !== "Enter" || !activeInlineSearchQuery()) return;
+      if (input.id === "presentationSearchInput") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      moveChapterFind(-1);
+    }, true);
+  });
+  document.querySelectorAll("[data-chapter-find-step]").forEach((button) => {
+    button.addEventListener("click", () => moveChapterFind(Number(button.dataset.chapterFindStep)));
   });
   document.querySelectorAll("[data-clear-search-results]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -29586,13 +29587,15 @@ function setSearchScope(value) {
   localStorage.setItem("lw_search_scope", scope);
   if (previousSource !== "scripture") resetSearchForSource("scripture", sourceDraft);
   updateSearchSourceControls();
+  if (scope === "chapter") updateChapterFindDraft(currentSearchInputDraft());
+  else updateInlineSearchProgress();
   if (previousSource !== "scripture") {
     renderPreservingReaderScroll();
     return;
   }
   if (scope !== "chapter" && hadInlineChapterSearch) {
     clearInlineChapterSearchState();
-    renderPreservingReaderScroll();
+    paintInlineChapterSearch();
   }
 }
 
@@ -31965,17 +31968,16 @@ function gotoReference(value, options = {}) {
 function submitFocusReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
-  state.focusReferenceOpen = false;
   const source = normalizedSearchSource(options.source ?? state.searchSource);
   if (source !== "strongs" && !(source === "notes" && focusSearchPortrait.matches) && parseReference(cleaned)) {
+    state.focusReferenceOpen = false;
     gotoReference(cleaned, {
       focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive),
       spotlight: true,
     });
     return;
   }
-  state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
+  if (!canFindInChapter(source)) state.focusReferenceOpen = false;
   runPhraseSearch(cleaned, {
     focusResults: true,
     sourceInputId: options.sourceInputId || "mobileFocusPassageInput",
@@ -31991,8 +31993,6 @@ async function runReferenceOrPhraseSearch(value, options = {}) {
     });
     return;
   }
-  state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
   await runPhraseSearch(cleaned, {
     focusResults: state.focusMode && state.mode !== "big",
     presentationResults: state.mode === "big",
@@ -32015,6 +32015,8 @@ async function runPhraseSearch(value, options = {}) {
   if (source === "notes") {
     searchRequestId += 1;
     clearInlineChapterSearchState();
+    state.isVerseOfDayActive = false;
+    state.sharedPassage = null;
     const focusResults = Boolean(options.focusResults && state.focusMode && state.mode !== "big");
     state.searchQuery = query;
     state.searchResultsQuery = query;
@@ -32039,12 +32041,14 @@ async function runPhraseSearch(value, options = {}) {
     }
     return;
   }
-  if (source === "scripture" && scope === "chapter" && !presentationResults && !(options.focusResults && state.focusMode && focusSearchPortrait.matches)) {
+  if (source === "scripture" && scope === "chapter" && !presentationResults && canFindInChapter(source, scope)) {
     if (advanceInlineChapterSearch(query, searchChapter)) return;
-    runInlineChapterSearch(query, searchChapter, { sourceInputId: options.sourceInputId });
+    runInlineChapterSearch(query, searchChapter);
     return;
   }
   clearInlineChapterSearchState();
+  state.isVerseOfDayActive = false;
+  state.sharedPassage = null;
   const focusResults = Boolean(options.focusResults && state.focusMode && state.mode !== "big");
   const requestId = ++searchRequestId;
   state.searchQuery = query;
@@ -32126,153 +32130,142 @@ async function runPhraseSearch(value, options = {}) {
 function clearInlineChapterSearchState() {
   state.inlineSearchQuery = "";
   state.inlineSearchChapter = "";
-  state.inlineSearchPhraseOnly = false;
   state.inlineSearchHitIndex = -1;
   state.inlineSearchMatchCount = 0;
-  state.inlineSearchWrapPending = false;
-  state.pendingInlineSearchFocus = false;
-  state.pendingInlineSearchInputFocus = "";
 }
 
-function inlineSearchVersions() {
-  return state.mode === "parallel" ? activeVersions() : [state.versions[0] || "BSB"];
+function canFindInChapter(source = state.searchSource, scope = state.searchScope) {
+  return normalizedSearchSource(source) === "scripture" && normalizedSearchScope(scope) === "chapter"
+    && ["reader", "parallel"].includes(state.mode) && !state.sharedPassage && !state.isVerseOfDayActive
+    && !window.BSBImportedReader?.isActive();
 }
 
-function resolveInlineSearchInputId(preferredInputId = "") {
-  const inputIds = ["referenceInput", "studySearchInput", "mobileFocusPassageInput"];
-  if (inputIds.includes(preferredInputId)) return preferredInputId;
-  const activeInputId = document.activeElement?.id || "";
-  if (inputIds.includes(activeInputId)) return activeInputId;
-  if (state.focusMode && state.mode !== "big") return "mobileFocusPassageInput";
-  if (state.libraryOpen && state.activeRail === "Search") return "referenceInput";
-  return "referenceInput";
+function chapterFindControls() {
+  return `<span class="chapter-find-controls" data-chapter-find-controls hidden>
+    <output data-inline-search-progress aria-live="polite"></output>
+    <button type="button" data-chapter-find-step="-1" aria-label="Previous match">↑</button>
+    <button type="button" data-chapter-find-step="1" aria-label="Next match">↓</button>
+  </span>`;
 }
 
-function restoreInlineSearchInputFocus(inputId) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  input.focus({ preventScroll: true });
-  const caret = input.value.length;
-  input.setSelectionRange?.(caret, caret);
-}
-
-function countInlineSearchMatches(query, phraseOnly = false) {
-  const versions = inlineSearchVersions();
-  return currentChapter().verses.reduce((total, verse) => total + versions.reduce((versionTotal, version) => (
-    versionTotal + inlineSearchRangesForText(getVerseText(verse, version), query, phraseOnly).length
-  ), 0), 0);
-}
-
-function activeInlineSearchMatchCount() {
-  return activeInlineSearchQuery() ? Math.max(0, Number(state.inlineSearchMatchCount) || 0) : 0;
-}
-
-function inlineSearchProgressText() {
-  const count = activeInlineSearchMatchCount();
-  if (!count) return "0";
-  const current = Math.max(1, Math.min(count, Number(state.inlineSearchHitIndex) + 1 || 1));
-  return `${current}/${count}`;
-}
-
-function inlineSearchClearAriaLabel() {
-  const count = activeInlineSearchMatchCount();
-  if (!count) return "No current chapter matches. Clear search hits";
-  const current = Math.max(1, Math.min(count, Number(state.inlineSearchHitIndex) + 1 || 1));
-  return `Match ${current} of ${count}. Clear current chapter search hits`;
-}
-
-function inlineSearchClearTitle() {
-  const count = activeInlineSearchMatchCount();
-  return `${count} ${count === 1 ? "match" : "matches"} in ${state.inlineSearchChapter || state.reference} · Clear search hits`;
+function chapterFindRanges(text, query) {
+  const phrase = query.replace(/^"([^"]+)"$/, "$1");
+  if (!phrase) return [];
+  const pattern = new RegExp(phrase.split(/\s+/).map(escapeRegExp).join("\\s+"), "gi");
+  return Array.from(text.matchAll(pattern), (match) => ({ start: match.index, end: match.index + match[0].length }));
 }
 
 function updateInlineSearchProgress() {
-  const progressText = inlineSearchProgressText();
-  const ariaLabel = inlineSearchClearAriaLabel();
-  const title = inlineSearchClearTitle();
-  document.querySelectorAll("[data-inline-search-progress]").forEach((progress) => {
-    progress.textContent = progressText;
-    const button = progress.closest("[data-clear-search]");
-    button?.setAttribute("aria-label", ariaLabel);
-    if (button?.hasAttribute("title")) button.title = title;
-    if (button?.hasAttribute("data-tooltip")) button.dataset.tooltip = title;
+  const query = activeInlineSearchQuery();
+  const count = state.inlineSearchMatchCount;
+  const loading = activeVersions().some((version) => loadingVersions.has(
+    isRemoteTranslation(version) ? remoteVersionLoadKey(version, state.reference) : version,
+  ));
+  const progress = count ? `${state.inlineSearchHitIndex + 1}/${count}` : loading ? "Loading…" : "0 matches";
+  document.querySelectorAll("[data-chapter-find-controls]").forEach((controls) => {
+    controls.hidden = !query;
+    controls.querySelector("output").textContent = query ? progress : "";
+    controls.querySelectorAll("button").forEach((button) => { button.disabled = count < 2; });
   });
+  document.querySelector(".focus-portrait-search")?.classList.toggle("chapter-find-open", canFindInChapter());
 }
 
-function inlineSearchHasChapterPhrase(query) {
-  const versions = inlineSearchVersions();
-  return currentChapter().verses.some((verse) => versions.some((version) => (
-    inlineSearchRangesForText(getVerseText(verse, version), query, true).length
-  )));
+function paintInlineChapterSearch({ scroll = false } = {}) {
+  const scripture = document.querySelector(".scripture");
+  if (!scripture) return;
+  const query = activeInlineSearchQuery();
+  scripture.querySelectorAll("mark[data-chapter-find-hit]").forEach((mark) => {
+    const parent = mark.parentNode;
+    mark.replaceWith(...mark.childNodes);
+    parent.normalize();
+  });
+  if (scroll || !query) scripture.clearArrivalSpotlight?.();
+  let count = 0;
+  if (query) scripture.querySelectorAll("[data-chapter-find-text]").forEach((element) => {
+    // Keep the existing verse markup and listeners intact, including Strong’s buttons.
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let text = "";
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      nodes.push({ node, start: text.length, end: text.length + node.length });
+      text += node.data;
+    }
+    const matches = chapterFindRanges(text, query);
+    const firstIndex = count;
+    count += matches.length;
+    // Split from the end so offsets earlier in each text node remain valid.
+    matches.reverse().forEach(({ start, end }, reverseIndex) => {
+      const hit = firstIndex + matches.length - 1 - reverseIndex;
+      for (const entry of nodes) {
+        if (entry.end <= start || entry.start >= end) continue;
+        entry.node.splitText(Math.min(end, entry.end) - entry.start);
+        const match = entry.node.splitText(Math.max(start, entry.start) - entry.start);
+        const mark = document.createElement("mark");
+        mark.className = "inline-search-hit";
+        mark.dataset.chapterFindHit = hit;
+        match.replaceWith(mark);
+        mark.append(match);
+      }
+    });
+  });
+  state.inlineSearchMatchCount = count;
+  state.inlineSearchHitIndex = count ? Math.max(0, Math.min(state.inlineSearchHitIndex, count - 1)) : -1;
+  if (scroll && count) scrollInlineSearchHitIntoView(state.inlineSearchHitIndex, { smooth: false });
+  else {
+    updateInlineSearchProgress();
+    scripture.querySelectorAll(`[data-chapter-find-hit="${state.inlineSearchHitIndex}"]`).forEach((hit) => {
+      hit.classList.add("inline-search-hit-first");
+    });
+  }
 }
 
-function firstInlineSearchVerse(query, phraseOnly = false) {
-  const versions = inlineSearchVersions();
-  return currentChapter().verses.find((verse) => versions.some((version) => (
-    inlineSearchRangesForText(getVerseText(verse, version), query, phraseOnly).length
-  ))) || null;
+function updateChapterFindDraft(value) {
+  if (!canFindInChapter()) return;
+  const query = value.trim().replace(/\s+/g, " ");
+  if (!query || parseReference(query)) {
+    if (state.inlineSearchQuery) {
+      clearInlineChapterSearchState();
+      paintInlineChapterSearch();
+    }
+    return;
+  }
+  if (activeInlineSearchQuery() === query) return;
+  runInlineChapterSearch(query, normalizedSearchChapter(state.reference));
 }
 
-function runInlineChapterSearch(query, searchChapter = state.reference, options = {}) {
+function runInlineChapterSearch(query, searchChapter = state.reference) {
   searchRequestId += 1;
-  if (state.mode === "big") state.mode = "reader";
-  state.isVerseOfDayActive = false;
-  state.sharedPassage = null;
+  state.searchReturnAvailable = false;
+  state.searchReturnScroll = null;
   state.searchQuery = query;
   state.searchResultsQuery = "";
   state.scriptureSearch = null;
-  state.searchSource = "scripture";
-  state.searchResultsSource = "scripture";
-  state.searchScope = "chapter";
-  state.searchResultsScope = "chapter";
-  state.searchResultsChapter = searchChapter;
   state.searchResults = [];
   state.searchPending = false;
-  state.focusReferenceOpen = Boolean(state.focusMode && state.mode !== "big");
-  state.focusSearchResultsOpen = false;
-  resetFocusToolSurfaces();
+  if (state.focusSearchResultsOpen) {
+    state.focusSearchResultsOpen = false;
+    state.focusReferenceOpen = true;
+    document.querySelector(".focus-portrait-search .mobile-focus-search-results-body")?.remove();
+    document.querySelector(".focus-portrait-search [data-expand-scripture-search]")?.remove();
+    document.querySelector(".focus-portrait-search [data-clear-search-results]")?.remove();
+  }
   state.inlineSearchQuery = query;
   state.inlineSearchChapter = searchChapter;
-  state.inlineSearchPhraseOnly = inlineSearchHasChapterPhrase(query);
-  state.inlineSearchHitIndex = -1;
-  state.inlineSearchMatchCount = countInlineSearchMatches(query, state.inlineSearchPhraseOnly);
-  state.inlineSearchWrapPending = false;
-  state.pendingInlineSearchInputFocus = resolveInlineSearchInputId(options.sourceInputId);
-  localStorage.setItem("lw_search_scope", "chapter");
-  const firstVerse = firstInlineSearchVerse(query, state.inlineSearchPhraseOnly);
-  if (!firstVerse) {
-    renderPreservingReaderScroll();
-    requestAnimationFrame(() => showToast(`No matches found in ${searchChapter}`));
-    return;
-  }
-  state.verse = firstVerse.n;
   state.inlineSearchHitIndex = 0;
-  state.pendingInlineSearchFocus = true;
-  render();
+  paintInlineChapterSearch({ scroll: true });
 }
 
 function advanceInlineChapterSearch(query, searchChapter = state.reference) {
-  if (
-    state.inlineSearchQuery !== query
-    || normalizedSearchChapter(state.inlineSearchChapter) !== normalizedSearchChapter(searchChapter)
-    || normalizedSearchChapter(searchChapter) !== normalizedSearchChapter(state.reference)
-  ) return false;
-  const hits = [...document.querySelectorAll(".scripture mark.inline-search-hit")];
-  if (!hits.length) return false;
-  if (state.inlineSearchWrapPending) {
-    state.inlineSearchWrapPending = false;
-    scrollInlineSearchHitIntoView(0, { smooth: false });
-    return true;
-  }
-  const nextIndex = state.inlineSearchHitIndex + 1;
-  if (nextIndex >= hits.length) {
-    state.inlineSearchWrapPending = true;
-    showToast(`No more matches in ${searchChapter}`);
-    return true;
-  }
-  state.inlineSearchWrapPending = false;
-  scrollInlineSearchHitIntoView(nextIndex, { smooth: false });
+  if (activeInlineSearchQuery() !== query || normalizedSearchChapter(searchChapter) !== normalizedSearchChapter(state.reference)) return false;
+  moveChapterFind(1);
   return true;
+}
+
+function moveChapterFind(direction) {
+  const count = state.inlineSearchMatchCount;
+  if (!activeInlineSearchQuery() || !count) return;
+  const index = (state.inlineSearchHitIndex + direction + count) % count;
+  scrollInlineSearchHitIntoView(index, { smooth: false });
 }
 
 function clearSearchResults() {
@@ -32298,6 +32291,13 @@ async function searchScriptureTranslation(version, { query, criteria, scope, cha
     return searchVersion(version, criteria, scope, chapter);
   }
   if (!window.bsbOffline?.active && isRemoteTranslation(version) && translationProvider(version).supportsSearch !== false) {
+    if (scope === "chapter") {
+      const passage = await ensureRemoteBibleVersion(version, chapter, { rerender: false });
+      return (passage?.verses || []).flatMap((verse) => {
+        const match = scoreSearchText(verse.text || "", criteria, version);
+        return match ? [{ ref: `${chapter}:${verse.n}`, version, text: verse.text, ...match }] : [];
+      });
+    }
     return searchRemoteVersion(version, query, criteria, scope, chapter);
   }
   return [];
@@ -32512,7 +32512,8 @@ async function searchRemoteVersions(query, criteria, scope = "all", currentChapt
   if (window.bsbOffline?.active) return [];
   const remoteVersions = (candidates || translationCodes).filter((version) => isRemoteTranslation(version) && translationProvider(version).supportsSearch !== false);
   if (!remoteVersions.length) return [];
-  const settled = await Promise.allSettled(remoteVersions.map((version) => searchRemoteVersion(version, query, criteria, scope, currentChapter)));
+  const settled = await Promise.allSettled(remoteVersions.map((version) =>
+    searchScriptureTranslation(version, { query, criteria, scope, chapter: currentChapter })));
   return settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
 }
 
@@ -36292,18 +36293,14 @@ function scrollSelectedVerseIntoView(options = {}) {
   selected.scrollIntoView({ block, behavior });
 }
 
-function scrollFirstInlineSearchHitIntoView() {
-  scrollInlineSearchHitIntoView(0, { smooth: false });
-}
-
 function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
   const scripture = document.querySelector(".scripture");
-  const hits = [...(scripture?.querySelectorAll("mark.inline-search-hit") || [])];
-  const hit = hits[index];
+  const hits = [...(scripture?.querySelectorAll("mark[data-chapter-find-hit]") || [])];
+  const activeHits = hits.filter((item) => Number(item.dataset.chapterFindHit) === index);
+  const hit = activeHits[0];
   if (!hit) return false;
-  state.inlineSearchMatchCount = hits.length;
   hits.forEach((item) => item.classList.remove("inline-search-hit-first"));
-  hit.classList.add("inline-search-hit-first");
+  activeHits.forEach((item) => item.classList.add("inline-search-hit-first"));
   state.inlineSearchHitIndex = index;
   updateInlineSearchProgress();
   const verseNumber = Number(hit.closest("[data-verse]")?.getAttribute("data-verse"));
@@ -36315,10 +36312,14 @@ function scrollInlineSearchHitIntoView(index, { smooth = true } = {}) {
   if (scripture.scrollHeight > scripture.clientHeight) {
     const scriptureBounds = scripture.getBoundingClientRect();
     const hitBounds = hit.getBoundingClientRect();
-    const nextTop = scripture.scrollTop
-      + hitBounds.top
-      - scriptureBounds.top
-      - ((scripture.clientHeight - hitBounds.height) / 2);
+    const viewport = fixedPopoverViewport();
+    const panel = document.querySelector(".focus-portrait-search.chapter-find-open");
+    const visibleTop = Math.max(scriptureBounds.top, viewport.offsetTop, panel?.getBoundingClientRect().bottom || 0);
+    const visibleBottom = Math.min(scriptureBounds.bottom, viewport.offsetTop + viewport.height);
+    const targetMiddle = visibleBottom > visibleTop
+      ? (visibleTop + visibleBottom) / 2
+      : scriptureBounds.top + scripture.clientHeight / 2;
+    const nextTop = scripture.scrollTop + hitBounds.top + hitBounds.height / 2 - targetMiddle;
     const targetTop = Math.max(0, nextTop);
     if (behavior === "auto") scripture.scrollTop = targetTop;
     else scripture.scrollTo({ top: targetTop, behavior });
@@ -37310,6 +37311,26 @@ function cacheRemoteVersionChapter(version, chapterKey, payload) {
   return remoteVersionData.get(loadKey);
 }
 
+function scheduleOnlineChapterPreload() {
+  const version = state.versions[0];
+  if (dataLoading || window.bsbOffline?.active || navigator.connection?.saveData
+    || !["reader", "parallel"].includes(state.mode) || state.sharedPassage || state.isVerseOfDayActive
+    || window.BSBImportedReader?.isActive() || !isRemoteTranslation(version)) return;
+  const currentKey = remoteVersionLoadKey(version, state.reference);
+  if (!remoteVersionData.has(currentKey) || activeVersions().some((code) =>
+    loadingVersions.has(isRemoteTranslation(code) ? remoteVersionLoadKey(code, state.reference) : code))) return;
+  const nextChapter = adjacentChapterReference(1);
+  if (!nextChapter || onlineChapterPreloadKey === currentKey) return;
+  onlineChapterPreloadKey = currentKey;
+  const preload = () => {
+    if (state.versions[0] !== version || remoteVersionLoadKey(version, state.reference) !== currentKey
+      || !["reader", "parallel"].includes(state.mode) || !remoteVersionData.has(currentKey)) return;
+    void ensureRemoteBibleVersion(version, nextChapter, { rerender: false, preload: true });
+  };
+  if (window.requestIdleCallback) window.requestIdleCallback(preload);
+  else window.setTimeout(preload, 500);
+}
+
 async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
   if (window.bsbOffline?.active) return null;
   if (!isRemoteTranslation(version)) return null;
@@ -37319,17 +37340,25 @@ async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
     const cached = remoteVersionData.get(loadKey);
     remoteVersionData.delete(loadKey);
     remoteVersionData.set(loadKey, cached);
+    if (!options.preload && translationProvider(version).tracksFums) trackApiBibleView(cached.fumsToken);
     return cached;
   }
   if (remoteVersionErrors.has(loadKey)) return null;
   if (options.rerender !== false) remoteVersionRerenders.add(loadKey);
-  if (remoteVersionRequests.has(loadKey)) return remoteVersionRequests.get(loadKey);
+  if (remoteVersionRequests.has(loadKey)) {
+    const payload = await remoteVersionRequests.get(loadKey);
+    if (!options.preload && !payload && !remoteVersionErrors.has(loadKey)) {
+      return ensureRemoteBibleVersion(version, chapterKey, options);
+    }
+    if (!options.preload && translationProvider(version).tracksFums) trackApiBibleView(payload?.fumsToken);
+    return payload;
+  }
 
   const config = window.BigScreenBibleSupabase || {};
   const provider = translationProvider(version);
   const url = remoteFunctionUrl(version, chapterKey);
   if (!url || !config.anonKey) {
-    remoteVersionErrors.set(loadKey, "Remote Bible version is not configured.");
+    if (!options.preload) remoteVersionErrors.set(loadKey, "Remote Bible version is not configured.");
     remoteVersionRerenders.delete(loadKey);
     return null;
   }
@@ -37340,6 +37369,7 @@ async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
     try {
       const response = await fetch(url, {
         cache: "no-store",
+        priority: options.preload ? "low" : "auto",
         headers: {
           apikey: config.anonKey,
           Authorization: `Bearer ${config.anonKey}`,
@@ -37352,11 +37382,13 @@ async function ensureRemoteBibleVersion(version, chapterKey, options = {}) {
       const verses = Array.isArray(payload.verses) ? payload.verses : [];
       if (!verses.length) throw new Error(`${version} returned no verses`);
       const versionPayload = cacheRemoteVersionChapter(version, chapterKey, { ...payload, verses });
-      if (provider.tracksFums) trackApiBibleView(payload.fumsToken);
+      if (!options.preload && provider.tracksFums) trackApiBibleView(payload.fumsToken);
       return versionPayload;
     } catch (error) {
-      console.error(error);
-      remoteVersionErrors.set(loadKey, error.message || `${version} could not be loaded`);
+      if (!options.preload) {
+        console.error(error);
+        remoteVersionErrors.set(loadKey, error.message || `${version} could not be loaded`);
+      }
       return null;
     } finally {
       loadingVersions.delete(loadKey);

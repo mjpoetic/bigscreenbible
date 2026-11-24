@@ -35,6 +35,8 @@ const navigation = {
     key: "John 3", verse: 16, verses: value.includes("-17") ? [16, 17] : [16],
   }),
   normalizedSearchSource: () => "scripture",
+  canFindInChapter: () => false,
+  focusSearchPortrait: { matches: false },
   captureReaderReturnTarget: () => null,
   clearInlineChapterSearchState() {},
   recordHistory() {},
@@ -67,7 +69,7 @@ for (const mode of ["big", "reader"]) {
       assert.equal(navigation.state.presentationPart, 0);
       assert.equal(navigation.state.presentationSearchResultsOpen, false);
       assert.equal(Boolean(navigation.state.sharedPassage), (mode === "reader" && origin !== "ordinary") || (mode === "big" && reference.includes("-17")));
-      assert.deepEqual(Array.from(navigation.state.selectedVerses), reference.includes("-17") ? [16, 17] : []);
+      assert.deepEqual(Array.from(navigation.state.selectedVerses), reference.includes("-17") && (mode === "big" || origin === "ordinary") ? [16, 17] : []);
     }
   }
 }
@@ -191,6 +193,9 @@ const searchButton = {
 context.state = { searchSource: "scripture", searchScope: "all", reference: "Matthew 11", inlineSearchQuery: "" };
 context.localStorage = { setItem(key, value) { context.savedScope = [key, value]; } };
 context.renderPreservingReaderScroll = () => {};
+context.updateInlineSearchProgress = () => {};
+context.updateChapterFindDraft = () => {};
+context.currentSearchInputDraft = () => "";
 context.document = {
   querySelectorAll(selector) {
     if (selector === "[data-search-scope-trigger]") return scopeTriggers;
@@ -258,16 +263,12 @@ assert.doesNotMatch(
   /state\.mode\s*=/,
 );
 assert.match(extractFunction("runPhraseSearch"), /advanceInlineChapterSearch\(query, searchChapter\)/);
-assert.match(extractFunction("runPhraseSearch"), /runInlineChapterSearch\(query, searchChapter, \{ sourceInputId: options\.sourceInputId \}\)/);
+assert.match(extractFunction("runPhraseSearch"), /runInlineChapterSearch\(query, searchChapter\)/);
 assert.match(extractFunction("presentation"), /presentationSearchResults\(\)/);
 assert.match(extractFunction("presentationSearchResults"), /aria-label="Big Screen search results"/);
 assert.match(extractFunction("gotoReference"), /presentationSearchResultsOpen = false/);
-assert.match(extractFunction("advanceInlineChapterSearch"), /No more matches in \$\{searchChapter\}/);
 assert.match(extractFunction("searchClearControl"), /data-clear-search/);
 assert.match(extractFunction("topbar"), /searchClearControl/);
-assert.match(extractFunction("runInlineChapterSearch"), /pendingInlineSearchInputFocus = resolveInlineSearchInputId/);
-assert.match(extractFunction("runInlineChapterSearch"), /inlineSearchMatchCount = countInlineSearchMatches/);
-assert.match(extractFunction("render"), /restoreInlineSearchInputFocus\(inputId\)/);
 assert.match(extractFunction("bindEvents"), /referenceInput[\s\S]*?addEventListener\("keydown"[\s\S]*?sourceInputId: "referenceInput"/);
 assert.match(searchTranslation, /searchVersion\(version, criteria, scope, chapter\)/);
 assert.match(searchTranslation, /searchRemoteVersion\(version, query, criteria, scope, chapter\)/);
@@ -292,82 +293,52 @@ assert.match(styles, /#searchSection \.study-search \{[\s\S]*?position: sticky;[
 assert.match(styles, /\.library #searchSection \{[\s\S]*?overflow: visible;/);
 assert.match(styles, /#searchSection \.study-search::before \{[\s\S]*?background:/);
 
-const inlineContext = { window: {} };
+const inlineContext = {
+  state: { inlineSearchQuery: "rest", inlineSearchHitIndex: 1, inlineSearchMatchCount: 2, reference: "Acts 14" },
+  activeInlineSearchQuery: () => inlineContext.state.inlineSearchQuery,
+  normalizedSearchChapter: (value) => value,
+  scrollInlineSearchHitIntoView: (index) => { inlineContext.state.inlineSearchHitIndex = index; },
+};
 vm.createContext(inlineContext);
 vm.runInContext(`
-  function uniqueList(values) { return [...new Set(values)]; }
   ${extractFunction("escapeRegExp")}
-  ${extractFunction("normalizeSearchText")}
-  ${extractFunction("searchTokens")}
-  ${extractFunction("levenshteinDistance")}
-  ${extractFunction("wordsCloseEnough")}
-  ${extractFunction("parseSearchQuery")}
-  ${extractFunction("inlineSearchRangesForText")}
-  globalThis.inlineRanges = inlineSearchRangesForText;
-`, inlineContext);
-const phraseText = "Come to Me, all you who are weary and burdened.";
-const phraseRanges = inlineContext.inlineRanges(phraseText, "come to me");
-assert.equal(phraseRanges.length, 1);
-assert.equal(phraseText.slice(phraseRanges[0].start, phraseRanges[0].end), "Come to Me");
-const wordRanges = inlineContext.inlineRanges(phraseText, "weary burden");
-assert.deepEqual([...wordRanges].map((range) => phraseText.slice(range.start, range.end)), ["weary", "burdened"]);
-assert.deepEqual([...inlineContext.inlineRanges(phraseText, "missing phrase", true)], []);
-
-const progressContext = {
-  state: { inlineSearchQuery: "rest", inlineSearchMatchCount: 2, inlineSearchHitIndex: 0 },
-  activeInlineSearchQuery: () => "rest",
-};
-vm.createContext(progressContext);
-vm.runInContext(`
-  ${extractFunction("activeInlineSearchMatchCount")}
-  ${extractFunction("inlineSearchProgressText")}
-  ${extractFunction("inlineSearchClearAriaLabel")}
-  globalThis.progressText = inlineSearchProgressText;
-  globalThis.progressLabel = inlineSearchClearAriaLabel;
-`, progressContext);
-assert.equal(progressContext.progressText(), "1/2");
-assert.equal(progressContext.progressLabel(), "Match 1 of 2. Clear current chapter search hits");
-progressContext.state.inlineSearchHitIndex = 1;
-assert.equal(progressContext.progressText(), "2/2");
-
-const focusCalls = [];
-const focusInput = {
-  value: "rest",
-  focus: (options) => focusCalls.push(["focus", options]),
-  setSelectionRange: (start, end) => focusCalls.push(["range", start, end]),
-};
-const focusContext = { document: { getElementById: () => focusInput } };
-vm.createContext(focusContext);
-vm.runInContext(`${extractFunction("restoreInlineSearchInputFocus")}; restoreInlineSearchInputFocus("referenceInput");`, focusContext);
-assert.equal(JSON.stringify(focusCalls), JSON.stringify([["focus", { preventScroll: true }], ["range", 4, 4]]));
-
-const wrapContext = {
-  state: {
-    inlineSearchQuery: "rest",
-    inlineSearchChapter: "Matthew 11",
-    inlineSearchHitIndex: 1,
-    inlineSearchWrapPending: false,
-    reference: "Matthew 11",
-  },
-  document: { querySelectorAll: () => [{}, {}] },
-  normalizedSearchChapter: (value) => value,
-  showToast: (message) => { wrapContext.toast = message; },
-  scrollInlineSearchHitIntoView: (index) => {
-    wrapContext.scrolledTo = index;
-    wrapContext.state.inlineSearchHitIndex = index;
-  },
-};
-vm.createContext(wrapContext);
-vm.runInContext(`
+  ${extractFunction("chapterFindRanges")}
   ${extractFunction("advanceInlineChapterSearch")}
-  globalThis.advance = advanceInlineChapterSearch;
-`, wrapContext);
-assert.equal(wrapContext.advance("rest", "Matthew 11"), true);
-assert.equal(wrapContext.toast, "No more matches in Matthew 11");
-assert.equal(wrapContext.state.inlineSearchWrapPending, true);
-assert.equal(wrapContext.advance("rest", "Matthew 11"), true);
-assert.equal(wrapContext.scrolledTo, 0);
-assert.equal(wrapContext.state.inlineSearchWrapPending, false);
+  ${extractFunction("moveChapterFind")}
+`, inlineContext);
+const nltVerse = "But the apostles stayed there a long time, preaching boldly about the grace of the Lord.";
+const phraseRanges = inlineContext.chapterFindRanges(nltVerse, "but the apostles");
+assert.equal(phraseRanges.length, 1);
+assert.equal(nltVerse.slice(phraseRanges[0].start, phraseRanges[0].end), "But the apostles");
+assert.equal(inlineContext.chapterFindRanges("Rest, rest, and rested.", "rest").length, 3);
+assert.equal(inlineContext.chapterFindRanges("But the apostles", "the apos").length, 1);
+assert.equal(inlineContext.chapterFindRanges("But the apostles", "but.and").length, 0);
+assert.equal(inlineContext.advanceInlineChapterSearch("rest", "Acts 14"), true);
+assert.equal(inlineContext.state.inlineSearchHitIndex, 0, "Forward navigation wraps to the first match");
+inlineContext.moveChapterFind(-1);
+assert.equal(inlineContext.state.inlineSearchHitIndex, 1, "Backward navigation wraps to the last match");
+assert.equal(inlineContext.advanceInlineChapterSearch("rest", "Acts 15"), false);
+
+const onlineChapterContext = {
+  window: {},
+  isBundledTranslation: () => false,
+  isRemoteTranslation: () => true,
+  translationProvider: () => ({}),
+  ensureRemoteBibleVersion: (version, chapter) => {
+    assert.equal(version, "NLT");
+    assert.equal(chapter, "Acts 14");
+    return { verses: [{ n: 2, text: "Some of the Jews" }, { n: 3, text: nltVerse }] };
+  },
+  scoreSearchText: (text) => text === nltVerse ? { score: 100, matchType: "Phrase" } : null,
+  searchRemoteVersion: () => { throw new Error("Chapter search must not use the whole-Bible endpoint"); },
+};
+vm.createContext(onlineChapterContext);
+vm.runInContext(searchTranslation, onlineChapterContext);
+const nltMatches = await onlineChapterContext.searchScriptureTranslation("NLT", {
+  query: "but the apostles", criteria: {}, scope: "chapter", chapter: "Acts 14",
+});
+assert.equal(nltMatches.length, 1);
+assert.equal(nltMatches[0].ref, "Acts 14:3");
 
 const rankingContext = {
   state: { versions: ["ESV"] },

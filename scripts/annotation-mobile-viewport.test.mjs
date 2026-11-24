@@ -45,7 +45,7 @@ assert.equal(restores, 1, 'Loaded chapter arrival must not restore the loading-s
 
 // Exercise the render gate: loading must keep the request for the next render.
 const start = source.indexOf('  if (state.pendingVerseFocus && !document.querySelector(".scripture.bible-version-loading")) {');
-const end = source.indexOf('  if (state.pendingInlineSearchFocus', start);
+const end = source.indexOf('  if (state.pendingPanelFocus)', start);
 assert.ok(start > 0 && end > start);
 let loading = true;
 let arrivals = 0;
