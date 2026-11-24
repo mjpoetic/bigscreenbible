@@ -757,7 +757,7 @@ const strongs = {
 let searchRequestId = 0;
 let activeSearchScopeMenu = null;
 let selectionTooltipCleanup = null;
-let verseToolbarOverflowCleanup = null;
+let verseToolbarCleanup = null;
 let activeSettingsChoiceMenu = null;
 let settingsPageTransition = "";
 let presentationSettingsPageTransition = "";
@@ -5668,6 +5668,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.24.3": [
+      "The verse and highlighter toolbars stay steady when additional buttons are enabled.",
+    ],
     "2026.11.24.2": [
       "Start memorizing the Verse of the Day directly from Reader or Parallel mode.",
     ],
@@ -24101,7 +24104,10 @@ function openVerseActionMenu(anchor) {
   menu.setAttribute("role", "toolbar");
   menu.setAttribute("aria-label", `Actions for ${state.reference}:${verseNumber}`);
   const actions = document.createElement("div");
-  actions.className = "verse-action-controls";
+  actions.className = "toolbar-scroll-row";
+  const viewport = document.createElement("div");
+  viewport.className = "verse-action-controls";
+  viewport.append(actions);
   actions.innerHTML = `
     <button type="button" data-menu-select aria-label="Select ${state.reference}:${verseNumber}">${icons.plus}</button>
     <button type="button" data-menu-copy aria-label="Copy ${state.reference}:${verseNumber}">${icons.copy}</button>
@@ -24111,13 +24117,15 @@ function openVerseActionMenu(anchor) {
     <button type="button" data-menu-bookmark aria-label="${state.bookmarks.includes(noteRef) ? "Remove bookmark" : "Add bookmark"}">${icons.bookmarkAdd}</button>
     <button type="button" data-menu-highlight data-default-hidden="true" aria-label="Highlight ${state.reference}:${verseNumber}">${icons.highlighter}</button>
   `;
-  menu.append(actions);
+  menu.append(viewport);
   (document.querySelector(".app-shell") || document.body).appendChild(menu);
   menu.querySelectorAll("button").forEach(button => {
     button.dataset.tooltip ||= button.getAttribute("aria-label");
   });
   configureStudyToolbar(actions, "verse");
-  verseToolbarOverflowCleanup = bindToolbarOverflow(menu, actions);
+  const overflowCleanup = bindToolbarOverflow(menu, viewport);
+  const tooltipCleanup = bindToolbarTooltips(menu, "verseToolbarTooltip");
+  verseToolbarCleanup = () => { overflowCleanup(); tooltipCleanup(); };
   anchor.setAttribute("aria-expanded", "true");
   positionVerseActionMenu(anchor, menu);
 
@@ -24210,8 +24218,8 @@ function closeVerseActionMenu(immediate = false) {
   document.removeEventListener("keydown", closeVerseActionMenuOnEscape);
   window.removeEventListener("resize", closeVerseActionMenu);
   window.removeEventListener("scroll", closeVerseActionMenu);
-  verseToolbarOverflowCleanup?.();
-  verseToolbarOverflowCleanup = null;
+  verseToolbarCleanup?.();
+  verseToolbarCleanup = null;
   if (!menu) return;
   if (immediate) {
     menu.remove();
@@ -24968,6 +24976,7 @@ function toolbarScrollEdges(scrollWidth, clientWidth, scrollLeft) {
 }
 
 function bindToolbarOverflow(toolbar, viewport) {
+  const row = viewport.firstElementChild;
   const makeArrow = (label, icon) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -24982,10 +24991,12 @@ function bindToolbarOverflow(toolbar, viewport) {
   viewport.before(previous);
   viewport.after(next);
   const update = () => {
-    const fullWidth = viewport.clientWidth + previous.offsetWidth + next.offsetWidth;
-    const overflow = !toolbar.hasAttribute("data-customizing") && viewport.scrollWidth - fullWidth > 2;
+    // The row measures the tools alone. Scroll extents can include animated or decorative overflow.
+    const availableWidth = viewport.clientWidth + previous.offsetWidth + next.offsetWidth;
+    const contentWidth = row.offsetWidth;
+    const overflow = !toolbar.hasAttribute("data-customizing") && contentWidth - availableWidth > 2;
     previous.hidden = next.hidden = !overflow;
-    const edges = toolbarScrollEdges(viewport.scrollWidth, viewport.clientWidth, viewport.scrollLeft);
+    const edges = toolbarScrollEdges(contentWidth, viewport.clientWidth, viewport.scrollLeft);
     previous.setAttribute("aria-disabled", String(!edges.previous));
     next.setAttribute("aria-disabled", String(!edges.next));
   };
@@ -25004,9 +25015,8 @@ function bindToolbarOverflow(toolbar, viewport) {
   const resize = new ResizeObserver(update);
   resize.observe(toolbar);
   resize.observe(viewport);
-  [...viewport.children].forEach(item => resize.observe(item));
+  resize.observe(row);
   const changes = new MutationObserver(update);
-  changes.observe(viewport, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
   changes.observe(toolbar, { attributes: true, attributeFilter: ["data-customizing"] });
   update();
   return () => {
@@ -25025,6 +25035,11 @@ function bindSelectionTooltips() {
   if (!bar) return;
   configureStudyToolbar(bar.querySelector(".selection-bar-actions"), "selection");
   const overflowCleanup = bindToolbarOverflow(bar, bar.querySelector(".selection-bar-controls"));
+  const tooltipCleanup = bindToolbarTooltips(bar, "selectionToolbarTooltip");
+  selectionTooltipCleanup = () => { tooltipCleanup(); overflowCleanup(); };
+}
+
+function bindToolbarTooltips(bar, tooltipId) {
   const controller = new AbortController();
   const signal = controller.signal;
   let timer = 0;
@@ -25044,11 +25059,11 @@ function bindSelectionTooltips() {
   const schedule = (element) => {
     hide();
     timer = setTimeout(() => {
-      if (!element.isConnected) return;
+      if (!element.isConnected || bar.inert) return;
       target = element;
       previousDescription = element.getAttribute("aria-describedby");
       tooltip = document.createElement("div");
-      tooltip.id = "selectionToolbarTooltip";
+      tooltip.id = tooltipId;
       tooltip.className = "selection-toolbar-tooltip";
       tooltip.setAttribute("role", "tooltip");
       tooltip.textContent = element.dataset.tooltip;
@@ -25084,7 +25099,7 @@ function bindSelectionTooltips() {
     if (hovered || focused) schedule(hovered || focused);
   }, { capture: true, passive: true, signal });
   window.addEventListener("resize", hide, { signal });
-  selectionTooltipCleanup = () => { hide(); controller.abort(); overflowCleanup(); };
+  return () => { hide(); controller.abort(); };
 }
 
 function selectionBar() {
@@ -25097,24 +25112,26 @@ function selectionBar() {
   return `
     <div class="selection-bar" role="status">
       <div class="selection-bar-controls">
-        <span class="selection-bar-summary">${count} selected · ${label}</span>
-        <div class="highlight-palette" aria-label="Highlight selected verses">
-          ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
-          <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
-            <input id="customHighlightColor" type="color" value="${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color">
-          </label>
-          <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight" data-tooltip="Remove highlight">${icons.clear}</button>
-        </div>
-        <div class="selection-bar-actions">
-          <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
-          <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
-          <button class="text-btn selection-action" id="memorizeSelection" data-default-hidden="true" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
-          <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
-          <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
-          <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
+        <div class="toolbar-scroll-row">
+          <span class="selection-bar-summary">${count} selected · ${label}</span>
+          <div class="highlight-palette" aria-label="Highlight selected verses">
+            ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
+            <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
+              <input id="customHighlightColor" type="color" value="${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color">
+            </label>
+            <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight" data-tooltip="Remove highlight">${icons.clear}</button>
+          </div>
+          <div class="selection-bar-actions">
+            <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
+            <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
+            <button class="text-btn selection-action" id="memorizeSelection" data-default-hidden="true" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
+            <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
+            <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
+            <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
 
-          <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
+            <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
 
+          </div>
         </div>
       </div>
     </div>

@@ -10760,19 +10760,23 @@ select {
 }
 
 .selection-bar-controls {
-  display: flex;
   flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
-  padding: 3px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   touch-action: pan-x;
-  -webkit-overflow-scrolling: touch;
+}
+
+.toolbar-scroll-row {
+  display: flex;
+  width: max-content;
+  align-items: center;
+}
+.selection-bar-controls > .toolbar-scroll-row {
+  gap: 6px;
+  padding: 3px;
 }
 
 .verse-action-controls::-webkit-scrollbar,
@@ -27449,7 +27453,7 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 }
 
 /* Tooltips escape the toolbar's scroll/animation clipping and stay inside the viewport. */
-.selection-bar [data-tooltip]::after { display: none; }
+:is(.selection-bar, .verse-action-menu) [data-tooltip]::after { display: none; }
 .selection-toolbar-tooltip {
   position: fixed;
   z-index: 450;
@@ -28554,16 +28558,14 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   max-width: calc(100vw - 16px);
 }
 .verse-action-controls {
-  display: flex;
-  align-items: center;
-  gap: 3px;
   min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   touch-action: pan-x;
 }
-.verse-action-controls > button { flex: 0 0 34px; }
+.verse-action-controls > .toolbar-scroll-row { gap: 3px; }
+.verse-action-controls .toolbar-scroll-row > button { flex: 0 0 34px; }
 .toolbar-customizer {
   width: min(390px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
