@@ -208,6 +208,6 @@ assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.selection-bar \{[\
 assert.match(styles, /@media \(min-width: 841px\) \{[\s\S]*?\.selection-bar-summary \{[\s\S]*?min-width: 0;[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/);
 assert.match(styles, /\.selection-bar-controls \{[\s\S]*?overflow-x: auto;[\s\S]*?touch-action: pan-x;/);
 assert.match(styles, /\.selection-bar-actions \{[\s\S]*?display: inline-flex;[\s\S]*?flex: 0 0 auto;/);
-assert.match(styles, /\.selection-bar-controls,[\s\S]*?\.selection-bar-actions \{[\s\S]*?display: contents;/);
+assert.match(styles, /\.verse-action-controls::-webkit-scrollbar,\s*\.selection-bar-controls::-webkit-scrollbar \{\s*display: none;/);
 
 console.log("Page navigation tests passed");

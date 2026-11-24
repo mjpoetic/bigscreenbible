@@ -757,6 +757,7 @@ const strongs = {
 let searchRequestId = 0;
 let activeSearchScopeMenu = null;
 let selectionTooltipCleanup = null;
+let verseToolbarOverflowCleanup = null;
 let activeSettingsChoiceMenu = null;
 let settingsPageTransition = "";
 let presentationSettingsPageTransition = "";
@@ -5667,6 +5668,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.24.1": [
+      "The verse and highlighter toolbars stay on one row, with arrow buttons to reveal additional tools when space runs out.",
+    ],
     "2026.11.23.21": [
       "Find words and phrases as you type in Current chapter, with highlighted hits and previous and next controls.",
       "Current chapter search uses loaded Scripture in online translations, including NLT. The next chapter can load in the background once the current chapter is ready.",
@@ -24087,7 +24091,9 @@ function openVerseActionMenu(anchor) {
   menu.dataset.verse = String(verseNumber);
   menu.setAttribute("role", "toolbar");
   menu.setAttribute("aria-label", `Actions for ${state.reference}:${verseNumber}`);
-  menu.innerHTML = `
+  const actions = document.createElement("div");
+  actions.className = "verse-action-controls";
+  actions.innerHTML = `
     <button type="button" data-menu-select aria-label="Select ${state.reference}:${verseNumber}">${icons.plus}</button>
     <button type="button" data-menu-copy aria-label="Copy ${state.reference}:${verseNumber}">${icons.copy}</button>
     <button type="button" data-menu-cross-ref data-cross-ref-verse="${verseNumber}" aria-label="Cross references for ${state.reference}:${verseNumber}">${icons.layers}</button>
@@ -24096,11 +24102,13 @@ function openVerseActionMenu(anchor) {
     <button type="button" data-menu-bookmark aria-label="${state.bookmarks.includes(noteRef) ? "Remove bookmark" : "Add bookmark"}">${icons.bookmarkAdd}</button>
     <button type="button" data-menu-highlight data-default-hidden="true" aria-label="Highlight ${state.reference}:${verseNumber}">${icons.highlighter}</button>
   `;
+  menu.append(actions);
   (document.querySelector(".app-shell") || document.body).appendChild(menu);
   menu.querySelectorAll("button").forEach(button => {
     button.dataset.tooltip ||= button.getAttribute("aria-label");
   });
-  configureStudyToolbar(menu, "verse");
+  configureStudyToolbar(actions, "verse");
+  verseToolbarOverflowCleanup = bindToolbarOverflow(menu, actions);
   anchor.setAttribute("aria-expanded", "true");
   positionVerseActionMenu(anchor, menu);
 
@@ -24152,7 +24160,7 @@ function openVerseActionMenu(anchor) {
     document.addEventListener("keydown", closeVerseActionMenuOnEscape);
     window.addEventListener("resize", closeVerseActionMenu, { once: true });
     window.addEventListener("scroll", closeVerseActionMenu, { once: true, passive: true });
-    menu.querySelector("button")?.focus();
+    actions.querySelector("button:not([hidden])")?.focus({ preventScroll: true });
   });
 }
 
@@ -24193,6 +24201,8 @@ function closeVerseActionMenu(immediate = false) {
   document.removeEventListener("keydown", closeVerseActionMenuOnEscape);
   window.removeEventListener("resize", closeVerseActionMenu);
   window.removeEventListener("scroll", closeVerseActionMenu);
+  verseToolbarOverflowCleanup?.();
+  verseToolbarOverflowCleanup = null;
   if (!menu) return;
   if (immediate) {
     menu.remove();
@@ -24748,7 +24758,7 @@ function configureStudyToolbar(container, kind) {
     button.innerHTML = kind === "selection" ? `<span class="selection-action-icon">${glyph}</span><span class="selection-action-label">${label}</span>` : glyph;
     button.addEventListener("click", event => {
       event.stopPropagation();
-      const numbers = kind === "verse" ? [Number(container.dataset.verse)] : selectedVerseNumbers();
+      const numbers = kind === "verse" ? [Number(container.closest(".verse-action-menu")?.dataset.verse)] : selectedVerseNumbers();
       const reference = formatReferenceLabel(state.reference, numbers);
       if (kind === "verse") closeVerseActionMenu(true);
       if (action === "bookmark") { toggleStudyBookmark(reference); renderPreservingReaderScroll(); }
@@ -24814,7 +24824,7 @@ function configureStudyToolbar(container, kind) {
     const dialog = document.createElement("dialog");
     dialog.className = "toolbar-customizer";
     dialog.setAttribute("aria-label", kind === "verse" ? "Customize verse toolbar" : "Customize highlighter toolbar");
-    const toolbar = kind === "verse" ? container : container.closest(".selection-bar");
+    const toolbar = container.closest(kind === "verse" ? ".verse-action-menu" : ".selection-bar");
     // Preserve the real toolbar appearance before moving out of its reader context.
     const appearance = [toolbar, ...toolbar.querySelectorAll("*")].map(element => {
       const original = element.getAttribute("style");
@@ -24948,41 +24958,54 @@ function toolbarScrollEdges(scrollWidth, clientWidth, scrollLeft) {
   return { previous: position > 2, next: maximum - position > 2 };
 }
 
-function bindSelectionOverflow(bar) {
-  const actions = bar.querySelector(".selection-bar-actions");
-  if (!actions) return () => {};
-  const cue = document.createElement("div");
-  cue.className = "toolbar-overflow-cue";
-  cue.setAttribute("role", "group");
-  cue.setAttribute("aria-label", "Scroll toolbar actions");
-  cue.innerHTML = `<button type="button" data-toolbar-previous aria-label="Show previous toolbar actions">←</button><span>Swipe for more tools</span><button type="button" data-toolbar-next aria-label="Show more toolbar actions">More tools →</button>`;
-  actions.after(cue);
-  const previous = cue.querySelector("[data-toolbar-previous]");
-  const next = cue.querySelector("[data-toolbar-next]");
-  const update = () => {
-    const edges = toolbarScrollEdges(actions.scrollWidth, actions.clientWidth, actions.scrollLeft);
-    cue.hidden = bar.hasAttribute("data-customizing") || (!edges.previous && !edges.next);
-    previous.disabled = !edges.previous;
-    next.disabled = !edges.next;
+function bindToolbarOverflow(toolbar, viewport) {
+  const makeArrow = (label, icon) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "toolbar-scroll-arrow";
+    button.setAttribute("aria-label", label);
+    button.innerHTML = icon;
+    button.hidden = true;
+    return button;
   };
-  const scroll = direction => actions.scrollBy({
-    left: direction * Math.max(44, actions.clientWidth * .75),
-    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-  });
-  previous.addEventListener("click", () => scroll(-1));
-  next.addEventListener("click", () => scroll(1));
-  actions.addEventListener("scroll", update, { passive: true });
+  const previous = makeArrow("Show previous toolbar items", icons.chevronLeft);
+  const next = makeArrow("Show more toolbar items", icons.chevron);
+  viewport.before(previous);
+  viewport.after(next);
+  const update = () => {
+    const fullWidth = viewport.clientWidth + previous.offsetWidth + next.offsetWidth;
+    const overflow = !toolbar.hasAttribute("data-customizing") && viewport.scrollWidth - fullWidth > 2;
+    previous.hidden = next.hidden = !overflow;
+    const edges = toolbarScrollEdges(viewport.scrollWidth, viewport.clientWidth, viewport.scrollLeft);
+    previous.setAttribute("aria-disabled", String(!edges.previous));
+    next.setAttribute("aria-disabled", String(!edges.next));
+  };
+  const bindArrow = (button, direction) => {
+    button.addEventListener("click", () => {
+      if (button.getAttribute("aria-disabled") === "true") return;
+      viewport.scrollBy({
+        left: direction * Math.max(44, viewport.clientWidth * .75),
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+    });
+  };
+  bindArrow(previous, -1);
+  bindArrow(next, 1);
+  viewport.addEventListener("scroll", update, { passive: true });
   const resize = new ResizeObserver(update);
-  resize.observe(actions);
-  [...actions.children].forEach(button => resize.observe(button));
+  resize.observe(toolbar);
+  resize.observe(viewport);
+  [...viewport.children].forEach(item => resize.observe(item));
   const changes = new MutationObserver(update);
-  changes.observe(actions, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  changes.observe(viewport, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  changes.observe(toolbar, { attributes: true, attributeFilter: ["data-customizing"] });
   update();
   return () => {
-    actions.removeEventListener("scroll", update);
+    viewport.removeEventListener("scroll", update);
     resize.disconnect();
     changes.disconnect();
-    cue.remove();
+    previous.remove();
+    next.remove();
   };
 }
 
@@ -24992,7 +25015,7 @@ function bindSelectionTooltips() {
   const bar = document.querySelector(".selection-bar:not(.selection-bar-exiting)");
   if (!bar) return;
   configureStudyToolbar(bar.querySelector(".selection-bar-actions"), "selection");
-  const overflowCleanup = bindSelectionOverflow(bar);
+  const overflowCleanup = bindToolbarOverflow(bar, bar.querySelector(".selection-bar-controls"));
   const controller = new AbortController();
   const signal = controller.signal;
   let timer = 0;
@@ -25064,8 +25087,8 @@ function selectionBar() {
   const crossRefLabel = `${state.reference}:${crossRefVerse}`;
   return `
     <div class="selection-bar" role="status">
-      <span class="selection-bar-summary">${count} selected · ${label}</span>
       <div class="selection-bar-controls">
+        <span class="selection-bar-summary">${count} selected · ${label}</span>
         <div class="highlight-palette" aria-label="Highlight selected verses">
           ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
           <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
