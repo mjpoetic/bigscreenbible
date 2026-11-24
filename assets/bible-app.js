@@ -4633,14 +4633,24 @@ function passageChoiceMatches(options, query) {
   });
 }
 
-function passageScrollRow(menu) {
+function passageScrollPosition(menu) {
   const first = menu.firstElementChild;
   const second = first?.nextElementSibling;
-  if (!second) return 0;
-  const rowStep = second.offsetTop - first.offsetTop;
+  const rowStep = second ? second.offsetTop - first.offsetTop : 0;
+  const maxOffset = Math.max(0, menu.scrollHeight - menu.clientHeight);
   // Safari can report offsets beyond the scroll range during elastic overscroll.
-  const offset = Math.max(0, Math.min(menu.scrollTop, menu.scrollHeight - menu.clientHeight));
-  return rowStep > 0 ? Math.round(offset / rowStep) : 0;
+  const offset = Math.max(0, Math.min(menu.scrollTop, maxOffset));
+  return {
+    row: rowStep > 0 ? Math.round(offset / rowStep) : 0,
+    edge: maxOffset <= 2 ? null : offset <= 1 ? "start" : maxOffset - offset <= 1 ? "end" : null,
+  };
+}
+
+function passageScrollHaptic(previous, current) {
+  if (current.edge && current.edge !== previous.edge) return "milestone";
+  // Fast flings can cross multiple rows in one event. Play one live tick.
+  if (current.row !== previous.row) return "picker-tick";
+  return null;
 }
 
 function bindPassageComboboxes() {
@@ -4651,7 +4661,7 @@ function bindPassageComboboxes() {
     const form = root.closest(".focus-mini-verse-picker");
     const usesInlineList = () => form && window.matchMedia("(pointer: coarse)").matches;
     const scrollHaptics = form && nativeHapticsPlugin();
-    let scrollRow = 0;
+    let scrollPosition;
     let activeIndex = -1;
     let visible = [];
     const commit = (value, focusId = input.id) => {
@@ -4705,7 +4715,7 @@ function bindPassageComboboxes() {
         existingMenu.scrollTop = 0;
         if (!inline) positionSettingsChoiceMenu(root, existingMenu);
         if (all) centerSelectedMenuOption(existingMenu);
-        if (scrollHaptics) scrollRow = passageScrollRow(existingMenu);
+        if (scrollHaptics) scrollPosition = passageScrollPosition(existingMenu);
         return;
       }
       closeSettingsChoiceMenu();
@@ -4718,7 +4728,11 @@ function bindPassageComboboxes() {
       if (inline) menu.classList.add("passage-combobox-list");
       (inline ? form : document.body).appendChild(menu);
       input.setAttribute("aria-expanded", "true");
-      const reposition = () => inline ? positionFocusWorkspacePanel() : positionSettingsChoiceMenu(root, menu);
+      const reposition = () => {
+        if (inline) positionFocusWorkspacePanel();
+        else positionSettingsChoiceMenu(root, menu);
+        if (scrollHaptics) scrollPosition = passageScrollPosition(menu);
+      };
       activeSettingsChoiceMenu = { menu, trigger: root, select, cleanup: () => {
         input.setAttribute("aria-expanded", "false");
         input.removeAttribute("aria-activedescendant");
@@ -4734,14 +4748,13 @@ function bindPassageComboboxes() {
       reposition();
       if (all) centerSelectedMenuOption(menu);
       if (scrollHaptics) {
-        scrollRow = passageScrollRow(menu);
+        scrollPosition = passageScrollPosition(menu);
         menu.addEventListener("scroll", () => {
           if (activeSettingsChoiceMenu?.menu !== menu) return;
-          const row = passageScrollRow(menu);
-          if (row === scrollRow) return;
-          scrollRow = row;
-          // Fast flings can cross multiple rows in one event. Play one live tick.
-          playNativeHaptic("tick");
+          const current = passageScrollPosition(menu);
+          const kind = passageScrollHaptic(scrollPosition, current);
+          scrollPosition = current;
+          if (kind) playNativeHaptic(kind);
         }, { passive: true });
       }
     };
@@ -4782,7 +4795,7 @@ function bindPassageComboboxes() {
         if (active) {
           input.setAttribute("aria-activedescendant", active.id);
           active.scrollIntoView({ block: "nearest" });
-          if (scrollHaptics) scrollRow = passageScrollRow(activeSettingsChoiceMenu.menu);
+          if (scrollHaptics) scrollPosition = passageScrollPosition(activeSettingsChoiceMenu.menu);
         }
       } else if (event.key === "Enter") {
         event.preventDefault();
@@ -4881,8 +4894,10 @@ function playNativeHaptic(kind = "control") {
   if (!plugin) return;
   try {
     const strength = hapticStrength() / 100;
+    const soft = kind === "tick" || kind === "picker-tick";
+    const intensity = strength * (kind === "tick" ? 0.3 : kind === "picker-tick" ? 0.75 : 1);
     const options = precise
-      ? { intensity: strength * (kind === "tick" ? 0.3 : 1), soft: kind === "tick" }
+      ? { intensity, soft }
       : { style: kind === "milestone" ? "MEDIUM" : "LIGHT" };
     Promise.resolve(plugin.impact(options)).catch(() => {});
   } catch {
@@ -5641,6 +5656,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.23.20": [
+      "Verse picker scroll ticks are easier to feel on iOS, and a firmer tap marks either end of the list.",
+    ],
     "2026.11.23.19": [
       "On supported devices, scrolling through books, chapters, and verses in the verse picker gives light haptic ticks.",
     ],

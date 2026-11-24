@@ -42,24 +42,35 @@ event();
 await new Promise(resolve => setImmediate(resolve));
 console.log('Haptics: activation, preference, platform guards, deduplication and failures passed.');
 
-vm.runInContext(extract("passageScrollRow"), context);
+vm.runInContext(["passageScrollPosition", "passageScrollHaptic"].map(extract).join("\n"), context);
 context.menu = {
   firstElementChild: { offsetTop: 6, nextElementSibling: { offsetTop: 52 } },
   scrollHeight: 470,
   clientHeight: 240,
 };
-for (const [offset, expected] of [[-20, 0], [22, 0], [24, 1], [48, 1], [116, 3], [69, 2], [270, 5]]) {
+run("let previousScroll = passageScrollPosition({ ...menu, scrollTop: 0 });");
+for (const [offset, expected] of [
+  [-20, null], [22, null], [24, "picker-tick"], [48, null], [116, "picker-tick"],
+  [69, "picker-tick"], [220, "picker-tick"], [229.5, "milestone"], [270, null],
+  [230, null], [20, "picker-tick"], [0, "milestone"],
+]) {
   context.menu.scrollTop = offset;
-  assert.equal(run("passageScrollRow(menu)"), expected);
+  assert.equal(run(`{
+    const current = passageScrollPosition(menu);
+    const kind = passageScrollHaptic(previousScroll, current);
+    previousScroll = current;
+    kind;
+  }`), expected);
 }
-context.menu.firstElementChild = null;
-assert.equal(run("passageScrollRow(menu)"), 0);
-console.log("Verse picker haptics: row crossings, reverse scrolling, empty lists and overscroll passed.");
+assert.equal(run("passageScrollPosition({ scrollTop: 0, scrollHeight: 240, clientHeight: 240 }).edge"), null);
 
 // Exercise the actual native-intensity path and real Scripture gesture handlers.
 const pulses = [];
 context.window.Capacitor.isPluginAvailable = () => available;
 context.window.Capacitor.Plugins.BSBHaptics = { impact: options => { pulses.push(options); } };
+run('playNativeHaptic("picker-tick"); playNativeHaptic("milestone");');
+assert.deepEqual(pulses.splice(0).map(({ intensity, soft }) => [Math.round(intensity * 100), soft]), [[45, true], [60, false]]);
+console.log("Verse picker haptics: row crossings, overscroll, and stronger edge feedback passed.");
 Object.assign(context, {
   state: { textScale: 1, presentationTextScale: 1 },
   readerBlankTapStart: null, readerPinchStartPx: 7,
