@@ -9946,6 +9946,17 @@ select {
   text-wrap: pretty;
 }
 
+.verse-of-day-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 30px;
+}
+
+.verse-of-day-actions .verse-of-day-read-button {
+  margin-top: 0;
+}
+
 .verse-of-day-read-button {
   width: fit-content;
   margin-top: 30px;

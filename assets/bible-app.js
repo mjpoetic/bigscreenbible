@@ -5668,6 +5668,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.24.2": [
+      "Start memorizing the Verse of the Day directly from Reader or Parallel mode.",
+    ],
     "2026.11.24.1": [
       "The verse and highlighter toolbars stay on one row, with arrow buttons to reveal additional tools when space runs out.",
     ],
@@ -17077,10 +17080,16 @@ function verseOfDayReaderView(interactive = false) {
     <section class="verse-of-day-reader" aria-labelledby="verseOfDayReference">
       <h1 class="section-title" id="verseOfDayReference"><button class="verse-of-day-reference-picker" type="button" data-passage-picker aria-label="Choose passage, currently ${escapeHtml(verseOfDayReferenceLabel(item))}" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}">${escapeHtml(verseOfDayReferenceLabel(item))}</button></h1>
       ${interactive ? entries.map((entry) => focusedReaderVerse(entry.verse, escapeHtml(entry.text), "", "", expandedVersionVerseNumbers(state.reference, [entry.verse], state.versions[0]))).join("") : `<p class="verse-of-day-copy">${entries.map((entry) => escapeHtml(entry.text)).join(" ")}</p>`}
-      <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
-        <span aria-hidden="true">${icons.book}</span>
-        <span>Read in Bible</span>
-      </button>
+      <div class="verse-of-day-actions">
+        <button class="ghost-btn verse-of-day-read-button" id="verseOfDayReadInBible" type="button">
+          <span aria-hidden="true">${icons.book}</span>
+          <span>Read in Bible</span>
+        </button>
+        <button class="ghost-btn verse-of-day-read-button" id="verseOfDayMemorize" type="button">
+          <span aria-hidden="true">${icons.memorize}</span>
+          <span>Memorize</span>
+        </button>
+      </div>
       ${verseOfDayAttributionMarkup()}
       ${apiBibleAttributionMarkup([state.versions[0]])}
     </section>
@@ -27338,6 +27347,11 @@ function bindEvents() {
   document.getElementById("verseOfDayReadInBible")?.addEventListener("click", (event) => {
     event.stopPropagation();
     openVerseOfDayInReader();
+  });
+  document.getElementById("verseOfDayMemorize")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const reference = state.verseOfDayItem?.reference;
+    if (reference) addMemoryPassage(reference);
   });
   document.getElementById("presentationBrandVerseOfDay")?.addEventListener("click", (event) => {
     event.preventDefault();
