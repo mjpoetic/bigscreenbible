@@ -16602,17 +16602,35 @@ kbd {
   animation: streakPopupOut var(--motion-base) ease-in both !important;
 }
 
-.rail.focus-chrome-exit,
+:is(.rail, .library-drawer, .chapter-tools-region, .footer-region).focus-chrome-exit {
+  --focus-exit-x: 0px;
+  --focus-exit-y: 0px;
+  pointer-events: none;
+  animation: focusChromeOut 540ms cubic-bezier(0.45, 0, 0.55, 1) both !important;
+}
+
+.rail.focus-chrome-exit {
+  --focus-exit-x: -100%;
+}
+
 .library-drawer.focus-chrome-exit {
-  animation: focusChromeLeftOut var(--motion-slow) ease-in both !important;
+  --focus-exit-x: calc(-100% - var(--rail-width));
+}
+
+.app-shell[data-side-toolbar-position="right"] :is(.rail, .library-drawer).focus-chrome-exit {
+  --focus-exit-x: 100%;
+}
+
+.app-shell[data-side-toolbar-position="right"] .library-drawer.focus-chrome-exit {
+  --focus-exit-x: calc(100% + var(--rail-width));
 }
 
 .chapter-tools-region.focus-chrome-exit {
-  animation: focusChromeTopOut var(--motion-slow) ease-in both !important;
+  --focus-exit-y: -100%;
 }
 
 .footer-region.focus-chrome-exit {
-  animation: focusChromeBottomOut var(--motion-slow) ease-in both !important;
+  --focus-exit-y: 100%;
 }
 
 .focus-chrome-enter .rail,
@@ -16628,24 +16646,14 @@ kbd {
   animation: focusChromeBottomIn var(--motion-slow) var(--motion-ease) both !important;
 }
 
-@keyframes focusChromeLeftOut {
-  to {
-    opacity: 0;
-    transform: translateX(-18px);
+@keyframes focusChromeOut {
+  0%, 55% {
+    opacity: 1;
   }
-}
 
-@keyframes focusChromeTopOut {
   to {
     opacity: 0;
-    transform: translateY(-16px);
-  }
-}
-
-@keyframes focusChromeBottomOut {
-  to {
-    opacity: 0;
-    transform: translateY(18px);
+    transform: translate(var(--focus-exit-x), var(--focus-exit-y));
   }
 }
 

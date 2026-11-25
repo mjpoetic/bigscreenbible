@@ -5901,6 +5901,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.18": [
+      "Reader panels now slide out of view when entering Focus Mode.",
+    ],
     "2026.11.25.17": [
       "Reader verse pickers now give haptic feedback while scrolling. Turn on Verse picker scroll sounds in Settings → Sounds to hear ticks in Reader and Focus Mode.",
     ],
@@ -34081,10 +34084,12 @@ function resetPresentationTextScale({ feedback = false } = {}) {
 let pendingFocusChromeEnter = false;
 let pendingLibraryEnter = false;
 
-function toggleFocusMode() {
+function toggleFocusMode({ onComplete } = {}) {
   if (document.documentElement.dataset.modeTransition === "reader-panels") return;
   const enteringFocus = !state.focusMode;
+  const currentMode = state.mode;
   const applyFocusMode = (animateChrome = true) => {
+    if (state.mode !== currentMode || state.focusMode === enteringFocus) return;
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
@@ -34094,19 +34099,20 @@ function toggleFocusMode() {
     localStorage.setItem("lw_focus_mode", String(state.focusMode));
     scheduleCloudSync();
     renderPreservingReaderScroll();
+    onComplete?.();
   };
-  if (modeViewTransitionAvailable()) {
-    runLayoutViewTransition("reader-panels", () => applyFocusMode(false));
-    return;
-  }
   if (!enteringFocus) {
-    applyFocusMode();
+    if (modeViewTransitionAvailable()) {
+      runLayoutViewTransition("reader-panels", () => applyFocusMode(false));
+    } else {
+      applyFocusMode();
+    }
     return;
   }
   animateBeforeRemoval(
     ".rail, .library-drawer, .chapter-tools-region, .footer-region",
     applyFocusMode,
-    { className: "focus-chrome-exit", duration: 240 },
+    { className: "focus-chrome-exit", duration: 650, waitForAnimation: true },
   );
 }
 
@@ -35828,9 +35834,9 @@ function finishReaderPinch(gesture) {
 
 function toggleReaderFocusFromGesture() {
   if (!canUseReaderChapterSwipe()) return;
-  const enteringFocus = !state.focusMode;
-  toggleFocusMode();
-  setTimeout(() => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"), enteringFocus ? 280 : 0);
+  toggleFocusMode({
+    onComplete: () => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"),
+  });
 }
 
 const focusReadingDoubleTapMs = 450;
