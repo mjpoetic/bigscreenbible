@@ -3523,10 +3523,13 @@ function updateFocusPassageNotch() {
   notch.inert = progress < 0.15;
   if (notch.hidden) {
     scripture.style.removeProperty("--focus-notch-clearance");
+    scripture.style.removeProperty("--focus-notch-bottom");
     return;
   }
   const scriptureTop = scripture.getBoundingClientRect().top;
-  const clearance = Math.max(0, notch.getBoundingClientRect().bottom - scriptureTop);
+  const notchBottom = notch.getBoundingClientRect().bottom;
+  const clearance = Math.max(0, notchBottom - scriptureTop);
+  scripture.style.setProperty("--focus-notch-bottom", `${notchBottom}px`);
   scripture.style.setProperty("--focus-notch-clearance", `${clearance}px`);
   const top = Math.max(scriptureTop, headerBottom + notch.offsetHeight);
   const verse = [...scripture.querySelectorAll("[data-verse]")].find(row => row.getBoundingClientRect().bottom > top + 4)?.dataset.verse;
@@ -5670,6 +5673,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.9": [
+      "The Focus passage selector and highlighter toolbar stay clear of each other.",
+    ],
     "2026.11.25.8": [
       "Customize verse selection spotlight strength and choose between dimming and blur in Appearance & Text.",
     ],

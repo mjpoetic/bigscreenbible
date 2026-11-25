@@ -30,7 +30,10 @@ for (const [scroll, expected] of [[30, 0.15625], [60, 0.5], [90, 0.84375], [120,
   assert.equal(Number(notch.style['--notch-reveal']), expected, 'Reveal tracks scroll in both directions');
   assert.equal(scripture.style['--focus-notch-clearance'],
     expected ? `${notch.getBoundingClientRect().bottom - 72}px` : undefined,
-    'Highlighter clearance follows the moving notch and resets when hidden');
+    'Sticky highlighter clearance follows the moving notch and resets when hidden');
+  assert.equal(scripture.style['--focus-notch-bottom'],
+    expected ? `${notch.getBoundingClientRect().bottom}px` : undefined,
+    'Fixed highlighter clearance uses viewport coordinates and resets when hidden');
 }
 scripture.scrollTop = 100;
 context.updateFocusPassageNotch();

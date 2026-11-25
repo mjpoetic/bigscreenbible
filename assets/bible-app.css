@@ -25903,6 +25903,14 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 }
 .presentation-no-buttons-help { font-size: 12px; line-height: 1.5; }
 
+/* Keep the fixed highlighter below the visible Focus passage selector. */
+@media (min-width: 841px) {
+  #app .focus-shell:has(.focus-passage-notch:not([hidden])) .scripture .selection-bar {
+    /* Include the toolbar's 6px upward entrance offset in the gap. */
+    top: max(calc(var(--topbar-height) + 16px), calc(var(--focus-notch-bottom, 0px) + 14px));
+  }
+}
+
 /* Reserve reading space for portrait selection tools rather than covering text. */
 @media (max-width: 840px) and (orientation: portrait) {
   #app .app-shell .reader .scripture .selection-bar {
