@@ -28424,22 +28424,34 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 
 #focusMiniBookSelectMenu {
   box-sizing: border-box;
+  scroll-padding-top: 32px;
 }
 
-.book-picker-options {
+.book-picker-options,
+.book-picker-testament {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
-.book-picker-toolbar {
+.book-picker-testament > .settings-choice-group-label {
   position: sticky;
   z-index: 1;
   top: 0;
-  display: flex;
-  justify-content: flex-end;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 8px 56px 6px 10px;
   background: var(--panel);
-  border-radius: 6px;
+  color: var(--muted);
+  opacity: 1;
+}
+
+.book-picker-toolbar {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  justify-self: end;
+  height: 0;
 }
 
 .book-picker-color-toggle {
@@ -28448,6 +28460,8 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
   gap: 4px;
   min-height: 28px;
   padding-inline: 5px;
+  border-radius: 6px;
+  background: var(--panel);
   cursor: pointer;
 }
 

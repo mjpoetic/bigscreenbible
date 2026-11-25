@@ -4868,15 +4868,21 @@ function bindPassageComboboxes() {
       // Keep the open surface mounted so filtering doesn't replay its entrance.
       const options = document.createDocumentFragment();
       let previousTestament;
+      let group = options;
       visible.forEach((option, index) => {
         if (isBook) {
           const testament = newTestamentBooks.includes(option.value) ? "New Testament" : "Old Testament";
           if (testament !== previousTestament) {
+            group = document.createElement("div");
+            group.className = "book-picker-testament";
+            group.setAttribute("role", "group");
+            group.setAttribute("aria-label", testament);
             const heading = document.createElement("div");
             heading.className = "settings-choice-group-label";
-            heading.setAttribute("role", "presentation");
+            heading.setAttribute("aria-hidden", "true");
             heading.textContent = testament;
-            options.appendChild(heading);
+            group.appendChild(heading);
+            options.appendChild(group);
             previousTestament = testament;
           }
         }
@@ -4898,7 +4904,7 @@ function bindPassageComboboxes() {
           commit(option, usesInlineList() ? "" : input.id);
           if (usesInlineList()) input.blur();
         });
-        options.appendChild(button);
+        group.appendChild(button);
       });
       if (!visible.length) {
         const empty = document.createElement("div");
@@ -5901,6 +5907,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.19": [
+      "The Book dropdown keeps the current testament heading in view as you scroll and tucks the color toggle into the corner.",
+    ],
     "2026.11.25.18": [
       "Reader panels now slide out of view when entering Focus Mode.",
     ],
