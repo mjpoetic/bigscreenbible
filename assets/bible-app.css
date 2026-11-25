@@ -28427,15 +28427,24 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 }
 
 .book-picker-testament > .settings-choice-group-label {
+  --book-heading-shade: color-mix(in srgb, var(--panel) 90%, var(--muted));
   position: sticky;
   z-index: 1;
   top: 0;
   box-sizing: border-box;
   min-height: 30px;
   padding: 8px 56px 6px 10px;
-  background: var(--panel);
+  background: var(--book-heading-shade);
   color: var(--muted);
   opacity: 1;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .book-picker-testament > .settings-choice-group-label {
+    background: color-mix(in srgb, var(--book-heading-shade) 86%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
 }
 
 .book-picker-toolbar {
