@@ -28380,6 +28380,9 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
   font: inherit;
   outline: none;
 }
+.focus-mini-verse-picker .passage-combobox input {
+  font-weight: 900;
+}
 .passage-combobox:focus-within {
   outline: 2px solid var(--teal);
   outline-offset: 2px;

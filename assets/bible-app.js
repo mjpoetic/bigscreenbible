@@ -3739,6 +3739,25 @@ function mobileFocusWorkspacePanel() {
   `;
 }
 
+function focusPickerBookLabel(book) {
+  const abbreviations = {
+    Genesis: "Gen", Exodus: "Exod", Leviticus: "Lev", Numbers: "Num",
+    Deuteronomy: "Deut", Joshua: "Josh", Judges: "Judg", Samuel: "Sam",
+    Kings: "Kgs", Chronicles: "Chr", Nehemiah: "Neh", Esther: "Est",
+    Psalm: "Ps", Proverbs: "Prov", Ecclesiastes: "Eccl", "Song of Songs": "Song",
+    Isaiah: "Isa", Jeremiah: "Jer", Lamentations: "Lam", Ezekiel: "Ezek",
+    Daniel: "Dan", Hosea: "Hos", Obadiah: "Obad", Jonah: "Jon", Micah: "Mic",
+    Nahum: "Nah", Habakkuk: "Hab", Zephaniah: "Zeph", Haggai: "Hag",
+    Zechariah: "Zech", Malachi: "Mal", Matthew: "Matt", Romans: "Rom",
+    Corinthians: "Cor", Galatians: "Gal", Ephesians: "Eph", Philippians: "Phil",
+    Colossians: "Col", Thessalonians: "Thess", Timothy: "Tim", Titus: "Tit",
+    Philemon: "Phm", Hebrews: "Heb", James: "Jas", Peter: "Pet", Revelation: "Rev",
+  };
+  const prefix = book.match(/^[1-3] /)?.[0] || "";
+  const name = book.slice(prefix.length);
+  return prefix + (abbreviations[name] || name);
+}
+
 function focusVersePickerPanel() {
   const picker = focusVersePickerData();
   state.focusVersePickerBook = picker.book;
@@ -3750,7 +3769,7 @@ function focusVersePickerPanel() {
       <div class="focus-mini-verse-picker-grid ${state.focusMode ? "with-version" : ""}">
         <div class="focus-picker-field">
           <span>Book</span>
-          ${settingsChoiceMarkup("focusMiniBookSelect", picker.book, picker.availableBooks.map((value) => ({ value: String(value), label: String(value) })), { ariaLabel: "Book", editable: true })}
+          ${settingsChoiceMarkup("focusMiniBookSelect", picker.book, picker.availableBooks.map((book) => ({ value: book, label: book, nativeLabel: focusPickerBookLabel(book) })), { ariaLabel: "Book", editable: true })}
         </div>
         <div class="focus-picker-field">
           <span>Chapter</span>
@@ -4287,7 +4306,7 @@ function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
       </select>
       ${config.editable ? `
       <div class="settings-choice-toggle passage-combobox">
-        <input id="${id}Input" data-passage-combobox role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${menuId}" aria-label="${escapeHtml(config.ariaLabel)}" value="${escapeHtml(normalizedValue)}" autocomplete="off" spellcheck="false" ${config.ariaLabel !== "Book" ? 'inputmode="numeric"' : ''}>
+        <input id="${id}Input" data-passage-combobox role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${menuId}" aria-label="${escapeHtml(config.ariaLabel)}" value="${escapeHtml(selectedChoice?.nativeLabel || normalizedValue)}" autocomplete="off" spellcheck="false" ${config.ariaLabel !== "Book" ? 'inputmode="numeric"' : ''}>
         <button type="button" class="passage-combobox-arrow" data-passage-arrow aria-label="Show all ${config.ariaLabel.toLowerCase()} choices" tabindex="-1"><span class="settings-choice-chevron" aria-hidden="true"></span></button>
       </div>` : `
       <button class="settings-choice-toggle" id="${id}Toggle" type="button" ${config.disabled ? 'disabled aria-disabled="true"' : ""} data-settings-choice-toggle aria-label="${escapeHtml(config.ariaLabel || config.label || "Choose an option")}, ${escapeHtml(selectedChoice?.nativeLabel || selectedChoice?.label || "")}" aria-haspopup="listbox" aria-expanded="false" aria-controls="${menuId}">
@@ -4643,10 +4662,19 @@ function passageChoiceMatches(options, query) {
   const normalized = String(query).toLowerCase().replace(/\s+/g, "");
   return Array.from(options).filter((option) => {
     if (option.disabled) return false;
-    const label = option.label.toLowerCase().replace(/\s+/g, "");
-    return label.startsWith(normalized)
-      || label.replace(/^[123](?=[a-z])/, "").startsWith(normalized);
+    return [option.label, option.value].some((text) => {
+      const label = text.toLowerCase().replace(/\s+/g, "");
+      return label.startsWith(normalized)
+        || label.replace(/^[123](?=[a-z])/, "").startsWith(normalized);
+    });
   });
+}
+
+function resolvePassageChoice(matches, query) {
+  const normalized = query.toLowerCase().replace(/\s+/g, "");
+  return matches.find((option) => [option.value, option.label].some(
+    (text) => text.toLowerCase().replace(/\s+/g, "") === normalized,
+  )) || (matches.length === 1 ? matches[0] : null);
 }
 
 function passageScrollPosition(menu) {
@@ -4680,12 +4708,13 @@ function bindPassageComboboxes() {
     let scrollPosition;
     let activeIndex = -1;
     let visible = [];
-    const commit = (value, focusId = input.id) => {
+    const selectedLabel = () => select.selectedOptions[0]?.label || select.value;
+    const commit = (option, focusId = input.id) => {
       closeSettingsChoiceMenu();
-      input.value = value;
+      input.value = option.label;
       input.setCustomValidity("");
-      if (select.value === value) return;
-      select.value = value;
+      if (select.value === option.value) return;
+      select.value = option.value;
       select.dispatchEvent(new Event("change", { bubbles: true }));
       document.getElementById(focusId)?.focus({ preventScroll: true });
     };
@@ -4708,12 +4737,12 @@ function bindPassageComboboxes() {
         button.tabIndex = -1;
         button.setAttribute("role", "option");
         button.setAttribute("aria-selected", String(option.value === select.value));
-        button.textContent = option.label;
-        if (select.id === "focusMiniBookSelect") button.title = option.label;
+        button.textContent = option.dataset.choiceLabel || option.label;
+        if (select.id === "focusMiniBookSelect") button.title = button.textContent;
         button.addEventListener("pointerdown", (event) => event.preventDefault());
         button.addEventListener("click", (event) => {
           event.stopPropagation();
-          commit(option.value, usesInlineList() ? "" : input.id);
+          commit(option, usesInlineList() ? "" : input.id);
           if (usesInlineList()) input.blur();
         });
         options.appendChild(button);
@@ -4775,7 +4804,7 @@ function bindPassageComboboxes() {
       }
     };
     input.addEventListener("focus", () => { input.select(); });
-    input.addEventListener("click", () => show(input.value === select.value));
+    input.addEventListener("click", () => show(input.value === selectedLabel()));
     input.addEventListener("input", () => { input.setCustomValidity(""); show(); });
     arrow.addEventListener("pointerdown", (event) => event.preventDefault());
     arrow.addEventListener("click", () => {
@@ -4790,16 +4819,16 @@ function bindPassageComboboxes() {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        input.value = select.value;
+        input.value = selectedLabel();
         input.setCustomValidity("");
         closeSettingsChoiceMenu();
       } else if (["ArrowDown", "ArrowUp"].includes(event.key)) {
         event.preventDefault();
-        if (activeSettingsChoiceMenu?.trigger !== root) show(input.value === select.value);
+        if (activeSettingsChoiceMenu?.trigger !== root) show(input.value === selectedLabel());
         if (!visible.length) return;
         const direction = event.key === "ArrowDown" ? 1 : -1;
         const currentIndex = activeIndex >= 0 ? activeIndex
-          : input.value === select.value ? visible.findIndex((option) => option.value === select.value) : -1;
+          : input.value === selectedLabel() ? visible.findIndex((option) => option.value === select.value) : -1;
         const nextIndex = currentIndex >= 0 ? currentIndex + direction
           : direction > 0 ? 0 : visible.length - 1;
         activeIndex = Math.max(0, Math.min(visible.length - 1, nextIndex));
@@ -4817,17 +4846,17 @@ function bindPassageComboboxes() {
         event.preventDefault();
         const matches = passageChoiceMatches(select.options, input.value);
         const choice = activeSettingsChoiceMenu?.trigger === root && activeIndex >= 0
-          ? visible[activeIndex] : matches.find((option) => option.value.toLowerCase() === input.value.trim().toLowerCase()) || (matches.length === 1 ? matches[0] : null);
-        if (choice) commit(choice.value);
+          ? visible[activeIndex] : resolvePassageChoice(matches, input.value);
+        if (choice) commit(choice);
         else show();
       }
     });
     input.addEventListener("blur", (event) => {
       const matches = passageChoiceMatches(select.options, input.value);
-      const choice = matches.find((option) => option.value.toLowerCase() === input.value.trim().toLowerCase()) || (matches.length === 1 ? matches[0] : null);
+      const choice = resolvePassageChoice(matches, input.value);
       closeSettingsChoiceMenu();
-      if (choice) commit(choice.value, event.relatedTarget?.id || "");
-      else input.value = select.value;
+      if (choice) commit(choice, event.relatedTarget?.id || "");
+      else input.value = selectedLabel();
       input.setCustomValidity("");
     });
   });
@@ -5674,6 +5703,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.11": [
+      "The verse picker uses shorter book names and bold field text. You can still type full book names to search.",
+    ],
     "2026.11.25.10": [
       "Settings now spotlights the open window, with Dim, Blur, and Off options.",
     ],
@@ -26879,7 +26911,7 @@ function bindEvents() {
     if (typing?.matches("[data-passage-combobox]")) {
       const select = typing.closest("[data-settings-choice]").querySelector("select");
       const matches = passageChoiceMatches(select.options, typing.value);
-      if (!matches.some((option) => option.value.toLowerCase() === typing.value.trim().toLowerCase()) && matches.length !== 1) {
+      if (!resolvePassageChoice(matches, typing.value)) {
         typing.setCustomValidity(matches.length ? "Choose one of the matching options." : "Choose an available option.");
         typing.reportValidity();
         return;

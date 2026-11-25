@@ -93,6 +93,26 @@ assert.deepEqual(Array.from(context.passageChoiceMatches(numbers, '1'), o => o.v
 assert.equal(context.passageChoiceMatches(numbers, '99').length, 0);
 console.log('Editable passage choice filtering checks passed');
 
+for (const name of ['focusPickerBookLabel', 'resolvePassageChoice', 'settingsChoiceMarkup']) {
+  vm.runInContext(extract(name), context);
+}
+context.escapeHtml = String;
+const bookChoices = ['Colossians', 'John', '1 John', '2 Thessalonians', 'Judges', 'Jude'].map(value => ({
+  value, label: value, nativeLabel: context.focusPickerBookLabel(value),
+}));
+const bookMarkup = context.settingsChoiceMarkup('focusMiniBookSelect', 'Colossians', bookChoices, { ariaLabel: 'Book', editable: true });
+assert.match(bookMarkup, /<input[^>]*value="Col"/);
+assert.match(bookMarkup, /<option value="Colossians" selected/);
+const bookOptions = bookChoices.map(({ value, nativeLabel: label }) => ({ value, label }));
+for (const [query, book] of [
+  ['Colossians', 'Colossians'], ['Col', 'Colossians'], ['John', 'John'],
+  ['2 Thessalonians', '2 Thessalonians'], ['2 Thess', '2 Thessalonians'],
+]) {
+  const matches = context.passageChoiceMatches(bookOptions, query);
+  assert.equal(context.resolvePassageChoice(matches, query)?.value, book);
+}
+assert.equal(context.resolvePassageChoice(context.passageChoiceMatches(bookOptions, 'Jud'), 'Jud'), null);
+
 vm.runInContext(extract('passagePickerViewport'), context);
 vm.runInContext(extract('positionFocusWorkspacePanel'), context);
 context.window = {
