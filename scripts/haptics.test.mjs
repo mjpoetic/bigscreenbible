@@ -64,6 +64,43 @@ for (const [offset, expected] of [
 }
 assert.equal(run("passageScrollPosition({ scrollTop: 0, scrollHeight: 240, clientHeight: 240 }).edge"), null);
 
+const feedback = [];
+const scrollListeners = new Map();
+const scrollContext = vm.createContext({
+  localStorage: { getItem: key => storage.get(key) },
+  document: { hidden: false },
+  window: { AudioContext: class { state = "running"; currentTime = 0; } },
+  playNativeHaptic: kind => feedback.push(kind),
+  playModeTone: (_context, options) => feedback.push(options.peakGain),
+  scroller: {
+    ...context.menu, scrollTop: 0, isConnected: true,
+    addEventListener: (type, handler) => scrollListeners.set(type, handler),
+  },
+});
+const runScroll = code => vm.runInContext(code, scrollContext);
+runScroll(`let passageScrollAudioContext;
+${["passageScrollPosition", "passageScrollHaptic", "passageScrollSoundsEnabled", "primePassageScrollAudio", "playPassageScrollTick", "bindPassageScrollFeedback"].map(extract).join("\n")}
+const reset = bindPassageScrollFeedback(scroller);`);
+const scrollTo = top => {
+  scrollContext.scroller.scrollTop = top;
+  scrollListeners.get("scroll")();
+};
+scrollTo(52);
+assert.deepEqual(feedback.splice(0), ["picker-tick"], "Sound defaults off while haptics still play");
+storage.set("lw_passage_scroll_sounds", "true");
+scrollListeners.get("click")();
+scrollTo(102);
+assert.deepEqual(feedback.splice(0), ["picker-tick", 0.045]);
+runScroll("scroller.scrollTop = 150; reset();");
+scrollTo(150);
+assert.deepEqual(feedback, [], "Programmatic repositioning is silent");
+scrollTo(230);
+assert.deepEqual(feedback.splice(0), ["milestone", 0.065]);
+storage.set("lw_passage_scroll_sounds", "false");
+scrollTo(10);
+assert.deepEqual(feedback.splice(0), ["picker-tick"], "Turning sound off takes effect on the next scroll");
+storage.delete("lw_passage_scroll_sounds");
+
 // Exercise the actual native-intensity path and real Scripture gesture handlers.
 const pulses = [];
 context.window.Capacitor.isPluginAvailable = () => available;

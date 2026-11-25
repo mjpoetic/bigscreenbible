@@ -3125,6 +3125,7 @@ function restoreLibraryScroll(scrollState) {
   if (!libraryPanel) return;
   libraryPanel.scrollTop = scrollState.top || 0;
   libraryPanel.scrollLeft = scrollState.left || 0;
+  readerBookScrollResets.get(libraryPanel)?.();
 }
 
 function libraryStateKey(rail = state.activeRail) {
@@ -4649,6 +4650,10 @@ function openSettingsChoiceMenu(trigger) {
   trigger.setAttribute("aria-expanded", "true");
   positionSettingsChoiceMenu(trigger, menu, select.dataset.choiceMenuWide === "true");
 
+  const resetScrollFeedback = ["chapterSelect", "verseSelect"].includes(select.id)
+    ? bindPassageScrollFeedback(menu) : null;
+  if (resetScrollFeedback) primePassageScrollAudio();
+
   const optionButtons = Array.from(menu.querySelectorAll(".settings-choice-option:not(:disabled)"));
   const selectedButton = menu.querySelector(".settings-choice-option.active:not(:disabled)") || optionButtons[0];
   optionButtons.forEach((button) => {
@@ -4692,6 +4697,7 @@ function openSettingsChoiceMenu(trigger) {
     event.stopPropagation();
     optionButtons[nextIndex]?.focus({ preventScroll: true });
     optionButtons[nextIndex]?.scrollIntoView({ block: "nearest" });
+    resetScrollFeedback?.();
   });
 
   activeSettingsChoiceMenu = { menu, trigger, select };
@@ -4703,6 +4709,7 @@ function openSettingsChoiceMenu(trigger) {
     if (activeSettingsChoiceMenu?.menu !== menu) return;
     centerSelectedMenuOption(menu);
     selectedButton?.focus({ preventScroll: true });
+    resetScrollFeedback?.();
   });
 }
 
@@ -4745,6 +4752,76 @@ function passageScrollHaptic(previous, current) {
   return null;
 }
 
+let passageScrollAudioContext;
+const readerBookScrollResets = new WeakMap();
+
+function passageScrollSoundsEnabled() {
+  return localStorage.getItem("lw_passage_scroll_sounds") === "true";
+}
+
+function primePassageScrollAudio() {
+  if (!passageScrollSoundsEnabled()) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  try {
+    passageScrollAudioContext ||= new AudioContext();
+    if (["suspended", "interrupted"].includes(passageScrollAudioContext.state)) {
+      passageScrollAudioContext.resume().catch(() => {});
+    }
+  } catch {
+    // Audio availability must not interrupt passage navigation.
+  }
+}
+
+function playPassageScrollTick(kind) {
+  const context = passageScrollAudioContext;
+  if (!passageScrollSoundsEnabled() || document.hidden || context?.state !== "running") return;
+  const startAt = context.currentTime;
+  const milestone = kind === "milestone";
+  playModeTone(context, {
+    startAt,
+    duration: 0.023,
+    startFrequency: milestone ? 1020 : 1380,
+    endFrequency: milestone ? 660 : 850,
+    peakGain: milestone ? 0.065 : 0.045,
+  });
+}
+
+function bindPassageScrollFeedback(scroller, getPosition = passageScrollPosition) {
+  let previous = getPosition(scroller);
+  const reset = () => { previous = getPosition(scroller); };
+  scroller.addEventListener("scroll", () => {
+    if (!scroller.isConnected) return;
+    const current = getPosition(scroller);
+    const kind = previous && current && passageScrollHaptic(previous, current);
+    previous = current;
+    if (kind) {
+      playNativeHaptic(kind);
+      playPassageScrollTick(kind);
+    }
+  }, { passive: true });
+  scroller.addEventListener("pointerdown", primePassageScrollAudio, { passive: true });
+  scroller.addEventListener("click", primePassageScrollAudio);
+  return reset;
+}
+
+function readerBookScrollPosition(drawer) {
+  const rows = drawer.querySelectorAll(".testament-group[open] .book-row");
+  if (!rows.length) return null;
+  const viewport = drawer.getBoundingClientRect();
+  if (rows[0].getBoundingClientRect().top >= viewport.bottom
+    || rows[rows.length - 1].getBoundingClientRect().bottom <= viewport.top) return null;
+  const center = (viewport.top + viewport.bottom) / 2;
+  let row = 0;
+  let last = rows.length - 1;
+  while (row < last) {
+    const next = Math.ceil((row + last) / 2);
+    if (rows[next].getBoundingClientRect().top <= center) row = next;
+    else last = next - 1;
+  }
+  return { row, edge: passageScrollPosition(drawer).edge };
+}
+
 function pickerBookColorsEnabled() {
   return localStorage.getItem("lw_picker_book_colors") !== "off";
 }
@@ -4764,8 +4841,7 @@ function bindPassageComboboxes() {
     const arrow = root.querySelector("[data-passage-arrow]");
     const form = root.closest(".focus-mini-verse-picker");
     const usesInlineList = () => form && window.matchMedia("(pointer: coarse)").matches;
-    const scrollHaptics = form && nativeHapticsPlugin();
-    let scrollPosition;
+    let resetScrollFeedback;
     let activeIndex = -1;
     let visible = [];
     const isBook = select.id === "focusMiniBookSelect";
@@ -4837,10 +4913,11 @@ function bindPassageComboboxes() {
         existingMenu.scrollTop = 0;
         if (!inline) positionSettingsChoiceMenu(root, existingMenu, isBook, isBook);
         if (all) centerSelectedMenuOption(existingMenu);
-        if (scrollHaptics) scrollPosition = passageScrollPosition(existingMenu);
+        resetScrollFeedback?.();
         return;
       }
       closeSettingsChoiceMenu();
+      primePassageScrollAudio();
       const menu = document.createElement("div");
       menu.id = `${select.id}Menu`;
       menu.className = "settings-choice-menu bible-picker-choice-menu";
@@ -4883,9 +4960,10 @@ function bindPassageComboboxes() {
       const reposition = () => {
         if (inline) positionFocusWorkspacePanel();
         else positionSettingsChoiceMenu(root, menu, isBook);
-        if (scrollHaptics) scrollPosition = passageScrollPosition(menu);
+        resetScrollFeedback?.();
       };
       activeSettingsChoiceMenu = { menu, trigger: root, select, cleanup: () => {
+        resetScrollFeedback = null;
         input.setAttribute("aria-expanded", "false");
         input.removeAttribute("aria-activedescendant");
         window.visualViewport?.removeEventListener("resize", reposition);
@@ -4899,16 +4977,7 @@ function bindPassageComboboxes() {
       }
       reposition();
       if (all) centerSelectedMenuOption(menu);
-      if (scrollHaptics) {
-        scrollPosition = passageScrollPosition(menu);
-        menu.addEventListener("scroll", () => {
-          if (activeSettingsChoiceMenu?.menu !== menu) return;
-          const current = passageScrollPosition(menu);
-          const kind = passageScrollHaptic(scrollPosition, current);
-          scrollPosition = current;
-          if (kind) playNativeHaptic(kind);
-        }, { passive: true });
-      }
+      resetScrollFeedback = bindPassageScrollFeedback(menu);
     };
     input.addEventListener("focus", () => { input.select(); });
     input.addEventListener("click", () => show(input.value === selectedLabel()));
@@ -4951,7 +5020,7 @@ function bindPassageComboboxes() {
         if (active) {
           input.setAttribute("aria-activedescendant", active.id);
           active.scrollIntoView({ block: "nearest" });
-          if (scrollHaptics) scrollPosition = passageScrollPosition(activeSettingsChoiceMenu.menu);
+          resetScrollFeedback?.();
         }
       } else if (event.key === "Enter") {
         event.preventDefault();
@@ -4982,6 +5051,15 @@ function bindPassageComboboxes() {
 
 function bindSettingsChoiceMenus() {
   bindPassageComboboxes();
+  const books = document.querySelector(".library .testament-groups");
+  if (books) {
+    const drawer = books.closest(".library");
+    const resetScrollFeedback = bindPassageScrollFeedback(drawer, readerBookScrollPosition);
+    readerBookScrollResets.set(drawer, resetScrollFeedback);
+    books.querySelectorAll(".testament-group").forEach((group) => {
+      group.addEventListener("toggle", resetScrollFeedback);
+    });
+  }
   document.querySelectorAll("[data-settings-choice-toggle]").forEach((trigger) => {
     trigger.addEventListener("click", () => openSettingsChoiceMenu(trigger));
     trigger.addEventListener("keydown", (event) => {
@@ -5159,6 +5237,13 @@ function soundsSettings(prefix = "", options = {}) {
   return settingsDisclosure("sounds", "Sounds", `
     ${ambientSoundsMarkup(prefix)}
     ${hapticsSettingsMarkup(prefix)}
+    <div class="setting-group settings-section-subgroup">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("PassageScrollSoundsToggle")}" data-passage-scroll-sounds ${passageScrollSoundsEnabled() ? "checked" : ""} />
+        <span>Verse picker scroll sounds</span>
+      </label>
+      <p class="setting-help">Play a short tick when scrolling through books, chapters, or verses in Reader and Focus Mode.</p>
+    </div>
     <div class="setting-group sounds-settings">
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ModeTransitionSoundsToggle")}" ${state.modeTransitionSounds ? "checked" : ""} />
@@ -5816,6 +5901,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.17": [
+      "Reader verse pickers now give haptic feedback while scrolling. Turn on Verse picker scroll sounds in Settings → Sounds to hear ticks in Reader and Focus Mode.",
+    ],
     "2026.11.25.16": [
       "Book colors are brighter and distinguish Acts, the Pauline letters, and Revelation. Toggle them in the Book dropdown or Appearance & Text.",
     ],
@@ -7722,6 +7810,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
       ${result("reading", "AutoScrollSpeedLabel", "Auto-scroll speed", "Scripture & Reading", "automatic scrolling")}
       ${result("reading", "SideToolbarPositionLabel", "Landscape toolbar position", "Scripture & Reading", "left right side")}
+      ${result("sounds", "PassageScrollSoundsToggle", "Verse picker scroll sounds", "Sounds", "audible tick book chapter verse scrolling")}
       ${result("sounds", "ModeTransitionSoundsToggle", "Mode transition sounds", "Sounds", "audio cue")}
       ${result("sounds", "AmbientSoundSelect", "Ambient Sounds", "Sounds", "rain ocean white pink brown noise peaceful piano hymn Amazing Grace spiritual lo-fi music sleep timer")}
       ${result("sounds", "ModeTransitionVolume", "Mode transition volume", "Sounds", "audio loudness")}
@@ -27398,6 +27487,15 @@ function bindEvents() {
   document.querySelectorAll("[data-interface-text-size-choice]").forEach((button) => {
     button.addEventListener("click", () => setInterfaceTextSize(button.dataset.interfaceTextSizeChoice));
   });
+  document.querySelectorAll("[data-passage-scroll-sounds]").forEach((toggle) => {
+    toggle.addEventListener("change", () => {
+      localStorage.setItem("lw_passage_scroll_sounds", String(toggle.checked));
+      primePassageScrollAudio();
+      document.querySelectorAll("[data-passage-scroll-sounds]").forEach((input) => {
+        input.checked = toggle.checked;
+      });
+    });
+  });
   ["modeTransitionSoundsToggle", "mobileModeTransitionSoundsToggle", "presentationModeTransitionSoundsToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       setModeTransitionSounds(event.target.checked);
@@ -33863,6 +33961,7 @@ function recordHistory(ref = referenceLabel()) {
 }
 
 function activateWorkspace(target) {
+  if (target === "Verse") primePassageScrollAudio();
   if (target === "Search") {
     state.portraitSearchCollapsed = false;
     state.searchQuery = state.searchQuery || state.searchResultsQuery;
