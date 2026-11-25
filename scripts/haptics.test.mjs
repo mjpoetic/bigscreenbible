@@ -205,10 +205,18 @@ await run("loadAndroidHapticCapabilities()");
 assert.match(run("hapticsSettingsMarkup()"), /data-haptics-strength hidden/);
 assert.ok(renderedControls.every(control => control.hidden));
 const beforeFallback = pulses.length;
-run('playNativeHaptic("tick")');
-assert.equal(pulses.length, beforeFallback + 1, "Android bridge handles the system-tap fallback");
+run('playNativeHaptic("tick"); playNativeHaptic("milestone")');
+assert.equal(pulses.length, beforeFallback, "Phones without amplitude control skip the strength bridge");
+assert.deepEqual(androidPulses.slice(-2), ["LIGHT", "MEDIUM"]);
+
+context.window.Capacitor.Plugins.BSBHaptics.getCapabilities = async () => { throw new Error("Unavailable"); };
+await run("loadAndroidHapticCapabilities()");
+run("playNativeHaptic()");
+assert.equal(pulses.length, beforeFallback);
+assert.equal(androidPulses.at(-1), "LIGHT", "A failed capability check keeps standard Android haptics");
 
 adjustable = true;
+context.window.Capacitor.Plugins.BSBHaptics.getCapabilities = async () => ({ adjustable });
 await run("loadAndroidHapticCapabilities()");
 assert.doesNotMatch(run("hapticsSettingsMarkup()"), /data-haptics-strength hidden/);
 assert.ok(renderedControls.every(control => !control.hidden));

@@ -5146,7 +5146,7 @@ async function loadAndroidHapticCapabilities() {
     androidHapticStrengthAvailable = capabilities?.adjustable === true;
     syncHapticSettings();
   } catch {
-    // The native system tap remains available if the capability query fails.
+    // Keep using standard haptics if the capability query fails.
   }
 }
 
@@ -5171,7 +5171,7 @@ function hapticsSettingsMarkup(prefix = "") {
 
 function playNativeHaptic(kind = "control") {
   if (localStorage.getItem("lw_haptics_enabled") === "false" || document.hidden) return;
-  const precise = nativeHapticStrengthPlugin();
+  const precise = canAdjustHapticStrength() ? nativeHapticStrengthPlugin() : null;
   const plugin = precise || nativeHapticsPlugin();
   if (!plugin) return;
   try {
@@ -5952,6 +5952,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.25": [
+      "Restored vibration feedback on Android phones without adjustable haptic strength.",
+    ],
     "2026.11.25.24": [
       "Adjust haptic strength on supported Android phones in Settings → Sounds. The Android app update also uses a system tap on phones without adjustable feedback.",
     ],
