@@ -5670,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.5": [
+      "Fixed flickering in the verse toolbar preview when enabling all buttons.",
+    ],
     "2026.11.25.4": [
       "On mobile, the highlighter shows the passage and colors above a dedicated row of action buttons.",
     ],
@@ -24885,9 +24888,8 @@ function configureStudyToolbar(container, kind) {
     preview.append(toolbar);
     toolbar.style.setProperty("width", "max-content", "important");
     const fitPreview = () => {
-      const scale = Math.min(1, preview.clientWidth / Math.max(1, toolbar.scrollWidth, toolbar.offsetWidth));
+      const scale = Math.min(1, preview.clientWidth / Math.max(1, toolbar.offsetWidth));
       toolbar.style.setProperty("transform", `scale(${scale})`, "important");
-      preview.style.height = `${toolbar.offsetHeight * scale + 16}px`;
     };
     const previewObserver = new ResizeObserver(fitPreview);
     previewObserver.observe(preview);

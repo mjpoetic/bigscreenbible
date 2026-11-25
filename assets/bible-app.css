@@ -28648,6 +28648,9 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   top: -16px;
   z-index: 2;
   margin-bottom: 8px;
+  /* Keep the preview's layout height independent of its horizontal scale.
+     Otherwise a dialog scrollbar can change the scale and toggle itself. */
+  padding-bottom: 16px;
   overflow: hidden;
 }
 .toolbar-customizer-preview :is(.verse-action-menu, .selection-bar) {
