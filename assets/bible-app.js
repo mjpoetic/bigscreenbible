@@ -5670,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.4": [
+      "On mobile, the highlighter shows the passage and colors above a dedicated row of action buttons.",
+    ],
     "2026.11.25.3": [
       "Android now resumes the last saved Bible passage on launch in Reader and Parallel Study, including when Start with Verse of the Day is off.",
     ],
@@ -25066,9 +25069,23 @@ function bindSelectionTooltips() {
   const bar = document.querySelector(".selection-bar:not(.selection-bar-exiting)");
   if (!bar) return;
   configureStudyToolbar(bar.querySelector(".selection-bar-actions"), "selection");
-  const overflowCleanup = bindToolbarOverflow(bar, bar.querySelector(".selection-bar-controls"));
+  const mobile = window.matchMedia("(max-width: 840px)");
+  let overflowCleanups = [];
+  const bindOverflow = () => {
+    overflowCleanups.forEach(cleanup => cleanup());
+    overflowCleanups = mobile.matches
+      ? [...bar.querySelectorAll(".selection-bar-section")].map(section =>
+        bindToolbarOverflow(section, section.querySelector(".selection-bar-viewport")))
+      : [bindToolbarOverflow(bar, bar.querySelector(".selection-bar-controls"))];
+  };
+  bindOverflow();
+  mobile.addEventListener("change", bindOverflow);
   const tooltipCleanup = bindToolbarTooltips(bar, "selectionToolbarTooltip");
-  selectionTooltipCleanup = () => { tooltipCleanup(); overflowCleanup(); };
+  selectionTooltipCleanup = () => {
+    mobile.removeEventListener("change", bindOverflow);
+    overflowCleanups.forEach(cleanup => cleanup());
+    tooltipCleanup();
+  };
 }
 
 function bindToolbarTooltips(bar, tooltipId) {
@@ -25145,24 +25162,36 @@ function selectionBar() {
     <div class="selection-bar" role="status">
       <div class="selection-bar-controls">
         <div class="toolbar-scroll-row">
-          <span class="selection-bar-summary">${count} selected · ${label}</span>
-          <div class="highlight-palette" aria-label="Highlight selected verses">
-            ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
-            <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
-              <input id="customHighlightColor" type="color" value="${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color">
-            </label>
-            <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight" data-tooltip="Remove highlight">${icons.clear}</button>
+          <div class="selection-bar-section">
+            <div class="selection-bar-viewport">
+              <div class="selection-bar-section-row">
+                <span class="selection-bar-summary"><span class="selection-bar-count">${count} selected · </span>${label}</span>
+                <div class="highlight-palette" aria-label="Highlight selected verses">
+                  ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
+                  <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
+                    <input id="customHighlightColor" type="color" value="${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color">
+                  </label>
+                  <button class="highlight-swatch highlight-remove" data-highlight-color="none" aria-label="Remove highlight" data-tooltip="Remove highlight">${icons.clear}</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="selection-bar-actions">
-            <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
-            <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
-            <button class="text-btn selection-action" id="memorizeSelection" data-default-hidden="true" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
-            <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
-            <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
-            <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
+          <div class="selection-bar-section">
+            <div class="selection-bar-viewport">
+              <div class="selection-bar-section-row">
+                <div class="selection-bar-actions">
+                  <button class="text-btn selection-action ${hasNote ? "has-note" : ""}" id="noteSelection" data-note-reference="${escapeHtml(label)}" aria-label="${hasNote ? "Edit" : "Add"} note for ${escapeHtml(label)}" data-tooltip="${hasNote ? "Edit note" : "Add note"}"><span class="selection-action-icon">${hasNote ? icons.note : icons.noteAdd}</span><span class="selection-action-label">${hasNote ? "Edit note" : "Add note"}</span></button>
+                  <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
+                  <button class="text-btn selection-action" id="memorizeSelection" data-default-hidden="true" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
+                  <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
+                  <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
+                  <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
 
-            <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
+                  <button class="text-btn selection-action" id="printSelection" aria-label="Print passage · ${activePrintLayoutName()} layout" data-tooltip="Print · ${activePrintLayoutName()}"><span class="selection-action-icon">${icons.print}</span><span class="selection-action-label">Print</span></button>
 
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

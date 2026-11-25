@@ -10789,6 +10789,12 @@ select {
   display: none;
 }
 
+.selection-bar-section,
+.selection-bar-viewport,
+.selection-bar-section-row {
+  display: contents;
+}
+
 .selection-bar-actions {
   display: inline-flex;
   flex: 0 0 auto;
@@ -27444,17 +27450,62 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
   .app-shell .topbar .mode-tabs #mobileFocusToggle { display: none; }
 }
 
-/* Keep touch targets full size as the toolbar scrolls. */
+/* Give the palette and passage actions independent rows on narrow screens. */
 @media (max-width: 840px) {
-  .app-shell .reader .selection-bar .selection-bar-actions {
-    gap: 0;
+  .selection-bar:not([data-customizing]) .selection-bar-controls {
+    width: 100%;
+    overflow: visible;
+    touch-action: auto;
   }
+  .selection-bar:not([data-customizing]) .selection-bar-controls > .toolbar-scroll-row {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 0;
+  }
+  .selection-bar:not([data-customizing]) .selection-bar-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+  .selection-bar:not([data-customizing]) .selection-bar-viewport {
+    display: block;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    touch-action: pan-x;
+  }
+  .selection-bar-viewport::-webkit-scrollbar { display: none; }
+  .selection-bar:not([data-customizing]) .selection-bar-section-row {
+    display: flex;
+    width: max-content;
+    align-items: center;
+    gap: 4px;
+    padding: 2px;
+  }
+  .selection-bar-count {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .selection-bar .highlight-palette { gap: 4px; padding-inline: 4px; }
+  .selection-bar .selection-bar-summary { padding-inline: 2px; }
+  .app-shell .reader .selection-bar .selection-bar-actions { gap: 0; }
   .app-shell .reader .selection-bar .selection-bar-actions .selection-action {
     flex: 0 0 44px;
     min-width: 44px;
     min-height: 44px;
     padding-inline: 0;
   }
+}
+
+@media (max-width: 840px) and (orientation: portrait) {
+  #app .app-shell .reader .scripture .selection-bar { max-width: 100% !important; }
 }
 
 /* Tooltips escape the toolbar's scroll/animation clipping and stay inside the viewport. */
