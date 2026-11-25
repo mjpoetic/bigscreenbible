@@ -3758,13 +3758,29 @@ function focusPickerBookLabel(book) {
   return prefix + (abbreviations[name] || name);
 }
 
+function focusPickerLongBookLabel(book) {
+  const abbreviations = {
+    Chronicles: "Chron.", Corinthians: "Corinth.", Thessalonians: "Thess.",
+    Deuteronomy: "Deuteron.", Ecclesiastes: "Eccles.", Lamentations: "Lament.",
+    Philippians: "Philipp.", Colossians: "Coloss.", Revelation: "Revel.",
+    Leviticus: "Levit.", Nehemiah: "Nehem.", Proverbs: "Proverb.",
+    Jeremiah: "Jerem.", Habakkuk: "Habak.", Zephaniah: "Zephan.",
+    Zechariah: "Zechar.", Galatians: "Galat.", Ephesians: "Ephes.",
+    Philemon: "Philem.", Hebrews: "Hebr.",
+  };
+  const prefix = book.match(/^[1-3] /)?.[0] || "";
+  const label = abbreviations[book.slice(prefix.length)];
+  return label ? prefix + label : "";
+}
+
 function fitFocusPickerBookLabel(input, option) {
   const style = getComputedStyle(input);
   const context = document.createElement("canvas").getContext("2d");
   if (!context) return option.label;
   context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-  return context.measureText(option.value).width <= input.clientWidth - 4
-    ? option.value : option.label;
+  return [option.value, focusPickerLongBookLabel(option.value)].find(
+    (label) => label && context.measureText(label).width <= input.clientWidth - 4,
+  ) || option.label;
 }
 
 function refreshFocusPickerBookLabel(panel) {
@@ -4681,11 +4697,11 @@ function openSettingsChoiceMenu(trigger) {
 }
 
 function passageChoiceMatches(options, query) {
-  const normalized = String(query).toLowerCase().replace(/\s+/g, "");
+  const normalized = String(query).toLowerCase().replace(/[\s.]+/g, "");
   return Array.from(options).filter((option) => {
     if (option.disabled) return false;
     return [option.label, option.value].some((text) => {
-      const label = text.toLowerCase().replace(/\s+/g, "");
+      const label = text.toLowerCase().replace(/[\s.]+/g, "");
       return label.startsWith(normalized)
         || label.replace(/^[123](?=[a-z])/, "").startsWith(normalized);
     });
@@ -4693,9 +4709,9 @@ function passageChoiceMatches(options, query) {
 }
 
 function resolvePassageChoice(matches, query) {
-  const normalized = query.toLowerCase().replace(/\s+/g, "");
+  const normalized = query.toLowerCase().replace(/[\s.]+/g, "");
   return matches.find((option) => [option.value, option.label].some(
-    (text) => text.toLowerCase().replace(/\s+/g, "") === normalized,
+    (text) => text.toLowerCase().replace(/[\s.]+/g, "") === normalized,
   )) || (matches.length === 1 ? matches[0] : null);
 }
 
@@ -5727,6 +5743,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.14": [
+      "The wider Book field shows full book names when possible and uses longer abbreviations when they fit.",
+    ],
     "2026.11.25.13": [
       "The Book dropdown has room for full book names, and Chapter and Verse use the same bold dropdown text.",
     ],

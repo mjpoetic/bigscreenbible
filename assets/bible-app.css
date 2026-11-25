@@ -4382,12 +4382,12 @@ dialog.game-challenge-confirm {
 
 .focus-mini-verse-picker-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(76px, 0.65fr));
+  grid-template-columns: minmax(0, 1fr) repeat(2, 66px);
   gap: 8px;
 }
 
 .focus-mini-verse-picker-grid.with-version {
-  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(76px, 0.65fr)) minmax(84px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) repeat(2, 66px) 84px;
 }
 
 @container (width < 350px) {
@@ -4428,6 +4428,13 @@ dialog.game-challenge-confirm {
   grid-template-columns: minmax(0, 1fr) 20px;
   gap: 4px;
   padding-inline: 8px;
+}
+
+.focus-mini-verse-picker .focus-picker-field:nth-child(2) .settings-choice-toggle,
+.focus-mini-verse-picker .focus-picker-field:nth-child(3) .settings-choice-toggle {
+  grid-template-columns: minmax(0, 1fr) 16px;
+  gap: 2px;
+  padding-inline: 6px;
 }
 
 .focus-mini-verse-picker .settings-choice-chevron {

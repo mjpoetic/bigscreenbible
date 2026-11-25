@@ -130,8 +130,8 @@ assert.match(bookMarkup, /<input[^>]*value="Col"/);
 assert.match(bookMarkup, /<option value="Colossians" selected/);
 const bookOptions = bookChoices.map(({ value, nativeLabel: label }) => ({ value, label }));
 for (const [query, book] of [
-  ['Colossians', 'Colossians'], ['Col', 'Colossians'], ['John', 'John'],
-  ['2 Thessalonians', '2 Thessalonians'], ['2 Thess', '2 Thessalonians'],
+  ['Colossians', 'Colossians'], ['Coloss.', 'Colossians'], ['Col', 'Colossians'], ['John', 'John'],
+  ['2 Thessalonians', '2 Thessalonians'], ['2 Thess.', '2 Thessalonians'], ['2 Thess', '2 Thessalonians'],
 ]) {
   const matches = context.passageChoiceMatches(bookOptions, query);
   assert.equal(context.resolvePassageChoice(matches, query)?.value, book);
@@ -139,16 +139,19 @@ for (const [query, book] of [
 assert.equal(context.resolvePassageChoice(context.passageChoiceMatches(bookOptions, 'Jud'), 'Jud'), null);
 
 vm.runInContext(extract('passagePickerViewport'), context);
-for (const name of ['fitFocusPickerBookLabel', 'refreshFocusPickerBookLabel']) {
+for (const name of ['focusPickerLongBookLabel', 'fitFocusPickerBookLabel', 'refreshFocusPickerBookLabel']) {
   vm.runInContext(extract(name), context);
 }
-const bookInput = { value: 'Col', defaultValue: 'Col', clientWidth: 80 };
+const bookInput = { value: 'Col', defaultValue: 'Col', clientWidth: 56 };
 const bookSelect = { selectedOptions: [bookOptions[0]] };
 const bookPanel = { querySelector: selector => selector.endsWith('Input') ? bookInput : bookSelect };
 context.getComputedStyle = () => ({ fontWeight: '900', fontSize: '16px', fontFamily: 'sans-serif' });
 context.document = { createElement: () => ({ getContext: () => ({ measureText: name => ({ width: name.length * 8 }) }) }) };
 context.refreshFocusPickerBookLabel(bookPanel);
-assert.equal(bookInput.value, 'Col', 'A long book name keeps its abbreviation');
+assert.equal(bookInput.value, 'Col', 'The shortest abbreviation fits a tight field');
+bookInput.clientWidth = 80;
+context.refreshFocusPickerBookLabel(bookPanel);
+assert.equal(bookInput.value, 'Coloss.', 'The longer abbreviation uses the available space');
 bookInput.clientWidth = 96;
 context.refreshFocusPickerBookLabel(bookPanel);
 assert.equal(bookInput.value, 'Colossians', 'The full name returns when the field has room');
