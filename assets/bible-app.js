@@ -2141,6 +2141,7 @@ function render({ preserveAutoScroll = false } = {}) {
       ${state.mode === "big" ? "" : searchReturnAction()}
       ${focusPassageNotch()}
       ${mobileFocusOverlayControls()}
+      ${state.settingsOpen && state.mode !== "big" ? settingsSpotlightMarkup("mobile") : ""}
       ${mobileSettingsPanel(settingsPanelRerender)}
       ${presentation(accountPanelRerender)}
       ${shortcutOverlay()}
@@ -5673,6 +5674,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.10": [
+      "Settings now spotlights the open window, with Dim, Blur, and Off options.",
+    ],
     "2026.11.25.9": [
       "The Focus passage selector and highlighter toolbar stay clear of each other.",
     ],
@@ -7311,9 +7315,32 @@ const verseSpotlightSettings = {
   },
 };
 
-function verseSpotlightSettingValue({ key, choices }) {
+function storedSpotlightSettingValue({ key, choices }) {
   const saved = localStorage.getItem(key);
   return choices.find(({ value }) => value === saved)?.value || choices[0].value;
+}
+
+const settingsSpotlight = {
+  key: "lw_settings_spotlight",
+  choices: [
+    { value: "dim", label: "Dim" },
+    { value: "blur", label: "Blur" },
+    { value: "off", label: "Off" },
+  ],
+};
+
+function settingsSpotlightMarkup(surface) {
+  const effect = storedSpotlightSettingValue(settingsSpotlight);
+  return effect === "off" ? "" : `<div class="settings-spotlight settings-spotlight-${surface}" data-effect="${effect}" aria-hidden="true"></div>`;
+}
+
+function settingsSpotlightControl(prefix) {
+  return `
+    <div class="setting-group" data-settings-search-item data-settings-search-text="settings spotlight background dim blur off">
+      <span class="setting-label">Settings spotlight</span>
+      ${settingsChoiceMarkup(settingsControlId(prefix, "SettingsSpotlightSelect"), storedSpotlightSettingValue(settingsSpotlight), settingsSpotlight.choices, { label: "Settings spotlight" })}
+    </div>
+  `;
 }
 
 function settingsAppearanceMarkup(prefix = "", options = {}) {
@@ -7363,7 +7390,7 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
     ${Object.entries(verseSpotlightSettings).map(([name, setting]) => `
       <div class="setting-group">
         <span class="setting-label">${setting.label}</span>
-        ${settingsChoiceMarkup(settingsControlId(prefix, `VerseSpotlight${name}`), verseSpotlightSettingValue(setting), setting.choices, { label: setting.label })}
+        ${settingsChoiceMarkup(settingsControlId(prefix, `VerseSpotlight${name}`), storedSpotlightSettingValue(setting), setting.choices, { label: setting.label })}
         ${setting.help ? `<p class="setting-help">${setting.help}</p>` : ""}
       </div>
     `).join("")}
@@ -7508,6 +7535,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
   return `
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
       ${result("appearance", "ControlFinishGroup", "Control finish", "Appearance & Text", "liquid glass classic transparency navigation floating controls")}
+      ${result("appearance", "SettingsSpotlightSelect", "Settings spotlight", "Appearance & Text", "window backdrop background dim blur off")}
       ${result("appearance", "VerseSpotlightStrength", "Spotlight strength", "Appearance & Text", "verse selection highlight dim blur intensity off")}
       ${result("appearance", "VerseSpotlightEffect", "Spotlight effect", "Appearance & Text", "verse selection highlight dim blur")}
       ${result("appearance", "ThemeFamilySelect", "Theme family", "Appearance & Text", "palette colors linked themes")}
@@ -7619,6 +7647,7 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
         <h3>Look & feel</h3>
         <div class="settings-page-section-content">
           ${settingsAppearanceMarkup(prefix, { includeFamily: true, includeControlFinish: true })}
+          ${settingsSpotlightControl(prefix)}
         </div>
       </section>
     `;
@@ -7776,6 +7805,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const activeSearchLabel = activeSearchSourceLabel();
   return `
     <header class="topbar" id="appHeader">
+      ${state.settingsOpen && state.mode !== "big" ? settingsSpotlightMarkup("desktop") : ""}
       <button class="brand" id="brandVerseOfDay" type="button" aria-label="Open verse of the day${focusBrandVersionHoldEnabled() ? ". Double-tap or double-click for Big Screen with the selected verse. Press and hold to choose Bible versions" : ""}">
         <img class="brand-mark-image" src="./assets/brand-mark.png?v=20260713-polished" width="420" height="220" alt="" />
         <span class="brand-divider" aria-hidden="true"></span>
@@ -11767,7 +11797,7 @@ function reader(chapterChange = null) {
         `}
       </div>
       ` : ""}
-      <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}" data-spotlight-strength="${verseSpotlightSettingValue(verseSpotlightSettings.Strength)}" data-spotlight-effect="${verseSpotlightSettingValue(verseSpotlightSettings.Effect)}">
+      <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}" data-spotlight-strength="${storedSpotlightSettingValue(verseSpotlightSettings.Strength)}" data-spotlight-effect="${storedSpotlightSettingValue(verseSpotlightSettings.Effect)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
@@ -25510,7 +25540,7 @@ const presentationSettingsPages = Object.freeze({
 
 function presentationSettingsDestinationRow(page, title, summary) {
   const searchTerms = {
-    look: "theme family color palette appearance background motion flowing light starlight stars vapor video loop intensity dim blur popup text font size zoom",
+    look: "theme family color palette appearance background motion flowing light starlight stars vapor video loop intensity dim blur popup text font size zoom settings spotlight",
     accessibility: "screen reading screen reader selection speak VoiceOver native speech",
     presenting: "no buttons interface copy sharing Bible text format sound mode transition volume haptics vibration",
     sounds: "ambient rain white pink brown noise sleep timer volume",
@@ -25676,6 +25706,7 @@ function presentationSettingsPanelMarkup(version, customFontField = "") {
     content = offlineBibleSettings("presentation");
   } else if (page === "look") {
     content = `
+      ${settingsSpotlightControl("presentation")}
       <div class="setting-group">
         <span class="setting-label">Appearance</span>
         ${settingsAppearanceModeMarkup()}
@@ -26019,6 +26050,7 @@ function presentation(accountPanelRerender = false) {
       </div>
       <div class="presentation-scale-feedback" id="presentationScaleFeedback" role="status" aria-live="polite"><span class="presentation-scale-feedback-mark" aria-hidden="true">Aa</span><span class="presentation-scale-feedback-label">${Math.round(state.presentationTextScale * 100)}%</span></div>
       <div class="presentation-bottom${state.sharedPassage ? " has-continue-chapter" : ""}">
+        ${state.presentationSettingsOpen ? settingsSpotlightMarkup("presentation") : ""}
         <a class="presentation-brand" id="presentationBrandVerseOfDay" href="#verse-of-the-day" aria-label="Open verse of the day">
           <img class="presentation-brand-mark" src="./assets/brand-mark.png?v=20260713-polished" alt="" />
           <span class="presentation-brand-copy"><span>Big Screen</span><strong>Bible</strong></span>
@@ -27115,6 +27147,13 @@ function bindEvents() {
         choice.classList.toggle("active", active);
         choice.setAttribute("aria-pressed", String(active));
       });
+    });
+  });
+  document.querySelectorAll('select[id$="SettingsSpotlightSelect" i]').forEach((select) => {
+    select.addEventListener("change", () => {
+      localStorage.setItem(settingsSpotlight.key, select.value);
+      renderPreservingReaderScroll();
+      document.getElementById(`${select.id}Toggle`)?.focus({ preventScroll: true });
     });
   });
   for (const [name, setting] of Object.entries(verseSpotlightSettings)) {

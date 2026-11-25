@@ -29756,3 +29756,54 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
   display: flex;
   justify-content: end;
 }
+
+.settings-spotlight {
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  background: rgb(0 0 0 / 36%);
+  touch-action: none;
+}
+
+.settings-spotlight[data-effect="blur"] {
+  background: rgb(0 0 0 / 18%);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+
+.settings-spotlight-mobile {
+  display: none;
+}
+
+@media (min-width: 841px) {
+  .topbar:has(> .settings-spotlight-desktop) {
+    z-index: 365;
+  }
+
+  .topbar:has(> .settings-spotlight-desktop) .settings-menu {
+    z-index: 351;
+  }
+}
+
+@media (max-width: 840px) {
+  .settings-spotlight-desktop {
+    display: none;
+  }
+
+  .settings-spotlight-mobile {
+    display: block;
+  }
+
+  .settings-spotlight-mobile + .mobile-settings-popover {
+    z-index: 360;
+  }
+}
+
+/* Keep the fixed backdrop relative to the viewport while Settings is open. */
+.presentation.controls-visible .presentation-bottom:has(> .settings-spotlight-presentation) {
+  transform: none;
+}
+
+.presentation-bottom:has(> .settings-spotlight-presentation) .presentation-settings-menu {
+  z-index: 351;
+}
