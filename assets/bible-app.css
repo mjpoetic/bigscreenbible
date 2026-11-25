@@ -28418,17 +28418,62 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
   box-sizing: border-box;
 }
 
+.book-picker-options {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.book-picker-toolbar {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--panel);
+  border-radius: 6px;
+}
+
+.book-picker-color-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding-inline: 5px;
+  cursor: pointer;
+}
+
+.book-picker-color-toggle input {
+  margin: 0;
+  accent-color: var(--teal);
+}
+
+.book-picker-color-glyph {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: conic-gradient(#9c5500 0 25%, #1874ae 25% 50%, #7629b7 50% 75%, #c5382e 75%);
+}
+
+.book-picker-color-toggle input:not(:checked) + .book-picker-color-glyph {
+  filter: grayscale(1);
+}
+
 @media (prefers-contrast: no-preference) and (forced-colors: none) {
-  #focusMiniBookSelectMenu [data-book-category] {
-    color: color-mix(in srgb, var(--settings-choice-menu-color) 67%, var(--book-category-color));
+  #focusMiniBookSelectMenu.book-colors-enabled [data-book-category] {
+    color: color-mix(in srgb, var(--settings-choice-menu-color) 35%, var(--book-category-color));
   }
 
-  #focusMiniBookSelectMenu [data-book-category="law"] { --book-category-color: #ad6926; }
-  #focusMiniBookSelectMenu [data-book-category="history"] { --book-category-color: #377e9b; }
-  #focusMiniBookSelectMenu [data-book-category="wisdom"] { --book-category-color: #388748; }
-  #focusMiniBookSelectMenu [data-book-category="prophets"] { --book-category-color: #a14f82; }
-  #focusMiniBookSelectMenu [data-book-category="gospels"] { --book-category-color: #178d83; }
-  #focusMiniBookSelectMenu [data-book-category="letters"] { --book-category-color: #705ac7; }
+  #focusMiniBookSelectMenu [data-book-category="law"] { --book-category-color: #a35a00; }
+  #focusMiniBookSelectMenu [data-book-category="history"] { --book-category-color: #285ec7; }
+  #focusMiniBookSelectMenu [data-book-category="wisdom"] { --book-category-color: #258139; }
+  #focusMiniBookSelectMenu [data-book-category="prophets"] { --book-category-color: #b02d85; }
+  #focusMiniBookSelectMenu [data-book-category="gospels"] { --book-category-color: #007e68; }
+  #focusMiniBookSelectMenu [data-book-category="acts"] { --book-category-color: #0078ac; }
+  #focusMiniBookSelectMenu [data-book-category="pauline"] { --book-category-color: #7629b7; }
+  #focusMiniBookSelectMenu [data-book-category="letters"] { --book-category-color: #5359a0; }
+  #focusMiniBookSelectMenu [data-book-category="revelation"] { --book-category-color: #c5382e; }
 }
 
 #focusMiniBookSelectMenu.passage-combobox-list {

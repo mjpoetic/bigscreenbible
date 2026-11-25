@@ -3776,8 +3776,8 @@ function focusPickerLongBookLabel(book) {
 function focusPickerBookCategory(book) {
   const sections = [
     ["Genesis", "law"], ["Joshua", "history"], ["Job", "wisdom"],
-    ["Isaiah", "prophets"], ["Matthew", "gospels"], ["Acts", "history"],
-    ["Romans", "letters"], ["Revelation", "prophets"],
+    ["Isaiah", "prophets"], ["Matthew", "gospels"], ["Acts", "acts"],
+    ["Romans", "pauline"], ["Hebrews", "letters"], ["Revelation", "revelation"],
   ];
   const index = books.indexOf(book);
   return sections.findLast(([first]) => books.indexOf(first) <= index)?.[1];
@@ -4336,7 +4336,7 @@ function settingsChoiceOptionContent(choice, options = {}) {
 function settingsChoiceMarkup(id, selectedValue, choices, config = {}) {
   const normalizedValue = String(selectedValue ?? "");
   const selectedChoice = choices.find((choice) => String(choice.value) === normalizedValue) || choices[0];
-  const menuId = `${id}Menu`;
+  const menuId = id === "focusMiniBookSelect" ? `${id}MenuOptions` : `${id}Menu`;
   const legacyClasses = config.selectClass ? ` ${config.selectClass}` : "";
   return `
     <div class="settings-choice ${config.wide ? "settings-choice-wide" : ""}" data-settings-choice>
@@ -4745,6 +4745,18 @@ function passageScrollHaptic(previous, current) {
   return null;
 }
 
+function pickerBookColorsEnabled() {
+  return localStorage.getItem("lw_picker_book_colors") !== "off";
+}
+
+function setPickerBookColors(enabled) {
+  localStorage.setItem("lw_picker_book_colors", enabled ? "on" : "off");
+  document.querySelectorAll("[data-picker-book-colors]").forEach((checkbox) => {
+    checkbox.checked = enabled;
+  });
+  document.getElementById("focusMiniBookSelectMenu")?.classList.toggle("book-colors-enabled", enabled);
+}
+
 function bindPassageComboboxes() {
   document.querySelectorAll("[data-passage-combobox]").forEach((input) => {
     const root = input.closest("[data-settings-choice]");
@@ -4821,7 +4833,7 @@ function bindPassageComboboxes() {
       }
       const inline = usesInlineList();
       if (existingMenu) {
-        existingMenu.replaceChildren(options);
+        (isBook ? document.getElementById(input.getAttribute("aria-controls")) : existingMenu).replaceChildren(options);
         existingMenu.scrollTop = 0;
         if (!inline) positionSettingsChoiceMenu(root, existingMenu, isBook, isBook);
         if (all) centerSelectedMenuOption(existingMenu);
@@ -4830,11 +4842,41 @@ function bindPassageComboboxes() {
       }
       closeSettingsChoiceMenu();
       const menu = document.createElement("div");
-      menu.id = input.getAttribute("aria-controls");
+      menu.id = `${select.id}Menu`;
       menu.className = "settings-choice-menu bible-picker-choice-menu";
-      menu.setAttribute("role", "listbox");
-      menu.setAttribute("aria-label", input.getAttribute("aria-label"));
-      menu.appendChild(options);
+      const list = isBook ? document.createElement("div") : menu;
+      list.setAttribute("role", "listbox");
+      list.setAttribute("aria-label", input.getAttribute("aria-label"));
+      if (isBook) {
+        list.id = input.getAttribute("aria-controls");
+        list.className = "book-picker-options";
+        menu.classList.toggle("book-colors-enabled", pickerBookColorsEnabled());
+        const toolbar = document.createElement("div");
+        toolbar.className = "book-picker-toolbar";
+        toolbar.innerHTML = `
+          <label class="book-picker-color-toggle" title="Color-code books">
+            <input type="checkbox" data-picker-book-colors aria-label="Color-code books" ${pickerBookColorsEnabled() ? "checked" : ""}>
+            <span class="book-picker-color-glyph" aria-hidden="true"></span>
+          </label>`;
+        const checkbox = toolbar.querySelector("input");
+        toolbar.addEventListener("pointerdown", (event) => event.preventDefault());
+        checkbox.addEventListener("change", () => setPickerBookColors(checkbox.checked));
+        checkbox.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" || event.key === "Tab") {
+            event.preventDefault();
+            event.stopPropagation();
+            const next = event.key === "Tab" && !event.shiftKey
+              ? document.getElementById("focusMiniChapterSelectInput") : input;
+            next?.focus({ preventScroll: true });
+            if (event.key === "Escape") closeSettingsChoiceMenu();
+          }
+        });
+        checkbox.addEventListener("blur", (event) => {
+          if (event.relatedTarget !== input && menu.isConnected) closeSettingsChoiceMenu();
+        });
+        menu.append(toolbar, list);
+      }
+      list.appendChild(options);
       if (inline) menu.classList.add("passage-combobox-list");
       (inline ? form : document.body).appendChild(menu);
       input.setAttribute("aria-expanded", "true");
@@ -4881,7 +4923,11 @@ function bindPassageComboboxes() {
     });
     input.addEventListener("keydown", (event) => {
       if (event.isComposing) return;
-      if (event.key === "Escape") {
+      const bookMenu = isBook && activeSettingsChoiceMenu?.trigger === root && activeSettingsChoiceMenu.menu;
+      if (event.key === "Tab" && !event.shiftKey && bookMenu) {
+        event.preventDefault();
+        bookMenu.querySelector("[data-picker-book-colors]").focus({ preventScroll: true });
+      } else if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         input.value = selectedLabel();
@@ -4917,6 +4963,8 @@ function bindPassageComboboxes() {
       }
     });
     input.addEventListener("blur", (event) => {
+      if (isBook && activeSettingsChoiceMenu?.trigger === root
+        && activeSettingsChoiceMenu.menu.contains(event.relatedTarget)) return;
       const matches = passageChoiceMatches(select.options, input.value);
       const choice = resolvePassageChoice(matches, input.value);
       closeSettingsChoiceMenu();
@@ -5768,6 +5816,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.16": [
+      "Book colors are brighter and distinguish Acts, the Pauline letters, and Revelation. Toggle them in the Book dropdown or Appearance & Text.",
+    ],
     "2026.11.25.15": [
       "The Book dropdown groups books by testament and shades their names by category. Song of Songs has clearer abbreviations.",
     ],
@@ -7488,6 +7539,12 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
     </div>
     ` : ""}
     ${options.includeControlFinish ? `
+    <div class="setting-group" data-settings-search-item data-settings-search-text="verse picker book dropdown color categories">
+      <label class="setting-checkbox" id="${settingsControlId(prefix, "PickerBookColors")}">
+        <input type="checkbox" data-picker-book-colors ${pickerBookColorsEnabled() ? "checked" : ""}>
+        <span>Color-code books in the verse picker</span>
+      </label>
+    </div>
     <div class="setting-group" data-settings-search-item data-settings-search-text="verse selection default outline classic highlight selected appearance">
       <span class="setting-label">Verse selection</span>
       <div class="theme-mode-segment control-finish-segment" role="group" aria-label="Verse selection style">
@@ -7643,6 +7700,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
   );
   return `
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
+      ${result("appearance", "PickerBookColors", "Color-code books in the verse picker", "Appearance & Text", "book dropdown colors categories")}
       ${result("appearance", "ControlFinishGroup", "Control finish", "Appearance & Text", "liquid glass classic transparency navigation floating controls")}
       ${result("appearance", "SettingsSpotlightSelect", "Settings spotlight", "Appearance & Text", "window backdrop background dim blur off")}
       ${result("appearance", "VerseSpotlightStrength", "Spotlight strength", "Appearance & Text", "verse selection highlight dim blur intensity off")}
@@ -27232,6 +27290,9 @@ function bindEvents() {
   document.getElementById("signOutButton")?.addEventListener("click", () => signOutAccount());
   document.getElementById("mobile-signOutButton")?.addEventListener("click", () => signOutAccount());
   document.getElementById("quick-signOutButton")?.addEventListener("click", () => signOutAccount());
+  document.querySelectorAll("[data-picker-book-colors]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => setPickerBookColors(checkbox.checked));
+  });
   document.querySelectorAll("[data-control-material]").forEach((button) => {
     button.addEventListener("click", () => {
       const material = button.dataset.controlMaterial === "classic" ? "classic" : "glass";

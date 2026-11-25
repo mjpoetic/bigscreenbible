@@ -139,6 +139,33 @@ for (const [query, book] of [
 }
 assert.equal(context.resolvePassageChoice(context.passageChoiceMatches(bookOptions, 'Jud'), 'Jud'), null);
 
+vm.runInContext(extract('focusPickerBookCategory'), context);
+context.books = Array.from(source.slice(0, source.indexOf('const books =')).matchAll(/\["([^"]+)", \d+\]/g), match => match[1]);
+assert.deepEqual(['John', 'Acts', 'Romans', 'Philemon', 'Hebrews', 'Jude', 'Revelation'].map(
+  book => context.focusPickerBookCategory(book),
+), ['gospels', 'acts', 'pauline', 'pauline', 'letters', 'letters', 'revelation']);
+
+for (const name of ['pickerBookColorsEnabled', 'setPickerBookColors']) {
+  vm.runInContext(extract(name), context);
+}
+const colorCheckBoxes = [{ checked: true }, { checked: true }];
+let colorsEnabled;
+const preferences = new Map();
+context.localStorage = { getItem: key => preferences.get(key), setItem: (key, value) => preferences.set(key, value) };
+context.document = {
+  querySelectorAll: () => colorCheckBoxes,
+  getElementById: () => ({ classList: { toggle: (_, enabled) => { colorsEnabled = enabled; } } }),
+};
+assert.equal(context.pickerBookColorsEnabled(), true);
+context.setPickerBookColors(false);
+assert.equal(context.pickerBookColorsEnabled(), false);
+assert.equal(colorsEnabled, false);
+assert.ok(colorCheckBoxes.every(checkbox => !checkbox.checked));
+context.setPickerBookColors(true);
+assert.equal(context.pickerBookColorsEnabled(), true);
+assert.equal(colorsEnabled, true);
+assert.ok(colorCheckBoxes.every(checkbox => checkbox.checked));
+
 vm.runInContext(extract('passagePickerViewport'), context);
 for (const name of ['focusPickerLongBookLabel', 'fitFocusPickerBookLabel', 'refreshFocusPickerBookLabel']) {
   vm.runInContext(extract(name), context);
