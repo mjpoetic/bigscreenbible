@@ -112,6 +112,7 @@ const context = vm.createContext({
   captureCloudSnapshot: () => ({ notes: { "John 3:16": "offline edit" } }),
   saveSnapshotForOwner: (owner, snapshot) => { assert.equal(owner, "alice"); assert.equal(snapshot.notes["John 3:16"], "offline edit"); },
   translationDisplayCode: code => code,
+  translationProvider: () => ({ tracksFums: false }),
   isRemoteTranslation: code => code === "NIV",
 });
 vm.runInContext(["createSupabaseClient", "initializeSupabaseAuth", "scheduleCloudSync", "getVerseText", "ensureRemoteBibleVersion", "searchRemoteVersions", "searchRemoteVersion", "searchSemanticBible", "fetchVerseOfDayItem", "applyOfflineChanges"].map(extract).join("\n"), context);

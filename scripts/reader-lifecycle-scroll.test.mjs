@@ -5,8 +5,9 @@ import vm from "node:vm";
 const source = readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
 
 function extractFunction(name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `Missing ${name} in bible-app.js`);
+  const declaration = source.indexOf(`function ${name}(`);
+  assert.notEqual(declaration, -1, `Missing ${name} in bible-app.js`);
+  const start = source.slice(declaration - 6, declaration) === "async " ? declaration - 6 : declaration;
   const bodyStart = source.indexOf(") {", start) + 2;
   assert.ok(bodyStart > 1, `Could not find ${name} body in bible-app.js`);
   let depth = 0;
@@ -72,6 +73,35 @@ assert.equal(normalized.activeVerse, 22);
 assert.equal(normalized.readerAnchor.verse, "22");
 assert.equal(context.normalize({ mode: "big", reference: "James 1" }), null);
 assert.equal(context.normalize({ mode: "reader", reference: "James 1", scriptureTop: 10 }), null);
+
+const startup = vm.createContext({
+  URLSearchParams,
+  window: { location: { search: "" }, bsbOffline: { active: false } },
+  state: {},
+  bibleData: { "James 1": {} },
+  sharedReferenceFromUrl: () => "",
+  requestedModeFromUrl: () => "",
+  refreshModeFromSession: () => null,
+  savedReaderPosition: () => normalized,
+  setReferenceFromString(ref) {
+    startup.state.reference = ref;
+    return true;
+  },
+  resolvedVerseOfDay: async () => ({ reference: "John 3:16" }),
+});
+vm.runInContext(extractFunction("applyStartupExperience"), startup);
+for (const active of [false, true]) {
+  startup.window.bsbOffline.active = active;
+  startup.state = { startupMode: "parallel", startVerseOfDay: true };
+  const position = await vm.runInContext("applyStartupExperience()", startup);
+  assert.equal(startup.state.reference, "James 1:22");
+  assert.equal(position.scriptureTop, 812);
+  assert.equal(position.readerAnchor.mode, "parallel");
+}
+startup.state = { startupMode: "reader", startVerseOfDay: true };
+startup.requestedModeFromUrl = () => "vod";
+assert.equal(await vm.runInContext("applyStartupExperience()", startup), undefined);
+assert.equal(startup.state.reference, "John 3:16");
 
 assert.match(
   source,

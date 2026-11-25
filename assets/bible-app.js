@@ -5636,6 +5636,8 @@ function startupReminderSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("StartVerseOfDayToggle")}" ${state.startVerseOfDay ? "checked" : ""} />
         <span>Start with Verse of the Day</span>
       </label>
+      ${window.bsbOffline || window.Capacitor?.getPlatform?.() === "ios"
+        ? '<p class="setting-help">On iOS, Reader and Parallel Study resume your saved passage first.</p>' : ""}
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ShowStreakPopupToggle")}" ${state.showStreakPopup ? "checked" : ""} />
         <span>Show daily streak popup</span>
@@ -5668,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.2": [
+      "On iOS, Reader and Parallel Study reopen at your last saved Bible passage and reading position.",
+    ],
     "2026.11.25.1": [
       "Manually scroll through the final lines of a chapter in Focus Reading.",
     ],
@@ -10116,7 +10121,7 @@ function preserveReaderScrollAfterViewportChange() {
 
 function rememberReaderScrollBeforeAppSwitch() {
   readerScrollRestoreGeneration += 1;
-  if (!["reader", "parallel"].includes(state.mode)) return;
+  if (dataLoading || dataError || !["reader", "parallel"].includes(state.mode)) return;
   // blur, visibilitychange and pagehide can describe the same app switch.
   // Keep the first snapshot before background layout starts changing.
   if (readerAppVisibilityScrollState?.mode === state.mode
@@ -32878,14 +32883,6 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     state.libraryOpen = false;
     return;
   }
-  if (state.startVerseOfDay && !requestedMode) {
-    const verseOfDay = await resolvedVerseOfDay();
-    if (verseOfDay.reference && setReferenceFromString(verseOfDay.reference)) {
-      state.verseOfDayItem = verseOfDay.item;
-      state.isVerseOfDayActive = true;
-      state.selectedVerses = [];
-    }
-  }
   if (requestedMode) state.mode = requestedMode;
   else if (state.startupMode === "last") {
     const lastMode = localStorage.getItem("lw_last_used_mode");
@@ -32894,6 +32891,26 @@ async function applyStartupExperience({ updateReload = false } = {}) {
     state.mode = state.startupMode;
   }
   if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
+
+  if (!requestedMode && !sharedRef && !new URLSearchParams(window.location.search).has("nativeLink")
+    && (window.bsbOffline || window.Capacitor?.getPlatform?.() === "ios")
+    && ["reader", "parallel"].includes(state.mode)) {
+    const position = savedReaderPosition();
+    if (position && bibleData[position.reference]
+      && setReferenceFromString(`${position.reference}:${position.activeVerse}`)) {
+      state.pendingVerseFocus = false;
+      return { ...position, mode: state.mode, readerAnchor: { ...position.readerAnchor, mode: state.mode } };
+    }
+  }
+
+  if (state.startVerseOfDay && !requestedMode) {
+    const verseOfDay = await resolvedVerseOfDay();
+    if (verseOfDay.reference && setReferenceFromString(verseOfDay.reference)) {
+      state.verseOfDayItem = verseOfDay.item;
+      state.isVerseOfDayActive = true;
+      state.selectedVerses = [];
+    }
+  }
 }
 
 function requestedVersionFromUrl() {
@@ -37181,7 +37198,7 @@ async function initializeBibleData() {
     if (!bibleIndex) throw new Error("Bible index script did not initialize");
     if (!loadedVersionData.has("BSB")) throw new Error("Base Bible text could not be loaded");
     rebuildBibleData();
-    await applyStartupExperience({ updateReload: new URL(window.location.href).searchParams.has(appUpdateQueryKey) });
+    const startupPosition = await applyStartupExperience({ updateReload: new URL(window.location.href).searchParams.has(appUpdateQueryKey) });
     let offlineRestoreState = null;
     if (window.bsbOffline) {
       try {
@@ -37198,7 +37215,12 @@ async function initializeBibleData() {
     render();
     // The bundled bridge's legacy DOM check only recognizes Reader and Big Screen.
     if (!window.bsbOffline?.active) window.bsbOffline?.ready();
-    if (!updateScrollState && !state.sharedPassage) restoreSavedReaderPositionAfterStartup();
+    if (!updateRestoreState && startupPosition) {
+      readerAppVisibilityScrollState = startupPosition;
+      restoreReaderScrollAfterAppSwitch();
+    } else if (!updateScrollState && !state.sharedPassage) {
+      restoreSavedReaderPositionAfterStartup();
+    }
     maybeOfferPushNotifications();
     window.setTimeout(maybeCheckForAppUpdate, 1200);
   } catch (error) {
