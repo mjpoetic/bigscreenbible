@@ -5670,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.7": [
+      "Selecting verses gently dims the surrounding verses so the selection stands out, even in a highlighted passage.",
+    ],
     "2026.11.25.6": [
       "Manually scroll back to the opening lines of a chapter in Focus Reading.",
     ],

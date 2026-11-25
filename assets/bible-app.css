@@ -25751,6 +25751,12 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   }
 }
 
+/* Keep the selected passage and its saved highlights at full opacity. */
+#scriptureReadingRegion:has(.passage-selected):not(:has(.verse-arrival-halo))
+  :is([data-verse]:not(.passage-selected), [data-focused-reader-verse]:not(:has(.passage-selected))) {
+  opacity: 0.74;
+}
+
 
 /* Shared interaction states for both Classic and Liquid Glass.
    Keep positioning transforms intact: depth comes from the surface itself. */
