@@ -137,7 +137,7 @@ assert.equal(context.state.autoScrollActive, false);
 console.log('Focus Reading opening: restored viewport, immediate positioning, and paused playback passed.');
 
 context.measureFocusReading();
-for (const scroll of [0, 10, 20, 50]) {
+for (const scroll of [100, 110, 120, 150]) {
   surface.scrollTop = scroll;
   const ruler = context.manualFocusReadingWindowRect(surface);
   assert.equal((ruler.top + ruler.bottom) / 2 - scroll, surface.clientHeight / 2, 'Manual ruler stays centered while the text moves');
@@ -146,10 +146,15 @@ const manualTop = surface.scrollTop;
 context.manualFocusReadingWindowRect(surface);
 assert.equal(surface.scrollTop, manualTop, 'Manual tracking never fights the user scroll position');
 context.state.mode = 'parallel'; surface.scrollTop = 0; surface.querySelectorAll = () => texts;
+context.state.focusReadingLines = 2;
 context.measureFocusReading(); context.moveFocusReading(-100);
 const columnRect = context.manualFocusReadingWindowRect(surface);
 assert.equal(columnRect.left, 10, 'Manual scrolling stays in the current side-by-side translation');
+assert.equal(columnRect.top, 30, 'At the top, the guide starts on the first line in the active column');
+assert.equal(columnRect.bottom, 80, 'The guide exposes the full two-line window at the top');
+assert.equal(surface.scrollTop, 0, 'The guide leaves the reader at the native top limit');
 console.log('Focus Reading manual ruler: stationary center, free scrolling, and parallel column ownership passed.');
+surface.scrollTop = 100;
 vm.runInContext('focusReadingManualScroll = true;', context);
 context.paintFocusReading();
 assert.equal((parseFloat(guide.children[0].style.height) + parseFloat(guide.children[1].style.top)) / 2, surface.clientHeight / 2, 'Painted masks leave the manual window at viewport center');

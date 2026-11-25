@@ -5670,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.6": [
+      "Manually scroll back to the opening lines of a chapter in Focus Reading.",
+    ],
     "2026.11.25.5": [
       "Fixed flickering in the verse toolbar preview when enabling all buttons.",
     ],
@@ -10649,24 +10652,35 @@ function manualFocusReadingWindowRect(surface) {
   if (!active) return null;
   const halfHeight = surface.clientHeight / 2;
   const maxScrollTop = Math.max(0, surface.scrollHeight - surface.clientHeight);
-  const scrollTop = Math.min(surface.scrollTop, maxScrollTop);
-  const lastLine = focusReadingRects.findLast(line => line.left < active.right && line.right > active.left) || active;
+  const scrollTop = Math.max(0, Math.min(surface.scrollTop, maxScrollTop));
+  const sharesLane = line => line.left < active.right && line.right > active.left;
+  const firstLine = focusReadingRects.find(sharesLane) || active;
+  const lastLine = focusReadingRects.findLast(sharesLane) || active;
+  const firstCenter = (firstLine.top + firstLine.bottom) / 2;
   const lastCenter = (lastLine.top + lastLine.bottom) / 2;
-  // Near the bottom, let the guide travel to lines that can't reach the center.
-  const edgeProgress = Math.max(0, 1 - (maxScrollTop - scrollTop) / Math.max(1, halfHeight));
-  const center = scrollTop + halfHeight + edgeProgress * Math.max(0, lastCenter - maxScrollTop - halfHeight);
+  // Let the guide reach lines that cannot scroll to the viewport center.
+  const edgeDistance = Math.max(1, Math.min(halfHeight, maxScrollTop / 2));
+  const topProgress = Math.max(0, 1 - scrollTop / edgeDistance);
+  const bottomProgress = maxScrollTop > 0 ? Math.max(0, 1 - (maxScrollTop - scrollTop) / edgeDistance) : 0;
+  const center = scrollTop + halfHeight
+    - topProgress * Math.max(0, halfHeight - firstCenter)
+    + bottomProgress * Math.max(0, lastCenter - maxScrollTop - halfHeight);
   let nearest = focusReadingIndex, distance = Infinity;
   focusReadingRects.forEach((line, index) => {
     // Stay in the current side-by-side column. Stacked translations share
     // horizontal bounds, so manual scrolling can follow their visual order.
-    if (line.left >= active.right || line.right <= active.left) return;
+    if (!sharesLane(line)) return;
     const delta = Math.abs((line.top + line.bottom) / 2 - center);
     if (delta < distance) { nearest = index; distance = delta; }
   });
   focusReadingIndex = nearest;
   const rect = focusReadingWindowRect();
   const height = rect.bottom - rect.top;
-  return { ...rect, top: center - height / 2, bottom: center + height / 2 };
+  let top = center - height / 2;
+  if (focusReadingRects[nearest] === firstLine) {
+    top += topProgress * Math.max(0, rect.top - top);
+  }
+  return { ...rect, top, bottom: top + height };
 }
 
 function cancelFocusReadingMotion() {
