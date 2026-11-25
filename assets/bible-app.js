@@ -5928,6 +5928,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.22": [
+      "The Bible version selector and mode picker stay separated in Parallel Study.",
+    ],
     "2026.11.25.21": [
       "Tour spotlights glide between controls and the tour card moves with them in the Bible workspace, Focus Mode, and Big Screen.",
     ],

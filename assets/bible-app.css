@@ -26934,7 +26934,7 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 @media (min-width: 841px) and (max-width: 1320px) {
   .app-shell .topbar .brand { flex: 0 0 168px; min-width: 0; }
   .app-shell .topbar .search { flex: 1 1 180px; min-width: 100px; max-width: none; }
-  .app-shell .topbar .versions { flex: 0 0 92px; width: 92px; min-width: 0; max-width: 92px; }
+  .app-shell .topbar .primary-version-control { flex: 0 0 92px; width: 92px; min-width: 0; max-width: 92px; }
 }
 
 @media (max-width: 560px) and (orientation: landscape) {
@@ -27444,7 +27444,7 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 @media (min-width: 841px) {
   .app-shell .topbar {
     display: grid;
-    grid-template-columns: auto auto minmax(120px, 1fr) 92px max-content 40px 40px 40px;
+    grid-template-columns: auto auto minmax(120px, 1fr) minmax(92px, max-content) max-content 40px 40px 40px;
     grid-template-rows: minmax(0, 1fr);
     align-content: center;
   }
@@ -27459,7 +27459,7 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
   .app-shell .topbar > .settings-menu { grid-column: 8; grid-row: 1; }
 }
 @media (min-width: 841px) and (max-width: 1320px) {
-  .app-shell .topbar { grid-template-columns: 168px 0 minmax(100px, 1fr) 92px 172px 0 40px 40px; }
+  .app-shell .topbar { grid-template-columns: 168px 0 minmax(100px, 1fr) minmax(92px, max-content) 172px 0 40px 40px; }
 }
 @media (min-width: 841px) and (max-width: 1759px) {
   .app-shell .topbar .portrait-navigation .mode-tabs { grid-column: auto; grid-row: auto; }
