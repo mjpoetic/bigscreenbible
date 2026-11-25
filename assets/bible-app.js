@@ -3744,7 +3744,7 @@ function focusPickerBookLabel(book) {
     Genesis: "Gen", Exodus: "Exod", Leviticus: "Lev", Numbers: "Num",
     Deuteronomy: "Deut", Joshua: "Josh", Judges: "Judg", Samuel: "Sam",
     Kings: "Kgs", Chronicles: "Chr", Nehemiah: "Neh", Esther: "Est",
-    Psalm: "Ps", Proverbs: "Prov", Ecclesiastes: "Eccl", "Song of Songs": "Song",
+    Psalm: "Ps", Proverbs: "Prov", Ecclesiastes: "Eccl", "Song of Songs": "SoS",
     Isaiah: "Isa", Jeremiah: "Jer", Lamentations: "Lam", Ezekiel: "Ezek",
     Daniel: "Dan", Hosea: "Hos", Obadiah: "Obad", Jonah: "Jon", Micah: "Mic",
     Nahum: "Nah", Habakkuk: "Hab", Zephaniah: "Zeph", Haggai: "Hag",
@@ -3766,11 +3766,21 @@ function focusPickerLongBookLabel(book) {
     Leviticus: "Levit.", Nehemiah: "Nehem.", Proverbs: "Proverb.",
     Jeremiah: "Jerem.", Habakkuk: "Habak.", Zephaniah: "Zephan.",
     Zechariah: "Zechar.", Galatians: "Galat.", Ephesians: "Ephes.",
-    Philemon: "Philem.", Hebrews: "Hebr.",
+    Philemon: "Philem.", Hebrews: "Hebr.", "Song of Songs": "Song of S.",
   };
   const prefix = book.match(/^[1-3] /)?.[0] || "";
   const label = abbreviations[book.slice(prefix.length)];
   return label ? prefix + label : "";
+}
+
+function focusPickerBookCategory(book) {
+  const sections = [
+    ["Genesis", "law"], ["Joshua", "history"], ["Job", "wisdom"],
+    ["Isaiah", "prophets"], ["Matthew", "gospels"], ["Acts", "history"],
+    ["Romans", "letters"], ["Revelation", "prophets"],
+  ];
+  const index = books.indexOf(book);
+  return sections.findLast(([first]) => books.indexOf(first) <= index)?.[1];
 }
 
 function fitFocusPickerBookLabel(input, option) {
@@ -4716,7 +4726,7 @@ function resolvePassageChoice(matches, query) {
 }
 
 function passageScrollPosition(menu) {
-  const first = menu.firstElementChild;
+  const first = menu.querySelector?.('[role="option"]') || menu.firstElementChild;
   const second = first?.nextElementSibling;
   const rowStep = second ? second.offsetTop - first.offsetTop : 0;
   const maxOffset = Math.max(0, menu.scrollHeight - menu.clientHeight);
@@ -4769,7 +4779,19 @@ function bindPassageComboboxes() {
       input.removeAttribute("aria-activedescendant");
       // Keep the open surface mounted so filtering doesn't replay its entrance.
       const options = document.createDocumentFragment();
+      let previousTestament;
       visible.forEach((option, index) => {
+        if (isBook) {
+          const testament = newTestamentBooks.includes(option.value) ? "New Testament" : "Old Testament";
+          if (testament !== previousTestament) {
+            const heading = document.createElement("div");
+            heading.className = "settings-choice-group-label";
+            heading.setAttribute("role", "presentation");
+            heading.textContent = testament;
+            options.appendChild(heading);
+            previousTestament = testament;
+          }
+        }
         const button = document.createElement("button");
         button.type = "button";
         button.className = "settings-choice-option";
@@ -4778,7 +4800,10 @@ function bindPassageComboboxes() {
         button.setAttribute("role", "option");
         button.setAttribute("aria-selected", String(option.value === select.value));
         button.textContent = option.dataset.choiceLabel || option.label;
-        if (isBook) button.title = button.textContent;
+        if (isBook) {
+          button.title = button.textContent;
+          button.dataset.bookCategory = focusPickerBookCategory(option.value);
+        }
         button.addEventListener("pointerdown", (event) => event.preventDefault());
         button.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -5743,6 +5768,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.15": [
+      "The Book dropdown groups books by testament and shades their names by category. Song of Songs has clearer abbreviations.",
+    ],
     "2026.11.25.14": [
       "The wider Book field shows full book names when possible and uses longer abbreviations when they fit.",
     ],

@@ -122,7 +122,7 @@ for (const name of ['focusPickerBookLabel', 'resolvePassageChoice', 'settingsCho
   vm.runInContext(extract(name), context);
 }
 context.escapeHtml = String;
-const bookChoices = ['Colossians', 'John', '1 John', '2 Thessalonians', 'Judges', 'Jude'].map(value => ({
+const bookChoices = ['Colossians', 'John', '1 John', '2 Thessalonians', 'Judges', 'Jude', 'Song of Songs'].map(value => ({
   value, label: value, nativeLabel: context.focusPickerBookLabel(value),
 }));
 const bookMarkup = context.settingsChoiceMarkup('focusMiniBookSelect', 'Colossians', bookChoices, { ariaLabel: 'Book', editable: true });
@@ -132,6 +132,7 @@ const bookOptions = bookChoices.map(({ value, nativeLabel: label }) => ({ value,
 for (const [query, book] of [
   ['Colossians', 'Colossians'], ['Coloss.', 'Colossians'], ['Col', 'Colossians'], ['John', 'John'],
   ['2 Thessalonians', '2 Thessalonians'], ['2 Thess.', '2 Thessalonians'], ['2 Thess', '2 Thessalonians'],
+  ['Song of Songs', 'Song of Songs'], ['Song of S.', 'Song of Songs'], ['SoS', 'Song of Songs'],
 ]) {
   const matches = context.passageChoiceMatches(bookOptions, query);
   assert.equal(context.resolvePassageChoice(matches, query)?.value, book);
@@ -147,6 +148,9 @@ const bookSelect = { selectedOptions: [bookOptions[0]] };
 const bookPanel = { querySelector: selector => selector.endsWith('Input') ? bookInput : bookSelect };
 context.getComputedStyle = () => ({ fontWeight: '900', fontSize: '16px', fontFamily: 'sans-serif' });
 context.document = { createElement: () => ({ getContext: () => ({ measureText: name => ({ width: name.length * 8 }) }) }) };
+const song = bookOptions.find(option => option.value === 'Song of Songs');
+assert.equal(context.fitFocusPickerBookLabel({ clientWidth: 88 }, song), 'Song of S.');
+assert.equal(context.fitFocusPickerBookLabel({ clientWidth: 56 }, song), 'SoS');
 context.refreshFocusPickerBookLabel(bookPanel);
 assert.equal(bookInput.value, 'Col', 'The shortest abbreviation fits a tight field');
 bookInput.clientWidth = 80;
