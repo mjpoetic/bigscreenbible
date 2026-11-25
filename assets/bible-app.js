@@ -3758,6 +3758,25 @@ function focusPickerBookLabel(book) {
   return prefix + (abbreviations[name] || name);
 }
 
+function fitFocusPickerBookLabel(input, option) {
+  const style = getComputedStyle(input);
+  const context = document.createElement("canvas").getContext("2d");
+  if (!context) return option.label;
+  context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  return context.measureText(option.value).width <= input.clientWidth - 4
+    ? option.value : option.label;
+}
+
+function refreshFocusPickerBookLabel(panel) {
+  const input = panel.querySelector("#focusMiniBookSelectInput");
+  if (!input || input.value !== input.defaultValue) return;
+  const option = panel.querySelector("#focusMiniBookSelect").selectedOptions[0];
+  if (option) {
+    const label = fitFocusPickerBookLabel(input, option);
+    if (label !== input.value) input.defaultValue = input.value = label;
+  }
+}
+
 function focusVersePickerPanel() {
   const picker = focusVersePickerData();
   state.focusVersePickerBook = picker.book;
@@ -3914,6 +3933,7 @@ function positionFocusWorkspacePanel() {
     panel.style.bottom = "auto";
     panel.style.width = `${width}px`;
     panel.style.maxHeight = `${Math.max(0, bounds.top + bounds.height - top)}px`;
+    refreshFocusPickerBookLabel(panel);
     return;
   }
   for (const property of ["left", "top", "width", "bottom", "max-height"]) {
@@ -3945,6 +3965,7 @@ function positionFocusWorkspacePanel() {
   panel.style.left = `${Math.round(left)}px`;
   panel.style.top = `${Math.round(top)}px`;
   panel.style.width = `${Math.round(width)}px`;
+  if (versePicker) refreshFocusPickerBookLabel(panel);
 }
 
 function pushReminderSettings(prefix = "") {
@@ -4708,10 +4729,12 @@ function bindPassageComboboxes() {
     let scrollPosition;
     let activeIndex = -1;
     let visible = [];
-    const selectedLabel = () => select.selectedOptions[0]?.label || select.value;
+    const isBook = select.id === "focusMiniBookSelect";
+    const selectedLabel = () => isBook ? input.defaultValue : select.value;
     const commit = (option, focusId = input.id) => {
       closeSettingsChoiceMenu();
-      input.value = option.label;
+      if (isBook) input.defaultValue = fitFocusPickerBookLabel(input, option);
+      input.value = isBook ? input.defaultValue : option.label;
       input.setCustomValidity("");
       if (select.value === option.value) return;
       select.value = option.value;
@@ -5703,6 +5726,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.12": [
+      "The verse picker shows full book names when they fit and uses smaller, bold text in the Book dropdown.",
+    ],
     "2026.11.25.11": [
       "The verse picker uses shorter book names and bold field text. You can still type full book names to search.",
     ],

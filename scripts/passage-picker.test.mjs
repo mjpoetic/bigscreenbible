@@ -114,6 +114,24 @@ for (const [query, book] of [
 assert.equal(context.resolvePassageChoice(context.passageChoiceMatches(bookOptions, 'Jud'), 'Jud'), null);
 
 vm.runInContext(extract('passagePickerViewport'), context);
+for (const name of ['fitFocusPickerBookLabel', 'refreshFocusPickerBookLabel']) {
+  vm.runInContext(extract(name), context);
+}
+const bookInput = { value: 'Col', defaultValue: 'Col', clientWidth: 80 };
+const bookSelect = { selectedOptions: [bookOptions[0]] };
+const bookPanel = { querySelector: selector => selector.endsWith('Input') ? bookInput : bookSelect };
+context.getComputedStyle = () => ({ fontWeight: '900', fontSize: '16px', fontFamily: 'sans-serif' });
+context.document = { createElement: () => ({ getContext: () => ({ measureText: name => ({ width: name.length * 8 }) }) }) };
+context.refreshFocusPickerBookLabel(bookPanel);
+assert.equal(bookInput.value, 'Col', 'A long book name keeps its abbreviation');
+bookInput.clientWidth = 96;
+context.refreshFocusPickerBookLabel(bookPanel);
+assert.equal(bookInput.value, 'Colossians', 'The full name returns when the field has room');
+bookInput.value = '2 Thessal';
+bookInput.clientWidth = 80;
+context.refreshFocusPickerBookLabel(bookPanel);
+assert.equal(bookInput.value, '2 Thessal', 'A resize preserves the query being edited');
+
 vm.runInContext(extract('positionFocusWorkspacePanel'), context);
 context.window = {
   innerWidth: 956, innerHeight: 440,
@@ -125,6 +143,7 @@ context.getComputedStyle = () => ({ getPropertyValue: name => safeAreas[name] })
 const styles = {};
 const classes = new Set();
 const panel = {
+  querySelector: () => null,
   style: Object.assign(styles, { removeProperty: name => delete styles[name] }),
   classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) },
 };

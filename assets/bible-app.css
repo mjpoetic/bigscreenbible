@@ -2288,7 +2288,8 @@ button {
   row-gap: 2px;
 }
 
-.settings-choice-version-code {
+.settings-choice-version-code,
+#focusMiniBookSelectMenu .settings-choice-option {
   color: currentColor;
   font-size: 14px;
   font-weight: 900;

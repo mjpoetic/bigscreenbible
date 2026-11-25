@@ -52,6 +52,7 @@ console.log('Focus passage notch visibility, placement, and reference checks pas
 const panel = { style: { removeProperty(key) { delete this[key]; } }, classList: { remove() {} }, scrollHeight: 360 };
 context.updateFocusPassageNotch = () => {};
 context.isCompactScreen = () => false;
+context.refreshFocusPickerBookLabel = () => {};
 context.state.focusMode = true;
 context.state.focusVersePickerAnchor = '#focusPassageNotch';
 let viewportWidth = 1024;
