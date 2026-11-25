@@ -76,6 +76,31 @@ context.positionSettingsChoiceMenu(narrowTrigger, narrowMenu);
 assert.equal(narrowMenu.style.width, '84px', 'Minimum width still respects the viewport');
 console.log('Narrow verse dropdown sizing checks passed');
 
+context.window = { innerWidth: 396, innerHeight: 400 };
+const bookTrigger = {
+  getBoundingClientRect: () => ({ width: 110, left: 80, top: 260, bottom: 300 }),
+};
+let bookMenuHeight = 240;
+const bookMenuClasses = new Set();
+const bookMenu = {
+  style: {},
+  getBoundingClientRect: () => ({ height: bookMenuHeight }),
+  classList: {
+    contains: name => bookMenuClasses.has(name),
+    toggle: (name, enabled) => enabled ? bookMenuClasses.add(name) : bookMenuClasses.delete(name),
+  },
+};
+context.positionSettingsChoiceMenu(bookTrigger, bookMenu, true);
+assert.equal(bookMenu.style.width, '310px');
+assert.ok(bookMenuClasses.has('opens-above'));
+bookMenuHeight = 58;
+context.positionSettingsChoiceMenu(bookTrigger, bookMenu, true, true);
+assert.equal(bookMenu.style.width, '310px', 'Filtering keeps the book menu wide');
+assert.equal(bookMenu.style.top, '194px', 'Filtered results stay anchored above the field');
+context.window.innerWidth = 280;
+context.positionSettingsChoiceMenu(bookTrigger, bookMenu, true);
+assert.equal(bookMenu.style.width, '264px', 'The wide book menu still fits a narrow viewport');
+
 vm.runInContext(extract('passageChoiceMatches'), context);
 const choices = ['Job', 'Joel', 'John', 'Jonah', 'Jeremiah', '1 John', '2 John', '3 John', '1 Chronicles', '2 Chronicles', '1 Corinthians', '2 Corinthians'].map(label => ({ label, value: label }));
 assert.deepEqual(Array.from(context.passageChoiceMatches(choices, 'jo'), o => o.value), ['Job', 'Joel', 'John', 'Jonah', '1 John', '2 John', '3 John']);

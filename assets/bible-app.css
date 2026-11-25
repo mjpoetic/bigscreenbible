@@ -2289,7 +2289,7 @@ button {
 }
 
 .settings-choice-version-code,
-#focusMiniBookSelectMenu .settings-choice-option {
+:is(#focusMiniBookSelectMenu, #focusMiniChapterSelectMenu, #focusMiniVerseSelectMenu) .settings-choice-option {
   color: currentColor;
   font-size: 14px;
   font-weight: 900;
@@ -28403,9 +28403,16 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 
 #focusMiniBookSelectMenu .settings-choice-option {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#focusMiniBookSelectMenu {
+  box-sizing: border-box;
+}
+
+#focusMiniBookSelectMenu.passage-combobox-list {
+  width: 100%;
 }
 
 @media (pointer: coarse) {

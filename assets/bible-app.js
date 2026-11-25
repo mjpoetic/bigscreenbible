@@ -4490,7 +4490,7 @@ function closeSettingsChoiceMenuOnScroll(event) {
   closeSettingsChoiceMenu();
 }
 
-function positionSettingsChoiceMenu(trigger, menu, wide = false) {
+function positionSettingsChoiceMenu(trigger, menu, wide = false, keepPlacement = false) {
   const viewportPadding = 8;
   const bounds = trigger.getBoundingClientRect();
   const preferredWidth = wide ? Math.max(bounds.width, 310)
@@ -4502,7 +4502,8 @@ function positionSettingsChoiceMenu(trigger, menu, wide = false) {
   const measuredHeight = menu.getBoundingClientRect().height;
   const spaceBelow = window.innerHeight - bounds.bottom - 8 - viewportPadding;
   const spaceAbove = bounds.top - 8 - viewportPadding;
-  const openAbove = spaceBelow < Math.min(measuredHeight, 180) && spaceAbove > spaceBelow;
+  const openAbove = keepPlacement ? menu.classList.contains("opens-above")
+    : spaceBelow < Math.min(measuredHeight, 180) && spaceAbove > spaceBelow;
   const availableHeight = Math.max(120, openAbove ? spaceAbove : spaceBelow);
   menu.style.maxHeight = `${availableHeight}px`;
   const left = Math.min(
@@ -4761,7 +4762,7 @@ function bindPassageComboboxes() {
         button.setAttribute("role", "option");
         button.setAttribute("aria-selected", String(option.value === select.value));
         button.textContent = option.dataset.choiceLabel || option.label;
-        if (select.id === "focusMiniBookSelect") button.title = button.textContent;
+        if (isBook) button.title = button.textContent;
         button.addEventListener("pointerdown", (event) => event.preventDefault());
         button.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -4781,7 +4782,7 @@ function bindPassageComboboxes() {
       if (existingMenu) {
         existingMenu.replaceChildren(options);
         existingMenu.scrollTop = 0;
-        if (!inline) positionSettingsChoiceMenu(root, existingMenu);
+        if (!inline) positionSettingsChoiceMenu(root, existingMenu, isBook, isBook);
         if (all) centerSelectedMenuOption(existingMenu);
         if (scrollHaptics) scrollPosition = passageScrollPosition(existingMenu);
         return;
@@ -4798,7 +4799,7 @@ function bindPassageComboboxes() {
       input.setAttribute("aria-expanded", "true");
       const reposition = () => {
         if (inline) positionFocusWorkspacePanel();
-        else positionSettingsChoiceMenu(root, menu);
+        else positionSettingsChoiceMenu(root, menu, isBook);
         if (scrollHaptics) scrollPosition = passageScrollPosition(menu);
       };
       activeSettingsChoiceMenu = { menu, trigger: root, select, cleanup: () => {
@@ -5726,6 +5727,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.13": [
+      "The Book dropdown has room for full book names, and Chapter and Verse use the same bold dropdown text.",
+    ],
     "2026.11.25.12": [
       "The verse picker shows full book names when they fit and uses smaller, bold text in the Book dropdown.",
     ],
