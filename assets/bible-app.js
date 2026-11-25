@@ -5670,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.8": [
+      "Customize verse selection spotlight strength and choose between dimming and blur in Appearance & Text.",
+    ],
     "2026.11.25.7": [
       "Selecting verses gently dims the surrounding verses so the selection stands out, even in a highlighted passage.",
     ],
@@ -7280,6 +7283,33 @@ function settingsAppearanceModeMarkup() {
       </div>`;
 }
 
+const verseSpotlightSettings = {
+  Strength: {
+    key: "lw_verse_spotlight_strength",
+    label: "Spotlight strength",
+    help: "Controls how much surrounding verses recede when you select a verse.",
+    choices: [
+      { value: "gentle", label: "Gentle" },
+      { value: "medium", label: "Medium" },
+      { value: "strong", label: "Strong" },
+      { value: "off", label: "Off" },
+    ],
+  },
+  Effect: {
+    key: "lw_verse_spotlight_effect",
+    label: "Spotlight effect",
+    choices: [
+      { value: "dim", label: "Dim" },
+      { value: "blur", label: "Blur" },
+    ],
+  },
+};
+
+function verseSpotlightSettingValue({ key, choices }) {
+  const saved = localStorage.getItem(key);
+  return choices.find(({ value }) => value === saved)?.value || choices[0].value;
+}
+
 function settingsAppearanceMarkup(prefix = "", options = {}) {
   const currentColorLabel = `Current ${state.theme === "dark" ? "Dark" : "Light"} Color`;
   const themeFamilyId = prefix ? `${prefix}ThemeFamilySelect` : "themeFamilySelect";
@@ -7324,6 +7354,13 @@ function settingsAppearanceMarkup(prefix = "", options = {}) {
       </div>
       <p class="setting-help">Default uses the original selection treatment. Outline marks selected verses with a border and checkmark.</p>
     </div>
+    ${Object.entries(verseSpotlightSettings).map(([name, setting]) => `
+      <div class="setting-group">
+        <span class="setting-label">${setting.label}</span>
+        ${settingsChoiceMarkup(settingsControlId(prefix, `VerseSpotlight${name}`), verseSpotlightSettingValue(setting), setting.choices, { label: setting.label })}
+        ${setting.help ? `<p class="setting-help">${setting.help}</p>` : ""}
+      </div>
+    `).join("")}
     ` : ""}
     ${options.includeFont ? settingsScriptureFontMarkup(prefix) : ""}
     <div class="setting-group" ${options.searchItem ? 'data-settings-search-item data-settings-search-text="appearance mode light dark system theme"' : ""}>
@@ -7465,6 +7502,8 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
   return `
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
       ${result("appearance", "ControlFinishGroup", "Control finish", "Appearance & Text", "liquid glass classic transparency navigation floating controls")}
+      ${result("appearance", "VerseSpotlightStrength", "Spotlight strength", "Appearance & Text", "verse selection highlight dim blur intensity off")}
+      ${result("appearance", "VerseSpotlightEffect", "Spotlight effect", "Appearance & Text", "verse selection highlight dim blur")}
       ${result("appearance", "ThemeFamilySelect", "Theme family", "Appearance & Text", "palette colors linked themes")}
       ${result("accessibility", "PopupTextSizeLabel", "Popup text size", "Accessibility", "pinch zoom dialogs search Strong cross references preview")}
       ${result("accessibility", "InterfaceTextSizeLabel", "Interface text size", "Accessibility", "accessibility navigation menus")}
@@ -11722,7 +11761,7 @@ function reader(chapterChange = null) {
         `}
       </div>
       ` : ""}
-      <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}">
+      <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}" data-spotlight-strength="${verseSpotlightSettingValue(verseSpotlightSettings.Strength)}" data-spotlight-effect="${verseSpotlightSettingValue(verseSpotlightSettings.Effect)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
@@ -27072,6 +27111,15 @@ function bindEvents() {
       });
     });
   });
+  for (const [name, setting] of Object.entries(verseSpotlightSettings)) {
+    document.querySelectorAll(`select[id$="VerseSpotlight${name}" i]`).forEach((select) => {
+      select.addEventListener("change", () => {
+        localStorage.setItem(setting.key, select.value);
+        renderPreservingReaderScroll();
+        document.getElementById(`${select.id}Toggle`)?.focus({ preventScroll: true });
+      });
+    });
+  }
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => setThemeMode(button.dataset.themeChoice));
   });

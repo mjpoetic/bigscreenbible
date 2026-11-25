@@ -25752,9 +25752,24 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
 }
 
 /* Keep the selected passage and its saved highlights at full opacity. */
-#scriptureReadingRegion:has(.passage-selected):not(:has(.verse-arrival-halo))
+#scriptureReadingRegion[data-spotlight-strength="medium"] {
+  --verse-spotlight-opacity: 0.60;
+  --verse-spotlight-blur: 1.4px;
+}
+
+#scriptureReadingRegion[data-spotlight-strength="strong"] {
+  --verse-spotlight-opacity: 0.46;
+  --verse-spotlight-blur: 2.2px;
+}
+
+#scriptureReadingRegion[data-spotlight-effect="dim"]:has(.passage-selected):not([data-spotlight-strength="off"], :has(.verse-arrival-halo))
   :is([data-verse]:not(.passage-selected), [data-focused-reader-verse]:not(:has(.passage-selected))) {
-  opacity: 0.74;
+  opacity: var(--verse-spotlight-opacity, 0.74);
+}
+
+#scriptureReadingRegion[data-spotlight-effect="blur"]:has(.passage-selected):not([data-spotlight-strength="off"], :has(.verse-arrival-halo))
+  :is([data-verse]:not(.passage-selected), [data-focused-reader-verse]:not(:has(.passage-selected))) {
+  filter: blur(var(--verse-spotlight-blur, 0.7px));
 }
 
 
