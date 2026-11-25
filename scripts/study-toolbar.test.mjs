@@ -62,3 +62,27 @@ menu.getBoundingClientRect = () => ({ width: 374, height: 44 });
 vm.runInContext('positionVerseActionMenu(anchor, menu)', positioning);
 assert.equal(menu.style.left, '8px');
 console.log('Verse toolbar positioning keeps left/right edge and viewport-wide menus in bounds.');
+
+// Horizontal trackpad gestures belong to the toolbar even when its row cannot scroll.
+vm.runInContext(extract('scrollToolbarWithWheel'), context);
+const scrollRequests = [];
+const viewport = { clientWidth: 240, scrollBy: ({ left }) => scrollRequests.push(left) };
+context.viewport = viewport;
+const wheel = overrides => {
+  let prevented = false;
+  context.wheelEvent = {
+    cancelable: true, ctrlKey: false, deltaMode: 0, deltaX: -30, deltaY: 2,
+    preventDefault: () => { prevented = true; },
+    ...overrides,
+  };
+  vm.runInContext('scrollToolbarWithWheel(wheelEvent, viewport)', context);
+  return prevented;
+};
+assert.equal(wheel(), true);
+assert.equal(wheel({ deltaMode: 1, deltaX: 3, deltaY: 0 }), true);
+assert.equal(wheel({ deltaMode: 2, deltaX: 1, deltaY: 0 }), true);
+assert.equal(wheel({ deltaX: 2, deltaY: 30 }), false);
+assert.equal(wheel({ ctrlKey: true }), false);
+assert.equal(wheel({ cancelable: false }), false);
+assert.deepEqual(scrollRequests, [-30, 48, 240]);
+console.log('Toolbar wheel handling consumes sideways motion and preserves vertical scrolling and pinch zoom.');

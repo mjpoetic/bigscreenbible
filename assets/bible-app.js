@@ -5668,6 +5668,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.24.4": [
+      "Horizontal trackpad gestures on the verse and highlighter toolbars stay in the reader.",
+    ],
     "2026.11.24.3": [
       "The verse and highlighter toolbars stay steady when additional buttons are enabled.",
     ],
@@ -24975,6 +24978,14 @@ function toolbarScrollEdges(scrollWidth, clientWidth, scrollLeft) {
   return { previous: position > 2, next: maximum - position > 2 };
 }
 
+function scrollToolbarWithWheel(event, viewport) {
+  const { deltaMode, deltaX, deltaY } = event;
+  if (!event.cancelable || event.ctrlKey || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+  event.preventDefault();
+  const unit = deltaMode === 1 ? 16 : deltaMode === 2 ? viewport.clientWidth : 1;
+  viewport.scrollBy({ left: deltaX * unit, behavior: "instant" });
+}
+
 function bindToolbarOverflow(toolbar, viewport) {
   const row = viewport.firstElementChild;
   const makeArrow = (label, icon) => {
@@ -25011,6 +25022,8 @@ function bindToolbarOverflow(toolbar, viewport) {
   };
   bindArrow(previous, -1);
   bindArrow(next, 1);
+  const onWheel = event => scrollToolbarWithWheel(event, viewport);
+  toolbar.addEventListener("wheel", onWheel, { passive: false });
   viewport.addEventListener("scroll", update, { passive: true });
   const resize = new ResizeObserver(update);
   resize.observe(toolbar);
@@ -25020,6 +25033,7 @@ function bindToolbarOverflow(toolbar, viewport) {
   changes.observe(toolbar, { attributes: true, attributeFilter: ["data-customizing"] });
   update();
   return () => {
+    toolbar.removeEventListener("wheel", onWheel);
     viewport.removeEventListener("scroll", update);
     resize.disconnect();
     changes.disconnect();

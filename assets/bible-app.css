@@ -64,6 +64,11 @@ html {
   touch-action: manipulation;
 }
 
+/* A sideways gesture near the open verse menu can start on the reader itself. */
+html:has(#verseActionMenu:not([data-customizing], .motion-exit), .selection-bar:hover:not([data-customizing], .selection-bar-exiting)) {
+  overscroll-behavior-x: none;
+}
+
 :root {
   --bg: #f8f7f3;
   --browser-chrome: #f8f7f3;
