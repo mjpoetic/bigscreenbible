@@ -254,6 +254,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BSBPrintPlugin.class);
         registerPlugin(BSBSpeechPlugin.class);
         registerPlugin(BSBAuthPlugin.class);
+        registerPlugin(BSBHapticsPlugin.class);
         super.onCreate(savedInstanceState);
         if (savedInstanceState != null) pendingQuickAction = savedInstanceState.getString("bsbPendingQuickAction");
         queueQuickAction(getIntent());

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 const source = readFileSync(new URL("../assets/bible-app.js", import.meta.url), "utf8");
-const extract = name => source.match(new RegExp(`function ${name}\\([^]*?\\n\\}`))[0];
+const extract = name => source.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n\\}`))[0];
 let platform = "ios", available = true, calls = 0, now = 100;
 const storage = new Map();
 const context = vm.createContext({
@@ -11,7 +11,7 @@ const context = vm.createContext({
   localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
   document: { hidden: false, querySelectorAll: () => [] }, performance: { now: () => now },
 });
-vm.runInContext(`let lastControlHapticAt = -Infinity; let suppressMobileControlsClickUntil = 0, suppressFocusBrandClickUntil = 0, suppressCrossReferenceVerseClickUntil = 0; ${["nativeHapticsPlugin", "nativeHapticStrengthPlugin", "hapticStrength", "hapticsSettingsMarkup", "playNativeHaptic", "playControlHaptic", "playPinchHaptic", "syncHapticSettings", "handleHapticStrengthInput", "handleControlHaptic"].map(extract).join("\n")}`, context);
+vm.runInContext(`let androidHapticStrengthAvailable = false; let lastControlHapticAt = -Infinity; let suppressMobileControlsClickUntil = 0, suppressFocusBrandClickUntil = 0, suppressCrossReferenceVerseClickUntil = 0; ${["nativeHapticsPlugin", "nativeHapticStrengthPlugin", "canAdjustHapticStrength", "loadAndroidHapticCapabilities", "hapticStrength", "hapticsSettingsMarkup", "playNativeHaptic", "playControlHaptic", "playPinchHaptic", "syncHapticSettings", "handleHapticStrengthInput", "handleControlHaptic"].map(extract).join("\n")}`, context);
 const run = code => vm.runInContext(code, context);
 function event({ type = "click", input = false, disabled = false, trusted = true, toggle = false, checked = true, label = false } = {}) {
   const control = {
@@ -103,7 +103,7 @@ storage.delete("lw_passage_scroll_sounds");
 
 // Exercise the actual native-intensity path and real Scripture gesture handlers.
 const pulses = [];
-context.window.Capacitor.isPluginAvailable = () => available;
+context.window.Capacitor.isPluginAvailable = name => available && (name === "Haptics" || platform === "ios");
 context.window.Capacitor.Plugins.BSBHaptics = { impact: options => { pulses.push(options); } };
 run('playNativeHaptic("picker-tick"); playNativeHaptic("milestone");');
 assert.deepEqual(pulses.splice(0).map(({ intensity, soft }) => [Math.round(intensity * 100), soft]), [[45, true], [60, false]]);
@@ -167,7 +167,7 @@ movePresentationPinch(175);
 assert.ok(context.state.presentationTextScale < 1.23, "Reversing at the fit limit shrinks text immediately");
 assert.equal(context.presentationFeedback.atMaximum, false);
 
-// Strength persists, previews, clamps corrupt storage, and appears only in supported iOS builds.
+// Strength persists, previews, clamps corrupt storage, and appears on supported devices.
 assert.match(run('hapticsSettingsMarkup()'), /data-haptics-strength/);
 const slider = { value: '30', matches: selector => selector === '[data-haptics-strength]' };
 context.sliderEvent = { isTrusted: true, target: slider };
@@ -196,6 +196,31 @@ storage.delete('lw_haptics_enabled');
 available = false; run('playNativeHaptic()');
 assert.equal(androidPulses.length, 3, 'Missing Android hardware/plugin does not interrupt controls');
 available = true;
+context.window.Capacitor.isPluginAvailable = name => ["Haptics", "BSBHaptics"].includes(name);
+let adjustable = false;
+context.window.Capacitor.Plugins.BSBHaptics.getCapabilities = async () => ({ adjustable });
+const renderedControls = [{}, {}];
+context.document.querySelectorAll = selector => selector === "[data-haptics-strength]" ? renderedControls : [];
+await run("loadAndroidHapticCapabilities()");
+assert.match(run("hapticsSettingsMarkup()"), /data-haptics-strength hidden/);
+assert.ok(renderedControls.every(control => control.hidden));
+const beforeFallback = pulses.length;
+run('playNativeHaptic("tick")');
+assert.equal(pulses.length, beforeFallback + 1, "Android bridge handles the system-tap fallback");
+
+adjustable = true;
+await run("loadAndroidHapticCapabilities()");
+assert.doesNotMatch(run("hapticsSettingsMarkup()"), /data-haptics-strength hidden/);
+assert.ok(renderedControls.every(control => !control.hidden));
+slider.value = "40"; now += 100;
+run("handleHapticStrengthInput(sliderEvent)");
+assert.equal(pulses.at(-1).intensity, 0.4);
+run('playNativeHaptic("tick")');
+assert.equal(pulses.at(-1).intensity, 0.12);
+storage.set("lw_haptics_enabled", "false");
+const beforeOptOut = pulses.length;
+run("playNativeHaptic()");
+assert.equal(pulses.length, beforeOptOut, "Android bridge respects the app opt-out");
 console.log('Haptic strength and pinch: percent ticks, decade accents, reversals, skipped frames, limits and platform guards passed.');
 
 // Only accepted chapter gestures pulse; boundary and busy gestures stay silent.

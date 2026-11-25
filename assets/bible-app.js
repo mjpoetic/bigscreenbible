@@ -5128,8 +5128,26 @@ function nativeHapticsPlugin() {
 
 function nativeHapticStrengthPlugin() {
   const capacitor = window.Capacitor;
-  if (capacitor?.getPlatform?.() !== "ios" || !capacitor.isPluginAvailable?.("BSBHaptics")) return null;
+  if (!["ios", "android"].includes(capacitor?.getPlatform?.()) || !capacitor.isPluginAvailable?.("BSBHaptics")) return null;
   return capacitor.Plugins?.BSBHaptics || capacitor.registerPlugin?.("BSBHaptics") || null;
+}
+
+let androidHapticStrengthAvailable = false;
+
+function canAdjustHapticStrength() {
+  return !!nativeHapticStrengthPlugin() &&
+    (window.Capacitor.getPlatform() === "ios" || androidHapticStrengthAvailable);
+}
+
+async function loadAndroidHapticCapabilities() {
+  if (window.Capacitor?.getPlatform?.() !== "android") return;
+  try {
+    const capabilities = await nativeHapticStrengthPlugin()?.getCapabilities();
+    androidHapticStrengthAvailable = capabilities?.adjustable === true;
+    syncHapticSettings();
+  } catch {
+    // The native system tap remains available if the capability query fails.
+  }
 }
 
 function hapticStrength() {
@@ -5139,14 +5157,15 @@ function hapticStrength() {
 
 function hapticsSettingsMarkup(prefix = "") {
   if (!nativeHapticsPlugin()) return "";
+  const hidden = canAdjustHapticStrength() ? "" : " hidden";
   return `<div class="setting-group settings-section-subgroup">
     <label class="setting-checkbox">
       <input type="checkbox" id="${prefix}HapticsToggle" data-haptics-toggle ${localStorage.getItem("lw_haptics_enabled") !== "false" ? "checked" : ""} />
       <span>Haptic feedback</span>
     </label>
-    ${nativeHapticStrengthPlugin() ? `<label for="${prefix}HapticsStrength">Haptic strength <span data-haptics-strength-value>${hapticStrength()}%</span></label>
-    <input type="range" id="${prefix}HapticsStrength" data-haptics-strength min="20" max="100" step="10" value="${hapticStrength()}" ${localStorage.getItem("lw_haptics_enabled") === "false" ? "disabled" : ""} />` : ""}
-    <p class="setting-help">${nativeHapticStrengthPlugin() ? "Choose how strong taps feel on this device. Scripture pinches give soft taps at each 1% change and stronger taps at 10% marks." : "Feel feedback when using controls, holding and selecting verses, and adjusting Scripture size. Feedback varies with your device and its vibration settings."}</p>
+    ${nativeHapticStrengthPlugin() ? `<label for="${prefix}HapticsStrength" data-haptics-strength-label${hidden}>Haptic strength <span data-haptics-strength-value>${hapticStrength()}%</span></label>
+    <input type="range" id="${prefix}HapticsStrength" data-haptics-strength${hidden} min="20" max="100" step="10" value="${hapticStrength()}" ${localStorage.getItem("lw_haptics_enabled") === "false" ? "disabled" : ""} />` : ""}
+    <p class="setting-help">${!hidden && window.Capacitor.getPlatform() === "ios" ? "Choose how strong taps feel on this device. Scripture pinches give soft taps at each 1% change and stronger taps at 10% marks." : "Feel feedback when using controls, holding and selecting verses, and adjusting Scripture size. Feedback varies with your device and its vibration settings."}</p>
   </div>`;
 }
 
@@ -5190,9 +5209,14 @@ function playPinchHaptic(gesture, scale) {
 }
 
 function syncHapticSettings() {
+  const hidden = !canAdjustHapticStrength();
   document.querySelectorAll("[data-haptics-strength]").forEach(input => {
+    input.hidden = hidden;
     input.value = String(hapticStrength());
     input.disabled = localStorage.getItem("lw_haptics_enabled") === "false";
+  });
+  document.querySelectorAll("[data-haptics-strength-label]").forEach(label => {
+    label.hidden = hidden;
   });
   document.querySelectorAll("[data-haptics-strength-value]").forEach(label => {
     label.textContent = `${hapticStrength()}%`;
@@ -5928,6 +5952,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.24": [
+      "Adjust haptic strength on supported Android phones in Settings → Sounds. The Android app update also uses a system tap on phones without adjustable feedback.",
+    ],
     "2026.11.25.23": [
       "Pinned testament headings in the Book dropdown have a lightly shaded, frosted background.",
     ],
@@ -38700,6 +38727,7 @@ if (startupLoaderPreview) {
 document.addEventListener("click", handleGamesInteractionSound, true);
 
 document.addEventListener("input", handleHapticStrengthInput, true);
+loadAndroidHapticCapabilities();
 document.addEventListener("click", handleControlHaptic, true);
 document.addEventListener("change", handleControlHaptic, true);
 
