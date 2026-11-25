@@ -5668,6 +5668,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.1": [
+      "Manually scroll through the final lines of a chapter in Focus Reading.",
+    ],
     "2026.11.24.4": [
       "Horizontal trackpad gestures on the verse and highlighter toolbars stay in the reader.",
     ],
@@ -10630,7 +10633,14 @@ function focusReadingWindowRect() {
 function manualFocusReadingWindowRect(surface) {
   const active = focusReadingRects[focusReadingIndex];
   if (!active) return null;
-  const center = surface.scrollTop + surface.clientHeight / 2;
+  const halfHeight = surface.clientHeight / 2;
+  const maxScrollTop = Math.max(0, surface.scrollHeight - surface.clientHeight);
+  const scrollTop = Math.min(surface.scrollTop, maxScrollTop);
+  const lastLine = focusReadingRects.findLast(line => line.left < active.right && line.right > active.left) || active;
+  const lastCenter = (lastLine.top + lastLine.bottom) / 2;
+  // Near the bottom, let the guide travel to lines that can't reach the center.
+  const edgeProgress = Math.max(0, 1 - (maxScrollTop - scrollTop) / Math.max(1, halfHeight));
+  const center = scrollTop + halfHeight + edgeProgress * Math.max(0, lastCenter - maxScrollTop - halfHeight);
   let nearest = focusReadingIndex, distance = Infinity;
   focusReadingRects.forEach((line, index) => {
     // Stay in the current side-by-side column. Stacked translations share

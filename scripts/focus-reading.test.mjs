@@ -155,6 +155,21 @@ context.paintFocusReading();
 assert.equal((parseFloat(guide.children[0].style.height) + parseFloat(guide.children[1].style.top)) / 2, surface.clientHeight / 2, 'Painted masks leave the manual window at viewport center');
 vm.runInContext('focusReadingManualScroll = false;', context);
 
+// The last line can sit below the center even at the native scroll limit.
+surface.scrollTop = 800;
+vm.runInContext(`
+  focusReadingRects = [
+    { top: 890, bottom: 910, left: 10, right: 290, columnKey: "BSB" },
+    { top: 950, bottom: 970, left: 10, right: 290, columnKey: "BSB" },
+    { top: 975, bottom: 995, left: 310, right: 590, columnKey: "AMP" },
+  ];
+  focusReadingIndex = 0;
+`, context);
+const endRect = context.manualFocusReadingWindowRect(surface);
+assert.equal(endRect.top, 950, 'The guide reveals the final line in the active column');
+assert.equal(endRect.bottom, 970);
+assert.equal(surface.scrollTop, 800, 'The guide leaves the reader at the native scroll limit');
+
 const parallelText = (version, left, tops) => ({
   ...text(left, tops.map(top => rect(top, left, left + 280))),
   closest: () => ({ dataset: { version }, getBoundingClientRect: () => ({ left, right: left + 280 }) }),
