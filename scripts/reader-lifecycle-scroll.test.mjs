@@ -98,6 +98,13 @@ for (const active of [false, true]) {
   assert.equal(position.scriptureTop, 812);
   assert.equal(position.readerAnchor.mode, "parallel");
 }
+startup.window = { location: { search: "" }, Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" } };
+startup.state = { startupMode: "reader", startVerseOfDay: false, reference: "John 3" };
+const androidPosition = await vm.runInContext("applyStartupExperience()", startup);
+assert.equal(startup.state.reference, "James 1:22");
+assert.equal(androidPosition.readerAnchor.verse, "22");
+assert.equal(androidPosition.scriptureTop, 812);
+
 startup.state = { startupMode: "reader", startVerseOfDay: true };
 startup.requestedModeFromUrl = () => "vod";
 assert.equal(await vm.runInContext("applyStartupExperience()", startup), undefined);

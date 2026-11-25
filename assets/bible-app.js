@@ -5636,8 +5636,8 @@ function startupReminderSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("StartVerseOfDayToggle")}" ${state.startVerseOfDay ? "checked" : ""} />
         <span>Start with Verse of the Day</span>
       </label>
-      ${window.bsbOffline || window.Capacitor?.getPlatform?.() === "ios"
-        ? '<p class="setting-help">On iOS, Reader and Parallel Study resume your saved passage first.</p>' : ""}
+      ${window.bsbOffline || window.Capacitor?.isNativePlatform?.()
+        ? '<p class="setting-help">In the mobile app, Reader and Parallel Study resume your saved passage first.</p>' : ""}
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ShowStreakPopupToggle")}" ${state.showStreakPopup ? "checked" : ""} />
         <span>Show daily streak popup</span>
@@ -5670,6 +5670,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.3": [
+      "Android now resumes the last saved Bible passage on launch in Reader and Parallel Study, including when Start with Verse of the Day is off.",
+    ],
     "2026.11.25.2": [
       "On iOS, Reader and Parallel Study reopen at your last saved Bible passage and reading position.",
     ],
@@ -32893,7 +32896,7 @@ async function applyStartupExperience({ updateReload = false } = {}) {
   if (state.mode === "big") state.presentationControlsVisible = !isCompactScreen();
 
   if (!requestedMode && !sharedRef && !new URLSearchParams(window.location.search).has("nativeLink")
-    && (window.bsbOffline || window.Capacitor?.getPlatform?.() === "ios")
+    && (window.bsbOffline || window.Capacitor?.isNativePlatform?.())
     && ["reader", "parallel"].includes(state.mode)) {
     const position = savedReaderPosition();
     if (position && bibleData[position.reference]
