@@ -2094,7 +2094,6 @@ function render({ preserveAutoScroll = false } = {}) {
     label: readingFocus.getAttribute("aria-label"),
     verse: document.activeElement.closest("[data-verse]")?.dataset?.verse,
   } : null;
-  const focusEnterClass = pendingFocusChromeEnter ? "focus-chrome-enter" : "";
   const sideToolbarPosition = effectiveSideToolbarPosition();
   const selectionToolsCollapsedClass = returnSelectionToolsCollapsed() ? "selection-tools-collapsed" : "";
   if (state.startupApplied && !dataLoading && !dataError) {
@@ -2126,7 +2125,7 @@ function render({ preserveAutoScroll = false } = {}) {
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
   const previousSocialPopup = document.getElementById("gameChallengePopupDialog")?.parentElement;
   app.innerHTML = `
-    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass} ${focusEnterClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       ${state.mode === "parallel" ? `<button class="parallel-header-toggle" id="parallelHeaderToggle" type="button" aria-controls="appHeader" aria-expanded="${!state.parallelHeaderCollapsed}" aria-label="${state.parallelHeaderCollapsed ? "Show" : "Hide"} header"><span aria-hidden="true">${state.parallelHeaderCollapsed ? "⌄" : "⌃"}</span> ${state.parallelHeaderCollapsed ? "Show" : "Hide"} header</button>` : ""}
@@ -2172,7 +2171,6 @@ function render({ preserveAutoScroll = false } = {}) {
   settingsPageTransition = "";
   syncPresentationVideo(previousVideo);
   presentationSettingsPageTransition = "";
-  pendingFocusChromeEnter = false;
   pendingLibraryEnter = false;
   mountMobileGameControls();
   syncAppUpdateNotification();
@@ -5907,6 +5905,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.20": [
+      "Scripture and Reader panels move together when entering and leaving Focus Mode. Turn off Focus Mode animation in Settings → Appearance & Text.",
+    ],
     "2026.11.25.19": [
       "The Book dropdown keeps the current testament heading in view as you scroll and tucks the color toggle into the corner.",
     ],
@@ -7802,6 +7803,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
     <nav class="settings-destinations settings-search-destinations" aria-label="Matching settings" data-settings-search-group data-settings-search-only hidden>
       ${result("appearance", "PickerBookColors", "Color-code books in the verse picker", "Appearance & Text", "book dropdown colors categories")}
       ${result("appearance", "ControlFinishGroup", "Control finish", "Appearance & Text", "liquid glass classic transparency navigation floating controls")}
+      ${result("appearance", "FocusModeAnimationToggle", "Focus Mode animation", "Appearance & Text", "transition motion panels scripture reduce")}
       ${result("appearance", "SettingsSpotlightSelect", "Settings spotlight", "Appearance & Text", "window backdrop background dim blur off")}
       ${result("appearance", "VerseSpotlightStrength", "Spotlight strength", "Appearance & Text", "verse selection highlight dim blur intensity off")}
       ${result("appearance", "VerseSpotlightEffect", "Spotlight effect", "Appearance & Text", "verse selection highlight dim blur")}
@@ -7915,6 +7917,12 @@ function mainSettingsPageContent(prefix = "", page = state.settingsPage) {
         <h3>Look & feel</h3>
         <div class="settings-page-section-content">
           ${settingsAppearanceMarkup(prefix, { includeFamily: true, includeControlFinish: true })}
+          <div class="setting-group">
+            <label class="setting-checkbox">
+              <input type="checkbox" id="${settingsControlId(prefix, "FocusModeAnimationToggle")}" data-focus-mode-animation ${localStorage.getItem("lw_focus_mode_animation") !== "false" ? "checked" : ""} />
+              <span>Focus Mode animation</span>
+            </label>
+          </div>
           ${settingsSpotlightControl(prefix)}
         </div>
       </section>
@@ -27420,6 +27428,14 @@ function bindEvents() {
       });
     });
   });
+  document.querySelectorAll("[data-focus-mode-animation]").forEach((input) => {
+    input.addEventListener("change", () => {
+      localStorage.setItem("lw_focus_mode_animation", String(input.checked));
+      document.querySelectorAll("[data-focus-mode-animation]").forEach((toggle) => {
+        toggle.checked = input.checked;
+      });
+    });
+  });
   document.querySelectorAll('select[id$="SettingsSpotlightSelect" i]').forEach((select) => {
     select.addEventListener("change", () => {
       localStorage.setItem(settingsSpotlight.key, select.value);
@@ -34090,39 +34106,29 @@ function resetPresentationTextScale({ feedback = false } = {}) {
   if (feedback) requestAnimationFrame(() => showPresentationTextScaleFeedback({ settle: true }));
 }
 
-let pendingFocusChromeEnter = false;
 let pendingLibraryEnter = false;
 
 function toggleFocusMode({ onComplete } = {}) {
   if (document.documentElement.dataset.modeTransition === "reader-panels") return;
   const enteringFocus = !state.focusMode;
   const currentMode = state.mode;
-  const applyFocusMode = (animateChrome = true) => {
+  const applyFocusMode = () => {
     if (state.mode !== currentMode || state.focusMode === enteringFocus) return;
     state.focusReferenceOpen = false;
     state.focusSearchResultsOpen = false;
     resetFocusToolSurfaces();
     state.focusMode = enteringFocus;
-    if (state.focusMode) state.mobileControlsOpen = false;
-    else pendingFocusChromeEnter = animateChrome;
+    if (enteringFocus) state.mobileControlsOpen = false;
     localStorage.setItem("lw_focus_mode", String(state.focusMode));
     scheduleCloudSync();
     renderPreservingReaderScroll();
     onComplete?.();
   };
-  if (!enteringFocus) {
-    if (modeViewTransitionAvailable()) {
-      runLayoutViewTransition("reader-panels", () => applyFocusMode(false));
-    } else {
-      applyFocusMode();
-    }
-    return;
+  if (localStorage.getItem("lw_focus_mode_animation") !== "false" && modeViewTransitionAvailable()) {
+    runLayoutViewTransition("reader-panels", applyFocusMode);
+  } else {
+    applyFocusMode();
   }
-  animateBeforeRemoval(
-    ".rail, .library-drawer, .chapter-tools-region, .footer-region",
-    applyFocusMode,
-    { className: "focus-chrome-exit", duration: 650, waitForAnimation: true },
-  );
 }
 
 function toggleVerseNavCollapsed() {

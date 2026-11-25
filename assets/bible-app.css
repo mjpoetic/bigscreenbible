@@ -12574,8 +12574,72 @@ html[data-mode-transition]::view-transition-new(root) {
   backface-visibility: hidden;
 }
 
-html[data-mode-transition="reader-panels"]::view-transition-group(root) {
-  animation-duration: var(--motion-slow);
+html[data-mode-transition="reader-panels"] {
+  --focus-transition-duration: 460ms;
+  --focus-transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-mode-transition="reader-panels"] .main-grid > .reader { view-transition-name: focus-scripture; }
+html[data-mode-transition="reader-panels"] #appHeader { view-transition-name: focus-header; }
+html[data-mode-transition="reader-panels"] .main-grid > .rail { view-transition-name: focus-rail; }
+html[data-mode-transition="reader-panels"] .main-grid > .library-drawer { view-transition-name: focus-drawer; }
+html[data-mode-transition="reader-panels"] .app-shell[data-side-toolbar-position="right"] .main-grid > .rail { view-transition-name: focus-rail-right; }
+html[data-mode-transition="reader-panels"] .app-shell[data-side-toolbar-position="right"] .main-grid > .library-drawer { view-transition-name: focus-drawer-right; }
+html[data-mode-transition="reader-panels"] .chapter-tools-region { view-transition-name: focus-chapter-tools; }
+html[data-mode-transition="reader-panels"] .app-shell > .footer-region { view-transition-name: focus-footer; }
+
+html[data-mode-transition="reader-panels"]::view-transition-group(*) {
+  animation-duration: var(--focus-transition-duration);
+  animation-timing-function: var(--focus-transition-ease);
+}
+
+html[data-mode-transition="reader-panels"]::view-transition-image-pair(focus-scripture) {
+  overflow: clip;
+}
+
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-rail) { --panel-slide-x: -100%; }
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-drawer) { --panel-slide-x: calc(-100% - var(--rail-width)); }
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-rail-right) { --panel-slide-x: 100%; }
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-drawer-right) { --panel-slide-x: calc(100% + var(--rail-width)); }
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-chapter-tools) { --panel-slide-y: -100%; }
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-footer) { --panel-slide-y: 100%; }
+
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-rail),
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-drawer),
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-rail-right),
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-drawer-right),
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-chapter-tools),
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-footer) {
+  z-index: 1;
+}
+
+html[data-mode-transition="reader-panels"]::view-transition-group(focus-header) { z-index: 2; }
+
+html[data-mode-transition="reader-panels"]::view-transition-old(focus-rail):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-old(focus-drawer):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-old(focus-rail-right):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-old(focus-drawer-right):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-old(focus-chapter-tools):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-old(focus-footer):only-child {
+  animation: focus-panel-slide var(--focus-transition-duration) var(--focus-transition-ease) both;
+}
+
+html[data-mode-transition="reader-panels"]::view-transition-new(focus-rail):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-new(focus-drawer):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-new(focus-rail-right):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-new(focus-drawer-right):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-new(focus-chapter-tools):only-child,
+html[data-mode-transition="reader-panels"]::view-transition-new(focus-footer):only-child {
+  animation: focus-panel-slide var(--focus-transition-duration) var(--focus-transition-ease) reverse both;
+}
+
+@keyframes focus-panel-slide {
+  from { transform: translate(0, 0); }
+  0%, 55% { opacity: 1; }
+  to {
+    opacity: 0;
+    transform: translate(var(--panel-slide-x, 0px), var(--panel-slide-y, 0px));
+  }
 }
 
 html[data-mode-transition="enter-big"]::view-transition-old(root) {
@@ -16600,82 +16664,6 @@ kbd {
 
 .streak-popup.motion-exit {
   animation: streakPopupOut var(--motion-base) ease-in both !important;
-}
-
-:is(.rail, .library-drawer, .chapter-tools-region, .footer-region).focus-chrome-exit {
-  --focus-exit-x: 0px;
-  --focus-exit-y: 0px;
-  pointer-events: none;
-  animation: focusChromeOut 540ms cubic-bezier(0.45, 0, 0.55, 1) both !important;
-}
-
-.rail.focus-chrome-exit {
-  --focus-exit-x: -100%;
-}
-
-.library-drawer.focus-chrome-exit {
-  --focus-exit-x: calc(-100% - var(--rail-width));
-}
-
-.app-shell[data-side-toolbar-position="right"] :is(.rail, .library-drawer).focus-chrome-exit {
-  --focus-exit-x: 100%;
-}
-
-.app-shell[data-side-toolbar-position="right"] .library-drawer.focus-chrome-exit {
-  --focus-exit-x: calc(100% + var(--rail-width));
-}
-
-.chapter-tools-region.focus-chrome-exit {
-  --focus-exit-y: -100%;
-}
-
-.footer-region.focus-chrome-exit {
-  --focus-exit-y: 100%;
-}
-
-.focus-chrome-enter .rail,
-.focus-chrome-enter .library-drawer {
-  animation: focusChromeLeftIn var(--motion-slow) var(--motion-ease) both !important;
-}
-
-.focus-chrome-enter .chapter-tools-region {
-  animation: focusChromeTopIn var(--motion-slow) var(--motion-ease) both !important;
-}
-
-.focus-chrome-enter .footer-region {
-  animation: focusChromeBottomIn var(--motion-slow) var(--motion-ease) both !important;
-}
-
-@keyframes focusChromeOut {
-  0%, 55% {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-    transform: translate(var(--focus-exit-x), var(--focus-exit-y));
-  }
-}
-
-@keyframes focusChromeLeftIn {
-  from {
-    opacity: 0;
-    transform: translateX(-18px);
-  }
-}
-
-@keyframes focusChromeTopIn {
-  from {
-    opacity: 0;
-    transform: translateY(-16px);
-  }
-}
-
-@keyframes focusChromeBottomIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
 }
 
 @keyframes surfaceIn {
