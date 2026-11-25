@@ -567,6 +567,7 @@ const wordSearchRecentPassageLimit = 12;
 const triviaRoundLengths = [5, 10, 15, 20];
 const bookSprintRoundLengths = [5, 10];
 const tutorialStorageKey = "lw_tutorial_seen";
+const pendingTutorialPositions = new WeakMap();
 const pushPromptDismissedStorageKey = "lw_push_prompt_dismissed";
 const gameChallengePopupDismissedStorageKey = "lw_dismissed_game_challenge_popups";
 const socialConnectionsOpenStorageKey = "lw_social_connections_open";
@@ -1598,10 +1599,16 @@ const tutorialSteps = [
     body: "Bookmarks, notes, highlights, cross references, history, and search open from the side tools.",
   },
   {
-    target: "[data-verse-actions], [data-cross-ref-verse]",
+    target: "[data-verse-actions], [data-cross-ref-verse], #verseOfDayReadInBible",
     spotlightPadding: 5,
-    title: "The verse number is a tool button",
-    body: "In paragraph reading, tap a verse number to select, copy, add a note, highlight, or open cross references. Press and hold for cross references directly. In verse rows, Parallel, and shared passages, the number opens cross references.",
+    get title() {
+      return state.isVerseOfDayActive ? "Open the chapter for verse tools" : "The verse number is a tool button";
+    },
+    get body() {
+      return state.isVerseOfDayActive
+        ? "Choose Read in Bible to open the chapter. Tap a verse number there to find verse tools or cross references."
+        : "In paragraph reading, tap a verse number to select, copy, add a note, highlight, or open cross references. Press and hold for cross references directly. In verse rows, Parallel, and shared passages, the number opens cross references.";
+    },
   },
   {
     target: "#focusToggle, #mobileFocusToggle, #portraitNavigationToggle",
@@ -1626,10 +1633,12 @@ const tutorialSteps = [
     body: "Enable Strong's number lookups in Settings → Scripture display, or press Shift + S, then tap a linked word. BSB, KJV, WEB, and ASV currently have word tagging; coverage varies by passage. Support for more translations is planned.",
   },
   {
-    target: ".selection-bar, .verse-card.selected, .verse-row.selected",
+    target: ".selection-bar, .scripture [data-verse].selected, .scripture [data-verse], [data-focused-reader-verse], #verseOfDayReadInBible",
     spotlightPadding: 5,
     title: "Select verses to act on them",
-    body: "Tap a verse to copy, share, print, link, or highlight a passage without losing your place.",
+    get body() {
+      return `${state.isVerseOfDayActive && state.mode === "parallel" ? "Choose Read in Bible, then tap" : "Tap"} a verse to copy, share, print, link, or highlight a passage without losing your place.`;
+    },
   },
   {
     target: "#railSettingsToggle, #settingsToggle, #mobileControlsToggle, #presentationSettingsToggle",
@@ -2124,6 +2133,7 @@ function render({ preserveAutoScroll = false } = {}) {
   const previousToast = document.querySelector(".status-toast-region");
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
   const previousSocialPopup = document.getElementById("gameChallengePopupDialog")?.parentElement;
+  const previousTutorial = state.tutorialActive ? captureTutorialPosition() : null;
   app.innerHTML = `
     <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
@@ -2286,7 +2296,20 @@ function render({ preserveAutoScroll = false } = {}) {
   requestAnimationFrame(bindMobileSettingsVisibility);
   requestAnimationFrame(positionMobileFocusSearch);
   scheduleReadingControlDimming();
-  requestAnimationFrame(updateTutorialSpotlight);
+  const tutorialCard = document.getElementById("tutorialCard");
+  if (tutorialCard) {
+    if (previousTutorial?.focusedControl) {
+      const control = document.getElementById(previousTutorial.focusedControl);
+      (control?.disabled ? document.getElementById("tutorialNext") : control)?.focus({ preventScroll: true });
+    }
+    pendingTutorialPositions.set(tutorialCard, previousTutorial);
+    requestAnimationFrame(() => {
+      if (!tutorialCard.isConnected) return;
+      pendingTutorialPositions.delete(tutorialCard);
+      updateTutorialSpotlight();
+      animateTutorialPosition(tutorialCard, previousTutorial);
+    });
+  }
   requestAnimationFrame(runPendingTriviaCelebration);
   requestAnimationFrame(() => requestAnimationFrame(restorePendingAppUpdatePosition));
   scheduleStreakPopupDismiss();
@@ -5905,6 +5928,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.21": [
+      "Tour spotlights glide between controls and the tour card moves with them in the Bible workspace, Focus Mode, and Big Screen.",
+    ],
     "2026.11.25.20": [
       "Scripture and Reader panels move together when entering and leaving Focus Mode. Turn off Focus Mode animation in Settings → Appearance & Text.",
     ],
@@ -26741,7 +26767,7 @@ function tutorialOverlay() {
   return `
     <section class="tutorial-overlay open" aria-live="polite">
       <div class="tutorial-spotlight" id="tutorialSpotlight" aria-hidden="true"></div>
-      <article class="tutorial-card" id="tutorialCard" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+      <article class="tutorial-card" id="tutorialCard" data-step="${state.tutorialStep}" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
         <button class="tutorial-close glass-close-control" id="tutorialSkip" type="button" aria-label="Close tour">${icons.clear}</button>
         <div class="shortcut-eyebrow">Tour ${stepNumber} of ${steps.length}</div>
         <h2 id="tutorialTitle">${step.title}</h2>
@@ -34630,6 +34656,52 @@ function retreatTutorial() {
   renderPreservingReaderScroll();
 }
 
+function captureTutorialPosition() {
+  const card = document.getElementById("tutorialCard");
+  if (!card) return null;
+  if (pendingTutorialPositions.has(card)) return pendingTutorialPositions.get(card);
+  const spotlight = document.getElementById("tutorialSpotlight");
+  const opacity = getComputedStyle(spotlight).opacity;
+  return {
+    card: card.getBoundingClientRect(),
+    step: card.dataset.step,
+    focusedControl: card.contains(document.activeElement) ? document.activeElement.id : "",
+    spotlight: Number(opacity) > 0 ? { rect: spotlight.getBoundingClientRect(), opacity } : null,
+  };
+}
+
+function animateTutorialPosition(card, previous) {
+  card.classList.add("positioned");
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const motion = { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)" };
+  const spotlight = document.getElementById("tutorialSpotlight");
+  if (previous?.spotlight) {
+    const { rect, opacity } = previous.spotlight;
+    const from = { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` };
+    if (!spotlight.classList.contains("has-target")) Object.assign(spotlight.style, from);
+    spotlight.animate?.([{ ...from, opacity, offset: 0 }], motion);
+  } else if (spotlight.classList.contains("has-target")) {
+    spotlight.animate?.([{ opacity: 0 }, { opacity: 1 }], motion);
+  }
+
+  if (!previous) {
+    card.animate?.([{ opacity: 0, translate: "0 8px" }, { opacity: 1, translate: "none" }], motion);
+    return;
+  }
+  const next = card.getBoundingClientRect();
+  const x = previous.card.left - next.left;
+  const y = previous.card.top - next.top;
+  if (Math.abs(x) > 0.5 || Math.abs(y) > 0.5) {
+    card.animate?.([{ translate: `${x}px ${y}px` }, { translate: "none" }], motion);
+  }
+  if (previous.step !== card.dataset.step) {
+    card.querySelectorAll(".shortcut-eyebrow, h2, p").forEach((element) => {
+      element.animate?.([{ opacity: 0.35 }, { opacity: 1 }], { ...motion, duration: 260 });
+    });
+  }
+}
+
 function currentTutorialStep() {
   const steps = activeTutorialSteps();
   return steps[Math.min(Math.max(state.tutorialStep, 0), steps.length - 1)] || steps[0];
@@ -34689,7 +34761,7 @@ function resolveTutorialTarget(step = currentTutorialStep()) {
 }
 
 function tutorialVisibleElementRect(element) {
-  if (!element) return null;
+  if (!element || element.checkVisibility?.({ visibilityProperty: true, opacityProperty: true }) === false) return null;
   const rect = element.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
   if (rect.bottom <= 0 || rect.right <= 0 || rect.top >= window.innerHeight || rect.left >= window.innerWidth) return null;
@@ -34786,7 +34858,7 @@ function updateTutorialSpotlight() {
   if (!spotlight || !card) return;
   const rect = resolveTutorialSpotlightRect();
   if (!rect) {
-    spotlight.classList.add("hidden");
+    spotlight.classList.remove("has-target");
     card.style.removeProperty("left");
     card.style.removeProperty("top");
     card.style.removeProperty("right");
@@ -34798,11 +34870,10 @@ function updateTutorialSpotlight() {
   const viewportGutter = 3;
   const left = Math.max(viewportGutter, rect.left - pad);
   const top = Math.max(viewportGutter, rect.top - pad);
-  const rectWidth = rect.width ?? rect.right - rect.left;
-  const rectHeight = rect.height ?? rect.bottom - rect.top;
-  const width = Math.min(window.innerWidth - left - viewportGutter, rectWidth + pad * 2);
-  const height = Math.min(window.innerHeight - top - viewportGutter, rectHeight + pad * 2);
-  spotlight.classList.remove("hidden");
+  const rectWidth = rect.right - rect.left;
+  const width = Math.max(1, Math.min(window.innerWidth - viewportGutter, rect.right + pad) - left);
+  const height = Math.max(1, Math.min(window.innerHeight - viewportGutter, rect.bottom + pad) - top);
+  spotlight.classList.add("has-target");
   spotlight.style.left = `${left}px`;
   spotlight.style.top = `${top}px`;
   spotlight.style.width = `${width}px`;
@@ -34862,11 +34933,29 @@ function updateTutorialSpotlight() {
 
   const cardRect = card.getBoundingClientRect();
   const gap = 18;
-  const desiredLeft = rect.left + rectWidth / 2 - cardRect.width / 2;
-  const clampedLeft = Math.min(Math.max(18, desiredLeft), window.innerWidth - cardRect.width - 18);
-  const canPlaceBelow = rect.bottom + gap + cardRect.height < window.innerHeight - 18;
-  const desiredTop = canPlaceBelow ? rect.bottom + gap : rect.top - cardRect.height - gap;
-  const clampedTop = Math.min(Math.max(18, desiredTop), window.innerHeight - cardRect.height - 18);
+  const gutter = 18;
+  const right = left + width;
+  const bottom = top + height;
+  const cardSide = tutorialCompactCardSide({
+    targetLeft: left,
+    targetTop: top,
+    targetRight: right,
+    targetBottom: bottom,
+    cardHeight: cardRect.height,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    gap,
+    gutter,
+    minSideWidth: cardRect.width,
+  });
+  let desiredLeft = left + width / 2 - cardRect.width / 2;
+  let desiredTop = cardSide === "below" ? bottom + gap : top - cardRect.height - gap;
+  if (cardSide === "left" || cardSide === "right") {
+    desiredLeft = cardSide === "left" ? left - cardRect.width - gap : right + gap;
+    desiredTop = top + (height - cardRect.height) / 2;
+  }
+  const clampedLeft = Math.min(Math.max(gutter, desiredLeft), window.innerWidth - cardRect.width - gutter);
+  const clampedTop = Math.min(Math.max(gutter, desiredTop), window.innerHeight - cardRect.height - gutter);
   card.style.left = `${clampedLeft}px`;
   card.style.top = `${clampedTop}px`;
   card.style.right = "auto";

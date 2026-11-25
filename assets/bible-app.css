@@ -15668,20 +15668,36 @@ kbd {
 .tutorial-spotlight {
   position: fixed;
   z-index: 221;
+  box-sizing: border-box;
+  opacity: 0;
   border: 2px solid var(--teal);
   border-radius: 10px;
   box-shadow: 0 0 0 9999px rgba(9, 13, 12, 0.52), 0 0 0 5px color-mix(in srgb, var(--teal) 22%, transparent);
-  transition: left 180ms ease, top 180ms ease, width 180ms ease, height 180ms ease;
   pointer-events: none;
+}
+
+.tutorial-spotlight.has-target {
+  opacity: 1;
+}
+
+.tutorial-overlay:has(.tutorial-card.motion-exit) .tutorial-spotlight.has-target {
+  animation: backdropOut var(--motion-fast) ease-in both;
 }
 
 .tutorial-card {
   position: fixed;
   z-index: 222;
   width: min(390px, calc(100vw - 32px));
+  inset: auto 0 18px;
+  margin-inline: auto;
   padding: 18px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.tutorial-card.positioned {
   pointer-events: auto;
-  animation: tutorialCardIn var(--motion-base) var(--motion-ease) both;
+  opacity: 1;
 }
 
 .tutorial-close {
@@ -16917,18 +16933,6 @@ kbd {
   to {
     opacity: 0;
     transform: translateY(8px) scale(0.985);
-  }
-}
-
-@keyframes tutorialCardIn {
-  from {
-    opacity: 0;
-    transform: translateY(7px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
