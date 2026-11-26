@@ -82,6 +82,9 @@ vm.runInContext(`
   ${extractFunction("passageShareUrl")}
   ${extractFunction("passageVersion")}
   ${extractFunction("formattedPassageText")}
+  ${extractFunction("formatCitedScripture")}
+  ${extractFunction("passageExcerptText")}
+  globalThis.excerptText = passageExcerptText;
   ${extractFunction("passageText")}
   ${extractFunction("passageShareText")}
   ${extractFunction("sharePassage")}
@@ -345,3 +348,21 @@ console.log('Reference search preserves focused, Reader, and Parallel contexts')
   focused.applyHighlight("none");
   assert.deepEqual(savedHighlights.lw_highlights, {});
 }
+
+const psalm = [
+  { n: 1, text: "The LORD is my shepherd; I shall not want." },
+  { n: 2, text: "He makes me lie down in green pastures." },
+];
+context.state.reference = "Psalm 23";
+context.state.versions = ["BSB"];
+const phraseEnd = "The LORD is my shepherd".length;
+context.state.passageShareFormat = "quotation";
+assert.equal(context.excerptText(psalm, 0, phraseEnd), "“The LORD is my shepherd…”\n— Psalm 23:1 (BSB)");
+context.state.passageShareFormat = "plain";
+const verseTwoStart = psalm[0].text.length + 1;
+assert.equal(context.excerptText(psalm, verseTwoStart, verseTwoStart + 11), "He makes me…\nPsalm 23:2 (BSB)");
+context.state.passageShareFormat = "compact";
+assert.equal(context.excerptText(psalm, 24, verseTwoStart + 11), "“…I shall not want. He makes me…” — Psalm 23:1-2 (BSB)");
+assert.equal(context.excerptText(psalm, 0, psalm[0].text.length), "“The LORD is my shepherd; I shall not want.” — Psalm 23:1 (BSB)");
+assert.equal(context.excerptText(psalm, verseTwoStart - 1, verseTwoStart), "");
+console.log("Passage excerpts cite only the touched verses and follow all three copy formats.");

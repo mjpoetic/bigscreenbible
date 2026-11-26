@@ -5959,6 +5959,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.31": [
+      "Copied Scripture excerpts follow your passage copy format and cite the verses and Bible translation you selected.",
+    ],
     "2026.11.25.30": [
       "Touch and hold a tagged word, then release for Strong’s. Hold and drag to select verses. On desktop, use Option-click or Alt-click for lookup.",
       "Use Select text from the passage toolbar to copy just the words you need.",
@@ -12748,7 +12751,7 @@ function closeMobileVerseNavMenu(options = {}) {
 function chapterFindTextMarkup(verse, version) {
   const unavailable = isRemoteTranslation(version) && (!verse[version] || window.bsbOffline?.active);
   const attribute = unavailable ? "" : " data-chapter-find-text";
-  return `<span${attribute}>${renderStrongText(verse, version, state.reference)}</span>`;
+  return `<span data-passage-copy-text${attribute}>${renderStrongText(verse, version, state.reference)}</span>`;
 }
 
 function renderStrongText(verse, version, chapterKey = state.reference) {
@@ -17562,7 +17565,7 @@ function bindFocusedReaderVerseSelection() {
 function focusedReaderVerse(number, content, marker = "", footnote = "", numbers = [number]) {
   const color = numbers.map((n) => state.highlights[`${state.reference}:${n}`]).find(Boolean);
   const selected = state.selectedVerses.includes(number);
-  return `<p class="verse-of-day-copy imported-reader-verse" data-focused-reader-verse="${number}" tabindex="0" aria-label="Select ${escapeHtml(formatReferenceLabel(state.reference, numbers))}">${marker}<span class="paragraph-verse ${highlightClassForColor(color)} ${selected ? "selected passage-selected" : ""}" ${highlightStyleForColor(color)}>${content}</span>${footnote}${verseNoteIndicatorsMarkup(number)}</p>`;
+  return `<p class="verse-of-day-copy imported-reader-verse" data-focused-reader-verse="${number}" tabindex="0" aria-label="Select ${escapeHtml(formatReferenceLabel(state.reference, numbers))}">${marker}<span data-passage-copy-text class="paragraph-verse ${highlightClassForColor(color)} ${selected ? "selected passage-selected" : ""}" ${highlightStyleForColor(color)}>${content}</span>${footnote}${verseNoteIndicatorsMarkup(number)}</p>`;
 }
 
 function verseOfDayReaderView(interactive = false) {
@@ -28929,16 +28932,26 @@ function bindEvents() {
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
   document.getElementById("selectPassageText")?.addEventListener("click", (event) => {
-    const text = passageLines().map((line) => line.text).join("\n");
+    const lines = passageLines().map(({ n, text }) => ({
+      n, text: String(text || "").replace(/\r\n?/g, "\n").trim(),
+    })).filter(({ text }) => text.trim());
+    const text = lines.map((line) => line.text).join("\n");
     if (!text) return;
     const popup = showStudyPopup(event.currentTarget, `
-      <p class="ref-copy" id="passageTextHelp">Select the words you want to copy.</p>
+      <p class="ref-copy" id="passageTextHelp">Select words to copy them with their Scripture citation.</p>
       <textarea class="passage-text-selection" aria-label="Passage text" aria-describedby="passageTextHelp" readonly rows="5">${escapeHtml(text)}</textarea>
       <button class="ghost-btn" type="button" data-copy-selected-text>Copy selected text</button>
     `, "Select text");
     const field = popup.querySelector("textarea");
+    const excerpt = () => passageExcerptText(lines, field.selectionStart, field.selectionEnd);
+    field.addEventListener("copy", (copyEvent) => {
+      const selection = excerpt();
+      if (!selection || !copyEvent.clipboardData) return;
+      copyEvent.preventDefault();
+      copyEvent.clipboardData.setData("text/plain", selection);
+    });
     popup.querySelector("[data-copy-selected-text]").addEventListener("click", async () => {
-      const selection = field.value.slice(field.selectionStart, field.selectionEnd);
+      const selection = excerpt();
       if (!selection) {
         field.focus({ preventScroll: true });
         showToast("Select the words to copy");
@@ -37621,7 +37634,70 @@ function formattedPassageText(verseNumbers = selectedVerseNumbers()) {
   const reference = state.isVerseOfDayActive && state.verseOfDayItem && !(state.mode === "reader" && state.selectedVerses.length)
     ? state.verseOfDayItem.reference
     : formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verseNumbers, state.versions[0]));
-  const citation = `${reference} (${passageVersion()})`;
+  return formatCitedScripture(scripture, reference, passageVersion());
+}
+
+function passageExcerptText(lines, start, end, version = state.versions[0]) {
+  if (start >= end) return "";
+  let offset = 0;
+  const verses = [];
+  const excerpts = [];
+  for (const { n, text } of lines) {
+    const from = Math.max(0, start - offset);
+    const to = Math.min(text.length, end - offset);
+    offset += text.length + 1;
+    if (from >= to) continue;
+    const excerpt = text.slice(from, to).trim();
+    if (!excerpt) continue;
+    const before = text.slice(0, from).trim() ? "…" : "";
+    const after = text.slice(to).trim() ? "…" : "";
+    verses.push(n);
+    excerpts.push(`${before}${excerpt}${after}`);
+  }
+  if (!verses.length) return "";
+  const reference = formatReferenceLabel(state.reference, expandedVersionVerseNumbers(state.reference, verses, version));
+  return formatCitedScripture(excerpts.join("\n"), reference, translationDisplayCode(version));
+}
+
+function copyReaderTextSelection(event) {
+  const selection = window.getSelection();
+  if (event.defaultPrevented || isTypingTarget(event.target) || !event.clipboardData || !selection?.rangeCount || selection.isCollapsed) return;
+  const range = selection.getRangeAt(0);
+  const textContainer = (node) => (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement)
+    ?.closest("[data-passage-copy-text]");
+  const first = textContainer(range.startContainer);
+  const last = textContainer(range.endContainer);
+  const surface = first?.closest("#scriptureReadingRegion");
+  if (!surface || !last || !surface.contains(last)) return;
+  const textVersion = (node) => node.closest(".parallel-copy")?.dataset.version || state.versions[0];
+  const version = textVersion(first);
+  // A browser selection spanning different translations keeps its ordinary copy behavior.
+  if (textVersion(last) !== version) return;
+  const nodes = first === last ? [first] : [...surface.querySelectorAll("[data-passage-copy-text]")]
+    .filter(node => range.intersectsNode(node));
+  if (nodes.some(node => textVersion(node) !== version)) return;
+  const lines = nodes.map(node => {
+    const row = node.closest("[data-verse], [data-focused-reader-verse]");
+    return { n: Number(row?.dataset.verse ?? row?.dataset.focusedReaderVerse), text: node.textContent };
+  });
+  if (lines.some(({ n }) => !n)) return;
+  const offset = (node, container, index) => {
+    const prefix = document.createRange();
+    prefix.selectNodeContents(node);
+    prefix.setEnd(container, index);
+    return prefix.toString().length;
+  };
+  const start = offset(first, range.startContainer, range.startOffset);
+  const end = lines.slice(0, -1).reduce((sum, line) => sum + line.text.length + 1, 0)
+    + offset(last, range.endContainer, range.endOffset);
+  const excerpt = passageExcerptText(lines, start, end, version);
+  if (!excerpt) return;
+  event.preventDefault();
+  event.clipboardData.setData("text/plain", excerpt);
+}
+
+function formatCitedScripture(scripture, reference, version) {
+  const citation = `${reference} (${version})`;
   if (state.passageShareFormat === "plain") return `${scripture}\n${citation}`;
   if (state.passageShareFormat === "compact") return `“${scripture.replace(/\s*\n\s*/g, " ")}” — ${citation}`;
   return `“${scripture}”\n— ${citation}`;
@@ -38763,6 +38839,7 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
+document.addEventListener("copy", copyReaderTextSelection);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 window.setInterval(() => {
