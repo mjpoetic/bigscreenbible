@@ -5967,6 +5967,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.26.1": [
+      "The highlighter toolbar fits its controls and shortens book names when space is tight. Select words directly in Scripture to copy an excerpt.",
+    ],
     "2026.11.25.39": [
       "Copy selected text appears above the Scripture selection after you release and hides while you adjust the selection.",
     ],
@@ -25603,6 +25606,8 @@ function scrollToolbarWithWheel(event, viewport) {
 
 function bindToolbarOverflow(toolbar, viewport) {
   const row = viewport.firstElementChild;
+  const fullReference = row.querySelector("[data-full-toolbar-reference]");
+  const shortReference = row.querySelector("[data-short-toolbar-reference]");
   const makeArrow = (label, icon) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -25616,15 +25621,29 @@ function bindToolbarOverflow(toolbar, viewport) {
   const next = makeArrow("Show more toolbar items", icons.chevron);
   viewport.before(previous);
   viewport.after(next);
+  const updateEdges = () => {
+    const edges = toolbarScrollEdges(row.offsetWidth, viewport.clientWidth, viewport.scrollLeft);
+    previous.setAttribute("aria-disabled", String(!edges.previous));
+    next.setAttribute("aria-disabled", String(!edges.next));
+  };
   const update = () => {
+    const customizing = toolbar.closest("[data-customizing]");
+    if (shortReference) {
+      fullReference.hidden = false;
+      shortReference.hidden = true;
+      const fullWidth = viewport.clientWidth + previous.offsetWidth + next.offsetWidth;
+      if (!customizing && (row.offsetWidth - fullWidth > 2
+        || fullReference.parentElement.scrollWidth > fullReference.parentElement.clientWidth)) {
+        fullReference.hidden = true;
+        shortReference.hidden = false;
+      }
+    }
     // The row measures the tools alone. Scroll extents can include animated or decorative overflow.
     const availableWidth = viewport.clientWidth + previous.offsetWidth + next.offsetWidth;
     const contentWidth = row.offsetWidth;
-    const overflow = !toolbar.hasAttribute("data-customizing") && contentWidth - availableWidth > 2;
+    const overflow = !customizing && contentWidth - availableWidth > 2;
     previous.hidden = next.hidden = !overflow;
-    const edges = toolbarScrollEdges(contentWidth, viewport.clientWidth, viewport.scrollLeft);
-    previous.setAttribute("aria-disabled", String(!edges.previous));
-    next.setAttribute("aria-disabled", String(!edges.next));
+    updateEdges();
   };
   const bindArrow = (button, direction) => {
     button.addEventListener("click", () => {
@@ -25639,17 +25658,17 @@ function bindToolbarOverflow(toolbar, viewport) {
   bindArrow(next, 1);
   const onWheel = event => scrollToolbarWithWheel(event, viewport);
   toolbar.addEventListener("wheel", onWheel, { passive: false });
-  viewport.addEventListener("scroll", update, { passive: true });
+  viewport.addEventListener("scroll", updateEdges, { passive: true });
   const resize = new ResizeObserver(update);
   resize.observe(toolbar);
   resize.observe(viewport);
   resize.observe(row);
   const changes = new MutationObserver(update);
-  changes.observe(toolbar, { attributes: true, attributeFilter: ["data-customizing"] });
+  changes.observe(toolbar.closest(".selection-bar") || toolbar, { attributes: true, attributeFilter: ["data-customizing"] });
   update();
   return () => {
     toolbar.removeEventListener("wheel", onWheel);
-    viewport.removeEventListener("scroll", update);
+    viewport.removeEventListener("scroll", updateEdges);
     resize.disconnect();
     changes.disconnect();
     previous.remove();
@@ -25746,9 +25765,11 @@ function bindToolbarTooltips(bar, tooltipId) {
 }
 
 function selectionBar() {
-  const count = state.selectedVerses.length;
-  if (!count) return "";
+  if (!state.selectedVerses.length) return "";
   const label = printReferenceLabel(state.selectedVerses);
+  const book = bookNameFromChapterKey(state.reference);
+  const shortBook = focusPickerBookLabel(book).replace(/\bJohn$/, "Jn");
+  const shortLabel = shortBook + label.slice(book.length);
   const hasNote = Boolean(String(state.notes[label] || "").trim());
   const crossRefVerse = selectedCrossReferenceVerse();
   const crossRefLabel = `${state.reference}:${crossRefVerse}`;
@@ -25759,7 +25780,7 @@ function selectionBar() {
           <div class="selection-bar-section">
             <div class="selection-bar-viewport">
               <div class="selection-bar-section-row">
-                <span class="selection-bar-summary"><span class="selection-bar-count">${count} selected · </span>${label}</span>
+                <span class="selection-bar-summary" title="${escapeHtml(label)}"><span class="sr-only">${escapeHtml(label)}</span><span data-full-toolbar-reference aria-hidden="true">${escapeHtml(label)}</span>${shortBook !== book ? `<span data-short-toolbar-reference aria-hidden="true" hidden>${escapeHtml(shortLabel)}</span>` : ""}</span>
                 <div class="highlight-palette" aria-label="Highlight selected verses">
                   ${highlightColors.map((color) => `<button class="highlight-swatch highlight-${color}" data-highlight-color="${color}" aria-label="Highlight ${color}" data-tooltip="Highlight ${color}"></button>`).join("")}
                   <label class="highlight-custom-swatch" style="--custom-highlight-color: ${escapeHtml(state.customHighlightColor)}" aria-label="Choose custom highlight color" data-tooltip="Custom highlight color">
@@ -25778,7 +25799,6 @@ function selectionBar() {
                   <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
                   <button class="text-btn selection-action" id="memorizeSelection" data-default-hidden="true" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
                   <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
-                  <button class="text-btn selection-action" id="selectPassageText" aria-label="Select text" data-tooltip="Select text"><span class="selection-action-icon">${icons.quote}</span><span class="selection-action-label">Select text</span></button>
                   <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
                   <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
 
@@ -28981,37 +29001,6 @@ function bindEvents() {
   });
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
-  document.getElementById("selectPassageText")?.addEventListener("click", (event) => {
-    const lines = passageLines().map(({ n, text }) => ({
-      n, text: String(text || "").replace(/\r\n?/g, "\n").trim(),
-    })).filter(({ text }) => text.trim());
-    const text = lines.map((line) => line.text).join("\n");
-    if (!text) return;
-    const popup = showStudyPopup(event.currentTarget, `
-      <p class="ref-copy" id="passageTextHelp">Select words to copy them with their Scripture citation.</p>
-      <textarea class="passage-text-selection" aria-label="Passage text" aria-describedby="passageTextHelp" readonly rows="5">${escapeHtml(text)}</textarea>
-      <button class="ghost-btn" type="button" data-copy-selected-text>Copy selected text</button>
-    `, "Select text");
-    const field = popup.querySelector("textarea");
-    const excerpt = () => passageExcerptText(lines, field.selectionStart, field.selectionEnd);
-    field.addEventListener("copy", (copyEvent) => {
-      const selection = excerpt();
-      if (!selection || !copyEvent.clipboardData) return;
-      copyEvent.preventDefault();
-      copyEvent.clipboardData.setData("text/plain", selection);
-    });
-    popup.querySelector("[data-copy-selected-text]").addEventListener("click", async () => {
-      const selection = excerpt();
-      if (!selection) {
-        field.focus({ preventScroll: true });
-        showToast("Select the words to copy");
-        return;
-      }
-      await copyText(selection);
-      showToast("Selected text copied");
-    });
-    popup.querySelector(".study-popup-close")?.focus({ preventScroll: true });
-  });
   document.getElementById("shareSelection")?.addEventListener("click", shareSelectedPassage);
   document.querySelectorAll("[data-presentation-share]").forEach((button) => {
     button.addEventListener("click", sharePresentationPassage);

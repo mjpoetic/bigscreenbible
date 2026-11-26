@@ -10635,20 +10635,6 @@ select {
   overflow-wrap: break-word;
 }
 
-.passage-text-selection {
-  display: block;
-  width: 100%;
-  margin-block: 8px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 .strong {
   color: var(--teal);
   font: 600 11px/1 Inter, sans-serif;
@@ -12157,6 +12143,7 @@ select {
   width: max-content;
   max-width: calc(100vw - 16px);
   padding: 4px;
+  border: 0;
   animation: none;
 }
 
@@ -19876,8 +19863,8 @@ svg {
   .selection-bar {
     left: calc(var(--rail-width) + var(--app-safe-area-left, env(safe-area-inset-left, 0px)) + 8px) !important;
     right: calc(var(--app-safe-area-right, env(safe-area-inset-right, 0px)) + 8px) !important;
-    width: auto !important;
-    max-width: 360px !important;
+    width: max-content !important;
+    max-width: calc(100% - var(--rail-width) - 16px - var(--app-safe-area-left, env(safe-area-inset-left, 0px)) - var(--app-safe-area-right, env(safe-area-inset-right, 0px))) !important;
     margin-inline: auto;
     min-width: 0 !important;
     box-sizing: border-box;
@@ -19898,15 +19885,15 @@ svg {
   }
 
   @media (orientation: landscape) {
-    .app-shell .selection-bar,
-    .app-shell.focus-shell .selection-bar {
-      max-width: 620px !important;
-    }
-
-    .app-shell[data-side-toolbar-position="right"] .selection-bar,
-    .app-shell[data-side-toolbar-position="right"].focus-shell .selection-bar {
+    .app-shell[data-side-toolbar-position="right"] .selection-bar {
       right: calc(var(--rail-width) + var(--app-safe-area-right, env(safe-area-inset-right, 0px)) + 8px) !important;
       left: calc(var(--app-safe-area-left, env(safe-area-inset-left, 0px)) + 8px) !important;
+    }
+
+    .app-shell.focus-shell .selection-bar {
+      left: calc(var(--app-safe-area-left, env(safe-area-inset-left, 0px)) + 8px) !important;
+      right: calc(var(--app-safe-area-right, env(safe-area-inset-right, 0px)) + 8px) !important;
+      max-width: calc(100% - 16px - var(--app-safe-area-left, env(safe-area-inset-left, 0px)) - var(--app-safe-area-right, env(safe-area-inset-right, 0px))) !important;
     }
   }
 }
@@ -27579,7 +27566,6 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
 /* Give the palette and passage actions independent rows on narrow screens. */
 @media (max-width: 840px) {
   .selection-bar:not([data-customizing]) .selection-bar-controls {
-    width: 100%;
     overflow: visible;
     touch-action: auto;
   }
@@ -27611,13 +27597,6 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
     align-items: center;
     gap: 4px;
     padding: 2px;
-  }
-  .selection-bar-count {
-    position: absolute;
-    clip-path: inset(50%);
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
   }
   .selection-bar .highlight-palette { gap: 4px; padding-inline: 4px; }
   .selection-bar .selection-bar-summary { padding-inline: 2px; }
