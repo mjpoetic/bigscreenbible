@@ -69,12 +69,9 @@ context.bindingSurface = bindingSurface;
 for (const platform of ['ios', 'android', 'web']) {
   context.window.Capacitor = { getPlatform: () => platform, isNativePlatform: () => platform !== 'web' };
   bindings = 0; run('bindReaderVerseHold(bindingSurface)');
-  assert.equal(bindings, platform === 'web' ? 0 : 3, platform);
+  assert.equal(bindings, 3, platform);
 }
 context.window.Capacitor = { getPlatform: () => 'android', isNativePlatform: () => false };
 bindings = 0; run('bindReaderVerseHold(bindingSurface)');
-assert.equal(bindings, 0, 'A non-native Android browser must not bind native selection');
-bindingSurface.querySelector = () => taggedWord;
-run('bindReaderVerseHold(bindingSurface)');
-assert.equal(bindings, 3, 'A tagged passage makes lookup available in a touch browser');
+assert.equal(bindings, 3, 'Touch web binds both word drag and verse hold');
 console.log('Verse hold binding and tagged touch lookup passed.');

@@ -5959,6 +5959,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.33": [
+      "Start a touch drag sideways on Scripture to select and copy words with a citation. Hold first and drag down or up to select whole verses.",
+    ],
     "2026.11.25.32": [
       "In mobile Focus mode, the quick fade toggle sits in the lower-left corner and the floating Settings and Page Down buttons line up.",
     ],
@@ -36216,11 +36219,14 @@ function bindReaderVerseHold(surface) {
   if (!surface) return;
   const native = ["ios", "android"].includes(window.Capacitor?.getPlatform?.())
     && window.Capacitor?.isNativePlatform?.();
-  if (!native && !surface.querySelector("[data-strong]")) return;
   if (native) surface.classList.add("native-verse-selection");
   surface.addEventListener("touchstart", (event) => {
     if (event.touches.length === 1) suppressReaderVerseClickUntil = 0;
-    if (native || event.target.closest?.("[data-strong]")) beginReaderVerseHold(event);
+    if (surface.classList.contains("word-drag-selection")) {
+      surface.classList.remove("word-drag-selection");
+      window.getSelection()?.removeAllRanges();
+    }
+    if (native || event.target.closest?.("[data-passage-copy-text], [data-strong]")) beginReaderVerseHold(event);
   }, { passive: true });
   surface.addEventListener("contextmenu", (event) => {
     if ((native || readerVerseHold?.strongWord) && event.target.closest?.(readerVerseHoldRowSelector)
@@ -36242,12 +36248,13 @@ function beginReaderVerseHold(event) {
   const surface = event.currentTarget;
   const strongWord = event.target.closest?.("[data-strong]");
   const row = event.target.closest?.(readerVerseHoldRowSelector);
+  const text = event.target.closest?.("[data-passage-copy-text]");
   if (!canUseReaderChapterSwipe() || !row
     || !surface.contains(row) || (!strongWord && !row.dataset.verse)
     || event.target.closest?.("button, a, input, select, textarea, [role='button'], [contenteditable='true']")) return;
   const touch = event.touches[0];
   const gesture = readerVerseHold = {
-    surface, strongWord, anchor: Number(row.dataset.verse ?? row.dataset.focusedReaderVerse), end: null, identifier: touch.identifier,
+    surface, strongWord, text, anchor: Number(row.dataset.verse ?? row.dataset.focusedReaderVerse), end: null, identifier: touch.identifier,
     x: touch.clientX, y: touch.clientY, startX: touch.clientX, startY: touch.clientY,
     reference: state.reference, mode: state.mode, active: false,
     verses: [...new Set([...surface.querySelectorAll(readerVerseHoldRowSelector)].map(item => Number(item.dataset.verse ?? item.dataset.focusedReaderVerse)))].sort((a, b) => a - b),
@@ -36260,6 +36267,7 @@ function beginReaderVerseHold(event) {
   document.addEventListener("visibilitychange", endReaderVerseHold);
   gesture.timer = setTimeout(() => {
     if (readerVerseHold !== gesture || !surface.isConnected || document.hidden) return finishReaderVerseHold();
+    if (gesture.wordAnchor) return;
     gesture.active = true;
     pauseReaderAutoScroll();
     cancelReaderChapterSwipe();
@@ -36283,6 +36291,7 @@ function interruptReaderVerseHold(event) {
   if (event.touches.length <= 1) return;
   const gesture = readerVerseHold;
   if (!gesture?.active) return finishReaderVerseHold();
+  if (gesture.wordAnchor) endReaderWordDrag(gesture, false);
   gesture.active = false;
   gesture.suspended = true;
   cancelAnimationFrame(gesture.frame);
@@ -36322,16 +36331,65 @@ function moveReaderVerseHold(event) {
   gesture.x = touch.clientX;
   gesture.y = touch.clientY;
   if (!gesture.active) {
-    if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) > 10) finishReaderVerseHold();
-    return;
+    const dx = Math.abs(gesture.x - gesture.startX);
+    const dy = Math.abs(gesture.y - gesture.startY);
+    if (Math.hypot(dx, dy) <= 10) return;
+    if (dx <= dy * 1.5 || !gesture.text || !event.cancelable) return finishReaderVerseHold();
+    const anchor = readerWordCaret(gesture, gesture.startX, gesture.startY);
+    if (!anchor) return finishReaderVerseHold();
+    gesture.wordAnchor = anchor;
+    gesture.active = true;
+    clearTimeout(gesture.timer);
+    cancelReaderChapterSwipe();
+    cancelReaderTouchGesture();
+    gesture.surface.classList.add("word-drag-selection");
+    gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
   }
   if (event.cancelable) event.preventDefault();
   event.stopImmediatePropagation();
+  if (gesture.wordAnchor) return updateReaderWordDrag(gesture);
   if (!gesture.selecting) {
     if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) <= 10) return;
     startReaderVerseHoldSelection(gesture);
   }
   hitTestReaderVerseHold();
+}
+
+function readerWordCaret(gesture, x, y) {
+  const caret = document.caretPositionFromPoint?.(x, y);
+  const range = caret ? null : document.caretRangeFromPoint?.(x, y);
+  const node = caret?.offsetNode ?? range?.startContainer;
+  const offset = caret?.offset ?? range?.startOffset;
+  const text = readerCopyTextContainer(node);
+  if (!text || !gesture.surface.contains(text) || readerCopyTextVersion(text) !== readerCopyTextVersion(gesture.text)) return null;
+  return { node, offset };
+}
+
+function updateReaderWordDrag(gesture) {
+  const end = readerWordCaret(gesture, gesture.x, gesture.y);
+  if (!end) return;
+  window.getSelection()?.setBaseAndExtent(gesture.wordAnchor.node, gesture.wordAnchor.offset, end.node, end.offset);
+}
+
+function endReaderWordDrag(gesture, released) {
+  const selection = window.getSelection();
+  const range = selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0) : null;
+  const excerpt = released && range ? citedReaderTextRange(range, true) : "";
+  if (!excerpt) {
+    gesture.surface.classList.remove("word-drag-selection");
+    selection?.removeAllRanges();
+    return;
+  }
+  const popup = showStudyPopup(gesture.text,
+    '<button class="ghost-btn" type="button" data-copy-dragged-text>Copy selected text</button>',
+    "Selected Scripture");
+  popup.querySelector("[data-copy-dragged-text]").addEventListener("click", async () => {
+    await copyText(excerpt);
+    closeStudyPopup(true);
+    gesture.surface.classList.remove("word-drag-selection");
+    selection.removeAllRanges();
+    showToast("Selected text copied");
+  });
 }
 
 function hitTestReaderVerseHold() {
@@ -36354,7 +36412,8 @@ function scrollReaderVerseHold(time) {
   gesture.lastFrame = time;
   if (speed) {
     gesture.surface.scrollTop += speed * elapsed * 0.45;
-    hitTestReaderVerseHold();
+    if (gesture.wordAnchor) updateReaderWordDrag(gesture);
+    else hitTestReaderVerseHold();
   }
   gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
 }
@@ -36365,6 +36424,7 @@ function endReaderVerseHold(event) {
   if (gesture?.active && event?.cancelable) event.preventDefault();
   if (gesture?.active && event?.type === "touchend") event.stopImmediatePropagation();
   finishReaderVerseHold();
+  if (gesture?.wordAnchor) return endReaderWordDrag(gesture, gesture.active && event?.type === "touchend");
   if (gesture?.active && !gesture.selecting && event?.type === "touchend"
     && gesture.strongWord?.isConnected && gesture.reference === state.reference && gesture.mode === state.mode) {
     openStrongPopup(gesture.strongWord);
@@ -37665,20 +37725,32 @@ function passageExcerptText(lines, start, end, version = state.versions[0]) {
 function copyReaderTextSelection(event) {
   const selection = window.getSelection();
   if (event.defaultPrevented || isTypingTarget(event.target) || !event.clipboardData || !selection?.rangeCount || selection.isCollapsed) return;
-  const range = selection.getRangeAt(0);
-  const textContainer = (node) => (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement)
-    ?.closest("[data-passage-copy-text]");
-  const first = textContainer(range.startContainer);
-  const last = textContainer(range.endContainer);
+  const excerpt = citedReaderTextRange(selection.getRangeAt(0));
+  if (!excerpt) return;
+  event.preventDefault();
+  event.clipboardData.setData("text/plain", excerpt);
+}
+
+function readerCopyTextContainer(node) {
+  return (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest("[data-passage-copy-text]");
+}
+
+function readerCopyTextVersion(node) {
+  return node.closest(".parallel-copy")?.dataset.version || state.versions[0];
+}
+
+function citedReaderTextRange(range, sameVersionOnly = false) {
+  const first = readerCopyTextContainer(range.startContainer);
+  const last = readerCopyTextContainer(range.endContainer);
   const surface = first?.closest("#scriptureReadingRegion");
   if (!surface || !last || !surface.contains(last)) return;
-  const textVersion = (node) => node.closest(".parallel-copy")?.dataset.version || state.versions[0];
-  const version = textVersion(first);
+  const version = readerCopyTextVersion(first);
   // A browser selection spanning different translations keeps its ordinary copy behavior.
-  if (textVersion(last) !== version) return;
-  const nodes = first === last ? [first] : [...surface.querySelectorAll("[data-passage-copy-text]")]
+  if (readerCopyTextVersion(last) !== version) return;
+  let nodes = first === last ? [first] : [...surface.querySelectorAll("[data-passage-copy-text]")]
     .filter(node => range.intersectsNode(node));
-  if (nodes.some(node => textVersion(node) !== version)) return;
+  if (sameVersionOnly) nodes = nodes.filter(node => readerCopyTextVersion(node) === version);
+  else if (nodes.some(node => readerCopyTextVersion(node) !== version)) return;
   const lines = nodes.map(node => {
     const row = node.closest("[data-verse], [data-focused-reader-verse]");
     return { n: Number(row?.dataset.verse ?? row?.dataset.focusedReaderVerse), text: node.textContent };
@@ -37693,10 +37765,7 @@ function copyReaderTextSelection(event) {
   const start = offset(first, range.startContainer, range.startOffset);
   const end = lines.slice(0, -1).reduce((sum, line) => sum + line.text.length + 1, 0)
     + offset(last, range.endContainer, range.endOffset);
-  const excerpt = passageExcerptText(lines, start, end, version);
-  if (!excerpt) return;
-  event.preventDefault();
-  event.clipboardData.setData("text/plain", excerpt);
+  return passageExcerptText(lines, start, end, version);
 }
 
 function formatCitedScripture(scripture, reference, version) {

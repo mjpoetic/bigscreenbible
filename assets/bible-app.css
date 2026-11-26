@@ -24206,11 +24206,16 @@ svg {
   user-select: none;
 }
 @media (pointer: coarse) {
-  .scripture [data-strong] {
+  .scripture :is([data-passage-copy-text], [data-strong]) {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
   }
+}
+.scripture.word-drag-selection [data-passage-copy-text],
+.scripture.word-drag-selection [data-passage-copy-text] [data-strong] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 .verse-hold-active .selection-bar { pointer-events: none; }
 
