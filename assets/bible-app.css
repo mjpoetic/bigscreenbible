@@ -26613,13 +26613,13 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
 }
 
 /* Keep native text selection and touch callouts from taking over settings holds. */
-:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings),
-:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings) * {
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings, #presentationSettingsToggle),
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings, #presentationSettingsToggle) * {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
-:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings) {
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings, #presentationSettingsToggle) {
   touch-action: manipulation;
 }
 

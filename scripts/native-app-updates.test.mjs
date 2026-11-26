@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const names = ['isLocalNativeAppBuild', 'localNativeAppUpdateMessage', 'appReleaseNotesMarkup', 'appUpdateControls',
-  'appUpdateButtonLabel', 'appUpdateMetadataUrl', 'isPublishedAppVersionNewer', 'checkForAppUpdate', 'applyAppUpdate'];
+  'appUpdateButtonLabel', 'runAppUpdateAction', 'runSettingsUpdateShortcut', 'appUpdateMetadataUrl', 'isPublishedAppVersionNewer', 'checkForAppUpdate', 'applyAppUpdate'];
 const functions = names.map((name) => {
   const start = source.search(new RegExp(`(?:async )?function ${name}\\(`));
   assert.ok(start >= 0, name);
@@ -51,6 +51,34 @@ for (const [href, native, local] of [
   }
 }
 console.log('Native local builds and live-site update detection passed');
+
+const messages = [];
+const shortcutState = { appUpdateBusy: false };
+let checks = 0;
+const shortcut = vm.createContext({
+  window: { location: new URL('https://bigscreenbible.com/'), setTimeout, clearTimeout },
+  URL, Date, AbortController, console,
+  state: shortcutState, appVersion: '2026.11.25.35', lastAppUpdateCheckAt: 0,
+  renderAppUpdateStatus() {},
+  showToast: message => messages.push(message),
+  fetch: async () => {
+    checks++;
+    return { ok: true, json: async () => ({ version: '2026.11.25.35' }) };
+  },
+});
+vm.runInContext(functions, shortcut);
+await vm.runInContext('runSettingsUpdateShortcut()', shortcut);
+assert.equal(checks, 1);
+assert.equal(shortcutState.appUpdateRefreshOffered, true);
+assert.match(messages.at(-1), /Hold Settings again to refresh/);
+await vm.runInContext('checkForAppUpdate()', shortcut);
+assert.equal(shortcutState.appUpdateRefreshOffered, true, 'Background checks preserve the refresh option');
+let refreshes = 0;
+shortcut.applyAppUpdate = () => refreshes++;
+await vm.runInContext('runSettingsUpdateShortcut()', shortcut);
+assert.equal(refreshes, 1);
+assert.equal(checks, 2, 'The second hold refreshes without another update check');
+console.log('Settings hold checks and refreshes passed');
 
 const restoreFunctions = ['applyStartupExperience', 'currentAppUpdateRestoreState', 'applyAppUpdateRestoreState']
   .map(name => {

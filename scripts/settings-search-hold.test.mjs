@@ -2,14 +2,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
-const binder = source.slice(source.indexOf('function bindSettingsSearchHoldControls()'), source.indexOf('function bindSettingsSearchControls()'));
-for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSettings']) {
+const binder = source.slice(source.indexOf('function bindSettingsButtonGestures()'), source.indexOf('function bindSettingsSearchControls()'));
+for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSettings', 'presentationSettingsToggle']) {
   const handlers = {};
   let timeout;
   const opened = [];
+  let localBuild = false;
+  let updateHolds = 0;
   const button = { isConnected: true, classList: { add() {}, remove() {} }, addEventListener(name, fn) { (handlers[name] ||= []).push(fn); } };
-  const context = { document: { getElementById: key => key === id ? button : null }, setTimeout: fn => { timeout = fn; return 1; }, clearTimeout: () => { timeout = null; }, Date, settingsSearchLastClick: null, suppressSettingsSearchHoldClickUntil: 0, playControlHaptic() {}, openSettingsSearchFromHold: anchor => opened.push(anchor) };
-  vm.runInNewContext(`${binder}\nbindSettingsSearchHoldControls();`, context);
+  const context = { document: { getElementById: key => key === id ? button : null }, setTimeout: fn => { timeout = fn; return 1; }, clearTimeout: () => { timeout = null; }, Date, settingsSearchLastClick: null, suppressSettingsHoldClickUntil: 0, playControlHaptic() {}, isLocalNativeAppBuild: () => localBuild, runSettingsUpdateShortcut: () => updateHolds++, openSettingsSearchFromHold: anchor => opened.push(anchor) };
+  vm.runInNewContext(`${binder}\nbindSettingsButtonGestures();`, context);
   const fire = (name, extra = {}) => {
     const event = { pointerId: 1, button: 0, clientX: 0, clientY: 0, detail: 1, preventDefault() { this.prevented = true; }, stopImmediatePropagation() { this.stopped = true; }, ...extra };
     handlers[name]?.forEach(fn => fn(event));
@@ -20,15 +22,20 @@ for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSetting
   fire('pointerdown'); fire('pointerup');
   assert.equal(opened.length, 0, 'Short tap preserves ordinary settings action');
   fire('pointerdown'); timeout(); fire('pointerup');
-  assert.deepEqual(opened, [id === 'mobileFloatingSettings' ? 'floating' : 'header']);
+  assert.equal(updateHolds, 1, 'Holding Settings runs the update shortcut');
+  assert.deepEqual(opened, []);
   assert.equal(fire('click').stopped, true, 'Release click must not close settings');
   assert.equal(fire('click', { detail: 0 }).stopped, undefined, 'Keyboard activation remains available');
   for (const cancellation of ['pointercancel', 'pointerleave', 'pointermove']) {
     fire('pointerdown'); timeout(); fire(cancellation, { clientX: 20 }); fire('pointerup');
-    assert.equal(opened.length, 1, 'Cancelled holds must not open search');
+    assert.equal(updateHolds, 1, 'Cancelled holds must not check for updates');
   }
   fire('pointerdown', { button: 2 });
   assert.equal(timeout, null, 'Right click does not start hold');
+  localBuild = true;
+  fire('pointerdown'); timeout(); fire('pointerup');
+  assert.equal(updateHolds, 1, 'Local builds never run the live-site shortcut');
+  assert.deepEqual(opened, id === 'presentationSettingsToggle' ? [] : [id === 'mobileFloatingSettings' ? 'floating' : 'header']);
 }
 // Verify double taps survive replacement of the button after the first click.
 for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSettings']) {
@@ -37,7 +44,7 @@ for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSetting
   const opened = [];
   const context = vm.createContext({
     Date: { now: () => now }, settingsSearchLastClick: null,
-    suppressSettingsSearchHoldClickUntil: 0,
+    suppressSettingsHoldClickUntil: 0,
     document: { getElementById(key) {
       if (key !== id) return null;
       handlers = {};
@@ -45,7 +52,7 @@ for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSetting
     } },
     openSettingsSearchFromHold: anchor => opened.push(anchor),
   });
-  const bind = () => vm.runInContext(`${binder}\nbindSettingsSearchHoldControls();`, context);
+  const bind = () => vm.runInContext(`${binder}\nbindSettingsButtonGestures();`, context);
   const click = (detail = 1) => {
     const event = { detail, preventDefault() {}, stopImmediatePropagation() { this.stopped = true; } };
     handlers.click(event);
@@ -67,7 +74,7 @@ for (const id of ['settingsToggle', 'railSettingsToggle', 'mobileFloatingSetting
   context.settingsSearchLastClick = { id: 'otherSettingsButton', at: now };
   assert.equal(click().stopped, undefined, 'Clicks on different buttons do not form a double tap');
 }
-console.log('Settings search hold and double tap tests passed');
+console.log('Settings update hold and search double tap tests passed');
 
 
 const styles = readFileSync(new URL('../assets/bible-app.css', import.meta.url), 'utf8');
@@ -76,4 +83,4 @@ assert.match(holdStyles, /-webkit-user-select: none/);
 assert.match(holdStyles, /user-select: none/);
 assert.match(holdStyles, /-webkit-touch-callout: none/);
 assert.match(holdStyles, /touch-action: manipulation/);
-assert.match(holdStyles, /:is\(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings\) \*/);
+assert.match(holdStyles, /:is\(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings, #presentationSettingsToggle\) \*/);

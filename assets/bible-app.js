@@ -470,7 +470,7 @@ let mobileSettingsIdleTimer = 0;
 let focusSearchLastTapAt = null;
 const focusSearchPortrait = window.matchMedia("(max-width: 840px) and (orientation: portrait)");
 let focusControlsHideTimer = 0;
-let suppressSettingsSearchHoldClickUntil = 0;
+let suppressSettingsHoldClickUntil = 0;
 let settingsSearchLastClick = null;
 let mobileControlsHoldTimer = 0;
 let mobileControlsHoldGesture = null;
@@ -4252,10 +4252,12 @@ function openSettingsSearchFromHold(anchor) {
   input?.scrollIntoView({ block: "nearest" });
 }
 
-function bindSettingsSearchHoldControls() {
-  ["settingsToggle", "railSettingsToggle", "mobileFloatingSettings"].forEach((id) => {
+function bindSettingsButtonGestures() {
+  ["settingsToggle", "railSettingsToggle", "mobileFloatingSettings", "presentationSettingsToggle"].forEach((id) => {
     const button = document.getElementById(id);
     if (!button) return;
+    const supportsSearchShortcut = id !== "presentationSettingsToggle";
+    const anchor = id === "mobileFloatingSettings" ? "floating" : "header";
     let gesture = null;
     let timer = 0;
     const cancel = () => {
@@ -4266,11 +4268,12 @@ function bindSettingsSearchHoldControls() {
     button.addEventListener("click", (event) => {
       if (event.detail === 0) return;
       const now = Date.now();
-      if (now < suppressSettingsSearchHoldClickUntil) {
+      if (now < suppressSettingsHoldClickUntil) {
         event.preventDefault();
         event.stopImmediatePropagation();
         return;
       }
+      if (!supportsSearchShortcut) return;
       // The first click rerenders settings, so keep the timestamp across bindings.
       const doubleClick = settingsSearchLastClick?.id === id
         && now - settingsSearchLastClick.at >= 0
@@ -4279,10 +4282,11 @@ function bindSettingsSearchHoldControls() {
       if (!doubleClick) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      openSettingsSearchFromHold(id === "mobileFloatingSettings" ? "floating" : "header");
+      openSettingsSearchFromHold(anchor);
     }, true);
     button.addEventListener("pointerdown", (event) => {
       if (event.isPrimary === false || event.button !== 0) return;
+      suppressSettingsHoldClickUntil = 0;
       cancel();
       gesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, ready: false };
       button.classList.add("settings-hold-pending");
@@ -4299,12 +4303,14 @@ function bindSettingsSearchHoldControls() {
       const ready = gesture.ready;
       cancel();
       if (!ready) return;
+      const localBuild = isLocalNativeAppBuild();
+      if (localBuild && !supportsSearchShortcut) return;
       event.preventDefault();
       settingsSearchLastClick = null;
-      suppressSettingsSearchHoldClickUntil = Date.now() + 800;
+      suppressSettingsHoldClickUntil = Date.now() + 800;
       playControlHaptic();
-      // Focus during release so mobile browsers can open the software keyboard.
-      openSettingsSearchFromHold(id === "mobileFloatingSettings" ? "floating" : "header");
+      if (localBuild) openSettingsSearchFromHold(anchor);
+      else runSettingsUpdateShortcut();
     });
     ["pointercancel", "pointerleave", "lostpointercapture"].forEach((name) => button.addEventListener(name, cancel));
     button.addEventListener("selectstart", (event) => event.preventDefault());
@@ -5960,6 +5966,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.35": [
+      "Hold Settings to check for updates. Hold it again to refresh when you are up to date.",
+    ],
     "2026.11.25.34": [
       "Selected Scripture words now have a clear temporary highlight on touch and when dragging with a mouse or trackpad.",
     ],
@@ -7010,6 +7019,19 @@ function runAppUpdateAction() {
   else checkForAppUpdate({ manual: true });
 }
 
+async function runSettingsUpdateShortcut() {
+  if (state.appUpdateBusy) return;
+  if (state.appUpdateAvailable || state.appUpdateRefreshOffered) {
+    runAppUpdateAction();
+    return;
+  }
+  showToast("Checking for updates…");
+  await checkForAppUpdate({ manual: true });
+  showToast(state.appUpdateRefreshOffered
+    ? "You have the latest version. Hold Settings again to refresh."
+    : state.appUpdateStatus);
+}
+
 function appVersionButton(id) {
   return `<button class="app-version-button" id="${id}" type="button" data-app-version-dialog aria-haspopup="dialog" aria-label="Site version ${escapeHtml(appVersion)}, check for updates">${escapeHtml(appVersion)}</button>`;
 }
@@ -7253,10 +7275,10 @@ async function checkForAppUpdate(options = {}) {
     }
     state.appUpdateVersion = publishedVersion;
     state.appUpdateAvailable = isPublishedAppVersionNewer(publishedVersion, appVersion);
-    state.appUpdateRefreshOffered = manual && !state.appUpdateAvailable;
+    state.appUpdateRefreshOffered = !state.appUpdateAvailable && (manual || state.appUpdateRefreshOffered);
     state.appUpdateStatus = state.appUpdateAvailable
       ? `Version ${publishedVersion} is ready. Update now to load it.`
-      : manual
+      : state.appUpdateRefreshOffered
         ? "You have the latest version. If anything still looks outdated, refresh the app here."
         : "Big Screen Bible is up to date.";
   } catch (error) {
@@ -27427,7 +27449,7 @@ function bindEvents() {
     });
   });
   bindSettingsSearchControls();
-  bindSettingsSearchHoldControls();
+  bindSettingsButtonGestures();
   bindSettingsChoiceMenus();
   for (const prefix of ["", "mobile", "presentation"]) {
     document.getElementById(settingsControlId(prefix, "CombinedColorSelect"))?.addEventListener("change", (event) => {
