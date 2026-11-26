@@ -24228,6 +24228,31 @@ svg {
   background-color: #066c69;
   color: #fff;
 }
+.scripture-word-handle {
+  position: fixed;
+  z-index: 211;
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -3px);
+  touch-action: none;
+  cursor: ew-resize;
+}
+
+.scripture-word-handle::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 17px;
+  margin: 0 auto;
+  border: 2px solid #fff;
+  border-radius: 3px 3px 8px 8px;
+  background: #066c69;
+  box-shadow: 0 1px 4px #0006;
+}
+
 .verse-hold-active .selection-bar { pointer-events: none; }
 
 @media (max-width: 840px) and (orientation: portrait) {

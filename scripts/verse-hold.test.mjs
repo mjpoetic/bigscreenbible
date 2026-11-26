@@ -69,9 +69,9 @@ context.bindingSurface = bindingSurface;
 for (const platform of ['ios', 'android', 'web']) {
   context.window.Capacitor = { getPlatform: () => platform, isNativePlatform: () => platform !== 'web' };
   bindings = 0; run('bindReaderVerseHold(bindingSurface)');
-  assert.equal(bindings, 3, platform);
+  assert.equal(bindings, 5, platform);
 }
 context.window.Capacitor = { getPlatform: () => 'android', isNativePlatform: () => false };
 bindings = 0; run('bindReaderVerseHold(bindingSurface)');
-assert.equal(bindings, 3, 'Touch web binds both word drag and verse hold');
+assert.equal(bindings, 5, 'Touch web binds both word drag and verse hold');
 console.log('Verse hold binding and tagged touch lookup passed.');

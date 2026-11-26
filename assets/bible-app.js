@@ -5966,6 +5966,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.36": [
+      "Double-click or double-tap Scripture to select a word. Drag either selection handle to refine the excerpt before copying it.",
+    ],
     "2026.11.25.35": [
       "Hold Settings to check for updates. Hold it again to refresh when you are up to date.",
     ],
@@ -24853,7 +24856,7 @@ function positionStudyPopup(anchor, popup) {
 function closeStudyPopupOnOutside(event) {
   const popup = document.getElementById("studyPopup");
   if (!popup) return;
-  if (popup.contains(event.target) || event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference], [data-publisher-footnote]")) return;
+  if (popup.contains(event.target) || event.target.closest?.(".scripture-word-handle, [data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference], [data-publisher-footnote]")) return;
   closeStudyPopup();
 }
 
@@ -36247,13 +36250,75 @@ function bindReaderVerseHold(surface) {
   const native = ["ios", "android"].includes(window.Capacitor?.getPlatform?.())
     && window.Capacitor?.isNativePlatform?.();
   if (native) surface.classList.add("native-verse-selection");
+  let lastTap = null;
+  let touchStart = null;
+  let clickTimer;
   surface.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 1) suppressReaderVerseClickUntil = 0;
-    if (event.touches.length === 1 && surface.classList.contains("word-drag-selection")) {
-      closeStudyPopup(true);
+    if (event.touches.length !== 1) return;
+    suppressReaderVerseClickUntil = 0;
+    const text = event.target.closest?.("[data-passage-copy-text]");
+    const touch = event.touches[0];
+    const current = { x: touch.clientX, y: touch.clientY, time: Date.now(), text };
+    const doubleTap = text && lastTap?.text === text && current.time - lastTap.time <= readerDoubleTapMaxMs
+      && Math.hypot(current.x - lastTap.x, current.y - lastTap.y) <= 22;
+    lastTap = null;
+    touchStart = current;
+    const previous = document.getElementById("studyPopup")?.readerWordGesture;
+    const extending = text && previous?.surface === surface
+      && readerCopyTextVersion(text) === readerCopyTextVersion(previous.text);
+    if (doubleTap || extending) {
+      const range = extending ? previous.wordRange.cloneRange() : readerWordAtPoint({ surface, text }, current.x, current.y);
+      if (range) {
+        touchStart = null;
+        clearTimeout(clickTimer);
+        closeStudyPopup(true);
+        beginReaderVerseHold(event);
+        const gesture = readerVerseHold;
+        if (gesture) {
+          if (event.cancelable) event.preventDefault();
+          gesture.active = true;
+          gesture.wordAnchor = { node: range.startContainer, offset: range.startOffset };
+          gesture.wordRange = range;
+          gesture.initialWordRange = range;
+          clearTimeout(gesture.timer);
+          pauseReaderAutoScroll();
+          cancelReaderChapterSwipe();
+          cancelReaderTouchGesture();
+          surface.classList.add("word-drag-selection");
+          paintReaderWordRange(gesture);
+          gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
+          return;
+        }
+      }
     }
-    if (native || event.target.closest?.("[data-passage-copy-text], [data-strong]")) beginReaderVerseHold(event);
+    if (previous?.surface === surface) closeStudyPopup(true);
+    if (native || text || event.target.closest?.("[data-strong]")) beginReaderVerseHold(event);
+  }, { passive: false });
+  surface.addEventListener("touchend", (event) => {
+    const start = touchStart;
+    touchStart = null;
+    const touch = event.changedTouches[0];
+    if (start?.text && touch && Date.now() - start.time <= readerDoubleTapMaxMs
+      && Math.hypot(touch.clientX - start.x, touch.clientY - start.y) <= 10) {
+      lastTap = { ...start, time: Date.now() };
+    }
   }, { passive: true });
+  surface.addEventListener("dblclick", (event) => {
+    const text = event.target.closest?.("[data-passage-copy-text]");
+    if (!text || event.altKey || event.shiftKey) return;
+    clearTimeout(clickTimer);
+    const gesture = { surface, text };
+    const range = readerWordAtPoint(gesture, event.clientX, event.clientY);
+    if (!range) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeStudyPopup(true);
+    surface.classList.add("word-drag-selection");
+    gesture.wordRange = range;
+    window.getSelection()?.removeAllRanges();
+    paintReaderWordRange(gesture);
+    endReaderWordDrag(gesture, true);
+  });
   surface.addEventListener("contextmenu", (event) => {
     if ((native || readerVerseHold?.strongWord) && event.target.closest?.(readerVerseHoldRowSelector)
       && !event.target.closest?.("button, a, input")) event.preventDefault();
@@ -36262,7 +36327,21 @@ function bindReaderVerseHold(surface) {
     if (Date.now() < suppressReaderVerseClickUntil) {
       event.preventDefault();
       event.stopImmediatePropagation();
+      return;
     }
+    const target = event.target;
+    if (!target.closest?.("[data-passage-copy-text]") || event.detail === 0 || event.altKey || event.shiftKey
+      || event.metaKey || event.ctrlKey || window.getSelection()?.toString().trim()) return;
+    event.stopImmediatePropagation();
+    clearTimeout(clickTimer);
+    if (event.detail > 1) return;
+    // Keep the first tap's text node in place for a possible second tap or click.
+    clickTimer = setTimeout(() => {
+      if (target.isConnected && !window.getSelection()?.toString().trim()) {
+        target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true,
+          clientX: event.clientX, clientY: event.clientY }));
+      }
+    }, matchMedia("(pointer: coarse)").matches ? readerDoubleTapMaxMs : 500);
   }, true);
 }
 
@@ -36276,7 +36355,7 @@ function beginReaderVerseHold(event) {
   const row = event.target.closest?.(readerVerseHoldRowSelector);
   const text = event.target.closest?.("[data-passage-copy-text]");
   if (!canUseReaderChapterSwipe() || !row
-    || !surface.contains(row) || (!strongWord && !row.dataset.verse)
+    || !surface.contains(row) || (!text && !strongWord && !row.dataset.verse)
     || event.target.closest?.("button, a, input, select, textarea, [role='button'], [contenteditable='true']")) return;
   const touch = event.touches[0];
   const gesture = readerVerseHold = {
@@ -36391,24 +36470,57 @@ function readerWordCaret(gesture, x, y) {
   return { node, offset };
 }
 
+function readerWordAtPoint(gesture, x, y) {
+  const caret = readerWordCaret(gesture, x, y);
+  if (caret?.node.nodeType !== Node.TEXT_NODE) return null;
+  const words = caret.node.data.matchAll(/[\p{L}\p{N}\p{M}]+(?:[’'-][\p{L}\p{N}\p{M}]+)*/gu);
+  for (const word of words) {
+    const end = word.index + word[0].length;
+    if (caret.offset < word.index || caret.offset > end) continue;
+    const range = document.createRange();
+    range.setStart(caret.node, word.index);
+    range.setEnd(caret.node, end);
+    return range;
+  }
+  return null;
+}
+
 function updateReaderWordDrag(gesture) {
   const end = readerWordCaret(gesture, gesture.x, gesture.y);
-  if (!end) return;
+  if (!end || (gesture.initialWordRange && Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) < 6)) return;
+  if (gesture.initialWordRange) {
+    const initial = gesture.initialWordRange;
+    if (initial.isPointInRange(end.node, end.offset)) return;
+    if (initial.comparePoint(end.node, end.offset) < 0) {
+      gesture.wordAnchor = { node: initial.endContainer, offset: initial.endOffset };
+    }
+    gesture.initialWordRange = null;
+  }
   const { node, offset } = gesture.wordAnchor;
   const range = document.createRange();
   range.setStart(node, offset);
   range.setEnd(end.node, end.offset);
+  if ((gesture.dragEdge === "end" && range.collapsed) || (gesture.dragEdge === "start" && !range.collapsed)) return;
   if (range.collapsed) {
     range.setStart(end.node, end.offset);
     range.setEnd(node, offset);
   }
+  if (range.collapsed && gesture.positionHandles) return;
   gesture.wordRange = range;
+  paintReaderWordRange(gesture);
+  gesture.positionHandles?.();
+}
+
+function paintReaderWordRange(gesture) {
+  const range = gesture.wordRange;
   if (globalThis.CSS?.highlights && typeof Highlight === "function") {
     const textRanges = readerWordSpotlightRanges(gesture, range);
     CSS.highlights.set("scripture-word-selection", new Highlight(...textRanges));
     gesture.surface.classList.add("word-drag-painted");
   } else {
-    window.getSelection()?.setBaseAndExtent(node, offset, end.node, end.offset);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   }
 }
 
@@ -36445,12 +36557,74 @@ function endReaderWordDrag(gesture, released) {
   const popup = showStudyPopup(gesture.text,
     '<button class="ghost-btn" type="button" data-copy-dragged-text>Copy selected text</button>',
     "Selected Scripture");
-  popup.onStudyPopupClose = () => clearReaderWordSpotlight(gesture.surface);
+  popup.readerWordGesture = gesture;
+  attachReaderWordHandles(gesture, popup);
   popup.querySelector("[data-copy-dragged-text]").addEventListener("click", async () => {
-    await copyText(excerpt);
+    const currentExcerpt = citedReaderTextRange(gesture.wordRange, true);
+    if (!currentExcerpt) return;
+    await copyText(currentExcerpt);
     if (popup.isConnected) closeStudyPopup(true);
     showToast("Selected text copied");
   });
+}
+
+function attachReaderWordHandles(gesture, popup) {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const handles = ["start", "end"].map((edge) => {
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "scripture-word-handle";
+    handle.dataset.edge = edge;
+    handle.setAttribute("aria-label", edge === "start" ? "Adjust start of selection" : "Adjust end of selection");
+    handle.tabIndex = -1;
+    popup.parentElement.append(handle);
+    let drag;
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const range = gesture.wordRange;
+      gesture.initialWordRange = null;
+      gesture.dragEdge = edge;
+      gesture.wordAnchor = edge === "start" ? { node: range.endContainer, offset: range.endOffset }
+        : { node: range.startContainer, offset: range.startOffset };
+      drag = { id: event.pointerId, x: event.clientX - Number.parseFloat(handle.style.left),
+        y: event.clientY - Number.parseFloat(handle.style.top) + 8 };
+      handle.setPointerCapture(event.pointerId);
+    }, { signal });
+    handle.addEventListener("pointermove", (event) => {
+      if (drag?.id !== event.pointerId) return;
+      gesture.x = event.clientX - drag.x;
+      gesture.y = event.clientY - drag.y;
+      updateReaderWordDrag(gesture);
+    }, { signal });
+    handle.addEventListener("lostpointercapture", () => {
+      drag = null;
+      gesture.dragEdge = null;
+    }, { signal });
+    handle.addEventListener("click", (event) => event.stopPropagation(), { signal });
+    return handle;
+  });
+  gesture.positionHandles = () => {
+    const rects = readerWordSpotlightRanges(gesture, gesture.wordRange).flatMap(range => [...range.getClientRects()])
+      .filter(rect => rect.width && rect.height);
+    const bounds = gesture.surface.getBoundingClientRect();
+    handles.forEach((handle, index) => {
+      const rect = index === 0 ? rects[0] : rects.at(-1);
+      const x = rect && (index === 0 ? rect.left : rect.right);
+      handle.hidden = !rect || rect.bottom < bounds.top || rect.bottom > bounds.bottom || x < bounds.left || x > bounds.right;
+      if (handle.hidden) return;
+      handle.style.left = `${x}px`;
+      handle.style.top = `${rect.bottom}px`;
+    });
+  };
+  gesture.positionHandles();
+  gesture.surface.addEventListener("scroll", gesture.positionHandles, { passive: true, signal });
+  popup.onStudyPopupClose = () => {
+    controller.abort();
+    handles.forEach(handle => handle.remove());
+    clearReaderWordSpotlight(gesture.surface);
+  };
 }
 
 function hitTestReaderVerseHold() {
@@ -37720,7 +37894,7 @@ function dismissSelectionBarOnOutsideClick(event) {
   // Navigation may have just selected a range and queued its arrival scroll.
   // Let that click finish without rerendering and restoring the old position.
   if (target.closest("[data-goto]")) return;
-  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .cross-ref-popup, .strong-popup, .note-composer, .portrait-navigation, .mobile-focus-workspace, .settings-choice-menu, [data-passage-picker]")) return;
+  if (target.closest(".selection-bar, .reader-selection-tools-button, [data-selection-action], .study-popup, .scripture-word-handle, .cross-ref-popup, .strong-popup, .note-composer, .portrait-navigation, .mobile-focus-workspace, .settings-choice-menu, [data-passage-picker]")) return;
   state.selectedVerses = [];
   renderPreservingReaderScroll();
 }
@@ -37784,9 +37958,12 @@ function passageExcerptText(lines, start, end, version = state.versions[0]) {
 }
 
 function copyReaderTextSelection(event) {
+  if (event.defaultPrevented || isTypingTarget(event.target) || !event.clipboardData) return;
+  const gesture = document.getElementById("studyPopup")?.readerWordGesture;
   const selection = window.getSelection();
-  if (event.defaultPrevented || isTypingTarget(event.target) || !event.clipboardData || !selection?.rangeCount || selection.isCollapsed) return;
-  const excerpt = citedReaderTextRange(selection.getRangeAt(0));
+  const range = selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0) : gesture?.wordRange;
+  if (!range) return;
+  const excerpt = citedReaderTextRange(range, range === gesture?.wordRange);
   if (!excerpt) return;
   event.preventDefault();
   event.clipboardData.setData("text/plain", excerpt);
