@@ -10623,7 +10623,45 @@ select {
   overflow-wrap: break-word;
 }
 
-.strong-word {
+.strong-lookup-toggle {
+  align-self: flex-end;
+  flex: none;
+  margin: 4px var(--reader-pad-x, 16px) 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.strong-lookup-toggle[hidden] {
+  display: none;
+}
+
+.strong-lookup-switch {
+  display: inline-flex;
+  align-items: center;
+  width: 28px;
+  height: 16px;
+  padding: 2px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+
+.strong-lookup-switch::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.strong-lookup-toggle[aria-pressed="true"] .strong-lookup-switch {
+  justify-content: flex-end;
+  color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 20%, transparent);
+}
+
+button.strong-word {
   display: inline;
   min-height: 0;
   margin: 0;
@@ -10634,15 +10672,16 @@ select {
   font: inherit;
   text-align: inherit;
   text-decoration: underline;
-  text-decoration-color: transparent;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.16em;
   cursor: pointer;
   transition: color 140ms ease, text-decoration-color 140ms ease, background 140ms ease;
 }
 
-.strong-word:hover,
-.strong-word:focus-visible {
+button.strong-word:hover,
+button.strong-word:focus-visible {
   background: color-mix(in srgb, var(--gold) 14%, transparent);
   color: var(--gold);
   outline: none;

@@ -816,6 +816,7 @@ const state = {
   sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
   redLetters: savedRedLetters(),
   strongNumbers: savedStrongNumbers(),
+  strongWordLookup: false,
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
   focusReading: false,
@@ -1630,7 +1631,7 @@ const tutorialSteps = [
     focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Explore the original words",
-    body: "Enable Strong's number lookups in Settings → Scripture display, or press Shift + S, then tap a linked word. BSB, KJV, WEB, and ASV currently have word tagging; coverage varies by passage. Support for more translations is planned.",
+    body: "Enable Strong's number lookups in Settings → Scripture display, or press Shift + S, then turn on Look up words in the reader and tap a tagged word. BSB, KJV, WEB, and ASV currently have word tagging; coverage varies by passage. Support for more translations is planned.",
   },
   {
     target: ".selection-bar, .scripture [data-verse].selected, .scripture [data-verse], [data-focused-reader-verse], #verseOfDayReadInBible",
@@ -5959,6 +5960,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.28": [
+      "Strong’s stays enabled while you select verses. Use Look up words in the reader to tap tagged words for their definitions.",
+    ],
     "2026.11.25.27": [
       "Verse and highlighter toolbar button choices and order sync across devices signed in to the same account.",
     ],
@@ -11328,6 +11332,7 @@ function bindFocusReading() {
   }, { passive: true });
   surface.addEventListener("click", event => {
     if (!event.target.closest(".verse-text, .parallel-copy, .verse-of-day-copy") || event.target.closest("a, input, select") || (event.target.closest("button") && !event.target.closest("[data-strong]"))) return;
+    if (isStrongWordLookupClick(event)) return;
     const clip = surface.getBoundingClientRect();
     const y = event.clientY - clip.top + surface.scrollTop, x = event.clientX - clip.left;
     let closest = -1, distance = Infinity;
@@ -12150,6 +12155,9 @@ function reader(chapterChange = null) {
         `}
       </div>
       ` : ""}
+      ${state.strongNumbers ? `<button class="strong-lookup-toggle ghost-btn" id="strongLookupToggle" type="button" aria-pressed="${state.strongWordLookup}" hidden>
+        <span class="strong-lookup-switch" aria-hidden="true"></span>Look up words
+      </button>` : ""}
       <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}" data-spotlight-strength="${storedSpotlightSettingValue(verseSpotlightSettings.Strength)}" data-spotlight-effect="${storedSpotlightSettingValue(verseSpotlightSettings.Effect)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
@@ -12755,6 +12763,7 @@ function renderStrongText(verse, version, chapterKey = state.reference) {
     // Capture the rendered verse, not state.verse (which need not be clicked).
     !verse.verseRanges?.[version] && (Array.isArray(verse.strong?.[version]) || Array.isArray(verse.strong))
       ? `${chapterKey}:${verse.n}` : "",
+    state.strongWordLookup,
   );
 }
 
@@ -12920,7 +12929,7 @@ function normalizeStrongCodes(value) {
     .filter((code) => /^[HG]\d+$/.test(code)))];
 }
 
-function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = [], reference = "") {
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = [], reference = "", interactive = true) {
   if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
 
   let output = "";
@@ -12939,15 +12948,24 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
       ? ` data-strong-reference="${escapeHtml(reference)}" data-strong-version="${escapeHtml(version)}" data-strong-unique-codes="${escapeHtml(codes.filter((code) => codeCounts.get(code) === 1).join(","))}"`
       : "";
     output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version, searchRanges, lineBreaks);
-    output += `<button class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}"${hebrewContext} aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}">${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</button>`;
+    const tag = interactive ? "button" : "span";
+    const control = interactive ? ` type="button" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}"` : "";
+    output += `<${tag} class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}"${hebrewContext}${control}>${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</${tag}>`;
     cursor = index + word.length;
   });
   output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version, searchRanges, lineBreaks);
   return output;
 }
 
+function isStrongWordLookupClick(event) {
+  return Boolean(event.target.closest("[data-strong]") && (
+    state.strongWordLookup || (event.altKey && event.detail > 0)
+  ));
+}
+
 function setStrongNumbers(enabled, rerender = false) {
   state.strongNumbers = enabled;
+  if (!enabled) state.strongWordLookup = false;
   localStorage.setItem("lw_strong_numbers", enabled ? "true" : "false");
   const lexiconLoad = enabled ? loadStrongLexicon() : null;
   scheduleCloudSync();
@@ -26783,7 +26801,7 @@ function shortcutOverlay() {
         <details class="help-section" data-help-section="deeper" ${state.helpSectionsOpen.deeper ? "open" : ""}>
           <summary>Go deeper · study &amp; sharing tips</summary>
           <div class="help-feature-copy">
-            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, tap a linked word to open its original-language entry and meaning. Words without tags will remain plain text.</p>
+            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, turn on Look up words in the reader and tap a tagged word to open its original-language entry and meaning. Words without tags will remain plain text.</p>
             <p><strong>Link straight to a passage:</strong> <a href="https://bigscreenbible.com/prov3:5-6/NKJV" target="_blank" rel="noopener noreferrer">bigscreenbible.com/prov3:5-6/NKJV</a> opens only Proverbs 3:5–6 in NKJV. Choose Read full chapter for context, or use the nearby Copy, Share, and Print tools. This passage-only view is separate from Focus Mode.</p>
             <p>Use a book name or abbreviation, chapter, verse range, and optional translation: <code>/John3:16/KJV</code> or <code>/Proverbs3:5-6</code>. Unknown or unavailable translations fall back to BSB. Select verses and use Share to create a passage link without typing an address.</p>
             <p><strong>Compare translations:</strong> Open Parallel to read versions side by side. Reorder the version columns to put your preferred one first; the leftmost version becomes your Reader translation.</p>
@@ -28384,10 +28402,27 @@ function bindEvents() {
   document.getElementById("mobileVerseSelectInline")?.addEventListener("click", (event) => {
     openMobileVerseNavMenu(event.currentTarget, "verse");
   });
-  document.querySelectorAll("[data-strong]").forEach((button) => {
-    button.addEventListener("click", (event) => {
+  const strongWords = document.querySelectorAll("[data-strong]");
+  const strongLookupToggle = document.getElementById("strongLookupToggle");
+  if (strongLookupToggle && strongWords.length) {
+    strongLookupToggle.hidden = false;
+    strongLookupToggle.addEventListener("click", (event) => {
       event.stopPropagation();
-      openStrongPopup(button);
+      closeStudyPopup(true);
+      state.strongWordLookup = !state.strongWordLookup;
+      renderPreservingReaderScroll({ preferLastReaderAnchor: true });
+      document.getElementById("strongLookupToggle")?.focus({ preventScroll: true });
+    });
+  }
+  strongWords.forEach((word) => {
+    word.addEventListener("click", (event) => {
+      if (window.getSelection()?.toString().trim()) {
+        event.stopPropagation();
+        return;
+      }
+      if (!isStrongWordLookupClick(event)) return;
+      event.stopPropagation();
+      openStrongPopup(word);
     });
   });
   document.querySelectorAll("[data-cross-ref-verse]:not(.verse-num)").forEach((button) => {
