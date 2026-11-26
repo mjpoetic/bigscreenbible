@@ -24217,6 +24217,17 @@ svg {
   -webkit-user-select: text;
   user-select: text;
 }
+#scriptureReadingRegion [data-passage-copy-text]::selection,
+#scriptureReadingRegion [data-passage-copy-text] ::selection {
+  background-color: #066c69;
+  color: #fff;
+}
+
+#scriptureReadingRegion [data-passage-copy-text]::highlight(scripture-word-selection),
+#scriptureReadingRegion [data-passage-copy-text] ::highlight(scripture-word-selection) {
+  background-color: #066c69;
+  color: #fff;
+}
 .verse-hold-active .selection-bar { pointer-events: none; }
 
 @media (max-width: 840px) and (orientation: portrait) {

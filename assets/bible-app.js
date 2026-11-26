@@ -2058,6 +2058,7 @@ function restoreAccountFormDraft(drafts) {
 }
 
 function render({ preserveAutoScroll = false } = {}) {
+  globalThis.CSS?.highlights?.delete("scripture-word-selection");
   const focusPickerMotion = captureFocusPickerMotion();
   const activeElement = document.activeElement;
   const chapterFindInput = activeInlineSearchQuery() && activeElement?.matches("#referenceInput, #mobileFocusPassageInput")
@@ -5959,6 +5960,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.34": [
+      "Selected Scripture words now have a clear temporary highlight on touch and when dragging with a mouse or trackpad.",
+    ],
     "2026.11.25.33": [
       "Start a touch drag sideways on Scripture to select and copy words with a citation. Hold first and drag down or up to select whole verses.",
     ],
@@ -24836,6 +24840,7 @@ function closeStudyPopup(immediate = false, restoreFocus = false) {
   const popup = document.getElementById("studyPopup");
   document.removeEventListener("click", closeStudyPopupOnOutside, true);
   if (!popup) return;
+  popup.onStudyPopupClose?.();
   const anchor = popup.studyPopupAnchor;
   anchor?.setAttribute("aria-expanded", "false");
   anchor?.removeAttribute("aria-controls");
@@ -36222,9 +36227,8 @@ function bindReaderVerseHold(surface) {
   if (native) surface.classList.add("native-verse-selection");
   surface.addEventListener("touchstart", (event) => {
     if (event.touches.length === 1) suppressReaderVerseClickUntil = 0;
-    if (surface.classList.contains("word-drag-selection")) {
-      surface.classList.remove("word-drag-selection");
-      window.getSelection()?.removeAllRanges();
+    if (event.touches.length === 1 && surface.classList.contains("word-drag-selection")) {
+      closeStudyPopup(true);
     }
     if (native || event.target.closest?.("[data-passage-copy-text], [data-strong]")) beginReaderVerseHold(event);
   }, { passive: true });
@@ -36368,26 +36372,61 @@ function readerWordCaret(gesture, x, y) {
 function updateReaderWordDrag(gesture) {
   const end = readerWordCaret(gesture, gesture.x, gesture.y);
   if (!end) return;
-  window.getSelection()?.setBaseAndExtent(gesture.wordAnchor.node, gesture.wordAnchor.offset, end.node, end.offset);
+  const { node, offset } = gesture.wordAnchor;
+  const range = document.createRange();
+  range.setStart(node, offset);
+  range.setEnd(end.node, end.offset);
+  if (range.collapsed) {
+    range.setStart(end.node, end.offset);
+    range.setEnd(node, offset);
+  }
+  gesture.wordRange = range;
+  if (globalThis.CSS?.highlights && typeof Highlight === "function") {
+    const textRanges = readerWordSpotlightRanges(gesture, range);
+    CSS.highlights.set("scripture-word-selection", new Highlight(...textRanges));
+    gesture.surface.classList.add("word-drag-painted");
+  } else {
+    window.getSelection()?.setBaseAndExtent(node, offset, end.node, end.offset);
+  }
+}
+
+function readerWordSpotlightRanges(gesture, range) {
+  if (range.collapsed) return [];
+  const first = readerCopyTextContainer(range.startContainer);
+  const last = readerCopyTextContainer(range.endContainer);
+  if (first === last) return [range];
+  const version = readerCopyTextVersion(gesture.text);
+  return [...gesture.surface.querySelectorAll("[data-passage-copy-text]")]
+    .filter(node => readerCopyTextVersion(node) === version && range.intersectsNode(node))
+    .map(node => {
+      const part = document.createRange();
+      part.selectNodeContents(node);
+      if (node === first) part.setStart(range.startContainer, range.startOffset);
+      if (node === last) part.setEnd(range.endContainer, range.endOffset);
+      return part;
+    });
+}
+
+function clearReaderWordSpotlight(surface) {
+  globalThis.CSS?.highlights?.delete("scripture-word-selection");
+  if (!surface.classList.contains("word-drag-painted")) window.getSelection()?.removeAllRanges();
+  surface.classList.remove("word-drag-selection", "word-drag-painted");
 }
 
 function endReaderWordDrag(gesture, released) {
-  const selection = window.getSelection();
-  const range = selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0) : null;
-  const excerpt = released && range ? citedReaderTextRange(range, true) : "";
+  const range = gesture.wordRange;
+  const excerpt = released && range && !range.collapsed ? citedReaderTextRange(range, true) : "";
   if (!excerpt) {
-    gesture.surface.classList.remove("word-drag-selection");
-    selection?.removeAllRanges();
+    clearReaderWordSpotlight(gesture.surface);
     return;
   }
   const popup = showStudyPopup(gesture.text,
     '<button class="ghost-btn" type="button" data-copy-dragged-text>Copy selected text</button>',
     "Selected Scripture");
+  popup.onStudyPopupClose = () => clearReaderWordSpotlight(gesture.surface);
   popup.querySelector("[data-copy-dragged-text]").addEventListener("click", async () => {
     await copyText(excerpt);
-    closeStudyPopup(true);
-    gesture.surface.classList.remove("word-drag-selection");
-    selection.removeAllRanges();
+    if (popup.isConnected) closeStudyPopup(true);
     showToast("Selected text copied");
   });
 }
