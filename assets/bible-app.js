@@ -816,7 +816,6 @@ const state = {
   sectionHeadings: localStorage.getItem("lw_section_headings") !== "false",
   redLetters: savedRedLetters(),
   strongNumbers: savedStrongNumbers(),
-  strongWordLookup: false,
   sideToolbarPosition: savedSideToolbarPosition(),
   focusMode: savedFocusMode(),
   focusReading: false,
@@ -1631,7 +1630,7 @@ const tutorialSteps = [
     focusTarget: "#mobileFloatingSettings, #settingsToggle",
     spotlightPadding: 5,
     title: "Explore the original words",
-    body: "Enable Strong's number lookups in Settings → Scripture display, or press Shift + S, then turn on Look up words in the reader and tap a tagged word. BSB, KJV, WEB, and ASV currently have word tagging; coverage varies by passage. Support for more translations is planned.",
+    body: "Enable Strong's number lookups in Settings → Scripture display, or press Shift + S, then hold and release a tagged word on touch, or Option-click (Mac) or Alt-click on desktop. BSB, KJV, WEB, and ASV currently have word tagging; coverage varies by passage. Support for more translations is planned.",
   },
   {
     target: ".selection-bar, .scripture [data-verse].selected, .scripture [data-verse], [data-focused-reader-verse], #verseOfDayReadInBible",
@@ -5960,6 +5959,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.30": [
+      "Touch and hold a tagged word, then release for Strong’s. Hold and drag to select verses. On desktop, use Option-click or Alt-click for lookup.",
+      "Use Select text from the passage toolbar to copy just the words you need.",
+    ],
     "2026.11.25.29": [
       "Moved Look up words to the lower-left of the reading pane, where it remains available when the Parallel header is hidden.",
     ],
@@ -11334,8 +11337,8 @@ function bindFocusReading() {
     paintFocusReading();
   }, { passive: true });
   surface.addEventListener("click", event => {
-    if (!event.target.closest(".verse-text, .parallel-copy, .verse-of-day-copy") || event.target.closest("a, input, select") || (event.target.closest("button") && !event.target.closest("[data-strong]"))) return;
-    if (isStrongWordLookupClick(event)) return;
+    if (!event.target.closest(".verse-text, .parallel-copy, .verse-of-day-copy") || event.target.closest("a, input, select") || event.target.closest("button")) return;
+    if (isStrongWordLookupClick(event) || window.getSelection()?.toString().trim()) return;
     const clip = surface.getBoundingClientRect();
     const y = event.clientY - clip.top + surface.scrollTop, x = event.clientX - clip.left;
     let closest = -1, distance = Infinity;
@@ -12162,9 +12165,6 @@ function reader(chapterChange = null) {
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
-      ${state.strongNumbers ? `<button class="strong-lookup-toggle" id="strongLookupToggle" type="button" aria-label="Look up words" aria-pressed="${state.strongWordLookup}" data-tooltip="Look up words · ${navigator.platform?.toLowerCase().includes("mac") ? "Option" : "Alt"}-click for quick lookup" hidden>
-        <span aria-hidden="true">${icons.book}</span>
-      </button>` : ""}
       ${readerChapterSwipeIndicators()}
       ${readerChapterPullIndicators()}
       ${versionLoadingState ? bibleVersionLoadingIndicator(versionLoadingState) : chapterChangeIndicator(chapterChange)}
@@ -12766,7 +12766,6 @@ function renderStrongText(verse, version, chapterKey = state.reference) {
     // Capture the rendered verse, not state.verse (which need not be clicked).
     !verse.verseRanges?.[version] && (Array.isArray(verse.strong?.[version]) || Array.isArray(verse.strong))
       ? `${chapterKey}:${verse.n}` : "",
-    state.strongWordLookup,
   );
 }
 
@@ -12932,7 +12931,7 @@ function normalizeStrongCodes(value) {
     .filter((code) => /^[HG]\d+$/.test(code)))];
 }
 
-function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = [], reference = "", interactive = true) {
+function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], version = "", searchRanges = [], lineBreaks = [], reference = "") {
   if (!entries.length) return renderScriptureText(text, redLetterRanges, 0, version, searchRanges, lineBreaks);
 
   let output = "";
@@ -12946,14 +12945,11 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
     const index = text.indexOf(word, cursor);
     if (index === -1) return;
     const primaryCode = availableCodes[0];
-    const codesLabel = availableCodes.join(", ");
     const hebrewContext = reference && codes.some((code) => code.startsWith("H"))
       ? ` data-strong-reference="${escapeHtml(reference)}" data-strong-version="${escapeHtml(version)}" data-strong-unique-codes="${escapeHtml(codes.filter((code) => codeCounts.get(code) === 1).join(","))}"`
       : "";
     output += renderScriptureText(text.slice(cursor, index), redLetterRanges, cursor, version, searchRanges, lineBreaks);
-    const tag = interactive ? "button" : "span";
-    const control = interactive ? ` type="button" aria-label="Open Strong's ${escapeHtml(codesLabel)} for ${escapeHtml(word)}"` : "";
-    output += `<${tag} class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}"${hebrewContext}${control}>${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</${tag}>`;
+    output += `<span class="strong-word" data-strong="${escapeHtml(primaryCode)}" data-strong-codes="${escapeHtml(availableCodes.join(","))}" data-strong-word="${escapeHtml(word)}"${hebrewContext}>${renderScriptureText(word, redLetterRanges, index, version, searchRanges, lineBreaks)}</span>`;
     cursor = index + word.length;
   });
   output += renderScriptureText(text.slice(cursor), redLetterRanges, cursor, version, searchRanges, lineBreaks);
@@ -12961,14 +12957,11 @@ function renderTextWithStrongNumbers(text, entries, redLetterRanges = [], versio
 }
 
 function isStrongWordLookupClick(event) {
-  return Boolean(event.target.closest("[data-strong]") && (
-    state.strongWordLookup || (event.altKey && event.detail > 0)
-  ));
+  return Boolean(event.altKey && event.detail > 0 && event.target.closest("[data-strong]"));
 }
 
 function setStrongNumbers(enabled, rerender = false) {
   state.strongNumbers = enabled;
-  if (!enabled) state.strongWordLookup = false;
   localStorage.setItem("lw_strong_numbers", enabled ? "true" : "false");
   const lexiconLoad = enabled ? loadStrongLexicon() : null;
   scheduleCloudSync();
@@ -25732,6 +25725,7 @@ function selectionBar() {
                   <button class="text-btn selection-action" id="crossRefSelection" data-cross-ref-verse="${crossRefVerse}" aria-label="Show cross references for ${escapeHtml(crossRefLabel)}" data-tooltip="Cross references"><span class="selection-action-icon">${icons.layers}</span><span class="selection-action-label">Cross references</span></button>
                   <button class="text-btn selection-action" id="memorizeSelection" data-default-hidden="true" aria-label="Memorize selected passage" data-tooltip="Memorize"><span class="selection-action-icon">${icons.memorize}</span><span class="selection-action-label">Memorize</span></button>
                   <button class="text-btn selection-action" id="copySelection" aria-label="Copy passage" data-tooltip="Copy passage"><span class="selection-action-icon">${icons.copy}</span><span class="selection-action-label">Copy passage</span></button>
+                  <button class="text-btn selection-action" id="selectPassageText" aria-label="Select text" data-tooltip="Select text"><span class="selection-action-icon">${icons.quote}</span><span class="selection-action-label">Select text</span></button>
                   <button class="text-btn selection-action" id="shareSelection" aria-label="Share passage" data-tooltip="Share"><span class="selection-action-icon">${icons.share}</span><span class="selection-action-label">Share</span></button>
                   <button class="text-btn selection-action" id="copySelectionLink" aria-label="Copy passage link" data-tooltip="Copy link"><span class="selection-action-icon">${icons.link}</span><span class="selection-action-label">Copy link</span></button>
 
@@ -26804,7 +26798,7 @@ function shortcutOverlay() {
         <details class="help-section" data-help-section="deeper" ${state.helpSectionsOpen.deeper ? "open" : ""}>
           <summary>Go deeper · study &amp; sharing tips</summary>
           <div class="help-feature-copy">
-            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, turn on Look up words in the reader and tap a tagged word to open its original-language entry and meaning. Words without tags will remain plain text.</p>
+            <p><strong>Explore Hebrew and Greek:</strong> Turn on Strong's number lookups in Settings → Scripture display, or press Shift + S. In a supported translation, hold and release a tagged word on touch, or Option-click (Mac) or Alt-click on desktop, to open its original-language entry. Words without tags will remain plain text.</p>
             <p><strong>Link straight to a passage:</strong> <a href="https://bigscreenbible.com/prov3:5-6/NKJV" target="_blank" rel="noopener noreferrer">bigscreenbible.com/prov3:5-6/NKJV</a> opens only Proverbs 3:5–6 in NKJV. Choose Read full chapter for context, or use the nearby Copy, Share, and Print tools. This passage-only view is separate from Focus Mode.</p>
             <p>Use a book name or abbreviation, chapter, verse range, and optional translation: <code>/John3:16/KJV</code> or <code>/Proverbs3:5-6</code>. Unknown or unavailable translations fall back to BSB. Select verses and use Share to create a passage link without typing an address.</p>
             <p><strong>Compare translations:</strong> Open Parallel to read versions side by side. Reorder the version columns to put your preferred one first; the leftmost version becomes your Reader translation.</p>
@@ -28405,19 +28399,7 @@ function bindEvents() {
   document.getElementById("mobileVerseSelectInline")?.addEventListener("click", (event) => {
     openMobileVerseNavMenu(event.currentTarget, "verse");
   });
-  const strongWords = document.querySelectorAll("[data-strong]");
-  const strongLookupToggle = document.getElementById("strongLookupToggle");
-  if (strongLookupToggle && strongWords.length) {
-    strongLookupToggle.hidden = false;
-    strongLookupToggle.addEventListener("click", (event) => {
-      event.stopPropagation();
-      closeStudyPopup(true);
-      state.strongWordLookup = !state.strongWordLookup;
-      renderPreservingReaderScroll({ preferLastReaderAnchor: true });
-      document.getElementById("strongLookupToggle")?.focus({ preventScroll: true });
-    });
-  }
-  strongWords.forEach((word) => {
+  document.querySelectorAll("[data-strong]").forEach((word) => {
     word.addEventListener("click", (event) => {
       if (window.getSelection()?.toString().trim()) {
         event.stopPropagation();
@@ -28480,6 +28462,7 @@ function bindEvents() {
   document.querySelectorAll("[data-verse]").forEach((row) => {
     row.addEventListener("click", (event) => {
       event.stopPropagation();
+      if (window.getSelection()?.toString().trim()) return;
       const verseNumber = Number(row.dataset.verse);
       state.verse = verseNumber;
       state.isVerseOfDayActive = false;
@@ -28945,6 +28928,27 @@ function bindEvents() {
   });
   document.getElementById("copyVerse")?.addEventListener("click", copyVerse);
   document.getElementById("copySelection")?.addEventListener("click", copySelectedPassage);
+  document.getElementById("selectPassageText")?.addEventListener("click", (event) => {
+    const text = passageLines().map((line) => line.text).join("\n");
+    if (!text) return;
+    const popup = showStudyPopup(event.currentTarget, `
+      <p class="ref-copy" id="passageTextHelp">Select the words you want to copy.</p>
+      <textarea class="passage-text-selection" aria-label="Passage text" aria-describedby="passageTextHelp" readonly rows="5">${escapeHtml(text)}</textarea>
+      <button class="ghost-btn" type="button" data-copy-selected-text>Copy selected text</button>
+    `, "Select text");
+    const field = popup.querySelector("textarea");
+    popup.querySelector("[data-copy-selected-text]").addEventListener("click", async () => {
+      const selection = field.value.slice(field.selectionStart, field.selectionEnd);
+      if (!selection) {
+        field.focus({ preventScroll: true });
+        showToast("Select the words to copy");
+        return;
+      }
+      await copyText(selection);
+      showToast("Selected text copied");
+    });
+    popup.querySelector(".study-popup-close")?.focus({ preventScroll: true });
+  });
   document.getElementById("shareSelection")?.addEventListener("click", shareSelectedPassage);
   document.querySelectorAll("[data-presentation-share]").forEach((button) => {
     button.addEventListener("click", sharePresentationPassage);
@@ -36193,12 +36197,18 @@ function beginReaderBlankTap(event, surface) {
 }
 
 function bindReaderVerseHold(surface) {
-  if (!surface || !["ios", "android"].includes(window.Capacitor?.getPlatform?.())
-    || !window.Capacitor?.isNativePlatform?.()) return;
-  surface.classList.add("native-verse-selection");
-  surface.addEventListener("touchstart", beginReaderVerseHold, { passive: true });
+  if (!surface) return;
+  const native = ["ios", "android"].includes(window.Capacitor?.getPlatform?.())
+    && window.Capacitor?.isNativePlatform?.();
+  if (!native && !surface.querySelector("[data-strong]")) return;
+  if (native) surface.classList.add("native-verse-selection");
+  surface.addEventListener("touchstart", (event) => {
+    if (event.touches.length === 1) suppressReaderVerseClickUntil = 0;
+    if (native || event.target.closest?.("[data-strong]")) beginReaderVerseHold(event);
+  }, { passive: true });
   surface.addEventListener("contextmenu", (event) => {
-    if (event.target.closest?.("[data-verse]") && !event.target.closest?.("button, a, input")) event.preventDefault();
+    if ((native || readerVerseHold?.strongWord) && event.target.closest?.(readerVerseHoldRowSelector)
+      && !event.target.closest?.("button, a, input")) event.preventDefault();
   });
   surface.addEventListener("click", (event) => {
     if (Date.now() < suppressReaderVerseClickUntil) {
@@ -36208,20 +36218,23 @@ function bindReaderVerseHold(surface) {
   }, true);
 }
 
+const readerVerseHoldRowSelector = "[data-verse], [data-focused-reader-verse]";
+
 function beginReaderVerseHold(event) {
   if (event.touches.length !== 1) return;
   finishReaderVerseHold();
   const surface = event.currentTarget;
-  const row = event.target.closest?.("[data-verse]");
-  if (!canUseReaderChapterSwipe() || event.touches.length !== 1 || !row
-    || !surface.contains(row)
+  const strongWord = event.target.closest?.("[data-strong]");
+  const row = event.target.closest?.(readerVerseHoldRowSelector);
+  if (!canUseReaderChapterSwipe() || !row
+    || !surface.contains(row) || (!strongWord && !row.dataset.verse)
     || event.target.closest?.("button, a, input, select, textarea, [role='button'], [contenteditable='true']")) return;
   const touch = event.touches[0];
   const gesture = readerVerseHold = {
-    surface, anchor: Number(row.dataset.verse), end: null, identifier: touch.identifier,
+    surface, strongWord, anchor: Number(row.dataset.verse ?? row.dataset.focusedReaderVerse), end: null, identifier: touch.identifier,
     x: touch.clientX, y: touch.clientY, startX: touch.clientX, startY: touch.clientY,
     reference: state.reference, mode: state.mode, active: false,
-    verses: [...new Set([...surface.querySelectorAll("[data-verse]")].map(item => Number(item.dataset.verse)))].sort((a, b) => a - b),
+    verses: [...new Set([...surface.querySelectorAll(readerVerseHoldRowSelector)].map(item => Number(item.dataset.verse ?? item.dataset.focusedReaderVerse)))].sort((a, b) => a - b),
   };
   document.addEventListener("touchstart", interruptReaderVerseHold, true);
   document.addEventListener("touchmove", moveReaderVerseHold, { capture: true, passive: false });
@@ -36235,15 +36248,19 @@ function beginReaderVerseHold(event) {
     pauseReaderAutoScroll();
     cancelReaderChapterSwipe();
     cancelReaderTouchGesture();
-    state.isVerseOfDayActive = false;
-    state.sharedPassage = null;
-    state.returnSelectionToolsOpen = true;
-    state.keyboardSelectionAnchor = null;
-    surface.classList.add("verse-hold-active");
-    updateReaderVerseHold(gesture.anchor);
+    if (!gesture.strongWord) startReaderVerseHoldSelection(gesture);
     playNativeHaptic();
-    gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
   }, 400);
+}
+
+function startReaderVerseHoldSelection(gesture) {
+  gesture.selecting = true;
+  state.isVerseOfDayActive = false;
+  state.returnSelectionToolsOpen = true;
+  state.keyboardSelectionAnchor = null;
+  gesture.surface.classList.add("verse-hold-active");
+  updateReaderVerseHold(gesture.anchor);
+  gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
 }
 
 function interruptReaderVerseHold(event) {
@@ -36263,11 +36280,12 @@ function updateReaderVerseHold(verse) {
   gesture.end = verse;
   state.verse = verse;
   state.selectedVerses = gesture.verses.filter(value => value >= Math.min(gesture.anchor, verse) && value <= Math.max(gesture.anchor, verse));
-  gesture.surface.querySelectorAll("[data-verse]").forEach(row => {
-    const number = Number(row.dataset.verse);
-    row.classList.toggle("selected", number === verse);
-    row.classList.toggle("passage-selected", state.selectedVerses.includes(number));
-    row.classList.toggle("highlight-selected", Boolean(highlightClassForVerse(number)) && (number === verse || state.selectedVerses.includes(number)));
+  gesture.surface.querySelectorAll(readerVerseHoldRowSelector).forEach(row => {
+    const number = Number(row.dataset.verse ?? row.dataset.focusedReaderVerse);
+    const text = row.dataset.verse ? row : row.querySelector(".paragraph-verse");
+    text?.classList.toggle("selected", row.dataset.verse ? number === verse : state.selectedVerses.includes(number));
+    text?.classList.toggle("passage-selected", state.selectedVerses.includes(number));
+    if (row.dataset.verse) row.classList.toggle("highlight-selected", Boolean(highlightClassForVerse(number)) && (number === verse || state.selectedVerses.includes(number)));
   });
   const selectionBarWasVisible = selectionBarIsVisible();
   const shell = gesture.surface.closest(".app-shell");
@@ -36293,14 +36311,18 @@ function moveReaderVerseHold(event) {
   }
   if (event.cancelable) event.preventDefault();
   event.stopImmediatePropagation();
+  if (!gesture.selecting) {
+    if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) <= 10) return;
+    startReaderVerseHoldSelection(gesture);
+  }
   hitTestReaderVerseHold();
 }
 
 function hitTestReaderVerseHold() {
   const gesture = readerVerseHold;
   if (!gesture?.active) return;
-  const row = document.elementFromPoint(gesture.x, gesture.y)?.closest("[data-verse]");
-  if (row && gesture.surface.contains(row)) updateReaderVerseHold(Number(row.dataset.verse));
+  const row = document.elementFromPoint(gesture.x, gesture.y)?.closest(readerVerseHoldRowSelector);
+  if (row && gesture.surface.contains(row)) updateReaderVerseHold(Number(row.dataset.verse ?? row.dataset.focusedReaderVerse));
 }
 
 function scrollReaderVerseHold(time) {
@@ -36322,14 +36344,16 @@ function scrollReaderVerseHold(time) {
 }
 
 function endReaderVerseHold(event) {
-  const suspended = readerVerseHold?.suspended;
-  if (suspended && event?.touches?.length) return;
-  const active = readerVerseHold?.active;
-  if (active && event?.cancelable) event.preventDefault();
-  if (active && event?.type === "touchend") event.stopImmediatePropagation();
+  const gesture = readerVerseHold;
+  if (gesture?.suspended && event?.touches?.length) return;
+  if (gesture?.active && event?.cancelable) event.preventDefault();
+  if (gesture?.active && event?.type === "touchend") event.stopImmediatePropagation();
   finishReaderVerseHold();
-  if (active) renderPreservingReaderScroll();
-  else if (suspended) setTimeout(() => renderPreservingReaderScroll(), 0);
+  if (gesture?.active && !gesture.selecting && event?.type === "touchend"
+    && gesture.strongWord?.isConnected && gesture.reference === state.reference && gesture.mode === state.mode) {
+    openStrongPopup(gesture.strongWord);
+  } else if (gesture?.active && gesture.selecting) renderPreservingReaderScroll();
+  else if (gesture?.suspended && gesture.selecting) setTimeout(() => renderPreservingReaderScroll(), 0);
 }
 
 function finishReaderVerseHold() {

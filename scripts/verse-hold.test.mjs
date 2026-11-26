@@ -3,8 +3,9 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../assets/bible-app.js', import.meta.url), 'utf8');
 const extract = name => source.match(new RegExp(`function ${name}\\([^]*?\\n\\}`))[0];
-const names = ['bindReaderVerseHold', 'beginReaderVerseHold', 'interruptReaderVerseHold', 'updateReaderVerseHold', 'moveReaderVerseHold', 'hitTestReaderVerseHold', 'scrollReaderVerseHold', 'endReaderVerseHold', 'finishReaderVerseHold'];
-let timer, renders = 0, haptics = [], hit = null;
+const names = ['bindReaderVerseHold', 'beginReaderVerseHold', 'startReaderVerseHoldSelection', 'interruptReaderVerseHold', 'updateReaderVerseHold', 'moveReaderVerseHold', 'hitTestReaderVerseHold', 'scrollReaderVerseHold', 'endReaderVerseHold', 'finishReaderVerseHold'];
+let timer, renders = 0, haptics = [], hit = null, lookups = [];
+const taggedWord = { isConnected: true };
 const classes = () => ({ add() {}, remove() {}, toggle() {} });
 const rows = [1, 2, 3, 4, 5].map(n => ({ dataset: { verse: String(n) }, classList: classes() }));
 const surface = { isConnected: true, classList: classes(), contains: row => rows.includes(row), querySelectorAll: () => rows,
@@ -17,12 +18,12 @@ const context = vm.createContext({ state: { mode: 'reader', reference: 'John 1',
   canUseReaderChapterSwipe: () => true, pauseReaderAutoScroll() {}, cancelReaderChapterSwipe() {}, cancelReaderTouchGesture() {},
   highlightClassForVerse: () => '', selectionBar: () => '<div></div>', playNativeHaptic: kind => haptics.push(kind),
   selectionBarIsVisible: () => false, animateSelectionBarReveal() {},
-  renderPreservingReaderScroll: () => renders++, surface,
+  renderPreservingReaderScroll: () => renders++, openStrongPopup: word => lookups.push(word), surface,
 });
-vm.runInContext(`let readerVerseHold = null, suppressReaderVerseClickUntil = 0; ${names.map(extract).join('\n')}`, context);
+vm.runInContext(`let readerVerseHold = null, suppressReaderVerseClickUntil = 0; const readerVerseHoldRowSelector = "[data-verse], [data-focused-reader-verse]"; ${names.map(extract).join('\n')}`, context);
 const run = code => vm.runInContext(code, context);
-function start(n = 3) {
-  context.event = { currentTarget: surface, target: { closest: selector => selector === '[data-verse]' ? rows[n - 1] : null },
+function start(n = 3, word = null) {
+  context.event = { currentTarget: surface, target: { closest: selector => selector === '[data-verse], [data-focused-reader-verse]' ? rows[n - 1] : selector === '[data-strong]' ? word : null },
     touches: [{ identifier: 7, clientX: 100, clientY: 200 }] };
   run('beginReaderVerseHold(event)');
 }
@@ -49,9 +50,21 @@ assert.deepEqual(Array.from(context.state.selectedVerses), [3,4,5]);
 run('endReaderVerseHold({type:"touchcancel"})'); assert.equal(run('readerVerseHold'), null);
 console.log('Verse hold: scroll cancellation, taps, ranges, reversal, edge scroll, release, pinch handoff and Parallel passed.');
 
-// Both native platforms bind the same gesture; browsers retain ordinary selection.
+const release = 'endReaderVerseHold({type:"touchend", cancelable:true, preventDefault(){}, stopImmediatePropagation(){}})';
+context.state.selectedVerses = [];
+start(3, taggedWord); timer();
+assert.deepEqual(context.state.selectedVerses, [], 'Holding a tagged word waits for release or drag');
+move(103, 203); run(release);
+assert.deepEqual(lookups, [taggedWord], 'Holding and releasing opens the lookup despite minor finger drift');
+start(3, taggedWord); timer(); hit = rows[4]; move(100, 250); run(release);
+assert.equal(lookups.length, 1, 'A drag never opens Strong’s');
+assert.deepEqual(Array.from(context.state.selectedVerses), [3, 4, 5]);
+start(3, taggedWord); timer(); run('endReaderVerseHold({type:"touchcancel"})');
+assert.equal(lookups.length, 1, 'Cancellation never opens Strong’s');
+
+// Both native platforms bind the gesture; browsers bind it when the passage has tags.
 let bindings = 0;
-const bindingSurface = { classList: classes(), addEventListener() { bindings++; } };
+const bindingSurface = { classList: classes(), querySelector: () => null, addEventListener() { bindings++; } };
 context.bindingSurface = bindingSurface;
 for (const platform of ['ios', 'android', 'web']) {
   context.window.Capacitor = { getPlatform: () => platform, isNativePlatform: () => platform !== 'web' };
@@ -61,4 +74,7 @@ for (const platform of ['ios', 'android', 'web']) {
 context.window.Capacitor = { getPlatform: () => 'android', isNativePlatform: () => false };
 bindings = 0; run('bindReaderVerseHold(bindingSurface)');
 assert.equal(bindings, 0, 'A non-native Android browser must not bind native selection');
-console.log('Verse hold platform binding: iOS, Android, and browser isolation passed.');
+bindingSurface.querySelector = () => taggedWord;
+run('bindReaderVerseHold(bindingSurface)');
+assert.equal(bindings, 3, 'A tagged passage makes lookup available in a touch browser');
+console.log('Verse hold binding and tagged touch lookup passed.');

@@ -74,21 +74,14 @@ const rendered = renderContext.renderStrong(
 );
 assert.match(rendered, /data-strong="H2232"/);
 assert.match(rendered, /data-strong-codes="H2232,H2233"/);
-assert.match(rendered, /aria-label="Open Strong's H2232, H2233 for seed-bearing"/);
-assert.match(rendered, />seed-bearing<\/button> <button[^>]+>plants<\/button>/);
-
-const selectionMarkup = renderContext.renderStrong("seed-bearing plants", normalizedEntries, [], "BSB", [], [], "", false);
-assert.match(selectionMarkup, /<span [^>]*data-strong="H2232"[^>]*>seed-bearing<\/span>/);
-assert.doesNotMatch(selectionMarkup, /<button|aria-label|tabindex/);
+assert.match(rendered, />seed-bearing<\/span> <span[^>]+>plants<\/span>/);
+assert.doesNotMatch(rendered, /<button|tabindex/);
 
 const taggedClick = { target: { closest: () => ({}) }, detail: 1, altKey: false };
 assert.equal(renderContext.isLookupClick(taggedClick), false);
 assert.equal(renderContext.isLookupClick({ ...taggedClick, altKey: true }), true);
 assert.equal(renderContext.isLookupClick({ ...taggedClick, altKey: true, detail: 0 }), false);
-renderContext.state.strongWordLookup = true;
-assert.equal(renderContext.isLookupClick(taggedClick), true);
-assert.equal(renderContext.isLookupClick({ ...taggedClick, detail: 0 }), true);
-assert.equal(renderContext.isLookupClick({ ...taggedClick, target: { closest: () => null } }), false);
+assert.equal(renderContext.isLookupClick({ ...taggedClick, altKey: true, target: { closest: () => null } }), false);
 
 const bundleContext = { window: {} };
 vm.createContext(bundleContext);
