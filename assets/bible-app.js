@@ -2089,6 +2089,9 @@ function render({ preserveAutoScroll = false } = {}) {
   if (state.inlineSearchQuery && normalizedSearchChapter(state.inlineSearchChapter) !== normalizedSearchChapter(state.reference)) {
     clearInlineChapterSearchState();
   }
+  const openPresentationSettings = state.mode === "big" && state.presentationSettingsOpen
+    ? document.querySelector(".presentation.open .presentation-settings-popover.open") : null;
+  const presentationSettingsScroll = presentationSettingsPageTransition ? 0 : openPresentationSettings?.scrollTop;
   const settingsScrollState = captureSettingsPanelScroll();
   const accountScrollState = captureAccountPanelScroll();
   const accountFormDraft = captureAccountFormDraft();
@@ -2152,7 +2155,7 @@ function render({ preserveAutoScroll = false } = {}) {
       ${mobileFocusOverlayControls()}
       ${state.settingsOpen && state.mode !== "big" ? settingsSpotlightMarkup("mobile") : ""}
       ${mobileSettingsPanel(settingsPanelRerender)}
-      ${presentation(accountPanelRerender)}
+      ${presentation(accountPanelRerender, Boolean(openPresentationSettings))}
       ${shortcutOverlay()}
       ${aboutMenuOverlay()}
       ${noteComposerMarkup()}
@@ -2233,6 +2236,10 @@ function render({ preserveAutoScroll = false } = {}) {
   }
   // Apply compact account placement before the replacement panel can paint.
   positionAccountPopover();
+  if (presentationSettingsScroll != null) {
+    const panel = document.querySelector(".presentation.open .presentation-settings-popover.open");
+    if (panel) panel.scrollTop = presentationSettingsScroll;
+  }
   restoreSettingsPanelScroll(settingsScrollState);
   restoreAccountPanelScroll(accountScrollState);
   requestAnimationFrame(() => {
@@ -5952,6 +5959,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.26": [
+      "Returning to the Big Screen tab keeps the passage and open Settings panel steady.",
+      "Press Cmd + . to open or close Settings in the current mode.",
+    ],
     "2026.11.25.25": [
       "Restored vibration feedback on Android phones without adjustable haptic strength.",
     ],
@@ -8191,7 +8202,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         `}
       </div>
       <div class="settings-menu">
-        <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
+        <button class="icon-btn settings-toggle ${state.settingsOpen ? "active" : ""}" id="settingsToggle" aria-keyshortcuts="Meta+." aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
         <div class="settings-popover draggable-popup ${state.settingsOpen ? "open" : ""} ${settingsPanelRerender ? "settings-panel-rerender" : ""} ${popupPositionClass("settings")}" role="dialog" aria-label="Settings" aria-hidden="${state.settingsOpen ? "false" : "true"}" ${popupPositionStyle("settings")}>
           <div class="settings-popover-head">
             <span class="popup-drag-grip popup-drag-handle" data-popup-drag-handle="settings" aria-hidden="true" title="Drag to move settings"></span>
@@ -26246,7 +26257,7 @@ function returnToSearchResults() {
   });
 }
 
-function presentation(accountPanelRerender = false) {
+function presentation(accountPanelRerender = false, settingsPanelRerender = false) {
   const verse = currentVerse();
   const version = state.versions[0] || "BSB";
   const verseOfDayItem = state.isVerseOfDayActive ? state.verseOfDayItem : null;
@@ -26333,15 +26344,15 @@ function presentation(accountPanelRerender = false) {
   const settingsMenu = `
     <div class="presentation-settings-menu presentation-bottom-settings-menu">
       ${scriptureReaderQuickButton("ghost-btn")}
-      <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
-      <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
+      <button class="ghost-btn presentation-settings-toggle ${state.presentationSettingsOpen ? "active" : ""}" type="button" id="presentationSettingsToggle" aria-keyshortcuts="Meta+." aria-label="Big Screen settings" aria-haspopup="dialog" aria-expanded="${state.presentationSettingsOpen ? "true" : "false"}" aria-controls="presentationSettingsPopover" data-tooltip="Big Screen settings">${icons.settings}</button>
+      <div class="presentation-settings-popover ${state.presentationSettingsOpen ? "open" : ""} ${settingsPanelRerender ? "settings-panel-rerender" : ""}" id="presentationSettingsPopover" role="dialog" aria-label="Big Screen settings" aria-hidden="${state.presentationSettingsOpen ? "false" : "true"}">
         <button class="presentation-popover-close glass-close-control" id="presentationSettingsClose" type="button" aria-label="Close Big Screen settings">${icons.clear}</button>
         ${presentationSettingsPanelMarkup(version, customFontField)}
       </div>
     </div>
   `;
   return `
-    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${showBibleReturnHint() || state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" data-text-alignment="${state.presentationTextAlignment}" data-reference-position="${state.presentationReferencePosition}" style="--presentation-text-scale: ${state.presentationTextScale}">
+    <section class="presentation ${state.mode === "big" ? "open" : ""} ${state.presentationNoButtons ? "no-buttons" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${showBibleReturnHint() || state.presentationControlsVisible || state.presentationSearchOpen || state.presentationSearchResultsOpen || state.presentationSettingsOpen || state.accountOpen ? "controls-visible" : ""} ${state.presentationSearchOpen ? "search-active" : ""} ${enterClass}" id="presentation" tabindex="-1" data-text-budget="${presentationTextBudget()}" data-scripture-font="${state.presentationScriptureFont}" data-presentation-theme="${state.presentationTheme}" data-text-alignment="${state.presentationTextAlignment}" data-reference-position="${state.presentationReferencePosition}" style="--presentation-text-scale: ${state.presentationTextScale}">
       ${presentationBackgroundMotionMarkup()}
       <div class="presentation-top">
         <div class="presentation-search-slot">
@@ -26509,6 +26520,7 @@ function shortcutOverlay() {
   const shortcuts = [
     [`${platformKey} /`, "Open Help"],
     ["Shift + ?", "Open keyboard shortcuts"],
+    ["Cmd + .", "Open or close Settings"],
     ["P", "Open Big Screen"],
     ["Shift + N", "Toggle No buttons in Big Screen (double tap Scripture also works)"],
     ["F", "Toggle focus layout"],
@@ -36402,6 +36414,20 @@ function handleGlobalShortcuts(event) {
     return;
   }
 
+  if (event.metaKey && event.key === "." && !event.ctrlKey && !event.altKey && !event.shiftKey
+      && !typing && !event.isComposing && !event.defaultPrevented && !document.querySelector("dialog[open]")
+      && !state.pushPromptVisible && !state.shortcutsOpen && !state.aboutMenuOpen && !state.tutorialActive && !state.tutorialIntroVisible) {
+    event.preventDefault();
+    if (event.repeat) return;
+    const bigScreen = state.mode === "big";
+    const wasOpen = bigScreen ? state.presentationSettingsOpen : state.settingsOpen;
+    document.getElementById(bigScreen ? "presentationSettingsToggle" : "settingsToggle")?.click();
+    if (wasOpen) return;
+    const panel = bigScreen ? document.querySelector(".presentation-settings-popover.open") : visibleSettingsPanel();
+    panel?.querySelector(".glass-close-control")?.focus({ preventScroll: true });
+    return;
+  }
+
   // Leave browser and operating-system shortcuts alone. This keeps common
   // commands such as Cmd/Ctrl+F, Cmd/Ctrl+P, Cmd/Ctrl+R, and Alt+Arrow working.
   if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -37608,15 +37634,16 @@ function schedulePresentationViewportFit() {
   // Fit the existing passage immediately, without replacing the whole screen.
   fitPresentationText();
   positionPresentationBibleMenus();
+  // Visual viewport events can fire on tab return without changing pagination.
+  // Replacing the stage in that case restarts surface animations and video.
+  const paginationChanged = () => Number(document.getElementById("presentation")?.dataset.textBudget) !== presentationTextBudget();
+  if (!paginationChanged()) return;
   presentationResizeTimer = setTimeout(() => {
-    if (state.mode === "big" && document.visibilityState !== "hidden") {
-      if (deferViewportRefreshForActiveInput()) return;
-      // Rebuild viewport-dependent pagination only once, then fit before paint.
-      render();
-      fitPresentationText();
-      centerOpenBibleMenus();
-    }
-    delete root.dataset.presentationRotating;
+    if (state.mode !== "big" || document.visibilityState === "hidden" || !paginationChanged()) return;
+    if (deferViewportRefreshForActiveInput()) return;
+    render();
+    fitPresentationText();
+    centerOpenBibleMenus();
   }, 120);
 }
 
@@ -38624,6 +38651,7 @@ document.addEventListener("visibilitychange", () => {
   if (nativePushPlugin() && !state.pushBusy) initializePushNotifications().then(() => {
     if (state.settingsOpen) renderPreservingReaderScroll();
   });
+  if (state.mode === "big") schedulePresentationViewportFit();
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   syncGameMusicPlayback();
   refreshAccountGameRecords();

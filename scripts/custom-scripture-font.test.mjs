@@ -188,10 +188,11 @@ const fontInput = {
 const viewportDocument = {
   visibilityState: 'visible', activeElement: fontInput,
   documentElement: { dataset: {} },
-  getElementById: () => fontInput,
+  getElementById: (id) => id === "presentation" ? { dataset: { textBudget: 150 } } : fontInput,
 };
 const viewportContext = vm.createContext({
   state: { mode: 'reader' }, document: viewportDocument,
+  window: { innerWidth: 1200, innerHeight: 800 },
   clearTimeout: () => { pendingResize = null; },
   setTimeout: (callback) => { pendingResize = callback; return 1; },
   render: () => { renders++; },
@@ -209,6 +210,7 @@ vm.runInContext(`
   ${extractFunction('deferViewportRefreshForActiveInput')}
   ${extractFunction('resumeViewportRefreshAfterInput')}
   ${extractFunction('renderAfterViewportChangePreservingReaderScroll')}
+  ${extractFunction('presentationTextBudget')}
   ${extractFunction('schedulePresentationViewportFit')}
   ${extractFunction('bindCustomScriptureFontInput')}
 `, viewportContext);
@@ -385,3 +387,9 @@ assert.equal(context.mergeScriptureFontWeights(
 assert.equal(Object.keys(context.normalizedScriptureFontWeights("bad json")).length, 0);
 assert.equal(Object.keys(context.normalizedScriptureFontWeights({ "font:lora": { weight: 999 } })).length, 0);
 console.log("Per-font weights restore, migrate, persist and merge across surfaces");
+
+viewportContext.state.mode = "big";
+viewportDocument.getElementById = (id) => id === "presentation" ? { dataset: { textBudget: 185 } } : fontInput;
+viewportDocument.activeElement = null;
+viewportContext.schedulePresentationViewportFit();
+assert.equal(pendingResize, null, 'An unchanged pagination budget only refits the existing stage');

@@ -20363,7 +20363,8 @@ svg {
 
 .account-popover.open.account-panel-rerender,
 .settings-popover.open.settings-panel-rerender,
-.mobile-settings-popover.settings-panel-rerender {
+.mobile-settings-popover.settings-panel-rerender,
+.presentation-settings-popover.open.settings-panel-rerender:not(.motion-exit) {
   animation: none;
 }
 
