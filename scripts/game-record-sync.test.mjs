@@ -16,14 +16,17 @@ let conflicts = 0;
 let failReads = false;
 // Simulate the existing row API, including conditional writes and concurrent inserts.
 const client = { from() {
-  let operation = 'read', payload, filters = {};
+  let operation = 'read', payload, filters = {}, columns;
   return {
-    select() { return this; },
+    select(value) { columns = value; return this; },
     eq(key, value) { filters[key] = value; return this; },
     update(value) { operation = 'update'; payload = clone(value); return this; },
     insert(value) { operation = 'insert'; payload = clone(value); return this; },
     async maybeSingle() {
       if (failReads) return { error: new Error('offline') };
+      if (columns === 'toolbar_layouts:settings->studyToolbarLayouts') {
+        return { data: clone({ toolbar_layouts: row?.settings.studyToolbarLayouts }) };
+      }
       return { data: clone(row) };
     },
     then(resolve, reject) {
@@ -40,10 +43,10 @@ function device() {
   const storage = new Map();
   const ctx = vm.createContext({
     console, window:{}, document:{querySelector:()=>null}, state: { authUser: {id: 'a'}, versions: ['BSB'] }, cloudSyncTable: 'bsb_user_sync',
-    localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) },
+    localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v), removeItem: k => storage.delete(k) },
     createSupabaseClient: () => client,
     authenticatedSupabaseSession: async () => ({user: {id: 'a'}}),
-    accountDataOwner: () => 'a', saveSnapshotForOwner() {},
+    accountDataOwner: () => 'a', saveSnapshotForOwner() {}, scheduleCloudSync() {},
     persistentVersions: () => ['BSB'], appearanceSnapshotSettings: () => ({}),
     puzzleCreatorVersion: () => 'BSB', normalizeReadingStreak: value => value || {},
     migrateAppearanceSettings: value => value || {}, latestVersionSettings: () => ({}),
@@ -55,6 +58,8 @@ function device() {
     'captureGameRecords','applyGameRecords','captureCloudSnapshot','normalizeCloudRow',
     'captureMemoryPassages','mergeMemoryPassages','applyMemoryPassages','applySyncedMemoryPassages',
     'memoryPassages','syncMemoryOnOpen',
+    'normalizedVersionsUpdatedAt','normalizeStudyToolbarLayout','readStudyToolbarLayout','captureStudyToolbarLayouts',
+    'mergeStudyToolbarLayouts','applyStudyToolbarLayouts','saveStudyToolbarLayout','refreshStudyToolbarLayouts',
     'mergeAnnotationDates','normalizedScriptureFontWeights','mergeScriptureFontWeights','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
   ctx.state.bookmarks = []; ctx.state.notes = {}; ctx.state.highlights = {}; ctx.state.history = [];
   return ctx;
@@ -173,6 +178,29 @@ await phone.upsertCloudSnapshot();
 await mac.upsertCloudSnapshot();
 assert.equal(mac.memoryPassages().find(item => item.id === passage.id).reviews, 0, 'An explicit re-add replaces the tombstone');
 assert.equal(mac.blankLocalSnapshot().settings.memoryPassages.length, 0, 'A new owner starts with a clean library');
+
+// Import a legacy layout, then sync independent edits from two devices.
+mac.localStorage.setItem('lw_toolbar_verse', JSON.stringify([{ id: 'copy', visible: false }]));
+await mac.upsertCloudSnapshot();
+await phone.refreshStudyToolbarLayouts();
+assert.deepEqual(clone(phone.readStudyToolbarLayout('verse').controls), [{ id: 'copy', visible: false }]);
+mac.saveStudyToolbarLayout('verse', [{ id: 'note', visible: true }, { id: 'copy', visible: false }]);
+phone.saveStudyToolbarLayout('selection', [{ id: 'widget', visible: true }, { id: 'note', visible: false }]);
+await Promise.all([mac.upsertCloudSnapshot(), phone.upsertCloudSnapshot()]);
+assert.deepEqual(row.settings.studyToolbarLayouts.verse.controls.map(item => item.id), ['note', 'copy']);
+assert.equal(row.settings.studyToolbarLayouts.selection.controls[0].visible, true);
+await mac.upsertCloudSnapshot();
+mac.saveStudyToolbarLayout('selection', [{ id: 'note', visible: true }]);
+assert.equal(mac.readStudyToolbarLayout('selection').controls[0].id, 'widget');
+await mac.upsertCloudSnapshot();
+mac.saveStudyToolbarLayout('verse', [], true);
+await mac.upsertCloudSnapshot();
+await phone.refreshStudyToolbarLayouts();
+assert.deepEqual(clone(phone.readStudyToolbarLayout('verse').controls), []);
+assert.deepEqual(clone(mac.blankLocalSnapshot().settings.studyToolbarLayouts), {});
+phone.applyStudyToolbarLayouts(undefined);
+assert.equal(phone.readStudyToolbarLayout('verse'), null);
+console.log('Toolbar layouts sync independently, including legacy settings, platform-specific controls, and resets.');
 
 const beforeSwitch = clone(row);
 mac.authenticatedSupabaseSession = async () => { mac.state.authUser = {id: 'b'}; return {user: {id: 'b'}}; };

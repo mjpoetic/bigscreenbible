@@ -7,7 +7,7 @@ let saved = null;
 const state = { bookmarks: [] };
 let syncs = 0;
 const context = vm.createContext({ state, localStorage: { getItem: () => saved, setItem: (_, value) => { saved = value; } }, showToast() {}, recordAnnotationDate() {}, scheduleCloudSync() { syncs++; } });
-vm.runInContext(['studyToolbarLayout', 'toggleStudyBookmark'].map(extract).join('\n'), context);
+vm.runInContext(['normalizedVersionsUpdatedAt', 'normalizeStudyToolbarLayout', 'readStudyToolbarLayout', 'studyToolbarLayout', 'toggleStudyBookmark'].map(extract).join('\n'), context);
 const layout = () => JSON.parse(vm.runInContext('JSON.stringify(studyToolbarLayout("verse", ["copy", "note", "bookmark"]))', context));
 assert.deepEqual(layout(), [{ id: 'copy', visible: true }, { id: 'note', visible: true }, { id: 'bookmark', visible: true }]);
 saved = JSON.stringify([{ id: 'note', visible: false }, { id: 'note' }, { id: 'obsolete' }, { id: 'copy', visible: true }]);

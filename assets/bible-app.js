@@ -5959,6 +5959,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.27": [
+      "Verse and highlighter toolbar button choices and order sync across devices signed in to the same account.",
+    ],
     "2026.11.25.26": [
       "Returning to the Big Screen tab keeps the passage and open Settings panel steady.",
       "Press Cmd + . to open or close Settings in the current mode.",
@@ -8431,6 +8434,7 @@ function blankLocalSnapshot(sourceSnapshot = captureCloudSnapshot()) {
     settings: {
       ...(sourceSnapshot?.settings || {}),
       gameRecords: {},
+      studyToolbarLayouts: {},
       coloringProgress: {},
       memoryPassages: [],
       annotationDates: {},
@@ -16821,6 +16825,7 @@ function captureCloudSnapshot() {
       modeTransitionSounds: state.modeTransitionSounds,
       modeTransitionVolume: state.modeTransitionVolume,
       settingsSectionsOpen: { ...state.settingsSectionsOpen },
+      studyToolbarLayouts: captureStudyToolbarLayouts(),
       settingsSectionsOpenUpdatedAt: state.settingsSectionsOpenUpdatedAt,
       showControlsFadeToggle: state.showControlsFadeToggle,
       focusControlsFade: state.focusControlsFade,
@@ -16904,6 +16909,7 @@ function mergeCloudSnapshots(cloudRow, localSnapshot) {
       ...versionSettings,
       ...disclosureSettings,
       ...appearanceSettings,
+      studyToolbarLayouts: mergeStudyToolbarLayouts(cloud.settings.studyToolbarLayouts, localSnapshot.settings.studyToolbarLayouts),
       scriptureFontWeights: mergeScriptureFontWeights(cloud.settings.scriptureFontWeights, localSnapshot.settings.scriptureFontWeights),
       presentationScriptureFontWeights: mergeScriptureFontWeights(cloud.settings.presentationScriptureFontWeights, localSnapshot.settings.presentationScriptureFontWeights),
       annotationDates: mergeAnnotationDates(cloud.settings.annotationDates, localSnapshot.settings.annotationDates),
@@ -17049,6 +17055,7 @@ function mergeStreaks(cloudStreak, localStreak) {
 function applyCloudSnapshot(snapshot) {
   Object.values(customFontInputTimers).forEach((timer) => window.clearTimeout(timer));
   const settings = migrateAppearanceSettings(snapshot.settings);
+  applyStudyToolbarLayouts(settings.studyToolbarLayouts);
   state.versions = versionsWithSharedVersionOverride(settings.versions);
   state.annotationDates = mergeAnnotationDates(settings.annotationDates);
   state.versionsUpdatedAt = normalizedVersionsUpdatedAt(settings.versionsUpdatedAt);
@@ -17337,7 +17344,7 @@ function applyOfflineChanges(merged, base, local) {
     const before = base[field] || {};
     const after = local[field] || {};
     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (["gameRecords", "coloringProgress", "memoryPassages", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
+      if (["gameRecords", "coloringProgress", "memoryPassages", "studyToolbarLayouts", "wordSearchRecentPassages", "annotationDates", "scriptureFontWeights", "presentationScriptureFontWeights"].includes(key) && field === "settings") continue;
       if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
       if (Object.hasOwn(after, key)) result[field][key] = after[key];
       else delete result[field][key];
@@ -17389,6 +17396,7 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
     if (readError) throw readError;
     if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
     const next = { ...snapshot, settings: { ...snapshot.settings,
+      studyToolbarLayouts: mergeStudyToolbarLayouts(current?.settings?.studyToolbarLayouts, snapshot.settings?.studyToolbarLayouts),
       scriptureFontWeights: mergeScriptureFontWeights(current?.settings?.scriptureFontWeights, snapshot.settings?.scriptureFontWeights),
       presentationScriptureFontWeights: mergeScriptureFontWeights(current?.settings?.presentationScriptureFontWeights, snapshot.settings?.presentationScriptureFontWeights),
       gameRecords: mergeGameRecords(current?.settings?.gameRecords, snapshot.settings?.gameRecords, captureGameRecords()),
@@ -17409,6 +17417,7 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
   if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
   saveSnapshotForOwner(userId, savedSnapshot);
   applyGameRecords(mergeGameRecords(savedSnapshot.settings.gameRecords, captureGameRecords()));
+  applyStudyToolbarLayouts(mergeStudyToolbarLayouts(savedSnapshot.settings.studyToolbarLayouts, captureStudyToolbarLayouts()));
   applySyncedMemoryPassages(savedSnapshot.settings.memoryPassages);
   const coloring=globalThis.window?.BSBColoring;
   coloring?.applyProgress(coloring.mergeProgress(savedSnapshot.settings.coloringProgress,coloring.captureProgress()), true);
@@ -25210,17 +25219,88 @@ function toggleStudyBookmark(ref) {
   scheduleCloudSync();
 }
 
-function studyToolbarLayout(kind, defaults, hidden = []) {
+function normalizeStudyToolbarLayout(value) {
+  // Older installs stored the controls directly as an array.
+  const controls = Array.isArray(value) ? value : value?.controls;
+  if (!Array.isArray(controls)) return null;
+  const seen = new Set();
+  return {
+    controls: controls.filter(item => typeof item?.id === "string" && item.id && !seen.has(item.id) && seen.add(item.id))
+      .map(item => ({ id: item.id, visible: item.visible !== false })),
+    updatedAt: normalizedVersionsUpdatedAt(value?.updatedAt),
+  };
+}
+
+function readStudyToolbarLayout(kind) {
   try {
-    const saved = JSON.parse(localStorage.getItem(`lw_toolbar_${kind}`));
-    if (!Array.isArray(saved)) return defaults.map(id => ({ id, visible: !hidden.includes(id) }));
-    const seen = new Set();
-    const layout = saved.filter(item => item && defaults.includes(item.id) && !seen.has(item.id) && seen.add(item.id))
-      .map(item => ({ id: item.id, visible: item.visible !== false }));
-    return [...layout, ...defaults.filter(id => !seen.has(id)).map(id => ({ id, visible: !hidden.includes(id) }))];
+    return normalizeStudyToolbarLayout(JSON.parse(localStorage.getItem(`lw_toolbar_${kind}`)));
   } catch {
-    return defaults.map(id => ({ id, visible: !hidden.includes(id) }));
+    return null;
   }
+}
+
+function captureStudyToolbarLayouts() {
+  return {
+    verse: readStudyToolbarLayout("verse"),
+    selection: readStudyToolbarLayout("selection"),
+  };
+}
+
+function mergeStudyToolbarLayouts(cloud, local) {
+  return Object.fromEntries(["verse", "selection"].map(kind => {
+    const remote = normalizeStudyToolbarLayout(cloud?.[kind]);
+    const device = normalizeStudyToolbarLayout(local?.[kind]);
+    return [kind, !remote || (device && device.updatedAt > remote.updatedAt) ? device : remote];
+  }));
+}
+
+function applyStudyToolbarLayouts(layouts) {
+  for (const kind of ["verse", "selection"]) {
+    const layout = normalizeStudyToolbarLayout(layouts?.[kind]);
+    if (layout) localStorage.setItem(`lw_toolbar_${kind}`, JSON.stringify(layout));
+    else if (localStorage.getItem(`lw_toolbar_${kind}`) != null) localStorage.removeItem(`lw_toolbar_${kind}`);
+  }
+}
+
+async function refreshStudyToolbarLayouts() {
+  const userId = state.authUser?.id;
+  if (!userId || accountDataOwner() !== userId || state.authBusy || window.bsbOffline?.active) return;
+  const client = createSupabaseClient();
+  if (!client) return;
+  try {
+    const { data, error } = await client.from(cloudSyncTable)
+      .select("toolbar_layouts:settings->studyToolbarLayouts").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    const remote = mergeStudyToolbarLayouts(data?.toolbar_layouts);
+    const merged = mergeStudyToolbarLayouts(remote, captureStudyToolbarLayouts());
+    applyStudyToolbarLayouts(merged);
+    if (JSON.stringify(remote) !== JSON.stringify(merged)) scheduleCloudSync();
+  } catch (error) {
+    console.warn("Toolbar preferences could not refresh", error);
+  }
+}
+
+function studyToolbarLayout(kind, defaults, hidden = []) {
+  const saved = readStudyToolbarLayout(kind)?.controls || [];
+  const layout = saved.filter(item => defaults.includes(item.id));
+  return [...layout, ...defaults.filter(id => !layout.some(item => item.id === id))
+    .map(id => ({ id, visible: !hidden.includes(id) }))];
+}
+
+function saveStudyToolbarLayout(kind, layout, reset = false) {
+  const previous = readStudyToolbarLayout(kind);
+  const supported = new Set(layout.map(item => item.id));
+  const remaining = [...layout];
+  // Keep controls that are only available on another platform in their saved slots.
+  const controls = reset ? [] : [
+    ...(previous?.controls || []).map(item => supported.has(item.id) ? remaining.shift() : item),
+    ...remaining,
+  ];
+  const previousTime = Date.parse(previous?.updatedAt || "");
+  const updatedAt = new Date(Math.max(Date.now(), Number.isFinite(previousTime) ? previousTime + 1 : 0)).toISOString();
+  localStorage.setItem(`lw_toolbar_${kind}`, JSON.stringify({ controls, updatedAt }));
+  scheduleCloudSync();
 }
 
 function configureStudyToolbar(container, kind) {
@@ -25306,6 +25386,8 @@ function configureStudyToolbar(container, kind) {
   apply();
   customize.addEventListener("click", event => {
     event.stopPropagation();
+    layout = studyToolbarLayout(kind, entries.map(entry => entry.id), hidden);
+    apply();
     const dialog = document.createElement("dialog");
     dialog.className = "toolbar-customizer";
     dialog.setAttribute("aria-label", kind === "verse" ? "Customize verse toolbar" : "Customize highlighter toolbar");
@@ -25338,14 +25420,14 @@ function configureStudyToolbar(container, kind) {
     const editor = document.createElement("div");
     dialog.append(preview, editor);
     const draw = () => {
-      editor.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Drag the handles to reorder controls. Saved on this device.</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
+      editor.innerHTML = `<h2>${kind === "verse" ? "Verse toolbar" : "Highlighter toolbar"}</h2><p>Drag the handles to reorder controls. ${state.authUser ? "Changes sync across your signed-in devices." : "Sign in to sync changes across devices."}</p><div class="toolbar-customizer-rows">${layout.map((item, index) => {
         const entry = entries.find(entry => entry.id === item.id);
         const label = escapeHtml(entry.label);
         return `<div class="toolbar-customizer-row" data-row="${item.id}"><label><input type="checkbox" data-control="${index}" ${item.visible ? "checked" : ""}><span class="toolbar-customizer-glyph" aria-hidden="true">${entry.glyph}</span><span>${label}</span></label><button type="button" class="toolbar-drag-handle" data-drag="${item.id}" aria-label="Reorder ${label}. Use arrow keys to move." title="Drag to reorder">⠿</button></div>`;
       }).join("")}</div><div class="toolbar-customizer-footer"><button type="button" data-reset>Restore defaults</button><button type="button" data-done>Done</button></div>`;
     };
-    const save = () => {
-      try { localStorage.setItem(`lw_toolbar_${kind}`, JSON.stringify(layout)); }
+    const save = (reset = false) => {
+      try { saveStudyToolbarLayout(kind, layout, reset); }
       catch { showToast("Toolbar changes could not be saved on this device"); }
       apply(true);
     };
@@ -25363,7 +25445,9 @@ function configureStudyToolbar(container, kind) {
       dialog.classList.remove("is-reordering");
       drag = null;
       if (handle.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
-      save(); draw();
+      if (!cancel) save();
+      else apply(true);
+      draw();
     };
     let pointerId = null;
     dialog.addEventListener("pointerdown", event => {
@@ -25412,7 +25496,7 @@ function configureStudyToolbar(container, kind) {
     dialog.addEventListener("click", event => {
       if (event.target.closest("[data-reset]")) {
         layout = entries.map(entry => ({ id: entry.id, visible: !hidden.includes(entry.id) }));
-        save(); draw();
+        save(true); draw();
       }
       if (event.target.closest("[data-done]") || event.target === dialog) dialog.close();
     });
@@ -38631,6 +38715,7 @@ window.setInterval(() => {
 window.addEventListener("online",()=>{
   if(document.getElementById("coloringBook"))void syncColoringOnOpen();
   void syncMemoryOnOpen();
+  void refreshStudyToolbarLayouts();
 });
 document.addEventListener("visibilitychange", () => {
   syncNativeWidgetSnapshot();
@@ -38648,6 +38733,7 @@ document.addEventListener("visibilitychange", () => {
     rememberReaderScrollBeforeAppSwitch();
     return;
   }
+  void refreshStudyToolbarLayouts();
   if (nativePushPlugin() && !state.pushBusy) initializePushNotifications().then(() => {
     if (state.settingsOpen) renderPreservingReaderScroll();
   });
