@@ -26686,6 +26686,28 @@ html[data-presentation-mode="big"][data-presentation-theme="sunrise"],
   touch-action: manipulation;
 }
 
+#railSettingsToggle {
+  position: relative;
+}
+
+:is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings, #presentationSettingsToggle).settings-hold-pending::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 2px solid color-mix(in srgb, var(--teal) 70%, transparent);
+  border-radius: 4px;
+  pointer-events: none;
+  animation: mobileSettingsHoldProgress 450ms linear forwards;
+  clip-path: inset(0 100% 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(#settingsToggle, #railSettingsToggle, #mobileFloatingSettings, #presentationSettingsToggle).settings-hold-pending::before {
+    animation: none;
+    clip-path: none;
+  }
+}
+
 /* Use the theme's alternate accent to distinguish the current Bible choice. */
 .primary-version-menu .primary-version-option.active,
 .parallel-version-menu .parallel-version-menu-option.active,

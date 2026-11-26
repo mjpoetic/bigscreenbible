@@ -5967,6 +5967,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.26.2": [
+      "A progress outline shows while you hold the Settings button.",
+    ],
     "2026.11.26.1": [
       "The highlighter toolbar fits its controls and shortens book names when space is tight. Select words directly in Scripture to copy an excerpt.",
     ],
