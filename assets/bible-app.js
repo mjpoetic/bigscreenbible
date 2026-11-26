@@ -2059,6 +2059,7 @@ function restoreAccountFormDraft(drafts) {
 
 function render({ preserveAutoScroll = false } = {}) {
   globalThis.CSS?.highlights?.delete("scripture-word-selection");
+  globalThis.CSS?.highlights?.delete("scripture-word-surroundings");
   const focusPickerMotion = captureFocusPickerMotion();
   const activeElement = document.activeElement;
   const chapterFindInput = activeInlineSearchQuery() && activeElement?.matches("#referenceInput, #mobileFocusPassageInput")
@@ -5966,6 +5967,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.37": [
+      "Scripture selection uses a translucent blue tint, with surrounding text dimmed while you select words.",
+    ],
     "2026.11.25.36": [
       "Double-click or double-tap Scripture to select a word. Drag either selection handle to refine the excerpt before copying it.",
     ],
@@ -36515,7 +36519,10 @@ function paintReaderWordRange(gesture) {
   const range = gesture.wordRange;
   if (globalThis.CSS?.highlights && typeof Highlight === "function") {
     const textRanges = readerWordSpotlightRanges(gesture, range);
-    CSS.highlights.set("scripture-word-selection", new Highlight(...textRanges));
+    const highlight = new Highlight(...textRanges);
+    highlight.priority = 1;
+    CSS.highlights.set("scripture-word-selection", highlight);
+    paintReaderWordSurroundings(gesture.surface, textRanges.length > 0);
     gesture.surface.classList.add("word-drag-painted");
   } else {
     const selection = window.getSelection();
@@ -36541,8 +36548,32 @@ function readerWordSpotlightRanges(gesture, range) {
     });
 }
 
+function paintReaderWordSurroundings(surface, active) {
+  if (!surface || !globalThis.CSS?.highlights || typeof Highlight !== "function") return;
+  surface.classList.toggle("word-spotlight-active", active);
+  if (!active) {
+    CSS.highlights.delete("scripture-word-surroundings");
+    return;
+  }
+  if (CSS.highlights.has("scripture-word-surroundings")) return;
+  const range = document.createRange();
+  range.selectNodeContents(surface);
+  CSS.highlights.set("scripture-word-surroundings", new Highlight(range));
+}
+
+function syncNativeReaderWordSpotlight() {
+  const surface = document.getElementById("scriptureReadingRegion");
+  if (!surface || surface.classList.contains("word-drag-selection")) return;
+  const selection = window.getSelection();
+  const range = selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0) : null;
+  paintReaderWordSurroundings(surface, Boolean(range
+    && surface.contains(readerCopyTextContainer(range.startContainer))
+    && surface.contains(readerCopyTextContainer(range.endContainer))));
+}
+
 function clearReaderWordSpotlight(surface) {
   globalThis.CSS?.highlights?.delete("scripture-word-selection");
+  paintReaderWordSurroundings(surface, false);
   if (!surface.classList.contains("word-drag-painted")) window.getSelection()?.removeAllRanges();
   surface.classList.remove("word-drag-selection", "word-drag-painted");
 }
@@ -39150,6 +39181,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", handleSideToolbarPositionClick);
 document.addEventListener("click", dismissSelectionBarOnOutsideClick);
 document.addEventListener("copy", copyReaderTextSelection);
+document.addEventListener("selectionchange", syncNativeReaderWordSpotlight);
 document.addEventListener("fullscreenchange", render);
 document.addEventListener("webkitfullscreenchange", render);
 window.setInterval(() => {

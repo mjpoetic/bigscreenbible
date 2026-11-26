@@ -10248,18 +10248,30 @@ select {
   min-height: 15px;
 }
 
+.app-shell {
+  --scripture-selection-accent: #1769df;
+  --scripture-selection-tint: color-mix(in srgb, var(--scripture-selection-accent) 23%, transparent);
+  --scripture-passage-tint: color-mix(in srgb, var(--scripture-selection-accent) 14%, transparent);
+}
+
+.app-shell[data-theme="dark"] {
+  --scripture-selection-accent: #659aff;
+  --scripture-selection-tint: color-mix(in srgb, var(--scripture-selection-accent) 33%, transparent);
+  --scripture-passage-tint: color-mix(in srgb, var(--scripture-selection-accent) 20%, transparent);
+}
+
 .verse.selected,
 .parallel-row.selected,
 .paragraph-verse.selected {
-  background: color-mix(in srgb, var(--gold-soft) 78%, transparent);
-  box-shadow: inset 3px 0 0 var(--gold);
+  background: var(--scripture-passage-tint);
+  box-shadow: inset 2px 0 0 var(--scripture-selection-accent);
 }
 
 .verse.passage-selected,
 .parallel-row.passage-selected,
 .paragraph-verse.passage-selected {
-  background: color-mix(in srgb, var(--teal) 13%, var(--gold-soft));
-  box-shadow: inset 3px 0 0 var(--teal);
+  background: var(--scripture-passage-tint);
+  box-shadow: inset 2px 0 0 var(--scripture-selection-accent);
 }
 
 .paragraph-verse.selected,
@@ -10457,11 +10469,11 @@ select {
 }
 
 [data-theme="dark"] :is(.verse, .parallel-row):is(.selected, .passage-selected):not(.highlight-selected) {
-  box-shadow: inset 0 -4px 0 var(--teal);
+  box-shadow: inset 0 -2px 0 var(--scripture-selection-accent);
 }
 
 [data-theme="dark"] .paragraph-verse:is(.selected, .passage-selected):not(.highlight-selected) {
-  box-shadow: inset 0 -0.16em 0 var(--teal);
+  box-shadow: inset 0 -0.08em 0 var(--scripture-selection-accent);
 }
 
 [data-theme="dark"] .verse.highlight-selected,
@@ -24217,17 +24229,27 @@ svg {
   -webkit-user-select: text;
   user-select: text;
 }
+#scriptureReadingRegion [data-passage-copy-text] .words-of-jesus {
+  --scripture-selection-ink: var(--red-letter);
+}
+
 #scriptureReadingRegion [data-passage-copy-text]::selection,
 #scriptureReadingRegion [data-passage-copy-text] ::selection {
-  background-color: #066c69;
-  color: #fff;
+  background-color: var(--scripture-selection-tint);
+  color: var(--scripture-selection-ink, var(--ink));
+}
+
+#scriptureReadingRegion [data-passage-copy-text]::highlight(scripture-word-surroundings),
+#scriptureReadingRegion [data-passage-copy-text] ::highlight(scripture-word-surroundings) {
+  color: color-mix(in srgb, var(--scripture-selection-ink, var(--ink)) 62%, var(--paper));
 }
 
 #scriptureReadingRegion [data-passage-copy-text]::highlight(scripture-word-selection),
 #scriptureReadingRegion [data-passage-copy-text] ::highlight(scripture-word-selection) {
-  background-color: #066c69;
-  color: #fff;
+  background-color: var(--scripture-selection-tint);
+  color: var(--scripture-selection-ink, var(--ink));
 }
+
 .scripture-word-handle {
   position: fixed;
   z-index: 211;
@@ -24244,12 +24266,12 @@ svg {
 .scripture-word-handle::before {
   content: "";
   display: block;
-  width: 12px;
-  height: 17px;
+  width: 10px;
+  height: 15px;
   margin: 0 auto;
-  border: 2px solid #fff;
-  border-radius: 3px 3px 8px 8px;
-  background: #066c69;
+  border: 1px solid var(--paper);
+  border-radius: 2px 2px 8px 8px;
+  background: var(--scripture-selection-accent);
   box-shadow: 0 1px 4px #0006;
 }
 
@@ -25808,16 +25830,23 @@ button.delete-account-button:disabled { opacity: .55; cursor: wait; }
   --verse-spotlight-blur: 2.2px;
 }
 
-#scriptureReadingRegion[data-spotlight-effect="dim"]:has(.passage-selected):not([data-spotlight-strength="off"], :has(.verse-arrival-halo))
+#scriptureReadingRegion[data-spotlight-effect="dim"]:has(.passage-selected):not(.word-spotlight-active, [data-spotlight-strength="off"], :has(.verse-arrival-halo))
   :is([data-verse]:not(.passage-selected), [data-focused-reader-verse]:not(:has(.passage-selected))) {
   opacity: var(--verse-spotlight-opacity, 0.74);
 }
 
-#scriptureReadingRegion[data-spotlight-effect="blur"]:has(.passage-selected):not([data-spotlight-strength="off"], :has(.verse-arrival-halo))
+#scriptureReadingRegion[data-spotlight-effect="blur"]:has(.passage-selected):not(.word-spotlight-active, [data-spotlight-strength="off"], :has(.verse-arrival-halo))
   :is([data-verse]:not(.passage-selected), [data-focused-reader-verse]:not(:has(.passage-selected))) {
   filter: blur(var(--verse-spotlight-blur, 0.7px));
 }
 
+
+/* Let the excerpt tint define the selection, including inside the current verse. */
+.app-shell #scriptureReadingRegion.word-spotlight-active
+  :is(.verse, .parallel-row, .paragraph-verse):is(.selected, .passage-selected):not(.highlight-selected) {
+  background: transparent;
+  box-shadow: none;
+}
 
 /* Shared interaction states for both Classic and Liquid Glass.
    Keep positioning transforms intact: depth comes from the surface itself. */
