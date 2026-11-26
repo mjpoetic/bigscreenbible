@@ -5960,6 +5960,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.29": [
+      "Moved Look up words to the lower-left of the reading pane, where it remains available when the Parallel header is hidden.",
+    ],
     "2026.11.25.28": [
       "Strong’s stays enabled while you select verses. Use Look up words in the reader to tap tagged words for their definitions.",
     ],
@@ -12155,13 +12158,13 @@ function reader(chapterChange = null) {
         `}
       </div>
       ` : ""}
-      ${state.strongNumbers ? `<button class="strong-lookup-toggle ghost-btn" id="strongLookupToggle" type="button" aria-pressed="${state.strongWordLookup}" hidden>
-        <span class="strong-lookup-switch" aria-hidden="true"></span>Look up words
-      </button>` : ""}
       <article id="scriptureReadingRegion" tabindex="-1" aria-label="${escapeHtml(activePassageLabel())} Scripture" class="scripture ${state.mode === "parallel" ? "parallel-mode" : ""} ${versionLoadingState ? "bible-version-loading" : ""} ${readerChapterTransitionClass(chapterChange)}" data-spotlight-strength="${storedSpotlightSettingValue(verseSpotlightSettings.Strength)}" data-spotlight-effect="${storedSpotlightSettingValue(verseSpotlightSettings.Effect)}">
         ${state.sharedPassage ? "" : sharedVersionReturnButton("reader")}
         ${readerContent}
       </article>
+      ${state.strongNumbers ? `<button class="strong-lookup-toggle" id="strongLookupToggle" type="button" aria-label="Look up words" aria-pressed="${state.strongWordLookup}" data-tooltip="Look up words · ${navigator.platform?.toLowerCase().includes("mac") ? "Option" : "Alt"}-click for quick lookup" hidden>
+        <span aria-hidden="true">${icons.book}</span>
+      </button>` : ""}
       ${readerChapterSwipeIndicators()}
       ${readerChapterPullIndicators()}
       ${versionLoadingState ? bibleVersionLoadingIndicator(versionLoadingState) : chapterChangeIndicator(chapterChange)}
