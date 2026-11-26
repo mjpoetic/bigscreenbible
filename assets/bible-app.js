@@ -5967,6 +5967,12 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.39": [
+      "Copy selected text appears above the Scripture selection after you release and hides while you adjust the selection.",
+    ],
+    "2026.11.25.38": [
+      "Holding Settings now shows an animated spinner while the app checks for updates.",
+    ],
     "2026.11.25.37": [
       "Scripture selection uses a translucent blue tint, with surrounding text dimmed while you select words.",
     ],
@@ -7032,7 +7038,7 @@ async function runSettingsUpdateShortcut() {
     runAppUpdateAction();
     return;
   }
-  showToast("Checking for updates…");
+  showToast("Checking for updates…", { pending: true });
   await checkForAppUpdate({ manual: true });
   showToast(state.appUpdateRefreshOffered
     ? "You have the latest version. Hold Settings again to refresh."
@@ -24824,6 +24830,10 @@ function showStudyPopup(anchor, content, label, options = {}) {
 }
 
 function positionStudyPopup(anchor, popup) {
+  if (popup.readerWordGesture) {
+    positionSelectedTextPopup(popup);
+    return;
+  }
   const anchorConnected = Boolean(anchor?.isConnected);
   const rect = anchorConnected ? anchor.getBoundingClientRect() : popup.studyPopupAnchorRect;
   if (!rect) return;
@@ -36587,7 +36597,7 @@ function endReaderWordDrag(gesture, released) {
   }
   const popup = showStudyPopup(gesture.text,
     '<button class="ghost-btn" type="button" data-copy-dragged-text>Copy selected text</button>',
-    "Selected Scripture");
+    "Selected Scripture", { className: "selected-text-popup" });
   popup.readerWordGesture = gesture;
   attachReaderWordHandles(gesture, popup);
   popup.querySelector("[data-copy-dragged-text]").addEventListener("click", async () => {
@@ -36597,6 +36607,23 @@ function endReaderWordDrag(gesture, released) {
     if (popup.isConnected) closeStudyPopup(true);
     showToast("Selected text copied");
   });
+}
+
+function positionSelectedTextPopup(popup) {
+  if (popup.hidden) return;
+  const { surface, wordRange } = popup.readerWordGesture;
+  const bounds = surface.getBoundingClientRect();
+  const rect = readerWordSpotlightRanges(popup.readerWordGesture, wordRange)
+    .flatMap(range => [...range.getClientRects()])
+    .find(rect => rect.width && rect.height && rect.bottom > Math.max(bounds.top, 0)
+      && rect.top < Math.min(bounds.bottom, window.innerHeight));
+  popup.classList.toggle("selected-text-popup-offscreen", !rect);
+  if (!rect) return;
+  const { width, height } = popup.getBoundingClientRect();
+  const centeredLeft = rect.left + (rect.width - width) / 2;
+  popup.dataset.placement = "above";
+  popup.style.left = `${Math.max(8, Math.min(centeredLeft, window.innerWidth - width - 8))}px`;
+  popup.style.top = `${Math.max(8, rect.top - height - 8)}px`;
 }
 
 function attachReaderWordHandles(gesture, popup) {
@@ -36622,6 +36649,7 @@ function attachReaderWordHandles(gesture, popup) {
       drag = { id: event.pointerId, x: event.clientX - Number.parseFloat(handle.style.left),
         y: event.clientY - Number.parseFloat(handle.style.top) + 8 };
       handle.setPointerCapture(event.pointerId);
+      popup.hidden = true;
     }, { signal });
     handle.addEventListener("pointermove", (event) => {
       if (drag?.id !== event.pointerId) return;
@@ -36632,6 +36660,8 @@ function attachReaderWordHandles(gesture, popup) {
     handle.addEventListener("lostpointercapture", () => {
       drag = null;
       gesture.dragEdge = null;
+      popup.hidden = false;
+      positionSelectedTextPopup(popup);
     }, { signal });
     handle.addEventListener("click", (event) => event.stopPropagation(), { signal });
     return handle;
@@ -36648,6 +36678,7 @@ function attachReaderWordHandles(gesture, popup) {
       handle.style.left = `${x}px`;
       handle.style.top = `${rect.bottom}px`;
     });
+    positionSelectedTextPopup(popup);
   };
   gesture.positionHandles();
   gesture.surface.addEventListener("scroll", gesture.positionHandles, { passive: true, signal });
@@ -38107,13 +38138,15 @@ function formatReferenceLabel(chapterKey, verseNumbers = selectedVerseNumbers())
   return `${chapterKey}:${suffix}`;
 }
 
-function showToast(message) {
+function showToast(message, { pending = false } = {}) {
   const toast = document.getElementById("toast");
   if (!toast) return;
   clearTimeout(statusToastTimer);
   toast.textContent = message;
   toast.classList.add("show");
+  toast.classList.toggle("status-toast-pending", pending);
   toast.closest(".app-shell")?.classList.add("toast-visible");
+  if (pending) return;
   statusToastTimer = setTimeout(() => {
     toast.classList.remove("show");
     toast.closest(".app-shell")?.classList.remove("toast-visible");

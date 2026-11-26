@@ -60,17 +60,20 @@ const shortcut = vm.createContext({
   URL, Date, AbortController, console,
   state: shortcutState, appVersion: '2026.11.25.35', lastAppUpdateCheckAt: 0,
   renderAppUpdateStatus() {},
-  showToast: message => messages.push(message),
+  showToast: (message, options) => messages.push({ message, pending: Boolean(options?.pending) }),
   fetch: async () => {
     checks++;
     return { ok: true, json: async () => ({ version: '2026.11.25.35' }) };
   },
 });
 vm.runInContext(functions, shortcut);
-await vm.runInContext('runSettingsUpdateShortcut()', shortcut);
+const updateCheck = vm.runInContext('runSettingsUpdateShortcut()', shortcut);
+assert.deepEqual(messages, [{ message: 'Checking for updates…', pending: true }]);
+await updateCheck;
 assert.equal(checks, 1);
 assert.equal(shortcutState.appUpdateRefreshOffered, true);
-assert.match(messages.at(-1), /Hold Settings again to refresh/);
+assert.match(messages.at(-1).message, /Hold Settings again to refresh/);
+assert.equal(messages.at(-1).pending, false);
 await vm.runInContext('checkForAppUpdate()', shortcut);
 assert.equal(shortcutState.appUpdateRefreshOffered, true, 'Background checks preserve the refresh option');
 let refreshes = 0;
