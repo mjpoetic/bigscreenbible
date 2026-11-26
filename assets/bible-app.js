@@ -5959,6 +5959,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.25.32": [
+      "In mobile Focus mode, the quick fade toggle sits in the lower-left corner and the floating Settings and Page Down buttons line up.",
+    ],
     "2026.11.25.31": [
       "Copied Scripture excerpts follow your passage copy format and cite the verses and Bible translation you selected.",
     ],
