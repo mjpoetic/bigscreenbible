@@ -2142,6 +2142,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   const previousVideo = document.querySelector(".presentation-background-video");
   previousVideo?.remove();
   const previousToast = document.querySelector(".status-toast-region");
+  const previousFocusNotice = document.getElementById("focusModeNotice");
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
   const previousSocialPopup = document.getElementById("gameChallengePopupDialog")?.parentElement;
   const previousTutorial = state.tutorialActive ? captureTutorialPosition() : null;
@@ -2180,6 +2181,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
       <div class="status-toast-region">
         <div class="status-toast" id="toast" role="status" aria-atomic="true"></div>
       </div>
+      <div class="focus-mode-notice" id="focusModeNotice" role="status" aria-atomic="true"><span></span></div>
     </main>
   `;
   const shell = app.querySelector(".app-shell");
@@ -2187,6 +2189,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
     shell.querySelector(".status-toast-region").replaceWith(previousToast);
     shell.classList.toggle("toast-visible", Boolean(previousToast.querySelector(".show")));
   }
+  if (previousFocusNotice) shell.querySelector("#focusModeNotice").replaceWith(previousFocusNotice);
   if (previousUpdateNotice) shell.append(previousUpdateNotice);
   restoreFocusPickerMotion(focusPickerMotion);
   settingsPageTransition = "";
@@ -5986,6 +5989,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.8": [
+      "The Focus Mode on/off notification appears below the header and briefly dims the text behind it.",
+    ],
     "2026.11.27.7": [
       "Floating reading controls fade on schedule while you scroll through Scripture.",
     ],
@@ -34620,10 +34626,31 @@ function resetPresentationTextScale({ feedback = false } = {}) {
 
 let pendingLibraryEnter = false;
 
-function toggleFocusMode({ onComplete } = {}) {
+let focusModeNoticeTimer;
+let focusModeSpotlightTimer;
+
+function showFocusModeNotice() {
+  const notice = document.getElementById("focusModeNotice");
+  const label = notice?.firstElementChild;
+  const header = document.getElementById("appHeader");
+  if (!label || !header) return;
+  clearTimeout(focusModeNoticeTimer);
+  clearTimeout(focusModeSpotlightTimer);
+  notice.style.top = `max(${header.getBoundingClientRect().bottom}px, env(safe-area-inset-top, 0px))`;
+  label.textContent = state.focusMode ? "Focus Mode on" : "Focus Mode off";
+  notice.classList.add("show", "spotlight");
+  focusModeSpotlightTimer = setTimeout(() => notice.classList.remove("spotlight"), 500);
+  focusModeNoticeTimer = setTimeout(() => {
+    notice.classList.remove("show");
+    label.textContent = "";
+  }, 1400);
+}
+
+function toggleFocusMode() {
   if (document.documentElement.dataset.modeTransition === "reader-panels") return;
   const enteringFocus = !state.focusMode;
   const currentMode = state.mode;
+  let applied = false;
   const applyFocusMode = () => {
     if (state.mode !== currentMode || state.focusMode === enteringFocus) return;
     state.focusReferenceOpen = false;
@@ -34634,13 +34661,21 @@ function toggleFocusMode({ onComplete } = {}) {
     localStorage.setItem("lw_focus_mode", String(state.focusMode));
     scheduleCloudSync();
     renderPreservingReaderScroll();
-    onComplete?.();
+    applied = true;
+  };
+  const notifyFocusMode = () => {
+    if (applied && state.mode === currentMode && state.focusMode === enteringFocus) showFocusModeNotice();
   };
   if (localStorage.getItem("lw_focus_mode_animation") !== "false" && modeViewTransitionAvailable()) {
-    runLayoutViewTransition("reader-panels", applyFocusMode);
+    const transition = runLayoutViewTransition("reader-panels", applyFocusMode);
+    if (transition) {
+      transition.finished.then(notifyFocusMode, notifyFocusMode);
+      return;
+    }
   } else {
     applyFocusMode();
   }
+  notifyFocusMode();
 }
 
 function toggleVerseNavCollapsed() {
@@ -36425,9 +36460,7 @@ function finishReaderPinch(gesture) {
 
 function toggleReaderFocusFromGesture() {
   if (!canUseReaderChapterSwipe()) return;
-  toggleFocusMode({
-    onComplete: () => showToast(state.focusMode ? "Focus Mode on" : "Focus Mode off"),
-  });
+  toggleFocusMode();
 }
 
 const focusReadingDoubleTapMs = 450;

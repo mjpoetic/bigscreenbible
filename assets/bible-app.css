@@ -16274,6 +16274,40 @@ kbd {
   pointer-events: none;
 }
 
+.focus-mode-notice {
+  position: fixed;
+  left: 50%;
+  z-index: 500;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.focus-mode-notice > span {
+  display: block;
+  padding: 8px 14px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  border: 1px solid #ffffff40;
+  border-radius: 10px;
+  background: #151915;
+  color: #fff;
+  text-align: center;
+}
+
+.focus-mode-notice.show {
+  opacity: 1;
+}
+
+.focus-mode-notice.spotlight::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -34px clamp(-160px, -24vw, -48px);
+  background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 52%), rgb(0 0 0 / 35%) 55%, transparent);
+}
+
 .status-toast-region::before {
   content: "";
   position: absolute;
