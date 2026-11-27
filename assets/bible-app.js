@@ -470,7 +470,6 @@ let mobileSettingsIdleTimer = 0;
 let focusSearchLastTapAt = null;
 const focusSearchPortrait = window.matchMedia("(max-width: 840px) and (orientation: portrait)");
 let focusControlsHideTimer = 0;
-let suppressViewportControlScrollUntil = 0;
 let suppressSettingsHoldClickUntil = 0;
 let settingsSearchLastClick = null;
 let mobileControlsHoldTimer = 0;
@@ -2587,7 +2586,6 @@ function resumeViewportRefreshAfterInput() {
 
 function renderAfterViewportChangePreservingReaderScroll() {
   if (document.visibilityState === "hidden") return;
-  suppressViewportControlScrollUntil = performance.now() + 250;
   if (deferViewportRefreshForActiveInput()) return;
   if (state.mode === "big") {
     schedulePresentationViewportFit();
@@ -2599,7 +2597,6 @@ function renderAfterViewportChangePreservingReaderScroll() {
   presentationResizeTimer = setTimeout(() => {
     if (document.visibilityState === "hidden") return;
     if (deferViewportRefreshForActiveInput()) return;
-    suppressViewportControlScrollUntil = performance.now() + 250;
     renderPreservingReaderScroll({ preferLastReaderAnchor: true, preserveFloatingControls: true });
   }, 120);
 }
@@ -5445,7 +5442,7 @@ function readingSettings(prefix = "", options = {}) {
       </label>
       <label class="setting-label" for="${controlId("FocusControlsHideSeconds")}">Hide after seconds of inactivity</label>
       <input id="${controlId("FocusControlsHideSeconds")}" type="number" min="5" max="300" step="1" value="${state.focusControlsHideSeconds}" data-focus-controls-setting="focusControlsHideSeconds" ${state.focusControlsFade && state.focusControlsHide ? "" : "disabled"} />
-      <p class="setting-help">Default: 10 seconds. Once fully hidden, touch, move the pointer, scroll, or use the keyboard to show controls again.</p>
+      <p class="setting-help">Default: 10 seconds. Once fully hidden, tap, move the mouse, use the scroll wheel, or use the keyboard to show controls again.</p>
     </div>
     <div class="setting-group settings-section-subgroup">
       <span class="setting-label" id="${controlId("SideToolbarPositionLabel")}">Landscape toolbar</span>
@@ -5989,6 +5986,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.7": [
+      "Floating reading controls fade on schedule while you scroll through Scripture.",
+    ],
     "2026.11.27.6": [
       "When signed in, resume at the exact verse where you left off on another device. The verse is spotlighted when you return.",
     ],
@@ -10221,14 +10221,20 @@ function dimFloatingControls(className, { fadeNow = false } = {}) {
 }
 
 function revealMobileSettingsButton(event, { fadeNow = false } = {}) {
-  // Auto-scroll and viewport scroll restoration are not user activity.
-  if (event?.type === "scroll" && floatingControlsFadeEnabled() &&
-      (state.autoScrollActive || (state.focusControlsTouchReveal && performance.now() < suppressViewportControlScrollUntil))) return;
-  if (event && state.focusControlsTouchReveal && floatingControlsFadeEnabled() &&
-      document.querySelector(".focus-control-faded") && !document.querySelector(".focus-control-hidden")) {
-    const control = event.target?.closest?.(".focus-control-faded");
-    if (!control || (event.type !== "pointerdown" &&
-        (event.type !== "focusin" || !event.target.matches(":focus-visible")))) return;
+  if (event && floatingControlsFadeEnabled()) {
+    const hidden = document.querySelector(".focus-control-hidden");
+    // Scroll momentum and the touch movement that produces it should never extend a reveal.
+    if (event.type === "scroll" || event.type === "touchmove" ||
+        (event.type === "pointermove" && event.pointerType === "touch")) return;
+    if (!hidden && (event.type === "wheel" ||
+        (event.type === "pointerdown" && event.pointerType === "touch" &&
+         event.target?.closest?.(".scripture") &&
+         !focusFloatingControls().some(control => control.contains(event.target))))) return;
+    if (state.focusControlsTouchReveal && !hidden && document.querySelector(".focus-control-faded")) {
+      const control = event.target?.closest?.(".focus-control-faded");
+      if (!control || (event.type !== "pointerdown" &&
+          (event.type !== "focusin" || !event.target.matches(":focus-visible")))) return;
+    }
   }
   scheduleReadingControlDimming();
   clearTimeout(focusControlsHideTimer);

@@ -8,11 +8,11 @@ const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFo
   id, focused: false, classes: new Set(),
   classList: { add(...names) { names.forEach(n => this.owner.classes.add(n)); }, remove(...names) { names.forEach(n => this.owner.classes.delete(n)); } },
   matches() { return this.focused; },
+  contains(target) { return target === this; },
 }));
 controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
   activeSettingsChoiceMenu: null,
-  performance: { now: () => 100 },
   state: { focusMode: true, focusControlsFade: true, focusControlsFadeSeconds: 1.5, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
   document: { querySelector: selector => controls.find(b => b.classes.has(selector.slice(1))) ?? null, querySelectorAll: selector => selector.startsWith(".reader-page-button")
     ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "scrollSpeedToggle" && selector.includes(".beside-auto-scroll .scroll-speed-toggle")) || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
@@ -24,13 +24,33 @@ const context = vm.createContext({
   scheduleReadingControlDimming: () => {},
   isCompactScreen: () => false,
 });
-vm.runInContext(`let mobileSettingsIdleTimer = 0, focusControlsHideTimer = 0, suppressViewportControlScrollUntil = 0; ${functions}`, context);
+vm.runInContext(`let mobileSettingsIdleTimer = 0, focusControlsHideTimer = 0; ${functions}`, context);
 const wake = () => context.revealMobileSettingsButton();
 const run = delay => [...timers.values()].filter(t => t.delay === delay).forEach(t => t.fn());
 wake(); run(1500);
 assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'All controls fade on desktop, including auto-scroll');
 assert.equal(timers.size, 1, 'Default never schedules hiding');
 wake(); assert.ok(controls.every(b => b.classes.size === 0), 'Interaction restores visibility');
+const scriptureTarget = { closest: selector => selector === '.scripture' ? scriptureTarget : null };
+const scrollEvents = [
+  { type: 'pointerdown', pointerType: 'touch' },
+  { type: 'pointermove', pointerType: 'touch' },
+  { type: 'touchmove' },
+  { type: 'wheel' },
+  { type: 'scroll' },
+];
+for (const brightenOnlyWhenUsed of [false, true]) {
+  context.state.focusControlsTouchReveal = brightenOnlyWhenUsed;
+  wake();
+  const fadeTimer = nextId;
+  for (const event of scrollEvents) context.revealMobileSettingsButton({ ...event, target: scriptureTarget });
+  assert.equal(nextId, fadeTimer, 'Scrolling Scripture keeps the original fade deadline');
+  run(1500);
+  for (const event of scrollEvents) context.revealMobileSettingsButton({ ...event, target: scriptureTarget });
+  assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'Continued scrolling keeps controls faded');
+}
+wake();
+
 context.state.focusControlsTouchReveal = true;
 context.revealMobileSettingsButton(undefined, { fadeNow: true });
 assert.ok(controls.every(b => b.classes.has('focus-control-faded') && b.classes.has('focus-control-fade-now')), 'Holding fades controls immediately with the shorter transition');
@@ -51,11 +71,10 @@ wake(); run(1500); run(10000);
 context.revealMobileSettingsButton({ type: 'pointermove' });
 assert.ok(controls.every(b => b.classes.size === 0), 'Fully hidden controls can still be recovered');
 wake(); run(1500); run(10000);
-vm.runInContext('suppressViewportControlScrollUntil = 250', context);
 context.revealMobileSettingsButton({ type: 'scroll' });
-assert.ok(controls.every(b => b.classes.has('focus-control-hidden')), 'Viewport scroll restoration leaves hidden controls hidden');
+assert.ok(controls.every(b => b.classes.has('focus-control-hidden')), 'Scroll events leave hidden controls hidden');
 context.revealMobileSettingsButton({ type: 'pointermove' });
-assert.ok(controls.every(b => b.classes.size === 0), 'User activity can still recover hidden controls during viewport changes');
+assert.ok(controls.every(b => b.classes.size === 0), 'Pointer activity can still recover hidden controls');
 context.state.focusControlsFadeSeconds = 4;
 wake(); run(1500);
 assert.ok(controls.every(b => b.classes.size === 0), 'A custom fade delay replaces the default');
