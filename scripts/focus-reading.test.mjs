@@ -9,7 +9,7 @@ const rect = (top,left=10,right=290) => ({top,bottom:top+20,left,right,width:rig
 const text = (left, lines) => ({ closest:()=>({dataset:{version:left===310?'AMP':'BSB'},getBoundingClientRect:()=>({left,right:left+280})}), getBoundingClientRect:()=>({left,right:left+280}), lines, textContent:'Scripture',parentElement:{closest:()=>null} });
 // Nested inline markup produces duplicate rectangles; a parallel column has independent lines.
 const texts = [text(10,[rect(80),rect(80),rect(110)]),text(310,[rect(80,310,590),rect(110,310,590)]),text(10,[rect(150)])];
-const surface = {scrollTop:0,scrollHeight:1000,isConnected:true,clientHeight:200,getBoundingClientRect:()=>({top:50,left:0,width:600,height:200}),querySelectorAll:()=>texts};
+const surface = {scrollTop:0,scrollHeight:1000,isConnected:true,matches:()=>false,querySelector:()=>null,clientHeight:200,getBoundingClientRect:()=>({top:50,left:0,width:600,height:200}),querySelectorAll:()=>texts};
 let renders = 0;
 const context = vm.createContext({state:{focusMode:true,focusReading:true,focusReadingLines:2,focusReadingStyle:'dim',mode:'parallel',reference:'John 3'},
  document:{querySelector:s=>s==='.scripture'?surface:null,getElementById:id=>id==='focusReadingGuide'?guide:status,createTreeWalker:t=>({currentNode:t,done:false,nextNode(){if(this.done)return false;this.done=true;return true;}}),createRange:()=>({selectNodeContents(t){this.text=t;},getClientRects(){return this.text.lines;}})},
@@ -225,3 +225,52 @@ assert.equal(status.textContent, 'Reading line 2 of 2', 'Reflow follows the acti
 texts.splice(0, texts.length, verseFragment('1', [rect(80), rect(110)]), verseFragment('2', [rect(140)]));
 context.measureFocusReading();
 assert.equal(status.textContent, 'Reading line 3 of 3', 'Reflow back still follows the active verse');
+
+// The opening window includes the title and headings above the first verse.
+context.state.focusReadingLines = 1;
+surface.querySelector = () => ({ getBoundingClientRect: () => ({ top: 55 - surface.scrollTop }) });
+surface.scrollTop = 0;
+context.measureFocusReading();
+context.moveFocusReading(-100);
+const opening = context.manualFocusReadingWindowRect(surface);
+assert.equal(opening.top, 5);
+assert.equal(opening.bottom, 50, 'The first line remains clear along with the headings');
+
+// An entering chapter waits for stable geometry before showing its guide.
+surface.matches = () => true;
+context.state.reference = 'John 5';
+context.measureFocusReading();
+context.paintFocusReading();
+assert.equal(guide.hidden, true);
+surface.matches = () => false;
+context.measureFocusReading();
+assert.equal(guide.hidden, false);
+assert.equal(status.textContent, 'Reading line 1 of 3');
+
+// Use the current, clipped window for both manual and animated overlap.
+let barFaded = false;
+context.scheduleReadingControlDimming = () => {};
+const controls = {
+  getBoundingClientRect: () => ({ top: 205, bottom: 245, left: 100, right: 500 }),
+  classList: {
+    contains: () => barFaded,
+    toggle(name, value) { assert.equal(name, 'focus-reading-overlap'); barFaded = value; },
+  },
+};
+context.document.querySelector = selector => selector === '.scripture' ? surface : selector === '.focus-reading-controls' ? controls : null;
+surface.scrollTop = 800;
+vm.runInContext(`
+  focusReadingRects = [
+    { top: 890, bottom: 910, left: 10, right: 590, columnKey: "reader" },
+    { top: 950, bottom: 970, left: 10, right: 590, columnKey: "reader" },
+  ];
+  focusReadingIndex = 0;
+  focusReadingManualScroll = true;
+`, context);
+context.paintFocusReading();
+assert.equal(barFaded, true, 'At the bottom, manual scrolling fades the overlapping bar');
+context.paintFocusReading({ top: 915, bottom: 935, left: 10, right: 590 });
+assert.equal(barFaded, false, 'Moving the window away restores the bar');
+context.paintFocusReading({ top: 940, bottom: 952, left: 10, right: 590 });
+assert.equal(barFaded, true, 'An animated window fades the bar as soon as they meet');
+console.log('Focus Reading regressions: opening headings, chapter entrance, and control overlap passed.');

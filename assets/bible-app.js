@@ -5967,6 +5967,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.26.3": [
+      "Focus Reading reveals chapter headings at the top, stays aligned through chapter swipes, and fades its controls when they overlap the reading window.",
+    ],
     "2026.11.26.2": [
       "A progress outline shows while you hold the Settings button.",
     ],
@@ -10121,12 +10124,13 @@ function updateReadingControlDimming() {
       readingControlMistLayers.set(surface, mist);
     }
     const idle = surface.matches(".focus-control-faded, .focus-control-hidden, .mobile-settings-idle, .reader-top-idle") && !surface.matches(":focus-visible");
+    const focusReadingOverlap = surface.matches(".focus-reading-overlap:not(:has(:focus-visible))");
     const unavailable = surface.matches(".reader-page-button:not(.available)");
     // Revealed navigation and playback arrows share the same mist strength,
     // even when only one happens to sit over a Scripture line.
     const visibleArrow = rect.width > 0 && rect.height > 0 && surface.matches(".reader-page-button, .reader-auto-scroll-button");
-    mist.classList.toggle("is-idle", idle);
-    mist.style.opacity = (overlapsText || visibleArrow) && !idle && !unavailable ? "1" : "0";
+    mist.classList.toggle("is-idle", idle && !focusReadingOverlap);
+    mist.style.opacity = (overlapsText || visibleArrow) && !idle && !unavailable && !focusReadingOverlap ? "1" : "0";
     mist.style.left = `${rect.left - 48}px`;
     mist.style.top = `${rect.top - 48}px`;
     mist.style.width = `${rect.width + 96}px`;
@@ -11129,6 +11133,12 @@ let focusReadingMotionFrame = 0;
 let focusReadingVisualRect = null;
 let focusReadingMoving = false;
 let focusReadingManualScroll = false;
+let focusReadingHeadingTop = Infinity;
+const focusReadingChapterEntranceClasses = [
+  "chapter-swipe-enter-forward", "chapter-swipe-enter-back",
+  "chapter-transition-enter-forward", "chapter-transition-enter-back",
+];
+const focusReadingChapterEntrance = "." + focusReadingChapterEntranceClasses.join(", .");
 
 function focusReadingWindowRect() {
   const first = focusReadingRects[focusReadingIndex];
@@ -11172,10 +11182,10 @@ function manualFocusReadingWindowRect(surface) {
   const rect = focusReadingWindowRect();
   const height = rect.bottom - rect.top;
   let top = center - height / 2;
-  if (focusReadingRects[nearest] === firstLine) {
-    top += topProgress * Math.max(0, rect.top - top);
-  }
-  return { ...rect, top, bottom: top + height };
+  if (focusReadingRects[nearest] !== firstLine) return { ...rect, top, bottom: top + height };
+  top += topProgress * Math.max(0, rect.top - top);
+  const headingReveal = topProgress * Math.max(0, top - focusReadingHeadingTop);
+  return { ...rect, top: top - headingReveal, bottom: top + height };
 }
 
 function cancelFocusReadingMotion() {
@@ -11256,7 +11266,10 @@ function toggleFocusReading() {
 function measureFocusReading() {
   const surface = document.querySelector(".scripture");
   if (!surface || !state.focusMode || !state.focusReading) return;
+  if (surface.matches(focusReadingChapterEntrance)) return;
   const clip = surface.getBoundingClientRect();
+  const heading = surface.querySelector(".section-title, .scripture-heading-group, .parallel-heading-row");
+  focusReadingHeadingTop = heading ? heading.getBoundingClientRect().top - clip.top + surface.scrollTop : Infinity;
   const previousLine = focusReadingRects[focusReadingIndex];
   const rects = [];
   surface.querySelectorAll(".verse-text, .parallel-copy:not(.parallel-heading-copy), .verse-of-day-copy").forEach(text => {
@@ -11319,19 +11332,32 @@ function measureFocusReading() {
 function paintFocusReading(rect = null) {
   const surface = document.querySelector(".scripture");
   const guide = document.getElementById("focusReadingGuide");
-  if (focusReadingManualScroll && !focusReadingMoving && surface) rect = rect || manualFocusReadingWindowRect(surface);
-  const first = focusReadingRects[focusReadingIndex];
-  if (!surface || !guide || !first) { if (guide) guide.hidden = true; return; }
-  guide.hidden = false;
+  if (!surface || !guide || !focusReadingRects[focusReadingIndex]
+    || focusReadingReference !== state.reference || surface.matches(focusReadingChapterEntrance)) {
+    if (guide) guide.hidden = true;
+    return;
+  }
+  if (focusReadingManualScroll && !focusReadingMoving) rect = rect || manualFocusReadingWindowRect(surface);
   const clip = surface.getBoundingClientRect();
   rect = rect || (focusReadingMoving ? focusReadingVisualRect : focusReadingWindowRect());
   if (!rect) return;
+  guide.hidden = false;
   focusReadingVisualRect = rect;
   const top = Math.max(0, Math.min(clip.height, rect.top - surface.scrollTop - 3));
   const bottom = Math.max(top, Math.min(clip.height, rect.bottom - surface.scrollTop + 3));
   const left = Math.max(0, rect.left - 4), right = Math.min(clip.width, rect.right + 4);
   guide.className = `focus-reading-guide ${state.focusReadingStyle}`;
   Object.assign(guide.style, { left: `${clip.left}px`, top: `${clip.top}px`, width: `${clip.width}px`, height: `${clip.height}px` });
+  const controls = document.querySelector(".focus-reading-controls");
+  if (controls) {
+    const bar = controls.getBoundingClientRect();
+    const overlaps = bottom > top && clip.top + bottom >= bar.top && clip.top + top < bar.bottom
+      && clip.left + right > bar.left && clip.left + left < bar.right;
+    if (controls.classList.contains("focus-reading-overlap") !== overlaps) {
+      controls.classList.toggle("focus-reading-overlap", overlaps);
+      scheduleReadingControlDimming();
+    }
+  }
   const areas = [[0,0,clip.width,top], [0,bottom,clip.width,clip.height-bottom], [0,top,left,bottom-top], [right,top,clip.width-right,bottom-top]];
   [...guide.children].forEach((mask, index) => {
     const [x,y,w,h] = areas[index];
@@ -11372,6 +11398,7 @@ function bindFocusReading() {
   }, { passive: true });
   const guide = document.createElement("div");
   guide.id = "focusReadingGuide";
+  guide.hidden = true;
   guide.setAttribute("aria-hidden", "true");
   guide.innerHTML = "<div></div><div></div><div></div><div></div>";
   document.querySelector(".reader").append(guide);
@@ -11379,6 +11406,16 @@ function bindFocusReading() {
     cancelAnimationFrame(focusReadingFrame);
     focusReadingFrame = requestAnimationFrame(measureFocusReading);
   };
+  if (surface.matches(focusReadingChapterEntrance)) {
+    const finishEntrance = () => {
+      if (!surface.isConnected) return;
+      surface.classList.remove(...focusReadingChapterEntranceClasses);
+      measureFocusReading();
+    };
+    const entrance = surface.getAnimations().find(animation => animation.animationName?.startsWith("reader-chapter-"));
+    if (entrance) entrance.finished.then(finishEntrance, finishEntrance);
+    else finishEntrance();
+  }
   focusReadingObserver = new ResizeObserver(schedule);
   focusReadingObserver.observe(surface);
   surface.querySelectorAll(".verse-text, .parallel-copy, .verse-of-day-copy").forEach(text => focusReadingObserver.observe(text));
@@ -35685,6 +35722,7 @@ function resetReaderChapterSwipe({ animate = true, swipe = readerChapterTouchSta
     if (!surface.isConnected) return;
     surface.classList.remove("reader-chapter-swipe-settling");
     surface.style.removeProperty("--reader-swipe-x");
+    if (state.focusMode && state.focusReading) paintFocusReading();
   }, 220);
 }
 
