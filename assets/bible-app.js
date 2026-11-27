@@ -11463,6 +11463,9 @@ function bindFocusReading() {
     const entrance = surface.getAnimations().find(animation => animation.animationName?.startsWith("reader-chapter-"));
     if (entrance) entrance.finished.then(finishEntrance, finishEntrance);
     else finishEntrance();
+  } else {
+    // Paint before the first frame of a reader rebuild can show unmasked text.
+    measureFocusReading();
   }
   focusReadingObserver = new ResizeObserver(schedule);
   focusReadingObserver.observe(surface);

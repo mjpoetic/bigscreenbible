@@ -26024,8 +26024,8 @@ html #app .app-shell button:not(:disabled):not([aria-disabled="true"]):active {
 
 /* Focus Reading masks only Scripture; the original text stays selectable and accessible. */
 .focus-reading-guide { position: fixed; z-index: 8; pointer-events: none; overflow: hidden; }
-.reader:has(> .scripture:is(.reader-chapter-swiping, .reader-chapter-swipe-settling,
-  .reader-chapter-swipe-commit-forward, .reader-chapter-swipe-commit-back,
+/* Keep the guide in place while a swipe previews or settles on the current chapter. */
+.reader:has(> .scripture:is(.reader-chapter-swipe-commit-forward, .reader-chapter-swipe-commit-back,
   .chapter-transition-out-forward, .chapter-transition-out-back)) > .focus-reading-guide {
   visibility: hidden;
 }

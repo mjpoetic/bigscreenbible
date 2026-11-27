@@ -274,3 +274,11 @@ assert.equal(barFaded, false, 'Moving the window away restores the bar');
 context.paintFocusReading({ top: 940, bottom: 952, left: 10, right: 590 });
 assert.equal(barFaded, true, 'An animated window fades the bar as soon as they meet');
 console.log('Focus Reading regressions: opening headings, chapter entrance, and control overlap passed.');
+
+// A chapter swipe can settle back onto the same passage. Neither phase
+// should match the CSS rule that hides the guide during a committed exit.
+const stylesheet = readFileSync(new URL('../assets/bible-app.css', import.meta.url), 'utf8');
+const guideVisibilitySelector = stylesheet.match(/([^{}]+)> \.focus-reading-guide\s*\{\s*visibility: hidden;/)?.[1];
+assert.ok(guideVisibilitySelector, 'Committed chapter exits still hide the old guide');
+assert.match(guideVisibilitySelector, /\.reader-chapter-swipe-commit-forward\b/);
+assert.doesNotMatch(guideVisibilitySelector, /\.reader-chapter-(?:swiping|swipe-settling)\b/);
