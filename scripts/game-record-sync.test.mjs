@@ -24,6 +24,9 @@ const client = { from() {
     insert(value) { operation = 'insert'; payload = clone(value); return this; },
     async maybeSingle() {
       if (failReads) return { error: new Error('offline') };
+      if (columns === 'reading_position:settings->readingPosition') {
+        return { data: clone({ reading_position: row?.settings.readingPosition }) };
+      }
       if (columns === 'toolbar_layouts:settings->studyToolbarLayouts') {
         return { data: clone({ toolbar_layouts: row?.settings.studyToolbarLayouts }) };
       }
@@ -42,7 +45,7 @@ const client = { from() {
 function device() {
   const storage = new Map();
   const ctx = vm.createContext({
-    console, window:{}, document:{querySelector:()=>null}, state: { authUser: {id: 'a'}, versions: ['BSB'] }, cloudSyncTable: 'bsb_user_sync',
+    console, window:{}, requestAnimationFrame() {}, document:{querySelector:()=>null}, state: { authUser: {id: 'a'}, versions: ['BSB'] }, cloudSyncTable: 'bsb_user_sync',
     localStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v), removeItem: k => storage.delete(k) },
     createSupabaseClient: () => client,
     authenticatedSupabaseSession: async () => ({user: {id: 'a'}}),
@@ -58,6 +61,7 @@ function device() {
     'captureGameRecords','applyGameRecords','captureCloudSnapshot','normalizeCloudRow',
     'captureMemoryPassages','mergeMemoryPassages','applyMemoryPassages','applySyncedMemoryPassages',
     'memoryPassages','syncMemoryOnOpen',
+    'latestReadingPosition','localAccountReadingPosition','rememberCloudReadingPosition','maybeOfferReadingResume','refreshCloudReadingPosition','saveAccountReadingPosition','canTrackAccountReading',
     'normalizedVersionsUpdatedAt','normalizeStudyToolbarLayout','readStudyToolbarLayout','captureStudyToolbarLayouts',
     'mergeStudyToolbarLayouts','applyStudyToolbarLayouts','saveStudyToolbarLayout','refreshStudyToolbarLayouts',
     'mergeAnnotationDates','normalizedScriptureFontWeights','mergeScriptureFontWeights','mergeCloudSnapshots','uniqueList','blankLocalSnapshot','upsertCloudSnapshot']) vm.runInContext(extract(name), ctx);
@@ -211,3 +215,62 @@ for (const name of ['recordBookSprintBest','recordWordSearchBest','recordCrosswo
 }
 assert.match(extract('persistCloudSnapshotLocally'), /applyGameRecords\(settings.gameRecords\)/);
 console.log('Game record sync passed: all games, legacy import, two devices, bests, score deduplication, concurrent saves, offline retention, and account isolation.');
+
+// A newer position survives writes from an older device and offers an exact-verse resume.
+function setupReading(device, id) {
+  let dialog;
+  const navigations = [];
+  const document = {
+    visibilityState: 'visible',
+    querySelector: () => dialog?.open ? dialog : null,
+    createElement: () => ({
+      setAttribute() {},
+      addEventListener(_, handler) { this.onClose = handler; },
+      showModal() { this.open = true; },
+      close(value) { this.returnValue = value; this.onClose(); },
+      remove() { dialog = null; },
+    }),
+    body: { append(value) { dialog = value; } },
+  };
+  Object.assign(device, {
+    dataLoading: false, dataError: false, document, crypto: { randomUUID: () => id },
+    currentReaderScrollAnchor: () => ({ verse: '1' }),
+    referenceExists: reference => /^John 3:\d+$/.test(reference),
+    escapeHtml: value => value, cancelReaderAppResumeRestore() {},
+    gotoReference: (reference, options) => navigations.push([reference, options.spotlight]),
+  });
+  Object.assign(device.state, { mode: 'reader', startupApplied: true, reference: 'John 3', verse: 1 });
+  return { get dialog() { return dialog; }, navigations };
+}
+const readingSource = device(), readingDestination = device();
+const macReading = setupReading(readingSource, 'mac');
+const phoneReading = setupReading(readingDestination, 'phone');
+readingSource.saveAccountReadingPosition('John 3', 16);
+await readingSource.upsertCloudSnapshot();
+const savedReadingPosition = readingSource.localAccountReadingPosition('a');
+assert.equal(readingSource.localAccountReadingPosition('another-account'), null);
+assert.equal(row.settings.readingPosition.reference, 'John 3:16');
+readingSource.maybeOfferReadingResume();
+assert.equal(macReading.dialog, undefined, 'A device should never offer its own reading position');
+
+readingDestination.localStorage.setItem('lw_synced_reading_position:a', JSON.stringify({
+  reference: 'John 3:2', deviceId: 'phone', savedAt: savedReadingPosition.savedAt - 1,
+}));
+readingDestination.localStorage.setItem('lw_reading_device', 'phone');
+await readingDestination.upsertCloudSnapshot();
+await readingDestination.refreshCloudReadingPosition();
+assert.equal(row.settings.readingPosition.reference, 'John 3:16');
+readingDestination.maybeOfferReadingResume();
+assert.match(phoneReading.dialog.innerHTML, /John 3:16/);
+phoneReading.dialog.close('dismiss');
+readingDestination.maybeOfferReadingResume();
+assert.equal(phoneReading.dialog, null, 'Not now suppresses the same position');
+assert.deepEqual(phoneReading.navigations, []);
+
+readingSource.saveAccountReadingPosition('John 3', 21);
+await readingSource.upsertCloudSnapshot();
+await readingDestination.refreshCloudReadingPosition();
+readingDestination.maybeOfferReadingResume();
+phoneReading.dialog.close('resume');
+assert.deepEqual(phoneReading.navigations, [['John 3:21', true]]);
+console.log('Cross-device reading position and resume tests passed');

@@ -30025,3 +30025,29 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
 .presentation-bottom:has(> .settings-spotlight-presentation) .presentation-settings-menu {
   z-index: 351;
 }
+
+.reading-resume-dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100% - 32px));
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: 0 24px 80px #0005;
+}
+
+.reading-resume-dialog::backdrop {
+  background: #14212e80;
+}
+
+.reading-resume-dialog h2 {
+  margin: 0;
+}
+
+.reading-resume-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}

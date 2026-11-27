@@ -2336,6 +2336,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   scheduleWordSearchTimer();
   scheduleCrosswordTimer();
   syncGameMusicPlayback();
+  if (state.cloudReadingPosition?.position) requestAnimationFrame(maybeOfferReadingResume);
 }
 
 function chapterChangeIndicator(change) {
@@ -3026,7 +3027,7 @@ function currentReaderScrollAnchor() {
   };
 }
 
-function refreshLastReaderScrollAnchor() {
+function refreshLastReaderScrollAnchor({ syncReading = false } = {}) {
   const anchor = currentReaderScrollAnchor();
   if (!anchor) return;
   const scripture = document.querySelector(".scripture");
@@ -3036,6 +3037,7 @@ function refreshLastReaderScrollAnchor() {
     && (lastReaderViewportSize.width !== viewportSize.width || lastReaderViewportSize.height !== viewportSize.height),
   );
   lastReaderScrollAnchor = anchor;
+  if (syncReading) saveAccountReadingPosition(anchor.reference, anchor.verse);
   if ((scripture?.scrollTop || 0) > 8) {
     lastReaderNonTopScrollAnchor = anchor;
   } else if (!viewportChanged) {
@@ -5987,6 +5989,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.6": [
+      "When signed in, resume at the exact verse where you left off on another device. The verse is spotlighted when you return.",
+    ],
     "2026.11.27.4": [
       "Tap Clear results in portrait search to remove Current chapter highlights and start a new search.",
     ],
@@ -8487,6 +8492,8 @@ function accountDataOwner() {
 function setAccountDataOwner(owner = guestDataOwner) {
   const normalizedOwner = String(owner || guestDataOwner).trim() || guestDataOwner;
   if (accountDataOwner() !== normalizedOwner) {
+    document.getElementById("readingResumeDialog")?.close("account-change");
+    state.cloudReadingPosition = null;
     state.memoryPractice = null;
     state.memoryNotice = "";
     state.memorySearch = "";
@@ -10784,7 +10791,7 @@ function handleReaderScrollPositionChange() {
     restoreReaderScrollAfterAppSwitch();
     return;
   }
-  refreshLastReaderScrollAnchor();
+  refreshLastReaderScrollAnchor({ syncReading: Date.now() < readerUserScrollIntentUntil || state.autoScrollActive });
   scheduleReaderPositionPersistence();
 }
 
@@ -16784,6 +16791,8 @@ function openDeleteAccountDialog(appleProof = null) {
       applyCloudSnapshot(guestBrowserSnapshot() || blankLocalSnapshot());
       localStorage.setItem(rememberedAccountsStorageKey, JSON.stringify(rememberedAccounts().filter(item => item.userId !== userId)));
       localStorage.removeItem(accountSnapshotStorageKey(userId));
+      localStorage.removeItem(`lw_synced_reading_position:${userId}`);
+      localStorage.removeItem(`lw_reading_resume_seen:${userId}`);
       removeRememberedAccountSession(userId);
       resetSocialProfileState(); resetFriendshipState(); resetGameChallengeState();
       await client.auth.signOut({scope: "local"});
@@ -16967,6 +16976,131 @@ function refreshAccountGameRecords() {
     state.syncStatus = "error";
     state.syncMessage = "Could not sync your latest change yet.";
   });
+}
+
+function localAccountReadingPosition(userId) {
+  if (!userId) return null;
+  try {
+    return latestReadingPosition(JSON.parse(localStorage.getItem(`lw_synced_reading_position:${userId}`)));
+  } catch {
+    return null;
+  }
+}
+
+function latestReadingPosition(...positions) {
+  let latest = null;
+  for (const position of positions) {
+    if (!position || typeof position.reference !== "string"
+      || !/^(?:[1-3] )?[A-Za-z ]+ [1-9]\d*:[1-9]\d*$/.test(position.reference)
+      || position.reference.length > 80 || typeof position.deviceId !== "string"
+      || !position.deviceId || position.deviceId.length > 80
+      || !Number.isSafeInteger(position.savedAt) || position.savedAt <= 0) continue;
+    if (!latest || position.savedAt > latest.savedAt) {
+      const { reference, deviceId, savedAt } = position;
+      latest = { reference, deviceId, savedAt };
+    }
+  }
+  return latest;
+}
+
+function canTrackAccountReading() {
+  return ["reader", "parallel"].includes(state.mode)
+    && !state.sharedPassage && !state.isVerseOfDayActive && !window.BSBImportedReader?.isActive();
+}
+
+function saveAccountReadingPosition(reference, verse, { sync = true } = {}) {
+  const userId = state.authUser?.id;
+  if (!userId || accountDataOwner() !== userId || !canTrackAccountReading()) return;
+  try {
+    const ref = `${reference}:${verse}`;
+    const previous = localAccountReadingPosition(userId);
+    if (previous?.reference === ref || !referenceExists(ref)) return;
+    const deviceId = localStorage.getItem("lw_reading_device") || crypto.randomUUID();
+    localStorage.setItem("lw_reading_device", deviceId);
+    const position = { reference: ref, deviceId, savedAt: Math.max(Date.now(), (previous?.savedAt || 0) + 1) };
+    localStorage.setItem(`lw_synced_reading_position:${userId}`, JSON.stringify(position));
+    if (sync) scheduleCloudSync();
+  } catch {
+    // Local storage can be unavailable in private browsing.
+  }
+}
+
+function flushAccountReadingPosition() {
+  const userId = state.authUser?.id;
+  if (!userId || accountDataOwner() !== userId || state.authBusy || state.syncStatus !== "pending"
+    || window.bsbOffline?.active) return;
+  const local = localAccountReadingPosition(userId);
+  const cloud = state.cloudReadingPosition?.position;
+  if (!local || local.savedAt <= (cloud?.savedAt || 0)) return;
+  // Start the write before the browser throttles the scheduled sync in the background.
+  // Keep the existing timer so it can retry if the page is suspended mid-request.
+  void upsertCloudSnapshot().catch(error => console.warn("Reading position could not sync", error));
+}
+
+function rememberCloudReadingPosition(userId, value) {
+  const previous = state.cloudReadingPosition?.userId === userId ? state.cloudReadingPosition.position : null;
+  state.cloudReadingPosition = { userId, position: latestReadingPosition(previous, value) };
+  if (state.cloudReadingPosition.position && !state.authBusy) {
+    requestAnimationFrame(maybeOfferReadingResume);
+  }
+}
+
+function maybeOfferReadingResume() {
+  const { userId, position } = state.cloudReadingPosition || {};
+  if (!position || state.authBusy || state.authUser?.id !== userId || accountDataOwner() !== userId
+    || dataLoading || dataError || !state.startupApplied || document.visibilityState === "hidden"
+    || window.bsbOffline?.active || !["reader", "parallel"].includes(state.mode)
+    || state.sharedPassage || window.BSBImportedReader?.isActive() || state.tutorialIntroVisible || state.tutorialActive
+    || document.querySelector("dialog[open]")) return;
+  const local = localAccountReadingPosition(userId);
+  const dismissedKey = `lw_reading_resume_seen:${userId}`;
+  if (position.deviceId === localStorage.getItem("lw_reading_device") || position.savedAt <= (local?.savedAt || 0)
+    || position.savedAt <= Number(localStorage.getItem(dismissedKey))
+    || !referenceExists(position.reference)) return;
+  const anchor = currentReaderScrollAnchor();
+  if (position.reference === `${state.reference}:${anchor?.verse ?? state.verse}`) return;
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "reading-resume-dialog";
+  dialog.id = "readingResumeDialog";
+  dialog.setAttribute("aria-labelledby", "readingResumeTitle");
+  dialog.innerHTML = `
+    <form method="dialog">
+      <h2 id="readingResumeTitle">Resume reading?</h2>
+      <p>You left off at <strong>${escapeHtml(position.reference)}</strong> on another device.</p>
+      <div class="reading-resume-actions">
+        <button class="ghost-btn" value="dismiss" autofocus>Not now</button>
+        <button class="primary-btn" value="resume">Resume</button>
+      </div>
+    </form>`;
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (dialog.returnValue === "account-change" || state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    localStorage.setItem(dismissedKey, String(position.savedAt));
+    if (dialog.returnValue !== "resume") return;
+    cancelReaderAppResumeRestore();
+    gotoReference(position.reference, { closeLibrary: true, spotlight: true });
+  }, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+async function refreshCloudReadingPosition() {
+  const userId = state.authUser?.id;
+  if (!userId || accountDataOwner() !== userId || state.authBusy || window.bsbOffline?.active) return;
+  const client = createSupabaseClient();
+  if (!client) return;
+  try {
+    const { data, error } = await client.from(cloudSyncTable)
+      .select("reading_position:settings->readingPosition").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
+    rememberCloudReadingPosition(userId, data?.reading_position);
+    const local = localAccountReadingPosition(userId);
+    if (local && local.savedAt > (latestReadingPosition(data?.reading_position)?.savedAt || 0)) scheduleCloudSync();
+  } catch (error) {
+    console.warn("Reading position could not refresh", error);
+  }
 }
 
 function captureCloudSnapshot() {
@@ -17569,6 +17703,7 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
     if (readError) throw readError;
     if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
     const next = { ...snapshot, settings: { ...snapshot.settings,
+      readingPosition: latestReadingPosition(current?.settings?.readingPosition, localAccountReadingPosition(userId)),
       studyToolbarLayouts: mergeStudyToolbarLayouts(current?.settings?.studyToolbarLayouts, snapshot.settings?.studyToolbarLayouts),
       scriptureFontWeights: mergeScriptureFontWeights(current?.settings?.scriptureFontWeights, snapshot.settings?.scriptureFontWeights),
       presentationScriptureFontWeights: mergeScriptureFontWeights(current?.settings?.presentationScriptureFontWeights, snapshot.settings?.presentationScriptureFontWeights),
@@ -17589,6 +17724,7 @@ async function upsertCloudSnapshot(snapshot = captureCloudSnapshot(), options = 
   if (!savedSnapshot) throw new Error("Another device is syncing. Please try syncing again.");
   if (state.authUser?.id !== userId || accountDataOwner() !== userId) return;
   saveSnapshotForOwner(userId, savedSnapshot);
+  rememberCloudReadingPosition(userId, savedSnapshot.settings.readingPosition);
   applyGameRecords(mergeGameRecords(savedSnapshot.settings.gameRecords, captureGameRecords()));
   applyStudyToolbarLayouts(mergeStudyToolbarLayouts(savedSnapshot.settings.studyToolbarLayouts, captureStudyToolbarLayouts()));
   applySyncedMemoryPassages(savedSnapshot.settings.memoryPassages);
@@ -34354,6 +34490,7 @@ function recordHistory(ref = referenceLabel()) {
   history.unshift({ ref, at: new Date().toISOString() });
   state.history = history.slice(0, 80);
   localStorage.setItem("lw_history", JSON.stringify(state.history));
+  saveAccountReadingPosition(state.reference, state.verse, { sync: false });
   scheduleCloudSync();
 }
 
@@ -39340,6 +39477,7 @@ window.addEventListener("online",()=>{
   if(document.getElementById("coloringBook"))void syncColoringOnOpen();
   void syncMemoryOnOpen();
   void refreshStudyToolbarLayouts();
+  void refreshCloudReadingPosition();
 });
 document.addEventListener("visibilitychange", () => {
   syncNativeWidgetSnapshot();
@@ -39355,9 +39493,11 @@ document.addEventListener("visibilitychange", () => {
     pauseGameMusic({ fade: false });
     pauseReaderAutoScroll();
     rememberReaderScrollBeforeAppSwitch();
+    flushAccountReadingPosition();
     return;
   }
   void refreshStudyToolbarLayouts();
+  void refreshCloudReadingPosition();
   if (nativePushPlugin() && !state.pushBusy) initializePushNotifications().then(() => {
     if (state.settingsOpen) renderPreservingReaderScroll();
   });
@@ -39373,6 +39513,7 @@ document.addEventListener("bsb-ambient-change", syncGameMusicPlayback);
 window.addEventListener("pagehide", () => pauseGameMusic({ fade: false }));
 window.addEventListener("pagehide", () => pauseReaderAutoScroll({ updateControl: false }));
 window.addEventListener("pagehide", rememberReaderScrollBeforeAppSwitch);
+window.addEventListener("pagehide", flushAccountReadingPosition);
 window.addEventListener("pageshow", () => {
   restoreReaderScrollAfterAppSwitch({ allowStored: isStandaloneWebApp() });
   syncGameMusicPlayback();

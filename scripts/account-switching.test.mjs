@@ -42,6 +42,7 @@ const storage = new Map();
 let liveSnapshot = snapshot("account-a");
 const appliedSnapshots = [];
 const context = {
+  document: { getElementById: () => null },
   accountDataOwnerStorageKey: "lw_account_data_owner",
   guestSnapshotStorageKey: "lw_guest_snapshot",
   accountSnapshotStoragePrefix: "lw_account_snapshot:",
