@@ -3601,7 +3601,7 @@ function focusSearchPanelMarkup() {
           <button class="primary-btn" type="submit" aria-label="Search">${icons.search}</button>
         </div>
         ${searchScopeControls({ showResults: state.focusSearchResultsOpen, showClear: state.focusSearchResultsOpen && Boolean(state.searchResultsQuery) })}
-        ${chapterFindControls()}
+        ${chapterFindControls({ showClear: true })}
       </form>
       ${state.focusSearchResultsOpen && state.searchResultsQuery ? `
         <div class="mobile-focus-search-results-body" aria-live="polite" aria-busy="${state.searchPending}">
@@ -5987,6 +5987,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.4": [
+      "Tap Clear results in portrait search to remove Current chapter highlights and start a new search.",
+    ],
     "2026.11.27.3": [
       "Floating reading controls stay faded when you rotate the device with Brighten only when used enabled. They fade sooner by default, and you can set the idle delay in the floating controls menu or Reading & navigation.",
     ],
@@ -33023,8 +33026,9 @@ function canFindInChapter(source = state.searchSource, scope = state.searchScope
     && !window.BSBImportedReader?.isActive();
 }
 
-function chapterFindControls() {
+function chapterFindControls({ showClear = false } = {}) {
   return `<span class="chapter-find-controls" data-chapter-find-controls hidden>
+    ${showClear ? '<button class="search-filter-chip chapter-find-clear" type="button" data-clear-search-results>Clear results</button>' : ""}
     <output data-inline-search-progress aria-live="polite"></output>
     <button type="button" data-chapter-find-step="-1" aria-label="Previous match">↑</button>
     <button type="button" data-chapter-find-step="1" aria-label="Next match">↓</button>
@@ -33048,7 +33052,7 @@ function updateInlineSearchProgress() {
   document.querySelectorAll("[data-chapter-find-controls]").forEach((controls) => {
     controls.hidden = !query;
     controls.querySelector("output").textContent = query ? progress : "";
-    controls.querySelectorAll("button").forEach((button) => { button.disabled = count < 2; });
+    controls.querySelectorAll("[data-chapter-find-step]").forEach((button) => { button.disabled = count < 2; });
   });
   document.querySelector(".focus-portrait-search")?.classList.toggle("chapter-find-open", canFindInChapter());
 }
@@ -33130,7 +33134,7 @@ function runInlineChapterSearch(query, searchChapter = state.reference) {
     state.focusReferenceOpen = true;
     document.querySelector(".focus-portrait-search .mobile-focus-search-results-body")?.remove();
     document.querySelector(".focus-portrait-search [data-expand-scripture-search]")?.remove();
-    document.querySelector(".focus-portrait-search [data-clear-search-results]")?.remove();
+    document.querySelector(".focus-portrait-search .search-filter-row [data-clear-search-results]")?.remove();
   }
   state.inlineSearchQuery = query;
   state.inlineSearchChapter = searchChapter;
@@ -33152,6 +33156,7 @@ function moveChapterFind(direction) {
 }
 
 function clearSearchResults() {
+  const hadInlineChapterSearch = Boolean(state.inlineSearchQuery);
   state.searchReturnAvailable = false;
   state.searchReturnScroll = null;
   state.strongSearchReturn = null;
@@ -33165,7 +33170,8 @@ function clearSearchResults() {
   state.searchResultsChapter = normalizedSearchChapter(state.reference);
   state.searchResults = [];
   state.searchPending = false;
-  render();
+  if (hadInlineChapterSearch) renderPreservingReaderScroll();
+  else render();
 }
 
 async function searchScriptureTranslation(version, { query, criteria, scope, chapter }) {

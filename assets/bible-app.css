@@ -29964,7 +29964,15 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
 
 .focus-portrait-search .chapter-find-controls:not([hidden]) {
   display: flex;
+  grid-column: 1 / -1;
   justify-content: end;
+}
+
+.focus-portrait-search .chapter-find-controls .chapter-find-clear {
+  margin-inline-end: auto;
+  min-block-size: 44px;
+  padding-inline: 10px;
+  border-color: var(--line);
 }
 
 .settings-spotlight {
