@@ -5967,6 +5967,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.26.4": [
+      "Scripture text selection shows a single Copy selected text button. Tap or click outside it to dismiss.",
+    ],
     "2026.11.26.3": [
       "Focus Reading reveals chapter headings at the top, stays aligned through chapter swipes, and fades its controls when they overlap the reading window.",
     ],
@@ -24826,10 +24829,10 @@ function setStudyPopupContent(popup, content, label, options = {}) {
   popup.className = ["study-popup", options.className || ""].filter(Boolean).join(" ");
   popup.setAttribute("aria-label", label);
   popup.innerHTML = `
-    <div class="study-popup-head">
+    ${options.hideHeader ? "" : `<div class="study-popup-head">
       <div class="study-popup-title">${escapeHtml(label)}</div>
       <button class="study-popup-close glass-close-control" type="button" aria-label="Close popup">${icons.clear}</button>
-    </div>
+    </div>`}
     ${content}
   `;
   popup.querySelector(".study-popup-close")?.addEventListener("click", () => {
@@ -24913,7 +24916,8 @@ function positionStudyPopup(anchor, popup) {
 function closeStudyPopupOnOutside(event) {
   const popup = document.getElementById("studyPopup");
   if (!popup) return;
-  if (popup.contains(event.target) || event.target.closest?.(".scripture-word-handle, [data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference], [data-publisher-footnote]")) return;
+  if (popup.contains(event.target) || event.target.closest?.(".scripture-word-handle")) return;
+  if (!popup.readerWordGesture && event.target.closest?.("[data-strong], [data-cross-ref-verse], [data-cross-ref-hold], [data-heading-reference], [data-scripture-reference], [data-publisher-footnote]")) return;
   closeStudyPopup();
 }
 
@@ -36627,7 +36631,7 @@ function endReaderWordDrag(gesture, released) {
   }
   const popup = showStudyPopup(gesture.text,
     '<button class="ghost-btn" type="button" data-copy-dragged-text>Copy selected text</button>',
-    "Selected Scripture", { className: "selected-text-popup" });
+    "Selected Scripture", { className: "selected-text-popup", hideHeader: true });
   popup.readerWordGesture = gesture;
   attachReaderWordHandles(gesture, popup);
   popup.querySelector("[data-copy-dragged-text]").addEventListener("click", async () => {

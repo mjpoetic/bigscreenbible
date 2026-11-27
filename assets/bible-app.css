@@ -12138,20 +12138,17 @@ select {
 
 .selected-text-popup {
   display: flex;
-  align-items: center;
-  gap: 4px;
   width: max-content;
   max-width: calc(100vw - 16px);
-  padding: 4px;
+  padding: 0;
   border: 0;
+  background: transparent;
+  box-shadow: none;
   animation: none;
 }
 
 .selected-text-popup[hidden] { display: none; }
 .selected-text-popup-offscreen { visibility: hidden; }
-.selected-text-popup .study-popup-head { display: contents; }
-.selected-text-popup .study-popup-title { display: none; }
-.selected-text-popup .study-popup-close { order: 1; }
 
 .study-insights-link {
   margin: 4px 0 10px;
