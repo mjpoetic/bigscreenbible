@@ -22,7 +22,7 @@ const context = vm.createContext({
   },
   playControlHaptic() { haptics++; },
 });
-vm.runInContext(source.slice(source.indexOf('function setQuickReadingControlsSettings('), source.indexOf('function bindReaderControlsFadeToggle(')), context);
+vm.runInContext(source.slice(source.indexOf('const floatingControlsStorageKeys ='), source.indexOf('function bindReaderControlsFadeToggle(')), context);
 context.bindReaderControlsFadeHold(button);
 function fire(name, overrides = {}) {
   const event = { pointerId: 1, button: 0, clientX: 0, clientY: 0, detail: 1,

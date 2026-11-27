@@ -12,7 +12,8 @@ const controls = ['mobileFloatingSettings', 'readerAutoScrollButton', 'desktopFo
 controls.forEach(b => b.classList.owner = b);
 const context = vm.createContext({
   activeSettingsChoiceMenu: null,
-  state: { focusMode: true, focusControlsFade: true, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
+  performance: { now: () => 100 },
+  state: { focusMode: true, focusControlsFade: true, focusControlsFadeSeconds: 1.5, focusControlsHide: false, focusControlsHideSeconds: 10, mode: 'reader' },
   document: { querySelector: selector => controls.find(b => b.classes.has(selector.slice(1))) ?? null, querySelectorAll: selector => selector.startsWith(".reader-page-button")
     ? controls.filter(b => b.id === "readerAutoScrollButton" || (b.id === "scrollSpeedToggle" && selector.includes(".beside-auto-scroll .scroll-speed-toggle")) || (b.id === "pageDown" && !selector.includes(".available")) || (selector.includes(".reader-return-button") && ['readerReturnButton', 'readerForwardButton'].includes(b.id)) || (selector.includes(".scripture-reader-launcher") && b.id === "scriptureReaderLauncher"))
     : selector.startsWith("#mobileFloatingSettings")
@@ -23,10 +24,10 @@ const context = vm.createContext({
   scheduleReadingControlDimming: () => {},
   isCompactScreen: () => false,
 });
-vm.runInContext(`let mobileSettingsIdleTimer = 0, focusControlsHideTimer = 0; ${functions}`, context);
+vm.runInContext(`let mobileSettingsIdleTimer = 0, focusControlsHideTimer = 0, suppressViewportControlScrollUntil = 0; ${functions}`, context);
 const wake = () => context.revealMobileSettingsButton();
 const run = delay => [...timers.values()].filter(t => t.delay === delay).forEach(t => t.fn());
-wake(); run(3200);
+wake(); run(1500);
 assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'All controls fade on desktop, including auto-scroll');
 assert.equal(timers.size, 1, 'Default never schedules hiding');
 wake(); assert.ok(controls.every(b => b.classes.size === 0), 'Interaction restores visibility');
@@ -42,13 +43,25 @@ context.revealMobileSettingsButton({ type: 'pointerdown', target: { closest: () 
 assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'Other activity leaves controls faded');
 context.revealMobileSettingsButton({ type: 'pointerdown', target: fadedTarget });
 assert.ok(controls.every(b => b.classes.size === 0), 'Pressing a faded control brightens all controls');
-run(3200);
+run(1500);
 context.revealMobileSettingsButton({ type: 'focusin', target: fadedTarget });
 assert.ok(controls.every(b => b.classes.size === 0), 'Keyboard focus brightens all controls');
 context.state.focusControlsHide = true;
-wake(); run(3200); run(10000);
+wake(); run(1500); run(10000);
 context.revealMobileSettingsButton({ type: 'pointermove' });
 assert.ok(controls.every(b => b.classes.size === 0), 'Fully hidden controls can still be recovered');
+wake(); run(1500); run(10000);
+vm.runInContext('suppressViewportControlScrollUntil = 250', context);
+context.revealMobileSettingsButton({ type: 'scroll' });
+assert.ok(controls.every(b => b.classes.has('focus-control-hidden')), 'Viewport scroll restoration leaves hidden controls hidden');
+context.revealMobileSettingsButton({ type: 'pointermove' });
+assert.ok(controls.every(b => b.classes.size === 0), 'User activity can still recover hidden controls during viewport changes');
+context.state.focusControlsFadeSeconds = 4;
+wake(); run(1500);
+assert.ok(controls.every(b => b.classes.size === 0), 'A custom fade delay replaces the default');
+run(4000);
+assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'Controls fade after the custom delay');
+context.state.focusControlsFadeSeconds = 1.5;
 context.state.focusControlsTouchReveal = false;
 context.state.focusControlsHide = true;
 wake(); run(10000);
@@ -57,18 +70,18 @@ context.state.settingsOpen = true;
 wake(); assert.equal(timers.size, 0, 'Open settings suppress idle timers');
 context.state.settingsOpen = false;
 controls[1].focused = true;
-wake(); run(3200); run(10000);
+wake(); run(1500); run(10000);
 assert.equal(controls[1].classes.size, 0, 'Keyboard-focused auto-scroll stays visible');
 controls[1].focused = false;
 controls[5].focused = true;
-wake(); run(3200); run(10000);
+wake(); run(1500); run(10000);
 assert.equal(controls[5].classes.size, 0, 'Keyboard-focused Scripture reader launcher stays visible');
 controls[5].focused = false;
 context.activeSettingsChoiceMenu = { trigger: { closest: () => controls[4] } };
 wake(); assert.equal(timers.size, 0, 'An open Focus Reading dropdown keeps controls visible');
 context.activeSettingsChoiceMenu = null;
 controls[4].focused = true;
-wake(); run(3200); run(10000);
+wake(); run(1500); run(10000);
 assert.equal(controls[4].classes.size, 0, 'Focus within the reading controls prevents fading');
 controls[4].focused = false;
 context.state.autoScrollActive = true;
@@ -78,6 +91,11 @@ assert.equal(nextId, oldTimer, 'Automatic scroll does not restart idle timing');
 context.state.autoScrollActive = false;
 context.state.focusControlsFade = false;
 wake(); assert.equal(timers.size, 0, 'Original desktop behavior stays visible');
+assert.equal(context.normalizedFocusControlsFadeSeconds(null), 1.5);
+assert.equal(context.normalizedFocusControlsFadeSeconds('bad'), 1.5);
+assert.equal(context.normalizedFocusControlsFadeSeconds(0.1), 0.5);
+assert.equal(context.normalizedFocusControlsFadeSeconds(2.4), 2.5);
+assert.equal(context.normalizedFocusControlsFadeSeconds(10), 4);
 assert.equal(context.normalizedFocusControlsHideSeconds(null), 10);
 assert.equal(context.normalizedFocusControlsHideSeconds('bad'), 10);
 assert.equal(context.normalizedFocusControlsHideSeconds(1), 5);
@@ -86,7 +104,7 @@ context.state.focusMode = false;
 context.state.focusControlsFade = true;
 for (const mode of ['reader', 'parallel']) {
   context.state.mode = mode;
-  wake(); run(3200);
+  wake(); run(1500);
   assert.ok(controls[1].classes.has('focus-control-faded'), `${mode}: auto-scroll fades outside Focus`);
   assert.ok(controls[3].classes.has('focus-control-faded'), `${mode}: desktop boundary arrow fades outside Focus`);
   for (const index of [5, 6, 7]) {
@@ -100,7 +118,7 @@ for (const mode of ['reader', 'parallel']) {
   assert.ok(controls.every(b => b.classes.size === 0), `${mode}: interaction restores controls`);
   controls[5].focused = true;
   controls[6].focused = true;
-  wake(); run(3200); run(10000);
+  wake(); run(1500); run(10000);
   assert.ok([5, 6].every(index => controls[index].classes.size === 0), `${mode}: keyboard-focused Scripture reader and Go Back stay visible`);
   controls[5].focused = false;
   controls[6].focused = false;
@@ -120,7 +138,7 @@ for (const focusMode of [false, true]) {
   context.state.focusMode = focusMode;
   context.state.focusControlsFade = true;
   context.state.focusControlsHide = true;
-  wake(); run(3200);
+  wake(); run(1500);
   assert.ok(controls.find(b => b.id === 'scrollSpeedToggle').classes.has('focus-control-faded'));
   run(10000);
   assert.ok(controls.find(b => b.id === 'scrollSpeedToggle').classes.has('focus-control-hidden'));
