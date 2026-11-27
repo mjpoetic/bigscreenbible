@@ -23750,6 +23750,13 @@ svg {
   color: var(--ink);
   box-shadow: 0 8px 32px #0003;
 }
+/* Settings has its own update controls. Keep the floating notice clear of the portrait panel. */
+@media (max-width: 840px) and (orientation: portrait) {
+  .app-shell:has(.mobile-settings-popover) #appUpdateNotice {
+    display: none;
+  }
+}
+
 .app-update-notice p { margin: 0 0 8px; font-weight: 650; }
 .app-update-notice-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .app-update-notice-actions button { min-height: 44px; }
