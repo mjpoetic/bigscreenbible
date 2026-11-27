@@ -22,8 +22,8 @@ const context = vm.createContext({ state: { mode: 'reader', reference: 'John 1',
 });
 vm.runInContext(`let readerVerseHold = null, suppressReaderVerseClickUntil = 0; const readerVerseHoldRowSelector = "[data-verse], [data-focused-reader-verse]"; ${names.map(extract).join('\n')}`, context);
 const run = code => vm.runInContext(code, context);
-function start(n = 3, word = null) {
-  context.event = { currentTarget: surface, target: { closest: selector => selector === '[data-verse], [data-focused-reader-verse]' ? rows[n - 1] : selector === '[data-strong]' ? word : null },
+function start(n = 3, word = null, text = null) {
+  context.event = { currentTarget: surface, target: { closest: selector => selector === '[data-verse], [data-focused-reader-verse]' ? rows[n - 1] : selector === '[data-strong]' ? word : selector === '[data-passage-copy-text]' ? text : null },
     touches: [{ identifier: 7, clientX: 100, clientY: 200 }] };
   run('beginReaderVerseHold(event)');
 }
@@ -75,3 +75,55 @@ context.window.Capacitor = { getPlatform: () => 'android', isNativePlatform: () 
 bindings = 0; run('bindReaderVerseHold(bindingSurface)');
 assert.equal(bindings, 5, 'Touch web binds both word drag and verse hold');
 console.log('Verse hold binding and tagged touch lookup passed.');
+
+// A swipe starting over Scripture only starts a word range when opted in.
+const text = {};
+const caret = { node: {}, offset: 0 };
+let wordUpdates = 0;
+context.readerWordCaret = () => caret;
+context.updateReaderWordDrag = () => wordUpdates++;
+start(3, null, text);
+move(130, 200);
+assert.equal(run('readerVerseHold'), null);
+assert.equal(context.event.prevented, undefined, 'Default swipe is available to chapter navigation');
+
+context.state.touchTextDragEnabled = true;
+start(3, null, text);
+move(130, 200);
+assert.equal(run('readerVerseHold.wordAnchor'), caret);
+assert.equal(context.event.prevented, true);
+assert.equal(wordUpdates, 1);
+run('finishReaderVerseHold()');
+
+// Double-tapping and double-clicking still select a word with drag off.
+context.state.touchTextDragEnabled = false;
+const listeners = new Map();
+surface.addEventListener = (name, handler) => listeners.set(name, handler);
+context.document.getElementById = () => null;
+context.window.getSelection = () => ({ removeAllRanges() {} });
+context.readerDoubleTapMaxMs = 300;
+const range = { startContainer: caret.node, startOffset: 0 };
+context.readerWordAtPoint = () => range;
+context.closeStudyPopup = () => {};
+context.paintReaderWordRange = () => {};
+const selectedRanges = [];
+context.endReaderWordDrag = (gesture, released) => {
+  if (released) selectedRanges.push(gesture.wordRange);
+};
+run('bindReaderVerseHold(surface)');
+start(3, null, text);
+const tap = context.event;
+tap.changedTouches = tap.touches;
+tap.cancelable = true;
+tap.preventDefault = () => {};
+run('finishReaderVerseHold()');
+listeners.get('touchstart')(tap);
+listeners.get('touchend')(tap);
+listeners.get('touchstart')(tap);
+assert.equal(run('readerVerseHold.wordRange'), range);
+move(130, 200);
+assert.equal(wordUpdates, 1, 'Dragging after a double tap is disabled');
+run(release);
+listeners.get('dblclick')({ target: tap.target, preventDefault() {}, stopImmediatePropagation() {} });
+assert.deepEqual(selectedRanges, [range, range]);
+console.log('Touch text drag opt-in and default double-tap/click selection passed.');

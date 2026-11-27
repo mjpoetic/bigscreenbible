@@ -807,6 +807,7 @@ const state = {
   autoScrollEnabled: localStorage.getItem("lw_auto_scroll_enabled") === "true",
   autoScrollSpeed: normalizedAutoScrollSpeed(localStorage.getItem("lw_auto_scroll_speed")),
   readerPageScrollSpeed: normalizedReaderPageScrollSpeed(localStorage.getItem("lw_page_scroll_speed")),
+  touchTextDragEnabled: localStorage.getItem("lw_touch_text_drag_enabled") === "true",
   edgeChapterNavigationEnabled: localStorage.getItem("lw_edge_chapter_navigation_enabled") === "true",
   paragraphLayout: savedParagraphLayout(),
   printLayout: savedPrintLayout(),
@@ -5377,6 +5378,13 @@ function readingSettings(prefix = "", options = {}) {
       </label>
       <p class="setting-help">Changes chapters after a fresh outward pull or scroll at the top or bottom in Reader and Parallel.</p>
     </div>
+    <div class="setting-group">
+      <label class="setting-checkbox">
+        <input type="checkbox" id="${controlId("TouchTextDragToggle")}" data-touch-text-drag-toggle ${state.touchTextDragEnabled ? "checked" : ""} />
+        <span>Drag to select text on touchscreens</span>
+      </label>
+      <p class="setting-help">Drag across Scripture to select text. Double-tap or double-click a word to select it at any time.</p>
+    </div>
     <div class="setting-group settings-section-subgroup">
       <span class="setting-label" id="${controlId("PageScrollSpeedLabel")}">Page navigation speed</span>
       <div class="theme-mode-segment page-scroll-speed-segment" role="group" aria-labelledby="${controlId("PageScrollSpeedLabel")}">
@@ -5967,6 +5975,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.1": [
+      "Drag to select Scripture text on touchscreens is now an optional setting, off by default. Double-tap and double-click still select a word.",
+    ],
     "2026.11.26.4": [
       "Scripture text selection shows a single Copy selected text button. Tap or click outside it to dismiss.",
     ],
@@ -7962,6 +7973,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "RedLettersToggle", "Words of Jesus in red", "Scripture & Reading", "red letters")}
       ${result("reading", "StrongNumbersToggle", "Strong's number lookups", "Scripture & Reading", "Strong numbers")}
       ${result("reading", "FooterChapterArrowsToggle", "Show chapter arrows in footer", "Scripture & Reading", "footer arrows previous next hide remove navigation")}
+      ${result("reading", "TouchTextDragToggle", "Drag to select text on touchscreens", "Scripture & Reading", "touch text selection double tap swipe copy")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
       ${result("reading", "ShowControlsFadeToggle", "Show quick fading toggle", "Reading & navigation", "moon sun floating button hide dim shift d")}
@@ -27870,6 +27882,14 @@ function bindEvents() {
       renderPreservingReaderScroll();
     });
   });
+  const touchTextDragToggles = document.querySelectorAll("[data-touch-text-drag-toggle]");
+  touchTextDragToggles.forEach((toggle) => {
+    toggle.addEventListener("change", () => {
+      state.touchTextDragEnabled = toggle.checked;
+      localStorage.setItem("lw_touch_text_drag_enabled", String(toggle.checked));
+      touchTextDragToggles.forEach(control => { control.checked = toggle.checked; });
+    });
+  });
   ["edgeChapterNavigationToggle", "mobileEdgeChapterNavigationToggle"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (event) => {
       setEdgeChapterNavigationEnabled(event.target.checked);
@@ -36312,7 +36332,7 @@ function bindReaderVerseHold(surface) {
     lastTap = null;
     touchStart = current;
     const previous = document.getElementById("studyPopup")?.readerWordGesture;
-    const extending = text && previous?.surface === surface
+    const extending = state.touchTextDragEnabled && text && previous?.surface === surface
       && readerCopyTextVersion(text) === readerCopyTextVersion(previous.text);
     if (doubleTap || extending) {
       const range = extending ? previous.wordRange.cloneRange() : readerWordAtPoint({ surface, text }, current.x, current.y);
@@ -36334,7 +36354,7 @@ function bindReaderVerseHold(surface) {
           cancelReaderTouchGesture();
           surface.classList.add("word-drag-selection");
           paintReaderWordRange(gesture);
-          gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
+          if (state.touchTextDragEnabled) gesture.frame = requestAnimationFrame(scrollReaderVerseHold);
           return;
         }
       }
@@ -36487,7 +36507,7 @@ function moveReaderVerseHold(event) {
     const dx = Math.abs(gesture.x - gesture.startX);
     const dy = Math.abs(gesture.y - gesture.startY);
     if (Math.hypot(dx, dy) <= 10) return;
-    if (dx <= dy * 1.5 || !gesture.text || !event.cancelable) return finishReaderVerseHold();
+    if (!state.touchTextDragEnabled || dx <= dy * 1.5 || !gesture.text || !event.cancelable) return finishReaderVerseHold();
     const anchor = readerWordCaret(gesture, gesture.startX, gesture.startY);
     if (!anchor) return finishReaderVerseHold();
     gesture.wordAnchor = anchor;
@@ -36500,7 +36520,10 @@ function moveReaderVerseHold(event) {
   }
   if (event.cancelable) event.preventDefault();
   event.stopImmediatePropagation();
-  if (gesture.wordAnchor) return updateReaderWordDrag(gesture);
+  if (gesture.wordAnchor) {
+    if (state.touchTextDragEnabled) updateReaderWordDrag(gesture);
+    return;
+  }
   if (!gesture.selecting) {
     if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) <= 10) return;
     startReaderVerseHoldSelection(gesture);
