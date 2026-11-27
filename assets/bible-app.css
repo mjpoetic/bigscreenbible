@@ -23740,9 +23740,11 @@ svg {
 .app-update-bubble:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 
 /* Floating reading controls share the same idle treatment at every viewport size. */
+.focus-control-fade-now { --reading-control-fade-duration: 220ms; }
 @media (prefers-reduced-motion: no-preference) {
   .app-shell :is(.focus-control-faded, .focus-control-hidden):not(:focus-visible) {
-    transition: opacity 1.2s ease-in-out, box-shadow 1.2s ease-in-out;
+    transition: opacity var(--reading-control-fade-duration, 1.2s) ease-in-out,
+      box-shadow var(--reading-control-fade-duration, 1.2s) ease-in-out;
   }
 }
 
@@ -24446,7 +24448,7 @@ html[data-android-edge-to-edge="true"] .trivia-reader {
   background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.38) 0%, rgb(0 0 0 / 0.24) 30%, rgb(0 0 0 / 0.08) 65%, transparent 100%);
   transition: opacity 160ms ease;
 }
-.reading-control-mist.is-idle { transition: opacity 1.2s ease-in-out; }
+.reading-control-mist.is-idle { transition: opacity var(--reading-control-fade-duration, 1.2s) ease-in-out; }
 html[data-theme="light"] .reading-control-mist {
   background: radial-gradient(ellipse closest-side, rgb(0 0 0 / 0.24) 0%, rgb(0 0 0 / 0.15) 30%, rgb(0 0 0 / 0.05) 65%, transparent 100%);
 }
@@ -28996,7 +28998,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   outline: 2px solid var(--teal);
   outline-offset: 3px;
 }
-.reader-controls-fade-toggle svg { width: 16px; height: 16px; }
+.reader-controls-fade-toggle svg { width: 16px; height: 16px; pointer-events: none; }
 
 @media (max-width: 840px) and (orientation: portrait) {
   .app-shell:not(.focus-shell, .footer-collapsed) .reader-controls-fade-toggle {

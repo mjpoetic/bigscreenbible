@@ -5412,9 +5412,9 @@ function readingSettings(prefix = "", options = {}) {
       <span class="setting-label">Floating reading controls</span>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
-        <span>Show quick fading toggle</span>
+        <span>Show floating fade button</span>
       </label>
-      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Tap for options; hold to toggle fading. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
+      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Tap for options. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
@@ -5975,6 +5975,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.2": [
+      "Hold the floating moon or sun button to fade reading controls right away and brighten them only when used. Hide the button in Reading & navigation settings.",
+    ],
     "2026.11.27.1": [
       "Drag to select Scripture text on touchscreens is now an optional setting, off by default. Double-tap and double-click still select a word.",
     ],
@@ -7976,7 +7979,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "TouchTextDragToggle", "Drag to select text on touchscreens", "Scripture & Reading", "touch text selection double tap swipe copy")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
-      ${result("reading", "ShowControlsFadeToggle", "Show quick fading toggle", "Reading & navigation", "moon sun floating button hide dim shift d")}
+      ${result("reading", "ShowControlsFadeToggle", "Show floating fade button", "Reading & navigation", "moon sun floating button hide dim shift d")}
       ${result("reading", "FocusControlsTouchRevealToggle", "Brighten faded controls only when used", "Reading & navigation", "touch tap click floating reading buttons opacity")}
       ${result("reading", "FocusControlsFadeToggle", "Floating reading controls", "Reading & navigation", "focus reader parallel auto-scroll page fade opacity floating buttons hide inactivity delay")}
       ${result("reading", "AutoScrollEnabledToggle", "Auto-scroll controls", "Scripture & Reading", "automatic scrolling play pause")}
@@ -10145,6 +10148,7 @@ function updateReadingControlDimming() {
     // even when only one happens to sit over a Scripture line.
     const visibleArrow = rect.width > 0 && rect.height > 0 && surface.matches(".reader-page-button, .reader-auto-scroll-button");
     mist.classList.toggle("is-idle", idle && !focusReadingOverlap);
+    mist.classList.toggle("focus-control-fade-now", surface.matches(".focus-control-fade-now"));
     mist.style.opacity = (overlapsText || visibleArrow) && !idle && !unavailable && !focusReadingOverlap ? "1" : "0";
     mist.style.left = `${rect.left - 48}px`;
     mist.style.top = `${rect.top - 48}px`;
@@ -10175,7 +10179,7 @@ function focusControlsInUse() {
   return Boolean(document.querySelector(".scroll-speed-popover:popover-open, #readerControlsFadePopover:popover-open")) || state.settingsOpen || state.focusReferenceOpen || state.focusSearchResultsOpen || state.focusToolsOpen || state.focusWorkspacePanel || state.tutorialActive || Boolean(activeSettingsChoiceMenu?.trigger?.closest(".focus-reading-controls"));
 }
 
-function revealMobileSettingsButton(event) {
+function revealMobileSettingsButton(event, { fadeNow = false } = {}) {
   // Programmatic auto-scroll must not continually wake the floating controls.
   if (event?.type === "scroll" && state.autoScrollActive && floatingControlsFadeEnabled()) return;
   if (event && state.focusControlsTouchReveal && floatingControlsFadeEnabled() &&
@@ -10187,7 +10191,8 @@ function revealMobileSettingsButton(event) {
   scheduleReadingControlDimming();
   clearTimeout(focusControlsHideTimer);
   document.querySelectorAll(".focus-control-faded, .focus-control-hidden").forEach((button) => {
-    button.classList.remove("focus-control-faded", "focus-control-hidden");
+    button.classList.remove("focus-control-hidden");
+    if (!fadeNow) button.classList.remove("focus-control-faded", "focus-control-fade-now");
   });
   if (floatingControlsFadeEnabled()) {
     clearTimeout(mobileSettingsIdleTimer);
@@ -10200,10 +10205,12 @@ function revealMobileSettingsButton(event) {
       focusFloatingControls().forEach((button) => {
         if (button.matches(":focus-visible, :has(:focus-visible)") || (button.id === "mobileFloatingSettings" && state.appUpdateAvailable)) return;
         button.classList.add(className);
+        if (fadeNow && className === "focus-control-faded") button.classList.add("focus-control-fade-now");
       });
       scheduleReadingControlDimming();
     };
-    mobileSettingsIdleTimer = setTimeout(() => dimControls("focus-control-faded"), 3200);
+    if (fadeNow) dimControls("focus-control-faded");
+    else mobileSettingsIdleTimer = setTimeout(() => dimControls("focus-control-faded"), 3200);
     if (state.focusControlsHide) {
       focusControlsHideTimer = setTimeout(() => dimControls("focus-control-hidden"), state.focusControlsHideSeconds * 1000);
     }
@@ -12409,7 +12416,7 @@ function bindReaderAutoScrollButton(button) {
 }
 
 function readerControlsFadeButton() {
-  return `${state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to toggle fading">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : ""}
+  return `${state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to fade now">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : ""}
     <div id="readerControlsFadePopover" class="reader-controls-fade-popover" popover="auto" role="dialog" aria-labelledby="readerControlsFadeTitle">
       <strong id="readerControlsFadeTitle">Floating reading controls</strong>
       <label><input type="checkbox" data-quick-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} autofocus /> Fade idle controls</label>
@@ -12434,18 +12441,20 @@ function updateReaderControlsFadePopover() {
   if (button) button.innerHTML = state.focusControlsFade ? icons.moon : icons.sun;
 }
 
-function setQuickReadingControlsSetting(key, value) {
+function setQuickReadingControlsSettings(settings, options) {
   const storageKeys = { focusControlsFade: "lw_focus_controls_fade", focusControlsTouchReveal: "lw_focus_controls_touch_reveal", focusControlsHide: "lw_focus_controls_hide", focusControlsHideSeconds: "lw_focus_controls_hide_seconds" };
-  if (!storageKeys[key]) return;
-  state[key] = key === "focusControlsHideSeconds" ? normalizedFocusControlsHideSeconds(value) : Boolean(value);
-  localStorage.setItem(storageKeys[key], String(state[key]));
+  for (const [key, value] of Object.entries(settings)) {
+    if (!storageKeys[key]) continue;
+    state[key] = key === "focusControlsHideSeconds" ? normalizedFocusControlsHideSeconds(value) : Boolean(value);
+    localStorage.setItem(storageKeys[key], String(state[key]));
+  }
   scheduleCloudSync();
   updateReaderControlsFadePopover();
-  revealMobileSettingsButton();
+  revealMobileSettingsButton(undefined, options);
 }
 
 function toggleReaderControlsFade() {
-  setQuickReadingControlsSetting("focusControlsFade", !state.focusControlsFade);
+  setQuickReadingControlsSettings({ focusControlsFade: !state.focusControlsFade });
   showToast(state.focusControlsFade ? "Floating controls fade when idle" : "Floating controls stay bright");
 }
 
@@ -12470,10 +12479,10 @@ function bindReaderControlsFadeHold(button) {
     timer = setTimeout(() => {
       if (!gesture || !button.isConnected) return;
       suppressClick = true;
-      toggleReaderControlsFade();
+      setQuickReadingControlsSettings({ focusControlsFade: true, focusControlsTouchReveal: true }, { fadeNow: true });
       playControlHaptic();
       cancel();
-    }, 450);
+    }, 250);
   });
   button.addEventListener("pointermove", event => {
     if (!gesture || event.pointerId !== gesture.id) return;
@@ -12496,8 +12505,9 @@ function bindReaderControlsFadeToggle() {
   bindReaderControlsFadeHold(document.getElementById("readerControlsFadeToggle"));
   updateReaderControlsFadePopover();
   popover.querySelectorAll("[data-quick-controls-setting]").forEach(input => {
-    input.addEventListener("change", () => setQuickReadingControlsSetting(input.dataset.quickControlsSetting,
-      input.type === "number" ? input.value : input.checked));
+    input.addEventListener("change", () => setQuickReadingControlsSettings({
+      [input.dataset.quickControlsSetting]: input.type === "number" ? input.value : input.checked,
+    }));
   });
   popover.addEventListener("beforetoggle", event => {
     const open = event.newState === "open";

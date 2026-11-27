@@ -31,7 +31,9 @@ assert.ok(controls.every(b => b.classes.has('focus-control-faded')), 'All contro
 assert.equal(timers.size, 1, 'Default never schedules hiding');
 wake(); assert.ok(controls.every(b => b.classes.size === 0), 'Interaction restores visibility');
 context.state.focusControlsTouchReveal = true;
-wake(); run(3200);
+context.revealMobileSettingsButton(undefined, { fadeNow: true });
+assert.ok(controls.every(b => b.classes.has('focus-control-faded') && b.classes.has('focus-control-fade-now')), 'Holding fades controls immediately with the shorter transition');
+assert.equal(timers.size, 0, 'The immediate fade skips the idle delay');
 const fadedTarget = { closest: selector => context.document.querySelector(selector), matches: () => true };
 for (const type of ['pointermove', 'scroll', 'wheel', 'touchmove', 'keydown']) {
   context.revealMobileSettingsButton({ type, target: fadedTarget });
