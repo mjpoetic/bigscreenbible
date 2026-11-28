@@ -2353,6 +2353,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
   scheduleLiveGameStandingsTimer();
+  bindGameResultsSpotlight();
   scheduleReferenceRushTimer();
   scheduleWordSearchTimer();
   scheduleCrosswordTimer();
@@ -6009,6 +6010,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.23": [
+      "Multiplayer standings and solo records spotlight your latest result for two seconds once it is clearly visible.",
+    ],
     "2026.11.27.22": [
       "Social Games has collapsible Friends and Recent results sections. Results match the selected game.",
       "Game results have a persistent Games menu button, a redesigned medal podium with player avatars, and larger names, scores, and times.",
@@ -14746,9 +14750,13 @@ async function exitGameChallengeRoom(challengeId, endForEveryone = false) {
   }
 }
 
-async function joinGameChallenge(challengeId) {
+async function joinGameChallenge(challengeId, { spotlightResults = false } = {}) {
   const challenge = state.gameChallenges.find((item) => item.id === challengeId);
   if (!challenge) return;
+  clearGameResultsSpotlight();
+  if (spotlightResults && challenge.status === "completed") {
+    gameResultsSpotlight = { challengeId, startedAt: null };
+  }
   if (state.activeGameChallengeId !== challengeId) {
     state.gameStandingsOpen = false;
     state.gameRoomAddFriendsOpen = false;
@@ -15206,7 +15214,7 @@ async function handleGameChallengeAction(button) {
   if (action === "start-room") return startGameRoom(challengeId);
   if (["join", "view", "lobby"].includes(action)) {
     if (button.closest(".game-challenge-popup")) dismissGameChallengePopup();
-    return joinGameChallenge(challengeId);
+    return joinGameChallenge(challengeId, { spotlightResults: action === "view" });
   }
 }
 
@@ -18946,10 +18954,13 @@ function hiddenWordScoreRules() {
   return `<details class="hidden-word-score-rules"><summary>How scoring works</summary><p>Solved puzzle +1,000 · Perfect puzzle +500 (no misses or hints) · Missed letter −200 · Hint −100 · Failed puzzle −500.</p><p>Speed bonus: up to +500 per solved puzzle, rounded down to multiples of 10 (500 × 20 / (20 + solving seconds)). Faster solving earns more; equal total scores rank by solving time. Time starts when each puzzle opens. Scores can go below zero.</p></details>`;
 }
 
-function arcadeScoreboard(scores, subtitle, detail, label) {
+function arcadeScoreboard(scores, subtitle, detail, label, current = null) {
   let visible = true;
   try { visible = localStorage.getItem("lw_scoreboard_visible") !== "false"; } catch {}
   const setup = !state.triviaGame && state.mode === "trivia";
+  const currentIndex = current ? scores.findIndex((entry) => entry.achievedAt === current.achievedAt && entry.points === current.points
+    && entry.elapsedMs === current.elapsedMs) : -1;
+  const currentOutsideTopFive = current && currentIndex < 0;
   const summary = setup
     ? `<strong>Your records</strong><small>${scores.length ? `${scores[0].points.toLocaleString()} pts · Personal best` : "No score yet"}</small><span aria-hidden="true">${icons.chevron}</span>`
     : `<span class="scoreboard-show">Show scoreboard</span><span class="scoreboard-hide">Hide scoreboard</span>`;
@@ -18957,9 +18968,10 @@ function arcadeScoreboard(scores, subtitle, detail, label) {
     <header class="arcade-scoreboard-header"><span class="arcade-scoreboard-star" aria-hidden="true">★</span><div><span class="arcade-scoreboard-kicker">PERSONAL BESTS</span><h3>HIGH SCORES</h3></div><span class="arcade-scoreboard-badge">TOP 5</span></header>
     <p class="arcade-scoreboard-context">${escapeHtml(subtitle)}</p>
     <div class="arcade-scoreboard-columns" aria-hidden="true"><span>RANK</span><span>SCORE / RECORD</span></div>
-    <ol role="list">${Array.from({ length: 5 }, (_, index) => {
-      const entry = scores[index];
-      return `<li class="arcade-score-row ${entry ? "is-filled" : "is-empty"}"><span class="arcade-score-rank" aria-label="Rank ${index + 1}">${String(index + 1).padStart(2, "0")}</span><div class="arcade-score-record"><strong>${entry ? `${entry.points.toLocaleString()} <small>PTS</small>` : "<span aria-label='No score yet'>— — —</span>"}</strong><span class="arcade-score-detail">${entry ? escapeHtml(detail(entry)) : "YOUR NEXT HIGH SCORE"}</span></div>${index === 0 && entry ? '<span class="arcade-score-crown" aria-label="Personal best">★</span>' : ""}</li>`;
+    <ol role="list">${Array.from({ length: currentOutsideTopFive ? 6 : 5 }, (_, index) => {
+      const entry = index === 5 ? current : scores[index];
+      const currentRound = index === currentIndex || index === 5;
+      return `<li class="arcade-score-row ${entry ? "is-filled" : "is-empty"}" ${currentRound ? "data-solo-result-spotlight" : ""}><span class="arcade-score-rank" aria-label="${index === 5 ? "Unranked" : `Rank ${index + 1}`}">${index === 5 ? "—" : String(index + 1).padStart(2, "0")}</span><div class="arcade-score-record"><strong>${entry ? `${entry.points.toLocaleString()} <small>PTS</small>` : "<span aria-label='No score yet'>— — —</span>"}</strong><span class="arcade-score-detail">${currentRound ? "This round · " : ""}${entry ? escapeHtml(detail(entry)) : "YOUR NEXT HIGH SCORE"}</span></div>${index === 0 && entry ? '<span class="arcade-score-crown" aria-label="Personal best">★</span>' : ""}</li>`;
     }).join("")}</ol>
     <p class="arcade-scoreboard-footer">${scores.length ? "PLAY AGAIN · CHASE YOUR BEST" : "PLAY TO SET YOUR FIRST SCORE"}</p>
   </section></details>`;
@@ -18974,7 +18986,8 @@ function hiddenWordLeaderboard(difficulty, count, context = {}) {
   const originals = originalScores.length ? `<details class="hidden-word-score-rules"><summary>Original scoring records</summary>${arcadeScoreboard(originalScores, "Previous speed bonus rules", entry => `${entry.score}/${count} solved`, "Original Hidden Word scores")}</details>` : "";
   return arcadeScoreboard(savedHiddenWordScores(difficulty, count, context),
     `${difficulty} · ${count} puzzles · ${context.customPassage ? "this passage" : "curated mix"}`,
-    (entry) => `${entry.score}/${count} solved · ${entry.hintCount} hints${entry.elapsedMs != null ? ` · ${formatGameTime(entry.elapsedMs)} solving time` : ""}`, "Top five Hidden Word scores") + originals;
+    (entry) => `${entry.score}/${count} solved · ${entry.hintCount} hints${entry.elapsedMs != null ? ` · ${formatGameTime(entry.elapsedMs)} solving time` : ""}`, "Top five Hidden Word scores",
+    context.complete && !context.challengeId ? context.hiddenWordScoreRecorded?.result : null) + originals;
 }
 
 function recordHiddenWordBest(game) {
@@ -18994,7 +19007,7 @@ function recordHiddenWordBest(game) {
   bests[key] = [...scores, result].sort(compareGamePoints).slice(0, 5);
   localStorage.setItem(hiddenWordBestStorageKey, JSON.stringify(bests));
   scheduleCloudSync();
-  game.hiddenWordScoreRecorded = { best: bests[key][0], isNewBest, hadPrevious: Boolean(previous) };
+  game.hiddenWordScoreRecorded = { best: bests[key][0], result, isNewBest, hadPrevious: Boolean(previous) };
   return game.hiddenWordScoreRecorded;
 }
 
@@ -19049,6 +19062,7 @@ function recordQuizScore(game) {
   game.points = (game.points || 0) + game.perfectBonus + game.timeBonus;
   const scores = savedQuizScores(game);
   const result = { points: game.points, elapsedMs: game.elapsedMs, timeBonus: game.timeBonus, score: game.score, bestStreak: game.bestStreak || 0, hintCount: game.questions.filter((question) => question.hintUsed).length, achievedAt: Date.now() };
+  game.quizCurrentResult = result;
   game.quizIsNewBest = !scores.length || compareGamePoints(result, scores[0]) < 0;
   game.quizBest = game.quizIsNewBest ? result : scores[0];
   game.quizScoreRecorded = true;
@@ -19071,7 +19085,8 @@ function quizLeaderboard(game) {
   const count = game.questions?.length || game.count;
   return arcadeScoreboard(savedQuizScores(game),
     `${game.difficulty} · ${count} questions${game.type === "trivia" ? ` · ${game.category}` : ""}`,
-    (entry) => `${entry.score}/${count} correct${entry.elapsedMs != null ? ` · ${formatGameTime(entry.elapsedMs)} solving time · Bonus +${entry.timeBonus || 0}` : " · Original score"} · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}`, "Top five personal scores")
+    (entry) => `${entry.score}/${count} correct${entry.elapsedMs != null ? ` · ${formatGameTime(entry.elapsedMs)} solving time · Bonus +${entry.timeBonus || 0}` : " · Original score"} · Best streak ${entry.bestStreak}${entry.hintCount ? ` · ${entry.hintCount} hints` : ""}`, "Top five personal scores",
+    game.complete && !game.challengeId ? game.quizCurrentResult : null)
     + (game.quizScoreSaveFailed ? "<p>This score could not be saved on this device.</p>" : "");
 }
 
@@ -21246,7 +21261,7 @@ function recordVerseOrderBest(game) {
 
 function verseOrderRecords(version, count, game = null) {
   const best = savedVerseOrderBests()[verseOrderBestKey(version, count)];
-  return `<div class="games-records games-records-static ${best ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"} · ${escapeHtml(version)} · ${count} verses</small>${game ? `<small>Round time: ${formatGameTime(verseOrderElapsedMs(game))}</small>` : ""}</div>`;
+  return `<div class="games-records games-records-static ${best ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"} · ${escapeHtml(version)} · ${count} verses</small>${game ? `<small ${game.challengeId ? "" : "data-solo-result-spotlight"}>Round time: ${formatGameTime(verseOrderElapsedMs(game))}</small>` : ""}</div>`;
 }
 
 function referenceRushBestKey(difficulty, rounds, timed) {
@@ -21283,7 +21298,7 @@ function recordReferenceRushBest(game) {
 
 function referenceRushRecords(difficulty, rounds, timed, game = null) {
   const best = savedReferenceRushBest(difficulty, rounds, timed);
-  return `<div class="games-records games-records-static ${best ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"}</small><small>All references correct · ${timed ? "Timed" : "Untimed"}</small>${game ? `<small>Round time: ${formatGameTime(Math.max(0, game.finishedAt - game.startedAt))}</small>` : ""}</div>`;
+  return `<div class="games-records games-records-static ${best ? "has-records" : "is-empty-records"}"><strong>Your records</strong><small>${best ? formatGameTime(best.elapsedMs) + " · Best time" : "No best time yet"}</small><small>All references correct · ${timed ? "Timed" : "Untimed"}</small>${game ? `<small ${game.challengeId ? "" : "data-solo-result-spotlight"}>Round time: ${formatGameTime(Math.max(0, game.finishedAt - game.startedAt))}</small>` : ""}</div>`;
 }
 
 function bookSprintBestKey(difficulty = state.triviaDifficulty, rounds = state.triviaCount || 10) {
@@ -21699,6 +21714,87 @@ function bindGameStandingsToggle(root = document) {
   });
 }
 
+const gameResultsSpotlightDuration = 2000;
+let gameResultsSpotlight = null;
+let gameResultsSpotlightObserver = null;
+let gameResultsSpotlightFrame = 0;
+
+function clearGameResultsSpotlight() {
+  gameResultsSpotlightObserver?.disconnect();
+  gameResultsSpotlightObserver = null;
+  gameResultsSpotlight = null;
+  cancelAnimationFrame(gameResultsSpotlightFrame);
+  gameResultsSpotlightFrame = 0;
+}
+
+function visibleGameResultsSpotlightRow(row) {
+  if (!row?.isConnected || document.visibilityState !== "visible" || document.querySelector("dialog:modal")) return false;
+  const {left, top, width, height} = row.getBoundingClientRect();
+  if (width <= 0 || height <= 0) return false;
+  // Hit-testing accounts for scroll clipping and the sticky Games menu.
+  return [0.1, 0.5, 0.9].every((fraction) => row.contains(document.elementFromPoint(left + width / 2, top + height * fraction)));
+}
+
+function paintGameResultsSpotlight(row, elapsed) {
+  row.style.setProperty("--game-results-spotlight-offset", `${-elapsed}ms`);
+  row.classList.add("game-results-spotlight");
+}
+
+function gameResultsSpotlightRow(spotlight) {
+  if (state.mode !== "trivia") return null;
+  if (spotlight.game) {
+    return state.triviaGame === spotlight.game ? document.querySelector("[data-solo-result-spotlight]") : null;
+  }
+  return spotlight.challengeId === state.activeGameChallengeId
+    ? document.querySelector(".live-challenge-scoreboard.is-final .live-challenge-players > .is-you") : null;
+}
+
+function scheduleGameResultsSpotlight() {
+  if (gameResultsSpotlight?.startedAt !== null || gameResultsSpotlightFrame) return;
+  gameResultsSpotlightFrame = requestAnimationFrame(() => {
+    gameResultsSpotlightFrame = 0;
+    const spotlight = gameResultsSpotlight;
+    if (!spotlight) return;
+    const row = gameResultsSpotlightRow(spotlight);
+    if (!visibleGameResultsSpotlightRow(row)) return;
+    spotlight.startedAt = performance.now();
+    if (spotlight.game) spotlight.game.soloResultsSpotlightShown = true;
+    gameResultsSpotlightObserver?.disconnect();
+    gameResultsSpotlightObserver = null;
+    paintGameResultsSpotlight(row, 0);
+  });
+}
+
+function bindGameResultsSpotlight() {
+  gameResultsSpotlightObserver?.disconnect();
+  gameResultsSpotlightObserver = null;
+  const game = state.triviaGame;
+  if (state.mode === "trivia" && game?.complete && !game.challengeId && !game.soloResultsSpotlightShown
+    && gameResultsSpotlight?.game !== game) {
+    clearGameResultsSpotlight();
+    gameResultsSpotlight = { game, startedAt: null };
+  }
+  const spotlight = gameResultsSpotlight;
+  if (!spotlight) return;
+  if (state.mode !== "trivia" || (spotlight.game ? spotlight.game !== game : spotlight.challengeId !== state.activeGameChallengeId)) {
+    clearGameResultsSpotlight();
+    return;
+  }
+  const row = gameResultsSpotlightRow(spotlight);
+  if (!row) return;
+  if (spotlight.startedAt !== null) {
+    const elapsed = performance.now() - spotlight.startedAt;
+    if (elapsed < gameResultsSpotlightDuration) paintGameResultsSpotlight(row, elapsed);
+    else clearGameResultsSpotlight();
+    return;
+  }
+  if (typeof IntersectionObserver === "function") {
+    gameResultsSpotlightObserver = new IntersectionObserver(scheduleGameResultsSpotlight, { threshold: [0, 0.8, 1] });
+    gameResultsSpotlightObserver.observe(row);
+  }
+  scheduleGameResultsSpotlight();
+}
+
 function refreshLiveGameChallengeScoreboard() {
   if (gameChallengeAwaitingResults() && document.getElementById("gameResultsWaitingTitle")) return true;
   const current = document.querySelector(".live-challenge-scoreboard");
@@ -21745,6 +21841,7 @@ function refreshLiveGameChallengeScoreboard() {
     button.addEventListener("click", () => handleGameChallengeAction(button));
   });
   scheduleLiveGameStandingsTimer();
+  bindGameResultsSpotlight();
   return true;
 }
 
@@ -23144,7 +23241,7 @@ function wordSearchGameView(game) {
           ${game.complete ? `
             <div class="word-search-complete-summary">
               <span>${game.wordSearchBeatBest ? "New fastest time" : game.wordSearchHadPrevious ? "Completed in" : "Best time set"}</span>
-              <strong>${elapsed}</strong>
+              <strong ${game.challengeId ? "" : "data-solo-result-spotlight"}>${elapsed}</strong>
               ${game.wordSearchHadPrevious && game.wordSearchTarget
                 ? `<small>${game.wordSearchBeatBest ? "Previous time to beat" : categoryMode ? "Best for this category" : game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatGameTime(game.wordSearchBeatBest ? game.wordSearchTarget.elapsedMs : best?.elapsedMs)}</small>`
                 : `<small>${categoryMode ? "The next puzzle in this category at this difficulty" : game.customPassage ? "The next puzzle from this passage" : `The next ${escapeHtml(game.difficulty)} puzzle`} will count down from this time.</small>`}
@@ -23372,7 +23469,7 @@ function crosswordGameView(game) {
           ${game.complete ? `
             <div class="word-search-complete-summary">
               <span>${game.crosswordIsNewBest ? "New best time" : "Completed in"}</span>
-              <strong>${elapsed}${currentAssisted ? "*" : ""}</strong>
+              <strong ${game.challengeId ? "" : "data-solo-result-spotlight"}>${elapsed}${currentAssisted ? "*" : ""}</strong>
               ${best ? `<small>${game.customPassage ? "Best for this passage" : `Best ${escapeHtml(game.difficulty)} time`} · ${formatCrosswordBestTime(best)}</small>` : ""}
               ${currentAssisted ? `<small class="crossword-assist-note">* Assisted with ${game.hintCount} of 3 letter hints</small>` : ""}
               ${best?.hintCount && !bestAssistedIsCurrent ? `<small class="crossword-assist-note">* Best time used ${best.hintCount} letter ${best.hintCount === 1 ? "hint" : "hints"}</small>` : ""}
@@ -23907,7 +24004,7 @@ function triviaResultsView(game) {
         ${game.type === "reference-rush" ? referenceRushRecords(game.difficulty, roundLength, game.timed, game) : ""}
           ${game.bookSprintBeatBest ? `<p class="trivia-motion-success ${game.motionSuccessVisible ? "visible" : ""}" id="triviaMotionSuccess" ${game.motionSuccessVisible ? "" : "hidden"} role="status">New Book Sprint record! Wonderful work.</p>` : ""}
           <div class="book-sprint-result-stats">
-            <div>
+            <div ${game.challengeId ? "" : "data-solo-result-spotlight"}>
               <span>Your time</span>
               <strong>${elapsed}</strong>
             </div>
@@ -24074,6 +24171,7 @@ function showBestTimeCelebration(game, best, { chooseReplay = false } = {}) {
   bestTimeCelebrationCleanup = () => {
     dialog.close();
     dialog.remove();
+    scheduleGameResultsSpotlight();
     bestTimeCelebrationCleanup = null;
   };
   dialog.addEventListener("click", (event) => {
@@ -31691,6 +31789,7 @@ function requestGamesMenu(opener) {
 }
 
 function clearActiveGameChallenge() {
+  clearGameResultsSpotlight();
   stopLiveChallengeCountdown();
   cleanupTriviaCelebration();
   state.activeGameChallengeId = "";
@@ -40130,6 +40229,7 @@ window.addEventListener("online",()=>{
   void refreshCloudReadingPosition();
 });
 document.addEventListener("visibilitychange", () => {
+  scheduleGameResultsSpotlight();
   syncNativeWidgetSnapshot();
   if (pruneExpiredRemoteVersionData()) {
     closeStudyPopup(true);
@@ -40158,6 +40258,9 @@ document.addEventListener("visibilitychange", () => {
   notePushVisit();
   maybeCheckForAppUpdate();
 });
+document.addEventListener("scroll", scheduleGameResultsSpotlight, { capture: true, passive: true });
+document.addEventListener("toggle", scheduleGameResultsSpotlight, true);
+window.addEventListener("resize", scheduleGameResultsSpotlight, { passive: true });
 window.bsbAmbient?.configure({ getContext: ensureGameAudioContext });
 document.addEventListener("bsb-ambient-change", syncGameMusicPlayback);
 window.addEventListener("pagehide", () => pauseGameMusic({ fade: false }));

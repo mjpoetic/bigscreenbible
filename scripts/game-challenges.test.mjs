@@ -156,6 +156,15 @@ assert.doesNotMatch(tiedPodium, /Second place/);
 assert.match(tiedPodium, /Third place/);
 assert.doesNotMatch(pureContext.gameChallengePodium({ status: "completed", gameType: "trivia" }, podiumPlayers.slice(0, 2)), /Third place/);
 
+vm.runInContext(extractFunction("arcadeScoreboard"), pureContext);
+const personalScores = Array.from({ length: 5 }, (_, index) => ({ points: 500 - 100 * index, elapsedMs: 10000, achievedAt: index + 1 }));
+const matchingSoloRound = pureContext.arcadeScoreboard(personalScores, "", () => "", "Personal scores", { ...personalScores[3] });
+assert.equal((matchingSoloRound.match(/data-solo-result-spotlight/g) || []).length, 1);
+assert.match(matchingSoloRound, /data-solo-result-spotlight><span[^>]*aria-label="Rank 4"/);
+const outsideTopFive = pureContext.arcadeScoreboard(personalScores, "", () => "", "Personal scores", { points: 20, elapsedMs: 12000, achievedAt: 6 });
+assert.match(outsideTopFive, /data-solo-result-spotlight><span[^>]*aria-label="Unranked"/);
+assert.match(outsideTopFive, /This round/);
+
 const socialResultsContext = vm.createContext({
   state: { authUser: { id: "self" }, socialProfile: {}, socialSafetyReady: true, socialConsent: true, socialAccessAllowed: true,
     gameSocialResultsOpen: false, gamesDrawerOpen: "social", mode: "trivia" },

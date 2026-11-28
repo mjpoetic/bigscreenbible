@@ -7977,6 +7977,31 @@ select {
   background: color-mix(in srgb, var(--teal) 9%, var(--panel));
 }
 
+.live-challenge-players > li.is-you.game-results-spotlight,
+[data-solo-result-spotlight].game-results-spotlight {
+  animation: game-results-spotlight 2s var(--game-results-spotlight-offset, 0ms) ease-out;
+}
+.game-results-spotlight > strong,
+.game-results-spotlight .arcade-score-record > strong {
+  animation: game-results-score-highlight 2s var(--game-results-spotlight-offset, 0ms) ease-out;
+}
+@keyframes game-results-spotlight {
+  0%, 70% {
+    background: color-mix(in srgb, var(--gold) 21%, var(--panel));
+    box-shadow: inset 0 0 0 2px var(--gold), 0 0 14px color-mix(in srgb, var(--gold) 45%, transparent);
+  }
+  100% { box-shadow: none; }
+}
+@keyframes game-results-score-highlight {
+  0%, 70% { color: var(--ink); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-challenge-players > li.is-you.game-results-spotlight,
+  [data-solo-result-spotlight].game-results-spotlight,
+  .game-results-spotlight > strong,
+  .game-results-spotlight .arcade-score-record > strong { animation-timing-function: step-end; }
+}
+
 .live-challenge-rank,
 .live-challenge-players small {
   color: var(--muted);
