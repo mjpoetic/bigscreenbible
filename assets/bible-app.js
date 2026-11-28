@@ -5990,6 +5990,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.13": [
+      "The fade controls button now sits directly above Help in the portrait side toolbar.",
+    ],
     "2026.11.27.12": [
       "The moon or sun button for fading reading controls now has its own spot in the side toolbar in Reader and Parallel.",
     ],
@@ -10863,10 +10866,9 @@ function rail() {
   return `<aside class="rail"><div class="rail-tools" role="group" aria-label="Study tools">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
-  }).join("")}
-    ${["reader", "parallel"].includes(state.mode) ? readerControlsFadeButton() : ""}
-    </div>
+  }).join("")}</div>
     <div class="portrait-rail-actions">
+      ${["reader", "parallel"].includes(state.mode) ? readerControlsFadeButton() : ""}
       <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
       <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
     </div>

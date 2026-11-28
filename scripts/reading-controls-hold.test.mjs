@@ -58,4 +58,15 @@ assert.match(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/
 context.state.showControlsFadeToggle = false;
 assert.doesNotMatch(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/);
 assert.match(context.readerControlsFadePopover(), /id="readerControlsFadePopover"/);
+Object.assign(context, {
+  effectiveSideToolbarPosition: () => 'left',
+  isSideToolbarAutoPositioned: () => false,
+  isSideToolbarToggleEnabled: () => false,
+});
+vm.runInContext(source.slice(source.indexOf('function rail()'), source.indexOf('function library()')), context);
+context.state.showControlsFadeToggle = true;
+for (const mode of ['reader', 'parallel']) {
+  context.state.mode = mode;
+  assert.match(context.rail(), /class="portrait-rail-actions">\s*<button[^>]*id="readerControlsFadeToggle"[^>]*>.*?<\/button>\s*<button id="railHelpButton"/);
+}
 console.log('Reading controls hold: tap, hold, click suppression, cancellation, drag, and keyboard passed.');

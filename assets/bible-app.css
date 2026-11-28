@@ -24181,7 +24181,9 @@ svg {
 }
 
 /* Portrait reading keeps primary controls visible without an extra disclosure. */
-.portrait-rail-actions, .portrait-search-collapse-toggle { display: none; }
+.portrait-rail-actions { display: contents; }
+.portrait-rail-actions > :is(#railHelpButton, #railSettingsToggle),
+.portrait-search-collapse-toggle { display: none; }
 @media (max-width: 840px) and (orientation: portrait) {
   .app-shell:not(.focus-shell) .topbar .mobile-controls-toggle,
   .app-shell:not(.focus-shell) .topbar #shortcutsButton,
@@ -24214,7 +24216,7 @@ svg {
   .app-shell:not(.focus-shell) .topbar .version-selected-label { display: inline; }
   .app-shell:not(.focus-shell) .topbar .primary-version-menu { left: auto; right: 0; width: min(312px, calc(100vw - 16px)); transform: none; }
   .app-shell:not(.focus-shell) .portrait-rail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
-  .app-shell:not(.focus-shell) .portrait-rail-actions button { min-height: 44px; }
+  .app-shell:not(.focus-shell) .portrait-rail-actions button { display: grid; min-height: 44px; }
   .app-shell:not(.focus-shell) .rail-position-toggle { margin-top: 0; }
 }
 
