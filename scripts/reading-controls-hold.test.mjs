@@ -72,7 +72,12 @@ for (const mode of ['reader', 'parallel']) {
   assert.doesNotMatch(context.rail(), /id="readerControlsFadeToggle"/);
   assert.match(context.readerControlsFadeButton(), /class="reader-controls-fade-toggle"/);
   context.focusSearchPortrait.matches = true;
-  assert.match(context.rail(), /class="portrait-rail-actions">\s*<button[^>]*id="readerControlsFadeToggle"[^>]*>.*?<\/button>\s*<button id="railHelpButton"/);
+  if (mode === 'reader') {
+    assert.doesNotMatch(context.rail(), /id="readerControlsFadeToggle"/);
+    assert.match(context.readerControlsFadeButton(), /class="reader-controls-fade-toggle"/);
+  } else {
+    assert.match(context.rail(), /class="portrait-rail-actions">\s*<button[^>]*id="readerControlsFadeToggle"[^>]*>.*?<\/button>\s*<button id="railHelpButton"/);
+  }
 }
 context.state.focusMode = true;
 assert.match(context.readerControlsFadeButton(), /class="reader-controls-fade-toggle"/);

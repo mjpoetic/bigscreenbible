@@ -6021,6 +6021,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.3": [
+      "Reader’s fade controls button floats at the lower left in mobile portrait, and its tooltip stays on screen.",
+    ],
     "2026.11.28.2": [
       "The search bar stays tucked away while reading in mobile portrait and slides into view when you open Search.",
       "Search has red Clear and green Done buttons, and Reading History has its own label.",
@@ -12573,7 +12576,7 @@ function bindReaderAutoScrollButton(button) {
 }
 
 function readerControlsFadeInRail() {
-  return !state.focusMode && focusSearchPortrait.matches;
+  return state.mode === "parallel" && !state.focusMode && focusSearchPortrait.matches;
 }
 
 function readerControlsFadeButton() {

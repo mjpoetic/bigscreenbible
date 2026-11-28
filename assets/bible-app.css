@@ -29324,11 +29324,11 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   pointer-events: auto;
   transition: opacity var(--motion-fast) ease;
 }
-.app-shell:not(.focus-shell, .footer-collapsed) .reader-controls-fade-toggle {
+.app-shell:not(.focus-shell, .footer-collapsed) .reader:not(.shared-passage-active) .reader-controls-fade-toggle {
   bottom: calc(var(--reader-chrome-height) + 4px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
-.app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader-controls-fade-toggle {
+.app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader:not(.shared-passage-active) .reader-controls-fade-toggle {
   left: calc(var(--rail-width) + 10px + var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
 }
 
@@ -29342,7 +29342,30 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 }
 .reader-controls-fade-toggle svg { width: 16px; height: 16px; pointer-events: none; }
 
+.reader-controls-fade-toggle[data-tooltip]::after {
+  left: 0;
+  width: max-content;
+  white-space: normal;
+  transform: translateY(4px);
+}
+.reader-controls-fade-toggle[data-tooltip]:is(:hover, :focus-visible)::after {
+  transform: translateY(0);
+}
+
 @media (max-width: 840px) and (orientation: portrait) {
+  .app-shell:not(.focus-shell, .footer-collapsed) .reader:not(.shared-passage-active) .reader-controls-fade-toggle {
+    bottom: calc(var(--mobile-portrait-footer-height) + 4px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+
+  .app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader:not(.shared-passage-active) .reader-controls-fade-toggle {
+    left: calc(var(--rail-width) + 4px + var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+  }
+
+  /* Leave a narrow gutter between the rail and the reading column. */
+  .app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader:not(.shared-passage-active):has(.reader-controls-fade-toggle) > .scripture {
+    padding-left: 42px;
+  }
+
   /* With the footer collapsed, leave room for the 32px toggle below both stacks. */
   .app-shell.focus-shell.footer-collapsed:has(.reader-controls-fade-toggle) :is(
     .mobile-floating-settings, .mobile-focus-passage-control, .mobile-focus-tools-control,
