@@ -231,7 +231,20 @@ html[data-control-material="glass"] :is(
   backdrop-filter: var(--glass-blur);
 }
 html[data-control-material="glass"] :is(.shortcut-panel, .about-menu-card, .account-popover) { border-radius: 24px; }
-html[data-control-material="glass"] .library { border-radius: 0 22px 22px 0; }
+html[data-control-material="glass"] .library { border-radius: inherit; }
+@media (width > 840px) {
+  html[data-control-material="glass"] .library-drawer {
+    border-radius: 0 22px 22px 0;
+    border: 0;
+    box-shadow: 16px 0 36px color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+}
+@media (840px < width <= 1024px) and (max-height: 560px) and (orientation: landscape) {
+  html[data-control-material="glass"] .app-shell[data-side-toolbar-position="right"] .library-drawer {
+    border-radius: 22px 0 0 22px;
+    box-shadow: -16px 0 36px color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+}
 html[data-control-material="glass"] :is(
   .select-row select, .testament-group, .testament-group > summary,
   .annotation-group > summary, .annotation-shelf > summary, .history-group > summary,
@@ -335,10 +348,6 @@ html[data-control-material="glass"] .parallel-heading-row {
 }
 html[data-control-material="glass"] :is(.parallel-head, .parallel-row) > div {
   border-right-color: color-mix(in srgb, var(--line) 65%, var(--panel));
-}
-@media (max-width: 840px) {
-  /* The mobile drawer meets the viewport edge; retain safe-area geometry. */
-  html[data-control-material="glass"] .library { border-radius: 0; }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   html[data-control-material="glass"] :is(.library, .shortcut-panel, .about-menu-card, .account-popover) {

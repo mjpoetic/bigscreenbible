@@ -2342,7 +2342,10 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   }
   if (state.pendingLibraryScrollRestore) {
     state.pendingLibraryScrollRestore = false;
-    requestAnimationFrame(() => requestAnimationFrame(() => restoreSavedLibraryScroll()));
+    const libraryPanel = document.querySelector(".library");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (libraryPanel?.isConnected) restoreSavedLibraryScroll();
+    }));
   }
   requestAnimationFrame(() => {
     fitPresentationText();
@@ -6027,6 +6030,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.6": [
+      "Sidebar panels transition smoothly, Bookmarks opens at its heading, and the glass drawer follows its rounded edge.",
+    ],
     "2026.11.28.5": [
       "The website hides the reading controls fade button by default. You can turn it on in Reading & navigation settings.",
     ],
@@ -35269,7 +35275,8 @@ function recordHistory(ref = referenceLabel()) {
 function activateWorkspace(target) {
   if (target === "Verse") primePassageScrollAudio();
   if (target === "Search") state.searchQuery = state.searchQuery || state.searchResultsQuery;
-  if (state.libraryOpen && libraryStateKey(target) !== libraryStateKey(state.activeRail)) {
+  const switchingPanel = state.libraryOpen && libraryStateKey(target) !== libraryStateKey(state.activeRail);
+  if (switchingPanel) {
     rememberOpenLibraryState();
     persistLibraryScrollByRail();
   }
@@ -35279,8 +35286,9 @@ function activateWorkspace(target) {
   localStorage.setItem("lw_library_open", "true");
   scheduleCloudSync();
   state.pendingPanelFocus = target === "Search" || isCompactScreen() || isShortLandscapeScreen() ? null : target;
-  state.pendingLibraryScrollRestore = Boolean(savedLibraryScroll(target));
+  state.pendingLibraryScrollRestore = target !== "Bookmarks" && Boolean(savedLibraryScroll(target));
   renderPreservingReaderScroll();
+  if (switchingPanel) document.querySelector(".library")?.classList.add("library-switching");
   // Keep search focus inside the click gesture so mobile browsers can open the keyboard.
   if (target === "Search") focusWorkspaceTarget("Search");
 }
@@ -38388,7 +38396,7 @@ function focusWorkspaceTarget(target) {
   if (!element) return;
   const libraryPanel = element.closest(".library");
 
-  if (target === "Verse" || target === "Search" || target === "History" || target === "Cross-Refs") {
+  if (target === "Verse" || target === "Search" || target === "Bookmarks" || target === "History" || target === "Cross-Refs") {
     libraryPanel?.scrollTo({ top: 0, behavior: "auto" });
     if (target === "Verse" || target === "Search") element.focus?.({ preventScroll: true });
     return;

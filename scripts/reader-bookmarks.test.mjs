@@ -23,3 +23,40 @@ assert.equal(run('readerBookmarkMarker()'), '');
 state.reference = 'John 3'; state.mode = 'big';
 assert.equal(run('readerBookmarkMarker()'), '');
 console.log('Chapter bookmark filtering, ordering, range links and Reader/Parallel markers passed.');
+
+const workspaceState = { activeRail: 'Verse', libraryOpen: true };
+const scroller = {
+  scrollTop: 150,
+  scrollTo({ top }) { this.scrollTop = top; },
+  classList: { add(name) { assert.equal(name, 'library-switching'); switches += 1; } },
+};
+let switches = 0;
+const workspace = vm.createContext({
+  state: workspaceState,
+  document: {
+    querySelector(selector) {
+      if (selector === '.library') return scroller;
+      assert.equal(selector, '#bookmarksSection');
+      return { closest: () => scroller };
+    },
+  },
+  rememberOpenLibraryState() {},
+  persistLibraryScrollByRail() {},
+  localStorage: { setItem() {} },
+  scheduleCloudSync() {},
+  isCompactScreen: () => false,
+  isShortLandscapeScreen: () => false,
+  savedLibraryScroll: () => ({ top: 150 }),
+  renderPreservingReaderScroll() {},
+});
+vm.runInContext(`let pendingLibraryEnter = false;
+  ${['activateWorkspace', 'libraryStateKey', 'focusWorkspaceTarget'].map(extract).join('\n')}
+  activateWorkspace('Bookmarks');
+  focusWorkspaceTarget('Bookmarks');
+`, workspace);
+assert.equal(workspaceState.pendingLibraryScrollRestore, false, 'Ignore previously saved Bookmarks offsets');
+assert.equal(scroller.scrollTop, 0, 'Keep the Bookmarks heading and close button in view');
+assert.equal(switches, 1, 'Animate a switch between open workspace panels');
+vm.runInContext("activateWorkspace('Bookmarks'); activateWorkspace('History');", workspace);
+assert.equal(switches, 2, 'Selecting the active panel does not replay the transition');
+assert.equal(workspaceState.pendingLibraryScrollRestore, true, 'Other workspace panels retain scroll restoration');

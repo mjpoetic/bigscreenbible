@@ -6107,6 +6107,17 @@ dialog.game-challenge-confirm {
   animation: drawerIn var(--motion-drawer) var(--motion-ease) both;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .library-switching > * {
+    animation: libraryPanelIn var(--motion-slow) var(--motion-ease);
+  }
+}
+
+@keyframes libraryPanelIn {
+  from { opacity: 0; translate: 0 5px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
 .panel-minihead {
   display: flex;
   align-items: center;
