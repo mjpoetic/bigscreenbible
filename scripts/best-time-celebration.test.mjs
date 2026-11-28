@@ -94,11 +94,20 @@ clickAction('results');
 assert.equal(puzzleFocused, true);
 
 const pending = source.slice(source.indexOf('function runPendingTriviaCelebration('), source.indexOf('function revealTriviaMotionSuccess('));
+context.gameChallengeAwaitingResults = () => true;
 vm.runInContext(pending, context);
 context.state.mode = 'trivia';
 context.state.activeGameChallengeId = 'room';
 context.state.triviaGame = { type: 'hidden-word', complete: true, challengeId: 'room' };
 context.document.createElement = () => assert.fail('Multiplayer completion must leave standings accessible');
 puzzleFocused = false;
+let waitingFocused = false;
+context.document.getElementById = (id) => id === 'gameResultsWaitingTitle'
+  ? { focus() { waitingFocused = true; } } : null;
+context.runPendingTriviaCelebration();
+assert.equal(waitingFocused, true);
+assert.equal(puzzleFocused, false);
+assert.equal(context.state.triviaGame.bestTimeCelebrationShown, undefined);
+context.gameChallengeAwaitingResults = () => false;
 context.runPendingTriviaCelebration();
 assert.equal(puzzleFocused, true);

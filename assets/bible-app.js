@@ -5990,6 +5990,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.17": [
+      "Score-based multiplayer games reveal final standings after everyone finishes. Fastest-time games still show results as players finish.",
+      "Rematches return to a lobby so players can respond before the host starts the shared countdown.",
+      "The results podium now has gold, silver, and bronze medals.",
+    ],
     "2026.11.27.16": [
       "Every multiplayer game now shows a podium for first, second, and third place when the room finishes. Players who tie share their place.",
     ],
@@ -9496,13 +9501,14 @@ function gameChallengePopup() {
   const personName = person.displayName || (person.username ? `@${person.username}` : "A friend");
   const personHandle = person.username ? `@${person.username}` : "";
   const incoming = notice.kind === "incoming";
+  const rematchInvitation = incoming && Boolean(challenge?.rematchOf);
   const accepted = notice.status === "accepted";
   const rematch = notice.status === "rematch";
   const waiting = challenge?.status === "pending";
-  const canStart = accepted && waiting && gameRoomCanStart(gameChallengeAcceptedPlayers(challenge.id));
+  const canStart = accepted && waiting && gameRoomCanStart(gameChallengeAcceptedPlayers(challenge.id), gameRoomAwaitingRematchReplies(challenge));
   const closureLabel = notice.status === "ended" ? "Challenge ended" : "Challenge cancelled";
   const title = departure ? `${notice.actorName} left the challenge` : closure ? closureLabel : friendRequest ? `${personName} sent you a friend request` : rematch ? `${personName} started a rematch`
-    : incoming ? `${personName} invited you`
+    : incoming ? `${personName} invited you${rematchInvitation ? " to a rematch" : ""}`
       : accepted ? `${personName} joined your room` : `${personName} may play later`;
   const body = departure ? "You can finish this game on your own or end the challenge now." : closure
     ? notice.actorUserId === notice.userId ? "You closed this challenge." : "This challenge is no longer in progress."
@@ -14796,8 +14802,14 @@ async function rematchGameRoom(challengeId) {
     if (!state.gameChallenges.some((challenge) => challenge.id === roomId)) {
       throw new Error("The rematch could not load. Try again to rejoin.");
     }
+    queueSocialPushDelivery();
     clearMatchingGameChallengePopup(roomId);
     if (!gameChallengePopupNotice) showNextGameChallengePopup();
+    if (gameChallengePlayer(roomId)?.inviteStatus === "invited") {
+      state.gameChallengeActionBusyId = "";
+      await updateGameChallengeResponse(roomId, "accept");
+      return;
+    }
     await joinGameChallenge(roomId);
   } catch (error) {
     console.warn("Game rematch failed", error);
@@ -21463,7 +21475,8 @@ function liveBookSprintPlayerResult(challenge, player) {
 
 function gameChallengeRematchButton(challenge) {
   if (challenge.status !== "completed" || gameChallengeAcceptedPlayers(challenge.id).length < 2) return "";
-  const rematch = state.gameChallenges.find((room) => room.rematchOf === challenge.id);
+  const rematch = state.gameChallenges.find((room) => room.rematchOf === challenge.id
+    && room.status !== "cancelled" && !gameChallengeIsExpired(room));
   if (rematch?.status === "completed") {
     return gameChallengeActionButton("view", "Rematch results", rematch);
   }
@@ -21478,15 +21491,17 @@ function gameChallengePlayerName(player) {
 
 function gameChallengePodium(challenge, rankedPlayers) {
   if (challenge.status !== "completed" || !rankedPlayers.length) return "";
-  const places = ["First", "Second", "Third"].map((label, index) => ({
+  const places = [["First", "🥇"], ["Second", "🥈"], ["Third", "🥉"]].map(([label, medal], index) => ({
     label,
+    medal,
     rank: index + 1,
     players: rankedPlayers.filter((player) => gameChallengePlayerRank(challenge, player, rankedPlayers) === index + 1),
   })).filter(({ players }) => players.length);
   return `
     <ol class="game-results-podium" aria-label="Results podium" role="list">
-      ${places.map(({ label, rank, players }) => `
+      ${places.map(({ label, medal, rank, players }) => `
         <li data-podium-place="${rank}">
+          <span class="game-podium-medal" aria-hidden="true">${medal}</span>
           <strong>${label} place${players.length > 1 ? " · Tie" : ""}</strong>
           ${players.map((player) => `<span>${escapeHtml(gameChallengePlayerName(player))}</span>`).join("")}
         </li>
@@ -21495,9 +21510,14 @@ function gameChallengePodium(challenge, rankedPlayers) {
   `;
 }
 
+function gameChallengeAwaitingResults(game = state.triviaGame, challenge = activeGameChallenge()) {
+  return Boolean(game?.complete && game.challengeId && game.challengeId === challenge?.id
+    && challenge.status === "accepted" && !isTimedGameChallenge(challenge.gameType));
+}
+
 function liveGameChallengeScoreboard() {
   const challenge = activeGameChallenge();
-  if (!challenge || challenge.status === "pending") return "";
+  if (!challenge || challenge.status === "pending" || gameChallengeAwaitingResults()) return "";
   const players = gameChallengeAcceptedPlayers(challenge.id);
   const rankedPlayers = gameChallengeRankedPlayers(challenge, players);
   const selfPlayer = gameChallengePlayer(challenge.id);
@@ -21565,6 +21585,7 @@ function bindGameStandingsToggle(root = document) {
 }
 
 function refreshLiveGameChallengeScoreboard() {
+  if (gameChallengeAwaitingResults() && document.getElementById("gameResultsWaitingTitle")) return true;
   const current = document.querySelector(".live-challenge-scoreboard");
   const markup = liveGameChallengeScoreboard();
   if (!current || !markup) return false;
@@ -21653,8 +21674,13 @@ function gameRoomLobbyPlayer(challenge, player) {
   `;
 }
 
-function gameRoomCanStart(acceptedPlayers) {
-  return acceptedPlayers.length >= 2 && acceptedPlayers.every((player) => player.isHost || player.ready);
+function gameRoomCanStart(acceptedPlayers, waitingForReplies = false) {
+  return !waitingForReplies && acceptedPlayers.length >= 2 && acceptedPlayers.every((player) => player.isHost || player.ready);
+}
+
+function gameRoomAwaitingRematchReplies(challenge, players) {
+  return Boolean(challenge.rematchOf
+    && (players ?? gameChallengePlayersFor(challenge.id)).some((player) => player.inviteStatus === "invited"));
 }
 
 function gameRoomLobbyCard(challenge) {
@@ -21669,17 +21695,18 @@ function gameRoomLobbyCard(challenge) {
   const invitedPlayers = players.filter((player) => player.inviteStatus === "invited");
   const selfPlayer = gameChallengePlayer(challenge.id);
   const isHost = challenge.challengerId === state.authUser?.id;
-  const canStart = gameRoomCanStart(acceptedPlayers);
+  const waitingForRematchReplies = gameRoomAwaitingRematchReplies(challenge, invitedPlayers);
+  const canStart = gameRoomCanStart(acceptedPlayers, waitingForRematchReplies);
   const busy = Boolean(state.gameChallengeActionBusyId);
   const playerIds = new Set(players.map((player) => player.userId));
-  const canInvite = isHost && challenge.status === "pending" && players.length < 10;
+  const canInvite = isHost && challenge.status === "pending" && !challenge.rematchOf && players.length < 10;
   const availableFriends = canInvite
     ? gameChallengeFriends().filter(({ userId }) => !playerIds.has(userId))
     : [];
   return `
     <section class="challenge-setup-card game-room-lobby" aria-labelledby="gameRoomLobbyTitle">
       <div>
-        <span>Waiting room</span>
+        <span>${challenge.rematchOf ? "Rematch lobby" : "Waiting room"}</span>
         <strong id="gameRoomLobbyTitle">${escapeHtml(gameChallengeTitle(challenge.gameType))}</strong>
       </div>
       <p>${acceptedPlayers.length} joined${invitedPlayers.length ? ` · ${invitedPlayers.length} awaiting a reply` : ""} · ${10 - players.length} spots open</p>
@@ -21716,7 +21743,9 @@ function gameRoomLobbyCard(challenge) {
           : gameChallengeActionButton("ready", "I’m ready", challenge, { primary: true })}
         ${!isHost && selfPlayer?.inviteStatus === "accepted" ? gameChallengeActionButton("leave", "Leave challenge", challenge) : ""}
       </div>
-      ${isHost && !canStart ? `<small>${acceptedPlayers.length < 2
+      ${isHost && !canStart ? `<small>${waitingForRematchReplies
+        ? "Waiting for everyone to respond to the rematch."
+        : acceptedPlayers.length < 2
         ? "Start becomes available when a friend joins ready to play."
         : "Waiting for joined players to mark themselves ready."}</small>` : ""}
     </section>
@@ -22358,7 +22387,7 @@ function triviaView() {
           </div>
           <div class="trivia-header-actions">
             ${state.triviaGame && !state.triviaGame.complete && state.triviaGame.type !== "crossword" ? '<div class="games-play-menu" id="gamesPlayMenu"></div>' : ""}
-            <div class="trivia-score-chip">${triviaScoreLabel()}</div>
+            ${gameChallengeAwaitingResults() ? "" : `<div class="trivia-score-chip">${triviaScoreLabel()}</div>`}
             ${state.triviaGame && !state.triviaGame.complete ? `
               ${gameHintsAvailable ? `
                 <button
@@ -22600,6 +22629,15 @@ function triviaExitControl(game = state.triviaGame) {
 
 function triviaGameView() {
   const game = state.triviaGame;
+  if (gameChallengeAwaitingResults(game)) {
+    return `
+      <div class="trivia-game game-results-waiting">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <h2 id="gameResultsWaitingTitle" tabindex="-1">Waiting for other players</h2>
+        <p>Final standings will appear when everyone finishes.</p>
+        ${triviaExitControl(game)}
+      </div>`;
+  }
   if (game?.type === "word-search") return wordSearchGameView(game);
   if (game?.type === "crossword") return crosswordGameView(game);
   if (game?.type === "hidden-word") return hiddenWordGameView(game);
@@ -23772,6 +23810,13 @@ function showBestTimeCelebration(game, best, { chooseReplay = false } = {}) {
 function runPendingTriviaCelebration() {
   const game = state.triviaGame;
   if (state.mode !== "trivia" || !game?.complete) return;
+  if (gameChallengeAwaitingResults(game)) {
+    if (!game.resultsWaitingShown) {
+      game.resultsWaitingShown = true;
+      document.getElementById("gameResultsWaitingTitle")?.focus();
+    }
+    return;
+  }
   const best = newBestTimeResult(game);
   if (!game.bestTimeCelebrationShown) {
     game.outcomeSoundPending = "";

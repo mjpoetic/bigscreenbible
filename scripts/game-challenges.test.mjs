@@ -99,6 +99,7 @@ vm.runInContext(`
   ${extractFunction("gameChallengePlayerRank")}
   ${extractFunction("gameChallengePlayerName")}
   ${extractFunction("gameChallengePodium")}
+  ${extractFunction("gameChallengeAwaitingResults")}
   ${extractFunction("gameChallengeResultLabel")}
   ${extractFunction("gameChallengeBookSprintElapsedMs")}
   ${extractFunction("activeGameChallenge")}
@@ -133,7 +134,12 @@ for (const gameType of ["trivia", "who-said-it", "verse-order", "reference-rush"
   assert.match(podium, /Second place/);
   assert.match(podium, /Third place<\/strong>\s*<span>Guest C/);
   assert.doesNotMatch(podium, /Guest D/);
+  for (const medal of ["🥇", "🥈", "🥉"]) assert.ok(podium.includes(medal));
   assert.equal(pureContext.gameChallengePodium({ ...room, status: "accepted" }, ranked), "");
+  const finishedGame = { complete: true, challengeId: "room", type: gameType };
+  assert.equal(pureContext.gameChallengeAwaitingResults(finishedGame, { ...room, id: "room", status: "accepted" }),
+    !["book-sprint", "word-search", "crossword"].includes(gameType));
+  assert.equal(pureContext.gameChallengeAwaitingResults(finishedGame, { ...room, id: "room" }), false);
 }
 const tiedPodium = pureContext.gameChallengePodium({ status: "completed", gameType: "trivia" }, [
   podiumPlayers[0],
@@ -261,6 +267,7 @@ const popupContext = vm.createContext({
   gameChallengeAcceptedPlayers: () => [{ isHost: true }, { ready: true }],
 });
 vm.runInContext(extractFunction("gameRoomCanStart"), popupContext);
+vm.runInContext(extractFunction("gameRoomAwaitingRematchReplies"), popupContext);
 vm.runInContext(extractFunction("gameChallengePopup"), popupContext);
 for (const [kind, status, challengeId, action, label] of [
   ["incoming", "invited", "incoming", "accept", "I’m ready"],
@@ -355,7 +362,7 @@ const lobbyContext = vm.createContext({
   gameChallengeTitle: () => "Trivia",
   escapeHtml: String,
 });
-for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomFriendshipControl", "gameRoomLobbyPlayer", "gameRoomLobbyCard"]) {
+for (const name of ["gameRoomCanStart", "gameRoomAwaitingRematchReplies", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomFriendshipControl", "gameRoomLobbyPlayer", "gameRoomLobbyCard"]) {
   vm.runInContext(extractFunction(name), lobbyContext);
 }
 const hostMarkup = lobbyContext.gameRoomLobbyCard(lobby);
@@ -377,6 +384,12 @@ assert.match(lobbyContext.gameRoomLobbyCard(lobby), /Request sent/);
 roster = [host, guest, ...Array.from({ length: 8 }, (_, index) => ({ userId: `extra-${index}`, inviteStatus: "invited" }))];
 assert.doesNotMatch(lobbyContext.gameRoomLobbyCard(lobby), /data-game-challenge-action="invite"/);
 roster = [host, guest];
+roster.push({ userId: "invitee", inviteStatus: "invited" });
+const rematchMarkup = lobbyContext.gameRoomLobbyCard({ ...lobby, rematchOf: "prior" });
+assert.match(rematchMarkup, /Waiting for everyone to respond to the rematch/);
+assert.match(rematchMarkup, /data-game-challenge-action="start-room"[^>]*disabled/);
+assert.doesNotMatch(rematchMarkup, /data-game-challenge-action="invite"/);
+roster.pop();
 assert.match(source, /id="challengeFriendForGame"[\s\S]*<span>Challenge a friend<\/span>/);
 lobbyContext.state.authUser.id = guest.userId;
 const guestMarkup = lobbyContext.gameRoomLobbyCard(lobby);

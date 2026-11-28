@@ -44,6 +44,9 @@ try {
  const expertMigration = read('supabase/migrations/20261121042839_expert_puzzle_rooms.sql');
  assert.ok(read('supabase/schema.sql').includes(expertMigration));
  await db.exec(expertMigration);
+ const rematchWaitingMigration = read('supabase/migrations/20261128020635_game_rematch_waiting_rooms.sql');
+ assert.ok(read('supabase/schema.sql').includes(rematchWaitingMigration));
+ await db.exec(rematchWaitingMigration);
  await admin(`insert into auth.users values('${a}'),('${b}'),('${c}')`);
  await login(a);
  await denied(`insert into public.bsb_profiles(user_id,username) values('${a}','reader_a')`,'42501');
@@ -209,23 +212,47 @@ try {
    await denied(`select public.rematch_bsb_game_room('${room}')`,'42501');
   }
   await login(b);
+  const cancelledRematch = (await db.query(`select public.rematch_bsb_game_room('${room}') as id`)).rows[0].id;
+  await db.query(`select public.exit_bsb_game_room('${cancelledRematch}', true)`);
   const rematch = (await db.query(`select public.rematch_bsb_game_room('${room}') as id`)).rows[0].id;
+  assert.notEqual(rematch, cancelledRematch);
   assert.notEqual(rematch, room);
   const { rows: [replay] } = await db.query(`select status, started_at, rematch_of, puzzle,
     seed = (select seed from public.bsb_game_challenges where id='${room}') as same_seed
     from public.bsb_game_challenges where id='${rematch}'`);
-  assert.equal(replay.status, 'accepted');
-  assert.ok(replay.started_at);
+  assert.equal(replay.status, 'pending');
+  assert.equal(replay.started_at, null);
   assert.equal(replay.rematch_of, room);
   assert.deepEqual(replay.puzzle, puzzle);
   assert.equal(replay.same_seed, true);
   await login(a);
   assert.equal((await db.query(`select public.rematch_bsb_game_room('${room}') as id`)).rows[0].id, rematch);
-  const { rows: replayPlayers } = await db.query(`select invite_status, score, progress, completed_at, puzzle_state
+  const { rows: replayPlayers } = await db.query(`select is_host, invite_status, ready, score, progress, completed_at, puzzle_state
     from public.bsb_game_challenge_players where challenge_id='${rematch}'`);
-  assert.deepEqual(replayPlayers, Array.from({ length: invitees.length + 1 }, () => ({
-    invite_status: 'accepted', score: 0, progress: 0, completed_at: null, puzzle_state: null,
-  })));
+  assert.equal(replayPlayers.length, invitees.length + 1);
+  for (const player of replayPlayers) {
+   assert.deepEqual(player, {
+    is_host: player.is_host, invite_status: player.is_host ? 'accepted' : 'invited',
+    ready: false, score: 0, progress: 0, completed_at: null, puzzle_state: null,
+   });
+  }
+  await denied(`select public.start_bsb_game_room('${rematch}')`,'42501');
+  await login(b);
+  await denied(`select public.start_bsb_game_room('${rematch}')`,'23514');
+  await login(a);
+  await db.query(`update public.bsb_game_challenge_players set invite_status='accepted', ready=true where challenge_id='${rematch}' and user_id='${a}'`);
+  if (invitees.includes(c)) {
+   await login(b);
+   await denied(`select public.start_bsb_game_room('${rematch}')`,'23514');
+   await login(c);
+   await db.query(`update public.bsb_game_challenge_players set invite_status='accepted', ready=true where challenge_id='${rematch}' and user_id='${c}'`);
+  }
+  await login(b);
+  assert.equal((await db.query(`select status from public.bsb_game_challenges where id='${rematch}'`)).rows[0].status, 'pending');
+  await db.query(`select public.start_bsb_game_room('${rematch}')`);
+  const startedRematch = (await db.query(`select status, started_at from public.bsb_game_challenges where id='${rematch}'`)).rows[0];
+  assert.equal(startedRematch.status, 'accepted');
+  assert.ok(startedRematch.started_at);
   assert.equal((await db.query(`select status from public.bsb_game_challenges where id='${room}'`)).rows[0].status,'completed');
  }
  console.log('Puzzle challenge PostgreSQL room, RLS, progress, and completion tests passed');
