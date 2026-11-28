@@ -22,6 +22,17 @@ const context = vm.createContext({
   },
   playControlHaptic() { haptics++; },
 });
+vm.runInContext(source.slice(source.indexOf('function savedShowControlsFadeToggle('), source.indexOf('function savedRedLetters(')), context);
+context.localStorage.getItem = key => storage.get(key) ?? null;
+context.window = {};
+assert.equal(context.savedShowControlsFadeToggle(), false, 'The website hides the button for visitors without a saved preference');
+storage.set('lw_show_controls_fade_toggle', 'true');
+assert.equal(context.savedShowControlsFadeToggle(), true);
+context.window.Capacitor = { isNativePlatform: () => true };
+storage.set('lw_show_controls_fade_toggle', 'false');
+assert.equal(context.savedShowControlsFadeToggle(), false);
+storage.delete('lw_show_controls_fade_toggle');
+assert.equal(context.savedShowControlsFadeToggle(), true, 'Native apps retain their existing default');
 vm.runInContext(source.slice(source.indexOf('const floatingControlsStorageKeys ='), source.indexOf('function bindReaderControlsFadeToggle(')), context);
 context.bindReaderControlsFadeHold(button);
 function fire(name, overrides = {}) {

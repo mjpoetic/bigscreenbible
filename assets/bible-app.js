@@ -823,7 +823,7 @@ const state = {
   focusReading: false,
   focusReadingStyle: localStorage.getItem("lw_focus_reading_style") === "blur" ? "blur" : "dim",
   focusReadingLines: Math.max(1, Math.min(3, Number(localStorage.getItem("lw_focus_reading_lines")) || 1)),
-  showControlsFadeToggle: localStorage.getItem("lw_show_controls_fade_toggle") !== "false",
+  showControlsFadeToggle: savedShowControlsFadeToggle(),
   focusControlsFade: localStorage.getItem("lw_focus_controls_fade") !== "false",
   focusControlsTouchReveal: localStorage.getItem("lw_focus_controls_touch_reveal") === "true",
   focusControlsFadeSeconds: normalizedFocusControlsFadeSeconds(localStorage.getItem("lw_focus_controls_fade_seconds")),
@@ -1218,6 +1218,12 @@ function savedFocusMode() {
   if (saved === "true") return true;
   if (saved === "false") return false;
   return false;
+}
+
+function savedShowControlsFadeToggle() {
+  const saved = localStorage.getItem("lw_show_controls_fade_toggle");
+  if (saved === "true" || saved === "false") return saved === "true";
+  return Boolean(window.Capacitor?.isNativePlatform?.());
 }
 
 function savedRedLetters() {
@@ -6021,6 +6027,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.5": [
+      "The website hides the reading controls fade button by default. You can turn it on in Reading & navigation settings.",
+    ],
     "2026.11.28.4": [
       "Hide the reading controls fade button from its own menu, with a quick Undo or the option to restore it in Reading & navigation settings.",
     ],
@@ -17595,7 +17604,7 @@ function applyCloudSnapshot(snapshot) {
   state.settingsSectionsOpenUpdatedAt = normalizedVersionsUpdatedAt(
     settings.settingsSectionsOpenUpdatedAt || localStorage.getItem(settingsSectionsOpenUpdatedAtStorageKey),
   );
-  state.showControlsFadeToggle = typeof settings.showControlsFadeToggle === "boolean" ? settings.showControlsFadeToggle : localStorage.getItem("lw_show_controls_fade_toggle") !== "false";
+  state.showControlsFadeToggle = typeof settings.showControlsFadeToggle === "boolean" ? settings.showControlsFadeToggle : savedShowControlsFadeToggle();
   state.focusControlsFade = typeof settings.focusControlsFade === "boolean" ? settings.focusControlsFade : localStorage.getItem("lw_focus_controls_fade") !== "false";
   state.focusControlsTouchReveal = typeof settings.focusControlsTouchReveal === "boolean" ? settings.focusControlsTouchReveal : localStorage.getItem("lw_focus_controls_touch_reveal") === "true";
   state.focusControlsFadeSeconds = normalizedFocusControlsFadeSeconds(settings.focusControlsFadeSeconds ?? localStorage.getItem("lw_focus_controls_fade_seconds"));
