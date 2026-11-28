@@ -2168,7 +2168,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   const animateSearchRow = previousShell?.querySelector(".topbar") && wasSearchCollapsed !== searchCollapsed
     && window.matchMedia("(max-width: 840px) and (orientation: portrait) and (prefers-reduced-motion: no-preference)").matches;
   app.innerHTML = `
-    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${(animateSearchRow ? wasSearchCollapsed : searchCollapsed) ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main data-view="${state.mode}" class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${(animateSearchRow ? wasSearchCollapsed : searchCollapsed) ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       ${state.mode === "parallel" ? `<button class="parallel-header-toggle" id="parallelHeaderToggle" type="button" aria-controls="appHeader" aria-expanded="${!state.parallelHeaderCollapsed}" aria-label="${state.parallelHeaderCollapsed ? "Show" : "Hide"} header"><span aria-hidden="true">${state.parallelHeaderCollapsed ? "⌄" : "⌃"}</span> ${state.parallelHeaderCollapsed ? "Show" : "Hide"} header</button>` : ""}
@@ -2495,6 +2495,10 @@ function syncPresentationShell() {
   document.body.dataset.themeFamily = state.appearance.themeFamily;
   document.documentElement.dataset.themeCustomized = hasAppearanceOverrides(state.appearance) ? "true" : "false";
   document.body.dataset.themeCustomized = hasAppearanceOverrides(state.appearance) ? "true" : "false";
+  // Older Android shells can load Reader without sending an edge-to-edge inset callback.
+  if (window.Capacitor?.getPlatform?.() === "android" || /Android/i.test(navigator.userAgent)) {
+    document.documentElement.dataset.readerPlatform = "android";
+  }
   document.documentElement.dataset.presentationMode = isPresentationMode ? "big" : "";
   if (!isPresentationMode) delete document.documentElement.dataset.presentationRotating;
   document.body.dataset.presentationMode = isPresentationMode ? "big" : "";
@@ -6030,6 +6034,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.9": [
+      "Android Reader uses the compact layout even before native insets arrive. In landscape, Scripture starts higher and the footer keeps Help and About beside the chapter controls.",
+    ],
     "2026.11.28.8": [
       "Android Reader uses a narrower portrait toolbar and makes more room for Scripture in landscape. Help and About share the landscape footer row with chapter navigation.",
     ],
