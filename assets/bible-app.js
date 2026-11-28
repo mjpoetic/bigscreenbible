@@ -5427,7 +5427,7 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
         <span>Show reading controls fade button</span>
       </label>
-      <p class="setting-help">Show a moon / sun button in the side toolbar in Reader and Parallel, or below floating Settings in Focus Mode. Tap for options. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
+      <p class="setting-help">Show a moon / sun button above Help in compact portrait Reader and Parallel. It floats near the lower-left corner in other reading layouts. Tap for options. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
@@ -5990,6 +5990,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.15": [
+      "The fade controls button floats above the lower-left footer on larger screens and stays above Help in compact portrait Reader and Parallel.",
+    ],
     "2026.11.27.14": [
       "Game lobbies show friendship status and let players send or accept requests. Hosts can invite more friends until the room reaches 10 players or play starts.",
       "Multiplayer results open with everyone’s standings visible, and players move as rankings change during play.",
@@ -10873,7 +10876,7 @@ function rail() {
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
   }).join("")}</div>
     <div class="portrait-rail-actions">
-      ${["reader", "parallel"].includes(state.mode) ? readerControlsFadeButton() : ""}
+      ${["reader", "parallel"].includes(state.mode) && readerControlsFadeInRail() ? readerControlsFadeButton() : ""}
       <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
       <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
     </div>
@@ -12355,7 +12358,7 @@ function reader(chapterChange = null) {
       ${state.mode === "reader" || state.mode === "parallel" ? `
         ${scriptureReaderQuickButton(`reader-auto-scroll-button scripture-reader-launcher ${state.autoScrollEnabled || (state.focusMode && state.focusReading) ? "beside-playback" : ""}`)}
         ${readerAutoScrollButton()}
-        ${state.focusMode ? readerControlsFadeButton() : ""}
+        ${readerControlsFadeInRail() ? "" : readerControlsFadeButton()}
         ${readerControlsFadePopover()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
@@ -12487,8 +12490,12 @@ function bindReaderAutoScrollButton(button) {
   });
 }
 
+function readerControlsFadeInRail() {
+  return !state.focusMode && focusSearchPortrait.matches;
+}
+
 function readerControlsFadeButton() {
-  return state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" ${state.focusMode ? 'class="reader-controls-fade-toggle" ' : ""}aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to fade now">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : "";
+  return state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" ${readerControlsFadeInRail() ? "" : 'class="reader-controls-fade-toggle" '}aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to fade now">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : "";
 }
 
 function readerControlsFadePopover() {
@@ -39634,6 +39641,8 @@ window.addEventListener("focus", () => {
   if (isStandaloneWebApp()) restoreReaderScrollAfterAppSwitch({ allowStored: true });
 });
 focusSearchPortrait.addEventListener("change", () => {
+  const moveFadeButton = !state.focusMode && state.showControlsFadeToggle && ["reader", "parallel"].includes(state.mode);
+  if (moveFadeButton) renderAfterViewportChangePreservingReaderScroll();
   if (state.focusMode && (state.focusReferenceOpen || state.focusSearchResultsOpen)) renderPreservingReaderScroll();
 });
 window.addEventListener("resize", () => {

@@ -24186,9 +24186,7 @@ svg {
 }
 
 /* Portrait reading keeps primary controls visible without an extra disclosure. */
-.portrait-rail-actions { display: contents; }
-.portrait-rail-actions > :is(#railHelpButton, #railSettingsToggle),
-.portrait-search-collapse-toggle { display: none; }
+.portrait-rail-actions, .portrait-search-collapse-toggle { display: none; }
 @media (max-width: 840px) and (orientation: portrait) {
   .app-shell:not(.focus-shell) .topbar .mobile-controls-toggle,
   .app-shell:not(.focus-shell) .topbar #shortcutsButton,
@@ -24221,7 +24219,7 @@ svg {
   .app-shell:not(.focus-shell) .topbar .version-selected-label { display: inline; }
   .app-shell:not(.focus-shell) .topbar .primary-version-menu { left: auto; right: 0; width: min(312px, calc(100vw - 16px)); transform: none; }
   .app-shell:not(.focus-shell) .portrait-rail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
-  .app-shell:not(.focus-shell) .portrait-rail-actions button { display: grid; min-height: 44px; }
+  .app-shell:not(.focus-shell) .portrait-rail-actions button { min-height: 44px; }
   .app-shell:not(.focus-shell) .rail-position-toggle { margin-top: 0; }
 }
 
@@ -29045,6 +29043,14 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   pointer-events: auto;
   transition: opacity var(--motion-fast) ease;
 }
+.app-shell:not(.focus-shell, .footer-collapsed) .reader-controls-fade-toggle {
+  bottom: calc(var(--reader-chrome-height) + 4px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+.app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader-controls-fade-toggle {
+  left: calc(var(--rail-width) + 10px + var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+}
+
 .reader-controls-fade-toggle:hover,
 .reader-controls-fade-toggle:focus-visible {
   opacity: 1;

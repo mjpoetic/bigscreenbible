@@ -51,8 +51,9 @@ fire('pointerdown', { button: 2 }); hold();
 assert.equal(fades, 1, 'Secondary clicks do not fade');
 fire('pointerdown'); hold(); fire('pointerup');
 assert.equal(fire('click', { detail: 0 }).prevented, false, 'Keyboard activation still opens the popover');
-vm.runInContext(source.slice(source.indexOf('function readerControlsFadeButton('), source.indexOf('function updateReaderControlsFadePopover(')), context);
+vm.runInContext(source.slice(source.indexOf('function readerControlsFadeInRail('), source.indexOf('function updateReaderControlsFadePopover(')), context);
 context.icons = { moon: '', sun: '' };
+context.focusSearchPortrait = { matches: false };
 context.state.showControlsFadeToggle = true;
 assert.match(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/);
 context.state.showControlsFadeToggle = false;
@@ -67,6 +68,12 @@ vm.runInContext(source.slice(source.indexOf('function rail()'), source.indexOf('
 context.state.showControlsFadeToggle = true;
 for (const mode of ['reader', 'parallel']) {
   context.state.mode = mode;
+  context.focusSearchPortrait.matches = false;
+  assert.doesNotMatch(context.rail(), /id="readerControlsFadeToggle"/);
+  assert.match(context.readerControlsFadeButton(), /class="reader-controls-fade-toggle"/);
+  context.focusSearchPortrait.matches = true;
   assert.match(context.rail(), /class="portrait-rail-actions">\s*<button[^>]*id="readerControlsFadeToggle"[^>]*>.*?<\/button>\s*<button id="railHelpButton"/);
 }
+context.state.focusMode = true;
+assert.match(context.readerControlsFadeButton(), /class="reader-controls-fade-toggle"/);
 console.log('Reading controls hold: tap, hold, click suppression, cancellation, drag, and keyboard passed.');
