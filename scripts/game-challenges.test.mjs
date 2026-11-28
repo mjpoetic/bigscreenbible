@@ -81,6 +81,7 @@ pureContext.friendshipProfile = (userId) => ({ displayName: userId });
 vm.createContext(pureContext);
 vm.runInContext(`
   const escapeHtml = (value) => String(value).replaceAll("<", "&lt;");
+  const liveChallengeStartDelay = 5000;
   ${extractFunction("isTimedGameChallenge")}
   ${extractFunction("normalizedGameChallenge")}
   ${extractFunction("normalizedGameChallengePlayer")}
@@ -101,7 +102,9 @@ vm.runInContext(`
   ${extractFunction("gameChallengePodium")}
   ${extractFunction("gameChallengeAwaitingResults")}
   ${extractFunction("gameChallengeResultLabel")}
-  ${extractFunction("gameChallengeBookSprintElapsedMs")}
+  ${extractFunction("liveGameElapsedFromStoredMs")}
+  ${extractFunction("gameChallengeTimedElapsedMs")}
+  ${extractFunction("challengeGameElapsedMs")}
   ${extractFunction("activeGameChallenge")}
   ${extractFunction("gameChallengeActionButton")}
   ${extractFunction("triviaExitControl")}
@@ -115,7 +118,7 @@ vm.runInContext(`
   globalThis.popupShouldInterrupt = gameChallengePopupShouldInterrupt;
   globalThis.seededRandom = seededTriviaRandom;
   globalThis.resultLabel = gameChallengeResultLabel;
-  globalThis.bookSprintElapsed = gameChallengeBookSprintElapsedMs;
+  globalThis.bookSprintElapsed = gameChallengeTimedElapsedMs;
   globalThis.exitControl = triviaExitControl;
 `, pureContext);
 
@@ -472,10 +475,15 @@ assert.equal(
     { elapsedMs: null },
     Date.parse("2026-07-29T12:00:42.500Z"),
   ),
-  42500,
-  "An unfinished Book Sprint player must show total elapsed room time",
+  37500,
+  "An unfinished timed player must show elapsed play time after the countdown",
 );
+assert.equal(pureContext.bookSprintElapsed({}, { elapsedMs: 173000 }), 168000, "2:53 stored is 2:48 of play");
+assert.equal(pureContext.bookSprintElapsed({ startedAt: "2026-07-29T12:00:00Z" }, null, Date.parse("2026-07-29T12:00:03Z")), 0);
 state.activeGameChallengeId = "live";
+assert.equal(pureContext.challengeGameElapsedMs({
+  challengeId: "live", complete: true, finishedAt: Date.parse(state.gameChallenges.find(({ id }) => id === "live").startedAt) + 173000,
+}), 173000, "Save the actual finish instant in the existing room-timestamp format");
 assert.match(
   pureContext.exitControl({ challengeId: "live", complete: false }),
   /data-game-challenge-action="end"[\s\S]*End challenge/,
@@ -561,7 +569,7 @@ assert.doesNotMatch(
 assert.match(source, /function gameRoomLobbyCard\(/);
 assert.match(source, /function liveGameChallengeScoreboard\(/);
 assert.match(source, /function refreshLiveGameChallengeScoreboard\(/);
-assert.match(source, /data-live-book-sprint-running="true"/);
+assert.match(source, /data-live-game-running="true"/);
 assert.match(source, /function triviaExitControl\(/);
 assert.match(source, /data-game-challenge-action="end"/);
 assert.match(source, /Invite up to 9 friends to a live room/);
@@ -606,18 +614,25 @@ function countdownClient(userId, receiptTime) {
   let markup;
   const started = [];
   const number = { textContent: "" };
-  const state = { authUser: { id: userId }, mode: "trivia" };
+  const rendered = [];
+  const state = { authUser: { id: userId }, mode: "trivia", gamesDrawerOpen: "social" };
   const context = vm.createContext({
     state,
     room: { ...room },
     Date: { now: () => now, parse: Date.parse },
     document: {
+      getElementById: () => null,
       body: { append() { dialogs += 1; } },
       createElement: () => ({
         dataset: {},
         setAttribute() {},
         addEventListener() {},
-        showModal() { markup = this.innerHTML; },
+        showModal() {
+          assert.equal(state.gamesDrawerOpen, "");
+          assert.equal(state.triviaGame.challengeId, room.id);
+          assert.equal(rendered.at(-1)?.drawer, "");
+          markup = this.innerHTML;
+        },
         remove() { dialogs -= 1; },
         querySelector: (selector) => selector === "strong" ? number : {},
       }),
@@ -627,10 +642,14 @@ function countdownClient(userId, receiptTime) {
       clearTimeout() { scheduled = null; },
     },
     activeGameChallenge: () => context.room,
-    startLoadedGameChallenge: (challenge, options) => started.push([challenge.id, options.startsAt, now]),
+    startLoadedGameChallenge(challenge, options) {
+      started.push([challenge.id, options.startsAt, now]);
+      state.gamesDrawerOpen = "";
+      state.triviaGame = { challengeId: challenge.id };
+    },
     playGameCountdownTone() {},
     gameChallengeTitle: () => "Trivia",
-    renderPreservingReaderScroll() {},
+    renderPreservingReaderScroll() { rendered.push({ drawer: state.gamesDrawerOpen }); },
   });
   vm.runInContext(`
     ${source.slice(source.indexOf("const liveChallengeStartDelay"), source.indexOf("function animateSocialPopupExit"))}
@@ -667,8 +686,10 @@ for (const [offset, label] of [[3000, "2"], [4000, "1"]]) {
 }
 hostCountdown.advance(expectedStart);
 guestCountdown.advance(expectedStart);
-assert.deepEqual(hostCountdown.started, [[room.id, expectedStart, expectedStart]]);
-assert.deepEqual(guestCountdown.started, hostCountdown.started);
+assert.deepEqual(hostCountdown.started, [[room.id, expectedStart, serverStart + 200]]);
+assert.deepEqual(guestCountdown.started, [[room.id, expectedStart, serverStart + 2400]]);
+assert.equal(hostCountdown.context.state.triviaGame.countdownStartedAt, undefined);
+assert.equal(guestCountdown.context.state.triviaGame.countdownStartedAt, undefined);
 assert.equal(guestCountdown.dialogs, 0);
 const late = countdownClient("late", expectedStart + 100);
 assert.equal(late.dialogs, 0);
@@ -677,6 +698,6 @@ const cancelled = countdownClient("guest", serverStart + 500);
 cancelled.context.room.status = "cancelled";
 cancelled.advance(expectedStart);
 assert.equal(cancelled.dialogs, 0);
-assert.equal(cancelled.started.length, 0);
+assert.equal(cancelled.context.state.triviaGame.countdownStartedAt, serverStart + 500);
 
 console.log("Game challenge tests passed");

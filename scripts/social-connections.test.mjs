@@ -133,10 +133,50 @@ context.friendshipOtherUserId = () => "requester";
 context.friendshipProfile = () => ({ username: "requester_name" });
 context.friendshipActionButton = action => `<button>${action}</button>`;
 context.friendshipPersonRow = (person, actions) => `<article>@${person.username}${actions}</article>`;
-vm.runInContext(`${extractFunction("incomingFriendRequestsCard")}
+vm.runInContext(`${extractFunction("incomingGameFriendRequests")}
+${extractFunction("incomingFriendRequestsCard")}
 globalThis.renderRequests = incomingFriendRequestsCard;`, context);
 assert.match(context.renderRequests(), /@requester_name/);
 assert.match(context.renderRequests(), /accept/);
 assert.match(context.renderRequests(), /decline/);
 assert.match(extractFunction("toggleAccountMenu"), /state.friendsPanelTab = "requests"/);
-assert.match(source, /\$\{incomingFriendRequestsCard\(\)\}/);
+assert.match(extractFunction("refreshGameFriendRequestUi"), /\$\{incomingFriendRequestsCard\(requests\)\}/);
+
+const requests = [
+  { id: "alex", status: "pending" },
+  { id: "beth", status: "pending" },
+  { id: "casey", status: "pending" },
+];
+const mutations = [];
+const inboxState = { authUser: { id: "recipient" }, friendships: requests };
+const inbox = vm.createContext({
+  state: inboxState,
+  friendshipTable: "friends",
+  incomingGameFriendRequests: () => inboxState.friendships.filter(({ status }) => status === "pending"),
+  document: { querySelector: () => null },
+  authenticatedSupabaseSession: async () => ({ user: inboxState.authUser }),
+  refreshGameFriendRequestUi() {},
+  loadFriendships: async () => {},
+  createSupabaseClient: () => ({ from: () => {
+    const mutation = { filters: {} };
+    return {
+      update({ status }) { mutation.action = status; return this; },
+      delete() { mutation.action = "deleted"; return this; },
+      in(column, ids) { assert.equal(column, "id"); mutation.ids = [...ids]; return this; },
+      eq(column, value) { mutation.filters[column] = value; return this; },
+      async select(column) {
+        assert.equal(column, "id");
+        mutations.push(mutation);
+        return { data: mutation.ids.map((id) => ({ id })) };
+      },
+    };
+  } }),
+});
+vm.runInContext(extractFunction("respondToGameFriendRequests"), inbox);
+await inbox.respondToGameFriendRequests("accept", "alex");
+await inbox.respondToGameFriendRequests("decline");
+assert.deepEqual(mutations, [
+  { action: "accepted", ids: ["alex"], filters: { addressee_id: "recipient", status: "pending" } },
+  { action: "deleted", ids: ["beth", "casey"], filters: { addressee_id: "recipient", status: "pending" } },
+]);
+assert.deepEqual(Array.from(inboxState.friendships, ({ id, status }) => [id, status]), [["alex", "accepted"]]);

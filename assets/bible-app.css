@@ -22022,6 +22022,48 @@ svg {
   font-weight: 900;
 }
 
+#gameSocialToggle[hidden],
+.game-friend-request-dot[hidden] { display: none; }
+#gameSocialToggle.game-social-during-play { width: 40px; min-width: 40px; padding-inline: 0; }
+#gameSocialToggle.game-social-during-play > span { display: none; }
+#gameSocialToggle.game-social-during-play > svg { display: block; }
+.game-lobby-friend-requests { position: relative; }
+.game-friend-request-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.game-friend-request-dialog {
+  width: min(480px, calc(100vw - 28px));
+  max-height: min(80dvh, 600px);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  overscroll-behavior: contain;
+}
+.game-friend-request-dialog::backdrop { background: rgb(0 0 0 / .55); }
+.game-friend-request-dialog > header,
+.game-friend-request-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.game-friend-request-dialog > header { margin-bottom: 12px; }
+.game-friend-request-dialog h2 { margin: 0; font-size: 20px; }
+.game-friend-request-actions { justify-content: flex-end; margin-top: 12px; }
+.game-friend-request-status { margin: 8px 0 0; }
+.game-friend-request-status:empty { display: none; }
+
 .games-drawer-shell:is([data-games-drawer="social"], [data-games-drawer="controls"]) {
   display: none;
 }

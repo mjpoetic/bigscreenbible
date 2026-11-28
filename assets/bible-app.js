@@ -488,6 +488,7 @@ const crossReferenceHoldMs = mobileControlsHoldMs;
 const crossReferenceHoldMoveTolerancePx = mobileControlsHoldMoveTolerancePx;
 let readerPageControlLastActivation = { direction: 0, at: 0 };
 let bookSprintTimer = 0;
+let liveGameStandingsTimer = 0;
 let bookSprintAudioContext = null;
 let gameMusicAudio = null;
 let gameMusicAudioContext = null;
@@ -2127,6 +2128,8 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
     pauseGameMusic({ fade: false });
     clearInterval(bookSprintTimer);
     bookSprintTimer = 0;
+    clearInterval(liveGameStandingsTimer);
+    liveGameStandingsTimer = 0;
     clearInterval(referenceRushTimer);
     referenceRushTimer = 0;
     clearInterval(wordSearchTimer);
@@ -2336,6 +2339,7 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   requestAnimationFrame(() => requestAnimationFrame(restorePendingAppUpdatePosition));
   scheduleStreakPopupDismiss();
   scheduleBookSprintTimer();
+  scheduleLiveGameStandingsTimer();
   scheduleReferenceRushTimer();
   scheduleWordSearchTimer();
   scheduleCrosswordTimer();
@@ -5992,6 +5996,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.19": [
+      "Friend requests in Games wait behind a Social notification dot. Open it to reply to requests individually or together.",
+      "The shared multiplayer countdown opens over the puzzle for both host and guests.",
+      "Timed standings tick live and show the same finish time as the puzzle.",
+    ],
     "2026.11.27.18": [
       "Search friends by name or username when creating a live game room or inviting more players from the lobby.",
     ],
@@ -9349,7 +9358,8 @@ function gameChallengePopupNoticeIsValid(
   if (!notice || notice.userId !== userId) return false;
   if (notice.kind === "closure") return Boolean(notice.challenge);
   if (notice.kind === "friend") {
-    return Boolean(state.socialProfile && state.socialSafetyReady && state.socialConsent && state.socialAccessAllowed
+    return Boolean(gameChallengePopupShouldInterrupt(notice)
+      && state.socialProfile && state.socialSafetyReady && state.socialConsent && state.socialAccessAllowed
       && friendshipCollections(userId).incoming.some((request) => request.id === notice.friendshipId));
   }
   const challenge = challenges.find((item) => item.id === notice.challengeId);
@@ -9425,6 +9435,11 @@ function reconcileFriendRequestPopups(userId) {
   if (current?.kind === "friend" && !gameChallengePopupNoticeIsValid(current)) {
     gameChallengePopupNotice = null;
   }
+  if (state.mode === "trivia") {
+    gameChallengePopupQueue = gameChallengePopupQueue.filter((notice) => notice.kind !== "friend" || notice.fromFriendQr);
+    if (!gameChallengePopupNotice) showNextGameChallengePopup();
+    return;
+  }
   const requests = friendshipCollections(userId).incoming;
   for (const request of requests) {
     const notice = {
@@ -9453,6 +9468,7 @@ function gameChallengePopupShouldInterrupt(
   challengeQuietMode = state.challengeQuietMode,
   mode = state.mode,
 ) {
+  if (notice?.kind === "friend" && mode === "trivia") return Boolean(notice.fromFriendQr);
   return !(notice?.kind === "incoming" && challengeQuietMode && mode !== "trivia");
 }
 
@@ -9762,19 +9778,19 @@ function friendshipSearchResultRow(profile) {
   );
 }
 
-function incomingFriendRequestsCard() {
-  if (!state.authUser || !state.socialProfile || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed) return "";
-  const incoming = friendshipCollections().incoming;
+function incomingGameFriendRequests() {
+  if (!state.authUser || !state.socialProfile || !state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed) return [];
+  return friendshipCollections().incoming;
+}
+
+function incomingFriendRequestsCard(incoming = incomingGameFriendRequests()) {
   if (!incoming.length) return "";
-  return `<section class="account-card game-friend-requests">
-    <div class="friend-list-heading"><strong>Friend requests</strong><span>${incoming.length}</span></div>
-    <div class="friend-list-group">${incoming.map(friendship => friendshipPersonRow(
+  return `<div class="friend-list-group">${incoming.map(friendship => friendshipPersonRow(
       friendshipProfile(friendshipOtherUserId(friendship)),
       friendshipActionButton("accept", "Accept", { friendshipId: friendship.id, primary: true })
         + friendshipActionButton("decline", "Decline", { friendshipId: friendship.id }),
       "Sent you a request",
-    )).join("")}</div>
-  </section>`;
+  )).join("")}</div>`;
 }
 
 function friendsPanelContent(prefix = "") {
@@ -14152,6 +14168,7 @@ function resetSocialProfileState() {
 }
 
 function resetFriendshipState() {
+  document.getElementById("gameFriendRequestsDialog")?.close();
   state.friendships = [];
   state.friendshipProfiles = {};
   state.friendshipStatus = "idle";
@@ -14866,12 +14883,13 @@ function challengeGameProgress(game = state.triviaGame) {
 }
 
 function challengeGameElapsedMs(game = state.triviaGame) {
-  if (!game?.challengeId) return null;
+  if (!game?.challengeId || !game.complete) return null;
   const challenge = activeGameChallenge();
+  if (challenge?.id !== game.challengeId) return null;
   const startedAt = Date.parse(challenge?.startedAt || "");
   if (!Number.isFinite(startedAt)) return null;
-  const finishedAt = game.complete ? Date.now() : null;
-  return finishedAt ? Math.max(0, finishedAt - startedAt) : null;
+  // Keep the stored offset for mixed app versions and previously saved results.
+  return Math.max(0, (game.finishedAt ?? Date.now()) - startedAt);
 }
 
 let puzzleChallengeSyncTimer = null;
@@ -14909,7 +14927,7 @@ async function syncActiveChallengeProgress({ completed = false } = {}) {
     ...(isPuzzleChallenge(game.type) ? { puzzle_state: puzzleChallengeProgressState(game) } : {}),
   };
   if (completed || game.complete) {
-    payload.completed_at = new Date().toISOString();
+    payload.completed_at = new Date(game.finishedAt ?? Date.now()).toISOString();
     payload.elapsed_ms = challengeGameElapsedMs(game);
   }
   const update = async () => {
@@ -14933,20 +14951,18 @@ function restoreChallengeGameProgress(game, player) {
   const roundLength = triviaRoundLength(game);
   if (isPuzzleChallenge(game.type)) {
     Object.assign(game, player.puzzleState || {});
-    if (player.completedAt) {
-      game.complete = true;
-      game.finishedAt = Date.parse(player.completedAt);
-    }
-    return;
+  } else {
+    game.score = player.score;
+    game.index = player.completedAt ? Math.max(0, roundLength - 1)
+      : Math.min(Math.max(0, player.progress), Math.max(0, roundLength - 1));
   }
-  game.score = player.score;
   if (player.completedAt) {
-    game.index = Math.max(0, roundLength - 1);
     game.complete = true;
     game.celebrationPending = false;
-    return;
+    const elapsed = isTimedGameChallenge(game.type) && player.elapsedMs != null ? liveGameElapsedFromStoredMs(player.elapsedMs) : null;
+    game.finishedAt = elapsed != null && Number.isFinite(game.startedAt)
+      ? game.startedAt + elapsed : Date.parse(player.completedAt);
   }
-  game.index = Math.min(Math.max(0, player.progress), Math.max(0, roundLength - 1));
 }
 
 function startLoadedGameChallenge(challenge, { render = true, startsAt = Date.parse(challenge?.startedAt || "") } = {}) {
@@ -15022,6 +15038,14 @@ function openStartedGameChallenge(challenge, { render = true } = {}) {
     startLoadedGameChallenge(challenge, { render, startsAt });
     return;
   }
+  startLoadedGameChallenge(challenge, { render: false, startsAt });
+  const game = state.triviaGame;
+  if (game?.challengeId !== challenge.id) return;
+  game.countdownStartedAt = Date.now();
+  document.getElementById("gameFriendRequestsDialog")?.close();
+  for (const key of ["questionStartedAt", "puzzleStartedAt"]) {
+    if (game[key]) game[key] = startsAt;
+  }
 
   const dialog = document.createElement("dialog");
   dialog.className = "game-start-countdown live-challenge-countdown";
@@ -15035,7 +15059,8 @@ function openStartedGameChallenge(challenge, { render = true } = {}) {
   const number = dialog.querySelector("strong");
   const tick = () => {
     const room = activeGameChallenge();
-    if (state.authUser?.id !== userId || room?.id !== challenge.id || state.mode !== "trivia" || room.status !== "accepted") {
+    if (state.authUser?.id !== userId || room?.id !== challenge.id || state.mode !== "trivia" || room.status !== "accepted"
+      || state.triviaGame !== game) {
       stopLiveChallengeCountdown();
       return;
     }
@@ -15043,7 +15068,8 @@ function openStartedGameChallenge(challenge, { render = true } = {}) {
     if (remaining <= 0) {
       stopLiveChallengeCountdown();
       playGameCountdownTone(true);
-      startLoadedGameChallenge(room, { startsAt });
+      delete game.countdownStartedAt;
+      renderPreservingReaderScroll();
       return;
     }
     const step = Math.ceil(remaining / 1000);
@@ -15055,10 +15081,10 @@ function openStartedGameChallenge(challenge, { render = true } = {}) {
     }
     countdown.timer = window.setTimeout(tick, remaining - (step - 1) * 1000);
   };
+  if (render) renderPreservingReaderScroll();
   document.body.append(dialog);
   dialog.showModal();
   tick();
-  if (render) renderPreservingReaderScroll();
 }
 
 function animateSocialPopupExit(overlay, shell) {
@@ -15253,7 +15279,7 @@ async function loadFriendships({ render = true } = {}) {
     return;
   }
   state.friendshipStatus = "loading";
-  if (render) renderPreservingReaderScroll();
+  if (render && state.mode !== "trivia") renderPreservingReaderScroll();
   try {
     const { data, error } = await client
       .from(friendshipTable)
@@ -15288,7 +15314,7 @@ async function loadFriendships({ render = true } = {}) {
     state.friendshipStatus = "error";
     state.friendshipMessage = friendshipErrorMessage(error);
   } finally {
-    if (render) renderPreservingReaderScroll();
+    refreshGameFriendRequestUi({ renderPage: render });
   }
 }
 
@@ -21107,6 +21133,7 @@ function bookSprintElapsedMs(game = state.triviaGame) {
 
 function pauseTriviaGameForReference(game = state.triviaGame, pausedAt = Date.now()) {
   if (!game || game.complete || game.finishedAt || game.referencePausedAt) return false;
+  if (game.challengeId && game.type === "book-sprint") return false;
   const countdownRunning = game.type === "reference-rush"
     && game.timed
     && game.deadlineAt
@@ -21306,7 +21333,6 @@ function updateBookSprintTimerDisplay() {
   const timer = document.getElementById("bookSprintTimer");
   const label = document.getElementById("bookSprintTimerLabel");
   if (game?.type !== "book-sprint") return;
-  updateLiveBookSprintTimes();
   if (!timer) return;
   const elapsedMs = bookSprintElapsedMs(game);
   const targetMs = Number(game.bookSprintTarget?.elapsedMs) || 0;
@@ -21459,24 +21485,35 @@ function gameChallengeResultLabel(
     : `You finished #${rank} of ${players.length}`;
 }
 
-function gameChallengeBookSprintElapsedMs(challenge, player, now = Date.now()) {
-  if (player?.elapsedMs !== null && player?.elapsedMs !== undefined) {
-    return Math.max(0, Number(player.elapsedMs) || 0);
-  }
-  const startedAt = Date.parse(challenge?.startedAt || "");
-  return Number.isFinite(startedAt) ? Math.max(0, now - startedAt) : 0;
+function liveGameElapsedFromStoredMs(elapsedMs) {
+  return Math.max(0, elapsedMs - liveChallengeStartDelay);
 }
 
-function liveBookSprintPlayerResult(challenge, player) {
-  const elapsed = formatGameTime(gameChallengeBookSprintElapsedMs(challenge, player));
-  const status = player.completedAt ? "Finished" : "In progress";
+function gameChallengeTimedElapsedMs(challenge, player, now = Date.now()) {
+  if (player?.elapsedMs !== null && player?.elapsedMs !== undefined) {
+    return liveGameElapsedFromStoredMs(player.elapsedMs);
+  }
+  const startedAt = Date.parse(challenge?.startedAt || "");
+  const finishedAt = Date.parse(player?.completedAt || "");
+  const timestamp = Number.isFinite(finishedAt) ? finishedAt : now;
+  return Number.isFinite(startedAt) ? liveGameElapsedFromStoredMs(timestamp - startedAt) : 0;
+}
+
+function liveTimedPlayerResult(challenge, player) {
+  const game = state.triviaGame;
+  const finishedLocally = player.userId === state.authUser?.id && game?.challengeId === challenge.id && game.complete;
+  const running = !player.completedAt && !finishedLocally;
+  const elapsed = finishedLocally && !player.completedAt
+    ? liveGameElapsedFromStoredMs(challengeGameElapsedMs(game))
+    : gameChallengeTimedElapsedMs(challenge, player);
+  const status = running ? "In progress" : "Finished";
   const progress = ` · ${player.progress} / ${challenge.puzzle ? triviaRoundLength(challenge.puzzle) : challenge.roundCount}`;
   return `
     <small>${status}${progress}</small>
     <strong
       class="live-challenge-time"
-      ${player.completedAt ? "" : 'data-live-book-sprint-running="true"'}
-    >${elapsed}</strong>
+      ${running ? 'data-live-game-running="true"' : ""}
+    >${formatGameTime(elapsed)}</strong>
   `;
 }
 
@@ -21556,7 +21593,7 @@ function liveGameChallengeScoreboard() {
               ${socialProfileAvatarMarkup(profile, "live-challenge-avatar")}
               <span class="live-challenge-name">${escapeHtml(name)}${final && rank === 1 ? tied ? " · Tied first" : " · Winner" : ""}</span>
               ${isTimedGameChallenge(challenge.gameType)
-                ? liveBookSprintPlayerResult(challenge, player)
+                ? liveTimedPlayerResult(challenge, player)
                 : `
                   <small>${player.completedAt ? "Finished" : "In progress"} · ${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
                   <strong>${challenge.gameType === "hidden-word" ? player.puzzleState?.points ?? player.score ?? 0 : player.score ?? 0}${challenge.gameType === "hidden-word" ? " pts" : ""}</strong>
@@ -21573,12 +21610,20 @@ function liveGameChallengeScoreboard() {
   `;
 }
 
-function updateLiveBookSprintTimes(challenge = activeGameChallenge()) {
-  if (!isTimedGameChallenge(challenge?.gameType)) return;
-  const elapsed = formatGameTime(gameChallengeBookSprintElapsedMs(challenge, null));
-  document.querySelectorAll("[data-live-book-sprint-running]").forEach((timer) => {
-    timer.textContent = elapsed;
-  });
+function scheduleLiveGameStandingsTimer() {
+  clearInterval(liveGameStandingsTimer);
+  liveGameStandingsTimer = 0;
+  const timers = document.querySelectorAll("[data-live-game-running]");
+  const challenge = activeGameChallenge();
+  if (state.mode !== "trivia" || !timers.length || !isTimedGameChallenge(challenge?.gameType)) return;
+  const tick = () => {
+    const elapsed = formatGameTime(gameChallengeTimedElapsedMs(challenge, null));
+    timers.forEach((timer) => {
+      if (timer.textContent !== elapsed) timer.textContent = elapsed;
+    });
+  };
+  tick();
+  liveGameStandingsTimer = setInterval(tick, 250);
 }
 
 function bindGameStandingsToggle(root = document) {
@@ -21631,7 +21676,7 @@ function refreshLiveGameChallengeScoreboard() {
   replacement.querySelectorAll("[data-game-challenge-action]").forEach((button) => {
     button.addEventListener("click", () => handleGameChallengeAction(button));
   });
-  updateLiveBookSprintTimes();
+  scheduleLiveGameStandingsTimer();
   return true;
 }
 
@@ -21902,6 +21947,101 @@ function gameChallengeSetupCard() {
 function gamesSocialActivityCount() {
   if (!state.authUser) return 0;
   return friendshipCollections().incoming.length + gameChallengeCollections().incoming.length;
+}
+
+function refreshGameFriendRequestUi({ renderPage = true } = {}) {
+  if (renderPage && (state.mode !== "trivia" || !state.triviaGame || state.accountOpen)) renderPreservingReaderScroll();
+  const requests = incomingGameFriendRequests();
+  const toggle = document.getElementById("gameSocialToggle");
+  if (toggle && state.triviaGame) {
+    toggle.hidden = !requests.length;
+    toggle.querySelector(".game-friend-request-dot").hidden = !requests.length;
+    toggle.setAttribute("aria-label", `Social, ${requests.length} pending friend requests`);
+    toggle.setAttribute("aria-controls", "gameFriendRequestsDialog");
+  }
+  const dialog = document.getElementById("gameFriendRequestsDialog");
+  if (!dialog?.open) return;
+  if (!requests.length || dialog.dataset.userId !== state.authUser?.id || state.mode !== "trivia") {
+    dialog.close();
+    return;
+  }
+  const list = dialog.querySelector("[data-game-friend-request-list]");
+  const busy = Boolean(state.friendshipActionBusyId);
+  const signature = JSON.stringify([requests.map((request) => request.id), busy]);
+  if (signature === list.dataset.signature) return;
+  const restoreFocus = list.contains(document.activeElement);
+  list.dataset.signature = signature;
+  list.innerHTML = `${incomingFriendRequestsCard(requests)}
+    ${requests.length > 1 ? `<div class="game-friend-request-actions">
+      <button class="primary-btn" type="button" data-game-friend-all="accept" ${busy ? "disabled" : ""}>Accept all</button>
+      <button class="ghost-btn" type="button" data-game-friend-all="decline" ${busy ? "disabled" : ""}>Reject all</button>
+    </div>` : ""}`;
+  if (restoreFocus) dialog.querySelector("[data-game-friend-close]")?.focus();
+}
+
+function openGameFriendRequests(opener) {
+  if (!incomingGameFriendRequests().length || document.getElementById("gameFriendRequestsDialog")) return;
+  const dialog = document.createElement("dialog");
+  dialog.id = "gameFriendRequestsDialog";
+  dialog.className = "game-friend-request-dialog";
+  dialog.dataset.userId = state.authUser.id;
+  dialog.setAttribute("aria-labelledby", "gameFriendRequestsTitle");
+  dialog.innerHTML = `<header>
+    <h2 id="gameFriendRequestsTitle">Friend requests</h2>
+    <button class="ghost-btn" type="button" data-game-friend-close autofocus>Close</button>
+  </header><div data-game-friend-request-list></div><p role="status" class="game-friend-request-status"></p>`;
+  dialog.addEventListener("keydown", (event) => event.stopPropagation());
+  dialog.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || button.disabled) return;
+    if (button.hasAttribute("data-game-friend-close")) dialog.close();
+    else if (button.dataset.gameFriendAll) void respondToGameFriendRequests(button.dataset.gameFriendAll);
+    else if (["accept", "decline"].includes(button.dataset.friendAction)) {
+      void respondToGameFriendRequests(button.dataset.friendAction, button.dataset.friendshipId);
+    } else if (button.dataset.friendAction) handleFriendAction(button);
+  });
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    const target = opener?.isConnected ? opener : document.getElementById(opener?.id || "gameSocialToggle");
+    if (target && !target.hidden) target.focus({ preventScroll: true });
+  }, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+  refreshGameFriendRequestUi({ renderPage: false });
+}
+
+async function respondToGameFriendRequests(action, id = "") {
+  const client = createSupabaseClient();
+  const userId = state.authUser?.id;
+  const ids = incomingGameFriendRequests().filter((request) => !id || request.id === id).map((request) => request.id);
+  if (!client || !userId || !ids.length || state.friendshipActionBusyId || !["accept", "decline"].includes(action)) return;
+  state.friendshipActionBusyId = id || "game-friend-requests";
+  const accepting = action === "accept";
+  const status = document.querySelector("#gameFriendRequestsDialog [role=status]");
+  if (status) status.textContent = accepting ? "Accepting requests…" : "Rejecting requests…";
+  refreshGameFriendRequestUi({ renderPage: false });
+  try {
+    const session = await authenticatedSupabaseSession(client);
+    if (session?.user?.id !== userId || state.authUser?.id !== userId) throw new Error("The active account changed.");
+    const table = client.from(friendshipTable);
+    const operation = accepting ? table.update({ status: "accepted", responded_at: new Date().toISOString() }) : table.delete();
+    const { data, error } = await operation.in("id", ids).eq("addressee_id", userId).eq("status", "pending").select("id");
+    if (error) throw error;
+    if (state.authUser?.id !== userId) return;
+    const updated = new Set((data || []).map((row) => row.id));
+    state.friendships = accepting
+      ? state.friendships.map((request) => updated.has(request.id) ? { ...request, status: "accepted" } : request)
+      : state.friendships.filter((request) => !updated.has(request.id));
+    await loadFriendships({ render: false });
+    if (status) status.textContent = updated.size ? (accepting ? "Requests accepted." : "Requests rejected.") : "Those requests are no longer pending.";
+  } catch (error) {
+    if (status) status.textContent = friendshipErrorMessage(error);
+  } finally {
+    if (state.authUser?.id === userId) {
+      state.friendshipActionBusyId = "";
+      refreshGameFriendRequestUi();
+    }
+  }
 }
 
 // Effects are attached to explicit reveals, never to timer-driven renders.
@@ -22393,6 +22533,7 @@ function triviaView() {
   const puzzleStartDisabled = Boolean(puzzleEvaluation?.custom && !puzzleEvaluation.valid);
   const socialActivityCount = gamesSocialActivityCount();
   const socialBadgeCount = waitingForLiveChallenge ? Math.max(1, socialActivityCount) : socialActivityCount;
+  const friendRequestCount = incomingGameFriendRequests().length;
   const socialSupported = true;
   const gamesUseDrawers = isGamesResponsiveScreen();
   const gameHintsAvailable = Boolean(activeGameHintContext());
@@ -22464,20 +22605,23 @@ function triviaView() {
                 <span>Controls</span>
               </button>
             ` : ""}
-            ${state.triviaGame ? "" : !socialSupported ? `<span class="games-social-placeholder" aria-hidden="true"></span>` : `
+            ${socialSupported ? `
               <button
-                class="games-header-action ${state.gamesDrawerOpen === "social" ? "active" : ""}"
+                class="games-header-action ${state.triviaGame ? "game-social-during-play" : ""} ${state.gamesDrawerOpen === "social" ? "active" : ""}"
                 id="gameSocialToggle"
                 type="button"
-                aria-label="Open social games${socialBadgeCount ? `, ${socialBadgeCount} new` : ""}"
-                aria-controls="gamesSocialDrawer"
+                aria-label="${friendRequestCount ? `Social, ${friendRequestCount} pending friend requests` : `Open social games${socialBadgeCount ? `, ${socialBadgeCount} new` : ""}`}"
+                aria-controls="${friendRequestCount ? "gameFriendRequestsDialog" : "gamesSocialDrawer"}"
                 aria-expanded="${state.gamesDrawerOpen === "social"}"
+                aria-haspopup="dialog"
+                ${state.triviaGame && !friendRequestCount ? "hidden" : ""}
               >
                 ${icons.user}
                 <span>Social</span>
-                ${socialBadgeCount ? `<small aria-hidden="true">${socialBadgeCount > 9 ? "9+" : socialBadgeCount}</small>` : ""}
+                <i class="game-friend-request-dot" aria-hidden="true" ${friendRequestCount ? "" : "hidden"}></i>
+                ${!friendRequestCount && socialBadgeCount && !state.triviaGame ? `<small aria-hidden="true">${socialBadgeCount > 9 ? "9+" : socialBadgeCount}</small>` : ""}
               </button>
-            `}
+            ` : ""}
           </div>
         </div>
         ${liveGameChallengeScoreboard()}
@@ -22581,10 +22725,10 @@ function triviaView() {
                     <span>Friends &amp; rooms</span>
                     <strong id="gamesSocialTitle">Social games</strong>
                   </div>
+                  ${friendRequestCount ? `<button class="ghost-btn game-lobby-friend-requests" id="gameLobbyFriendRequests" type="button" aria-haspopup="dialog" aria-label="Social, ${friendRequestCount} pending friend requests">Social<i class="game-friend-request-dot" aria-hidden="true"></i></button>` : ""}
                   <button class="games-drawer-close glass-close-control" type="button" data-games-drawer-dismiss aria-label="Close social games">${icons.clear}</button>
                 </div>
                 <div class="games-drawer-scroll">
-                  ${incomingFriendRequestsCard()}
                   ${gameChallengeSetupCard()}
                 </div>
               </aside>
@@ -28600,8 +28744,12 @@ function bindEvents() {
   document.getElementById("gameOptionsToggle")?.addEventListener("click", () => {
     setGamesDrawer(state.gamesDrawerOpen === "options" ? "" : "options");
   });
-  document.getElementById("gameSocialToggle")?.addEventListener("click", () => {
-    setGamesDrawer(state.gamesDrawerOpen === "social" ? "" : "social");
+  document.getElementById("gameSocialToggle")?.addEventListener("click", (event) => {
+    if (incomingGameFriendRequests().length) openGameFriendRequests(event.currentTarget);
+    else if (!state.triviaGame) setGamesDrawer(state.gamesDrawerOpen === "social" ? "" : "social");
+  });
+  document.getElementById("gameLobbyFriendRequests")?.addEventListener("click", (event) => {
+    openGameFriendRequests(event.currentTarget);
   });
   document.getElementById("gameControlsToggle")?.addEventListener("click", () => {
     setGamesDrawer(state.gamesDrawerOpen === "controls" ? "" : "controls");
