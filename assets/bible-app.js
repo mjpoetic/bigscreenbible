@@ -6030,6 +6030,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.7": [
+      "Portrait Reader fits more Scripture on screen and keeps the floating reading controls button inside the reading pane.",
+    ],
     "2026.11.28.6": [
       "Sidebar panels transition smoothly, Bookmarks opens at its heading, and the glass drawer follows its rounded edge.",
     ],

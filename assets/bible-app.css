@@ -29377,17 +29377,29 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 }
 
 @media (max-width: 840px) and (orientation: portrait) {
-  .app-shell:not(.focus-shell, .footer-collapsed) .reader:not(.shared-passage-active) .reader-controls-fade-toggle {
-    bottom: calc(var(--mobile-portrait-footer-height) + 4px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+  .app-shell:not(.focus-shell) .reader:not(.shared-passage-active) > .scripture:not(.parallel-mode) {
+    padding-top: 20px;
+    padding-right: 12px;
   }
 
-  .app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader:not(.shared-passage-active) .reader-controls-fade-toggle {
-    left: calc(var(--rail-width) + 4px + var(--app-safe-area-left, env(safe-area-inset-left, 0px)));
+  .app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader:not(.shared-passage-active) > .scripture:not(.parallel-mode) {
+    padding-left: 12px;
   }
 
-  /* Leave a narrow gutter between the rail and the reading column. */
-  .app-shell[data-side-toolbar-position="left"]:not(.focus-shell) .reader:not(.shared-passage-active):has(.reader-controls-fade-toggle) > .scripture {
-    padding-left: 42px;
+  /* The Reader pane supplies both the rail and footer offsets. */
+  .app-shell[data-side-toolbar-position]:not(.focus-shell) .reader:not(.shared-passage-active) > .reader-controls-fade-toggle {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+  }
+
+  .app-shell[data-side-toolbar-position="right"]:not(.focus-shell) .reader:not(.shared-passage-active) > .reader-controls-fade-toggle {
+    left: auto;
+    right: 4px;
+  }
+
+  .app-shell.footer-collapsed:not(.focus-shell) .reader:not(.shared-passage-active) > .reader-controls-fade-toggle {
+    bottom: calc(4px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
   }
 
   /* With the footer collapsed, leave room for the 32px toggle below both stacks. */
