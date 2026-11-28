@@ -22176,6 +22176,30 @@ svg {
   grid-template-columns: 1fr;
 }
 
+.games-drawer-shell.open.games-drawer-restored > .games-drawer {
+  animation: none;
+}
+
+.social-game-results ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.social-game-results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block: 6px;
+}
+
+.social-game-results li > div { display: grid; gap: 3px; }
+.social-game-results li small { color: var(--muted); }
+.social-game-results li button { flex-shrink: 0; }
+
 @keyframes gamesDrawerInRight {
   from { opacity: 0; transform: translateX(28px); }
   to { opacity: 1; transform: translateX(0); }

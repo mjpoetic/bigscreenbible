@@ -41,7 +41,9 @@ assert.match(source, /class="games-drawer games-social-drawer"[^>]*?role="dialog
 assert.match(source, /class="games-drawer games-controls-drawer"[\s\S]*?role="dialog"/);
 assert.match(source, /class="games-drawer games-hints-drawer"[\s\S]*?role="dialog"/);
 assert.match(source, /gamesUseDrawers \? 'role="dialog" aria-modal="true"' : 'role="region"'/);
-assert.equal(source.match(/\$\{gameChallengeSetupCard\(\)\}/g)?.length, 1);
+assert.equal(source.match(/\$\{state\.triviaGame \? "" : gameChallengeSetupCard\(\)\}/g)?.length, 1);
+assert.match(source, /id="gamesSocialDrawer"[\s\S]*?\$\{recentSocialGameResults\(\)\}/);
+assert.match(styles, /\.games-drawer-shell\.open\.games-drawer-restored > \.games-drawer \{\s*animation: none;/);
 assert.match(extractFunction("setGamesDrawer"), /renderPreservingReaderScroll\(\)/);
 assert.match(extractFunction("setGamesDrawer"), /focus\(\{ preventScroll: true \}\)/);
 assert.match(extractFunction("trapGamesDrawerFocus"), /event\.key === "Escape"/);
