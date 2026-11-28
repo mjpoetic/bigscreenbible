@@ -57,5 +57,5 @@ context.state.showControlsFadeToggle = true;
 assert.match(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/);
 context.state.showControlsFadeToggle = false;
 assert.doesNotMatch(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/);
-assert.match(context.readerControlsFadeButton(), /id="readerControlsFadePopover"/);
+assert.match(context.readerControlsFadePopover(), /id="readerControlsFadePopover"/);
 console.log('Reading controls hold: tap, hold, click suppression, cancellation, drag, and keyboard passed.');

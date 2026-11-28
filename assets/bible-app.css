@@ -29042,13 +29042,6 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .reader-controls-fade-toggle svg { width: 16px; height: 16px; pointer-events: none; }
 
 @media (max-width: 840px) and (orientation: portrait) {
-  .app-shell:not(.focus-shell, .footer-collapsed) .reader-controls-fade-toggle {
-    bottom: calc(var(--mobile-portrait-footer-height) + 14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-  }
-  .app-shell.footer-collapsed:not(.focus-shell) .reader-controls-fade-toggle {
-    bottom: calc(14px + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-  }
-
   /* With the footer collapsed, leave room for the 32px toggle below both stacks. */
   .app-shell.focus-shell.footer-collapsed:has(.reader-controls-fade-toggle) :is(
     .mobile-floating-settings, .mobile-focus-passage-control, .mobile-focus-tools-control,
@@ -29075,6 +29068,12 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
   box-shadow: 0 8px 32px rgb(0 0 0 / .2);
   font-size: 14px;
 }
+.reader-controls-fade-popover.beside-rail {
+  top: 12px;
+  bottom: 12px;
+  height: fit-content;
+  margin-block: auto;
+}
 .reader-controls-fade-popover strong { display: block; margin-bottom: 10px; }
 .reader-controls-fade-popover label { display: flex; align-items: center; gap: 10px; min-height: 40px; }
 .reader-controls-fade-popover [hidden] { display: none; }
@@ -29083,7 +29082,7 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .reader-controls-fade-popover > button { margin-top: 10px; width: 100%; }
 .reader-controls-fade-toggle[aria-expanded="true"] { opacity: 1; }
 
-.reader-controls-fade-toggle { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+#readerControlsFadeToggle { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
 /* Coloring book: original scalable pages and comfortable touch targets. */
 .coloring-book { display: block; padding: clamp(16px, 3vw, 32px); }

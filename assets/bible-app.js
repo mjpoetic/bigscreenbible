@@ -5425,9 +5425,9 @@ function readingSettings(prefix = "", options = {}) {
       <span class="setting-label">Floating reading controls</span>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
-        <span>Show floating fade button</span>
+        <span>Show reading controls fade button</span>
       </label>
-      <p class="setting-help">Show a small moon / sun button in the lower left, below floating Settings. Tap for options. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
+      <p class="setting-help">Show a moon / sun button in the side toolbar in Reader and Parallel, or below floating Settings in Focus Mode. Tap for options. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
@@ -5990,6 +5990,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.12": [
+      "The moon or sun button for fading reading controls now has its own spot in the side toolbar in Reader and Parallel.",
+    ],
     "2026.11.27.11": [
       "Open Search history to rerun recent Bible, Strong’s, and saved-note searches or revisit a passage you searched for.",
     ],
@@ -8018,7 +8021,7 @@ function settingsDeepSearchResultsMarkup(prefix = "") {
       ${result("reading", "TouchTextDragToggle", "Drag to select text on touchscreens", "Scripture & Reading", "touch text selection double tap swipe copy")}
       ${result("reading", "EdgeChapterNavigationToggle", "Chapter-edge navigation", "Scripture & Reading", "pull scroll next previous chapter")}
       ${result("reading", "PageScrollSpeedLabel", "Page navigation speed", "Scripture & Reading", "page up down top bottom")}
-      ${result("reading", "ShowControlsFadeToggle", "Show floating fade button", "Reading & navigation", "moon sun floating button hide dim shift d")}
+      ${result("reading", "ShowControlsFadeToggle", "Show reading controls fade button", "Reading & navigation", "moon sun floating button hide dim shift d")}
       ${result("reading", "FocusControlsTouchRevealToggle", "Brighten faded controls only when used", "Reading & navigation", "touch tap click floating reading buttons opacity")}
       ${result("reading", "FocusControlsFadeSeconds", "Fade delay for floating controls", "Reading & navigation", "idle fade after seconds timing speed")}
       ${result("reading", "FocusControlsFadeToggle", "Floating reading controls", "Reading & navigation", "focus reader parallel auto-scroll page fade opacity floating buttons hide inactivity delay")}
@@ -10860,7 +10863,9 @@ function rail() {
   return `<aside class="rail"><div class="rail-tools" role="group" aria-label="Study tools">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
     return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
-  }).join("")}</div>
+  }).join("")}
+    ${["reader", "parallel"].includes(state.mode) ? readerControlsFadeButton() : ""}
+    </div>
     <div class="portrait-rail-actions">
       <button id="railHelpButton" type="button" aria-label="Help &amp; Tour" data-tooltip="Help &amp; Tour">${icons.help}</button>
       <button id="railSettingsToggle" type="button" aria-label="Settings" data-tooltip="Settings">${icons.settings}</button>
@@ -12343,7 +12348,8 @@ function reader(chapterChange = null) {
       ${state.mode === "reader" || state.mode === "parallel" ? `
         ${scriptureReaderQuickButton(`reader-auto-scroll-button scripture-reader-launcher ${state.autoScrollEnabled || (state.focusMode && state.focusReading) ? "beside-playback" : ""}`)}
         ${readerAutoScrollButton()}
-        ${readerControlsFadeButton()}
+        ${state.focusMode ? readerControlsFadeButton() : ""}
+        ${readerControlsFadePopover()}
         ${readerSelectionToolsButton()}
         ${readerReturnButton()}
         ${readerForwardButton()}
@@ -12475,8 +12481,11 @@ function bindReaderAutoScrollButton(button) {
 }
 
 function readerControlsFadeButton() {
-  return `${state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" class="reader-controls-fade-toggle" aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to fade now">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : ""}
-    <div id="readerControlsFadePopover" class="reader-controls-fade-popover" popover="auto" role="dialog" aria-labelledby="readerControlsFadeTitle">
+  return state.showControlsFadeToggle ? `<button type="button" id="readerControlsFadeToggle" ${state.focusMode ? 'class="reader-controls-fade-toggle" ' : ""}aria-label="Floating reading controls" aria-haspopup="dialog" aria-expanded="false" aria-controls="readerControlsFadePopover" aria-keyshortcuts="Alt+Shift+D" popovertarget="readerControlsFadePopover" data-tooltip="Reading controls · hold to fade now">${state.focusControlsFade ? icons.moon : icons.sun}</button>` : "";
+}
+
+function readerControlsFadePopover() {
+  return `<div id="readerControlsFadePopover" class="reader-controls-fade-popover" popover="auto" role="dialog" aria-labelledby="readerControlsFadeTitle">
       <strong id="readerControlsFadeTitle">Floating reading controls</strong>
       <label><input type="checkbox" data-quick-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} autofocus /> Fade idle controls</label>
       <label>Fade after (seconds)<input type="number" min="0.5" max="4" step="0.5" value="${state.focusControlsFadeSeconds}" data-quick-controls-setting="focusControlsFadeSeconds" /></label>
@@ -12585,10 +12594,22 @@ function bindReaderControlsFadeToggle() {
     button?.setAttribute("aria-expanded", String(open));
     if (open) {
       const rect = button?.getBoundingClientRect();
-      popover.style.left = `${Math.max(12, Math.min(rect?.left ?? 12, window.innerWidth - 312))}px`;
+      const rail = button?.closest(".rail");
+      popover.classList.toggle("beside-rail", Boolean(rail));
+      const railRect = rail?.getBoundingClientRect();
+      const rightRail = railRect && railRect.left > window.innerWidth / 2;
+      const availableWidth = railRect
+        ? (rightRail ? railRect.left : window.innerWidth - railRect.right) - 20
+        : window.innerWidth - 24;
+      const popoverWidth = Math.min(300, availableWidth);
+      const left = railRect
+        ? (rightRail ? railRect.left - popoverWidth - 8 : railRect.right + 8)
+        : (rect?.left ?? 12);
+      popover.style.width = rail ? `${popoverWidth}px` : "";
+      popover.style.left = `${Math.max(12, Math.min(left, window.innerWidth - popoverWidth - 12))}px`;
       const bottom = Math.max(12, window.innerHeight - (rect?.top ?? window.innerHeight - 44) + 8);
-      popover.style.bottom = `${bottom}px`;
-      popover.style.maxHeight = `${Math.max(80, window.innerHeight - bottom - 12)}px`;
+      popover.style.bottom = rail ? "" : `${bottom}px`;
+      popover.style.maxHeight = rail ? "" : `${Math.max(80, window.innerHeight - bottom - 12)}px`;
       updateReaderControlsFadePopover();
     }
   });
