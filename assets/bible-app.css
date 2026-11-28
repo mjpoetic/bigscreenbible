@@ -30013,7 +30013,16 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
   margin-inline-end: auto;
   min-block-size: 44px;
   padding-inline: 10px;
-  border-color: var(--line);
+}
+
+.focus-portrait-search .search-filter-chip[data-clear-search-results] {
+  color: var(--red-letter);
+  border-color: color-mix(in srgb, var(--red-letter) 34%, var(--line));
+  background: color-mix(in srgb, var(--red-letter) 9%, var(--panel));
+}
+
+.focus-portrait-search .search-filter-chip[data-clear-search-results]:is(:hover, :focus-visible, :active) {
+  background: color-mix(in srgb, var(--red-letter) 16%, var(--panel));
 }
 
 .settings-spotlight {

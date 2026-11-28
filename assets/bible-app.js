@@ -5989,6 +5989,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.10": [
+      "The Clear results button in portrait Bible search now has a subtle red tint.",
+    ],
     "2026.11.27.9": [
       "The floating update notice stays out of Settings on phones in portrait so the update button is easy to tap.",
     ],
