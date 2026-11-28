@@ -7841,6 +7841,44 @@ select {
   margin-top: 20px;
 }
 
+.game-results-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 6px;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.game-results-podium > li {
+  display: grid;
+  align-content: start;
+  grid-row: 1;
+  gap: 4px;
+  min-height: 70px;
+  padding: 8px 4px;
+  border: 1px solid color-mix(in srgb, var(--podium-metal) 60%, var(--line));
+  border-bottom: 5px solid var(--podium-metal);
+  border-radius: 8px 8px 0 0;
+  background: color-mix(in srgb, var(--podium-metal) 16%, var(--panel));
+  color: var(--ink);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.game-results-podium > li > strong { font-size: 12px; }
+.game-results-podium > li > span { font-size: 13px; }
+.game-results-podium > [data-podium-place="1"] { --podium-metal: #c89528; grid-column: 2; min-height: 108px; }
+.game-results-podium > [data-podium-place="2"] { --podium-metal: #8899ad; grid-column: 1; min-height: 88px; }
+.game-results-podium > [data-podium-place="3"] { --podium-metal: #ad704a; grid-column: 3; }
+.game-results-podium:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 375px; }
+.game-results-podium:not(:has([data-podium-place="2"])):has([data-podium-place="3"]) > [data-podium-place="1"] { grid-column: 1; }
+.game-results-podium:not(:has([data-podium-place="2"])):has([data-podium-place="3"]) > [data-podium-place="3"] { grid-column: 2; }
+.game-results-podium:has(> :only-child) { grid-template-columns: minmax(0, 1fr); max-width: 220px; }
+.game-results-podium > :only-child { grid-column: 1; }
+
 .live-challenge-players {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -27820,11 +27858,22 @@ html .memorize-shell .memory-workspace .memory-saved .memory-actions [data-memor
   .is-expanded-play .live-challenge-scoreboard-head { display: none; }
   .is-expanded-play .is-live-challenge .trivia-live-lock { display: none; }
 }
-@media (max-width: 840px) and (orientation: portrait) {
+@media (max-width: 840px), (max-height: 720px) and (max-width: 1366px) {
   .trivia-reader.is-playing:not(.is-expanded-play) .trivia-panel.is-live-challenge {
     overflow-y: auto;
   }
-  .trivia-reader.is-playing:not(.is-expanded-play) .trivia-panel.is-live-challenge > :is(.live-challenge-scoreboard, .trivia-game, .trivia-results) {
+  .trivia-reader.is-playing:not(.is-expanded-play) .trivia-panel.is-live-challenge > .live-challenge-scoreboard {
+    flex: 0 0 auto;
+  }
+}
+@media (orientation: landscape) and (max-height: 720px) and (max-width: 1366px) {
+  .trivia-reader.is-playing:not(.is-expanded-play) .trivia-panel.is-live-challenge > :is(.trivia-game, .trivia-results) {
+    min-height: min(460px, 80dvh);
+    overflow-y: auto;
+  }
+}
+@media (max-width: 840px) and (orientation: portrait) {
+  .trivia-reader.is-playing:not(.is-expanded-play) .trivia-panel.is-live-challenge > :is(.trivia-game, .trivia-results) {
     flex: 0 0 auto;
     overflow: visible;
   }

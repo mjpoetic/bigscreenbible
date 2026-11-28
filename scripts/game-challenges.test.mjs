@@ -77,9 +77,10 @@ const state = {
 };
 
 const pureContext = { state, Date };
+pureContext.friendshipProfile = (userId) => ({ displayName: userId });
 vm.createContext(pureContext);
 vm.runInContext(`
-  const escapeHtml = (value) => String(value);
+  const escapeHtml = (value) => String(value).replaceAll("<", "&lt;");
   ${extractFunction("isTimedGameChallenge")}
   ${extractFunction("normalizedGameChallenge")}
   ${extractFunction("normalizedGameChallengePlayer")}
@@ -96,6 +97,8 @@ vm.runInContext(`
   ${extractFunction("gameChallengePlayerComparison")}
   ${extractFunction("gameChallengeRankedPlayers")}
   ${extractFunction("gameChallengePlayerRank")}
+  ${extractFunction("gameChallengePlayerName")}
+  ${extractFunction("gameChallengePodium")}
   ${extractFunction("gameChallengeResultLabel")}
   ${extractFunction("gameChallengeBookSprintElapsedMs")}
   ${extractFunction("activeGameChallenge")}
@@ -114,6 +117,33 @@ vm.runInContext(`
   globalThis.bookSprintElapsed = gameChallengeBookSprintElapsedMs;
   globalThis.exitControl = triviaExitControl;
 `, pureContext);
+
+const podiumPlayers = [
+  { userId: "user-a", score: 6, puzzleState: { points: 500 }, completedAt: "done", elapsedMs: 12000 },
+  { userId: "Guest <B>", score: 5, puzzleState: { points: 900 }, completedAt: "done", elapsedMs: 11000 },
+  { userId: "Guest C", score: 4, puzzleState: { points: 300 }, completedAt: "done", elapsedMs: 13000 },
+  { userId: "Guest D", score: 3, puzzleState: { points: 100 }, completedAt: "done", elapsedMs: 14000 },
+];
+for (const gameType of ["trivia", "who-said-it", "verse-order", "reference-rush", "book-sprint", "word-search", "crossword", "hidden-word"]) {
+  const room = { status: "completed", gameType };
+  const ranked = pureContext.gameChallengeRankedPlayers(room, podiumPlayers);
+  const podium = pureContext.gameChallengePodium(room, ranked);
+  const scoreRanked = ["trivia", "who-said-it", "verse-order", "reference-rush"].includes(gameType);
+  assert.match(podium, new RegExp(`First place</strong>\\s*<span>${scoreRanked ? "You" : "Guest &lt;B>"}`));
+  assert.match(podium, /Second place/);
+  assert.match(podium, /Third place<\/strong>\s*<span>Guest C/);
+  assert.doesNotMatch(podium, /Guest D/);
+  assert.equal(pureContext.gameChallengePodium({ ...room, status: "accepted" }, ranked), "");
+}
+const tiedPodium = pureContext.gameChallengePodium({ status: "completed", gameType: "trivia" }, [
+  podiumPlayers[0],
+  { ...podiumPlayers[1], score: podiumPlayers[0].score },
+  podiumPlayers[2],
+]);
+assert.match(tiedPodium, /First place · Tie<\/strong>\s*<span>You<\/span><span>Guest &lt;B><\/span>/);
+assert.doesNotMatch(tiedPodium, /Second place/);
+assert.match(tiedPodium, /Third place/);
+assert.doesNotMatch(pureContext.gameChallengePodium({ status: "completed", gameType: "trivia" }, podiumPlayers.slice(0, 2)), /Third place/);
 
 assert.deepEqual(
   { ...pureContext.normalizeChallenge({

@@ -5990,6 +5990,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.16": [
+      "Every multiplayer game now shows a podium for first, second, and third place when the room finishes. Players who tie share their place.",
+    ],
     "2026.11.27.15": [
       "The fade controls button floats above the lower-left footer on larger screens and stays above Help in compact portrait Reader and Parallel.",
     ],
@@ -21467,6 +21470,31 @@ function gameChallengeRematchButton(challenge) {
   return gameChallengeActionButton("rematch", rematch ? "Join rematch" : "Rematch", challenge, { primary: true });
 }
 
+function gameChallengePlayerName(player) {
+  if (player.userId === state.authUser?.id) return "You";
+  const profile = friendshipProfile(player.userId);
+  return profile?.displayName || profile?.username || "Friend";
+}
+
+function gameChallengePodium(challenge, rankedPlayers) {
+  if (challenge.status !== "completed" || !rankedPlayers.length) return "";
+  const places = ["First", "Second", "Third"].map((label, index) => ({
+    label,
+    rank: index + 1,
+    players: rankedPlayers.filter((player) => gameChallengePlayerRank(challenge, player, rankedPlayers) === index + 1),
+  })).filter(({ players }) => players.length);
+  return `
+    <ol class="game-results-podium" aria-label="Results podium" role="list">
+      ${places.map(({ label, rank, players }) => `
+        <li data-podium-place="${rank}">
+          <strong>${label} place${players.length > 1 ? " · Tie" : ""}</strong>
+          ${players.map((player) => `<span>${escapeHtml(gameChallengePlayerName(player))}</span>`).join("")}
+        </li>
+      `).join("")}
+    </ol>
+  `;
+}
+
 function liveGameChallengeScoreboard() {
   const challenge = activeGameChallenge();
   if (!challenge || challenge.status === "pending") return "";
@@ -21489,12 +21517,11 @@ function liveGameChallengeScoreboard() {
         <span><span class="live-status-dot" aria-hidden="true"></span>${challenge.status === "completed" ? "Final standings" : "Live room"}</span>
         <strong>${escapeHtml(gameChallengeTitle(challenge.gameType))} · ${players.length} players</strong>
       </div>
+      ${gameChallengePodium(challenge, rankedPlayers)}
       <ol class="live-challenge-players">
         ${rankedPlayers.map((player) => {
           const profile = player.userId === state.authUser?.id ? state.socialProfile : friendshipProfile(player.userId);
-          const name = player.userId === state.authUser?.id
-            ? "You"
-            : profile?.displayName || profile?.username || "Friend";
+          const name = gameChallengePlayerName(player);
           const rank = gameChallengePlayerRank(challenge, player, players);
           return `
             <li data-standings-player="${escapeHtml(player.userId)}" class="${player.completedAt ? "complete" : ""} ${player.userId === state.authUser?.id ? "is-you" : ""}">
