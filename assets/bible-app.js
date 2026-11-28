@@ -3681,7 +3681,6 @@ function mobileFocusOverlayControls() {
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
             </button>
             <button type="submit">Go</button>
-            ${searchHistoryButton("search-filter-chip")}
           </form>
         ` : ""}
       </div>
@@ -6010,6 +6009,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.1": [
+      "Search history is available in the search results controls, with more room to type in the search bar.",
+    ],
     "2026.11.27.23": [
       "Multiplayer standings and solo records spotlight your latest result for two seconds once it is clearly visible.",
     ],
@@ -8372,7 +8374,6 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
         ${chapterFindControls()}
         ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
-        ${searchHistoryButton()}
         ${desktopFocusTools()}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
@@ -11034,7 +11035,7 @@ function searchScopeControls({ showResults = true, showClear = false } = {}) {
   const clearMarkup = showClear
     ? '<button class="search-filter-chip" type="button" data-clear-search-results>Clear results</button>'
     : "";
-  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}${clearMarkup}${searchHistoryButton("search-filter-chip")}</div>`;
+  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}${clearMarkup}${searchHistoryButton()}</div>`;
 }
 
 function searchResultsClearControl() {
@@ -27369,7 +27370,6 @@ function presentation(accountPanelRerender = false, settingsPanelRerender = fals
             <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
             ${searchClearControl(state.searchQuery)}
             </div>
-            ${state.presentationSearchOpen ? searchHistoryButton("ghost-btn") : ""}
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
@@ -33641,8 +33641,8 @@ function rememberSearch(entry) {
   }
 }
 
-function searchHistoryButton(className = "search-history-trigger") {
-  return `<button class="${className}" type="button" data-open-search-history aria-haspopup="dialog" aria-label="Search history" title="Search history">${className === "search-filter-chip" ? "Search history" : icons.history}</button>`;
+function searchHistoryButton() {
+  return '<button class="search-filter-chip" type="button" data-open-search-history aria-haspopup="dialog">Search history</button>';
 }
 
 function searchHistoryEntryLabel({ source, scope, chapter }) {
