@@ -5996,6 +5996,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.20": [
+      "Selecting friends for a game challenge keeps the picker open and steady, including when you’re filtering the list.",
+    ],
     "2026.11.27.19": [
       "Friend requests in Games wait behind a Social notification dot. Open it to reply to requests individually or together.",
       "The shared multiplayer countdown opens over the puzzle for both host and guests.",
@@ -21869,6 +21872,29 @@ function bindGameFriendSearch() {
   update();
 }
 
+function gameChallengeSelectionLabel(count) {
+  return count ? `${count + 1} players including you` : "Choose at least one friend";
+}
+
+function toggleGameChallengeFriend(button) {
+  const userId = button.dataset.challengeFriend;
+  if (!userId || state.gameChallengeActionBusyId) return;
+  const selected = !state.challengeOpponentIds.includes(userId);
+  if (selected && state.challengeOpponentIds.length >= 9) {
+    showToast("Game rooms support up to 10 players");
+    return;
+  }
+  state.challengeOpponentIds = selected
+    ? [...state.challengeOpponentIds, userId]
+    : state.challengeOpponentIds.filter((selectedId) => selectedId !== userId);
+  button.classList.toggle("is-selected", selected);
+  button.setAttribute("aria-pressed", String(selected));
+  button.querySelector(".challenge-friend-choice-mark").textContent = selected ? "✓" : "+";
+  const actions = button.closest(".challenge-setup-card").querySelector(".challenge-setup-actions");
+  actions.querySelector("[data-challenge-selection-count]").textContent = gameChallengeSelectionLabel(state.challengeOpponentIds.length);
+  actions.querySelector("#sendGameChallenge").disabled = !state.challengeOpponentIds.length;
+}
+
 function gameChallengeSetupCard() {
   if (state.authUser && state.socialProfile && (!state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed)) return `<section class="challenge-setup-card"><strong>Community Standards</strong><small>Open your Account profile to accept the standards or review social access.</small></section>`;
   if (!state.authUser || !state.socialProfile) {
@@ -21930,7 +21956,7 @@ function gameChallengeSetupCard() {
         }).join("")}
       </div>`)}
       <div class="challenge-setup-actions">
-        <span>${selectedCount ? `${selectedCount + 1} players including you` : "Choose at least one friend"}</span>
+        <span data-challenge-selection-count>${gameChallengeSelectionLabel(selectedCount)}</span>
         <button class="primary-btn" id="sendGameChallenge" type="button" ${busy || !selectedCount ? "disabled" : ""}>
           ${state.gameChallengeActionBusyId === "room:create" ? "Creating…" : "Create room"}
         </button>
@@ -28935,19 +28961,7 @@ function bindEvents() {
   });
   bindGameFriendSearch();
   document.querySelectorAll("[data-challenge-friend]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const userId = button.dataset.challengeFriend || "";
-      if (!userId) return;
-      if (state.challengeOpponentIds.includes(userId)) {
-        state.challengeOpponentIds = state.challengeOpponentIds.filter((selectedId) => selectedId !== userId);
-      } else if (state.challengeOpponentIds.length < 9) {
-        state.challengeOpponentIds = [...state.challengeOpponentIds, userId];
-      } else {
-        showToast("Game rooms support up to 10 players");
-        return;
-      }
-      renderPreservingReaderScroll();
-    });
+    button.addEventListener("click", () => toggleGameChallengeFriend(button));
   });
   document.getElementById("sendGameChallenge")?.addEventListener("click", () => sendGameChallenge());
   document.getElementById("gameFeedbackSoundsToggle")?.addEventListener("click", () => {
