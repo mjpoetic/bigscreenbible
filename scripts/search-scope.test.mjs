@@ -445,17 +445,19 @@ assert.equal(navigation.readSearchHistory(historyKey)[0].query, "John 3:16 KJV")
 for (const compact of [false, true]) {
   const calls = [];
   const workspace = vm.createContext({
-    state: { libraryOpen: false, searchQuery: "", searchResultsQuery: "love" },
+    state: { libraryOpen: false, portraitSearchCollapsed: true, searchQuery: "", searchResultsQuery: "love" },
     isCompactScreen: () => compact, isShortLandscapeScreen: () => compact,
     savedLibraryScroll: () => null, localStorage: { setItem() {} },
     scheduleCloudSync() {}, renderPreservingReaderScroll() { calls.push("render"); },
     focusWorkspaceTarget(target) { calls.push(`focus:${target}`); },
   });
-  vm.runInContext(extractFunction("activateWorkspace"), workspace);
+  vm.runInContext([extractFunction("activateWorkspace"), extractFunction("portraitSearchRowCollapsed")].join("\n"), workspace);
+  assert.equal(workspace.portraitSearchRowCollapsed(), true);
   workspace.activateWorkspace("Search");
   assert.deepEqual(calls, ["render", "focus:Search"]);
   assert.equal(workspace.state.pendingPanelFocus, null);
-  assert.equal(workspace.state.portraitSearchCollapsed, false);
+  assert.equal(workspace.state.portraitSearchCollapsed, true);
+  assert.equal(workspace.portraitSearchRowCollapsed(), false);
   assert.equal(workspace.state.searchQuery, "love");
 }
 console.log("Search button focuses the field synchronously across screen sizes");

@@ -831,7 +831,7 @@ const state = {
   focusControlsHideSeconds: normalizedFocusControlsHideSeconds(localStorage.getItem("lw_focus_controls_hide_seconds")),
   verseNavCollapsed: localStorage.getItem("lw_verse_nav_collapsed") !== "false",
   parallelHeaderCollapsed: false,
-  portraitSearchCollapsed: localStorage.getItem("lw_portrait_search_collapsed") === "true",
+  portraitSearchCollapsed: localStorage.getItem("lw_portrait_search_collapsed") !== "false",
   footerCollapsed: localStorage.getItem("lw_footer_collapsed") === "true",
   footerChapterArrows: localStorage.getItem("lw_footer_chapter_arrows") !== "false",
   libraryOpen: localStorage.getItem("lw_library_open") === "true",
@@ -2156,8 +2156,13 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   const previousUpdateNotice = document.getElementById("appUpdateNotice");
   const previousSocialPopup = document.getElementById("gameChallengePopupDialog")?.parentElement;
   const previousTutorial = state.tutorialActive ? captureTutorialPosition() : null;
+  const previousShell = app.querySelector(".app-shell");
+  const searchCollapsed = portraitSearchRowCollapsed();
+  const wasSearchCollapsed = previousShell?.classList.contains("portrait-search-collapsed");
+  const animateSearchRow = previousShell?.querySelector(".topbar") && wasSearchCollapsed !== searchCollapsed
+    && window.matchMedia("(max-width: 840px) and (orientation: portrait) and (prefers-reduced-motion: no-preference)").matches;
   app.innerHTML = `
-    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${state.portraitSearchCollapsed ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
+    <main class="app-shell ${state.mode === "memorize" ? "memorize-shell" : ""} ${state.focusMode && !["trivia", "memorize"].includes(state.mode) ? "focus-shell" : ""} ${state.mode === "trivia" ? "trivia-shell" : ""} ${state.mode === "parallel" && state.parallelHeaderCollapsed ? "parallel-header-collapsed" : ""} ${state.footerCollapsed ? "footer-collapsed" : ""} ${(animateSearchRow ? wasSearchCollapsed : searchCollapsed) ? "portrait-search-collapsed" : ""} ${state.mobileControlsOpen ? "mobile-controls-open" : ""} ${state.selectedVerses.length ? "has-selection" : ""} ${selectionToolsCollapsedClass}" data-theme="${state.theme}" data-verse-selection-style="${localStorage.getItem("lw_verse_selection_style") === "outline" ? "outline" : "classic"}" data-theme-preset="${state.themePreset}" data-theme-family="${state.appearance.themeFamily}" data-theme-customized="${hasAppearanceOverrides(state.appearance) ? "true" : "false"}" data-scripture-font="${state.scriptureFont}" data-interface-text-size="${state.interfaceTextSize}" data-side-toolbar-position="${sideToolbarPosition}" data-side-toolbar-preference="${state.sideToolbarPosition}" style="--popup-text-scale: ${state.popupTextScale}; --text-scale: ${state.textScale}">
       ${state.scriptureScreenReading && state.mode !== "trivia" ? `<nav class="scripture-skip-links" aria-label="Scripture reading shortcuts"><button type="button" data-scripture-start="passage">Go to passage</button><button type="button" data-scripture-start="verse">Go to current verse</button></nav>` : ""}
       ${topbar(settingsPanelRerender, accountPanelRerender)}
       ${state.mode === "parallel" ? `<button class="parallel-header-toggle" id="parallelHeaderToggle" type="button" aria-controls="appHeader" aria-expanded="${!state.parallelHeaderCollapsed}" aria-label="${state.parallelHeaderCollapsed ? "Show" : "Hide"} header"><span aria-hidden="true">${state.parallelHeaderCollapsed ? "⌄" : "⌃"}</span> ${state.parallelHeaderCollapsed ? "Show" : "Hide"} header</button>` : ""}
@@ -2195,6 +2200,13 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
     </main>
   `;
   const shell = app.querySelector(".app-shell");
+  if (animateSearchRow) {
+    // Establish the old grid before transitioning the newly rendered header.
+    shell.classList.toggle("portrait-search-opening", !searchCollapsed);
+    shell.querySelector(".topbar")?.getBoundingClientRect();
+    shell.classList.toggle("portrait-search-collapsed", searchCollapsed);
+    shell.classList.remove("portrait-search-opening");
+  }
   if (previousToast) {
     shell.querySelector(".status-toast-region").replaceWith(previousToast);
     shell.classList.toggle("toast-visible", Boolean(previousToast.querySelector(".show")));
@@ -3750,7 +3762,7 @@ function desktopFocusTools() {
 function focusWorkspaceToolButtons(buttonClass) {
   const tools = [
     ["Verse", "Verse picker", icons.book],
-    ["History", "History", icons.history],
+    ["History", "Reading History", icons.history],
     ["Bookmarks", "Bookmarks", icons.bookmark],
     ["Annotations", "Annotations", icons.note],
   ];
@@ -3772,7 +3784,7 @@ function focusWorkspaceToolButtons(buttonClass) {
 function mobileFocusWorkspacePanel() {
   const panel = state.focusWorkspacePanel;
   if ((!state.focusMode && panel !== "Verse") || !["Verse", "History", "Bookmarks", "Annotations"].includes(panel)) return "";
-  const panelTitle = panel === "Verse" ? "Verse picker" : panel;
+  const panelTitle = panel === "Verse" ? "Verse picker" : panel === "History" ? "Reading History" : panel;
   const content = panel === "Verse"
     ? focusVersePickerPanel()
     : panel === "History"
@@ -6009,6 +6021,10 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.2": [
+      "The search bar stays tucked away while reading in mobile portrait and slides into view when you open Search.",
+      "Search has red Clear and green Done buttons, and Reading History has its own label.",
+    ],
     "2026.11.28.1": [
       "Search history is available in the search results controls, with more room to type in the search bar.",
     ],
@@ -8287,6 +8303,10 @@ function accountQuickButtonContent() {
   };
 }
 
+function portraitSearchRowCollapsed() {
+  return state.portraitSearchCollapsed && !(state.libraryOpen && state.activeRail === "Search");
+}
+
 function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
   const selectedVersions = activeVersions();
   const maxVersions = versionLimit();
@@ -8406,7 +8426,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
           ${mainSettingsPanelMarkup()}
         </div>
       </div>
-      <button class="bar-collapse-toggle portrait-search-collapse-toggle" id="portraitSearchCollapseToggle" type="button" aria-label="${state.portraitSearchCollapsed ? "Show" : "Hide"} search and Bible versions" aria-controls="portraitSearchBar headerVersionControl" aria-expanded="${!state.portraitSearchCollapsed}" data-tooltip="${state.portraitSearchCollapsed ? "Show" : "Hide"} search and Bible versions">${icons.chevron}</button>
+      <button class="bar-collapse-toggle portrait-search-collapse-toggle" id="portraitSearchCollapseToggle" type="button" aria-label="${portraitSearchRowCollapsed() ? "Show" : "Hide"} search and Bible versions" aria-controls="portraitSearchBar headerVersionControl" aria-expanded="${!portraitSearchRowCollapsed()}" data-tooltip="${portraitSearchRowCollapsed() ? "Show" : "Hide"} search and Bible versions">${icons.chevron}</button>
     </header>
   `;
 }
@@ -10933,7 +10953,8 @@ function rail() {
   const sideToggleDisabledAttrs = sideToggleEnabled ? "" : ' disabled aria-disabled="true"';
   return `<aside class="rail"><div class="rail-tools" role="group" aria-label="Study tools">${items.map(([label, icon]) => {
     const active = state.activeRail === label || (label === "Annotations" && state.activeRail === "Notes");
-    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${label}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${label}">${icon}</button>`;
+    const title = label === "History" ? "Reading History" : label;
+    return `<button class="${active ? "active" : ""}" data-rail="${label}" aria-label="${title}" aria-pressed="${active ? "true" : "false"}" data-tooltip="${title}">${icon}</button>`;
   }).join("")}</div>
     <div class="portrait-rail-actions">
       ${["reader", "parallel"].includes(state.mode) && readerControlsFadeInRail() ? readerControlsFadeButton() : ""}
@@ -10951,7 +10972,7 @@ function library() {
     Notes: "Annotations",
     Annotations: "Annotations",
     "Cross-Refs": "Cross References",
-    History: "History",
+    History: "Reading History",
     Search: "Search",
   };
   const title = titleMap[state.activeRail] || "Verse";
@@ -11039,7 +11060,8 @@ function searchScopeControls({ showResults = true, showClear = false } = {}) {
 }
 
 function searchResultsClearControl() {
-  return `<button class="icon-btn glass-close-control" type="button" data-clear-search-results aria-label="Clear search results" data-tooltip="Clear search results">${icons.clear}</button>`;
+  const canClear = Boolean(state.searchResultsQuery || activeInlineSearchQuery());
+  return `<button class="icon-btn glass-close-control" type="button" data-clear-search-results ${canClear ? "" : "disabled"} aria-label="Clear search results" data-tooltip="Clear search results">${icons.clear}</button>`;
 }
 
 function searchClearControl(value = "") {
@@ -28887,10 +28909,11 @@ function bindEvents() {
     document.getElementById("parallelHeaderToggle")?.focus({ preventScroll: true });
   });
   document.getElementById("portraitSearchCollapseToggle")?.addEventListener("click", () => {
-    state.portraitSearchCollapsed = !state.portraitSearchCollapsed;
+    state.portraitSearchCollapsed = !portraitSearchRowCollapsed();
     localStorage.setItem("lw_portrait_search_collapsed", String(state.portraitSearchCollapsed));
     state.headerVersionMenuOpen = false;
-    renderPreservingReaderScroll();
+    if (state.portraitSearchCollapsed && state.libraryOpen && state.activeRail === "Search") closeLibrary();
+    else renderPreservingReaderScroll();
     document.getElementById("portraitSearchCollapseToggle")?.focus({ preventScroll: true });
   });
   document.getElementById("verseNavCollapseToggle")?.addEventListener("click", toggleVerseNavCollapsed);
@@ -33953,6 +33976,9 @@ function paintInlineChapterSearch({ scroll = false } = {}) {
     });
   });
   state.inlineSearchMatchCount = count;
+  document.querySelectorAll(".search-results-actions [data-clear-search-results]").forEach((button) => {
+    button.disabled = !state.searchResultsQuery && !query;
+  });
   state.inlineSearchHitIndex = count ? Math.max(0, Math.min(state.inlineSearchHitIndex, count - 1)) : -1;
   if (scroll && count) scrollInlineSearchHitIntoView(state.inlineSearchHitIndex, { smooth: false });
   else {
@@ -35214,10 +35240,7 @@ function recordHistory(ref = referenceLabel()) {
 
 function activateWorkspace(target) {
   if (target === "Verse") primePassageScrollAudio();
-  if (target === "Search") {
-    state.portraitSearchCollapsed = false;
-    state.searchQuery = state.searchQuery || state.searchResultsQuery;
-  }
+  if (target === "Search") state.searchQuery = state.searchQuery || state.searchResultsQuery;
   if (state.libraryOpen && libraryStateKey(target) !== libraryStateKey(state.activeRail)) {
     rememberOpenLibraryState();
     persistLibraryScrollByRail();
@@ -35252,6 +35275,7 @@ function closeLibrary() {
     state.libraryOpen = false;
     localStorage.setItem("lw_library_open", "false");
     renderPreservingReaderScroll();
+    document.querySelector('.rail [data-rail="Search"]')?.focus({ preventScroll: true });
     return;
   }
   rememberOpenLibraryState();
