@@ -1046,6 +1046,7 @@ const state = {
   gameChallengeActionBusyId: "",
   gameChallengeRealtimeStatus: "idle",
   challengeOpponentIds: [],
+  gameFriendSearchQuery: "",
   gameRoomAddFriendsOpen: false,
   gameRoomOnlineUserIds: [],
   activeGameChallengeId: "",
@@ -2068,7 +2069,8 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
   globalThis.CSS?.highlights?.delete("scripture-word-surroundings");
   const focusPickerMotion = captureFocusPickerMotion();
   const activeElement = document.activeElement;
-  const chapterFindInput = activeInlineSearchQuery() && activeElement?.matches("#referenceInput, #mobileFocusPassageInput")
+  const preservedSearchInput = (activeInlineSearchQuery() && activeElement?.matches("#referenceInput, #mobileFocusPassageInput"))
+    || activeElement?.id === "gameFriendSearch"
     ? { id: activeElement.id, start: activeElement.selectionStart, end: activeElement.selectionEnd } : null;
   scheduleNativeWidgetSync();
   const previousMemorySurface = document.querySelector(".memorize-reader");
@@ -2214,11 +2216,11 @@ function render({ preserveAutoScroll = false, preserveFloatingControls = false }
         }
       }));
     }
-    if (chapterFindInput) {
-      const input = document.getElementById(chapterFindInput.id);
-      input?.focus({ preventScroll: true });
-      if (input && chapterFindInput.start !== null) input.setSelectionRange(chapterFindInput.start, chapterFindInput.end);
-    }
+  }
+  if (preservedSearchInput) {
+    const input = document.getElementById(preservedSearchInput.id);
+    input?.focus({ preventScroll: true });
+    if (input && preservedSearchInput.start !== null) input.setSelectionRange(preservedSearchInput.start, preservedSearchInput.end);
   }
   scheduleOnlineChapterPreload();
   if (previousSocialPopup && !document.getElementById("gameChallengePopupDialog")) {
@@ -5990,6 +5992,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.18": [
+      "Search friends by name or username when creating a live game room or inviting more players from the lobby.",
+    ],
     "2026.11.27.17": [
       "Score-based multiplayer games reveal final standings after everyone finishes. Fastest-time games still show results as players finish.",
       "Rematches return to a lobby so players can respond before the host starts the shared countdown.",
@@ -14190,6 +14195,7 @@ function resetGameChallengeState() {
   state.gameChallengeMessage = "";
   state.gameChallengeActionBusyId = "";
   state.challengeOpponentIds = [];
+  state.gameFriendSearchQuery = "";
   state.activeGameChallengeId = "";
   gameChallengePopupNotice = null;
   gameChallengePopupQueue = [];
@@ -14596,6 +14602,7 @@ async function sendGameChallenge(opponentIds = state.challengeOpponentIds) {
     state.gameChallengeActionBusyId = "";
     await loadGameChallenges({ render: false });
     state.challengeOpponentIds = [];
+    state.gameFriendSearchQuery = "";
     await joinGameChallenge(String(roomId || ""));
     showToast(`Game room created for ${inviteeIds.length + 1}`);
   } catch (error) {
@@ -21713,13 +21720,13 @@ function gameRoomLobbyCard(challenge) {
       ${canInvite ? `
         <details class="game-room-add-friends" id="gameRoomAddFriends" ${state.gameRoomAddFriendsOpen ? "open" : ""}>
           <summary>Invite more players</summary>
-          ${availableFriends.length ? `<ul>
+          ${availableFriends.length ? gameFriendSearchMarkup(`<ul>
             ${availableFriends.map(({ userId, profile }) => {
               const name = profile.displayName || `@${profile.username}`;
-              return `<li>${socialProfileAvatarMarkup(profile, "game-room-player-avatar")}
+              return `<li ${gameFriendSearchAttributes(profile)}>${socialProfileAvatarMarkup(profile, "game-room-player-avatar")}
                 <span>${escapeHtml(name)}</span>${gameRoomRosterButton(challenge, userId, "invite", name)}</li>`;
             }).join("")}
-          </ul>` : "<p>All available friends are already in this room.</p>"}
+          </ul>`) : "<p>All available friends are already in this room.</p>"}
           <button class="ghost-btn" type="button" data-open-find-people>Find people</button>
         </details>` : ""}
       <ul class="game-room-player-list">
@@ -21776,6 +21783,47 @@ function gameChallengeFriends() {
   }).filter((item) => item.profile);
 }
 
+function gameFriendSearchMarkup(listMarkup) {
+  return `
+    <div class="game-friend-search">
+      <input id="gameFriendSearch" type="search" aria-label="Search friends" placeholder="Search friends"
+        autocomplete="off" spellcheck="false" value="${escapeHtml(state.gameFriendSearchQuery || "")}">
+      ${listMarkup}
+      <p class="friend-empty-state" role="status" data-game-friend-search-status></p>
+    </div>`;
+}
+
+function gameFriendSearchAttributes(profile) {
+  return `data-game-friend-name="${escapeHtml(profile.displayName || "")}"
+    data-game-friend-username="${escapeHtml(profile.username || "")}"`;
+}
+
+function bindGameFriendSearch() {
+  const input = document.getElementById("gameFriendSearch");
+  if (!input) return;
+  const container = input.closest(".game-friend-search");
+  const friends = container.querySelectorAll("[data-game-friend-name]");
+  const status = container.querySelector("[data-game-friend-search-status]");
+  const normalize = (value) => value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().trim().replace(/\s+/g, " ");
+  const update = () => {
+    state.gameFriendSearchQuery = input.value;
+    const query = normalize(input.value);
+    let hasMatch = false;
+    friends.forEach((friend) => {
+      const name = normalize(friend.dataset.gameFriendName);
+      const username = normalize(friend.dataset.gameFriendUsername);
+      const matches = query.startsWith("@")
+        ? `@${username}`.includes(query)
+        : name.includes(query) || username.includes(query);
+      friend.hidden = !matches;
+      if (matches) hasMatch = true;
+    });
+    status.textContent = hasMatch ? "" : "No friends match your search.";
+  };
+  input.addEventListener("input", update);
+  update();
+}
+
 function gameChallengeSetupCard() {
   if (state.authUser && state.socialProfile && (!state.socialSafetyReady || !state.socialConsent || !state.socialAccessAllowed)) return `<section class="challenge-setup-card"><strong>Community Standards</strong><small>Open your Account profile to accept the standards or review social access.</small></section>`;
   if (!state.authUser || !state.socialProfile) {
@@ -21817,7 +21865,7 @@ function gameChallengeSetupCard() {
         <strong>Invite up to 9 friends to a live room</strong>
         ${isPuzzleChallenge(state.triviaGameType) ? `<small>${state.triviaGameType === "hidden-word" ? "Same puzzles for everyone. Highest points wins; hints and mistakes reduce points." : "Same puzzle for everyone. Lowest finish time wins; the clock keeps running while you are away. Crossword letter hints are unavailable."}</small>` : ""}
       </div>
-      <div class="challenge-friend-picker" role="group" aria-label="Friends to invite">
+      ${gameFriendSearchMarkup(`<div class="challenge-friend-picker" role="group" aria-label="Friends to invite">
         ${friends.map(({ userId, profile }) => {
           const selected = state.challengeOpponentIds.includes(userId);
           return `
@@ -21825,6 +21873,7 @@ function gameChallengeSetupCard() {
               class="challenge-friend-choice ${selected ? "is-selected" : ""}"
               type="button"
               data-challenge-friend="${escapeHtml(userId)}"
+              ${gameFriendSearchAttributes(profile)}
               aria-pressed="${selected}"
               ${busy ? "disabled" : ""}
             >
@@ -21834,7 +21883,7 @@ function gameChallengeSetupCard() {
             </button>
           `;
         }).join("")}
-      </div>
+      </div>`)}
       <div class="challenge-setup-actions">
         <span>${selectedCount ? `${selectedCount + 1} players including you` : "Choose at least one friend"}</span>
         <button class="primary-btn" id="sendGameChallenge" type="button" ${busy || !selectedCount ? "disabled" : ""}>
@@ -21914,6 +21963,7 @@ function setGamesDrawer(drawer = "") {
   const update = () => {
     if (state.mode !== "trivia" || state.gamesDrawerOpen !== previousDrawer) return;
     state.gamesDrawerOpen = nextDrawer;
+    if (nextDrawer === "social") state.gameFriendSearchQuery = "";
     renderPreservingReaderScroll();
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const focusTarget = nextDrawer === "options" && !isGamesResponsiveScreen()
@@ -28735,6 +28785,7 @@ function bindEvents() {
     scheduleCloudSync();
     renderPreservingReaderScroll();
   });
+  bindGameFriendSearch();
   document.querySelectorAll("[data-challenge-friend]").forEach((button) => {
     button.addEventListener("click", () => {
       const userId = button.dataset.challengeFriend || "";

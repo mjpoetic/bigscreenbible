@@ -362,7 +362,7 @@ const lobbyContext = vm.createContext({
   gameChallengeTitle: () => "Trivia",
   escapeHtml: String,
 });
-for (const name of ["gameRoomCanStart", "gameRoomAwaitingRematchReplies", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomFriendshipControl", "gameRoomLobbyPlayer", "gameRoomLobbyCard"]) {
+for (const name of ["gameRoomCanStart", "gameRoomAwaitingRematchReplies", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomFriendshipControl", "gameRoomLobbyPlayer", "gameFriendSearchMarkup", "gameFriendSearchAttributes", "gameRoomLobbyCard"]) {
   vm.runInContext(extractFunction(name), lobbyContext);
 }
 const hostMarkup = lobbyContext.gameRoomLobbyCard(lobby);
@@ -373,6 +373,38 @@ assert.match(hostMarkup, /data-game-challenge-action="remove"[^>]*aria-label="Re
 assert.match(hostMarkup, /data-game-challenge-action="invite"[^>]*aria-label="Invite New friend"[^>]*>Invite<\/button>/);
 assert.match(hostMarkup, /✓ Friends/);
 assert.match(hostMarkup, /8 spots open/);
+assert.match(hostMarkup, /type="search" aria-label="Search friends"/);
+
+const friendRows = [
+  { dataset: { gameFriendName: "José Rivera", gameFriendUsername: "jrivera" }, selected: true },
+  { dataset: { gameFriendName: "Jo Park", gameFriendUsername: "jopark" } },
+];
+const searchStatus = {};
+const searchInput = {
+  value: "",
+  closest: () => ({ querySelectorAll: () => friendRows, querySelector: () => searchStatus }),
+  addEventListener(type, listener) {
+    assert.equal(type, "input");
+    this.update = listener;
+  },
+};
+lobbyContext.document = { getElementById: () => searchInput };
+vm.runInContext(extractFunction("bindGameFriendSearch"), lobbyContext);
+lobbyContext.bindGameFriendSearch();
+for (const [query, hidden] of [
+  ["  JOSE   RI ", [false, true]],
+  ["@JOP", [true, false]],
+  ["missing", [true, true]],
+  ["", [false, false]],
+]) {
+  searchInput.value = query;
+  searchInput.update();
+  assert.deepEqual(friendRows.map((row) => row.hidden), hidden);
+  assert.equal(lobbyContext.state.gameFriendSearchQuery, query);
+  assert.equal(searchStatus.textContent, hidden.every(Boolean) ? "No friends match your search." : "");
+  assert.equal(friendRows[0].selected, true);
+}
+
 relationship = null;
 assert.match(lobbyContext.gameRoomLobbyCard(lobby), /data-friend-action="send">Add friend/);
 discoverable = false;

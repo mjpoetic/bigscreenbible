@@ -3996,7 +3996,8 @@ dialog.game-challenge-confirm {
   gap: 6px;
 }
 
-.friend-search-form input {
+.friend-search-form input,
+.game-friend-search input {
   width: 100%;
   min-width: 0;
   min-height: 34px;
@@ -7614,6 +7615,30 @@ select {
 .game-room-lobby p {
   margin: 0;
   font-size: 15px;
+}
+
+.game-friend-search {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.game-friend-search input {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.game-room-add-friends .game-friend-search {
+  margin-top: 8px;
+}
+
+.game-room-add-friends .game-friend-search ul {
+  margin: 0;
+}
+
+.game-friend-search [data-game-friend-name][hidden],
+.game-friend-search [data-game-friend-search-status]:empty {
+  display: none;
 }
 
 .challenge-friend-picker {
