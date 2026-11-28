@@ -5458,7 +5458,7 @@ function readingSettings(prefix = "", options = {}) {
         <input type="checkbox" id="${controlId("ShowControlsFadeToggle")}" data-focus-controls-setting="showControlsFadeToggle" ${state.showControlsFadeToggle ? "checked" : ""} />
         <span>Show reading controls fade button</span>
       </label>
-      <p class="setting-help">Show a moon / sun button above Help in compact portrait Reader and Parallel. It floats near the lower-left corner in other reading layouts. Tap for options. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
+      <p class="setting-help">Show a moon / sun button near the lower-left corner or above Help in compact portrait Parallel. Tap for options, including hiding the button. Hold to fade the controls now and brighten them only when used. Shift+D toggles fading and Shift+Alt+D opens these controls even when the button is hidden.</p>
       <label class="setting-checkbox">
         <input type="checkbox" id="${controlId("FocusControlsFadeToggle")}" data-focus-controls-setting="focusControlsFade" ${state.focusControlsFade ? "checked" : ""} />
         <span>Keep idle controls faintly visible</span>
@@ -6021,6 +6021,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.4": [
+      "Hide the reading controls fade button from its own menu, with a quick Undo or the option to restore it in Reading & navigation settings.",
+    ],
     "2026.11.28.3": [
       "Reader’s fade controls button floats at the lower left in mobile portrait, and its tooltip stays on screen.",
     ],
@@ -12592,6 +12595,7 @@ function readerControlsFadePopover() {
       <label><input type="checkbox" data-quick-controls-setting="focusControlsHide" ${state.focusControlsHide ? "checked" : ""} /> Eventually hide controls</label>
       <label data-quick-controls-delay>Hide after (seconds)<input type="number" min="5" max="300" step="1" value="${state.focusControlsHideSeconds}" data-quick-controls-setting="focusControlsHideSeconds" /></label>
       <button type="button" class="ghost-btn" popovertarget="readerControlsFadePopover" popovertargetaction="hide">Done</button>
+      ${state.showControlsFadeToggle ? '<button type="button" class="ghost-btn reader-controls-hide-toggle" data-hide-reader-controls-fade-toggle>Hide this button</button>' : ""}
     </div>`;
 }
 
@@ -12682,6 +12686,18 @@ function bindReaderControlsFadeToggle() {
   if (!popover) return;
   bindReaderControlsFadeHold(document.getElementById("readerControlsFadeToggle"));
   updateReaderControlsFadePopover();
+  popover.querySelector("[data-hide-reader-controls-fade-toggle]")?.addEventListener("click", event => {
+    popover.hidePopover();
+    setQuickReadingControlsSettings({ showControlsFadeToggle: false });
+    renderPreservingReaderScroll({ preferLastReaderAnchor: true, preserveFloatingControls: true });
+    const undo = showToast("Fade button hidden", { undo: () => {
+      setQuickReadingControlsSettings({ showControlsFadeToggle: true });
+      renderPreservingReaderScroll({ preferLastReaderAnchor: true, preserveFloatingControls: true });
+      document.getElementById("readerControlsFadeToggle")?.focus({ preventScroll: true });
+      showToast("Fade button restored");
+    } });
+    if (event.detail === 0) undo?.focus({ preventScroll: true });
+  });
   popover.querySelectorAll("[data-quick-controls-setting]").forEach(input => {
     input.addEventListener("change", () => setQuickReadingControlsSettings({
       [input.dataset.quickControlsSetting]: input.type === "number" ? input.value : input.checked,
@@ -39159,20 +39175,31 @@ function formatReferenceLabel(chapterKey, verseNumbers = selectedVerseNumbers())
   return `${chapterKey}:${suffix}`;
 }
 
-function showToast(message, { pending = false } = {}) {
+function showToast(message, { pending = false, undo } = {}) {
   const toast = document.getElementById("toast");
   if (!toast) return;
   clearTimeout(statusToastTimer);
   toast.textContent = message;
+  let undoButton;
+  if (undo) {
+    undoButton = document.createElement("button");
+    undoButton.type = "button";
+    undoButton.className = "status-toast-undo";
+    undoButton.textContent = "Undo";
+    undoButton.addEventListener("click", undo, { once: true });
+    toast.append(" ", undoButton);
+  }
   toast.classList.add("show");
   toast.classList.toggle("status-toast-pending", pending);
   toast.closest(".app-shell")?.classList.add("toast-visible");
-  if (pending) return;
+  if (pending && !undoButton) return;
   statusToastTimer = setTimeout(() => {
     toast.classList.remove("show");
+    undoButton?.remove();
     toast.closest(".app-shell")?.classList.remove("toast-visible");
     statusToastTimer = setTimeout(() => { toast.textContent = ""; }, 320);
-  }, 2800);
+  }, undoButton ? 8000 : 2800);
+  return undoButton;
 }
 
 let presentationStageObserver;

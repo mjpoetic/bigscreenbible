@@ -56,9 +56,11 @@ context.icons = { moon: '', sun: '' };
 context.focusSearchPortrait = { matches: false };
 context.state.showControlsFadeToggle = true;
 assert.match(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/);
+assert.match(context.readerControlsFadePopover(), /data-hide-reader-controls-fade-toggle>Hide this button/);
 context.state.showControlsFadeToggle = false;
 assert.doesNotMatch(context.readerControlsFadeButton(), /id="readerControlsFadeToggle"/);
 assert.match(context.readerControlsFadePopover(), /id="readerControlsFadePopover"/);
+assert.doesNotMatch(context.readerControlsFadePopover(), /data-hide-reader-controls-fade-toggle/);
 Object.assign(context, {
   effectiveSideToolbarPosition: () => 'left',
   isSideToolbarAutoPositioned: () => false,
@@ -81,4 +83,32 @@ for (const mode of ['reader', 'parallel']) {
 }
 context.state.focusMode = true;
 assert.match(context.readerControlsFadeButton(), /class="reader-controls-fade-toggle"/);
+
+let hideButtonClick, undo, closed = false, reflows = 0;
+const popover = {
+  querySelector: () => ({ addEventListener: (_, listener) => { hideButtonClick = listener; } }),
+  querySelectorAll: () => [],
+  addEventListener() {},
+  hidePopover() { closed = true; },
+};
+Object.assign(context, {
+  document: { getElementById: id => id === 'readerControlsFadePopover' ? popover : null },
+  revealMobileSettingsButton() {},
+  renderPreservingReaderScroll() { reflows++; },
+  showToast(message, options) {
+    if (message === 'Fade button hidden') undo = options.undo;
+  },
+});
+vm.runInContext(source.slice(source.indexOf('function bindReaderControlsFadeToggle('), source.indexOf('function readerAutoScrollButton(')), context);
+context.bindReaderControlsFadeToggle();
+hideButtonClick({ detail: 1 });
+assert.equal(closed, true);
+assert.equal(context.state.showControlsFadeToggle, false);
+assert.equal(storage.get('lw_show_controls_fade_toggle'), 'false');
+assert.equal(context.state.focusControlsFade, true);
+assert.equal(context.state.focusControlsTouchReveal, true);
+undo();
+assert.equal(context.state.showControlsFadeToggle, true);
+assert.equal(storage.get('lw_show_controls_fade_toggle'), 'true');
+assert.equal(reflows, 2);
 console.log('Reading controls hold: tap, hold, click suppression, cancellation, drag, and keyboard passed.');

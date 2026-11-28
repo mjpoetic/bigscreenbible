@@ -16840,6 +16840,19 @@ kbd {
   transform: translateY(-8px);
 }
 
+.status-toast.show .status-toast-undo {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
 .app-update-notice {
   animation: bottom-notice-spotlight 2s ease-out;
 }
@@ -29404,6 +29417,11 @@ html #app .trivia-shell :is(.games-hint-action, .games-menu-control, #triviaHint
 .reader-controls-fade-popover input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--teal); }
 .reader-controls-fade-popover input[type="number"] { width: 64px; margin-left: auto; padding: 6px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
 .reader-controls-fade-popover > button { margin-top: 10px; width: 100%; }
+.reader-controls-fade-popover > .reader-controls-hide-toggle {
+  --glass-ink: var(--red-letter);
+  min-height: 44px;
+  color: var(--red-letter);
+}
 .reader-controls-fade-toggle[aria-expanded="true"] { opacity: 1; }
 
 #readerControlsFadeToggle { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
