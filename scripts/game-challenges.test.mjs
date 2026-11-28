@@ -310,18 +310,22 @@ assert.equal(refreshes, 2, "A room that becomes unreadable must also trigger a r
 const lobby = state.gameChallenges.find((challenge) => challenge.id === "outgoing");
 const host = { userId: "user-a", isHost: true, inviteStatus: "accepted" };
 const guest = { userId: "user-c", ready: true, inviteStatus: "accepted" };
+let roster = [host, guest];
+let relationship = { status: "accepted" };
+let discoverable = true;
 const lobbyContext = vm.createContext({
   state: { authUser: { id: host.userId }, gameRoomOnlineUserIds: [] },
-  gameChallengePlayersFor: () => [host, guest],
+  gameChallengePlayersFor: () => roster,
   gameChallengePlayer: () => guest,
   gameChallengeFriends: () => [{ userId: "user-d", profile: { displayName: "New friend" } }],
   socialProfileAvatarMarkup: () => "",
-  friendshipProfile: () => ({ displayName: "Joined friend" }),
-  friendshipActionButton: () => "",
+  friendshipForUser: () => relationship,
+  friendshipProfile: (userId) => ({ userId, displayName: "Joined friend", allowFriendRequests: true, isDiscoverable: discoverable }),
+  friendshipActionButton: (action, label) => `<button data-friend-action="${action}">${label}</button>`,
   gameChallengeTitle: () => "Trivia",
   escapeHtml: String,
 });
-for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomLobbyPlayer", "gameRoomLobbyCard"]) {
+for (const name of ["gameRoomCanStart", "gameChallengeActionButton", "gameRoomRosterButton", "gameRoomFriendshipControl", "gameRoomLobbyPlayer", "gameRoomLobbyCard"]) {
   vm.runInContext(extractFunction(name), lobbyContext);
 }
 const hostMarkup = lobbyContext.gameRoomLobbyCard(lobby);
@@ -329,10 +333,24 @@ assert.match(hostMarkup, /data-game-challenge-action="start-room"[^>]*>Start gam
 assert.doesNotMatch(hostMarkup, /disabled/);
 assert.match(hostMarkup, /data-game-challenge-action="cancel"/);
 assert.match(hostMarkup, /data-game-challenge-action="remove"[^>]*aria-label="Remove Joined friend"/);
-assert.match(hostMarkup, /data-game-challenge-action="invite"[^>]*aria-label="Invite New friend"[^>]*>\+<\/button>/);
+assert.match(hostMarkup, /data-game-challenge-action="invite"[^>]*aria-label="Invite New friend"[^>]*>Invite<\/button>/);
+assert.match(hostMarkup, /✓ Friends/);
+assert.match(hostMarkup, /8 spots open/);
+relationship = null;
+assert.match(lobbyContext.gameRoomLobbyCard(lobby), /data-friend-action="send">Add friend/);
+discoverable = false;
+assert.doesNotMatch(lobbyContext.gameRoomLobbyCard(lobby), /data-friend-action="send"/);
+relationship = { status: "pending", requesterId: guest.userId };
+assert.match(lobbyContext.gameRoomLobbyCard(lobby), /data-friend-action="accept"/);
+relationship.requesterId = host.userId;
+assert.match(lobbyContext.gameRoomLobbyCard(lobby), /Request sent/);
+roster = [host, guest, ...Array.from({ length: 8 }, (_, index) => ({ userId: `extra-${index}`, inviteStatus: "invited" }))];
+assert.doesNotMatch(lobbyContext.gameRoomLobbyCard(lobby), /data-game-challenge-action="invite"/);
+roster = [host, guest];
 assert.match(source, /id="challengeFriendForGame"[\s\S]*<span>Challenge a friend<\/span>/);
 lobbyContext.state.authUser.id = guest.userId;
 const guestMarkup = lobbyContext.gameRoomLobbyCard(lobby);
+assert.doesNotMatch(guestMarkup, /Invite more players/);
 assert.match(guestMarkup, /role="status"[\s\S]*loading-spinner[\s\S]*Waiting for the host to start the game/);
 assert.match(guestMarkup, /data-game-challenge-action="leave"/);
 guest.ready = false;

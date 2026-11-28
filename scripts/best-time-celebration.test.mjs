@@ -85,3 +85,20 @@ assert.match(dialog.innerHTML, /Play same mode/);
 removed = false;
 clickAction('back');
 assert.equal(removed, true, 'Back returns to the completed board when opened from there');
+
+let puzzleFocused = false;
+context.document.querySelector = () => ({ focus() { puzzleFocused = true; } });
+context.showBestTimeCelebration({ type: 'word-search', complete: true }, null);
+assert.match(dialog.innerHTML, /data-best-time-action="results">View puzzle/);
+clickAction('results');
+assert.equal(puzzleFocused, true);
+
+const pending = source.slice(source.indexOf('function runPendingTriviaCelebration('), source.indexOf('function revealTriviaMotionSuccess('));
+vm.runInContext(pending, context);
+context.state.mode = 'trivia';
+context.state.activeGameChallengeId = 'room';
+context.state.triviaGame = { type: 'hidden-word', complete: true, challengeId: 'room' };
+context.document.createElement = () => assert.fail('Multiplayer completion must leave standings accessible');
+puzzleFocused = false;
+context.runPendingTriviaCelebration();
+assert.equal(puzzleFocused, true);

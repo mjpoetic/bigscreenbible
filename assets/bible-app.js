@@ -5990,6 +5990,11 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.14": [
+      "Game lobbies show friendship status and let players send or accept requests. Hosts can invite more friends until the room reaches 10 players or play starts.",
+      "Multiplayer results open with everyone’s standings visible, and players move as rankings change during play.",
+      "Completed Word Search boards support touch scrolling and can be reopened from the results dialog.",
+    ],
     "2026.11.27.13": [
       "The fade controls button now sits directly above Help in the portrait side toolbar.",
     ],
@@ -21435,8 +21440,10 @@ function gameChallengeBookSprintElapsedMs(challenge, player, now = Date.now()) {
 
 function liveBookSprintPlayerResult(challenge, player) {
   const elapsed = formatGameTime(gameChallengeBookSprintElapsedMs(challenge, player));
+  const status = player.completedAt ? "Finished" : "In progress";
+  const progress = ` · ${player.progress} / ${challenge.puzzle ? triviaRoundLength(challenge.puzzle) : challenge.roundCount}`;
   return `
-    <small>${player.completedAt ? "Finished" : "In progress"}</small>
+    <small>${status}${progress}</small>
     <strong
       class="live-challenge-time"
       ${player.completedAt ? "" : 'data-live-book-sprint-running="true"'}
@@ -21461,8 +21468,10 @@ function liveGameChallengeScoreboard() {
   const selfPlayer = gameChallengePlayer(challenge.id);
   const roundCount = challenge.puzzle ? triviaRoundLength(challenge.puzzle) : challenge.roundCount || 0;
   const result = gameChallengeResultLabel(challenge, selfPlayer, players);
+  const final = challenge.status === "completed";
+  const tied = rankedPlayers.length > 1 && gameChallengePlayerComparison(challenge, rankedPlayers[0], rankedPlayers[1]) === 0;
   return `
-    <section class="live-challenge-scoreboard ${state.gameStandingsOpen ? "is-open" : ""}" aria-label="Live room leaderboard">
+    <section class="live-challenge-scoreboard ${state.gameStandingsOpen ? "is-open" : ""}" aria-label="${final ? "Final standings" : "Live room leaderboard"}" tabindex="-1">
       <button class="live-challenge-toggle" type="button" data-game-standings-toggle aria-expanded="${Boolean(state.gameStandingsOpen)}" aria-controls="gameChallengeStandings">
         <span><span class="live-status-dot" aria-hidden="true"></span>Standings${selfPlayer ? ` · #${gameChallengePlayerRank(challenge, selfPlayer, players)}` : ""}</span>
         <small>${players.filter((player) => player.completedAt).length}/${players.length} finished</small>
@@ -21481,14 +21490,14 @@ function liveGameChallengeScoreboard() {
             : profile?.displayName || profile?.username || "Friend";
           const rank = gameChallengePlayerRank(challenge, player, players);
           return `
-            <li class="${player.completedAt ? "complete" : ""} ${player.userId === state.authUser?.id ? "is-you" : ""}">
+            <li data-standings-player="${escapeHtml(player.userId)}" class="${player.completedAt ? "complete" : ""} ${player.userId === state.authUser?.id ? "is-you" : ""}">
               <span class="live-challenge-rank">#${rank}</span>
               ${socialProfileAvatarMarkup(profile, "live-challenge-avatar")}
-              <span class="live-challenge-name">${escapeHtml(name)}</span>
+              <span class="live-challenge-name">${escapeHtml(name)}${final && rank === 1 ? tied ? " · Tied first" : " · Winner" : ""}</span>
               ${isTimedGameChallenge(challenge.gameType)
                 ? liveBookSprintPlayerResult(challenge, player)
                 : `
-                  <small>${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
+                  <small>${player.completedAt ? "Finished" : "In progress"} · ${Math.min(roundCount, player.progress ?? 0)} / ${roundCount}</small>
                   <strong>${challenge.gameType === "hidden-word" ? player.puzzleState?.points ?? player.score ?? 0 : player.score ?? 0}${challenge.gameType === "hidden-word" ? " pts" : ""}</strong>
                 `}
               ${player.userId !== state.authUser?.id ? `<div class="social-player-actions">${friendshipActionButton("report", "Report", {profileId: player.userId})}${friendshipActionButton("block", "Block", {profileId: player.userId, danger: true})}</div>` : ""}
@@ -21529,12 +21538,32 @@ function refreshLiveGameChallengeScoreboard() {
   template.innerHTML = markup.trim();
   const replacement = template.content.firstElementChild;
   if (!replacement) return false;
+  const animate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const previousPositions = new Map();
+  if (animate) {
+    current.querySelectorAll("[data-standings-player]").forEach((row) => {
+      if (row.getClientRects().length) previousPositions.set(row.dataset.standingsPlayer, row.getBoundingClientRect());
+    });
+  }
   const standingsScrollTop = current.querySelector(".live-challenge-details")?.scrollTop || 0;
-  const restoreToggleFocus = current.querySelector("[data-game-standings-toggle]") === document.activeElement;
+  const focused = document.activeElement;
+  const restoreToggleFocus = current.querySelector("[data-game-standings-toggle]") === focused;
   current.replaceWith(replacement);
   bindGameStandingsToggle(replacement);
   const details = replacement.querySelector(".live-challenge-details");
   if (details) details.scrollTop = standingsScrollTop;
+  replacement.querySelectorAll("[data-standings-player]").forEach((row) => {
+    const previous = previousPositions.get(row.dataset.standingsPlayer);
+    if (!previous || !row.getClientRects().length) return;
+    const { left, top } = row.getBoundingClientRect();
+    const x = previous.left - left;
+    const y = previous.top - top;
+    if (x || y) row.animate?.([{ transform: `translate(${x}px, ${y}px)` }, { transform: "translate(0, 0)" }], {
+      duration: 260,
+      easing: "ease-out",
+    });
+  });
+  if (focused === current) replacement.focus({ preventScroll: true });
   if (restoreToggleFocus) replacement.querySelector("[data-game-standings-toggle]")?.focus({ preventScroll: true });
   replacement.querySelectorAll("[data-friend-action]").forEach(button => button.addEventListener("click", () => handleFriendAction(button)));
   replacement.querySelectorAll("[data-game-challenge-action]").forEach((button) => {
@@ -21550,7 +21579,20 @@ function gameRoomRosterButton(challenge, playerId, action, name) {
     data-game-challenge-action="${action}" data-game-challenge-id="${escapeHtml(challenge.id)}"
     data-game-challenge-player-id="${escapeHtml(playerId)}"
     aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"
-    ${state.gameChallengeActionBusyId ? "disabled" : ""}>${action === "invite" ? "+" : "Remove"}</button>`;
+    ${state.gameChallengeActionBusyId ? "disabled" : ""}>${action === "invite" ? "Invite" : "Remove"}</button>`;
+}
+
+function gameRoomFriendshipControl(profile) {
+  const relationship = friendshipForUser(profile.userId);
+  if (relationship?.status === "accepted") return '<span class="friend-state-label friend-state-success">✓ Friends</span>';
+  if (relationship?.status === "pending") {
+    return relationship.requesterId === state.authUser?.id
+      ? '<span class="friend-state-label">Request sent</span>'
+      : friendshipActionButton("accept", "Accept friend request", { friendshipId: relationship.id });
+  }
+  return profile.isDiscoverable && profile.allowFriendRequests
+    ? friendshipActionButton("send", "Add friend", { profileId: profile.userId })
+    : '<span class="friend-state-label">Requests off</span>';
 }
 
 function gameRoomLobbyPlayer(challenge, player) {
@@ -21571,7 +21613,7 @@ function gameRoomLobbyPlayer(challenge, player) {
       <span class="game-room-presence ${online ? "is-online" : ""}">
         <span aria-hidden="true"></span>${online ? "Online" : "Offline"}
       </span>
-      ${!isSelf ? `<div class="social-player-actions">${challenge.challengerId === state.authUser?.id
+      ${!isSelf ? `<div class="social-player-actions">${gameRoomFriendshipControl(profile)}${challenge.challengerId === state.authUser?.id
         ? gameRoomRosterButton(challenge, player.userId, "remove", name) : ""}${friendshipActionButton("report", "Report", {profileId: player.userId})}${friendshipActionButton("block", "Block", {profileId: player.userId, danger: true})}</div>` : ""}
     </li>
   `;
@@ -21596,7 +21638,8 @@ function gameRoomLobbyCard(challenge) {
   const canStart = gameRoomCanStart(acceptedPlayers);
   const busy = Boolean(state.gameChallengeActionBusyId);
   const playerIds = new Set(players.map((player) => player.userId));
-  const availableFriends = isHost && players.length < 10
+  const canInvite = isHost && challenge.status === "pending" && players.length < 10;
+  const availableFriends = canInvite
     ? gameChallengeFriends().filter(({ userId }) => !playerIds.has(userId))
     : [];
   return `
@@ -21605,21 +21648,22 @@ function gameRoomLobbyCard(challenge) {
         <span>Waiting room</span>
         <strong id="gameRoomLobbyTitle">${escapeHtml(gameChallengeTitle(challenge.gameType))}</strong>
       </div>
-      <p>${acceptedPlayers.length} of ${challenge.maxPlayers} joined${invitedPlayers.length ? ` · ${invitedPlayers.length} awaiting a reply` : ""}</p>
-      <ul class="game-room-player-list">
-        ${players.map((player) => gameRoomLobbyPlayer(challenge, player)).join("")}
-      </ul>
-      ${availableFriends.length ? `
+      <p>${acceptedPlayers.length} joined${invitedPlayers.length ? ` · ${invitedPlayers.length} awaiting a reply` : ""} · ${10 - players.length} spots open</p>
+      ${canInvite ? `
         <details class="game-room-add-friends" id="gameRoomAddFriends" ${state.gameRoomAddFriendsOpen ? "open" : ""}>
-          <summary>Add friends</summary>
-          <ul>
+          <summary>Invite more players</summary>
+          ${availableFriends.length ? `<ul>
             ${availableFriends.map(({ userId, profile }) => {
               const name = profile.displayName || `@${profile.username}`;
               return `<li>${socialProfileAvatarMarkup(profile, "game-room-player-avatar")}
                 <span>${escapeHtml(name)}</span>${gameRoomRosterButton(challenge, userId, "invite", name)}</li>`;
             }).join("")}
-          </ul>
+          </ul>` : "<p>All available friends are already in this room.</p>"}
+          <button class="ghost-btn" type="button" data-open-find-people>Find people</button>
         </details>` : ""}
+      <ul class="game-room-player-list">
+        ${players.map((player) => gameRoomLobbyPlayer(challenge, player)).join("")}
+      </ul>
       <div class="game-room-lobby-actions">
         ${isHost ? `
           <button
@@ -22691,6 +22735,7 @@ function wordSearchGameView(game) {
             aria-rowcount="${game.size}"
             aria-colcount="${game.size}"
             aria-describedby="wordSearchStatus"
+            ${game.complete ? 'tabindex="-1"' : ""}
             style="--word-search-size: ${game.size}"
           >
             ${game.cells.flatMap((row, rowIndex) => row.map((letter, columnIndex) => {
@@ -22805,7 +22850,7 @@ function crosswordGameView(game) {
     </button>
   `).join("");
   return `
-    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}" style="--crossword-clue-size:${state.crosswordClueSize || 15}px">
+    <div class="trivia-game crossword-game ${game.complete ? "is-complete" : ""}" ${game.complete ? 'tabindex="-1"' : ""} style="--crossword-clue-size:${state.crosswordClueSize || 15}px">
       <div class="crossword-toolbar word-search-toolbar">
         <div class="trivia-progress">
           <span>${triviaMode ? "Bible Trivia" : "Scripture"} Crossword · ${escapeHtml(game.difficulty)}${triviaMode ? "" : ` · ${escapeHtml(game.version)}`}</span>
@@ -23470,7 +23515,7 @@ function triviaResultsView(game) {
         ? `You finished all ${roundLength} rounds in ${elapsed}. Try again to beat ${bookSprintBestLabel(bookSprintBest)}.`
         : `You finished all ${roundLength} rounds in ${elapsed}. The next sprint will count down from this time.`;
     return `
-      <div class="trivia-results ${game.bookSprintBeatBest ? "perfect" : ""}">
+      <div class="trivia-results ${game.bookSprintBeatBest ? "perfect" : ""}" tabindex="-1">
         <div class="trivia-results-summary">
           <div class="trivia-result-ring book-sprint-time-ring">${elapsed}</div>
           <h2>${resultTitle}</h2>
@@ -23508,7 +23553,7 @@ function triviaResultsView(game) {
             ? `You solved ${game.score} of ${roundLength} Bible puzzles${game.hintCount ? ` with ${game.hintCount} ${game.hintCount === 1 ? "hint" : "hints"}` : " without hints"}.`
           : `You answered ${game.score} of ${roundLength} correctly in ${escapeHtml(game.category)} at ${escapeHtml(game.difficulty)} difficulty.`;
   return `
-    <div class="trivia-results ${perfect ? "perfect" : ""}">
+    <div class="trivia-results ${perfect ? "perfect" : ""}" tabindex="-1">
       <div class="trivia-results-summary">
         <div class="trivia-result-ring">${(game.type === "hidden-word" || isQuizPointsGame(game)) ? `${(game.points || 0).toLocaleString()}<small>points</small>` : `${percent}%`}</div>
         <h2>${game.type === "reference-rush" && game.timedOut ? "Time’s up!" : triviaResultTitle(percent)}</h2>
@@ -23616,6 +23661,7 @@ function showBestTimeCelebration(game, best, { chooseReplay = false } = {}) {
   const roundTime = game.elapsedMs ?? (game.finishedAt && game.startedAt ? Math.max(0, game.finishedAt - game.startedAt) : null);
   const resultActions = `
     ${game.type === "word-search" && game.wordSearchMode === "categories" ? '<button type="button" class="primary-btn" data-best-time-action="review">Explore answers</button>' : ""}
+    <button type="button" class="ghost-btn" data-best-time-action="results">${game.type === "word-search" ? "View puzzle" : "View results"}</button>
     <button type="button" class="primary-btn" data-best-time-action="retry">Try again</button>
     <button type="button" class="ghost-btn" data-best-time-action="menu">${icons.returnBack}<span>Games menu</span></button>`;
   dialog.innerHTML = `
@@ -23663,7 +23709,10 @@ function showBestTimeCelebration(game, best, { chooseReplay = false } = {}) {
       return;
     }
     cleanupTriviaCelebration();
-    if (action === "review") {
+    if (action === "results") {
+      const target = document.querySelector(".live-challenge-scoreboard, .word-search-grid, .trivia-results, .crossword-game.is-complete");
+      target?.focus();
+    } else if (action === "review") {
       renderPreservingReaderScroll();
       requestAnimationFrame(() => document.querySelector("[data-word-search-reference]")?.focus({ preventScroll: true }));
     } else if (action === "menu") {
@@ -23693,6 +23742,12 @@ function runPendingTriviaCelebration() {
   if (!game.bestTimeCelebrationShown) {
     game.outcomeSoundPending = "";
     game.celebrationPending = false;
+    if (game.challengeId && game.challengeId === state.activeGameChallengeId) {
+      game.bestTimeCelebrationShown = true;
+      playGameOutcomeSound(gameResultPresentation(game).sound);
+      document.querySelector(".live-challenge-scoreboard")?.focus();
+      return;
+    }
     showBestTimeCelebration(game, best);
   }
 }
