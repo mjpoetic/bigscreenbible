@@ -25,7 +25,16 @@ function extractFunction(name) {
 
 const context = {};
 // Exercise the search-to-reference route with the real navigation functions.
+const historyStorage = new Map();
+const historyFunctions = [
+  "searchHistoryStorageKey", "readSearchHistory", "searchHistoryIdentity", "rememberSearch",
+].map(extractFunction).join("\n");
 const navigation = {
+  localStorage: {
+    getItem: (key) => historyStorage.get(key),
+    setItem: (key, value) => historyStorage.set(key, value),
+  },
+  bookFromChapterKey: (chapter) => chapter.replace(/ \d+$/, ""),
   passageSearchInput: value => ({ reference: value, version: null }),
   state: {},
   searchRequestId: 0,
@@ -46,10 +55,14 @@ const navigation = {
 };
 vm.createContext(navigation);
 vm.runInContext(`
+  const searchHistoryLimit = 30;
+  const searchSourceCodes = ["scripture", "strongs", "notes"];
+  ${historyFunctions}
   ${extractFunction("setReferenceFromString")}
   ${extractFunction("gotoReference")}
   ${extractFunction("runReferenceOrPhraseSearch")}
   ${extractFunction("submitFocusReference")}
+  ${extractFunction("replaySearchHistoryEntry")}
 `, navigation);
 for (const mode of ["big", "reader"]) {
   for (const origin of ["verse-of-day", "shared-passage", "ordinary"]) {
@@ -256,7 +269,7 @@ assert.match(extractFunction("runPhraseSearch"), /searchScriptureTranslation\(se
 assert.match(extractFunction("runPhraseSearch"), /scope === "chapter"/);
 assert.match(extractFunction("runReferenceOrPhraseSearch"), /presentationResults: state\.mode === "big"/);
 assert.match(extractFunction("runPhraseSearch"), /presentationResults = Boolean\(options\.presentationResults && state\.mode === "big"\)/);
-assert.match(extractFunction("runPhraseSearch"), /scope === "chapter" && !presentationResults/);
+assert.match(extractFunction("runPhraseSearch"), /scope === "chapter" && !options.showChapterResults\s+&& !presentationResults/);
 assert.match(extractFunction("runPhraseSearch"), /else if \(presentationResults\)[\s\S]*?presentationSearchResultsOpen = true/);
 assert.doesNotMatch(
   extractFunction("runPhraseSearch").match(/else if \(presentationResults\)([\s\S]*?)\n  \} else \{/)[1],
@@ -404,6 +417,30 @@ for (const mode of ["reader", "parallel", "big", "focus"]) {
 }
 console.log("Version-and-passage navigation passed across all reading modes");
 
+const historyKey = navigation.searchHistoryStorageKey();
+const recentPassage = navigation.readSearchHistory(historyKey)[0];
+assert.equal(recentPassage.query, "John 3:16 KJV");
+assert.equal(recentPassage.source, "passage");
+navigation.state.versions = ["BSB"];
+navigation.replaySearchHistoryEntry(recentPassage);
+assert.equal(navigation.state.versions[0], "KJV");
+
+navigation.state.authUser = { id: "reader-account" };
+const accountKey = navigation.searchHistoryStorageKey();
+assert.equal(navigation.readSearchHistory(accountKey).length, 0);
+historyStorage.set(accountKey, "{");
+assert.equal(navigation.readSearchHistory(accountKey).length, 0);
+for (let index = 1; index <= 31; index += 1) {
+  navigation.rememberSearch({ query: "Love", source: "scripture", scope: "chapter", chapter: `Psalm ${index}` });
+}
+assert.equal(navigation.readSearchHistory(accountKey).length, 30);
+navigation.rememberSearch({ query: "love", source: "scripture", scope: "chapter", chapter: "Psalm 3" });
+const recents = navigation.readSearchHistory(accountKey);
+assert.equal(recents[0].chapter, "Psalm 3");
+assert.equal(recents.filter(({ chapter }) => chapter === "Psalm 3").length, 1);
+assert.equal(navigation.readSearchHistory(historyKey)[0].query, "John 3:16 KJV");
+
+
 // Opening Search must focus synchronously after rendering, including compact screens.
 for (const compact of [false, true]) {
   const calls = [];
@@ -426,6 +463,7 @@ console.log("Search button focuses the field synchronously across screen sizes")
 const translationCalls = [];
 let finishMeaningSearch;
 const progressiveSearch = vm.createContext({
+  rememberSearch() {},
   searchRequestId: 0,
   state: { versions: ["BSB"], mode: "reader" },
   translationCodes: ["BSB", "KJV", "ESV"],
@@ -450,7 +488,7 @@ const progressiveSearch = vm.createContext({
   searchSemanticBible: () => new Promise((resolve) => { finishMeaningSearch = resolve; }),
 });
 vm.runInContext([
-  "runPhraseSearch", "searchScriptureTranslation", "loadScriptureMeaningMatches", "expandScriptureSearch",
+  "runPhraseSearch", "searchScriptureTranslation", "loadScriptureMeaningMatches", "expandScriptureSearch", "replaySearchHistoryEntry",
 ].map(extractFunction).join("\n"), progressiveSearch);
 await progressiveSearch.runPhraseSearch("What about wisdom?", { scope: "book", chapter: "Proverbs 1" });
 assert.deepEqual(translationCalls, ["BSB"]);
@@ -473,3 +511,12 @@ await progressiveSearch.runPhraseSearch("love one another", { scope: "all", chap
 assert.equal(progressiveSearch.state.scriptureSearch.meaningPending, false);
 assert.deepEqual(translationCalls, ["BSB", "KJV", "ESV", "BSB"]);
 console.log("Current-translation results, independent meaning matches, and scoped expansion passed");
+
+progressiveSearch.state.reference = "Genesis 1";
+await progressiveSearch.replaySearchHistoryEntry({
+  query: "love one another", source: "scripture", scope: "chapter", chapter: "John 13",
+});
+assert.equal(progressiveSearch.state.reference, "Genesis 1");
+assert.equal(progressiveSearch.state.searchResults[0].scope, "chapter");
+assert.equal(progressiveSearch.state.searchResults[0].chapter, "John 13");
+console.log("Recent searches deduplicate, respect account boundaries, and replay the saved chapter");

@@ -3661,6 +3661,7 @@ function mobileFocusOverlayControls() {
               <span class="mobile-focus-search-scope-chevron" aria-hidden="true">${icons.chevron}</span>
             </button>
             <button type="submit">Go</button>
+            ${searchHistoryButton("search-filter-chip")}
           </form>
         ` : ""}
       </div>
@@ -5989,6 +5990,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.27.11": [
+      "Open Search history to rerun recent Bible, Strong’s, and saved-note searches or revisit a passage you searched for.",
+    ],
     "2026.11.27.10": [
       "The Clear results button in portrait Bible search now has a subtle red tint.",
     ],
@@ -8303,6 +8307,7 @@ function topbar(settingsPanelRerender = false, accountPanelRerender = false) {
         ${searchClearControl(state.searchQuery || activeInlineSearchQuery())}
         ${chapterFindControls()}
         ${!state.focusMode && ["reader", "parallel"].includes(state.mode) ? `<button class="passage-picker-trigger search-field-tool-button" type="button" data-passage-picker aria-label="Choose passage" aria-haspopup="dialog" aria-expanded="${state.focusWorkspacePanel === "Verse"}" data-tooltip="Choose passage">${icons.book}</button>` : ""}
+        ${searchHistoryButton()}
         ${desktopFocusTools()}
       </div>
       <button class="icon-btn mobile-controls-toggle ${state.mobileControlsOpen ? "active" : ""}" id="mobileControlsToggle" type="button" aria-label="${state.mobileControlsOpen ? "Hide extra controls" : "Show extra controls"}. Press and hold for Settings" data-tooltip="${state.mobileControlsOpen ? "Hide controls" : "More controls"} · Hold for Settings">${icons.plus}<span class="mobile-controls-hold-icon" aria-hidden="true">${icons.settings}</span><span class="mobile-controls-label">More</span></button>
@@ -10955,7 +10960,7 @@ function searchScopeControls({ showResults = true, showClear = false } = {}) {
   const clearMarkup = showClear
     ? '<button class="search-filter-chip" type="button" data-clear-search-results>Clear results</button>'
     : "";
-  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}${clearMarkup}</div>`;
+  return `<div class="search-filter-row"><button class="search-filter-chip" type="button" data-search-scope-trigger data-search-scope-control data-search-scope="${normalizedSearchScope(state.searchScope)}" data-search-source="${escapeHtml(state.searchSource)}" aria-label="Choose search source, current ${escapeHtml(activeSearchSourceLabel())}" aria-haspopup="listbox" aria-expanded="false"><span data-search-scope-label>${escapeHtml(activeSearchSourceLabel())}</span><span aria-hidden="true">⌄</span></button>${expandMarkup}${clearMarkup}${searchHistoryButton("search-filter-chip")}</div>`;
 }
 
 function searchResultsClearControl() {
@@ -25264,7 +25269,7 @@ function returnToBibleSearchResults() {
   const previous = state.strongSearchReturn;
   if (!previous) return;
   return runPhraseSearch(previous.query, {
-    source: "scripture", scope: previous.scope, chapter: previous.chapter,
+    source: "scripture", scope: previous.scope, chapter: previous.chapter, recordSearch: false,
     focusResults: state.focusMode, presentationResults: state.mode === "big",
   });
 }
@@ -26797,6 +26802,7 @@ function presentation(accountPanelRerender = false, settingsPanelRerender = fals
             <input id="presentationSearchInput" value="${escapeHtml(state.searchQuery)}" aria-label="Search passage in presentation" placeholder="John 3:16 NIV or love" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
             ${searchClearControl(state.searchQuery)}
             </div>
+            ${state.presentationSearchOpen ? searchHistoryButton("ghost-btn") : ""}
             <button class="ghost-btn presentation-search-go" type="submit">Go</button>
           </form>
         </div>
@@ -28930,6 +28936,9 @@ function bindEvents() {
       runReferenceOrPhraseSearch(event.currentTarget.value, { sourceInputId: "referenceInput" });
     }
   });
+  document.querySelectorAll("[data-open-search-history]").forEach((button) => {
+    button.addEventListener("click", openSearchHistory);
+  });
   document.querySelectorAll("[data-search-example]").forEach((button) => {
     button.addEventListener("click", () => runReferenceOrPhraseSearch(button.dataset.searchExample, {
       source: "scripture",
@@ -30524,7 +30533,7 @@ function openSearchScopeMenu(trigger, options = {}) {
     if (panel && !state.focusSearchResultsOpen) state.focusReferenceOpen = true;
     apply();
     closeSearchScopeMenu({ restoreFocus: true });
-    if (rerun) runPhraseSearch(query, { focusResults: true });
+    if (rerun) runPhraseSearch(query, { focusResults: true, recordSearch: false });
   };
   menu.querySelectorAll("[data-search-scope-option]").forEach((button) => {
     button.addEventListener("click", () => applySearchOption(() => setSearchScope(button.dataset.searchScopeOption)));
@@ -32964,13 +32973,14 @@ function gotoReference(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   const input = passageSearchInput(cleaned);
   if (input.version && parseReference(input.reference)) {
-    const navigated = gotoReference(input.reference, options);
+    const navigated = gotoReference(input.reference, { ...options, searchQuery: options.searchQuery || cleaned });
     if (navigated) void setPrimaryVersion(input.version);
     return navigated;
   }
   const shouldTrackReturn = options.returnNavigation !== false;
   const returnTarget = shouldTrackReturn ? captureReaderReturnTarget() : null;
   if (!setReferenceFromString(cleaned)) return false;
+  if (options.recordSearch) rememberSearch({ query: options.searchQuery || cleaned, source: "passage" });
   if (state.mode === "big" && /:\s*\d+\s*[-–—,]/.test(cleaned)) {
     state.sharedPassage = { verses: [...parsePassageReference(cleaned).verses] };
   }
@@ -33017,6 +33027,7 @@ function submitFocusReference(value, options = {}) {
     gotoReference(cleaned, {
       focusedPassage: Boolean(state.sharedPassage || state.isVerseOfDayActive),
       spotlight: true,
+      recordSearch: true,
     });
     return;
   }
@@ -33027,12 +33038,131 @@ function submitFocusReference(value, options = {}) {
   });
 }
 
+const searchHistoryLimit = 30;
+
+function searchHistoryStorageKey() {
+  return state.authUser?.id ? `lw_search_history_${state.authUser.id}` : "lw_search_history";
+}
+
+function readSearchHistory(key) {
+  try {
+    const entries = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(entries) ? entries.filter((entry) =>
+      typeof entry?.query === "string" && entry.query.trim() &&
+      (entry.source === "passage" || searchSourceCodes.includes(entry.source)),
+    ).slice(0, searchHistoryLimit) : [];
+  } catch {
+    return [];
+  }
+}
+
+function searchHistoryIdentity({ query, source, scope, chapter }) {
+  if (source !== "scripture") return JSON.stringify([query.toLowerCase(), source]);
+  const location = scope === "book" ? bookFromChapterKey(chapter) : scope === "chapter" ? chapter : "";
+  return JSON.stringify([query.toLowerCase(), source, scope, location]);
+}
+
+function rememberSearch(entry) {
+  const key = searchHistoryStorageKey();
+  const identity = searchHistoryIdentity(entry);
+  const entries = readSearchHistory(key).filter((saved) => searchHistoryIdentity(saved) !== identity);
+  try {
+    localStorage.setItem(key, JSON.stringify([entry, ...entries].slice(0, searchHistoryLimit)));
+  } catch {
+    // Storage may be unavailable or full.
+  }
+}
+
+function searchHistoryButton(className = "search-history-trigger") {
+  return `<button class="${className}" type="button" data-open-search-history aria-haspopup="dialog" aria-label="Search history" title="Search history">${className === "search-filter-chip" ? "Search history" : icons.history}</button>`;
+}
+
+function searchHistoryEntryLabel({ source, scope, chapter }) {
+  if (source === "passage") return "Passage";
+  if (source === "notes") return "Saved notes";
+  if (source === "strongs") return "Strong’s";
+  return searchScopeLabel(scope, chapter);
+}
+
+function openSearchHistory() {
+  const key = searchHistoryStorageKey();
+  const dialog = document.createElement("dialog");
+  dialog.className = "quick-action-search-dialog search-history-dialog";
+  dialog.setAttribute("aria-labelledby", "searchHistoryTitle");
+  const paint = () => {
+    const entries = readSearchHistory(key);
+    const available = entries.filter(({ source }) => source !== "notes" || noteSearchAvailable());
+    dialog.innerHTML = `
+      <header class="quick-action-search-form">
+        <h2 id="searchHistoryTitle">Search history</h2>
+        <button class="quick-action-search-close glass-close-control" type="button" aria-label="Close search history" autofocus>${icons.clear}</button>
+      </header>
+      ${available.length ? `
+        <ul class="search-history-list">
+          ${available.map((entry, index) => `<li><button type="button" data-replay-search="${index}">
+            <span>${escapeHtml(entry.query)}</span>
+            <small>${escapeHtml(searchHistoryEntryLabel(entry))}</small>
+          </button></li>`).join("")}
+        </ul>` : '<p class="search-history-empty">No recent searches here.</p>'}
+      ${entries.length ? '<button class="search-filter-chip" type="button" data-clear-search-history>Clear history</button>' : ""}
+    `;
+    return available;
+  };
+  let available = paint();
+  dialog.addEventListener("keydown", (event) => event.stopPropagation());
+  dialog.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const button = event.target.closest("button");
+    if (button?.matches(".quick-action-search-close")) dialog.close();
+    if (button?.matches("[data-clear-search-history]")) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        showToast("Search history could not be cleared");
+        return;
+      }
+      available = paint();
+      dialog.querySelector(".quick-action-search-close")?.focus();
+    }
+    if (button?.matches("[data-replay-search]")) {
+      const entry = available[Number(button.dataset.replaySearch)];
+      dialog.close();
+      if (entry && key === searchHistoryStorageKey()) replaySearchHistoryEntry(entry);
+    }
+  });
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function replaySearchHistoryEntry(entry) {
+  state.focusReferenceOpen = false;
+  state.presentationSearchOpen = false;
+  if (entry.source === "passage") {
+    gotoReference(entry.query, {
+      focusedPassage: state.mode !== "big" && Boolean(state.sharedPassage || state.isVerseOfDayActive),
+      recordSearch: true,
+    });
+    return;
+  }
+  return runPhraseSearch(entry.query, {
+    source: entry.source,
+    scope: entry.scope,
+    chapter: entry.chapter,
+    // A historical chapter can differ from the one on screen.
+    showChapterResults: true,
+    focusResults: state.focusMode,
+    presentationResults: state.mode === "big",
+  });
+}
+
 async function runReferenceOrPhraseSearch(value, options = {}) {
   const cleaned = value.trim().replace(/\s+/g, " ");
   if (!cleaned) return;
   if (normalizedSearchSource(options.source ?? state.searchSource) !== "strongs" && parseReference(cleaned)) {
     gotoReference(cleaned, {
       focusedPassage: state.mode !== "big" && Boolean(state.sharedPassage || state.isVerseOfDayActive),
+      recordSearch: true,
     });
     return;
   }
@@ -33055,6 +33185,7 @@ async function runPhraseSearch(value, options = {}) {
   const scope = normalizedSearchScope(options.scope ?? state.searchScope);
   const searchChapter = normalizedSearchChapter(options.chapter ?? state.reference);
   const presentationResults = Boolean(options.presentationResults && state.mode === "big");
+  if (options.recordSearch !== false) rememberSearch({ query, source, scope, chapter: searchChapter });
   if (source === "notes") {
     searchRequestId += 1;
     clearInlineChapterSearchState();
@@ -33084,7 +33215,8 @@ async function runPhraseSearch(value, options = {}) {
     }
     return;
   }
-  if (source === "scripture" && scope === "chapter" && !presentationResults && canFindInChapter(source, scope)) {
+  if (source === "scripture" && scope === "chapter" && !options.showChapterResults
+    && !presentationResults && canFindInChapter(source, scope)) {
     if (advanceInlineChapterSearch(query, searchChapter)) return;
     runInlineChapterSearch(query, searchChapter);
     return;

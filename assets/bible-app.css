@@ -30101,3 +30101,68 @@ html #app #coloringBook .coloring-size-arrows button:is(:active,:focus-visible) 
   justify-content: flex-end;
   gap: 8px;
 }
+
+.search-history-trigger {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.search-history-trigger:hover,
+.search-history-trigger:focus-visible {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+[data-open-search-history] svg { width: 18px; height: 18px; }
+
+.mobile-focus-passage-popover > [data-open-search-history] {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.search-history-dialog {
+  max-height: calc(100dvh - 96px);
+  overflow: auto;
+}
+
+.search-history-dialog h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.search-history-list {
+  display: grid;
+  gap: 4px;
+  max-height: min(48dvh, 25rem);
+  overflow: auto;
+  margin: 12px 0;
+  padding: 3px;
+  list-style: none;
+}
+
+.search-history-list button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  text-align: start;
+  cursor: pointer;
+}
+
+.search-history-list button:is(:hover, :focus-visible) { background: var(--soft); }
+.search-history-list small,
+.search-history-empty { color: var(--muted); }
