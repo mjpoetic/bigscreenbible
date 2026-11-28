@@ -63,7 +63,7 @@ const button={
  closest() { return {classList:{toggle(name,value) { assert.equal(name,'is-open'); expanded=value; }}}; },
 };
 vm.runInContext(extract('bindGameStandingsToggle'),ctx);
-ctx.bindGameStandingsToggle({querySelectorAll:()=>[button]});
+ctx.bindGameStandingsToggle({querySelectorAll:(selector)=>selector === '[data-game-standings-toggle]' ? [button] : []});
 state.gameStandingsOpen=false;
 click();
 assert.equal(expanded,true);

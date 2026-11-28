@@ -78,6 +78,7 @@ const state = {
 
 const pureContext = { state, Date };
 pureContext.friendshipProfile = (userId) => ({ displayName: userId });
+pureContext.socialProfileAvatarMarkup = (_profile, className) => `<span class="${className}"></span>`;
 vm.createContext(pureContext);
 vm.runInContext(`
   const escapeHtml = (value) => String(value).replaceAll("<", "&lt;");
@@ -133,9 +134,10 @@ for (const gameType of ["trivia", "who-said-it", "verse-order", "reference-rush"
   const ranked = pureContext.gameChallengeRankedPlayers(room, podiumPlayers);
   const podium = pureContext.gameChallengePodium(room, ranked);
   const scoreRanked = ["trivia", "who-said-it", "verse-order", "reference-rush"].includes(gameType);
-  assert.match(podium, new RegExp(`First place</strong>\\s*<span>${scoreRanked ? "You" : "Guest &lt;B>"}`));
+  const firstPlace = scoreRanked ? "You" : "Guest &lt;B>";
+  assert.match(podium, new RegExp(`First place</strong>[\\s\\S]*?game-podium-avatar[\\s\\S]*?<span>${firstPlace}</span>`));
   assert.match(podium, /Second place/);
-  assert.match(podium, /Third place<\/strong>\s*<span>Guest C/);
+  assert.match(podium, /Third place<\/strong>[\s\S]*?game-podium-avatar[\s\S]*?<span>Guest C<\/span>/);
   assert.doesNotMatch(podium, /Guest D/);
   for (const medal of ["🥇", "🥈", "🥉"]) assert.ok(podium.includes(medal));
   assert.equal(pureContext.gameChallengePodium({ ...room, status: "accepted" }, ranked), "");
@@ -149,10 +151,40 @@ const tiedPodium = pureContext.gameChallengePodium({ status: "completed", gameTy
   { ...podiumPlayers[1], score: podiumPlayers[0].score },
   podiumPlayers[2],
 ]);
-assert.match(tiedPodium, /First place · Tie<\/strong>\s*<span>You<\/span><span>Guest &lt;B><\/span>/);
+assert.match(tiedPodium, /First place · Tie<\/strong>[\s\S]*?<span>You<\/span>[\s\S]*?<span>Guest &lt;B><\/span>/);
 assert.doesNotMatch(tiedPodium, /Second place/);
 assert.match(tiedPodium, /Third place/);
 assert.doesNotMatch(pureContext.gameChallengePodium({ status: "completed", gameType: "trivia" }, podiumPlayers.slice(0, 2)), /Third place/);
+
+const socialResultsContext = vm.createContext({
+  state: { authUser: { id: "self" }, socialProfile: {}, socialSafetyReady: true, socialConsent: true, socialAccessAllowed: true,
+    gameSocialResultsOpen: false, gamesDrawerOpen: "social", mode: "trivia" },
+  Date,
+  accountDataOwner: () => "self",
+  escapeHtml: String,
+  gameChallengeCollections: () => ({ completed: [
+    { id: "older-search", gameType: "word-search", completedAt: "2026-11-25T12:00:00Z" },
+    { id: "crossword", gameType: "crossword", completedAt: "2026-11-26T12:00:00Z" },
+    { id: "newer-search", gameType: "word-search", completedAt: "2026-11-27T12:00:00Z" },
+  ] }),
+  gameChallengeTitle: String,
+  gameChallengeSummary: (room) => room.gameType,
+  gameChallengeAcceptedPlayers: () => [{ userId: "self" }],
+  gameChallengePlayerRank: () => 1,
+  gameChallengePlayer: () => ({ userId: "self" }),
+  gameChallengeActionButton: (_action, _label, room) => `<button data-room="${room.id}"></button>`,
+});
+for (const name of ["recentSocialGameResults", "keepOpenGamesDrawerOnAuthRefresh"]) vm.runInContext(extractFunction(name), socialResultsContext);
+const wordSearchResults = socialResultsContext.recentSocialGameResults("word-search");
+assert.doesNotMatch(wordSearchResults, /crossword|id="socialGameResults" open/);
+assert.deepEqual([...wordSearchResults.matchAll(/data-room="([^"]+)"/g)].map((match) => match[1]), ["newer-search", "older-search"]);
+assert.match(socialResultsContext.recentSocialGameResults("crossword"), /data-room="crossword"/);
+const sameSession = { user: { id: "self" } };
+assert.equal(socialResultsContext.keepOpenGamesDrawerOnAuthRefresh("SIGNED_IN", sameSession), true);
+assert.equal(socialResultsContext.keepOpenGamesDrawerOnAuthRefresh("PASSWORD_RECOVERY", sameSession), false);
+assert.equal(socialResultsContext.keepOpenGamesDrawerOnAuthRefresh("TOKEN_REFRESHED", { user: { id: "other" } }), false);
+socialResultsContext.state.accountSwitching = true;
+assert.equal(socialResultsContext.keepOpenGamesDrawerOnAuthRefresh("SIGNED_IN", sameSession), false);
 
 assert.deepEqual(
   { ...pureContext.normalizeChallenge({
