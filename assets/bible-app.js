@@ -6030,6 +6030,9 @@ function localNativeAppUpdateMessage() {
 // Add an entry here whenever publishing a new app version.
 function appReleaseNotesMarkup(label = "Installed version") {
   const releases = {
+    "2026.11.28.8": [
+      "Android Reader uses a narrower portrait toolbar and makes more room for Scripture in landscape. Help and About share the landscape footer row with chapter navigation.",
+    ],
     "2026.11.28.7": [
       "Portrait Reader fits more Scripture on screen and keeps the floating reading controls button inside the reading pane.",
     ],
